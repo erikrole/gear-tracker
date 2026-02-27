@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:worker": "opennextjs-cloudflare",
+    "build:worker": "opennextjs-cloudflare build",
     "preview": "wrangler dev",
     "deploy": "wrangler deploy",
     "start": "next start",
