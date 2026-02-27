@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";

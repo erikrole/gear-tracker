@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -29,10 +30,10 @@ export async function GET(req: Request) {
       ...(q
         ? {
             OR: [
-              { assetTag: { contains: q, mode: "insensitive" } },
-              { brand: { contains: q, mode: "insensitive" } },
-              { model: { contains: q, mode: "insensitive" } },
-              { serialNumber: { contains: q, mode: "insensitive" } }
+              { assetTag: { contains: q, mode: "insensitive" as const } },
+              { brand: { contains: q, mode: "insensitive" as const } },
+              { model: { contains: q, mode: "insensitive" as const } },
+              { serialNumber: { contains: q, mode: "insensitive" as const } }
             ]
           }
         : {})

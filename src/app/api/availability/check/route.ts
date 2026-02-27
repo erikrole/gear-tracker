@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { checkAvailability } from "@/lib/services/availability";

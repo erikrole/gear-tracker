@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { destroySession } from "@/lib/auth";
 import { fail, ok } from "@/lib/http";
 
