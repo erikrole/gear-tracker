@@ -1,0 +1,339 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  STUDENT
+}
+
+enum AssetStatus {
+  AVAILABLE
+  MAINTENANCE
+  RETIRED
+}
+
+enum BookingKind {
+  RESERVATION
+  CHECKOUT
+}
+
+enum BookingStatus {
+  DRAFT
+  BOOKED
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum AllocationKind {
+  RESERVATION
+  CHECKOUT
+}
+
+enum BulkMovementKind {
+  CHECKOUT
+  CHECKIN
+  ADJUSTMENT
+}
+
+enum ScanType {
+  SERIALIZED
+  BULK_BIN
+}
+
+enum ScanPhase {
+  CHECKOUT
+  CHECKIN
+}
+
+enum ScanSessionStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id             String       @id @default(cuid())
+  name           String
+  email          String       @unique
+  passwordHash   String       @map("password_hash")
+  role           Role
+  locationId     String?      @map("location_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  location       Location?    @relation(fields: [locationId], references: [id])
+  sessions       Session[]
+  requested      Booking[]    @relation("BookingRequester")
+  createdBookings Booking[]   @relation("BookingCreator")
+  scanEvents     ScanEvent[]
+  scanSessions   ScanSession[]
+  overrides      OverrideEvent[]
+  bulkMovements  BulkStockMovement[]
+  audits         AuditLog[]   @relation("AuditActor")
+
+  @@map("users")
+}
+
+model Session {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Location {
+  id             String      @id @default(cuid())
+  name           String      @unique
+  address        String?
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  users          User[]
+  assets         Asset[]
+  bookings       Booking[]
+  bulkSkus       BulkSku[]
+  bulkBalances   BulkStockBalance[]
+  bulkMovements  BulkStockMovement[]
+
+  @@map("locations")
+}
+
+model Asset {
+  id             String                   @id @default(cuid())
+  assetTag       String                   @unique @map("asset_tag")
+  type           String
+  brand          String
+  model          String
+  serialNumber   String                   @unique @map("serial_number")
+  qrCodeValue    String                   @unique @map("qr_code_value")
+  purchaseDate   DateTime?                @map("purchase_date")
+  purchasePrice  Decimal?                 @db.Decimal(10, 2) @map("purchase_price")
+  locationId     String                   @map("location_id")
+  status         AssetStatus              @default(AVAILABLE)
+  notes          String?
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+  location       Location                 @relation(fields: [locationId], references: [id])
+  bookingItems   BookingSerializedItem[]
+  allocations    AssetAllocation[]
+  scans          ScanEvent[]
+
+  @@index([locationId])
+  @@index([brand, model])
+  @@map("assets")
+}
+
+model Booking {
+  id                String                  @id @default(cuid())
+  kind              BookingKind
+  title             String
+  requesterUserId   String                  @map("requester_user_id")
+  locationId        String                  @map("location_id")
+  startsAt          DateTime                @map("starts_at")
+  endsAt            DateTime                @map("ends_at")
+  status            BookingStatus
+  createdBy         String                  @map("created_by")
+  notes             String?
+  sourceReservationId String?               @map("source_reservation_id")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+  requester         User                    @relation("BookingRequester", fields: [requesterUserId], references: [id])
+  creator           User                    @relation("BookingCreator", fields: [createdBy], references: [id])
+  location          Location                @relation(fields: [locationId], references: [id])
+  sourceReservation Booking?                @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id])
+  derivedCheckouts  Booking[]               @relation("CheckoutFromReservation")
+  serializedItems   BookingSerializedItem[]
+  bulkItems         BookingBulkItem[]
+  allocations       AssetAllocation[]
+  scanEvents        ScanEvent[]
+  scanSessions      ScanSession[]
+  overrides         OverrideEvent[]
+  bulkMovements     BulkStockMovement[]
+
+  @@index([locationId, startsAt, endsAt])
+  @@index([status, kind])
+  @@index([sourceReservationId])
+  @@map("bookings")
+}
+
+model BookingSerializedItem {
+  id                String   @id @default(cuid())
+  bookingId         String   @map("booking_id")
+  assetId           String   @map("asset_id")
+  allocationStatus  String   @default("active") @map("allocation_status")
+  createdAt         DateTime @default(now()) @map("created_at")
+  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  asset             Asset    @relation(fields: [assetId], references: [id])
+
+  @@unique([bookingId, assetId])
+  @@index([assetId])
+  @@map("booking_serialized_items")
+}
+
+model BookingBulkItem {
+  id                String   @id @default(cuid())
+  bookingId         String   @map("booking_id")
+  bulkSkuId         String   @map("bulk_sku_id")
+  plannedQuantity   Int      @map("planned_quantity")
+  checkedOutQuantity Int?    @map("checked_out_quantity")
+  checkedInQuantity Int?     @map("checked_in_quantity")
+  createdAt         DateTime @default(now()) @map("created_at")
+  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bulkSku           BulkSku  @relation(fields: [bulkSkuId], references: [id])
+
+  @@unique([bookingId, bulkSkuId])
+  @@index([bulkSkuId])
+  @@map("booking_bulk_items")
+}
+
+model AssetAllocation {
+  id                String         @id @default(cuid())
+  assetId           String         @map("asset_id")
+  bookingId         String         @map("booking_id")
+  startsAt          DateTime       @map("starts_at")
+  endsAt            DateTime       @map("ends_at")
+  active            Boolean        @default(true)
+  kind              AllocationKind
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  asset             Asset          @relation(fields: [assetId], references: [id])
+  booking           Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, active])
+  @@index([bookingId])
+  @@map("asset_allocations")
+}
+
+model BulkSku {
+  id                String             @id @default(cuid())
+  name              String
+  category          String
+  unit              String
+  locationId        String             @map("location_id")
+  binQrCodeValue    String             @map("bin_qr_code_value")
+  minThreshold      Int                @default(0) @map("min_threshold")
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  location          Location           @relation(fields: [locationId], references: [id])
+  balances          BulkStockBalance[]
+  movements         BulkStockMovement[]
+  bookingItems      BookingBulkItem[]
+  scans             ScanEvent[]
+
+  @@unique([locationId, binQrCodeValue])
+  @@index([locationId, active])
+  @@map("bulk_skus")
+}
+
+model BulkStockBalance {
+  id                String    @id @default(cuid())
+  bulkSkuId         String    @map("bulk_sku_id")
+  locationId        String    @map("location_id")
+  onHandQuantity    Int       @default(0) @map("on_hand_quantity")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  bulkSku           BulkSku   @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)
+  location          Location  @relation(fields: [locationId], references: [id])
+
+  @@unique([bulkSkuId, locationId])
+  @@map("bulk_stock_balances")
+}
+
+model BulkStockMovement {
+  id                String           @id @default(cuid())
+  bulkSkuId         String           @map("bulk_sku_id")
+  locationId        String           @map("location_id")
+  bookingId         String?          @map("booking_id")
+  actorUserId       String           @map("actor_user_id")
+  kind              BulkMovementKind
+  quantity          Int
+  reason            String?
+  createdAt         DateTime         @default(now()) @map("created_at")
+  bulkSku           BulkSku          @relation(fields: [bulkSkuId], references: [id])
+  location          Location         @relation(fields: [locationId], references: [id])
+  booking           Booking?         @relation(fields: [bookingId], references: [id])
+  actor             User             @relation(fields: [actorUserId], references: [id])
+
+  @@index([bulkSkuId, createdAt])
+  @@index([bookingId])
+  @@map("bulk_stock_movements")
+}
+
+model ScanEvent {
+  id                String    @id @default(cuid())
+  bookingId         String    @map("booking_id")
+  actorUserId       String    @map("actor_user_id")
+  scanType          ScanType  @map("scan_type")
+  scanValue         String    @map("scan_value")
+  success           Boolean
+  phase             String
+  assetId           String?   @map("asset_id")
+  bulkSkuId         String?   @map("bulk_sku_id")
+  quantity          Int?
+  deviceContext     String?   @map("device_context")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  booking           Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor             User      @relation(fields: [actorUserId], references: [id])
+  asset             Asset?    @relation(fields: [assetId], references: [id])
+  bulkSku           BulkSku?  @relation(fields: [bulkSkuId], references: [id])
+
+  @@index([bookingId, phase])
+  @@index([scanValue])
+  @@map("scan_events")
+}
+
+model ScanSession {
+  id                String            @id @default(cuid())
+  bookingId         String            @map("booking_id")
+  actorUserId       String            @map("actor_user_id")
+  phase             ScanPhase
+  status            ScanSessionStatus @default(OPEN)
+  startedAt         DateTime          @default(now()) @map("started_at")
+  completedAt       DateTime?         @map("completed_at")
+  booking           Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor             User              @relation(fields: [actorUserId], references: [id])
+
+  @@index([bookingId, phase, status])
+  @@map("scan_sessions")
+}
+
+model OverrideEvent {
+  id                String    @id @default(cuid())
+  bookingId         String    @map("booking_id")
+  actorUserId       String    @map("actor_user_id")
+  reason            String
+  details           Json?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  booking           Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor             User      @relation(fields: [actorUserId], references: [id])
+
+  @@index([bookingId, createdAt])
+  @@map("override_events")
+}
+
+model AuditLog {
+  id                String    @id @default(cuid())
+  actorUserId       String?   @map("actor_user_id")
+  entityType        String    @map("entity_type")
+  entityId          String    @map("entity_id")
+  action            String
+  beforeJson        Json?     @map("before_json")
+  afterJson         Json?     @map("after_json")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  actor             User?     @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}
