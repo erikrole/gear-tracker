@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { cancelReservation } from "@/lib/services/bookings";
 import { fail, ok } from "@/lib/http";

@@ -1,4 +1,4 @@
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 import { PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -11,7 +11,7 @@ async function main() {
   });
 
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMeNow123!";
-  const passwordHash = await argon2.hash(adminPassword);
+  const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   await prisma.user.upsert({
     where: { email: "admin@gearflow.local" },

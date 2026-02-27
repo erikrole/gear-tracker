@@ -1,0 +1,11 @@
+{
+  "name": "gear-tracker",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  // Set these secrets via: npx wrangler secret put <NAME>
+  // Required: DATABASE_URL, SESSION_SECRET, SESSION_COOKIE_NAME
+  "vars": {
+    "SESSION_COOKIE_NAME": "gearflow_session",
+    "APP_TIMEZONE": "America/Chicago"
+  }
+}

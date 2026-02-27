@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { BookingKind, Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";

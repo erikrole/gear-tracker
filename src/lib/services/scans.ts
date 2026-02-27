@@ -306,7 +306,7 @@ export async function createAdminOverride(args: {
       bookingId: args.bookingId,
       actorUserId: args.actorUserId,
       reason: args.reason,
-      details: args.details
+      details: (args.details ?? undefined) as never
     }
   });
 
@@ -318,8 +318,8 @@ export async function createAdminOverride(args: {
       action: "admin_override",
       afterJson: {
         reason: args.reason,
-        details: args.details
-      }
+        details: args.details ?? null
+      } as never
     }
   });
 

@@ -1,14 +1,22 @@
-const required = ["DATABASE_URL", "SESSION_SECRET", "SESSION_COOKIE_NAME"] as const;
-
-for (const key of required) {
-  if (!process.env[key]) {
+function getRequired(key: string): string {
+  const value = process.env[key];
+  if (!value) {
     throw new Error(`Missing required environment variable: ${key}`);
   }
+  return value;
 }
 
 export const env = {
-  databaseUrl: process.env.DATABASE_URL as string,
-  sessionSecret: process.env.SESSION_SECRET as string,
-  sessionCookieName: process.env.SESSION_COOKIE_NAME as string,
-  appTimezone: process.env.APP_TIMEZONE || "America/Chicago"
+  get databaseUrl() {
+    return getRequired("DATABASE_URL");
+  },
+  get sessionSecret() {
+    return getRequired("SESSION_SECRET");
+  },
+  get sessionCookieName() {
+    return getRequired("SESSION_COOKIE_NAME");
+  },
+  get appTimezone() {
+    return process.env.APP_TIMEZONE || "America/Chicago";
+  }
 };

@@ -1,5 +1,4 @@
-import crypto from "node:crypto";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { Role } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -15,21 +14,42 @@ export type AuthUser = {
 
 const sessionDurationMs = 1000 * 60 * 60 * 12;
 
-function tokenHash(token: string) {
-  return crypto.createHmac("sha256", env.sessionSecret).update(token).digest("hex");
+function toHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function tokenHash(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(env.sessionSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(token));
+  return toHex(signature);
+}
+
+function randomHex(bytes: number): string {
+  const array = new Uint8Array(bytes);
+  crypto.getRandomValues(array);
+  return toHex(array.buffer);
 }
 
 export async function hashPassword(password: string) {
-  return argon2.hash(password);
+  return bcrypt.hash(password, 10);
 }
 
 export async function verifyPassword(hash: string, password: string) {
-  return argon2.verify(hash, password);
+  return bcrypt.compare(password, hash);
 }
 
 export async function createSession(userId: string) {
-  const raw = crypto.randomBytes(32).toString("hex");
-  const hashed = tokenHash(raw);
+  const raw = randomHex(32);
+  const hashed = await tokenHash(raw);
   const expiresAt = new Date(Date.now() + sessionDurationMs);
 
   await db.session.create({
@@ -55,7 +75,8 @@ export async function destroySession() {
   const token = cookieStore.get(env.sessionCookieName)?.value;
 
   if (token) {
-    await db.session.deleteMany({ where: { tokenHash: tokenHash(token) } });
+    const hashed = await tokenHash(token);
+    await db.session.deleteMany({ where: { tokenHash: hashed } });
   }
 
   cookieStore.delete(env.sessionCookieName);
@@ -69,7 +90,7 @@ export async function requireAuth(): Promise<AuthUser> {
     throw new HttpError(401, "Authentication required");
   }
 
-  const hashed = tokenHash(token);
+  const hashed = await tokenHash(token);
   const session = await db.session.findUnique({
     where: { tokenHash: hashed },
     include: { user: true }
