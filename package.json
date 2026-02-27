@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:worker": "cloudflare",
+    "build": "cloudflare",
+    "build:next": "next build",
     "preview": "wrangler dev",
     "deploy": "wrangler deploy",
     "start": "next start",
