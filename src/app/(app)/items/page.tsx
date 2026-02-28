@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import Modal from "@/components/Modal";
+import Link from "next/link";
+import { FormEvent, useEffect, useState } from "react";
 
 type Asset = {
   id: string;
@@ -31,33 +31,18 @@ const statusBadge: Record<string, string> = {
 
 export default function ItemsPage() {
   const [items, setItems] = useState<Asset[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const limit = 20;
 
-  // Modal state
-  const [showAdd, setShowAdd] = useState(false);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
-
-  // Form fields
-  const [assetTag, setAssetTag] = useState("");
-  const [type, setType] = useState("");
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [serialNumber, setSerialNumber] = useState("");
-  const [qrCodeValue, setQrCodeValue] = useState("");
-  const [purchaseDate, setPurchaseDate] = useState("");
-  const [purchasePrice, setPurchasePrice] = useState("");
-  const [locationId, setLocationId] = useState("");
-  const [status, setStatus] = useState("AVAILABLE");
-  const [notes, setNotes] = useState("");
-
-  const fetchItems = useCallback(() => {
+  async function reload() {
     setLoading(true);
     const params = new URLSearchParams();
     params.set("limit", String(limit));
@@ -65,75 +50,57 @@ export default function ItemsPage() {
     if (search) params.set("q", search);
     if (statusFilter) params.set("status", statusFilter);
 
-    fetch(`/api/assets?${params}`)
-      .then((res) => res.json())
-      .then((json: Response) => {
-        setItems(json.data);
-        setTotal(json.total);
-      })
-      .finally(() => setLoading(false));
+    const res = await fetch(`/api/assets?${params}`);
+    const json: Response = await res.json();
+    setItems(json.data);
+    setTotal(json.total);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    reload();
   }, [page, search, statusFilter]);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    fetch("/api/form-options")
+      .then((res) => res.json())
+      .then((json) => setLocations(json.data.locations || []));
+  }, []);
 
-  function openAddModal() {
-    setAssetTag("");
-    setType("");
-    setBrand("");
-    setModel("");
-    setSerialNumber("");
-    setQrCodeValue("");
-    setPurchaseDate("");
-    setPurchasePrice("");
-    setLocationId("");
-    setStatus("AVAILABLE");
-    setNotes("");
-    setFormError("");
-    setShowAdd(true);
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((json) => {
-        setLocations(json.data);
-        if (json.data.length > 0) setLocationId(json.data[0].id);
-      });
-  }
-
-  async function handleAddItem(e: React.FormEvent) {
+  async function handleCreateItem(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setFormError("");
-    setSaving(true);
-    try {
-      const body: Record<string, unknown> = {
-        assetTag,
-        type,
-        brand,
-        model,
-        serialNumber,
-        qrCodeValue,
-        locationId,
-        status,
-      };
-      if (purchaseDate) body.purchaseDate = purchaseDate;
-      if (purchasePrice) body.purchasePrice = parseFloat(purchasePrice);
-      if (notes) body.notes = notes;
+    setSubmitting(true);
+    setError("");
+    const form = new FormData(e.currentTarget);
 
-      const res = await fetch("/api/assets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        setFormError(json.error || "Failed to create item");
-        return;
-      }
-      setShowAdd(false);
-      fetchItems();
-    } finally {
-      setSaving(false);
+    const payload = {
+      assetTag: String(form.get("assetTag") || ""),
+      type: String(form.get("type") || "equipment"),
+      brand: String(form.get("brand") || "Unknown"),
+      model: String(form.get("model") || "Unknown"),
+      serialNumber: String(form.get("serialNumber") || ""),
+      qrCodeValue: String(form.get("qrCodeValue") || ""),
+      locationId: String(form.get("locationId") || "")
+    };
+
+    const res = await fetch("/api/assets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      setError(json.error || "Failed to create item");
+      setSubmitting(false);
+      return;
     }
+
+    e.currentTarget.reset();
+    setShowCreate(false);
+    setSubmitting(false);
+    await reload();
   }
 
   const totalPages = Math.ceil(total / limit);
@@ -142,13 +109,32 @@ export default function ItemsPage() {
     <>
       <div className="page-header">
         <h1>Items</h1>
-        <button className="btn btn-primary" onClick={openAddModal}>
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-          Add item
+        <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+          {showCreate ? "Close" : "Add item"}
         </button>
       </div>
+
+      {showCreate && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header"><h2>Create item</h2></div>
+          <form onSubmit={handleCreateItem} style={{ padding: 16, display: "grid", gap: 10, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+            <input name="assetTag" placeholder="Asset tag" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="brand" placeholder="Brand" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="model" placeholder="Model" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="type" placeholder="Type" defaultValue="equipment" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="serialNumber" placeholder="Serial number" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="qrCodeValue" placeholder="QR code value" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <select name="locationId" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+              <option value="">Select location</option>
+              {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+            </select>
+            <div style={{ gridColumn: "span 2", display: "flex", justifyContent: "flex-end" }}>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? "Saving..." : "Create item"}</button>
+            </div>
+            {error && <div style={{ gridColumn: "1 / -1", color: "var(--red)", fontSize: 13 }}>{error}</div>}
+          </form>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header" style={{ gap: 12 }}>
@@ -204,7 +190,7 @@ export default function ItemsPage() {
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td style={{ fontWeight: 600 }}>{item.assetTag}</td>
+                    <td style={{ fontWeight: 600 }}><Link href={`/items/${item.id}`} className="row-link">{item.assetTag}</Link></td>
                     <td>{item.brand} {item.model}</td>
                     <td>{item.type}</td>
                     <td style={{ fontFamily: "monospace", fontSize: 12 }}>{item.serialNumber}</td>

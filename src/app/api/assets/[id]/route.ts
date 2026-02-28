@@ -20,6 +20,15 @@ const patchAssetSchema = z
   })
   .strict();
 
+function parseNotes(notes: string | null) {
+  if (!notes) return null;
+  try {
+    return JSON.parse(notes) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     await requireAuth();
@@ -36,7 +45,40 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       throw new HttpError(404, "Asset not found");
     }
 
-    return ok({ data: asset });
+    const bookingHistory = await db.bookingSerializedItem.findMany({
+      where: { assetId: params.id },
+      include: {
+        booking: {
+          include: {
+            requester: { select: { id: true, name: true, email: true } },
+            location: { select: { id: true, name: true } }
+          }
+        }
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 100
+    });
+
+    return ok({
+      data: {
+        ...asset,
+        metadata: parseNotes(asset.notes),
+        history: bookingHistory.map((entry) => ({
+          id: entry.id,
+          createdAt: entry.createdAt,
+          booking: {
+            id: entry.booking.id,
+            kind: entry.booking.kind,
+            status: entry.booking.status,
+            title: entry.booking.title,
+            startsAt: entry.booking.startsAt,
+            endsAt: entry.booking.endsAt,
+            requester: entry.booking.requester,
+            location: entry.booking.location
+          }
+        }))
+      }
+    });
   } catch (error) {
     return fail(error);
   }

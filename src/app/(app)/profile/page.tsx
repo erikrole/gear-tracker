@@ -1,265 +1,205 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 
-type User = { id: string; name: string; email: string; role: string };
+type Location = { id: string; name: string };
+type UserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  role: "ADMIN" | "STAFF" | "STUDENT";
+  location: Location | null;
+};
+
+type ManagedUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "ADMIN" | "STAFF" | "STUDENT";
+  location: string | null;
+};
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Edit name
-  const [editName, setEditName] = useState("");
-  const [nameMsg, setNameMsg] = useState("");
-
-  // Change password
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [pwMsg, setPwMsg] = useState("");
-  const [pwError, setPwError] = useState("");
-
-  // Role
-  const [role, setRole] = useState("");
-  const [roleMsg, setRoleMsg] = useState("");
-
-  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
+    fetch("/api/profile")
+      .then((res) => res.json())
       .then((json) => {
-        setUser(json.user);
-        setEditName(json.user.name);
-        setRole(json.user.role);
-      })
-      .catch(() => router.replace("/login"))
-      .finally(() => setLoading(false));
-  }, [router]);
-
-  async function handleUpdateName(e: React.FormEvent) {
-    e.preventDefault();
-    setNameMsg("");
-    setSaving(true);
-    try {
-      const res = await fetch("/api/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editName }),
+        setProfile(json.data.user);
+        setLocations(json.data.locations);
       });
-      if (!res.ok) {
-        const json = await res.json();
-        setNameMsg(json.error || "Failed to update");
-      } else {
-        const json = await res.json();
-        setUser(json.user);
-        setNameMsg("Name updated");
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
+  }, []);
 
-  async function handleChangePassword(e: React.FormEvent) {
+  useEffect(() => {
+    if (profile?.role !== "ADMIN") return;
+
+    fetch("/api/users")
+      .then((res) => res.json())
+      .then((json) => setUsers(json.data || []));
+  }, [profile?.role]);
+
+  async function saveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPwError("");
-    setPwMsg("");
+    setMessage("");
+    setError("");
 
-    if (newPassword !== confirmPassword) {
-      setPwError("Passwords do not match");
-      return;
-    }
-    if (newPassword.length < 8) {
-      setPwError("Password must be at least 8 characters");
+    const form = new FormData(e.currentTarget);
+    const payload = {
+      name: String(form.get("name") || ""),
+      locationId: String(form.get("locationId") || "") || null
+    };
+
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "Failed to update profile");
       return;
     }
 
-    setSaving(true);
-    try {
-      const res = await fetch("/api/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        setPwError(json.error || "Failed to update password");
-      } else {
-        setPwMsg("Password updated successfully");
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      }
-    } finally {
-      setSaving(false);
-    }
+    setProfile(json.data);
+    setMessage("Profile saved");
   }
 
-  async function handleUpdateRole(e: React.FormEvent) {
+  async function changePassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setRoleMsg("");
-    setSaving(true);
-    try {
-      const res = await fetch("/api/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        setRoleMsg(json.error || "Failed to update role");
-      } else {
-        const json = await res.json();
-        setUser(json.user);
-        setRoleMsg("Role updated");
-      }
-    } finally {
-      setSaving(false);
+    setMessage("");
+    setError("");
+
+    const form = new FormData(e.currentTarget);
+    const currentPassword = String(form.get("currentPassword") || "");
+    const newPassword = String(form.get("newPassword") || "");
+
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "change_password", currentPassword, newPassword })
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "Failed to update password");
+      return;
     }
+
+    e.currentTarget.reset();
+    setMessage("Password updated");
   }
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
+  async function updateRole(userId: string, role: ManagedUser["role"]) {
+    setMessage("");
+    setError("");
+
+    const res = await fetch(`/api/users/${userId}/role`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role })
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "Failed to update role");
+      return;
+    }
+
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+    setMessage("Role updated");
   }
 
-  if (loading || !user) {
-    return (
-      <div className="loading-spinner">
-        <div className="spinner" />
-      </div>
-    );
+  if (!profile) {
+    return <div className="loading-spinner"><div className="spinner" /></div>;
   }
 
   return (
     <>
       <div className="page-header">
-        <h1>Profile</h1>
-        <button className="btn btn-danger" onClick={handleLogout}>
-          Sign out
-        </button>
+        <h1>Profile & Settings</h1>
       </div>
 
-      <div className="profile-grid">
-        {/* User info + name edit */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Account</h2>
-          </div>
-          <div className="card-body">
-            <div className="profile-field">
-              <div className="profile-field-label">Email</div>
-              <div className="profile-field-value">{user.email}</div>
-            </div>
-            <div className="profile-field">
-              <div className="profile-field-label">Role</div>
-              <div className="profile-field-value">
-                <span className={`badge ${user.role === "ADMIN" ? "badge-purple" : user.role === "STAFF" ? "badge-blue" : "badge-gray"}`}>
-                  {user.role}
-                </span>
-              </div>
-            </div>
-            <form onSubmit={handleUpdateName}>
-              <div className="form-group">
-                <label>Display name</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                />
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={saving}>
-                Update name
-              </button>
-              {nameMsg && <div className="form-success">{nameMsg}</div>}
-            </form>
-          </div>
-        </div>
+      {message && <div className="card" style={{ marginBottom: 12, color: "var(--green)" }}>{message}</div>}
+      {error && <div className="card" style={{ marginBottom: 12, color: "var(--red)" }}>{error}</div>}
 
-        {/* Change password */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Change password</h2>
-          </div>
-          <div className="card-body">
-            <form onSubmit={handleChangePassword}>
-              <div className="form-group">
-                <label>Current password</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>New password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={8}
-                />
-              </div>
-              <div className="form-group">
-                <label>Confirm new password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={8}
-                />
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={saving}>
-                Change password
-              </button>
-              {pwError && <div className="form-error">{pwError}</div>}
-              {pwMsg && <div className="form-success">{pwMsg}</div>}
-            </form>
-          </div>
-        </div>
-
-        {/* Update role */}
-        <div className="card">
-          <div className="card-header">
-            <h2>Update role</h2>
-          </div>
-          <div className="card-body">
-            <form onSubmit={handleUpdateRole}>
-              <div className="form-group">
-                <label>Role</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius)",
-                    background: "white",
-                  }}
-                >
-                  <option value="ADMIN">Admin</option>
-                  <option value="STAFF">Staff</option>
-                  <option value="STUDENT">Student</option>
-                </select>
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={saving}>
-                Update role
-              </button>
-              {roleMsg && <div className="form-success">{roleMsg}</div>}
-            </form>
-          </div>
-        </div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header"><h2>My profile</h2></div>
+        <form onSubmit={saveProfile} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
+          <label>
+            Name
+            <input name="name" defaultValue={profile.name} required style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+          </label>
+          <label>
+            Email
+            <input value={profile.email} disabled style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "#f5f5f5" }} />
+          </label>
+          <label>
+            Default location
+            <select name="locationId" defaultValue={profile.location?.id || ""} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+              <option value="">None</option>
+              {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+            </select>
+          </label>
+          <button className="btn btn-primary" type="submit">Save profile</button>
+        </form>
       </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header"><h2>Change password</h2></div>
+        <form onSubmit={changePassword} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
+          <label>
+            Current password
+            <input name="currentPassword" type="password" required minLength={8} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+          </label>
+          <label>
+            New password
+            <input name="newPassword" type="password" required minLength={8} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+          </label>
+          <button className="btn btn-primary" type="submit">Update password</button>
+        </form>
+      </div>
+
+      {profile.role === "ADMIN" && (
+        <div className="card">
+          <div className="card-header"><h2>User roles</h2></div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Location</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td>{user.name}</td>
+                  <td>{user.email}</td>
+                  <td>{user.location || "-"}</td>
+                  <td>
+                    <select
+                      value={user.role}
+                      onChange={(e) => updateRole(user.id, e.target.value as ManagedUser["role"])}
+                      style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "white" }}
+                    >
+                      <option value="ADMIN">Admin</option>
+                      <option value="STAFF">Staff</option>
+                      <option value="STUDENT">Student</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }

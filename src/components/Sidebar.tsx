@@ -42,24 +42,24 @@ const navItems = [
     ),
   },
   {
+    label: "Users",
+    href: "/users",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path fillRule="evenodd" d="M5 14a4 4 0 118 0v1a1 1 0 11-2 0v-1a2 2 0 10-4 0v1a1 1 0 11-2 0v-1z" clipRule="evenodd" />
+      </svg>
+    )
+  },
+  {
     label: "Profile",
     href: "/profile",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor"> 
+      <svg viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zM3 16a7 7 0 1114 0v1a1 1 0 11-2 0v-1a5 5 0 10-10 0v1a1 1 0 11-2 0v-1z" clipRule="evenodd" />
       </svg>
     ),
-  },
-  {
-    label: "Bulk Inventory",
-    href: "/bulk-inventory",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
-        <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
+  }
 ];
 
 type SidebarProps = {
@@ -72,8 +72,10 @@ export default function Sidebar({ user }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-brand">Gearflow</div>
-        <div className="sidebar-org">Equipment Management</div>
+        <div className="sidebar-brand-wrap">
+          <div className="w-logo">W</div>
+          <div className="sidebar-brand">Creative</div>
+        </div>
       </div>
 
       <select className="sidebar-location" defaultValue="all">

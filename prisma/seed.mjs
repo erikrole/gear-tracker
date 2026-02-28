@@ -21,10 +21,10 @@ async function main() {
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
   await prisma.user.upsert({
-    where: { email: "admin@gearflow.local" },
+    where: { email: "admin@creative.local" },
     create: {
-      name: "Gearflow Admin",
-      email: "admin@gearflow.local",
+      name: "Creative Admin",
+      email: "admin@creative.local",
       passwordHash,
       role: Role.ADMIN,
       locationId: campRandall.id
@@ -36,7 +36,7 @@ async function main() {
     }
   });
 
-  console.log("Seed complete: admin@gearflow.local");
+  console.log("Seed complete: admin@creative.local");
 }
 
 main()

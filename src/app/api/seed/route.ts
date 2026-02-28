@@ -18,25 +18,13 @@ export async function POST() {
       where: { name: "Camp Randall" },
     });
 
-    await db.location.upsert({
-      where: { name: "Camp Randall" },
-      create: { name: "Camp Randall", address: "1440 Monroe St, Madison, WI" },
-      update: {},
-    });
-
-    await db.location.upsert({
-      where: { name: "Kohl Center" },
-      create: { name: "Kohl Center", address: "601 W Dayton St, Madison, WI" },
-      update: {},
-    });
-
     const passwordHash = await bcrypt.hash("ChangeMeNow123!", 10);
 
     const user = await db.user.upsert({
-      where: { email: "admin@gearflow.local" },
+      where: { email: "admin@creative.local" },
       create: {
-        name: "Gearflow Admin",
-        email: "admin@gearflow.local",
+        name: "Creative Admin",
+        email: "admin@creative.local",
         passwordHash,
         role: "ADMIN",
         locationId: location.id,
@@ -51,7 +39,7 @@ export async function POST() {
     return ok({
       message: "Seed complete",
       user: { email: user.email, name: user.name, role: user.role },
-      hint: "Login with admin@gearflow.local / ChangeMeNow123!",
+      hint: "Login with admin@creative.local / ChangeMeNow123!",
     });
   } catch (error) {
     return fail(error);

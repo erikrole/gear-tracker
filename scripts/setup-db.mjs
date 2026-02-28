@@ -306,7 +306,7 @@ async function seedAdmin() {
   // Upsert admin user
   await sql`
     INSERT INTO users (id, name, email, password_hash, role, location_id, updated_at)
-    VALUES (gen_random_uuid()::text, 'Gearflow Admin', 'admin@gearflow.local', ${passwordHash}, 'ADMIN', ${locationId}, CURRENT_TIMESTAMP)
+    VALUES (gen_random_uuid()::text, 'Creative Admin', 'admin@creative.local', ${passwordHash}, 'ADMIN', ${locationId}, CURRENT_TIMESTAMP)
     ON CONFLICT (email) DO UPDATE SET
       password_hash = EXCLUDED.password_hash,
       role = 'ADMIN',
@@ -337,7 +337,7 @@ async function main() {
   await seedAdmin();
 
   console.log("\nDatabase setup complete!");
-  console.log("  Admin login: admin@gearflow.local / ChangeMeNow123!");
+  console.log("  Admin login: admin@creative.local / ChangeMeNow123!");
 }
 
 main().catch((err) => {
