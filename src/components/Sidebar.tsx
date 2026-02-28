@@ -87,6 +87,15 @@ const navItems = [
     )
   },
   {
+    label: "Reports",
+    href: "/reports",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+      </svg>
+    )
+  },
+  {
     label: "Users",
     href: "/users",
     icon: (
@@ -109,13 +118,15 @@ const navItems = [
 
 type SidebarProps = {
   user: { name: string; email: string } | null;
+  open?: boolean;
+  onClose?: () => void;
 };
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, open, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
       <div className="sidebar-header">
         <div className="sidebar-brand-wrap">
           <div className="w-logo">W</div>
@@ -139,6 +150,7 @@ export default function Sidebar({ user }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={isActive ? "active" : ""}
+              onClick={onClose}
             >
               {item.icon}
               {item.label}
