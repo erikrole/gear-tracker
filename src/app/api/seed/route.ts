@@ -11,6 +11,18 @@ export async function POST() {
       update: {},
     });
 
+    await db.location.upsert({
+      where: { name: "Camp Randall" },
+      create: { name: "Camp Randall", address: "1440 Monroe St, Madison, WI" },
+      update: {},
+    });
+
+    await db.location.upsert({
+      where: { name: "Kohl Center" },
+      create: { name: "Kohl Center", address: "601 W Dayton St, Madison, WI" },
+      update: {},
+    });
+
     const passwordHash = await bcrypt.hash("ChangeMeNow123!", 10);
 
     const user = await db.user.upsert({

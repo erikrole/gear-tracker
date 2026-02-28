@@ -92,7 +92,7 @@ export default function Sidebar({ user }: SidebarProps) {
       </nav>
 
       {user && (
-        <div className="sidebar-footer">
+        <Link href="/profile" className="sidebar-footer" style={{ textDecoration: "none", color: "inherit" }}>
           <div className="sidebar-avatar">
             {user.name.charAt(0).toUpperCase()}
           </div>
@@ -100,7 +100,7 @@ export default function Sidebar({ user }: SidebarProps) {
             <div className="sidebar-user-name">{user.name}</div>
             <div className="sidebar-user-email">{user.email}</div>
           </div>
-        </div>
+        </Link>
       )}
     </aside>
   );
