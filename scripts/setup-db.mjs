@@ -288,13 +288,19 @@ async function seedAdmin() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMeNow123!";
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
-  // Upsert location
-  const locations = await sql`
-    INSERT INTO locations (id, name, address, updated_at)
-    VALUES (gen_random_uuid()::text, 'Main Cage', 'Campus', CURRENT_TIMESTAMP)
-    ON CONFLICT (name) DO UPDATE SET name = locations.name
-    RETURNING id
+  await sql`
+    INSERT INTO locations (id, name, updated_at)
+    VALUES (gen_random_uuid()::text, 'Camp Randall', CURRENT_TIMESTAMP)
+    ON CONFLICT (name) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
   `;
+
+  await sql`
+    INSERT INTO locations (id, name, updated_at)
+    VALUES (gen_random_uuid()::text, 'Kohl Center', CURRENT_TIMESTAMP)
+    ON CONFLICT (name) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+  `;
+
+  const locations = await sql`SELECT id FROM locations WHERE name = 'Camp Randall' LIMIT 1`;
   const locationId = locations[0].id;
 
   // Upsert admin user

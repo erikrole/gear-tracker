@@ -15,7 +15,8 @@
     "db:setup": "node --env-file=.env scripts/setup-db.mjs",
     "db:seed": "node prisma/seed.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "import:cheqroom": "node scripts/import-cheqroom-items.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
