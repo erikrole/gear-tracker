@@ -17,7 +17,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         if (!res.ok) throw new Error("Not authenticated");
         return res.json();
       })
-      .then((json) => setUser(json.data))
+      .then((json) => setUser(json.user))
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
   }, [router]);
