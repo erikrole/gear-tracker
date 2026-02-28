@@ -42,6 +42,15 @@ const navItems = [
     ),
   },
   {
+    label: "Profile",
+    href: "/profile",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor"> 
+        <path fillRule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zM3 16a7 7 0 1114 0v1a1 1 0 11-2 0v-1a5 5 0 10-10 0v1a1 1 0 11-2 0v-1z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     label: "Bulk Inventory",
     href: "/bulk-inventory",
     icon: (

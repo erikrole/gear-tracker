@@ -2,13 +2,20 @@ export const runtime = "edge";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { ok, fail } from "@/lib/http";
+import { DEFAULT_LOCATIONS } from "@/lib/default-locations";
 
 export async function POST() {
   try {
-    const location = await db.location.upsert({
-      where: { name: "Main Cage" },
-      create: { name: "Main Cage", address: "Campus" },
-      update: {},
+    for (const locationName of DEFAULT_LOCATIONS) {
+      await db.location.upsert({
+        where: { name: locationName },
+        create: { name: locationName },
+        update: {},
+      });
+    }
+
+    const location = await db.location.findUniqueOrThrow({
+      where: { name: "Camp Randall" },
     });
 
     await db.location.upsert({

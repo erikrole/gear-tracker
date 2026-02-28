@@ -2,12 +2,19 @@ import bcrypt from "bcryptjs";
 import { PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const defaultLocations = ["Camp Randall", "Kohl Center"];
 
 async function main() {
-  const location = await prisma.location.upsert({
-    where: { name: "Main Cage" },
-    create: { name: "Main Cage", address: "Campus" },
-    update: {}
+  for (const name of defaultLocations) {
+    await prisma.location.upsert({
+      where: { name },
+      create: { name },
+      update: {}
+    });
+  }
+
+  const campRandall = await prisma.location.findUniqueOrThrow({
+    where: { name: "Camp Randall" }
   });
 
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "ChangeMeNow123!";
@@ -20,12 +27,12 @@ async function main() {
       email: "admin@gearflow.local",
       passwordHash,
       role: Role.ADMIN,
-      locationId: location.id
+      locationId: campRandall.id
     },
     update: {
       passwordHash,
       role: Role.ADMIN,
-      locationId: location.id
+      locationId: campRandall.id
     }
   });
 

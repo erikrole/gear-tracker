@@ -37,6 +37,7 @@ export default function CheckoutsPage() {
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const limit = 20;
 
   // Modal state
@@ -140,6 +141,81 @@ export default function CheckoutsPage() {
 
   const totalPages = Math.ceil(total / limit);
 
+  async function reload() {
+    const params = new URLSearchParams();
+    params.set("limit", String(limit));
+    params.set("offset", String(page * limit));
+    if (statusFilter) params.set("status", statusFilter);
+    const res = await fetch(`/api/checkouts?${params}`);
+    const json: Response = await res.json();
+    setItems(json.data);
+    setTotal(json.total);
+  }
+
+  async function handleNewCheckout() {
+    const optionsRes = await fetch("/api/form-options");
+    const optionsJson = await optionsRes.json();
+    const users: Array<{ id: string; name: string }> = optionsJson.data.users;
+    const locations: Array<{ id: string; name: string }> = optionsJson.data.locations;
+    const assets: Array<{ id: string; assetTag: string; locationId: string }> = optionsJson.data.availableAssets;
+
+    if (users.length === 0 || locations.length === 0) {
+      alert("Missing users or locations for checkout creation.");
+      return;
+    }
+
+    const title = window.prompt("Checkout title", "New checkout");
+    if (!title) return;
+
+    const requesterName = window.prompt(
+      `Requester (${users.slice(0, 10).map((u) => u.name).join(", ")})`,
+      users[0].name
+    );
+    const requesterUserId = users.find((u) => u.name === requesterName)?.id ?? users[0].id;
+
+    const locationName = window.prompt(
+      `Location (${locations.map((l) => l.name).join(", ")})`,
+      locations[0].name
+    );
+    const location = locations.find((l) => l.name === locationName) ?? locations[0];
+
+    const startsAt = new Date().toISOString();
+    const endsAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const locationAssets = assets.filter((a) => a.locationId === location.id);
+    const selectedAssetTag = window.prompt(
+      `Optional asset tag (${locationAssets.slice(0, 10).map((a) => a.assetTag).join(", ")})`
+    );
+    const selectedAssetId = locationAssets.find((a) => a.assetTag === selectedAssetTag)?.id;
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/checkouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          requesterUserId,
+          locationId: location.id,
+          startsAt,
+          endsAt,
+          serializedAssetIds: selectedAssetId ? [selectedAssetId] : [],
+          bulkItems: []
+        })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to create checkout");
+      }
+
+      await reload();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to create checkout");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <>
       <div className="page-header">
@@ -148,7 +224,7 @@ export default function CheckoutsPage() {
           <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
           </svg>
-          New check-out
+          {submitting ? "Saving..." : "New check-out"}
         </button>
       </div>
 
