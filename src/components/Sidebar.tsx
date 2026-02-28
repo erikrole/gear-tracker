@@ -1,0 +1,107 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const navItems = [
+  {
+    label: "Dashboard",
+    href: "/",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Items",
+    href: "/items",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    label: "Reservations",
+    href: "/reservations",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h1z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    label: "Check-outs",
+    href: "/checkouts",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    label: "Bulk Inventory",
+    href: "/bulk-inventory",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+        <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+];
+
+type SidebarProps = {
+  user: { name: string; email: string } | null;
+};
+
+export default function Sidebar({ user }: SidebarProps) {
+  const pathname = usePathname();
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-header">
+        <div className="sidebar-brand">Gearflow</div>
+        <div className="sidebar-org">Equipment Management</div>
+      </div>
+
+      <select className="sidebar-location" defaultValue="all">
+        <option value="all">All locations</option>
+      </select>
+
+      <nav className="sidebar-nav">
+        <div className="sidebar-section-label">Main</div>
+        {navItems.map((item) => {
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={isActive ? "active" : ""}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {user && (
+        <div className="sidebar-footer">
+          <div className="sidebar-avatar">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="sidebar-user-info">
+            <div className="sidebar-user-name">{user.name}</div>
+            <div className="sidebar-user-email">{user.email}</div>
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
