@@ -91,19 +91,21 @@ export default function ReportsPage() {
 
   useEffect(() => {
     setLoading(true);
-    if (tab === "utilization") {
-      fetch("/api/reports?type=utilization")
-        .then((r) => r.json())
-        .then((json) => { setUtilization(json.data); setLoading(false); });
-    } else if (tab === "checkouts") {
-      fetch(`/api/reports?type=checkouts&days=${days}`)
-        .then((r) => r.json())
-        .then((json) => { setCheckouts(json.data); setLoading(false); });
-    } else if (tab === "audit") {
-      fetch(`/api/reports?type=audit&limit=${auditLimit}&offset=${auditPage * auditLimit}`)
-        .then((r) => r.json())
-        .then((json) => { setAudit(json.data); setLoading(false); });
-    }
+    const load = async () => {
+      try {
+        let url = "/api/reports?type=utilization";
+        if (tab === "checkouts") url = `/api/reports?type=checkouts&days=${days}`;
+        else if (tab === "audit") url = `/api/reports?type=audit&limit=${auditLimit}&offset=${auditPage * auditLimit}`;
+        const r = await fetch(url);
+        if (!r.ok) { setLoading(false); return; }
+        const json = await r.json();
+        if (tab === "utilization") setUtilization(json.data ?? null);
+        else if (tab === "checkouts") setCheckouts(json.data ?? null);
+        else if (tab === "audit") setAudit(json.data ?? null);
+      } catch { /* network error */ }
+      setLoading(false);
+    };
+    load();
   }, [tab, days, auditPage]);
 
   return (

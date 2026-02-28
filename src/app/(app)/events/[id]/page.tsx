@@ -45,8 +45,8 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     fetch(`/api/calendar-events/${id}`)
-      .then((res) => res.json())
-      .then((json) => setEvent(json.data));
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setEvent(json.data); });
   }, [id]);
 
   if (!event) {

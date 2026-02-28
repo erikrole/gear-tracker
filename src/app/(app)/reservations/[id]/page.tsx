@@ -31,8 +31,8 @@ export default function ReservationDetailsPage() {
 
   useEffect(() => {
     fetch(`/api/reservations/${id}`)
-      .then((res) => res.json())
-      .then((json) => setReservation(json.data));
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setReservation(json.data); });
   }, [id]);
 
   if (!reservation) {

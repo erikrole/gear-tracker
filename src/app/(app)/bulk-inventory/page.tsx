@@ -29,8 +29,8 @@ export default function BulkInventoryPage() {
     params.set("limit", String(limit));
     params.set("offset", String(page * limit));
     fetch(`/api/bulk-skus?${params}`)
-      .then((res) => res.json())
-      .then((json: Response) => { setItems(json.data); setTotal(json.total); })
+      .then((res) => res.ok ? res.json() : null)
+      .then((json: Response | null) => { if (json) { setItems(json.data ?? []); setTotal(json.total ?? 0); } })
       .finally(() => setLoading(false));
   }, [page]);
 

@@ -61,10 +61,13 @@ export default function ItemsPage() {
     if (search) params.set("q", search);
     if (statusFilter) params.set("status", statusFilter);
 
-    const res = await fetch(`/api/assets?${params}`);
-    const json: Response = await res.json();
-    setItems(json.data);
-    setTotal(json.total);
+    try {
+      const res = await fetch(`/api/assets?${params}`);
+      if (!res.ok) { setLoading(false); return; }
+      const json: Response = await res.json();
+      setItems(json.data ?? []);
+      setTotal(json.total ?? 0);
+    } catch { /* network error */ }
     setLoading(false);
   }
 
@@ -74,8 +77,8 @@ export default function ItemsPage() {
 
   useEffect(() => {
     fetch("/api/form-options")
-      .then((res) => res.json())
-      .then((json) => setLocations(json.data.locations || []));
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setLocations(json.data?.locations || []); });
   }, []);
 
   async function handleCreateItem(e: FormEvent<HTMLFormElement>) {

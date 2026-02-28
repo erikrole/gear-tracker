@@ -40,11 +40,15 @@ export default function NotificationsPage() {
     params.set("offset", String(page * limit));
     if (unreadOnly) params.set("unread", "true");
 
-    const res = await fetch(`/api/notifications?${params}`);
-    const json: NotificationsResponse = await res.json();
-    setNotifications(json.data);
-    setTotal(json.total);
-    setUnreadCount(json.unreadCount);
+    try {
+      const res = await fetch(`/api/notifications?${params}`);
+      if (res.ok) {
+        const json: NotificationsResponse = await res.json();
+        setNotifications(json.data ?? []);
+        setTotal(json.total ?? 0);
+        setUnreadCount(json.unreadCount ?? 0);
+      }
+    } catch { /* network error */ }
     setLoading(false);
   }
 

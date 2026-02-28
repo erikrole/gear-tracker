@@ -21,11 +21,11 @@ export default function UsersPage() {
 
   async function load() {
     setLoading(true);
-    const [usersRes, optionsRes] = await Promise.all([fetch("/api/users"), fetch("/api/form-options")]);
-    const usersJson = await usersRes.json();
-    const optionsJson = await optionsRes.json();
-    setUsers(usersJson.data || []);
-    setLocations(optionsJson.data.locations || []);
+    try {
+      const [usersRes, optionsRes] = await Promise.all([fetch("/api/users"), fetch("/api/form-options")]);
+      if (usersRes.ok) { const j = await usersRes.json(); setUsers(j.data || []); }
+      if (optionsRes.ok) { const j = await optionsRes.json(); setLocations(j.data?.locations || []); }
+    } catch { /* network error */ }
     setLoading(false);
   }
 

@@ -57,14 +57,18 @@ export default function CheckoutsPage() {
 
   async function reload() {
     setLoading(true);
-    const params = new URLSearchParams();
-    params.set("limit", String(limit));
-    params.set("offset", String(page * limit));
-    if (statusFilter) params.set("status", statusFilter);
-    const res = await fetch(`/api/checkouts?${params}`);
-    const json: Response = await res.json();
-    setItems(json.data);
-    setTotal(json.total);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", String(limit));
+      params.set("offset", String(page * limit));
+      if (statusFilter) params.set("status", statusFilter);
+      const res = await fetch(`/api/checkouts?${params}`);
+      if (res.ok) {
+        const json: Response = await res.json();
+        setItems(json.data ?? []);
+        setTotal(json.total ?? 0);
+      }
+    } catch { /* network error */ }
     setLoading(false);
   }
 
@@ -74,8 +78,9 @@ export default function CheckoutsPage() {
 
   useEffect(() => {
     fetch("/api/form-options")
-      .then((res) => res.json())
+      .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (!json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
         setAssets(json.data.availableAssets || []);

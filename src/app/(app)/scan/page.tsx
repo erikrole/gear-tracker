@@ -53,6 +53,7 @@ export default function ScanPage() {
     try {
       // Try QR code, primary scan code, or asset tag
       const res = await fetch(`/api/assets?q=${encodeURIComponent(scanValue)}&limit=1`);
+      if (!res.ok) return null;
       const json = await res.json();
       const assets = json.data ?? [];
       if (assets.length > 0) return assets[0];
@@ -109,6 +110,7 @@ export default function ScanPage() {
 
           // Find open checkouts containing this asset
           const res = await fetch(`/api/checkouts?status=OPEN&limit=50`);
+          if (!res.ok) { setCheckinMessage("Failed to load checkouts"); return; }
           const json = await res.json();
           const checkouts = json.data ?? [];
 

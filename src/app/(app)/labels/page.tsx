@@ -24,8 +24,8 @@ export default function LabelsPage() {
     if (search) params.set("q", search);
 
     fetch(`/api/assets?${params}`)
-      .then((res) => res.json())
-      .then((json) => setAssets(json.data ?? []))
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => setAssets(json?.data ?? []))
       .finally(() => setLoading(false));
   }, [search]);
 

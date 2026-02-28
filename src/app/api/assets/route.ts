@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     const [rawData, total] = await Promise.all([
       db.asset.findMany({
         where,
-        include: { location: true, department: true },
+        include: { location: true },
         orderBy: { assetTag: "asc" },
         take: limit,
         skip: offset
@@ -53,7 +53,13 @@ export async function GET(req: Request) {
       db.asset.count({ where })
     ]);
 
-    const data = await enrichAssetsWithStatus(rawData);
+    let data;
+    try {
+      data = await enrichAssetsWithStatus(rawData);
+    } catch {
+      // If status enrichment fails (e.g. missing tables), return raw data
+      data = rawData.map((a) => ({ ...a, computedStatus: a.status }));
+    }
 
     return ok({ data, total, limit, offset });
   } catch (error) {
