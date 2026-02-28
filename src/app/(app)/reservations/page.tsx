@@ -15,7 +15,7 @@ type Reservation = {
   bulkItems: Array<{ bulkSku: { name: string }; plannedQuantity: number }>;
 };
 
-type User = { id: string; name: string };
+type ReservationUser = { id: string; name: string };
 type Location = { id: string; name: string };
 type AssetOption = { id: string; assetTag: string; locationId: string };
 
@@ -44,7 +44,7 @@ function toLocalDateTimeValue(date: Date) {
 
 export default function ReservationsPage() {
   const [items, setItems] = useState<Reservation[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<ReservationUser[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [showCreate, setShowCreate] = useState(false);

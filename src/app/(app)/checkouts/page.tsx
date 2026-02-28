@@ -15,7 +15,7 @@ type Checkout = {
   bulkItems: Array<{ bulkSku: { name: string }; plannedQuantity: number }>;
 };
 
-type User = { id: string; name: string };
+type CheckoutUser = { id: string; name: string };
 type Location = { id: string; name: string };
 type AssetOption = { id: string; assetTag: string; locationId: string };
 
@@ -43,7 +43,7 @@ function toLocalDateTimeValue(date: Date) {
 
 export default function CheckoutsPage() {
   const [items, setItems] = useState<Checkout[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<CheckoutUser[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [total, setTotal] = useState(0);
