@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { deriveAssetStatus } from "@/lib/services/status";
 
 const patchAssetSchema = z
   .object({
@@ -37,7 +38,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     const asset = await db.asset.findUnique({
       where: { id: params.id },
       include: {
-        location: true
+        location: true,
+        department: true,
+        kitMemberships: { include: { kit: true } }
       }
     });
 
@@ -45,23 +48,27 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       throw new HttpError(404, "Asset not found");
     }
 
-    const bookingHistory = await db.bookingSerializedItem.findMany({
-      where: { assetId: params.id },
-      include: {
-        booking: {
-          include: {
-            requester: { select: { id: true, name: true, email: true } },
-            location: { select: { id: true, name: true } }
+    const [computedStatus, bookingHistory] = await Promise.all([
+      deriveAssetStatus(params.id),
+      db.bookingSerializedItem.findMany({
+        where: { assetId: params.id },
+        include: {
+          booking: {
+            include: {
+              requester: { select: { id: true, name: true, email: true } },
+              location: { select: { id: true, name: true } }
+            }
           }
-        }
-      },
-      orderBy: [{ createdAt: "desc" }],
-      take: 100
-    });
+        },
+        orderBy: [{ createdAt: "desc" }],
+        take: 100
+      })
+    ]);
 
     return ok({
       data: {
         ...asset,
+        computedStatus,
         metadata: parseNotes(asset.notes),
         history: bookingHistory.map((entry) => ({
           id: entry.id,

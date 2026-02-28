@@ -11,6 +11,7 @@ type Asset = {
   model: string;
   serialNumber: string;
   status: string;
+  computedStatus: string;
   location: { name: string };
 };
 
@@ -25,8 +26,18 @@ type Response = {
 
 const statusBadge: Record<string, string> = {
   AVAILABLE: "badge-green",
+  CHECKED_OUT: "badge-blue",
+  RESERVED: "badge-purple",
   MAINTENANCE: "badge-orange",
   RETIRED: "badge-gray",
+};
+
+const statusLabel: Record<string, string> = {
+  AVAILABLE: "available",
+  CHECKED_OUT: "checked out",
+  RESERVED: "reserved",
+  MAINTENANCE: "maintenance",
+  RETIRED: "retired",
 };
 
 export default function ItemsPage() {
@@ -196,8 +207,8 @@ export default function ItemsPage() {
                     <td style={{ fontFamily: "monospace", fontSize: 12 }}>{item.serialNumber}</td>
                     <td>{item.location.name}</td>
                     <td>
-                      <span className={`badge ${statusBadge[item.status] || "badge-gray"}`}>
-                        {item.status.toLowerCase()}
+                      <span className={`badge ${statusBadge[item.computedStatus] || "badge-gray"}`}>
+                        {statusLabel[item.computedStatus] || item.computedStatus.toLowerCase()}
                       </span>
                     </td>
                   </tr>

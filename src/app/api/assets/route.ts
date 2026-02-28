@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, parsePagination } from "@/lib/http";
+import { enrichAssetsWithStatus } from "@/lib/services/status";
 
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
@@ -41,16 +42,18 @@ export async function GET(req: Request) {
 
     const { limit, offset } = parsePagination(searchParams);
 
-    const [data, total] = await Promise.all([
+    const [rawData, total] = await Promise.all([
       db.asset.findMany({
         where,
-        include: { location: true },
+        include: { location: true, department: true },
         orderBy: { assetTag: "asc" },
         take: limit,
         skip: offset
       }),
       db.asset.count({ where })
     ]);
+
+    const data = await enrichAssetsWithStatus(rawData);
 
     return ok({ data, total, limit, offset });
   } catch (error) {

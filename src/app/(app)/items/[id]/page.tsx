@@ -14,9 +14,11 @@ type AssetDetail = {
   qrCodeValue: string;
   purchaseDate: string | null;
   purchasePrice: string | number | null;
-  status: "AVAILABLE" | "MAINTENANCE" | "RETIRED";
+  status: string;
+  computedStatus: string;
   notes: string | null;
   location: { name: string };
+  department: { name: string } | null;
   metadata: Record<string, string> | null;
   history: Array<{
     id: string;
@@ -96,7 +98,16 @@ export default function ItemDetailsPage() {
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, color: "var(--text-secondary)" }}>
-        <span className={`badge ${asset.status === "AVAILABLE" ? "badge-green" : "badge-gray"}`}>{asset.status.toLowerCase()}</span>
+        <span className={`badge ${
+          asset.computedStatus === "AVAILABLE" ? "badge-green" :
+          asset.computedStatus === "CHECKED_OUT" ? "badge-blue" :
+          asset.computedStatus === "RESERVED" ? "badge-purple" :
+          asset.computedStatus === "MAINTENANCE" ? "badge-orange" :
+          "badge-gray"
+        }`}>{
+          asset.computedStatus === "CHECKED_OUT" ? "checked out" :
+          asset.computedStatus.toLowerCase()
+        }</span>
         <span style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</span>
         <span style={{ fontFamily: "monospace" }}>{asset.serialNumber}</span>
       </div>
