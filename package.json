@@ -35,7 +35,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "prisma": "^6.19.2",
-    "typescript": "^5.7.3",
+    "typescript": "5.9.3",
     "vitest": "^3.0.6"
   }
 }
