@@ -20,6 +20,9 @@ type Location = { id: string; name: string };
 type AssetOption = { id: string; assetTag: string; locationId: string };
 
 type Response = { data: Reservation[]; total: number; limit: number; offset: number };
+type Location = { id: string; name: string };
+type User = { id: string; name: string; email: string };
+type Asset = { id: string; assetTag: string; brand: string; model: string; status: string };
 
 const statusBadge: Record<string, string> = {
   DRAFT: "badge-gray",
@@ -207,6 +210,93 @@ export default function ReservationsPage() {
           </>
         )}
       </div>
+
+      <Modal open={showNew} onClose={() => setShowNew(false)} title="New reservation">
+        <form onSubmit={handleCreate}>
+          <div className="form-group">
+            <label>Title *</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Game day shoot" />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Requester *</label>
+              <select value={requesterUserId} onChange={(e) => setRequesterUserId(e.target.value)} required>
+                <option value="">Select user</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Location *</label>
+              <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required>
+                <option value="">Select location</option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Start date *</label>
+              <input type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label>End date *</label>
+              <input type="date" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} required />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Items ({selectedAssetIds.length} selected)</label>
+            <div style={{
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
+              maxHeight: 180,
+              overflowY: "auto",
+            }}>
+              {assets.length === 0 ? (
+                <div style={{ padding: 12, color: "var(--text-secondary)", fontSize: 13 }}>No available items</div>
+              ) : (
+                assets.map((a) => (
+                  <label
+                    key={a.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      borderBottom: "1px solid var(--border-light)",
+                      background: selectedAssetIds.includes(a.id) ? "var(--accent-soft)" : "transparent",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedAssetIds.includes(a.id)}
+                      onChange={() => toggleAsset(a.id)}
+                    />
+                    <span style={{ fontWeight: 600 }}>{a.assetTag}</span>
+                    <span style={{ color: "var(--text-secondary)" }}>{a.brand} {a.model}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+          {formError && <div className="form-error">{formError}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn" onClick={() => setShowNew(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? "Creating..." : "Create reservation"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 }
