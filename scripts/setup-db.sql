@@ -1,5 +1,5 @@
 -- ============================================================================
--- Gearflow Database Setup (all-in-one)
+-- Creative Ops Database Setup (all-in-one)
 -- Paste this entire file into the Neon SQL Editor at console.neon.tech
 -- ============================================================================
 
@@ -279,8 +279,8 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO users (id, name, email, password_hash, role, location_id, updated_at)
 VALUES (
   gen_random_uuid()::text,
-  'Gearflow Admin',
-  'admin@gearflow.local',
+  'Creative Admin',
+  'admin@creative.local',
   '$2b$10$.847P5u/8TToTsqBWc2MceLtisaWEwbqfQQf3rqwIJYjQxf5cgoVO',
   'ADMIN',
   (SELECT id FROM locations WHERE name = 'Main Cage'),
@@ -294,5 +294,5 @@ ON CONFLICT (email) DO UPDATE SET
 
 -- ============================================================================
 -- Done! Your database is ready.
--- Admin login:  admin@gearflow.local  /  ChangeMeNow123!
+-- Admin login:  admin@creative.local  /  ChangeMeNow123!
 -- ============================================================================

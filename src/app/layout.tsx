@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Gearflow",
+  title: "Creative Ops",
   description: "Camera gear reservations, checkouts, and scan enforcement"
 };
 
