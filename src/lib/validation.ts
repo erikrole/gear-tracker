@@ -90,3 +90,18 @@ export const registerSchema = z.object({
 export const roleSchema = z.nativeEnum(Role);
 
 export const bookingKindSchema = z.nativeEnum(BookingKind);
+
+
+export const updateProfileSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  locationId: z.string().cuid().nullable().optional()
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(8),
+  newPassword: z.string().min(8).max(128)
+});
+
+export const updateUserRoleSchema = z.object({
+  role: z.nativeEnum(Role)
+});

@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <h1>Gearflow</h1>
+        <h1>Creative</h1>
         <p className="login-subtitle">Sign in to your account</p>
 
         <div className="form-group">

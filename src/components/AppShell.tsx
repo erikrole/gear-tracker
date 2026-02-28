@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
@@ -10,6 +11,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     fetch("/api/me")
@@ -21,6 +23,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
   }, [router]);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+  }
 
   if (loading) {
     return (
@@ -44,11 +52,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <input type="text" placeholder="Search items, reservations..." />
           </div>
           <div className="topbar-actions">
-            <button className="btn btn-primary">
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              New
+            <Link href="/profile" className="btn">Profile</Link>
+            <button className="btn" onClick={handleLogout} disabled={loggingOut}>
+              {loggingOut ? "Signing out..." : "Sign out"}
             </button>
           </div>
         </header>

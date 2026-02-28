@@ -1,4 +1,4 @@
-# Gearflow
+# Creative Ops
 
 Internal camera equipment management app with:
 
@@ -71,3 +71,9 @@ Serialized assets are protected in two layers:
 
 - This repo is backend-first and API complete for v1 contracts.
 - UI components are intentionally minimal so your team can layer preferred UX rapidly.
+
+
+## Team Workflow (Codex + Claude)
+
+We use a dual-agent workflow for implementation and handoff. See `docs/AI_COLLABORATION.md` for branch strategy, handoff contract, validation expectations, and conflict-avoidance conventions.
+
