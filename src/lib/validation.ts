@@ -81,6 +81,12 @@ export const loginSchema = z.object({
   password: z.string().min(8)
 });
 
+export const registerSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email(),
+  password: z.string().min(8).max(128)
+});
+
 export const roleSchema = z.nativeEnum(Role);
 
 export const bookingKindSchema = z.nativeEnum(BookingKind);
