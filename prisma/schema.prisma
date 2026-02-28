@@ -106,32 +106,58 @@ model Location {
   bulkSkus       BulkSku[]
   bulkBalances   BulkStockBalance[]
   bulkMovements  BulkStockMovement[]
+  kits           Kit[]
+  calendarEvents CalendarEvent[]
+  locationMappings LocationMapping[]
 
   @@map("locations")
 }
 
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  assets    Asset[]
+
+  @@map("departments")
+}
+
 model Asset {
-  id             String                   @id @default(cuid())
-  assetTag       String                   @unique @map("asset_tag")
-  type           String
-  brand          String
-  model          String
-  serialNumber   String                   @unique @map("serial_number")
-  qrCodeValue    String                   @unique @map("qr_code_value")
-  purchaseDate   DateTime?                @map("purchase_date")
-  purchasePrice  Decimal?                 @db.Decimal(10, 2) @map("purchase_price")
-  locationId     String                   @map("location_id")
-  status         AssetStatus              @default(AVAILABLE)
-  notes          String?
-  createdAt      DateTime                 @default(now()) @map("created_at")
-  updatedAt      DateTime                 @updatedAt @map("updated_at")
-  location       Location                 @relation(fields: [locationId], references: [id])
-  bookingItems   BookingSerializedItem[]
-  allocations    AssetAllocation[]
-  scans          ScanEvent[]
+  id               String                   @id @default(cuid())
+  assetTag         String                   @unique @map("asset_tag")
+  name             String?
+  type             String
+  brand            String
+  model            String
+  serialNumber     String                   @unique @map("serial_number")
+  qrCodeValue      String                   @unique @map("qr_code_value")
+  primaryScanCode  String?                  @unique @map("primary_scan_code")
+  purchaseDate     DateTime?                @map("purchase_date")
+  purchasePrice    Decimal?                 @db.Decimal(10, 2) @map("purchase_price")
+  warrantyDate     DateTime?                @map("warranty_date")
+  residualValue    Decimal?                 @db.Decimal(10, 2) @map("residual_value")
+  locationId       String                   @map("location_id")
+  departmentId     String?                  @map("department_id")
+  status           AssetStatus              @default(AVAILABLE)
+  consumable       Boolean                  @default(false)
+  imageUrl         String?                  @map("image_url")
+  uwAssetTag       String?                  @map("uw_asset_tag")
+  notes            String?
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+  location         Location                 @relation(fields: [locationId], references: [id])
+  department       Department?              @relation(fields: [departmentId], references: [id])
+  bookingItems     BookingSerializedItem[]
+  allocations      AssetAllocation[]
+  scans            ScanEvent[]
+  kitMemberships   KitMembership[]
 
   @@index([locationId])
+  @@index([departmentId])
   @@index([brand, model])
+  @@index([primaryScanCode])
   @@map("assets")
 }
 
@@ -336,4 +362,116 @@ model AuditLog {
 
   @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
+}
+
+// ── Kit / Case grouping ──────────────────────────────────
+
+model Kit {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  locationId  String          @map("location_id")
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  location    Location        @relation(fields: [locationId], references: [id])
+  members     KitMembership[]
+
+  @@unique([name, locationId])
+  @@map("kits")
+}
+
+model KitMembership {
+  id        String   @id @default(cuid())
+  kitId     String   @map("kit_id")
+  assetId   String   @map("asset_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  kit       Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([kitId, assetId])
+  @@map("kit_memberships")
+}
+
+// ── ICS Calendar Sync ────────────────────────────────────
+
+enum CalendarEventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+model CalendarSource {
+  id            String          @id @default(cuid())
+  name          String
+  url           String
+  enabled       Boolean         @default(true)
+  lastFetchedAt DateTime?       @map("last_fetched_at")
+  lastError     String?         @map("last_error")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  events        CalendarEvent[]
+
+  @@map("calendar_sources")
+}
+
+model CalendarEvent {
+  id                String              @id @default(cuid())
+  sourceId          String              @map("source_id")
+  externalId        String              @map("external_id")
+  summary           String
+  description       String?
+  rawSummary        String?             @map("raw_summary")
+  rawLocationText   String?             @map("raw_location_text")
+  rawDescription    String?             @map("raw_description")
+  startsAt          DateTime            @map("starts_at")
+  endsAt            DateTime            @map("ends_at")
+  allDay            Boolean             @default(false) @map("all_day")
+  status            CalendarEventStatus @default(CONFIRMED)
+  locationId        String?             @map("location_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  source            CalendarSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  location          Location?           @relation(fields: [locationId], references: [id])
+
+  @@unique([sourceId, externalId])
+  @@index([startsAt, endsAt])
+  @@index([locationId])
+  @@map("calendar_events")
+}
+
+model LocationMapping {
+  id         String   @id @default(cuid())
+  pattern    String
+  locationId String   @map("location_id")
+  priority   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  location   Location @relation(fields: [locationId], references: [id])
+
+  @@map("location_mappings")
+}
+
+// ── Notifications ────────────────────────────────────────
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+model Notification {
+  id         String              @id @default(cuid())
+  userId     String              @map("user_id")
+  type       String
+  title      String
+  body       String?
+  payload    Json?
+  channel    NotificationChannel @default(IN_APP)
+  sentAt     DateTime?           @map("sent_at")
+  readAt     DateTime?           @map("read_at")
+  dedupeKey  String?             @unique @map("dedupe_key")
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  @@index([userId, readAt])
+  @@index([type, createdAt])
+  @@map("notifications")
 }

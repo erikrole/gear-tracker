@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
 export async function GET() {
   try {
@@ -10,9 +11,7 @@ export async function GET() {
     const now = new Date();
 
     const [
-      assetsAvailable,
-      assetsMaintenance,
-      assetsRetired,
+      statusCounts,
       totalAssets,
       reservationsBooked,
       reservationsOverdue,
@@ -23,9 +22,7 @@ export async function GET() {
       assetsByLocation,
       assetsByType,
     ] = await Promise.all([
-      db.asset.count({ where: { status: "AVAILABLE" } }),
-      db.asset.count({ where: { status: "MAINTENANCE" } }),
-      db.asset.count({ where: { status: "RETIRED" } }),
+      countAssetsByEffectiveStatus(),
       db.asset.count(),
       db.booking.count({
         where: { kind: "RESERVATION", status: "BOOKED" },
@@ -89,20 +86,14 @@ export async function GET() {
 
     const locationMap = Object.fromEntries(locations.map((l) => [l.id, l.name]));
 
-    const checkedOutAssets = await db.bookingSerializedItem.count({
-      where: {
-        booking: { kind: "CHECKOUT", status: "OPEN" },
-        allocationStatus: "active",
-      },
-    });
-
     return ok({
       data: {
         items: {
-          available: assetsAvailable,
-          checkedOut: checkedOutAssets,
-          maintenance: assetsMaintenance,
-          retired: assetsRetired,
+          available: statusCounts.AVAILABLE,
+          checkedOut: statusCounts.CHECKED_OUT,
+          reserved: statusCounts.RESERVED,
+          maintenance: statusCounts.MAINTENANCE,
+          retired: statusCounts.RETIRED,
           total: totalAssets,
         },
         reservations: {

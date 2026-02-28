@@ -14,6 +14,15 @@ const navItems = [
     ),
   },
   {
+    label: "Scan",
+    href: "/scan",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 010 2H5v2a1 1 0 01-2 0V4zm0 8a1 1 0 012 0v2h2a1 1 0 110 2H4a1 1 0 01-1-1v-3zm10-9a1 1 0 100 2h2v2a1 1 0 102 0V4a1 1 0 00-1-1h-3zm4 9a1 1 0 10-2 0v2h-2a1 1 0 100 2h3a1 1 0 001-1v-3z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     label: "Items",
     href: "/items",
     icon: (
@@ -42,6 +51,51 @@ const navItems = [
     ),
   },
   {
+    label: "Events",
+    href: "/events",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+      </svg>
+    )
+  },
+  {
+    label: "Labels",
+    href: "/labels",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+      </svg>
+    )
+  },
+  {
+    label: "Import",
+    href: "/import",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+      </svg>
+    )
+  },
+  {
+    label: "Notifications",
+    href: "/notifications",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+      </svg>
+    )
+  },
+  {
+    label: "Reports",
+    href: "/reports",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+      </svg>
+    )
+  },
+  {
     label: "Users",
     href: "/users",
     icon: (
@@ -64,13 +118,15 @@ const navItems = [
 
 type SidebarProps = {
   user: { name: string; email: string } | null;
+  open?: boolean;
+  onClose?: () => void;
 };
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, open, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
       <div className="sidebar-header">
         <div className="sidebar-brand-wrap">
           <div className="w-logo">W</div>
@@ -94,6 +150,7 @@ export default function Sidebar({ user }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={isActive ? "active" : ""}
+              onClick={onClose}
             >
               {item.icon}
               {item.label}

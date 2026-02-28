@@ -7,6 +7,7 @@ type DashboardData = {
   items: {
     available: number;
     checkedOut: number;
+    reserved: number;
     maintenance: number;
     retired: number;
     total: number;
@@ -65,6 +66,7 @@ export default function DashboardPage() {
   const itemSegments = [
     { label: "Available", value: data.items.available, color: "#22c55e" },
     { label: "Checked out", value: data.items.checkedOut, color: "#3b82f6" },
+    { label: "Reserved", value: data.items.reserved, color: "#8b5cf6" },
     { label: "Maintenance", value: data.items.maintenance, color: "#f59e0b" },
     { label: "Retired", value: data.items.retired, color: "#6b7280" },
   ];

@@ -12,6 +12,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/me")
@@ -42,9 +43,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
-      <Sidebar user={user} />
+      {/* Mobile overlay */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? " visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="app-main">
         <header className="topbar">
+          <button
+            className="mobile-nav-toggle"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          </button>
           <div className="topbar-search">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
