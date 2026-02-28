@@ -33,6 +33,7 @@ export default function ItemsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const limit = 20;
 
   useEffect(() => {
@@ -54,15 +55,69 @@ export default function ItemsPage() {
 
   const totalPages = Math.ceil(total / limit);
 
+  async function reload() {
+    const params = new URLSearchParams();
+    params.set("limit", String(limit));
+    params.set("offset", String(page * limit));
+    if (search) params.set("q", search);
+    if (statusFilter) params.set("status", statusFilter);
+    const res = await fetch(`/api/assets?${params}`);
+    const json: Response = await res.json();
+    setItems(json.data);
+    setTotal(json.total);
+  }
+
+  async function handleAddItem() {
+    const locationRes = await fetch("/api/form-options");
+    const locationJson = await locationRes.json();
+    const locations: Array<{ id: string; name: string }> = locationJson.data.locations;
+
+    if (locations.length === 0) {
+      alert("No active locations found. Create a location first.");
+      return;
+    }
+
+    const assetTag = window.prompt("Asset tag");
+    if (!assetTag) return;
+    const brand = window.prompt("Brand", "Unknown") || "Unknown";
+    const model = window.prompt("Model", "Unknown") || "Unknown";
+    const type = window.prompt("Type", "equipment") || "equipment";
+    const serialNumber = window.prompt("Serial number") || `manual-${Date.now()}`;
+    const qrCodeValue = window.prompt("QR code value", serialNumber) || serialNumber;
+    const locationNameList = locations.map((l) => l.name).join(", ");
+    const selectedLocationName = window.prompt(`Location (${locationNameList})`, locations[0].name);
+    const locationId = locations.find((l) => l.name === selectedLocationName)?.id ?? locations[0].id;
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetTag, brand, model, type, serialNumber, qrCodeValue, locationId })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to create item");
+      }
+
+      await reload();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to create item");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <>
       <div className="page-header">
         <h1>Items</h1>
-        <button className="btn btn-primary">
+        <button className="btn btn-primary" onClick={handleAddItem} disabled={submitting}>
           <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
           </svg>
-          Add item
+          {submitting ? "Saving..." : "Add item"}
         </button>
       </div>
 

@@ -3,35 +3,114 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 
-type CsvAssetRow = {
-  asset_tag: string;
+type NormalizedRow = {
+  assetTag: string;
   type: string;
   brand: string;
   model: string;
-  serial_number: string;
-  qr_code_value: string;
-  purchase_date?: string;
-  location_name: string;
+  serialNumber: string;
+  qrCodeValue: string;
+  purchaseDate?: string;
+  purchasePrice?: string;
+  locationName: string;
+  status: "AVAILABLE" | "MAINTENANCE" | "RETIRED";
+  notes?: string;
 };
 
-function parseCsvLine(line: string) {
-  const cells = line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""));
+function parseDelimitedLine(line: string, delimiter: string) {
+  const cells: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current.trim());
   return cells;
 }
 
-function parseCsv(content: string) {
-  const lines = content.split(/\r?\n/).filter(Boolean);
+function toStatus(raw: string): NormalizedRow["status"] {
+  const value = raw.trim().toLowerCase();
+  if (["retired", "archived"].includes(value)) return "RETIRED";
+  if (["maintenance", "repair", "broken"].includes(value)) return "MAINTENANCE";
+  return "AVAILABLE";
+}
+
+function normalizeRows(content: string) {
+  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length < 2) {
     throw new HttpError(400, "CSV must include a header and at least one data row");
   }
 
-  const headers = parseCsvLine(lines[0]);
-  const rows: CsvAssetRow[] = [];
+  const delimiter = lines[0].includes(";") ? ";" : ",";
+  const headers = parseDelimitedLine(lines[0], delimiter);
+  const rows: NormalizedRow[] = [];
+
+  const get = (record: Record<string, string>, ...keys: string[]) => {
+    for (const key of keys) {
+      const value = record[key];
+      if (value && value.trim()) return value.trim();
+    }
+    return "";
+  };
 
   for (let i = 1; i < lines.length; i += 1) {
-    const values = parseCsvLine(lines[i]);
-    const row = Object.fromEntries(headers.map((h, idx) => [h, values[idx] || ""])) as CsvAssetRow;
-    rows.push(row);
+    const values = parseDelimitedLine(lines[i], delimiter);
+    const record = Object.fromEntries(headers.map((h, idx) => [h, values[idx] ?? ""])) as Record<string, string>;
+
+    const sourceId = get(record, "Id", "id");
+    const name = get(record, "Name", "name", "asset_tag");
+    const assetTag = get(record, "UW Asset Tag") || name || `import-${sourceId || i}`;
+    const serialNumber = get(record, "Serial number", "serial_number") || `cheqroom-${sourceId || assetTag}`;
+    const qrCodeValue =
+      get(record, "Barcodes", "Codes", "qr_code_value") || `cheqroom-qr-${sourceId || assetTag}`;
+
+    const notesPayload = {
+      cheqroomId: sourceId || undefined,
+      category: get(record, "Category"),
+      kind: get(record, "Kind"),
+      description: get(record, "Description"),
+      owner: get(record, "Owner"),
+      department: get(record, "Department"),
+      fiscalYearPurchased: get(record, "Fiscal Year Purchased"),
+      link: get(record, "Link"),
+      checkOutLocationName: get(record, "Check-out Location Name"),
+      custodyName: get(record, "Custody (via name)"),
+      custodyEmail: get(record, "Custody (via email)")
+    };
+
+    rows.push({
+      assetTag,
+      type: get(record, "Category", "type") || "equipment",
+      brand: get(record, "Brand", "brand") || "Unknown",
+      model: get(record, "Model", "model") || "Unknown",
+      serialNumber,
+      qrCodeValue,
+      purchaseDate: get(record, "Purchase Date", "purchase_date") || undefined,
+      purchasePrice: get(record, "Purchase Price") || undefined,
+      locationName: get(record, "Location", "location_name"),
+      status: toStatus(get(record, "Status", "status")),
+      notes: JSON.stringify(notesPayload)
+    });
   }
 
   return rows;
@@ -49,61 +128,79 @@ export async function POST(req: Request) {
     }
 
     const text = await file.text();
-    const rows = parseCsv(text);
+    const rows = normalizeRows(text);
 
-    const locationNames = [...new Set(rows.map((r) => r.location_name).filter(Boolean))];
-    const locations = await db.location.findMany({
-      where: {
-        name: { in: locationNames }
+    const locationNames = [...new Set(rows.map((r) => r.locationName).filter(Boolean))];
+
+    const existingLocations = await db.location.findMany({ where: { name: { in: locationNames } } });
+    const locationMap = new Map(existingLocations.map((loc: { name: string; id: string }) => [loc.name, loc.id]));
+
+    for (const locationName of locationNames) {
+      if (!locationMap.has(locationName)) {
+        const created = await db.location.create({ data: { name: locationName } });
+        locationMap.set(locationName, created.id);
       }
-    });
-    const locationMap = new Map<string, string>(
-      locations.map((loc: { name: string; id: string }) => [loc.name, loc.id])
-    );
+    }
 
     const errors: Array<{ line: number; error: string }> = [];
-    const inserted: string[] = [];
+    let importedCount = 0;
 
     for (let i = 0; i < rows.length; i += 1) {
       const row = rows[i];
       const lineNo = i + 2;
 
-      if (!row.asset_tag || !row.serial_number || !row.qr_code_value || !row.location_name) {
-        errors.push({ line: lineNo, error: "Missing required fields" });
+      if (!row.locationName) {
+        errors.push({ line: lineNo, error: "Missing location" });
         continue;
       }
 
-      const locationId = locationMap.get(row.location_name);
+      const locationId = locationMap.get(row.locationName);
       if (!locationId) {
-        errors.push({ line: lineNo, error: `Unknown location: ${row.location_name}` });
+        errors.push({ line: lineNo, error: `Unknown location: ${row.locationName}` });
         continue;
       }
 
       try {
-        const asset = await db.asset.create({
-          data: {
-            assetTag: row.asset_tag,
-            type: row.type || "camera",
-            brand: row.brand || "unknown",
-            model: row.model || "unknown",
-            serialNumber: row.serial_number,
-            qrCodeValue: row.qr_code_value,
-            purchaseDate: row.purchase_date ? new Date(row.purchase_date) : null,
+        const parsedPurchaseDate = row.purchaseDate ? new Date(row.purchaseDate) : null;
+        const purchaseDate = parsedPurchaseDate && Number.isNaN(parsedPurchaseDate.getTime()) ? null : parsedPurchaseDate;
+        const purchasePrice = row.purchasePrice ? Number(row.purchasePrice.replace(/[^\d.-]+/g, "")) : undefined;
+
+        await db.asset.upsert({
+          where: { serialNumber: row.serialNumber },
+          create: {
+            assetTag: row.assetTag,
+            type: row.type,
+            brand: row.brand,
+            model: row.model,
+            serialNumber: row.serialNumber,
+            qrCodeValue: row.qrCodeValue,
+            purchaseDate,
+            purchasePrice: Number.isFinite(purchasePrice) ? purchasePrice : undefined,
+            status: row.status,
+            notes: row.notes,
+            locationId
+          },
+          update: {
+            assetTag: row.assetTag,
+            type: row.type,
+            brand: row.brand,
+            model: row.model,
+            qrCodeValue: row.qrCodeValue,
+            purchaseDate,
+            purchasePrice: Number.isFinite(purchasePrice) ? purchasePrice : undefined,
+            status: row.status,
+            notes: row.notes,
             locationId
           }
         });
-        inserted.push(asset.id);
+        importedCount += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : "unknown error";
         errors.push({ line: lineNo, error: message.slice(0, 300) });
       }
     }
 
-    return ok({
-      importedCount: inserted.length,
-      errorCount: errors.length,
-      errors
-    });
+    return ok({ importedCount, errorCount: errors.length, errors });
   } catch (error) {
     return fail(error);
   }
