@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 
 type Reservation = {
   id: string;
@@ -53,6 +54,7 @@ export default function ReservationsPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const limit = 20;
 
   async function reload() {
@@ -185,8 +187,8 @@ export default function ReservationsPage() {
               </thead>
               <tbody>
                 {items.map((r) => (
-                  <tr key={r.id}>
-                    <td style={{ fontWeight: 500 }}><Link href={`/reservations/${r.id}`} className="row-link">{r.title}</Link></td>
+                  <tr key={r.id} style={{ cursor: "pointer" }} onClick={() => setSelectedBookingId(r.id)}>
+                    <td style={{ fontWeight: 500 }}><span className="row-link">{r.title}</span></td>
                     <td>{r.requester.name}</td>
                     <td>{formatDate(r.startsAt)} &ndash; {formatDate(r.endsAt)}</td>
                     <td>{r.location.name}</td>
@@ -212,6 +214,12 @@ export default function ReservationsPage() {
           </>
         )}
       </div>
+
+      <BookingDetailsSheet
+        bookingId={selectedBookingId}
+        onClose={() => setSelectedBookingId(null)}
+        onUpdated={reload}
+      />
     </>
   );
 }
