@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 
 type Checkout = {
   id: string;
@@ -53,6 +54,7 @@ export default function CheckoutsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const limit = 20;
 
   async function reload() {
@@ -210,8 +212,8 @@ export default function CheckoutsPage() {
                 {items.map((c) => {
                   const isOverdue = c.status === "OPEN" && new Date(c.endsAt) < new Date();
                   return (
-                    <tr key={c.id}>
-                      <td style={{ fontWeight: 500 }}><Link href={`/checkouts/${c.id}`} className="row-link">{c.title}</Link></td>
+                    <tr key={c.id} style={{ cursor: "pointer" }} onClick={() => setSelectedBookingId(c.id)}>
+                      <td style={{ fontWeight: 500 }}><span className="row-link">{c.title}</span></td>
                       <td>{c.requester.name}</td>
                       <td>{formatDate(c.startsAt)} &ndash; {formatDate(c.endsAt)}</td>
                       <td>{c.location.name}</td>
@@ -238,6 +240,12 @@ export default function CheckoutsPage() {
           </>
         )}
       </div>
+
+      <BookingDetailsSheet
+        bookingId={selectedBookingId}
+        onClose={() => setSelectedBookingId(null)}
+        onUpdated={reload}
+      />
     </>
   );
 }

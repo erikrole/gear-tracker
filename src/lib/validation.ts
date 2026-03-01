@@ -105,3 +105,18 @@ export const changePasswordSchema = z.object({
 export const updateUserRoleSchema = z.object({
   role: z.nativeEnum(Role)
 });
+
+export const updateBookingSchema = z.object({
+  title: z.string().min(1).optional(),
+  requesterUserId: z.string().cuid().optional(),
+  locationId: z.string().cuid().optional(),
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+  serializedAssetIds: z.array(z.string().cuid()).optional(),
+  bulkItems: z.array(bulkItemSchema).optional(),
+  notes: z.string().max(10000).optional()
+});
+
+export const extendBookingSchema = z.object({
+  endsAt: z.string()
+});

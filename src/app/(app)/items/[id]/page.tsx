@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import DataList from "@/components/DataList";
+import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 
 type AssetDetail = {
   id: string;
@@ -64,6 +65,7 @@ export default function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/assets/${id}`)
@@ -147,14 +149,10 @@ export default function ItemDetailsPage() {
                     </thead>
                     <tbody>
                       {group.items.map((entry) => (
-                        <tr key={entry.id}>
+                        <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => setSelectedBookingId(entry.booking.id)}>
                           <td>{entry.booking.kind.toLowerCase()}</td>
                           <td>
-                            {entry.booking.kind === "CHECKOUT" ? (
-                              <Link className="row-link" href={`/checkouts/${entry.booking.id}`}>{entry.booking.title}</Link>
-                            ) : (
-                              <Link className="row-link" href={`/reservations/${entry.booking.id}`}>{entry.booking.title}</Link>
-                            )}
+                            <span className="row-link">{entry.booking.title}</span>
                           </td>
                           <td>{entry.booking.requester.name}</td>
                           <td>{formatDate(entry.booking.startsAt)}</td>
@@ -236,6 +234,11 @@ export default function ItemDetailsPage() {
           </div>
         </div>
       )}
+
+      <BookingDetailsSheet
+        bookingId={selectedBookingId}
+        onClose={() => setSelectedBookingId(null)}
+      />
     </>
   );
 }
