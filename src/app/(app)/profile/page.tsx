@@ -28,8 +28,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetch("/api/profile")
-      .then((res) => res.json())
+      .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (!json?.data) return;
         setProfile(json.data.user);
         setLocations(json.data.locations);
       });
@@ -39,8 +40,8 @@ export default function ProfilePage() {
     if (profile?.role !== "ADMIN") return;
 
     fetch("/api/users")
-      .then((res) => res.json())
-      .then((json) => setUsers(json.data || []));
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => setUsers(json?.data || []));
   }, [profile?.role]);
 
   async function saveProfile(e: FormEvent<HTMLFormElement>) {

@@ -27,6 +27,8 @@ type LookupResult = {
   type: string;
   computedStatus: string;
   location: { name: string };
+  qrCodeValue?: string;
+  primaryScanCode?: string;
 };
 
 type OpenCheckout = {
@@ -51,15 +53,31 @@ export default function ScanPage() {
 
   const lookupAsset = useCallback(async (scanValue: string): Promise<LookupResult | null> => {
     try {
-      // Try QR code, primary scan code, or asset tag
-      const res = await fetch(`/api/assets?q=${encodeURIComponent(scanValue)}&limit=1`);
+      // Parse bg://item/<assetTag> or bg://case/<name> URLs
+      let searchTerm = scanValue;
+      const bgMatch = scanValue.match(/^bg:\/\/(item|case)\/(.+)$/);
+      if (bgMatch) {
+        searchTerm = bgMatch[2];
+      }
+
+      // Search by asset tag, serial, brand/model, or primary scan code
+      const res = await fetch(`/api/assets?q=${encodeURIComponent(searchTerm)}&limit=5`);
+      if (!res.ok) return null;
       const json = await res.json();
       const assets = json.data ?? [];
+
+      // Exact match on qrCodeValue or primaryScanCode first
+      const exactMatch = assets.find(
+        (a: LookupResult) =>
+          a.qrCodeValue === scanValue ||
+          a.primaryScanCode === scanValue ||
+          a.assetTag === searchTerm
+      );
+      if (exactMatch) return exactMatch;
+
+      // Fall back to first search result
       if (assets.length > 0) return assets[0];
 
-      // Also try by exact qrCodeValue match
-      // The search endpoint checks assetTag, brand, model, serialNumber
-      // For QR codes like "bg://item/..." we need to search differently
       return null;
     } catch {
       return null;
@@ -109,6 +127,7 @@ export default function ScanPage() {
 
           // Find open checkouts containing this asset
           const res = await fetch(`/api/checkouts?status=OPEN&limit=50`);
+          if (!res.ok) { setCheckinMessage("Failed to load checkouts"); return; }
           const json = await res.json();
           const checkouts = json.data ?? [];
 

@@ -66,8 +66,8 @@ export default function ItemDetailsPage() {
 
   useEffect(() => {
     fetch(`/api/assets/${id}`)
-      .then((res) => res.json())
-      .then((json) => setAsset(json.data));
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setAsset(json.data); });
   }, [id]);
 
   const historyByMonth = useMemo(() => {

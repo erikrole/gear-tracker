@@ -31,8 +31,8 @@ export default function CheckoutDetailsPage() {
 
   useEffect(() => {
     fetch(`/api/checkouts/${id}`)
-      .then((res) => res.json())
-      .then((json) => setCheckout(json.data));
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setCheckout(json.data); });
   }, [id]);
 
   if (!checkout) {

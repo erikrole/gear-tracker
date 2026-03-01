@@ -10,8 +10,17 @@ export async function GET() {
 
     const now = new Date();
 
+    let statusCounts: Record<string, number>;
+    try {
+      statusCounts = await countAssetsByEffectiveStatus();
+    } catch {
+      // Fallback if allocation tables not yet migrated
+      const counts = await db.asset.groupBy({ by: ["status"], _count: true });
+      statusCounts = { AVAILABLE: 0, CHECKED_OUT: 0, RESERVED: 0, MAINTENANCE: 0, RETIRED: 0 };
+      for (const c of counts) statusCounts[c.status] = c._count;
+    }
+
     const [
-      statusCounts,
       totalAssets,
       reservationsBooked,
       reservationsOverdue,
@@ -22,7 +31,6 @@ export async function GET() {
       assetsByLocation,
       assetsByType,
     ] = await Promise.all([
-      countAssetsByEffectiveStatus(),
       db.asset.count(),
       db.booking.count({
         where: { kind: "RESERVATION", status: "BOOKED" },

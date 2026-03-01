@@ -57,13 +57,17 @@ export default function ReservationsPage() {
 
   async function reload() {
     setLoading(true);
-    const params = new URLSearchParams();
-    params.set("limit", String(limit));
-    params.set("offset", String(page * limit));
-    const res = await fetch(`/api/reservations?${params}`);
-    const json: Response = await res.json();
-    setItems(json.data);
-    setTotal(json.total);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", String(limit));
+      params.set("offset", String(page * limit));
+      const res = await fetch(`/api/reservations?${params}`);
+      if (res.ok) {
+        const json: Response = await res.json();
+        setItems(json.data ?? []);
+        setTotal(json.total ?? 0);
+      }
+    } catch { /* network error */ }
     setLoading(false);
   }
 
@@ -73,8 +77,9 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     fetch("/api/form-options")
-      .then((res) => res.json())
+      .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (!json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
         setAssets(json.data.availableAssets || []);

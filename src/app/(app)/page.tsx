@@ -51,8 +51,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((res) => res.json())
-      .then((json) => setData(json.data));
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setData(json.data); });
   }, []);
 
   if (!data) {

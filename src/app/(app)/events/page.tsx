@@ -57,19 +57,20 @@ export default function EventsPage() {
 
   async function loadEvents() {
     setLoading(true);
-    const params = new URLSearchParams({ limit: "50" });
-    if (unmappedOnly) params.set("unmapped", "true");
-
-    const res = await fetch(`/api/calendar-events?${params}`);
-    const json = await res.json();
-    setEvents(json.data ?? []);
+    try {
+      const params = new URLSearchParams({ limit: "50" });
+      if (unmappedOnly) params.set("unmapped", "true");
+      const res = await fetch(`/api/calendar-events?${params}`);
+      if (res.ok) { const json = await res.json(); setEvents(json.data ?? []); }
+    } catch { /* network error */ }
     setLoading(false);
   }
 
   async function loadSources() {
-    const res = await fetch("/api/calendar-sources");
-    const json = await res.json();
-    setSources(json.data ?? []);
+    try {
+      const res = await fetch("/api/calendar-sources");
+      if (res.ok) { const json = await res.json(); setSources(json.data ?? []); }
+    } catch { /* network error */ }
   }
 
   async function handleSync(sourceId: string) {
