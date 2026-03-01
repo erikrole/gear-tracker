@@ -9,6 +9,7 @@ export type AvailabilityResult = {
   conflicts: Array<{
     assetId: string;
     conflictingBookingId: string;
+    conflictingBookingTitle?: string;
     startsAt: Date;
     endsAt: Date;
   }>;
@@ -53,13 +54,15 @@ export async function checkSerializedConflicts(
       assetId: true,
       bookingId: true,
       startsAt: true,
-      endsAt: true
+      endsAt: true,
+      booking: { select: { title: true } }
     }
   });
 
   return conflicts.map((item) => ({
     assetId: item.assetId,
     conflictingBookingId: item.bookingId,
+    conflictingBookingTitle: item.booking.title,
     startsAt: item.startsAt,
     endsAt: item.endsAt
   }));

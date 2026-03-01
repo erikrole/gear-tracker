@@ -66,11 +66,15 @@ export default function ItemDetailsPage() {
   const [asset, setAsset] = useState<AssetDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
 
   useEffect(() => {
     fetch(`/api/assets/${id}`)
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json?.data) setAsset(json.data); });
+    fetch("/api/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
   }, [id]);
 
   const historyByMonth = useMemo(() => {
@@ -238,6 +242,7 @@ export default function ItemDetailsPage() {
       <BookingDetailsSheet
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
+        currentUserRole={currentUserRole}
       />
     </>
   );

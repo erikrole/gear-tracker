@@ -14,17 +14,22 @@ export async function GET() {
       )
     );
 
-    const [locations, users, availableAssets] = await Promise.all([
+    const [locations, users, availableAssets, bulkSkus] = await Promise.all([
       db.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
       db.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, email: true } }),
       db.asset.findMany({
         where: { status: "AVAILABLE" },
         orderBy: { assetTag: "asc" },
         select: { id: true, assetTag: true, brand: true, model: true, locationId: true }
+      }),
+      db.bulkSku.findMany({
+        where: { active: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, category: true, unit: true, locationId: true }
       })
     ]);
 
-    return ok({ data: { locations, users, availableAssets } });
+    return ok({ data: { locations, users, availableAssets, bulkSkus } });
   } catch (error) {
     return fail(error);
   }
