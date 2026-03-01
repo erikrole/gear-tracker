@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
+import { useToast } from "@/components/Toast";
 
 // Dynamic import to avoid SSR issues with html5-qrcode
 const QrScanner = dynamic(() => import("@/components/QrScanner"), { ssr: false });
@@ -41,6 +42,7 @@ type OpenCheckout = {
 };
 
 export default function ScanPage() {
+  const { toast } = useToast();
   const [mode, setMode] = useState<ScanMode>("checkout");
   const [scanning, setScanning] = useState(false);
   const [cart, setCart] = useState<ScannedItem[]>([]);
@@ -110,11 +112,13 @@ export default function ScanPage() {
             },
             ...prev
           ]);
+          toast(`Added ${asset.assetTag}`, "success");
         } else {
           setCart((prev) => [
             { scanValue: value, status: "not_found", message: "Item not found" },
             ...prev
           ]);
+          toast(`Item not found: ${value}`, "error");
         }
       } else {
         // Check-in mode: scan to find the open checkout containing this item
@@ -138,8 +142,10 @@ export default function ScanPage() {
           if (match) {
             setFoundCheckout(match);
             setCheckinMessage(`Found open checkout: ${match.title}`);
+            toast(`Found checkout: ${match.title}`, "success");
           } else {
             setCheckinMessage(`No open checkout found containing ${asset.assetTag}`);
+            toast("No open checkout found for this item", "info");
           }
         } catch {
           setCheckinMessage("Error looking up checkout");

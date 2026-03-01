@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import DataList from "@/components/DataList";
 
 type Checkout = {
   id: string;
@@ -50,13 +51,17 @@ export default function CheckoutDetailsPage() {
       <div className="details-grid">
         <div className="card details-card">
           <div className="card-header"><h2>Check-out details</h2></div>
-          <dl className="details-list">
-            <div><dt>Name</dt><dd>{checkout.title}</dd></div>
-            <div><dt>Location</dt><dd>{checkout.location.name}</dd></div>
-            <div><dt>From</dt><dd>{formatDate(checkout.startsAt)}</dd></div>
-            <div><dt>To</dt><dd>{formatDate(checkout.endsAt)}</dd></div>
-            <div><dt>User</dt><dd>{checkout.requester.name} <span className="muted">({checkout.requester.email})</span></dd></div>
-          </dl>
+          <div style={{ padding: 16 }}>
+            <DataList
+              items={[
+                { label: "Name", value: checkout.title },
+                { label: "Location", value: checkout.location.name },
+                { label: "From", value: formatDate(checkout.startsAt) },
+                { label: "To", value: formatDate(checkout.endsAt) },
+                { label: "User", value: <>{checkout.requester.name} <span className="muted">({checkout.requester.email})</span></> },
+              ]}
+            />
+          </div>
         </div>
 
         <div className="card details-card">
