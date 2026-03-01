@@ -55,6 +55,7 @@ export default function ReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const limit = 20;
 
   async function reload() {
@@ -87,6 +88,9 @@ export default function ReservationsPage() {
         setAssets(json.data.availableAssets || []);
         setCreateLocationId(json.data.locations?.[0]?.id || "");
       });
+    fetch("/api/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
   }, []);
 
   async function handleCreateReservation(e: FormEvent<HTMLFormElement>) {
@@ -219,6 +223,7 @@ export default function ReservationsPage() {
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
         onUpdated={reload}
+        currentUserRole={currentUserRole}
       />
     </>
   );

@@ -62,6 +62,95 @@ function dedupeIds(ids: string[]) {
   return [...new Set(ids)];
 }
 
+/* ── Equipment diff helpers for granular audit ── */
+
+type AuditJson = Record<string, string | number | boolean | null | string[] | { bulkSkuId: string; quantity: number }[]>;
+
+type EquipmentAuditEntry = {
+  action: string;
+  beforeJson: AuditJson;
+  afterJson: AuditJson;
+};
+
+function diffEquipment(
+  existingSerializedIds: string[],
+  nextSerializedIds: string[],
+  existingBulk: { bulkSkuId: string; quantity: number }[],
+  nextBulk: { bulkSkuId: string; quantity: number }[]
+): EquipmentAuditEntry[] {
+  const entries: EquipmentAuditEntry[] = [];
+
+  const oldSet = new Set(existingSerializedIds);
+  const newSet = new Set(nextSerializedIds);
+  const added = nextSerializedIds.filter((id) => !oldSet.has(id));
+  const removed = existingSerializedIds.filter((id) => !newSet.has(id));
+
+  if (added.length > 0) {
+    entries.push({
+      action: "booking.items_added",
+      beforeJson: {},
+      afterJson: { serializedAssetIds: added }
+    });
+  }
+
+  if (removed.length > 0) {
+    entries.push({
+      action: "booking.items_removed",
+      beforeJson: { serializedAssetIds: removed },
+      afterJson: {}
+    });
+  }
+
+  // Bulk qty changes
+  const oldBulkMap = new Map(existingBulk.map((b) => [b.bulkSkuId, b.quantity]));
+  const newBulkMap = new Map(nextBulk.map((b) => [b.bulkSkuId, b.quantity]));
+
+  const bulkAdded: { bulkSkuId: string; quantity: number }[] = [];
+  const bulkRemoved: { bulkSkuId: string; quantity: number }[] = [];
+  const bulkChanged: { bulkSkuId: string; from: number; to: number }[] = [];
+
+  for (const [skuId, qty] of newBulkMap) {
+    const oldQty = oldBulkMap.get(skuId);
+    if (oldQty === undefined) {
+      bulkAdded.push({ bulkSkuId: skuId, quantity: qty });
+    } else if (oldQty !== qty) {
+      bulkChanged.push({ bulkSkuId: skuId, from: oldQty, to: qty });
+    }
+  }
+
+  for (const [skuId, qty] of oldBulkMap) {
+    if (!newBulkMap.has(skuId)) {
+      bulkRemoved.push({ bulkSkuId: skuId, quantity: qty });
+    }
+  }
+
+  if (bulkAdded.length > 0) {
+    entries.push({
+      action: "booking.items_added",
+      beforeJson: {},
+      afterJson: { bulkItems: bulkAdded }
+    });
+  }
+
+  if (bulkRemoved.length > 0) {
+    entries.push({
+      action: "booking.items_removed",
+      beforeJson: { bulkItems: bulkRemoved },
+      afterJson: {}
+    });
+  }
+
+  if (bulkChanged.length > 0) {
+    entries.push({
+      action: "booking.items_qty_changed",
+      beforeJson: { bulkItems: bulkChanged.map((c) => ({ bulkSkuId: c.bulkSkuId, quantity: c.from })) },
+      afterJson: { bulkItems: bulkChanged.map((c) => ({ bulkSkuId: c.bulkSkuId, quantity: c.to })) }
+    });
+  }
+
+  return entries;
+}
+
 async function upsertBulkBalancesAndMovements(
   tx: Prisma.TransactionClient,
   args: {
@@ -387,20 +476,51 @@ export async function updateReservation(
         });
       }
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          entityType: "booking",
-          entityId: bookingId,
-          action: "updated",
-          beforeJson: existing,
-          afterJson: {
-            ...updates,
-            serializedAssetIds,
-            bulkItems
+      // Granular equipment audit entries
+      const equipEntries = diffEquipment(
+        existing.serializedItems.map((i) => i.assetId),
+        serializedAssetIds,
+        existing.bulkItems.map((i) => ({ bulkSkuId: i.bulkSkuId, quantity: i.plannedQuantity })),
+        bulkItems
+      );
+
+      // General "updated" entry for non-equipment fields
+      const fieldChanges: AuditJson = {};
+      if (updates.title && updates.title !== existing.title) fieldChanges.title = updates.title;
+      if (updates.notes !== undefined && updates.notes !== existing.notes) fieldChanges.notes = updates.notes ?? null;
+      if (updates.startsAt && updates.startsAt.toISOString() !== existing.startsAt.toISOString()) fieldChanges.startsAt = updates.startsAt.toISOString();
+      if (updates.endsAt && updates.endsAt.toISOString() !== existing.endsAt.toISOString()) fieldChanges.endsAt = updates.endsAt.toISOString();
+
+      if (Object.keys(fieldChanges).length > 0 || equipEntries.length === 0) {
+        await tx.auditLog.create({
+          data: {
+            actorUserId,
+            entityType: "booking",
+            entityId: bookingId,
+            action: "updated",
+            beforeJson: {
+              title: existing.title,
+              startsAt: existing.startsAt.toISOString(),
+              endsAt: existing.endsAt.toISOString(),
+              notes: existing.notes
+            } satisfies AuditJson,
+            afterJson: fieldChanges
           }
-        }
-      });
+        });
+      }
+
+      for (const entry of equipEntries) {
+        await tx.auditLog.create({
+          data: {
+            actorUserId,
+            entityType: "booking",
+            entityId: bookingId,
+            action: entry.action,
+            beforeJson: entry.beforeJson as Prisma.InputJsonValue,
+            afterJson: entry.afterJson as Prisma.InputJsonValue
+          }
+        });
+      }
 
       return tx.booking.findUniqueOrThrow({
         where: { id: bookingId },
@@ -614,26 +734,48 @@ export async function updateCheckout(
         });
       }
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          entityType: "booking",
-          entityId: bookingId,
-          action: "updated",
-          beforeJson: {
-            title: existing.title,
-            endsAt: existing.endsAt,
-            notes: existing.notes,
-            serializedAssetIds: existing.serializedItems.map((i) => i.assetId)
-          },
-          afterJson: {
-            title: updates.title ?? existing.title,
-            endsAt: nextEndsAt,
-            notes: updates.notes ?? existing.notes,
-            serializedAssetIds
+      // Granular equipment audit entries
+      const equipEntries = diffEquipment(
+        existing.serializedItems.map((i) => i.assetId),
+        serializedAssetIds,
+        existing.bulkItems.map((i) => ({ bulkSkuId: i.bulkSkuId, quantity: i.plannedQuantity })),
+        bulkItems
+      );
+
+      const fieldChanges: AuditJson = {};
+      if (updates.title && updates.title !== existing.title) fieldChanges.title = updates.title;
+      if (updates.notes !== undefined && updates.notes !== existing.notes) fieldChanges.notes = updates.notes ?? null;
+      if (updates.endsAt && updates.endsAt.toISOString() !== existing.endsAt.toISOString()) fieldChanges.endsAt = updates.endsAt.toISOString();
+
+      if (Object.keys(fieldChanges).length > 0 || equipEntries.length === 0) {
+        await tx.auditLog.create({
+          data: {
+            actorUserId,
+            entityType: "booking",
+            entityId: bookingId,
+            action: "updated",
+            beforeJson: {
+              title: existing.title,
+              endsAt: existing.endsAt.toISOString(),
+              notes: existing.notes
+            } satisfies AuditJson,
+            afterJson: fieldChanges
           }
-        }
-      });
+        });
+      }
+
+      for (const entry of equipEntries) {
+        await tx.auditLog.create({
+          data: {
+            actorUserId,
+            entityType: "booking",
+            entityId: bookingId,
+            action: entry.action,
+            beforeJson: entry.beforeJson as Prisma.InputJsonValue,
+            afterJson: entry.afterJson as Prisma.InputJsonValue
+          }
+        });
+      }
 
       return tx.booking.findUniqueOrThrow({
         where: { id: bookingId },
@@ -766,7 +908,8 @@ export async function getBookingDetail(bookingId: string) {
     where: { id: bookingId },
     include: {
       ...bookingInclude,
-      creator: { select: { id: true, name: true, email: true } }
+      creator: { select: { id: true, name: true, email: true } },
+      serializedItems: { include: { asset: { include: { location: { select: { id: true, name: true } } } } } },
     }
   });
 
@@ -784,12 +927,25 @@ export async function getBookingDetail(bookingId: string) {
   const isOverdue = booking.status === BookingStatus.OPEN && booking.endsAt < new Date();
   const isActive = booking.status === BookingStatus.OPEN || booking.status === BookingStatus.BOOKED;
 
+  // Compute distinct locations represented by assets in this booking
+  const locationMap = new Map<string, string>();
+  locationMap.set(booking.location.id, booking.location.name);
+  for (const item of booking.serializedItems) {
+    if (item.asset.location) {
+      locationMap.set(item.asset.location.id, item.asset.location.name);
+    }
+  }
+  const itemLocations = Array.from(locationMap, ([id, name]) => ({ id, name }));
+  const locationMode: "SINGLE" | "MIXED" = itemLocations.length > 1 ? "MIXED" : "SINGLE";
+
   return {
     ...booking,
     isOverdue,
     isActive,
     bookingType: booking.kind === BookingKind.RESERVATION ? "Reservation" : "Checkout",
-    auditLogs
+    auditLogs,
+    itemLocations,
+    locationMode
   };
 }
 
