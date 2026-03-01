@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/Toast";
 
 type Notification = {
   id: string;
@@ -24,6 +25,7 @@ type NotificationsResponse = {
 };
 
 export default function NotificationsPage() {
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [total, setTotal] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -79,7 +81,10 @@ export default function NotificationsPage() {
     try {
       const res = await fetch("/api/notifications/process", { method: "POST" });
       if (res.ok) {
+        toast("Overdue check complete", "success");
         await reload();
+      } else {
+        toast("Failed to process overdue notifications", "error");
       }
     } finally {
       setProcessing(false);

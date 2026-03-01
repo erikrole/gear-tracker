@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import DataList from "@/components/DataList";
 
 type AssetDetail = {
   id: string;
@@ -173,21 +174,26 @@ export default function ItemDetailsPage() {
         <div className="details-grid" style={{ marginTop: 14 }}>
           <div className="card details-card">
             <div className="card-header"><h2>Information</h2></div>
-            <dl className="details-list">
-              <div><dt>Item name</dt><dd>{asset.assetTag}</dd></div>
-              <div><dt>Brand</dt><dd>{asset.brand}</dd></div>
-              <div><dt>Model</dt><dd>{asset.model}</dd></div>
-              <div><dt>Category</dt><dd>{asset.type}</dd></div>
-              <div><dt>Location</dt><dd>{asset.location.name}</dd></div>
-              <div><dt>Purchase price</dt><dd>{asset.purchasePrice ? `$${asset.purchasePrice}` : "—"}</dd></div>
-              <div><dt>Purchase date</dt><dd>{formatDate(asset.purchaseDate)}</dd></div>
-              <div><dt>Serial number</dt><dd style={{ fontFamily: "monospace" }}>{asset.serialNumber}</dd></div>
-              <div><dt>Description</dt><dd>{asset.metadata?.description || "—"}</dd></div>
-              <div><dt>Owner</dt><dd>{asset.metadata?.owner || "—"}</dd></div>
-              <div><dt>Department</dt><dd>{asset.metadata?.department || "—"}</dd></div>
-              <div><dt>UW Asset Tag</dt><dd>{asset.metadata?.uwAssetTag || "—"}</dd></div>
-              <div><dt>Fiscal Year</dt><dd>{asset.metadata?.fiscalYearPurchased || "—"}</dd></div>
-            </dl>
+            <div style={{ padding: 16 }}>
+              <DataList
+                columns={2}
+                items={[
+                  { label: "Item name", value: asset.assetTag },
+                  { label: "Brand", value: asset.brand },
+                  { label: "Model", value: asset.model },
+                  { label: "Category", value: asset.type },
+                  { label: "Location", value: asset.location.name },
+                  { label: "Purchase price", value: asset.purchasePrice ? `$${asset.purchasePrice}` : "—" },
+                  { label: "Purchase date", value: formatDate(asset.purchaseDate) },
+                  { label: "Serial number", value: <span style={{ fontFamily: "monospace" }}>{asset.serialNumber}</span> },
+                  { label: "Description", value: asset.metadata?.description || "—" },
+                  { label: "Owner", value: asset.metadata?.owner || "—" },
+                  { label: "Department", value: asset.metadata?.department || "—" },
+                  { label: "UW Asset Tag", value: asset.metadata?.uwAssetTag || "—" },
+                  { label: "Fiscal Year", value: asset.metadata?.fiscalYearPurchased || "—" },
+                ]}
+              />
+            </div>
           </div>
 
           <div style={{ display: "grid", gap: 16 }}>

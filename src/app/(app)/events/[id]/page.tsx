@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import DataList from "@/components/DataList";
 
 type CalendarEvent = {
   id: string;
@@ -105,29 +106,24 @@ export default function EventDetailPage() {
       {/* Event details */}
       <div className="card">
         <div className="card-header"><h2>Details</h2></div>
-        <dl className="details-list" style={{ padding: 16 }}>
-          <div>
-            <dt>When</dt>
-            <dd>
-              {event.allDay
-                ? formatDate(event.startsAt)
-                : `${formatDateTime(event.startsAt)} — ${formatDateTime(event.endsAt)}`
-              }
-            </dd>
-          </div>
-          {event.rawLocationText && (
-            <div>
-              <dt>Venue</dt>
-              <dd>{event.rawLocationText}</dd>
-            </div>
-          )}
-          {event.description && (
-            <div>
-              <dt>Description</dt>
-              <dd style={{ whiteSpace: "pre-wrap" }}>{event.description}</dd>
-            </div>
-          )}
-        </dl>
+        <div style={{ padding: 16 }}>
+          <DataList
+            items={[
+              {
+                label: "When",
+                value: event.allDay
+                  ? formatDate(event.startsAt)
+                  : `${formatDateTime(event.startsAt)} — ${formatDateTime(event.endsAt)}`
+              },
+              ...(event.rawLocationText
+                ? [{ label: "Venue", value: event.rawLocationText }]
+                : []),
+              ...(event.description
+                ? [{ label: "Description", value: <span style={{ whiteSpace: "pre-wrap" }}>{event.description}</span> }]
+                : []),
+            ]}
+          />
+        </div>
       </div>
 
       {/* Debug info for admins */}

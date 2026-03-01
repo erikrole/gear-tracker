@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useToast } from "@/components/Toast";
 
 type PreviewRow = {
   line: number;
@@ -53,6 +54,7 @@ type ImportResult = {
 type Step = "upload" | "preview" | "importing" | "summary";
 
 export default function ImportPage() {
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -98,6 +100,7 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Failed to parse CSV");
+        toast(json.error || "Failed to parse CSV", "error");
         setLoading(false);
         return;
       }
@@ -128,14 +131,17 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Import failed");
+        toast(json.error || "Import failed", "error");
         setStep("preview");
         return;
       }
 
       setResult(json.data);
       setStep("summary");
+      toast(`Imported ${json.data.created} items successfully`, "success");
     } catch {
       setError("Import failed unexpectedly");
+      toast("Import failed unexpectedly", "error");
       setStep("preview");
     }
   }
