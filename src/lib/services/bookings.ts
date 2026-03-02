@@ -23,6 +23,8 @@ type CreateBookingInput = {
   notes?: string;
   createdBy: string;
   sourceReservationId?: string;
+  eventId?: string;
+  sportCode?: string;
 };
 
 type UpdateBookingInput = {
@@ -274,7 +276,9 @@ export async function createBooking(input: CreateBookingInput) {
           status,
           createdBy: input.createdBy,
           notes: input.notes,
-          sourceReservationId: input.sourceReservationId ?? null
+          sourceReservationId: input.sourceReservationId ?? null,
+          eventId: input.eventId ?? null,
+          sportCode: input.sportCode ?? null
         }
       });
 
