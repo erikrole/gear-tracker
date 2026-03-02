@@ -15,7 +15,8 @@ export async function GET(req: Request) {
     const where: Prisma.BookingWhereInput = {
       kind: BookingKind.CHECKOUT,
       ...(searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
-      ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {})
+      ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
+      ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {})
     };
 
     const { limit, offset } = parsePagination(searchParams);
@@ -28,7 +29,8 @@ export async function GET(req: Request) {
           location: true,
           requester: { select: { id: true, name: true, email: true } },
           serializedItems: { include: { asset: true } },
-          bulkItems: { include: { bulkSku: true } }
+          bulkItems: { include: { bulkSku: true } },
+          event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } }
         },
         take: limit,
         skip: offset
@@ -59,7 +61,9 @@ export async function POST(req: Request) {
       bulkItems: body.bulkItems,
       notes: body.notes,
       createdBy: actor.id,
-      sourceReservationId: body.sourceReservationId
+      sourceReservationId: body.sourceReservationId,
+      eventId: body.eventId,
+      sportCode: body.sportCode
     });
 
     return ok({ data: checkout }, 201);

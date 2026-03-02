@@ -39,6 +39,8 @@ export const createCheckoutSchema = z.object({
   serializedAssetIds: z.array(z.string().cuid()).default([]),
   bulkItems: z.array(bulkItemSchema).default([]),
   sourceReservationId: z.string().cuid().optional(),
+  eventId: z.string().cuid().optional(),
+  sportCode: z.string().max(10).optional(),
   notes: z.string().max(10000).optional()
 });
 

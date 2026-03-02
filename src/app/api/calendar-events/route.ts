@@ -13,10 +13,13 @@ export async function GET(req: Request) {
     const endDate = searchParams.get("endDate");
     const unmappedOnly = searchParams.get("unmapped") === "true";
 
+    const sportCode = searchParams.get("sportCode");
+
     const where = {
       ...(startDate ? { startsAt: { gte: new Date(startDate) } } : {}),
       ...(endDate ? { endsAt: { lte: new Date(endDate) } } : {}),
       ...(unmappedOnly ? { locationId: null } : {}),
+      ...(sportCode ? { sportCode } : {}),
       status: { not: "CANCELLED" as const }
     };
 
