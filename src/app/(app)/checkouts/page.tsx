@@ -36,6 +36,24 @@ type CalendarEvent = {
   location: { id: string; name: string } | null;
 };
 
+type AvailableAsset = {
+  id: string;
+  assetTag: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  type: string;
+  locationId: string;
+  location?: { name: string };
+};
+type BulkSkuOption = {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  locationId: string;
+};
+
 type ListResponse = { data: Checkout[]; total: number; limit: number; offset: number };
 
 /* ───── Helpers ───── */
@@ -92,6 +110,15 @@ export default function CheckoutsPage() {
   const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // ── Equipment picker state ──
+  const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
+  const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
+  const [showEquipPicker, setShowEquipPicker] = useState(false);
+  const [equipPickerTab, setEquipPickerTab] = useState<"serialized" | "bulk">("serialized");
+  const [equipSearch, setEquipSearch] = useState("");
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [selectedBulkItems, setSelectedBulkItems] = useState<{ bulkSkuId: string; quantity: number }[]>([]);
+
   // ── Sheet + context menu ──
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
@@ -132,6 +159,8 @@ export default function CheckoutsPage() {
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
         setCreateLocationId(json.data.locations?.[0]?.id || "");
+        setAvailableAssets(json.data.availableAssets || []);
+        setBulkSkus(json.data.bulkSkus || []);
       });
     fetch("/api/me")
       .then((res) => res.ok ? res.json() : null)
@@ -207,8 +236,8 @@ export default function CheckoutsPage() {
       locationId: createLocationId,
       startsAt: new Date(createStartsAt).toISOString(),
       endsAt: new Date(createEndsAt).toISOString(),
-      serializedAssetIds: [],
-      bulkItems: [],
+      serializedAssetIds: selectedAssetIds,
+      bulkItems: selectedBulkItems,
     };
 
     if (selectedEvent) {
@@ -239,6 +268,10 @@ export default function CheckoutsPage() {
       setSelectedEvent(null);
       setCreateStartsAt(toLocalDateTimeValue(new Date()));
       setCreateEndsAt(toLocalDateTimeValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+      setSelectedAssetIds([]);
+      setSelectedBulkItems([]);
+      setShowEquipPicker(false);
+      setEquipSearch("");
       setSubmitting(false);
 
       // Open the sheet immediately for adding items
@@ -320,6 +353,34 @@ export default function CheckoutsPage() {
     }
     return Array.from(codes).sort();
   }, [items]);
+
+  // Equipment picker filtering
+  const filteredPickerAssets = useMemo(() => {
+    const q = equipSearch.toLowerCase();
+    return availableAssets.filter((a) => {
+      if (selectedAssetIds.includes(a.id)) return false;
+      if (!q) return true;
+      return (
+        a.assetTag.toLowerCase().includes(q) ||
+        a.brand.toLowerCase().includes(q) ||
+        a.model.toLowerCase().includes(q) ||
+        a.serialNumber.toLowerCase().includes(q) ||
+        a.type.toLowerCase().includes(q)
+      );
+    });
+  }, [availableAssets, selectedAssetIds, equipSearch]);
+
+  const filteredPickerBulk = useMemo(() => {
+    const q = equipSearch.toLowerCase();
+    const existingSkuIds = new Set(selectedBulkItems.map((i) => i.bulkSkuId));
+    return bulkSkus.filter((s) => {
+      if (existingSkuIds.has(s.id)) return false;
+      if (!q) return true;
+      return s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
+    });
+  }, [bulkSkus, selectedBulkItems, equipSearch]);
+
+  const equipmentCount = selectedAssetIds.length + selectedBulkItems.length;
 
   return (
     <>
@@ -477,6 +538,198 @@ export default function CheckoutsPage() {
                   onChange={(e) => setCreateEndsAt(e.target.value)}
                 />
               </div>
+            </div>
+
+            {/* Equipment picker */}
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                  Equipment{equipmentCount > 0 ? ` (${equipmentCount})` : ""}
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => { setShowEquipPicker(!showEquipPicker); setEquipSearch(""); }}
+                  style={{ minHeight: 32 }}
+                >
+                  {showEquipPicker ? "Done" : "+ Add equipment"}
+                </button>
+              </div>
+
+              {/* Selected items summary */}
+              {selectedAssetIds.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  {selectedAssetIds.map((assetId) => {
+                    const asset = availableAssets.find((a) => a.id === assetId);
+                    if (!asset) return null;
+                    return (
+                      <div
+                        key={assetId}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "6px 0", borderBottom: "1px solid var(--border-light)", minHeight: 40, gap: 8,
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{asset.assetTag}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                            {asset.brand} {asset.model}
+                            {asset.location ? ` · ${asset.location.name}` : ""}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{ color: "var(--red)", borderColor: "var(--red)", flexShrink: 0, fontSize: 11, minHeight: 28 }}
+                          onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedBulkItems.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  {selectedBulkItems.map((item) => {
+                    const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+                    return (
+                      <div
+                        key={item.bulkSkuId}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "6px 0", borderBottom: "1px solid var(--border-light)", minHeight: 40, gap: 8,
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{sku?.name || item.bulkSkuId}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{sku?.category} · {sku?.unit}</div>
+                        </div>
+                        <div className="qty-stepper" style={{ flexShrink: 0 }}>
+                          <button type="button" onClick={() => {
+                            if (item.quantity <= 1) {
+                              setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
+                            } else {
+                              setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
+                            }
+                          }}>&minus;</button>
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const qty = parseInt(e.target.value) || 1;
+                              if (qty <= 0) {
+                                setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
+                              } else {
+                                setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: qty } : i));
+                              }
+                            }}
+                          />
+                          <button type="button" onClick={() => {
+                            setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i));
+                          }}>+</button>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{ color: "var(--red)", borderColor: "var(--red)", flexShrink: 0, fontSize: 11, minHeight: 28 }}
+                          onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Picker panel */}
+              {showEquipPicker && (
+                <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 10 }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                    <button
+                      type="button"
+                      className={`filter-chip ${equipPickerTab === "serialized" ? "active" : ""}`}
+                      onClick={() => { setEquipPickerTab("serialized"); setEquipSearch(""); }}
+                    >
+                      Assets
+                    </button>
+                    <button
+                      type="button"
+                      className={`filter-chip ${equipPickerTab === "bulk" ? "active" : ""}`}
+                      onClick={() => { setEquipPickerTab("bulk"); setEquipSearch(""); }}
+                    >
+                      Bulk items
+                    </button>
+                  </div>
+
+                  <input
+                    placeholder={equipPickerTab === "serialized" ? "Search by tag, brand, model, serial..." : "Search bulk items..."}
+                    value={equipSearch}
+                    onChange={(e) => setEquipSearch(e.target.value)}
+                    autoFocus
+                    style={{
+                      width: "100%", padding: "8px 12px", border: "1px solid var(--border)",
+                      borderRadius: "var(--radius)", fontSize: 13, outline: "none", boxSizing: "border-box",
+                    }}
+                  />
+
+                  <div style={{ maxHeight: 220, overflowY: "auto", marginTop: 6 }}>
+                    {equipPickerTab === "serialized" ? (
+                      filteredPickerAssets.length === 0 ? (
+                        <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+                          {equipSearch ? "No matching assets" : "No available assets"}
+                        </div>
+                      ) : (
+                        filteredPickerAssets.slice(0, 50).map((asset) => (
+                          <div
+                            key={asset.id}
+                            className="equip-picker-item"
+                            onClick={() => setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id])}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: 13 }}>{asset.assetTag}</div>
+                              <div className="equip-picker-meta">
+                                {asset.brand} {asset.model}
+                                {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
+                                {asset.location ? ` · ${asset.location.name}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )
+                    ) : (
+                      filteredPickerBulk.length === 0 ? (
+                        <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+                          {equipSearch ? "No matching bulk items" : "No available bulk items"}
+                        </div>
+                      ) : (
+                        filteredPickerBulk.slice(0, 50).map((sku) => (
+                          <div
+                            key={sku.id}
+                            className="equip-picker-item"
+                            onClick={() => setSelectedBulkItems((prev) => [...prev, { bulkSkuId: sku.id, quantity: 1 }])}
+                          >
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 13 }}>{sku.name}</div>
+                              <div className="equip-picker-meta">{sku.category} &middot; {sku.unit}</div>
+                            </div>
+                          </div>
+                        ))
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {equipmentCount === 0 && !showEquipPicker && (
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  No equipment selected yet. You can also add equipment after creating.
+                </div>
+              )}
             </div>
 
             {createError && (
