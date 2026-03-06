@@ -3,6 +3,7 @@ import { ScanType } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { fail, HttpError, ok } from "@/lib/http";
 import { recordScan } from "@/lib/services/scans";
+import { requireCheckoutAction } from "@/lib/services/checkout-rules";
 import { scanSchema } from "@/lib/validation";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -14,6 +15,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (body.phase !== "CHECKIN") {
       throw new HttpError(400, "phase must be CHECKIN");
     }
+
+    await requireCheckoutAction(params.id, actor, "checkin");
 
     const result = await recordScan({
       bookingId: params.id,
