@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
 import { getAllowedActionsClient } from "@/lib/checkout-actions";
+import {
+  EQUIPMENT_SECTIONS,
+  groupAssetsBySection,
+  groupBulkBySection,
+  type EquipmentSectionKey,
+} from "@/lib/equipment-sections";
 
 /* ───── Types ───── */
 
@@ -114,7 +120,7 @@ export default function CheckoutsPage() {
   const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(false);
-  const [equipPickerTab, setEquipPickerTab] = useState<"serialized" | "bulk">("serialized");
+  const [activeSection, setActiveSection] = useState<EquipmentSectionKey | null>(null);
   const [equipSearch, setEquipSearch] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [selectedBulkItems, setSelectedBulkItems] = useState<{ bulkSkuId: string; quantity: number }[]>([]);
@@ -271,6 +277,7 @@ export default function CheckoutsPage() {
       setSelectedAssetIds([]);
       setSelectedBulkItems([]);
       setShowEquipPicker(false);
+      setActiveSection(null);
       setEquipSearch("");
       setSubmitting(false);
 
@@ -354,10 +361,21 @@ export default function CheckoutsPage() {
     return Array.from(codes).sort();
   }, [items]);
 
-  // Equipment picker filtering
-  const filteredPickerAssets = useMemo(() => {
+  // Equipment section grouping
+  const assetsBySection = useMemo(
+    () => groupAssetsBySection(availableAssets),
+    [availableAssets]
+  );
+  const bulkBySection = useMemo(
+    () => groupBulkBySection(bulkSkus),
+    [bulkSkus]
+  );
+
+  // Filtered items for active section
+  const sectionAssets = useMemo(() => {
+    if (!activeSection) return [];
     const q = equipSearch.toLowerCase();
-    return availableAssets.filter((a) => {
+    return (assetsBySection[activeSection] || []).filter((a) => {
       if (selectedAssetIds.includes(a.id)) return false;
       if (!q) return true;
       return (
@@ -368,17 +386,29 @@ export default function CheckoutsPage() {
         a.type.toLowerCase().includes(q)
       );
     });
-  }, [availableAssets, selectedAssetIds, equipSearch]);
+  }, [assetsBySection, activeSection, selectedAssetIds, equipSearch]);
 
-  const filteredPickerBulk = useMemo(() => {
+  const sectionBulk = useMemo(() => {
+    if (!activeSection) return [];
     const q = equipSearch.toLowerCase();
     const existingSkuIds = new Set(selectedBulkItems.map((i) => i.bulkSkuId));
-    return bulkSkus.filter((s) => {
+    return (bulkBySection[activeSection] || []).filter((s) => {
       if (existingSkuIds.has(s.id)) return false;
       if (!q) return true;
       return s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
     });
-  }, [bulkSkus, selectedBulkItems, equipSearch]);
+  }, [bulkBySection, activeSection, selectedBulkItems, equipSearch]);
+
+  // Section counts (total available, not filtered)
+  const sectionCounts = useMemo(() => {
+    const counts: Record<EquipmentSectionKey, number> = {
+      camera_body: 0, accessories: 0, lenses: 0, batteries: 0, other: 0,
+    };
+    for (const key of Object.keys(counts) as EquipmentSectionKey[]) {
+      counts[key] = (assetsBySection[key]?.length || 0) + (bulkBySection[key]?.length || 0);
+    }
+    return counts;
+  }, [assetsBySection, bulkBySection]);
 
   const equipmentCount = selectedAssetIds.length + selectedBulkItems.length;
 
@@ -540,194 +570,214 @@ export default function CheckoutsPage() {
               </div>
             </div>
 
-            {/* Equipment picker */}
+            {/* Equipment picker — sectioned flow */}
             <div style={{ marginTop: 8 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                 <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-                  Equipment{equipmentCount > 0 ? ` (${equipmentCount})` : ""}
+                  Equipment{equipmentCount > 0 ? ` (${equipmentCount} selected)` : ""}
                 </label>
                 <button
                   type="button"
                   className="btn btn-sm"
-                  onClick={() => { setShowEquipPicker(!showEquipPicker); setEquipSearch(""); }}
+                  onClick={() => {
+                    if (showEquipPicker) {
+                      setShowEquipPicker(false);
+                      setActiveSection(null);
+                      setEquipSearch("");
+                    } else {
+                      setShowEquipPicker(true);
+                      setActiveSection(EQUIPMENT_SECTIONS[0].key);
+                      setEquipSearch("");
+                    }
+                  }}
                   style={{ minHeight: 32 }}
                 >
-                  {showEquipPicker ? "Done" : "+ Add equipment"}
+                  {showEquipPicker ? "Done adding" : "+ Add equipment"}
                 </button>
               </div>
 
-              {/* Selected items summary */}
-              {selectedAssetIds.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
+              {/* Persistent selected items summary */}
+              {equipmentCount > 0 && (
+                <div style={{ marginBottom: 8, border: "1px solid var(--border-light)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
                   {selectedAssetIds.map((assetId) => {
                     const asset = availableAssets.find((a) => a.id === assetId);
                     if (!asset) return null;
                     return (
-                      <div
-                        key={assetId}
-                        style={{
-                          display: "flex", alignItems: "center", justifyContent: "space-between",
-                          padding: "6px 0", borderBottom: "1px solid var(--border-light)", minHeight: 40, gap: 8,
-                        }}
-                      >
+                      <div key={assetId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", minHeight: 36, gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{asset.assetTag}</div>
-                          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-                            {asset.brand} {asset.model}
-                            {asset.location ? ` · ${asset.location.name}` : ""}
-                          </div>
+                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.assetTag}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.brand} {asset.model}</span>
                         </div>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          style={{ color: "var(--red)", borderColor: "var(--red)", flexShrink: 0, fontSize: 11, minHeight: 28 }}
-                          onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}
-                        >
-                          Remove
-                        </button>
+                        <button type="button" style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
+                          onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
                       </div>
                     );
                   })}
-                </div>
-              )}
-
-              {selectedBulkItems.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
                   {selectedBulkItems.map((item) => {
                     const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
                     return (
-                      <div
-                        key={item.bulkSkuId}
-                        style={{
-                          display: "flex", alignItems: "center", justifyContent: "space-between",
-                          padding: "6px 0", borderBottom: "1px solid var(--border-light)", minHeight: 40, gap: 8,
-                        }}
-                      >
+                      <div key={item.bulkSkuId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", minHeight: 36, gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{sku?.name || item.bulkSkuId}</div>
-                          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{sku?.category} · {sku?.unit}</div>
+                          <span style={{ fontWeight: 600, fontSize: 12 }}>{sku?.name || item.bulkSkuId}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>&times;{item.quantity}</span>
                         </div>
-                        <div className="qty-stepper" style={{ flexShrink: 0 }}>
-                          <button type="button" onClick={() => {
-                            if (item.quantity <= 1) {
-                              setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
-                            } else {
-                              setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
-                            }
-                          }}>&minus;</button>
-                          <input
-                            type="number"
-                            min={1}
-                            value={item.quantity}
-                            onChange={(e) => {
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <div className="qty-stepper" style={{ flexShrink: 0 }}>
+                            <button type="button" onClick={() => {
+                              if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
+                              else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
+                            }}>&minus;</button>
+                            <input type="number" min={1} value={item.quantity} onChange={(e) => {
                               const qty = parseInt(e.target.value) || 1;
-                              if (qty <= 0) {
-                                setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
-                              } else {
-                                setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: qty } : i));
-                              }
-                            }}
-                          />
-                          <button type="button" onClick={() => {
-                            setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i));
-                          }}>+</button>
+                              if (qty <= 0) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
+                              else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: qty } : i));
+                            }} />
+                            <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}>+</button>
+                          </div>
+                          <button type="button" style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
+                            onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}>&times;</button>
                         </div>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          style={{ color: "var(--red)", borderColor: "var(--red)", flexShrink: 0, fontSize: 11, minHeight: 28 }}
-                          onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}
-                        >
-                          &times;
-                        </button>
                       </div>
                     );
                   })}
                 </div>
               )}
 
-              {/* Picker panel */}
+              {/* Sectioned picker */}
               {showEquipPicker && (
-                <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 10 }}>
-                  <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                    <button
-                      type="button"
-                      className={`filter-chip ${equipPickerTab === "serialized" ? "active" : ""}`}
-                      onClick={() => { setEquipPickerTab("serialized"); setEquipSearch(""); }}
-                    >
-                      Assets
-                    </button>
-                    <button
-                      type="button"
-                      className={`filter-chip ${equipPickerTab === "bulk" ? "active" : ""}`}
-                      onClick={() => { setEquipPickerTab("bulk"); setEquipSearch(""); }}
-                    >
-                      Bulk items
-                    </button>
+                <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
+                  {/* Section tabs */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 0, borderBottom: "1px solid var(--border)" }}>
+                    {EQUIPMENT_SECTIONS.map((sec) => (
+                      <button
+                        key={sec.key}
+                        type="button"
+                        onClick={() => { setActiveSection(sec.key); setEquipSearch(""); }}
+                        style={{
+                          flex: "1 1 auto",
+                          padding: "8px 10px",
+                          fontSize: 11,
+                          fontWeight: activeSection === sec.key ? 700 : 400,
+                          background: activeSection === sec.key ? "var(--bg-active, #f0f4ff)" : "transparent",
+                          border: "none",
+                          borderBottom: activeSection === sec.key ? "2px solid var(--primary, #3b82f6)" : "2px solid transparent",
+                          cursor: "pointer",
+                          color: activeSection === sec.key ? "var(--primary, #3b82f6)" : "var(--text-secondary)",
+                          whiteSpace: "nowrap",
+                          minHeight: 36,
+                        }}
+                      >
+                        {sec.label}
+                        {sectionCounts[sec.key] > 0 && (
+                          <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>({sectionCounts[sec.key]})</span>
+                        )}
+                      </button>
+                    ))}
                   </div>
 
-                  <input
-                    placeholder={equipPickerTab === "serialized" ? "Search by tag, brand, model, serial..." : "Search bulk items..."}
-                    value={equipSearch}
-                    onChange={(e) => setEquipSearch(e.target.value)}
-                    autoFocus
-                    style={{
-                      width: "100%", padding: "8px 12px", border: "1px solid var(--border)",
-                      borderRadius: "var(--radius)", fontSize: 13, outline: "none", boxSizing: "border-box",
-                    }}
-                  />
+                  {/* Active section content */}
+                  {activeSection && (
+                    <div style={{ padding: 10 }}>
+                      <input
+                        placeholder="Search this section..."
+                        value={equipSearch}
+                        onChange={(e) => setEquipSearch(e.target.value)}
+                        style={{
+                          width: "100%", padding: "8px 12px", border: "1px solid var(--border)",
+                          borderRadius: "var(--radius)", fontSize: 13, outline: "none", boxSizing: "border-box",
+                        }}
+                      />
 
-                  <div style={{ maxHeight: 220, overflowY: "auto", marginTop: 6 }}>
-                    {equipPickerTab === "serialized" ? (
-                      filteredPickerAssets.length === 0 ? (
-                        <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
-                          {equipSearch ? "No matching assets" : "No available assets"}
-                        </div>
-                      ) : (
-                        filteredPickerAssets.slice(0, 50).map((asset) => (
-                          <div
-                            key={asset.id}
-                            className="equip-picker-item"
-                            onClick={() => setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id])}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontWeight: 600, fontSize: 13 }}>{asset.assetTag}</div>
-                              <div className="equip-picker-meta">
-                                {asset.brand} {asset.model}
-                                {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
-                                {asset.location ? ` · ${asset.location.name}` : ""}
+                      <div style={{ maxHeight: 220, overflowY: "auto", marginTop: 6 }}>
+                        {/* Serialized assets in this section */}
+                        {sectionAssets.length > 0 && (
+                          <>
+                            {sectionBulk.length > 0 && (
+                              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", padding: "6px 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Assets</div>
+                            )}
+                            {sectionAssets.slice(0, 50).map((asset) => (
+                              <div
+                                key={asset.id}
+                                className="equip-picker-item"
+                                onClick={() => setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id])}
+                              >
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontWeight: 600, fontSize: 13 }}>{asset.assetTag}</div>
+                                  <div className="equip-picker-meta">
+                                    {asset.brand} {asset.model}
+                                    {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
+                                    {asset.location ? ` · ${asset.location.name}` : ""}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
+                            ))}
+                          </>
+                        )}
+
+                        {/* Bulk items in this section */}
+                        {sectionBulk.length > 0 && (
+                          <>
+                            {sectionAssets.length > 0 && (
+                              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", padding: "8px 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bulk Items</div>
+                            )}
+                            {sectionBulk.slice(0, 50).map((sku) => (
+                              <div
+                                key={sku.id}
+                                className="equip-picker-item"
+                                onClick={() => setSelectedBulkItems((prev) =>
+                                  prev.some((i) => i.bulkSkuId === sku.id) ? prev : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
+                                )}
+                              >
+                                <div>
+                                  <div style={{ fontWeight: 600, fontSize: 13 }}>{sku.name}</div>
+                                  <div className="equip-picker-meta">{sku.category} &middot; {sku.unit}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
+                        {sectionAssets.length === 0 && sectionBulk.length === 0 && (
+                          <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+                            {equipSearch ? "No matching items in this section" : "No available items in this section"}
                           </div>
-                        ))
-                      )
-                    ) : (
-                      filteredPickerBulk.length === 0 ? (
-                        <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
-                          {equipSearch ? "No matching bulk items" : "No available bulk items"}
-                        </div>
-                      ) : (
-                        filteredPickerBulk.slice(0, 50).map((sku) => (
-                          <div
-                            key={sku.id}
-                            className="equip-picker-item"
-                            onClick={() => setSelectedBulkItems((prev) => [...prev, { bulkSkuId: sku.id, quantity: 1 }])}
-                          >
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: 13 }}>{sku.name}</div>
-                              <div className="equip-picker-meta">{sku.category} &middot; {sku.unit}</div>
-                            </div>
-                          </div>
-                        ))
-                      )
-                    )}
-                  </div>
+                        )}
+                      </div>
+
+                      {/* Section navigation */}
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border-light)" }}>
+                        {(() => {
+                          const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
+                          const prev = idx > 0 ? EQUIPMENT_SECTIONS[idx - 1] : null;
+                          const next = idx < EQUIPMENT_SECTIONS.length - 1 ? EQUIPMENT_SECTIONS[idx + 1] : null;
+                          return (
+                            <>
+                              {prev ? (
+                                <button type="button" className="btn btn-sm" onClick={() => { setActiveSection(prev.key); setEquipSearch(""); }} style={{ minHeight: 32 }}>
+                                  &larr; {prev.label}
+                                </button>
+                              ) : <span />}
+                              {next ? (
+                                <button type="button" className="btn btn-sm" onClick={() => { setActiveSection(next.key); setEquipSearch(""); }} style={{ minHeight: 32 }}>
+                                  {next.label} &rarr;
+                                </button>
+                              ) : (
+                                <button type="button" className="btn btn-sm" onClick={() => { setShowEquipPicker(false); setActiveSection(null); setEquipSearch(""); }} style={{ minHeight: 32 }}>
+                                  Done
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {equipmentCount === 0 && !showEquipPicker && (
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  No equipment selected yet. You can also add equipment after creating.
+                  No equipment selected. You can also add equipment after creating.
                 </div>
               )}
             </div>
