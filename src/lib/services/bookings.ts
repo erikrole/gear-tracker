@@ -907,6 +907,138 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
   });
 }
 
+/**
+ * Partial check-in: return individual serialized items from a checkout.
+ * Marks each item's allocationStatus as "returned" and deactivates its allocation.
+ * If all serialized items are returned (and bulk items fully checked in),
+ * auto-completes the checkout.
+ *
+ * Source: BRIEF_CHECKOUT_UX_V2.md — "Partial check-in: multi-item
+ * allocations can be returned incrementally without triggering completion"
+ */
+export async function checkinItems(
+  bookingId: string,
+  actorUserId: string,
+  assetIds: string[]
+) {
+  return db.$transaction(
+    async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+        include: { serializedItems: true, bulkItems: true }
+      });
+
+      if (!booking || booking.kind !== BookingKind.CHECKOUT) {
+        throw new HttpError(404, "Checkout not found");
+      }
+
+      if (booking.status !== BookingStatus.OPEN) {
+        throw new HttpError(400, "Can only check in items from an open checkout");
+      }
+
+      // Validate all requested assets belong to this checkout
+      const bookingAssetIds = new Set(booking.serializedItems.map((i) => i.assetId));
+      const invalid = assetIds.filter((id) => !bookingAssetIds.has(id));
+      if (invalid.length > 0) {
+        throw new HttpError(400, `Assets not in this checkout: ${invalid.join(", ")}`);
+      }
+
+      // Validate none are already returned
+      const alreadyReturned = booking.serializedItems
+        .filter((i) => assetIds.includes(i.assetId) && i.allocationStatus === "returned")
+        .map((i) => i.assetId);
+      if (alreadyReturned.length > 0) {
+        throw new HttpError(400, `Assets already returned: ${alreadyReturned.join(", ")}`);
+      }
+
+      // Mark items as returned
+      for (const assetId of assetIds) {
+        await tx.bookingSerializedItem.updateMany({
+          where: { bookingId, assetId },
+          data: { allocationStatus: "returned" }
+        });
+
+        await tx.assetAllocation.updateMany({
+          where: { bookingId, assetId, active: true },
+          data: { active: false }
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          entityType: "booking",
+          entityId: bookingId,
+          action: "partial_checkin",
+          afterJson: { returnedAssetIds: assetIds }
+        }
+      });
+
+      // Check if all serialized items are now returned
+      const remainingActive = await tx.bookingSerializedItem.count({
+        where: { bookingId, allocationStatus: "active" }
+      });
+
+      // Check if all bulk items are fully checked in
+      const bulkRemaining = booking.bulkItems.some(
+        (item) => (item.checkedInQuantity ?? 0) < (item.checkedOutQuantity ?? item.plannedQuantity)
+      );
+
+      const allReturned = remainingActive === 0 && !bulkRemaining;
+
+      if (allReturned) {
+        await tx.assetAllocation.updateMany({
+          where: { bookingId, active: true },
+          data: { active: false }
+        });
+
+        // Return bulk stock
+        const checkinBulkItems = booking.bulkItems.map((item) => ({
+          bulkSkuId: item.bulkSkuId,
+          quantity: item.checkedOutQuantity ?? item.plannedQuantity
+        }));
+
+        if (checkinBulkItems.length > 0) {
+          await upsertBulkBalancesAndMovements(tx, {
+            bookingId,
+            locationId: booking.locationId,
+            actorUserId,
+            kind: BulkMovementKind.CHECKIN,
+            items: checkinBulkItems
+          });
+        }
+
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.COMPLETED }
+        });
+
+        await tx.scanSession.updateMany({
+          where: { bookingId, phase: ScanPhase.CHECKIN, status: ScanSessionStatus.OPEN },
+          data: { status: ScanSessionStatus.COMPLETED, completedAt: new Date() }
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actorUserId,
+            entityType: "booking",
+            entityId: bookingId,
+            action: "auto_completed_by_partial_checkin"
+          }
+        });
+      }
+
+      return {
+        success: true,
+        returnedAssetIds: assetIds,
+        remainingActiveItems: remainingActive,
+        autoCompleted: allReturned
+      };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+  );
+}
+
 export async function getBookingDetail(bookingId: string) {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },

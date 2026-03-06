@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, parsePagination } from "@/lib/http";
 import { createBooking } from "@/lib/services/bookings";
+import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
 import { createCheckoutSchema } from "@/lib/validation";
 
@@ -50,20 +51,42 @@ export async function POST(req: Request) {
     const body = createCheckoutSchema.parse(await req.json());
     const { start, end } = parseDateRange(body.startsAt, body.endsAt);
 
+    // Event-default prefill: if sportCode provided but no eventId,
+    // look up next upcoming event and use as defaults (ad hoc fallback if none found)
+    let eventId = body.eventId;
+    let title = body.title;
+    let effectiveStart = start;
+    let effectiveEnd = end;
+    let effectiveLocationId = body.locationId;
+    let sportCode = body.sportCode;
+
+    if (body.sportCode && !body.eventId) {
+      const defaults = await resolveEventDefaults(body.sportCode);
+      if (defaults.eventId) {
+        eventId = defaults.eventId;
+        // Use event values as defaults, but caller-supplied values take precedence
+        title = body.title || defaults.title || body.title;
+        if (defaults.startsAt) effectiveStart = defaults.startsAt;
+        if (defaults.endsAt) effectiveEnd = defaults.endsAt;
+        if (defaults.locationId) effectiveLocationId = defaults.locationId;
+        sportCode = defaults.sportCode ?? body.sportCode;
+      }
+    }
+
     const checkout = await createBooking({
       kind: BookingKind.CHECKOUT,
-      title: body.title,
+      title,
       requesterUserId: body.requesterUserId,
-      locationId: body.locationId,
-      startsAt: start,
-      endsAt: end,
+      locationId: effectiveLocationId,
+      startsAt: effectiveStart,
+      endsAt: effectiveEnd,
       serializedAssetIds: body.serializedAssetIds,
       bulkItems: body.bulkItems,
       notes: body.notes,
       createdBy: actor.id,
       sourceReservationId: body.sourceReservationId,
-      eventId: body.eventId,
-      sportCode: body.sportCode
+      eventId,
+      sportCode
     });
 
     return ok({ data: checkout }, 201);
