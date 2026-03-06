@@ -9,6 +9,7 @@ import DataList from "@/components/DataList";
 
 type SerializedItem = {
   id: string;
+  allocationStatus?: string;
   asset: {
     id: string;
     assetTag: string;
@@ -59,6 +60,7 @@ type BookingDetail = {
   auditLogs: AuditEntry[];
   itemLocations: LocationInfo[];
   locationMode: "SINGLE" | "MIXED";
+  allowedActions?: string[];
 };
 
 type AvailableAsset = {
@@ -245,14 +247,6 @@ export default function BookingDetailsSheet({
 
   function enterEquipEditMode() {
     if (!booking) return;
-    // For OPEN checkouts, only admins can edit equipment
-    if (booking.status === "OPEN" && !isAdmin) {
-      toast(
-        "Contact an admin to modify equipment on an active checkout.",
-        "info"
-      );
-      return;
-    }
     setEditSerializedIds(booking.serializedItems.map((i) => i.asset.id));
     setEditBulkItems(
       booking.bulkItems.map((i) => ({
@@ -422,12 +416,87 @@ export default function BookingDetailsSheet({
     }
   }
 
-  const canEdit = booking && (booking.status === "BOOKED" || booking.status === "OPEN");
-  const canCancel = booking && (booking.status === "BOOKED" || booking.status === "OPEN");
-  const canExtend = booking && booking.status === "OPEN";
-  const canEditEquipment =
-    booking &&
-    ((booking.status === "BOOKED") || (booking.status === "OPEN" && isAdmin));
+  // Check-in state
+  const [checkinLoading, setCheckinLoading] = useState(false);
+
+  const checkinProgress = useMemo(() => {
+    if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") return null;
+    const total = booking.serializedItems.length;
+    if (total === 0) return null;
+    const returned = booking.serializedItems.filter((i) => i.allocationStatus === "returned").length;
+    return { returned, total, percent: Math.round((returned / total) * 100) };
+  }, [booking]);
+
+  async function handleCheckinItem(assetId: string) {
+    if (!booking) return;
+    setCheckinLoading(true);
+    try {
+      const res = await fetch(`/api/checkouts/${booking.id}/checkin-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetIds: [assetId] }),
+      });
+      if (res.ok) {
+        toast("Item checked in", "success");
+        await fetchBooking();
+        onUpdated?.();
+      } else {
+        const json = await res.json();
+        toast(json.error || "Failed to check in", "error");
+      }
+    } catch {
+      toast("Failed to check in", "error");
+    }
+    setCheckinLoading(false);
+  }
+
+  async function handleCheckinAll() {
+    if (!booking) return;
+    const activeItems = booking.serializedItems.filter((i) => i.allocationStatus !== "returned");
+    if (activeItems.length === 0) return;
+    if (!confirm(`Check in all ${activeItems.length} remaining item(s)?`)) return;
+
+    setCheckinLoading(true);
+    try {
+      const res = await fetch(`/api/checkouts/${booking.id}/checkin-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetIds: activeItems.map((i) => i.asset.id) }),
+      });
+      if (res.ok) {
+        toast("All items checked in", "success");
+        await fetchBooking();
+        onUpdated?.();
+      } else {
+        const json = await res.json();
+        toast(json.error || "Failed to check in", "error");
+      }
+    } catch {
+      toast("Failed to check in", "error");
+    }
+    setCheckinLoading(false);
+  }
+
+  // Use server-provided allowedActions for checkouts; fall back to state-based checks for reservations
+  const actions = booking?.allowedActions ?? [];
+  const canEdit = booking && (
+    booking.kind === "CHECKOUT"
+      ? actions.includes("edit")
+      : (booking.status === "BOOKED" || booking.status === "OPEN")
+  );
+  const canCancel = booking && (
+    booking.kind === "CHECKOUT"
+      ? actions.includes("cancel")
+      : (booking.status === "BOOKED" || booking.status === "OPEN")
+  );
+  const canExtend = booking && (
+    booking.kind === "CHECKOUT"
+      ? actions.includes("extend")
+      : false
+  );
+  const canCheckin = booking && booking.kind === "CHECKOUT" && actions.includes("checkin");
+  const canOpen = booking && booking.kind === "CHECKOUT" && actions.includes("open");
+  const canEditEquipment = canEdit;
 
   const filteredSerializedItems = booking?.serializedItems.filter((item) => {
     if (!equipSearch) return true;
@@ -629,6 +698,29 @@ export default function BookingDetailsSheet({
                     </div>
                   )}
 
+                  {/* Partial check-in progress */}
+                  {checkinProgress && checkinProgress.returned > 0 && (
+                    <div className="sheet-section">
+                      <div className="sheet-section-title">Check-in progress</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ flex: 1, height: 8, background: "var(--border-light)", borderRadius: 4, overflow: "hidden" }}>
+                          <div
+                            style={{
+                              width: `${checkinProgress.percent}%`,
+                              height: "100%",
+                              background: checkinProgress.percent === 100 ? "#22c55e" : "#3b82f6",
+                              borderRadius: 4,
+                              transition: "width 0.3s ease",
+                            }}
+                          />
+                        </div>
+                        <span style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+                          {checkinProgress.returned}/{checkinProgress.total} returned
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Quick actions */}
                   {canExtend && (
                     <div className="sheet-section">
@@ -722,14 +814,10 @@ export default function BookingDetailsSheet({
                         Edit
                       </button>
                     )}
-                    {booking.status === "OPEN" && !isAdmin && (
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => toast("Contact an admin to modify equipment on an active checkout.", "info")}
-                        style={{ minHeight: 36 }}
-                      >
-                        Request change
-                      </button>
+                    {!canEditEquipment && booking.kind === "CHECKOUT" && (
+                      <span style={{ fontSize: 12, color: "var(--text-secondary)", alignSelf: "center" }}>
+                        View only
+                      </span>
                     )}
                   </div>
 
@@ -742,16 +830,33 @@ export default function BookingDetailsSheet({
                             <th>Item</th>
                             <th>Brand/Model</th>
                             <th>Serial</th>
+                            {canCheckin && <th style={{ width: 90 }}>Status</th>}
                           </tr>
                         </thead>
                         <tbody>
                           {filteredSerializedItems.map((item) => (
-                            <tr key={item.id}>
+                            <tr key={item.id} style={item.allocationStatus === "returned" ? { opacity: 0.55 } : undefined}>
                               <td style={{ fontWeight: 600 }}>
                                 <Link href={`/items/${item.asset.id}`} className="row-link">{item.asset.assetTag}</Link>
                               </td>
                               <td>{item.asset.brand} {item.asset.model}</td>
                               <td style={{ fontFamily: "monospace", fontSize: 11 }}>{item.asset.serialNumber}</td>
+                              {canCheckin && (
+                                <td>
+                                  {item.allocationStatus === "returned" ? (
+                                    <span className="badge badge-purple" style={{ fontSize: 10 }}>returned</span>
+                                  ) : (
+                                    <button
+                                      className="btn btn-sm"
+                                      disabled={checkinLoading}
+                                      onClick={(e) => { e.stopPropagation(); handleCheckinItem(item.asset.id); }}
+                                      style={{ minHeight: 32, fontSize: 11 }}
+                                    >
+                                      Return
+                                    </button>
+                                  )}
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -1126,6 +1231,16 @@ export default function BookingDetailsSheet({
           <div className="sheet-actions">
             {canEdit && (
               <button className="btn btn-primary" onClick={enterEditMode} style={{ minHeight: 44 }}>Edit</button>
+            )}
+            {canCheckin && (
+              <button
+                className="btn"
+                style={{ minHeight: 44, background: "#22c55e", color: "white", border: "none" }}
+                disabled={checkinLoading}
+                onClick={handleCheckinAll}
+              >
+                {checkinLoading ? "Checking in..." : "Check in all"}
+              </button>
             )}
             {canCancel && (
               <button className="btn btn-danger" onClick={handleCancel} style={{ minHeight: 44 }}>
