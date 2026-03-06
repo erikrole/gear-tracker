@@ -20,7 +20,11 @@ export async function GET() {
       db.asset.findMany({
         where: { status: "AVAILABLE" },
         orderBy: { assetTag: "asc" },
-        select: { id: true, assetTag: true, brand: true, model: true, locationId: true }
+        select: {
+          id: true, assetTag: true, brand: true, model: true,
+          serialNumber: true, type: true, locationId: true,
+          location: { select: { name: true } }
+        }
       }),
       db.bulkSku.findMany({
         where: { active: true },
