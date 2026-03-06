@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
+import { getAllowedActionsClient } from "@/lib/checkout-actions";
 
 /* ───── Types ───── */
 
@@ -13,7 +14,8 @@ type Checkout = {
   endsAt: string;
   status: string;
   sportCode: string | null;
-  requester: { name: string };
+  createdBy?: string;
+  requester: { id: string; name: string };
   location: { id: string; name: string };
   serializedItems: Array<{ asset: { assetTag: string; brand: string; model: string } }>;
   bulkItems: Array<{ bulkSku: { name: string }; plannedQuantity: number }>;
@@ -92,6 +94,7 @@ export default function CheckoutsPage() {
 
   // ── Sheet + context menu ──
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; checkout: Checkout } | null>(null);
   const ctxRef = useRef<HTMLDivElement>(null);
@@ -132,7 +135,12 @@ export default function CheckoutsPage() {
       });
     fetch("/api/me")
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
+      .then((json) => {
+        if (json?.user) {
+          setCurrentUserId(json.user.id || "");
+          setCurrentUserRole(json.user.role || "");
+        }
+      });
   }, []);
 
   // Fetch events when sport selected
@@ -610,71 +618,81 @@ export default function CheckoutsPage() {
       </div>
 
       {/* ════════ Context menu ════════ */}
-      {ctxMenu && (
-        <div
-          ref={ctxRef}
-          className="ctx-menu"
-          style={{ top: ctxMenu.y, left: ctxMenu.x }}
-        >
-          <button
-            className="ctx-menu-item"
-            onClick={() => ctxAction(() => setSelectedBookingId(ctxMenu.checkout.id))}
+      {ctxMenu && (() => {
+        const actor = { id: currentUserId, role: currentUserRole };
+        const ctxAllowed = new Set(
+          getAllowedActionsClient(actor, {
+            status: ctxMenu.checkout.status,
+            requester: ctxMenu.checkout.requester,
+            createdBy: ctxMenu.checkout.createdBy,
+          })
+        );
+        return (
+          <div
+            ref={ctxRef}
+            className="ctx-menu"
+            style={{ top: ctxMenu.y, left: ctxMenu.x }}
           >
-            View details
-          </button>
+            <button
+              className="ctx-menu-item"
+              onClick={() => ctxAction(() => setSelectedBookingId(ctxMenu.checkout.id))}
+            >
+              View details
+            </button>
 
-          {ctxMenu.checkout.status === "OPEN" && (
-            <>
-              <button
-                className="ctx-menu-item"
-                onClick={() => ctxAction(() => {
-                  setSelectedBookingId(ctxMenu.checkout.id);
-                })}
-              >
-                Edit
-              </button>
-              <div className="ctx-menu-sep" />
-              <button
-                className="ctx-menu-item"
-                onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.checkout.id, 1))}
-              >
-                Extend +1 day
-              </button>
-              <button
-                className="ctx-menu-item"
-                onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.checkout.id, 7))}
-              >
-                Extend +1 week
-              </button>
-              <div className="ctx-menu-sep" />
-              <button
-                className="ctx-menu-item danger"
-                onClick={() => ctxAction(() => handleCancelFromMenu(ctxMenu.checkout.id))}
-              >
-                Cancel checkout
-              </button>
-            </>
-          )}
-
-          {ctxMenu.checkout.status === "BOOKED" && (
-            <>
+            {ctxAllowed.has("edit") && (
               <button
                 className="ctx-menu-item"
                 onClick={() => ctxAction(() => setSelectedBookingId(ctxMenu.checkout.id))}
               >
                 Edit
               </button>
-              <div className="ctx-menu-sep" />
-              <button
-                className="ctx-menu-item danger"
-                onClick={() => ctxAction(() => handleCancelFromMenu(ctxMenu.checkout.id))}
-              >
-                Cancel
-              </button>
-            </>
-          )}
-        </div>
-      )}
+            )}
+
+            {ctxAllowed.has("extend") && (
+              <>
+                <div className="ctx-menu-sep" />
+                <button
+                  className="ctx-menu-item"
+                  onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.checkout.id, 1))}
+                >
+                  Extend +1 day
+                </button>
+                <button
+                  className="ctx-menu-item"
+                  onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.checkout.id, 7))}
+                >
+                  Extend +1 week
+                </button>
+              </>
+            )}
+
+            {ctxAllowed.has("checkin") && (
+              <>
+                <div className="ctx-menu-sep" />
+                <button
+                  className="ctx-menu-item"
+                  onClick={() => ctxAction(() => setSelectedBookingId(ctxMenu.checkout.id))}
+                >
+                  Check in
+                </button>
+              </>
+            )}
+
+            {ctxAllowed.has("cancel") && (
+              <>
+                <div className="ctx-menu-sep" />
+                <button
+                  className="ctx-menu-item danger"
+                  onClick={() => ctxAction(() => handleCancelFromMenu(ctxMenu.checkout.id))}
+                >
+                  Cancel checkout
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ════════ Booking details sheet ════════ */}
       <BookingDetailsSheet
