@@ -61,7 +61,7 @@ function parseIcs(icsText: string) {
 }
 
 /** Parse ICS date strings: 20260301, 20260301T120000, 20260301T120000Z */
-function parseIcsDate(value: string): { date: Date; allDay: boolean } {
+export function parseIcsDate(value: string): { date: Date; allDay: boolean } {
   const cleaned = value.replace(/[^0-9TZ]/g, "");
 
   if (cleaned.length === 8) {
@@ -87,6 +87,11 @@ function parseIcsDate(value: string): { date: Date; allDay: boolean } {
   return { date, allDay: false };
 }
 
+/** Returns true if the Date object represents a real, finite point in time. */
+function isValidDate(d: Date): boolean {
+  return d instanceof Date && !isNaN(d.getTime());
+}
+
 function mapIcsStatus(status: string): CalendarEventStatus {
   const normalized = status.toUpperCase().trim();
   if (normalized === "CANCELLED") return "CANCELLED";
@@ -94,18 +99,31 @@ function mapIcsStatus(status: string): CalendarEventStatus {
   return "CONFIRMED";
 }
 
-/**
- * Sync a single CalendarSource — fetches ICS, parses, upserts events.
- */
-export async function syncCalendarSource(sourceId: string): Promise<{
+export type SyncEventError = {
+  uid: string;
+  summary: string;
+  reason: string;
+};
+
+export type SyncResult = {
   added: number;
   updated: number;
   cancelled: number;
+  skipped: number;
+  errors: SyncEventError[];
   error?: string;
-}> {
+};
+
+/**
+ * Sync a single CalendarSource — fetches ICS, parses, upserts events.
+ * Individual event failures are captured and do not abort the sync.
+ */
+export async function syncCalendarSource(sourceId: string): Promise<SyncResult> {
   const source = await db.calendarSource.findUnique({ where: { id: sourceId } });
+  const emptyResult: SyncResult = { added: 0, updated: 0, cancelled: 0, skipped: 0, errors: [] };
+
   if (!source || !source.enabled) {
-    return { added: 0, updated: 0, cancelled: 0, error: "Source not found or disabled" };
+    return { ...emptyResult, error: "Source not found or disabled" };
   }
 
   // Normalize webcal:// to https://
@@ -122,7 +140,7 @@ export async function syncCalendarSource(sourceId: string): Promise<{
         where: { id: sourceId },
         data: { lastError: error, lastFetchedAt: new Date() }
       });
-      return { added: 0, updated: 0, cancelled: 0, error };
+      return { ...emptyResult, error };
     }
     icsText = await response.text();
   } catch (err) {
@@ -131,7 +149,7 @@ export async function syncCalendarSource(sourceId: string): Promise<{
       where: { id: sourceId },
       data: { lastError: error, lastFetchedAt: new Date() }
     });
-    return { added: 0, updated: 0, cancelled: 0, error };
+    return { ...emptyResult, error };
   }
 
   const events = parseIcs(icsText);
@@ -144,85 +162,112 @@ export async function syncCalendarSource(sourceId: string): Promise<{
   let added = 0;
   let updated = 0;
   let cancelled = 0;
+  let skipped = 0;
+  const errors: SyncEventError[] = [];
+  const MAX_STORED_ERRORS = 10;
 
   for (const event of events) {
-    const startParsed = parseIcsDate(event.dtstart);
-    const endParsed = parseIcsDate(event.dtend);
-    const status = mapIcsStatus(event.status);
+    try {
+      // Validate dates before any DB work
+      const startParsed = parseIcsDate(event.dtstart);
+      const endParsed = parseIcsDate(event.dtend);
 
-    // Apply location mapping
-    let locationId: string | null = null;
-    const searchText = `${event.location} ${event.summary}`.toLowerCase();
+      if (!isValidDate(startParsed.date)) {
+        throw new Error(`Invalid start date: "${event.dtstart}"`);
+      }
+      if (!isValidDate(endParsed.date)) {
+        throw new Error(`Invalid end date: "${event.dtend}"`);
+      }
 
-    for (const mapping of mappings) {
-      try {
-        const regex = new RegExp(mapping.pattern, "i");
-        if (regex.test(searchText)) {
-          locationId = mapping.locationId;
-          break;
-        }
-      } catch {
-        // Invalid regex, try simple includes
-        if (searchText.includes(mapping.pattern.toLowerCase())) {
-          locationId = mapping.locationId;
-          break;
+      const status = mapIcsStatus(event.status);
+
+      // Apply location mapping
+      let locationId: string | null = null;
+      const searchText = `${event.location} ${event.summary}`.toLowerCase();
+
+      for (const mapping of mappings) {
+        try {
+          const regex = new RegExp(mapping.pattern, "i");
+          if (regex.test(searchText)) {
+            locationId = mapping.locationId;
+            break;
+          }
+        } catch {
+          // Invalid regex, try simple includes
+          if (searchText.includes(mapping.pattern.toLowerCase())) {
+            locationId = mapping.locationId;
+            break;
+          }
         }
       }
-    }
 
-    const existing = await db.calendarEvent.findUnique({
-      where: { sourceId_externalId: { sourceId, externalId: event.uid } }
-    });
+      const existing = await db.calendarEvent.findUnique({
+        where: { sourceId_externalId: { sourceId, externalId: event.uid } }
+      });
 
-    if (existing) {
-      await db.calendarEvent.update({
-        where: { id: existing.id },
-        data: {
-          summary: event.summary,
-          description: event.description || null,
-          rawSummary: event.summary,
-          rawLocationText: event.location || null,
-          rawDescription: event.description || null,
-          startsAt: startParsed.date,
-          endsAt: endParsed.date,
-          allDay: startParsed.allDay,
-          status,
-          locationId
-        }
-      });
-      if (status === "CANCELLED") cancelled++;
-      else updated++;
-    } else {
-      await db.calendarEvent.create({
-        data: {
-          sourceId,
-          externalId: event.uid,
-          summary: event.summary,
-          description: event.description || null,
-          rawSummary: event.summary,
-          rawLocationText: event.location || null,
-          rawDescription: event.description || null,
-          startsAt: startParsed.date,
-          endsAt: endParsed.date,
-          allDay: startParsed.allDay,
-          status,
-          locationId
-        }
-      });
-      added++;
+      if (existing) {
+        await db.calendarEvent.update({
+          where: { id: existing.id },
+          data: {
+            summary: event.summary,
+            description: event.description || null,
+            rawSummary: event.summary,
+            rawLocationText: event.location || null,
+            rawDescription: event.description || null,
+            startsAt: startParsed.date,
+            endsAt: endParsed.date,
+            allDay: startParsed.allDay,
+            status,
+            locationId
+          }
+        });
+        if (status === "CANCELLED") cancelled++;
+        else updated++;
+      } else {
+        await db.calendarEvent.create({
+          data: {
+            sourceId,
+            externalId: event.uid,
+            summary: event.summary,
+            description: event.description || null,
+            rawSummary: event.summary,
+            rawLocationText: event.location || null,
+            rawDescription: event.description || null,
+            startsAt: startParsed.date,
+            endsAt: endParsed.date,
+            allDay: startParsed.allDay,
+            status,
+            locationId
+          }
+        });
+        added++;
+      }
+    } catch (err) {
+      skipped++;
+      if (errors.length < MAX_STORED_ERRORS) {
+        errors.push({
+          uid: event.uid,
+          summary: event.summary.slice(0, 120),
+          reason: err instanceof Error ? err.message : "Unknown error",
+        });
+      }
     }
   }
 
-  // Update source metadata
+  // Always update source metadata, even after partial failures
+  const lastError = errors.length > 0
+    ? `${skipped} of ${events.length} events failed. ${errors.map((e) => `[${e.uid}] ${e.reason}`).join("; ")}`
+    : null;
+
   await db.calendarSource.update({
     where: { id: sourceId },
     data: {
       lastFetchedAt: new Date(),
-      lastError: null
+      lastError,
     }
   });
 
-  return { added, updated, cancelled };
+  return { added, updated, cancelled, skipped, errors };
 }
 
 /**
@@ -230,7 +275,7 @@ export async function syncCalendarSource(sourceId: string): Promise<{
  */
 export async function syncAllCalendarSources() {
   const sources = await db.calendarSource.findMany({ where: { enabled: true } });
-  const results: Array<{ sourceId: string; name: string; added: number; updated: number; cancelled: number; error?: string }> = [];
+  const results: Array<{ sourceId: string; name: string } & SyncResult> = [];
 
   for (const source of sources) {
     const result = await syncCalendarSource(source.id);
