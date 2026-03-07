@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIcsDate, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample } from "@/lib/services/calendar-sync";
+import { parseIcsDate, splitEventsForSync, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
 
 // ── parseIcsDate unit tests ──
 
@@ -102,14 +102,14 @@ describe("SyncResult type shape", () => {
 // These tests verify the algorithm that the hardened sync loop uses,
 // without needing Prisma or fetch mocks.
 
-type ParsedIcsEvent = {
+type SimulatedEvent = {
   uid: string;
   summary: string;
   dtstart: string;
   dtend: string;
 };
 
-function simulateEventLoop(events: ParsedIcsEvent[]): Pick<SyncResult, "added" | "skipped" | "errors"> {
+function simulateEventLoop(events: SimulatedEvent[]): Pick<SyncResult, "added" | "skipped" | "errors"> {
   let added = 0;
   let skipped = 0;
   const errors: SyncEventError[] = [];
@@ -148,7 +148,7 @@ function simulateEventLoop(events: ParsedIcsEvent[]): Pick<SyncResult, "added" |
 
 describe("per-event error isolation", () => {
   it("malformed event with invalid date does not crash full sync", () => {
-    const events: ParsedIcsEvent[] = [
+    const events: SimulatedEvent[] = [
       { uid: "good-1", summary: "Game Day", dtstart: "20260315T100000Z", dtend: "20260315T120000Z" },
       { uid: "bad-1", summary: "Corrupt Event", dtstart: "", dtend: "20260316T100000Z" },
       { uid: "good-2", summary: "Practice", dtstart: "20260317T080000Z", dtend: "20260317T100000Z" },
@@ -163,7 +163,7 @@ describe("per-event error isolation", () => {
   });
 
   it("good events still sync when one event has bad end date", () => {
-    const events: ParsedIcsEvent[] = [
+    const events: SimulatedEvent[] = [
       { uid: "ok-1", summary: "OK Event", dtstart: "20260301", dtend: "20260301" },
       { uid: "bad-end", summary: "Bad End", dtstart: "20260301", dtend: "garbage" },
       { uid: "ok-2", summary: "Another OK", dtstart: "20260302", dtend: "20260302" },
@@ -177,7 +177,7 @@ describe("per-event error isolation", () => {
   });
 
   it("error summary contains uid and reason", () => {
-    const events: ParsedIcsEvent[] = [
+    const events: SimulatedEvent[] = [
       { uid: "bad-uid-123", summary: "Broken", dtstart: "not-a-date", dtend: "also-bad" },
     ];
 
@@ -188,7 +188,7 @@ describe("per-event error isolation", () => {
   });
 
   it("all valid events produce zero errors", () => {
-    const events: ParsedIcsEvent[] = [
+    const events: SimulatedEvent[] = [
       { uid: "a", summary: "A", dtstart: "20260301T090000Z", dtend: "20260301T110000Z" },
       { uid: "b", summary: "B", dtstart: "20260302", dtend: "20260302" },
     ];
@@ -200,7 +200,7 @@ describe("per-event error isolation", () => {
   });
 
   it("caps stored errors at 10", () => {
-    const events: ParsedIcsEvent[] = Array.from({ length: 15 }, (_, i) => ({
+    const events: SimulatedEvent[] = Array.from({ length: 15 }, (_, i) => ({
       uid: `bad-${i}`,
       summary: `Bad Event ${i}`,
       dtstart: "",
@@ -369,5 +369,134 @@ describe("parseIcsDate UTC consistency", () => {
     const withZ = parseIcsDate("20260315T143000Z");
     const withoutZ = parseIcsDate("20260315T143000");
     expect(withZ.date.getTime()).toBe(withoutZ.date.getTime());
+  });
+});
+
+// ── splitEventsForSync (batch diffing) ──
+
+function makeParsedEvent(overrides: Partial<ParsedIcsEvent> & { uid: string }): ParsedIcsEvent {
+  return {
+    summary: "Test Event",
+    description: "",
+    location: "",
+    dtstart: "20260315T100000Z",
+    dtend: "20260315T120000Z",
+    status: "CONFIRMED",
+    ...overrides,
+  };
+}
+
+function makeExistingRow(overrides: Partial<ExistingEventRow> & { id: string; externalId: string }): ExistingEventRow {
+  return {
+    summary: "Test Event",
+    description: null,
+    startsAt: new Date(Date.UTC(2026, 2, 15, 10, 0, 0)),
+    endsAt: new Date(Date.UTC(2026, 2, 15, 12, 0, 0)),
+    allDay: false,
+    status: "CONFIRMED",
+    locationId: null,
+    ...overrides,
+  };
+}
+
+describe("splitEventsForSync", () => {
+  it("puts new events in toCreate", () => {
+    const parsed = [makeParsedEvent({ uid: "new-1" }), makeParsedEvent({ uid: "new-2" })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate).toHaveLength(2);
+    expect(result.toUpdate).toHaveLength(0);
+    expect(result.unchanged).toHaveLength(0);
+  });
+
+  it("puts unchanged events in unchanged list (no update needed)", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1" })];
+    const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1" })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toCreate).toHaveLength(0);
+    expect(result.toUpdate).toHaveLength(0);
+    expect(result.unchanged).toHaveLength(1);
+    expect(result.unchanged[0]).toBe("evt-1");
+  });
+
+  it("detects changed summary and puts in toUpdate", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "Updated Title" })];
+    const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1", summary: "Old Title" })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0].id).toBe("db-1");
+    expect(result.toUpdate[0].data.summary).toBe("Updated Title");
+  });
+
+  it("detects changed startsAt and puts in toUpdate", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", dtstart: "20260316T100000Z" })];
+    const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1" })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+  });
+
+  it("detects changed status and puts in toUpdate", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", status: "CANCELLED" })];
+    const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1", status: "CONFIRMED" })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0].data.status).toBe("CANCELLED");
+  });
+
+  it("splits a mixed feed into creates, updates, and unchanged", () => {
+    const parsed = [
+      makeParsedEvent({ uid: "new-1" }),
+      makeParsedEvent({ uid: "existing-unchanged" }),
+      makeParsedEvent({ uid: "existing-changed", summary: "New Summary" }),
+    ];
+    const existing = [
+      makeExistingRow({ id: "db-2", externalId: "existing-unchanged" }),
+      makeExistingRow({ id: "db-3", externalId: "existing-changed", summary: "Old Summary" }),
+    ];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toCreate).toHaveLength(1);
+    expect(result.toCreate[0].externalId).toBe("new-1");
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0].data.externalId).toBe("existing-changed");
+    expect(result.unchanged).toHaveLength(1);
+  });
+
+  it("skips events with invalid dates and adds to skippedErrors", () => {
+    const parsed = [
+      makeParsedEvent({ uid: "good-1" }),
+      makeParsedEvent({ uid: "bad-1", dtstart: "" }),
+      makeParsedEvent({ uid: "good-2" }),
+    ];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate).toHaveLength(2);
+    expect(result.skippedErrors).toHaveLength(1);
+    expect(result.skippedErrors[0].uid).toBe("bad-1");
+    expect(result.skippedErrors[0].operation).toBe("validate");
+  });
+
+  it("resolves location via regex mapping", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", location: "Gymnasium A" })];
+    const mappings = [{ pattern: "gymnasium", locationId: "loc-gym" }];
+    const result = splitEventsForSync(parsed, [], mappings);
+    expect(result.toCreate[0].locationId).toBe("loc-gym");
+  });
+
+  it("resolves location via plain text fallback for invalid regex", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", location: "Field (north" })];
+    // Unbalanced parenthesis is invalid regex, so it falls back to includes()
+    const mappings = [{ pattern: "field (north", locationId: "loc-field" }];
+    const result = splitEventsForSync(parsed, [], mappings);
+    expect(result.toCreate[0].locationId).toBe("loc-field");
+  });
+
+  it("handles large feed without per-event DB queries (pure function)", () => {
+    const parsed = Array.from({ length: 300 }, (_, i) => makeParsedEvent({ uid: `evt-${i}` }));
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate).toHaveLength(300);
+    expect(result.toUpdate).toHaveLength(0);
+    expect(result.skippedErrors).toHaveLength(0);
+  });
+
+  it("WRITE_CHUNK_SIZE is exported and equals 50", () => {
+    expect(WRITE_CHUNK_SIZE).toBe(50);
   });
 });
