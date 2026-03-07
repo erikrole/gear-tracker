@@ -105,12 +105,30 @@ export type SyncEventError = {
   reason: string;
 };
 
+export type SyncEventSample = {
+  uid: string;
+  summary: string;
+  dtstart: string;
+};
+
+export type SyncDiagnostics = {
+  fetchUrl: string;
+  httpStatus: number;
+  responseSizeBytes: number;
+  parsedEventCount: number;
+  earliestDtstart: string | null;
+  latestDtstart: string | null;
+  firstEvents: SyncEventSample[];
+  lastEvents: SyncEventSample[];
+};
+
 export type SyncResult = {
   added: number;
   updated: number;
   cancelled: number;
   skipped: number;
   errors: SyncEventError[];
+  diagnostics?: SyncDiagnostics;
   error?: string;
 };
 
@@ -130,17 +148,19 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   const url = source.url.replace(/^webcal:\/\//, "https://");
 
   let icsText: string;
+  let httpStatus = 0;
   try {
     const response = await fetch(url, {
       headers: { "User-Agent": "GearTracker/1.0" }
     });
+    httpStatus = response.status;
     if (!response.ok) {
       const error = `HTTP ${response.status}: ${response.statusText}`;
       await db.calendarSource.update({
         where: { id: sourceId },
         data: { lastError: error, lastFetchedAt: new Date() }
       });
-      return { ...emptyResult, error };
+      return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [] } };
     }
     icsText = await response.text();
   } catch (err) {
@@ -149,10 +169,25 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
       where: { id: sourceId },
       data: { lastError: error, lastFetchedAt: new Date() }
     });
-    return { ...emptyResult, error };
+    return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [] } };
   }
 
+  const responseSizeBytes = new TextEncoder().encode(icsText).length;
   const events = parseIcs(icsText);
+
+  // Build diagnostics from parsed events (before any DB work)
+  const SAMPLE_SIZE = 5;
+  const sortedByStart = [...events].sort((a, b) => a.dtstart.localeCompare(b.dtstart));
+  const diagnostics: SyncDiagnostics = {
+    fetchUrl: url,
+    httpStatus,
+    responseSizeBytes,
+    parsedEventCount: events.length,
+    earliestDtstart: sortedByStart.length > 0 ? sortedByStart[0].dtstart : null,
+    latestDtstart: sortedByStart.length > 0 ? sortedByStart[sortedByStart.length - 1].dtstart : null,
+    firstEvents: sortedByStart.slice(0, SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
+    lastEvents: sortedByStart.slice(-SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
+  };
 
   // Load location mappings — tolerate missing table gracefully
   let mappings: Array<{ pattern: string; locationId: string }> = [];
@@ -276,7 +311,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     // If we can't update source metadata, still return results
   }
 
-  return { added, updated, cancelled, skipped, errors };
+  return { added, updated, cancelled, skipped, errors, diagnostics };
 }
 
 /**

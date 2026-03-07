@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIcsDate, type SyncResult, type SyncEventError } from "@/lib/services/calendar-sync";
+import { parseIcsDate, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample } from "@/lib/services/calendar-sync";
 
 // ── parseIcsDate unit tests ──
 
@@ -205,5 +205,98 @@ describe("per-event error isolation", () => {
     const result = simulateEventLoop(events);
     expect(result.skipped).toBe(15);
     expect(result.errors).toHaveLength(10);
+  });
+});
+
+// ── SyncDiagnostics shape and sampling tests ──
+
+function buildDiagnostics(events: Array<{ uid: string; summary: string; dtstart: string }>): SyncDiagnostics {
+  const SAMPLE_SIZE = 5;
+  const sorted = [...events].sort((a, b) => a.dtstart.localeCompare(b.dtstart));
+  return {
+    fetchUrl: "https://example.com/feed.ics",
+    httpStatus: 200,
+    responseSizeBytes: 12345,
+    parsedEventCount: events.length,
+    earliestDtstart: sorted.length > 0 ? sorted[0].dtstart : null,
+    latestDtstart: sorted.length > 0 ? sorted[sorted.length - 1].dtstart : null,
+    firstEvents: sorted.slice(0, SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
+    lastEvents: sorted.slice(-SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
+  };
+}
+
+describe("SyncDiagnostics", () => {
+  it("has all required fields", () => {
+    const diag: SyncDiagnostics = {
+      fetchUrl: "https://example.com/feed.ics",
+      httpStatus: 200,
+      responseSizeBytes: 5000,
+      parsedEventCount: 10,
+      earliestDtstart: "20260101",
+      latestDtstart: "20261231",
+      firstEvents: [],
+      lastEvents: [],
+    };
+    expect(diag.fetchUrl).toBeTruthy();
+    expect(diag.httpStatus).toBe(200);
+    expect(diag.parsedEventCount).toBe(10);
+    expect(diag.earliestDtstart).toBe("20260101");
+    expect(diag.latestDtstart).toBe("20261231");
+  });
+
+  it("includes parsed date range from events", () => {
+    const events = [
+      { uid: "a", summary: "Early", dtstart: "20250901T100000Z" },
+      { uid: "b", summary: "Late", dtstart: "20261215T180000Z" },
+      { uid: "c", summary: "Mid", dtstart: "20260601T120000Z" },
+    ];
+    const diag = buildDiagnostics(events);
+    expect(diag.earliestDtstart).toBe("20250901T100000Z");
+    expect(diag.latestDtstart).toBe("20261215T180000Z");
+  });
+
+  it("first/last event sampling is capped at 5", () => {
+    const events = Array.from({ length: 20 }, (_, i) => ({
+      uid: `evt-${String(i).padStart(2, "0")}`,
+      summary: `Event ${i}`,
+      dtstart: `202603${String(i + 1).padStart(2, "0")}T100000Z`,
+    }));
+    const diag = buildDiagnostics(events);
+    expect(diag.firstEvents).toHaveLength(5);
+    expect(diag.lastEvents).toHaveLength(5);
+    expect(diag.firstEvents[0].dtstart).toBe("20260301T100000Z");
+    expect(diag.lastEvents[4].dtstart).toBe("20260320T100000Z");
+  });
+
+  it("handles empty event list", () => {
+    const diag = buildDiagnostics([]);
+    expect(diag.parsedEventCount).toBe(0);
+    expect(diag.earliestDtstart).toBeNull();
+    expect(diag.latestDtstart).toBeNull();
+    expect(diag.firstEvents).toHaveLength(0);
+    expect(diag.lastEvents).toHaveLength(0);
+  });
+
+  it("handles fewer events than sample size", () => {
+    const events = [
+      { uid: "only-1", summary: "Solo", dtstart: "20260501" },
+      { uid: "only-2", summary: "Duo", dtstart: "20260502" },
+    ];
+    const diag = buildDiagnostics(events);
+    expect(diag.firstEvents).toHaveLength(2);
+    expect(diag.lastEvents).toHaveLength(2);
+  });
+
+  it("SyncResult includes optional diagnostics field", () => {
+    const result: SyncResult = {
+      added: 5,
+      updated: 3,
+      cancelled: 0,
+      skipped: 0,
+      errors: [],
+      diagnostics: buildDiagnostics([{ uid: "x", summary: "Test", dtstart: "20260301" }]),
+    };
+    expect(result.diagnostics).toBeDefined();
+    expect(result.diagnostics!.parsedEventCount).toBe(1);
   });
 });
