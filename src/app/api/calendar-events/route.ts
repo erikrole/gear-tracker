@@ -15,8 +15,11 @@ export async function GET(req: Request) {
 
     const sportCode = searchParams.get("sportCode");
 
+    // Default to upcoming events from now unless an explicit startDate is given
+    const effectiveStartDate = startDate ? new Date(startDate) : new Date();
+
     const where = {
-      ...(startDate ? { startsAt: { gte: new Date(startDate) } } : {}),
+      startsAt: { gte: effectiveStartDate },
       ...(endDate ? { endsAt: { lte: new Date(endDate) } } : {}),
       ...(unmappedOnly ? { locationId: null } : {}),
       ...(sportCode ? { sportCode } : {}),
