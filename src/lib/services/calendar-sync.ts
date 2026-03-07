@@ -154,10 +154,15 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   const events = parseIcs(icsText);
 
-  // Load location mappings
-  const mappings = await db.locationMapping.findMany({
-    orderBy: { priority: "desc" }
-  });
+  // Load location mappings — tolerate missing table gracefully
+  let mappings: Array<{ pattern: string; locationId: string }> = [];
+  try {
+    mappings = await db.locationMapping.findMany({
+      orderBy: { priority: "desc" }
+    });
+  } catch {
+    // Table may not exist yet or query may fail — sync can proceed without mappings
+  }
 
   let added = 0;
   let updated = 0;
@@ -259,13 +264,17 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     ? `${skipped} of ${events.length} events failed. ${errors.map((e) => `[${e.uid}] ${e.reason}`).join("; ")}`
     : null;
 
-  await db.calendarSource.update({
-    where: { id: sourceId },
-    data: {
-      lastFetchedAt: new Date(),
-      lastError,
-    }
-  });
+  try {
+    await db.calendarSource.update({
+      where: { id: sourceId },
+      data: {
+        lastFetchedAt: new Date(),
+        lastError,
+      }
+    });
+  } catch {
+    // If we can't update source metadata, still return results
+  }
 
   return { added, updated, cancelled, skipped, errors };
 }

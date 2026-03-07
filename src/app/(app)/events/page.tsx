@@ -47,6 +47,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [showSources, setShowSources] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [showAddSource, setShowAddSource] = useState(false);
   const [unmappedOnly, setUnmappedOnly] = useState(false);
 
@@ -75,7 +76,23 @@ export default function EventsPage() {
 
   async function handleSync(sourceId: string) {
     setSyncing(sourceId);
-    await fetch(`/api/calendar-sources/${sourceId}/sync`, { method: "POST" });
+    setSyncMessage(null);
+    try {
+      const res = await fetch(`/api/calendar-sources/${sourceId}/sync`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setSyncMessage(`Sync failed: ${json?.error || res.statusText}`);
+      } else if (json?.data) {
+        const d = json.data;
+        const parts = [`Added ${d.added}, updated ${d.updated}`];
+        if (d.cancelled > 0) parts.push(`cancelled ${d.cancelled}`);
+        if (d.skipped > 0) parts.push(`skipped ${d.skipped} (errors)`);
+        if (d.error) parts.push(d.error);
+        setSyncMessage(parts.join(", "));
+      }
+    } catch {
+      setSyncMessage("Sync failed: network error");
+    }
     await loadEvents();
     await loadSources();
     setSyncing(null);
@@ -120,6 +137,14 @@ export default function EventsPage() {
           </button>
         </div>
       </div>
+
+      {/* Sync result message */}
+      {syncMessage && (
+        <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 8, fontSize: 13, background: syncMessage.includes("failed") ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)", color: syncMessage.includes("failed") ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)" }}>
+          {syncMessage}
+          <button type="button" onClick={() => setSyncMessage(null)} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>&times;</button>
+        </div>
+      )}
 
       {/* Sources management panel */}
       {showSources && (
