@@ -2,11 +2,14 @@
  * Equipment section definitions for guided checkout picker.
  *
  * Maps asset type/category to ordered equipment sections:
- * 1. Camera bodies
- * 2. Camera accessories / monitors
- * 3. Lenses
- * 4. Batteries
- * 5. Everything else
+ * 1. Bodies
+ * 2. Lenses
+ * 3. Batteries
+ * 4. Accessories
+ * 5. Others
+ *
+ * Progression is locked forward: users must advance in order.
+ * Users may always return to previously reached sections.
  *
  * Uses the `type` field on serialized assets (sourced from Cheqroom "Category")
  * and the `category` field on bulk SKUs.
@@ -14,9 +17,9 @@
 
 export type EquipmentSectionKey =
   | "camera_body"
-  | "accessories"
   | "lenses"
   | "batteries"
+  | "accessories"
   | "other";
 
 export type EquipmentSection = {
@@ -26,12 +29,28 @@ export type EquipmentSection = {
 };
 
 export const EQUIPMENT_SECTIONS: EquipmentSection[] = [
-  { key: "camera_body", label: "Camera Body", description: "Select camera bodies" },
-  { key: "accessories", label: "Accessories & Monitors", description: "Camera accessories, monitors, and rigs" },
+  { key: "camera_body", label: "Bodies", description: "Select camera bodies" },
   { key: "lenses", label: "Lenses", description: "Select lenses" },
-  { key: "batteries", label: "Batteries", description: "Batteries and power" },
-  { key: "other", label: "Everything Else", description: "Cables, audio, tripods, and other gear" },
+  { key: "batteries", label: "Batteries", description: "Batteries, chargers, and power" },
+  { key: "accessories", label: "Accessories", description: "Monitors, rigs, and camera accessories" },
+  { key: "other", label: "Others", description: "Cables, audio, tripods, and other gear" },
 ];
+
+/** Index lookup for section ordering. */
+export function sectionIndex(key: EquipmentSectionKey): number {
+  return EQUIPMENT_SECTIONS.findIndex((s) => s.key === key);
+}
+
+/**
+ * Check if a section tab should be enabled given the highest section the user has reached.
+ * A section is reachable if its index <= highestReachedIndex.
+ */
+export function isSectionReachable(
+  sectionKey: EquipmentSectionKey,
+  highestReachedKey: EquipmentSectionKey
+): boolean {
+  return sectionIndex(sectionKey) <= sectionIndex(highestReachedKey);
+}
 
 /**
  * Normalized keyword sets for each section bucket.
