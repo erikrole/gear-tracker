@@ -65,11 +65,11 @@ export function parseIcsDate(value: string): { date: Date; allDay: boolean } {
   const cleaned = value.replace(/[^0-9TZ]/g, "");
 
   if (cleaned.length === 8) {
-    // Date only: YYYYMMDD
+    // Date only: YYYYMMDD — use UTC to avoid timezone ambiguity on edge
     const year = parseInt(cleaned.slice(0, 4));
     const month = parseInt(cleaned.slice(4, 6)) - 1;
     const day = parseInt(cleaned.slice(6, 8));
-    return { date: new Date(year, month, day), allDay: true };
+    return { date: new Date(Date.UTC(year, month, day)), allDay: true };
   }
 
   // Date-time: YYYYMMDDTHHMMSS or YYYYMMDDTHHMMSSZ
@@ -80,9 +80,9 @@ export function parseIcsDate(value: string): { date: Date; allDay: boolean } {
   const minute = parseInt(cleaned.slice(11, 13)) || 0;
   const second = parseInt(cleaned.slice(13, 15)) || 0;
 
-  const date = cleaned.endsWith("Z")
-    ? new Date(Date.UTC(year, month, day, hour, minute, second))
-    : new Date(year, month, day, hour, minute, second);
+  // Always use Date.UTC — edge runtime has no reliable local timezone,
+  // and all events in this system are in the same locale anyway
+  const date = new Date(Date.UTC(year, month, day, hour, minute, second));
 
   return { date, allDay: false };
 }
@@ -102,6 +102,7 @@ function mapIcsStatus(status: string): CalendarEventStatus {
 export type SyncEventError = {
   uid: string;
   summary: string;
+  operation: "create" | "update" | "validate";
   reason: string;
 };
 
@@ -207,6 +208,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   const MAX_STORED_ERRORS = 10;
 
   for (const event of events) {
+    let operation: "create" | "update" | "validate" = "validate";
     try {
       // Validate dates before any DB work
       const startParsed = parseIcsDate(event.dtstart);
@@ -245,39 +247,34 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
         where: { sourceId_externalId: { sourceId, externalId: event.uid } }
       });
 
+      const eventData = {
+        summary: event.summary,
+        description: event.description || null,
+        rawSummary: event.summary,
+        rawLocationText: event.location || null,
+        rawDescription: event.description || null,
+        startsAt: startParsed.date,
+        endsAt: endParsed.date,
+        allDay: startParsed.allDay,
+        status,
+        locationId
+      };
+
       if (existing) {
+        operation = "update";
         await db.calendarEvent.update({
           where: { id: existing.id },
-          data: {
-            summary: event.summary,
-            description: event.description || null,
-            rawSummary: event.summary,
-            rawLocationText: event.location || null,
-            rawDescription: event.description || null,
-            startsAt: startParsed.date,
-            endsAt: endParsed.date,
-            allDay: startParsed.allDay,
-            status,
-            locationId
-          }
+          data: eventData
         });
         if (status === "CANCELLED") cancelled++;
         else updated++;
       } else {
+        operation = "create";
         await db.calendarEvent.create({
           data: {
             sourceId,
             externalId: event.uid,
-            summary: event.summary,
-            description: event.description || null,
-            rawSummary: event.summary,
-            rawLocationText: event.location || null,
-            rawDescription: event.description || null,
-            startsAt: startParsed.date,
-            endsAt: endParsed.date,
-            allDay: startParsed.allDay,
-            status,
-            locationId
+            ...eventData
           }
         });
         added++;
@@ -285,10 +282,12 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     } catch (err) {
       skipped++;
       if (errors.length < MAX_STORED_ERRORS) {
+        const reason = err instanceof Error ? err.message : "Unknown error";
         errors.push({
           uid: event.uid,
           summary: event.summary.slice(0, 120),
-          reason: err instanceof Error ? err.message : "Unknown error",
+          operation,
+          reason: reason.length > 300 ? reason.slice(0, 300) + "…" : reason,
         });
       }
     }
