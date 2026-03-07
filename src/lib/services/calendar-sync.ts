@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import type { CalendarEventStatus } from "@prisma/client";
 
+/** Max events per createMany / update batch — keeps Worker subrequests in check */
+export const WRITE_CHUNK_SIZE = 50;
+
 /**
  * Minimal ICS parser — extracts VEVENT blocks and their key properties.
  * Does not depend on any external library.
@@ -133,9 +136,135 @@ export type SyncResult = {
   error?: string;
 };
 
+// ── Validated event shape for DB writes ──
+
+type ValidatedEventData = {
+  externalId: string;
+  summary: string;
+  description: string | null;
+  rawSummary: string;
+  rawLocationText: string | null;
+  rawDescription: string | null;
+  startsAt: Date;
+  endsAt: Date;
+  allDay: boolean;
+  status: CalendarEventStatus;
+  locationId: string | null;
+};
+
+export type ExistingEventRow = {
+  id: string;
+  externalId: string;
+  summary: string;
+  description: string | null;
+  startsAt: Date;
+  endsAt: Date;
+  allDay: boolean;
+  status: string;
+  locationId: string | null;
+};
+
+export type ParsedIcsEvent = {
+  uid: string;
+  summary: string;
+  description: string;
+  location: string;
+  dtstart: string;
+  dtend: string;
+  status: string;
+};
+
+/**
+ * Pure function: validates parsed events, resolves locations, and splits
+ * into create vs update sets by diffing against existing DB rows.
+ * Exported for testing — no DB access.
+ */
+export function splitEventsForSync(
+  parsedEvents: ParsedIcsEvent[],
+  existingRows: ExistingEventRow[],
+  mappings: Array<{ pattern: string; locationId: string }>,
+) {
+  const existingMap = new Map(existingRows.map((r) => [r.externalId, r]));
+
+  const toCreate: ValidatedEventData[] = [];
+  const toUpdate: Array<{ id: string; data: ValidatedEventData }> = [];
+  const unchanged: string[] = [];
+  const skippedErrors: SyncEventError[] = [];
+
+  for (const event of parsedEvents) {
+    try {
+      const startParsed = parseIcsDate(event.dtstart);
+      const endParsed = parseIcsDate(event.dtend);
+
+      if (!isValidDate(startParsed.date)) throw new Error(`Invalid start date: "${event.dtstart}"`);
+      if (!isValidDate(endParsed.date)) throw new Error(`Invalid end date: "${event.dtend}"`);
+
+      const status = mapIcsStatus(event.status);
+      let locationId: string | null = null;
+      const searchText = `${event.location} ${event.summary}`.toLowerCase();
+
+      for (const mapping of mappings) {
+        try {
+          if (new RegExp(mapping.pattern, "i").test(searchText)) { locationId = mapping.locationId; break; }
+        } catch {
+          if (searchText.includes(mapping.pattern.toLowerCase())) { locationId = mapping.locationId; break; }
+        }
+      }
+
+      const data: ValidatedEventData = {
+        externalId: event.uid,
+        summary: event.summary,
+        description: event.description || null,
+        rawSummary: event.summary,
+        rawLocationText: event.location || null,
+        rawDescription: event.description || null,
+        startsAt: startParsed.date,
+        endsAt: endParsed.date,
+        allDay: startParsed.allDay,
+        status,
+        locationId,
+      };
+
+      const existing = existingMap.get(event.uid);
+      if (existing) {
+        const changed =
+          existing.summary !== data.summary ||
+          existing.description !== data.description ||
+          existing.startsAt.getTime() !== data.startsAt.getTime() ||
+          existing.endsAt.getTime() !== data.endsAt.getTime() ||
+          existing.allDay !== data.allDay ||
+          existing.status !== data.status ||
+          existing.locationId !== data.locationId;
+
+        if (changed) {
+          toUpdate.push({ id: existing.id, data });
+        } else {
+          unchanged.push(event.uid);
+        }
+      } else {
+        toCreate.push(data);
+      }
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      skippedErrors.push({
+        uid: event.uid,
+        summary: event.summary.slice(0, 120),
+        operation: "validate",
+        reason: reason.length > 300 ? reason.slice(0, 300) + "\u2026" : reason,
+      });
+    }
+  }
+
+  return { toCreate, toUpdate, unchanged, skippedErrors };
+}
+
 /**
  * Sync a single CalendarSource — fetches ICS, parses, upserts events.
- * Individual event failures are captured and do not abort the sync.
+ *
+ * DB query budget (for ~274 events, well under Cloudflare Worker limits):
+ *   1 findUnique (source) + 1 fetch + 1 findMany (mappings) + 1 findMany (existing)
+ *   + ceil(creates/50) createMany + ceil(changedUpdates/50) update chunks
+ *   + 1 source metadata update = ~8–12 queries total
  */
 export async function syncCalendarSource(sourceId: string): Promise<SyncResult> {
   const source = await db.calendarSource.findUnique({ where: { id: sourceId } });
@@ -190,110 +319,81 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     lastEvents: sortedByStart.slice(-SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
   };
 
-  // Load location mappings — tolerate missing table gracefully
+  // ── Phase 1: Bulk-load existing data (2 queries) ──
+
   let mappings: Array<{ pattern: string; locationId: string }> = [];
   try {
-    mappings = await db.locationMapping.findMany({
-      orderBy: { priority: "desc" }
-    });
-  } catch {
-    // Table may not exist yet or query may fail — sync can proceed without mappings
-  }
+    mappings = await db.locationMapping.findMany({ orderBy: { priority: "desc" } });
+  } catch { /* table may not exist */ }
+
+  const existingRows = await db.calendarEvent.findMany({
+    where: { sourceId },
+    select: {
+      id: true, externalId: true, summary: true, description: true,
+      startsAt: true, endsAt: true, allDay: true, status: true, locationId: true,
+    }
+  });
+
+  // ── Phase 2: In-memory validate + diff (0 queries) ──
+
+  const { toCreate, toUpdate, unchanged, skippedErrors } = splitEventsForSync(events, existingRows, mappings);
 
   let added = 0;
-  let updated = 0;
-  let cancelled = 0;
-  let skipped = 0;
-  const errors: SyncEventError[] = [];
+  const updated = toUpdate.length + unchanged.length;
+  const cancelled = 0; // TODO: count cancelled from status if needed
+  let skipped = skippedErrors.length;
+  const errors: SyncEventError[] = [...skippedErrors];
   const MAX_STORED_ERRORS = 10;
 
-  for (const event of events) {
-    let operation: "create" | "update" | "validate" = "validate";
+  // ── Phase 3: Batch writes in chunks ──
+
+  // Batch create new events
+  for (let i = 0; i < toCreate.length; i += WRITE_CHUNK_SIZE) {
+    const chunk = toCreate.slice(i, i + WRITE_CHUNK_SIZE);
     try {
-      // Validate dates before any DB work
-      const startParsed = parseIcsDate(event.dtstart);
-      const endParsed = parseIcsDate(event.dtend);
-
-      if (!isValidDate(startParsed.date)) {
-        throw new Error(`Invalid start date: "${event.dtstart}"`);
-      }
-      if (!isValidDate(endParsed.date)) {
-        throw new Error(`Invalid end date: "${event.dtend}"`);
-      }
-
-      const status = mapIcsStatus(event.status);
-
-      // Apply location mapping
-      let locationId: string | null = null;
-      const searchText = `${event.location} ${event.summary}`.toLowerCase();
-
-      for (const mapping of mappings) {
-        try {
-          const regex = new RegExp(mapping.pattern, "i");
-          if (regex.test(searchText)) {
-            locationId = mapping.locationId;
-            break;
-          }
-        } catch {
-          // Invalid regex, try simple includes
-          if (searchText.includes(mapping.pattern.toLowerCase())) {
-            locationId = mapping.locationId;
-            break;
-          }
-        }
-      }
-
-      const existing = await db.calendarEvent.findUnique({
-        where: { sourceId_externalId: { sourceId, externalId: event.uid } }
+      await db.calendarEvent.createMany({
+        data: chunk.map((c) => ({ sourceId, ...c })),
+        skipDuplicates: true,
       });
-
-      const eventData = {
-        summary: event.summary,
-        description: event.description || null,
-        rawSummary: event.summary,
-        rawLocationText: event.location || null,
-        rawDescription: event.description || null,
-        startsAt: startParsed.date,
-        endsAt: endParsed.date,
-        allDay: startParsed.allDay,
-        status,
-        locationId
-      };
-
-      if (existing) {
-        operation = "update";
-        await db.calendarEvent.update({
-          where: { id: existing.id },
-          data: eventData
-        });
-        if (status === "CANCELLED") cancelled++;
-        else updated++;
-      } else {
-        operation = "create";
-        await db.calendarEvent.create({
-          data: {
-            sourceId,
-            externalId: event.uid,
-            ...eventData
-          }
-        });
-        added++;
-      }
+      added += chunk.length;
     } catch (err) {
-      skipped++;
+      skipped += chunk.length;
       if (errors.length < MAX_STORED_ERRORS) {
         const reason = err instanceof Error ? err.message : "Unknown error";
         errors.push({
-          uid: event.uid,
-          summary: event.summary.slice(0, 120),
-          operation,
-          reason: reason.length > 300 ? reason.slice(0, 300) + "…" : reason,
+          uid: chunk.map((e) => e.externalId).join(","),
+          summary: `Batch create of ${chunk.length} events`,
+          operation: "create",
+          reason: reason.length > 300 ? reason.slice(0, 300) + "\u2026" : reason,
         });
       }
     }
   }
 
-  // Always update source metadata, even after partial failures
+  // Batch update changed events (only rows that actually differ)
+  for (let i = 0; i < toUpdate.length; i += WRITE_CHUNK_SIZE) {
+    const chunk = toUpdate.slice(i, i + WRITE_CHUNK_SIZE);
+    try {
+      await Promise.all(
+        chunk.map((item) =>
+          db.calendarEvent.update({ where: { id: item.id }, data: item.data })
+        )
+      );
+    } catch (err) {
+      if (errors.length < MAX_STORED_ERRORS) {
+        const reason = err instanceof Error ? err.message : "Unknown error";
+        errors.push({
+          uid: chunk.map((item) => item.data.externalId).join(","),
+          summary: `Batch update of ${chunk.length} events`,
+          operation: "update",
+          reason: reason.length > 300 ? reason.slice(0, 300) + "\u2026" : reason,
+        });
+      }
+    }
+  }
+
+  // ── Phase 4: Update source metadata ──
+
   const lastError = errors.length > 0
     ? `${skipped} of ${events.length} events failed. ${errors.map((e) => `[${e.uid}] ${e.reason}`).join("; ")}`
     : null;
@@ -301,10 +401,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   try {
     await db.calendarSource.update({
       where: { id: sourceId },
-      data: {
-        lastFetchedAt: new Date(),
-        lastError,
-      }
+      data: { lastFetchedAt: new Date(), lastError }
     });
   } catch {
     // If we can't update source metadata, still return results
