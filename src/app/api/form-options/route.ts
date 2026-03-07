@@ -18,11 +18,11 @@ export async function GET() {
       db.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
       db.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, email: true } }),
       db.asset.findMany({
-        where: { status: "AVAILABLE" },
+        where: { status: { not: "RETIRED" } },
         orderBy: { assetTag: "asc" },
         select: {
           id: true, assetTag: true, brand: true, model: true,
-          serialNumber: true, type: true, locationId: true,
+          serialNumber: true, type: true, status: true, locationId: true,
           location: { select: { name: true } }
         }
       }),
