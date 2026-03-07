@@ -48,6 +48,8 @@ export default function EventsPage() {
   const [showSources, setShowSources] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [syncDiagnostics, setSyncDiagnostics] = useState<any>(null);
   const [showAddSource, setShowAddSource] = useState(false);
   const [unmappedOnly, setUnmappedOnly] = useState(false);
 
@@ -77,6 +79,7 @@ export default function EventsPage() {
   async function handleSync(sourceId: string) {
     setSyncing(sourceId);
     setSyncMessage(null);
+    setSyncDiagnostics(null);
     try {
       const res = await fetch(`/api/calendar-sources/${sourceId}/sync`, { method: "POST" });
       const json = await res.json().catch(() => null);
@@ -89,6 +92,7 @@ export default function EventsPage() {
         if (d.skipped > 0) parts.push(`skipped ${d.skipped} (errors)`);
         if (d.error) parts.push(d.error);
         setSyncMessage(parts.join(", "));
+        if (d.diagnostics) setSyncDiagnostics(d.diagnostics);
       }
     } catch {
       setSyncMessage("Sync failed: network error");
@@ -142,8 +146,52 @@ export default function EventsPage() {
       {syncMessage && (
         <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 8, fontSize: 13, background: syncMessage.includes("failed") ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)", color: syncMessage.includes("failed") ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)" }}>
           {syncMessage}
-          <button type="button" onClick={() => setSyncMessage(null)} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>&times;</button>
+          <button type="button" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>&times;</button>
         </div>
+      )}
+
+      {/* Sync diagnostics panel */}
+      {syncDiagnostics && (
+        <details style={{ marginBottom: 12, border: "1px solid var(--border-light)", borderRadius: 8, fontSize: 12 }}>
+          <summary style={{ padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}>
+            Sync Diagnostics — {syncDiagnostics.parsedEventCount} events parsed, {(syncDiagnostics.responseSizeBytes / 1024).toFixed(1)} KB fetched
+          </summary>
+          <div style={{ padding: "8px 12px", display: "grid", gap: 8 }}>
+            <div><strong>Fetch URL:</strong> <code style={{ fontSize: 11, wordBreak: "break-all" }}>{syncDiagnostics.fetchUrl}</code></div>
+            <div><strong>HTTP Status:</strong> {syncDiagnostics.httpStatus}</div>
+            <div><strong>Response Size:</strong> {(syncDiagnostics.responseSizeBytes / 1024).toFixed(1)} KB</div>
+            <div><strong>Parsed VEVENTs:</strong> {syncDiagnostics.parsedEventCount}</div>
+            <div><strong>Date Range:</strong> {syncDiagnostics.earliestDtstart ?? "—"} → {syncDiagnostics.latestDtstart ?? "—"}</div>
+
+            {syncDiagnostics.firstEvents?.length > 0 && (
+              <div>
+                <strong>First {syncDiagnostics.firstEvents.length} events (by DTSTART):</strong>
+                <table style={{ width: "100%", marginTop: 4, fontSize: 11 }}>
+                  <thead><tr><th style={{ textAlign: "left" }}>UID</th><th style={{ textAlign: "left" }}>Summary</th><th style={{ textAlign: "left" }}>DTSTART</th></tr></thead>
+                  <tbody>
+                    {syncDiagnostics.firstEvents.map((e: { uid: string; summary: string; dtstart: string }) => (
+                      <tr key={e.uid}><td style={{ fontFamily: "monospace" }}>{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td style={{ fontFamily: "monospace" }}>{e.dtstart}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {syncDiagnostics.lastEvents?.length > 0 && (
+              <div>
+                <strong>Last {syncDiagnostics.lastEvents.length} events (by DTSTART):</strong>
+                <table style={{ width: "100%", marginTop: 4, fontSize: 11 }}>
+                  <thead><tr><th style={{ textAlign: "left" }}>UID</th><th style={{ textAlign: "left" }}>Summary</th><th style={{ textAlign: "left" }}>DTSTART</th></tr></thead>
+                  <tbody>
+                    {syncDiagnostics.lastEvents.map((e: { uid: string; summary: string; dtstart: string }) => (
+                      <tr key={e.uid}><td style={{ fontFamily: "monospace" }}>{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td style={{ fontFamily: "monospace" }}>{e.dtstart}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </details>
       )}
 
       {/* Sources management panel */}
