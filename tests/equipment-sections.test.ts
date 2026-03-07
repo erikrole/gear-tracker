@@ -5,6 +5,8 @@ import {
   groupAssetsBySection,
   groupBulkBySection,
   EQUIPMENT_SECTIONS,
+  sectionIndex,
+  isSectionReachable,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
 
@@ -28,13 +30,15 @@ describe("classifyAssetType", () => {
     expect(classifyAssetType("Zoom Lens")).toBe("lenses");
   });
 
-  it("classifies batteries", () => {
+  it("classifies batteries and chargers", () => {
     expect(classifyAssetType("Battery")).toBe("batteries");
     expect(classifyAssetType("Batteries")).toBe("batteries");
     expect(classifyAssetType("Charger")).toBe("batteries");
     expect(classifyAssetType("Power Supply")).toBe("batteries");
     expect(classifyAssetType("V-Mount")).toBe("batteries");
     expect(classifyAssetType("Gold Mount")).toBe("batteries");
+    expect(classifyAssetType("V-Mount Charger")).toBe("batteries");
+    expect(classifyAssetType("Battery Charger")).toBe("batteries");
   });
 
   it("classifies accessories and monitors", () => {
@@ -68,12 +72,8 @@ describe("classifyAssetType", () => {
     expect(classifyAssetType("   ")).toBe("other");
   });
 
-  it("prioritizes lenses over camera for 'Camera Lens'", () => {
-    // "Camera Lens" contains both "camera" and "lens" — lens should win
-    // because lens is checked before camera in priority order? No, actually
-    // the order is camera_body first, then lenses. So "Camera Lens" matches camera_body.
-    // This is intentional: we check camera_body before lenses.
-    // But let's verify and document:
+  it("prioritizes camera_body over lenses for 'Camera Lens'", () => {
+    // camera_body is checked first in priority order
     expect(classifyAssetType("Camera Lens")).toBe("camera_body");
   });
 });
@@ -143,10 +143,10 @@ describe("groupBulkBySection", () => {
 /* ───── EQUIPMENT_SECTIONS constant ───── */
 
 describe("EQUIPMENT_SECTIONS", () => {
-  it("has 5 sections in the correct order", () => {
+  it("has 5 sections in the correct order: Bodies → Lenses → Batteries → Accessories → Others", () => {
     expect(EQUIPMENT_SECTIONS).toHaveLength(5);
     expect(EQUIPMENT_SECTIONS.map((s) => s.key)).toEqual([
-      "camera_body", "accessories", "lenses", "batteries", "other",
+      "camera_body", "lenses", "batteries", "accessories", "other",
     ]);
   });
 
@@ -155,6 +155,55 @@ describe("EQUIPMENT_SECTIONS", () => {
       expect(sec.label).toBeTruthy();
       expect(sec.description).toBeTruthy();
     }
+  });
+});
+
+/* ───── sectionIndex ───── */
+
+describe("sectionIndex", () => {
+  it("returns correct indices for all sections", () => {
+    expect(sectionIndex("camera_body")).toBe(0);
+    expect(sectionIndex("lenses")).toBe(1);
+    expect(sectionIndex("batteries")).toBe(2);
+    expect(sectionIndex("accessories")).toBe(3);
+    expect(sectionIndex("other")).toBe(4);
+  });
+});
+
+/* ───── isSectionReachable (locked forward progression) ───── */
+
+describe("isSectionReachable", () => {
+  it("first section is always reachable", () => {
+    expect(isSectionReachable("camera_body", "camera_body")).toBe(true);
+  });
+
+  it("sections at or before highestReached are reachable", () => {
+    expect(isSectionReachable("camera_body", "batteries")).toBe(true);
+    expect(isSectionReachable("lenses", "batteries")).toBe(true);
+    expect(isSectionReachable("batteries", "batteries")).toBe(true);
+  });
+
+  it("sections after highestReached are NOT reachable", () => {
+    expect(isSectionReachable("accessories", "batteries")).toBe(false);
+    expect(isSectionReachable("other", "batteries")).toBe(false);
+  });
+
+  it("backward navigation is always allowed to reached sections", () => {
+    // If user has reached "other" (last section), all are reachable
+    expect(isSectionReachable("camera_body", "other")).toBe(true);
+    expect(isSectionReachable("lenses", "other")).toBe(true);
+    expect(isSectionReachable("batteries", "other")).toBe(true);
+    expect(isSectionReachable("accessories", "other")).toBe(true);
+    expect(isSectionReachable("other", "other")).toBe(true);
+  });
+
+  it("tab disabled state: only camera_body reachable at start", () => {
+    const start: EquipmentSectionKey = "camera_body";
+    expect(isSectionReachable("camera_body", start)).toBe(true);
+    expect(isSectionReachable("lenses", start)).toBe(false);
+    expect(isSectionReachable("batteries", start)).toBe(false);
+    expect(isSectionReachable("accessories", start)).toBe(false);
+    expect(isSectionReachable("other", start)).toBe(false);
   });
 });
 

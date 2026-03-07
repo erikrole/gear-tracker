@@ -6,10 +6,14 @@ import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
 import { getAllowedActionsClient } from "@/lib/checkout-actions";
 import {
   EQUIPMENT_SECTIONS,
+  classifyAssetType,
   groupAssetsBySection,
   groupBulkBySection,
+  isSectionReachable,
+  sectionIndex,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
+import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 
 /* ───── Types ───── */
 
@@ -49,6 +53,7 @@ type AvailableAsset = {
   model: string;
   serialNumber: string;
   type: string;
+  status: string;
   locationId: string;
   location?: { name: string };
 };
@@ -121,6 +126,7 @@ export default function CheckoutsPage() {
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(false);
   const [activeSection, setActiveSection] = useState<EquipmentSectionKey | null>(null);
+  const [highestReached, setHighestReached] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
   const [equipSearch, setEquipSearch] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [selectedBulkItems, setSelectedBulkItems] = useState<{ bulkSkuId: string; quantity: number }[]>([]);
@@ -262,7 +268,31 @@ export default function CheckoutsPage() {
 
       const json = await res.json();
       if (!res.ok) {
-        setCreateError(json.error || "Failed to create checkout");
+        if (res.status === 409 && json.data) {
+          const msgs: string[] = [];
+          const d = json.data as { conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string }>; unavailableAssets?: Array<{ assetId: string; status: string }>; shortages?: Array<{ bulkSkuId: string; requested: number; available: number }> };
+          if (d.conflicts?.length) {
+            for (const c of d.conflicts) {
+              const tag = availableAssets.find((a) => a.id === c.assetId)?.assetTag || c.assetId;
+              msgs.push(`${tag} conflicts with "${c.conflictingBookingTitle || "another booking"}"`);
+            }
+          }
+          if (d.unavailableAssets?.length) {
+            for (const u of d.unavailableAssets) {
+              const tag = availableAssets.find((a) => a.id === u.assetId)?.assetTag || u.assetId;
+              msgs.push(`${tag} is ${u.status === "MAINTENANCE" ? "in maintenance" : u.status.toLowerCase()}`);
+            }
+          }
+          if (d.shortages?.length) {
+            for (const s of d.shortages) {
+              const name = bulkSkus.find((sk) => sk.id === s.bulkSkuId)?.name || s.bulkSkuId;
+              msgs.push(`${name}: only ${s.available} available (requested ${s.requested})`);
+            }
+          }
+          setCreateError(msgs.length > 0 ? msgs.join(". ") : (json.error || "Availability conflict"));
+        } else {
+          setCreateError(json.error || "Failed to create checkout");
+        }
         setSubmitting(false);
         return;
       }
@@ -278,6 +308,7 @@ export default function CheckoutsPage() {
       setSelectedBulkItems([]);
       setShowEquipPicker(false);
       setActiveSection(null);
+      setHighestReached(EQUIPMENT_SECTIONS[0].key);
       setEquipSearch("");
       setSubmitting(false);
 
@@ -411,6 +442,35 @@ export default function CheckoutsPage() {
   }, [assetsBySection, bulkBySection]);
 
   const equipmentCount = selectedAssetIds.length + selectedBulkItems.length;
+
+  // Determine which section keys have selected items (for guidance rules)
+  const selectedSectionKeys = useMemo(() => {
+    const keys = new Set<EquipmentSectionKey>();
+    for (const id of selectedAssetIds) {
+      const asset = availableAssets.find((a) => a.id === id);
+      if (asset) keys.add(classifyAssetType(asset.type));
+    }
+    for (const item of selectedBulkItems) {
+      const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+      if (sku) keys.add(classifyAssetType(sku.category));
+    }
+    return Array.from(keys);
+  }, [selectedAssetIds, selectedBulkItems, availableAssets, bulkSkus]);
+
+  // Active guidance rules for the current section
+  const activeGuidance = useMemo(() => {
+    if (!activeSection) return [];
+    const ctx: GuidanceContext = { selectedSectionKeys, activeSection };
+    return getActiveGuidance(ctx);
+  }, [selectedSectionKeys, activeSection]);
+
+  function advanceToSection(key: EquipmentSectionKey) {
+    setActiveSection(key);
+    setEquipSearch("");
+    if (sectionIndex(key) > sectionIndex(highestReached)) {
+      setHighestReached(key);
+    }
+  }
 
   return (
     <>
@@ -587,6 +647,7 @@ export default function CheckoutsPage() {
                     } else {
                       setShowEquipPicker(true);
                       setActiveSection(EQUIPMENT_SECTIONS[0].key);
+                      setHighestReached(EQUIPMENT_SECTIONS[0].key);
                       setEquipSearch("");
                     }
                   }}
@@ -648,31 +709,38 @@ export default function CheckoutsPage() {
                 <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
                   {/* Section tabs */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 0, borderBottom: "1px solid var(--border)" }}>
-                    {EQUIPMENT_SECTIONS.map((sec) => (
-                      <button
-                        key={sec.key}
-                        type="button"
-                        onClick={() => { setActiveSection(sec.key); setEquipSearch(""); }}
-                        style={{
-                          flex: "1 1 auto",
-                          padding: "8px 10px",
-                          fontSize: 11,
-                          fontWeight: activeSection === sec.key ? 700 : 400,
-                          background: activeSection === sec.key ? "var(--bg-active, #f0f4ff)" : "transparent",
-                          border: "none",
-                          borderBottom: activeSection === sec.key ? "2px solid var(--primary, #3b82f6)" : "2px solid transparent",
-                          cursor: "pointer",
-                          color: activeSection === sec.key ? "var(--primary, #3b82f6)" : "var(--text-secondary)",
-                          whiteSpace: "nowrap",
-                          minHeight: 36,
-                        }}
-                      >
-                        {sec.label}
-                        {sectionCounts[sec.key] > 0 && (
-                          <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>({sectionCounts[sec.key]})</span>
-                        )}
-                      </button>
-                    ))}
+                    {EQUIPMENT_SECTIONS.map((sec) => {
+                      const reachable = isSectionReachable(sec.key, highestReached);
+                      const isActive = activeSection === sec.key;
+                      return (
+                        <button
+                          key={sec.key}
+                          type="button"
+                          disabled={!reachable}
+                          onClick={() => { if (reachable) { setActiveSection(sec.key); setEquipSearch(""); } }}
+                          style={{
+                            flex: "1 1 auto",
+                            padding: "8px 10px",
+                            fontSize: 11,
+                            fontWeight: isActive ? 700 : 400,
+                            background: isActive ? "var(--bg-active, #f0f4ff)" : "transparent",
+                            border: "none",
+                            borderBottom: isActive ? "2px solid var(--primary, #3b82f6)" : "2px solid transparent",
+                            cursor: reachable ? "pointer" : "default",
+                            color: isActive ? "var(--primary, #3b82f6)" : reachable ? "var(--text-secondary)" : "var(--text-secondary)",
+                            opacity: reachable ? 1 : 0.4,
+                            whiteSpace: "nowrap",
+                            minHeight: 36,
+                            pointerEvents: reachable ? "auto" : "none",
+                          }}
+                        >
+                          {sec.label}
+                          {sectionCounts[sec.key] > 0 && (
+                            <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>({sectionCounts[sec.key]})</span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Active section content */}
@@ -695,22 +763,37 @@ export default function CheckoutsPage() {
                             {sectionBulk.length > 0 && (
                               <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", padding: "6px 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Assets</div>
                             )}
-                            {sectionAssets.slice(0, 50).map((asset) => (
-                              <div
-                                key={asset.id}
-                                className="equip-picker-item"
-                                onClick={() => setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id])}
-                              >
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontWeight: 600, fontSize: 13 }}>{asset.assetTag}</div>
-                                  <div className="equip-picker-meta">
-                                    {asset.brand} {asset.model}
-                                    {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
-                                    {asset.location ? ` · ${asset.location.name}` : ""}
+                            {sectionAssets.slice(0, 50).map((asset) => {
+                              const isAvailable = asset.status === "AVAILABLE";
+                              return (
+                                <div
+                                  key={asset.id}
+                                  className="equip-picker-item"
+                                  data-unavailable={!isAvailable || undefined}
+                                  onClick={() => {
+                                    if (!isAvailable) return;
+                                    setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id]);
+                                  }}
+                                  style={!isAvailable ? { opacity: 0.45, cursor: "default", pointerEvents: "none" as const } : undefined}
+                                >
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, fontSize: 13 }}>
+                                      {asset.assetTag}
+                                      {!isAvailable && (
+                                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 500, color: "var(--red, #dc2626)", textTransform: "uppercase" }}>
+                                          {asset.status === "MAINTENANCE" ? "In Maintenance" : asset.status.toLowerCase()}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="equip-picker-meta">
+                                      {asset.brand} {asset.model}
+                                      {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
+                                      {asset.location ? ` · ${asset.location.name}` : ""}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </>
                         )}
 
@@ -744,6 +827,21 @@ export default function CheckoutsPage() {
                         )}
                       </div>
 
+                      {/* Equipment guidance hints */}
+                      {activeGuidance.length > 0 && activeGuidance.map((rule) => (
+                        <div
+                          key={rule.id}
+                          data-guidance={rule.id}
+                          style={{
+                            padding: "6px 10px", marginBottom: 4, borderRadius: "var(--radius)", fontSize: 12,
+                            background: rule.level === "warning" ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)",
+                            color: rule.level === "warning" ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)",
+                          }}
+                        >
+                          {rule.message}
+                        </div>
+                      ))}
+
                       {/* Section navigation */}
                       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border-light)" }}>
                         {(() => {
@@ -753,12 +851,12 @@ export default function CheckoutsPage() {
                           return (
                             <>
                               {prev ? (
-                                <button type="button" className="btn btn-sm" onClick={() => { setActiveSection(prev.key); setEquipSearch(""); }} style={{ minHeight: 32 }}>
+                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(prev.key)} style={{ minHeight: 32 }}>
                                   &larr; {prev.label}
                                 </button>
                               ) : <span />}
                               {next ? (
-                                <button type="button" className="btn btn-sm" onClick={() => { setActiveSection(next.key); setEquipSearch(""); }} style={{ minHeight: 32 }}>
+                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(next.key)} style={{ minHeight: 32 }}>
                                   {next.label} &rarr;
                                 </button>
                               ) : (
