@@ -58,7 +58,7 @@ export default function EventsPage() {
   async function loadEvents() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "50" });
+      const params = new URLSearchParams({ limit: "50", startDate: new Date().toISOString() });
       if (unmappedOnly) params.set("unmapped", "true");
       const res = await fetch(`/api/calendar-events?${params}`);
       if (res.ok) { const json = await res.json(); setEvents(json.data ?? []); }
@@ -79,6 +79,17 @@ export default function EventsPage() {
     await loadEvents();
     await loadSources();
     setSyncing(null);
+  }
+
+  async function handleDeleteSource(sourceId: string) {
+    if (!confirm("Delete this source and all its events? Bookings linked to these events will be unlinked.")) return;
+    try {
+      const res = await fetch(`/api/calendar-sources/${sourceId}`, { method: "DELETE" });
+      if (res.ok) {
+        await loadSources();
+        await loadEvents();
+      }
+    } catch { /* network error */ }
   }
 
   async function handleAddSource(e: FormEvent<HTMLFormElement>) {
@@ -156,13 +167,20 @@ export default function EventsPage() {
                         <span className="badge badge-gray">disabled</span>
                       )}
                     </td>
-                    <td>
+                    <td style={{ display: "flex", gap: 4 }}>
                       <button
                         className="btn btn-sm"
                         onClick={() => handleSync(source.id)}
                         disabled={syncing === source.id}
                       >
                         {syncing === source.id ? "Syncing..." : "Sync now"}
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        style={{ color: "var(--red, #dc2626)" }}
+                        onClick={() => handleDeleteSource(source.id)}
+                      >
+                        Delete
                       </button>
                     </td>
                   </tr>
