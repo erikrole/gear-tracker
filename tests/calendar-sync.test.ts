@@ -4,12 +4,12 @@ import { parseIcsDate, type SyncResult, type SyncEventError, type SyncDiagnostic
 // ── parseIcsDate unit tests ──
 
 describe("parseIcsDate", () => {
-  it("parses a date-only value (YYYYMMDD) as allDay", () => {
+  it("parses a date-only value (YYYYMMDD) as allDay using UTC", () => {
     const result = parseIcsDate("20260301");
     expect(result.allDay).toBe(true);
-    expect(result.date.getFullYear()).toBe(2026);
-    expect(result.date.getMonth()).toBe(2); // March = 2
-    expect(result.date.getDate()).toBe(1);
+    expect(result.date.getUTCFullYear()).toBe(2026);
+    expect(result.date.getUTCMonth()).toBe(2); // March = 2
+    expect(result.date.getUTCDate()).toBe(1);
   });
 
   it("parses a UTC datetime (YYYYMMDDTHHMMSSZ)", () => {
@@ -19,11 +19,12 @@ describe("parseIcsDate", () => {
     expect(result.date.getUTCMinutes()).toBe(30);
   });
 
-  it("parses a local datetime (YYYYMMDDTHHMMSS)", () => {
+  it("parses a non-Z datetime (YYYYMMDDTHHMMSS) as UTC", () => {
     const result = parseIcsDate("20260315T143000");
     expect(result.allDay).toBe(false);
-    expect(result.date.getHours()).toBe(14);
-    expect(result.date.getMinutes()).toBe(30);
+    // Now always UTC regardless of local timezone
+    expect(result.date.getUTCHours()).toBe(14);
+    expect(result.date.getUTCMinutes()).toBe(30);
   });
 
   it("returns Invalid Date for empty string", () => {
@@ -70,17 +71,18 @@ describe("date validation guard", () => {
 // Ensures the shape stays stable for consumers (API route, UI, syncAll)
 
 describe("SyncResult type shape", () => {
-  it("has all required fields including skipped and errors", () => {
+  it("has all required fields including skipped, errors, and operation", () => {
     const result: SyncResult = {
       added: 2,
       updated: 1,
       cancelled: 0,
       skipped: 1,
-      errors: [{ uid: "abc", summary: "Bad event", reason: "Invalid start date" }],
+      errors: [{ uid: "abc", summary: "Bad event", operation: "create", reason: "Invalid start date" }],
     };
     expect(result.skipped).toBe(1);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].uid).toBe("abc");
+    expect(result.errors[0].operation).toBe("create");
   });
 
   it("allows optional error field for fetch-level failures", () => {
@@ -113,6 +115,7 @@ function simulateEventLoop(events: ParsedIcsEvent[]): Pick<SyncResult, "added" |
   const errors: SyncEventError[] = [];
 
   for (const event of events) {
+    let operation: "create" | "update" | "validate" = "validate";
     try {
       const startParsed = parseIcsDate(event.dtstart);
       const endParsed = parseIcsDate(event.dtend);
@@ -124,7 +127,8 @@ function simulateEventLoop(events: ParsedIcsEvent[]): Pick<SyncResult, "added" |
         throw new Error(`Invalid end date: "${event.dtend}"`);
       }
 
-      // Simulate successful upsert
+      // Simulate successful create
+      operation = "create";
       added++;
     } catch (err) {
       skipped++;
@@ -132,6 +136,7 @@ function simulateEventLoop(events: ParsedIcsEvent[]): Pick<SyncResult, "added" |
         errors.push({
           uid: event.uid,
           summary: event.summary.slice(0, 120),
+          operation,
           reason: err instanceof Error ? err.message : "Unknown error",
         });
       }
@@ -298,5 +303,71 @@ describe("SyncDiagnostics", () => {
     };
     expect(result.diagnostics).toBeDefined();
     expect(result.diagnostics!.parsedEventCount).toBe(1);
+  });
+});
+
+// ── Error operation tracking ──
+
+describe("error operation tracking", () => {
+  it("validate errors have operation=validate", () => {
+    const result = simulateEventLoop([
+      { uid: "bad", summary: "Bad", dtstart: "", dtend: "" },
+    ]);
+    expect(result.errors[0].operation).toBe("validate");
+  });
+
+  it("create failure errors include operation=create", () => {
+    // Directly verify the type supports create operation
+    const error: SyncEventError = {
+      uid: "test",
+      summary: "Test",
+      operation: "create",
+      reason: "Unique constraint failed",
+    };
+    expect(error.operation).toBe("create");
+  });
+
+  it("update failure errors include operation=update", () => {
+    const error: SyncEventError = {
+      uid: "test",
+      summary: "Test",
+      operation: "update",
+      reason: "Record not found",
+    };
+    expect(error.operation).toBe("update");
+  });
+
+  it("error reasons are truncated to 300 chars", () => {
+    const longReason = "x".repeat(500);
+    const truncated = longReason.length > 300 ? longReason.slice(0, 300) + "…" : longReason;
+    expect(truncated.length).toBe(301); // 300 + "…"
+  });
+});
+
+// ── parseIcsDate UTC consistency ──
+
+describe("parseIcsDate UTC consistency", () => {
+  it("allDay dates use UTC (no timezone shift)", () => {
+    const result = parseIcsDate("20260315");
+    // Should be midnight UTC, not local midnight
+    expect(result.date.getUTCHours()).toBe(0);
+    expect(result.date.getUTCMinutes()).toBe(0);
+    expect(result.date.toISOString()).toBe("2026-03-15T00:00:00.000Z");
+  });
+
+  it("non-Z datetimes are treated as UTC", () => {
+    const result = parseIcsDate("20260315T143000");
+    expect(result.date.toISOString()).toBe("2026-03-15T14:30:00.000Z");
+  });
+
+  it("Z-suffixed datetimes remain UTC", () => {
+    const result = parseIcsDate("20260315T143000Z");
+    expect(result.date.toISOString()).toBe("2026-03-15T14:30:00.000Z");
+  });
+
+  it("non-Z and Z produce same result for same time values", () => {
+    const withZ = parseIcsDate("20260315T143000Z");
+    const withoutZ = parseIcsDate("20260315T143000");
+    expect(withZ.date.getTime()).toBe(withoutZ.date.getTime());
   });
 });

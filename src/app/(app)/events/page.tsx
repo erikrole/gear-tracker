@@ -92,7 +92,9 @@ export default function EventsPage() {
         if (d.skipped > 0) parts.push(`skipped ${d.skipped} (errors)`);
         if (d.error) parts.push(d.error);
         setSyncMessage(parts.join(", "));
-        if (d.diagnostics) setSyncDiagnostics(d.diagnostics);
+        if (d.diagnostics || d.errors?.length) {
+          setSyncDiagnostics({ ...d.diagnostics, errors: d.errors });
+        }
       }
     } catch {
       setSyncMessage("Sync failed: network error");
@@ -185,6 +187,25 @@ export default function EventsPage() {
                   <tbody>
                     {syncDiagnostics.lastEvents.map((e: { uid: string; summary: string; dtstart: string }) => (
                       <tr key={e.uid}><td style={{ fontFamily: "monospace" }}>{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td style={{ fontFamily: "monospace" }}>{e.dtstart}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {syncDiagnostics.errors?.length > 0 && (
+              <div>
+                <strong style={{ color: "var(--red, #dc2626)" }}>Persistence Errors ({syncDiagnostics.errors.length} shown):</strong>
+                <table style={{ width: "100%", marginTop: 4, fontSize: 11 }}>
+                  <thead><tr><th style={{ textAlign: "left" }}>Op</th><th style={{ textAlign: "left" }}>UID</th><th style={{ textAlign: "left" }}>Summary</th><th style={{ textAlign: "left" }}>Error</th></tr></thead>
+                  <tbody>
+                    {syncDiagnostics.errors.map((e: { uid: string; summary: string; operation: string; reason: string }, i: number) => (
+                      <tr key={`${e.uid}-${i}`}>
+                        <td><span className={`badge ${e.operation === "create" ? "badge-blue" : e.operation === "update" ? "badge-orange" : "badge-gray"}`}>{e.operation}</span></td>
+                        <td style={{ fontFamily: "monospace", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{e.uid.slice(0, 30)}</td>
+                        <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{e.summary}</td>
+                        <td style={{ color: "var(--red, #dc2626)", wordBreak: "break-word" }}>{e.reason}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
