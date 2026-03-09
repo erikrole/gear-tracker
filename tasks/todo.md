@@ -52,10 +52,10 @@ Last updated: 2026-03-09
 - [x] Check-outs tab: filter bookings to CHECKOUT kind
 - [x] Fix details-grid direction (info wider, side panels narrower)
 
-### Slice 3: Item Detail — Inline Edit on Info Tab
-- [ ] Make metadata fields editable for ADMIN/STAFF
-- [ ] Wire PATCH /api/assets/[id] for saves
-- [ ] Show success/error feedback with role-based visibility
+### Slice 3: Item Detail — Inline Edit on Info Tab ✅
+- [x] Make metadata fields editable for ADMIN/STAFF
+- [x] Wire PATCH /api/assets/[id] for saves
+- [x] Show success/error feedback with role-based visibility
 
 ### Slice 4: Create Flow — Item-Kind-Aware Form
 - [ ] Replace inline create with proper create card

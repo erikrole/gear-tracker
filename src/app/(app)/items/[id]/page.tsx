@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import DataList from "@/components/DataList";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 
 type AssetDetail = {
@@ -60,6 +59,176 @@ function formatDateTime(value: string) {
     hour: "numeric",
     minute: "2-digit"
   });
+}
+
+function EditableField({
+  label,
+  value,
+  canEdit,
+  onSave,
+  mono,
+}: {
+  label: string;
+  value: string;
+  canEdit: boolean;
+  onSave: (v: string) => Promise<void>;
+  mono?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  async function commit() {
+    const trimmed = draft.trim();
+    if (trimmed === value) { setEditing(false); return; }
+    setSaving(true);
+    await onSave(trimmed);
+    setSaving(false);
+    setEditing(false);
+  }
+
+  return (
+    <div className="data-list-row">
+      <dt className="data-list-label">{label}</dt>
+      <dd className="data-list-value" style={mono ? { fontFamily: "monospace" } : undefined}>
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+            disabled={saving}
+            style={{
+              width: "100%",
+              padding: "2px 6px",
+              border: "1px solid var(--border)",
+              borderRadius: 4,
+              fontSize: 13,
+              fontFamily: mono ? "monospace" : "inherit",
+              textAlign: "right",
+              outline: "none",
+            }}
+          />
+        ) : (
+          <span
+            onClick={() => canEdit && setEditing(true)}
+            style={{
+              cursor: canEdit ? "pointer" : "default",
+              borderBottom: canEdit ? "1px dashed var(--border)" : "none",
+              padding: "0 2px",
+            }}
+            title={canEdit ? "Click to edit" : undefined}
+          >
+            {value || "—"}
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+function EditableInfoCard({
+  asset,
+  canEdit,
+  onFieldSaved,
+}: {
+  asset: AssetDetail;
+  canEdit: boolean;
+  onFieldSaved: (updated: Partial<AssetDetail>) => void;
+}) {
+  const [feedback, setFeedback] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
+
+  async function saveField(patchKey: string, value: string) {
+    setFeedback(null);
+    try {
+      const body: Record<string, unknown> = {};
+
+      if (patchKey === "purchasePrice") {
+        const num = parseFloat(value);
+        if (value && isNaN(num)) { setFeedback({ type: "err", msg: "Invalid price" }); return; }
+        body[patchKey] = value ? num : undefined;
+      } else if (patchKey.startsWith("metadata.")) {
+        // Metadata fields are stored in the notes JSON blob
+        const metaKey = patchKey.split(".")[1];
+        const currentMeta = asset.metadata || {};
+        const newMeta = { ...currentMeta, [metaKey]: value || undefined };
+        body.notes = JSON.stringify(newMeta);
+      } else {
+        body[patchKey] = value;
+      }
+
+      const res = await fetch(`/api/assets/${asset.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setFeedback({ type: "err", msg: (json as Record<string, string>).error || "Save failed" });
+        return;
+      }
+
+      setFeedback({ type: "ok", msg: "Saved" });
+      setTimeout(() => setFeedback((f) => f?.msg === "Saved" ? null : f), 2000);
+
+      // Optimistically update parent state
+      if (patchKey.startsWith("metadata.")) {
+        const metaKey = patchKey.split(".")[1];
+        onFieldSaved({ metadata: { ...asset.metadata, [metaKey]: value } });
+      } else {
+        onFieldSaved({ [patchKey]: patchKey === "purchasePrice" ? parseFloat(value) : value } as Partial<AssetDetail>);
+      }
+    } catch {
+      setFeedback({ type: "err", msg: "Network error" });
+    }
+  }
+
+  const fields: Array<{ label: string; key: string; value: string; mono?: boolean }> = [
+    { label: "Item name", key: "assetTag", value: asset.assetTag },
+    { label: "Brand", key: "brand", value: asset.brand },
+    { label: "Model", key: "model", value: asset.model },
+    { label: "Category", key: "type", value: asset.type },
+    { label: "Location", key: "_location", value: asset.location.name },
+    { label: "Purchase price", key: "purchasePrice", value: asset.purchasePrice ? String(asset.purchasePrice) : "" },
+    { label: "Purchase date", key: "purchaseDate", value: asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : "" },
+    { label: "Serial number", key: "serialNumber", value: asset.serialNumber, mono: true },
+    { label: "Description", key: "metadata.description", value: asset.metadata?.description || "" },
+    { label: "Owner", key: "metadata.owner", value: asset.metadata?.owner || "" },
+    { label: "Department", key: "metadata.department", value: asset.metadata?.department || "" },
+    { label: "UW Asset Tag", key: "metadata.uwAssetTag", value: asset.metadata?.uwAssetTag || "" },
+    { label: "Fiscal Year", key: "metadata.fiscalYearPurchased", value: asset.metadata?.fiscalYearPurchased || "" },
+  ];
+
+  return (
+    <div className="card details-card">
+      <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>Information</h2>
+        {feedback && (
+          <span style={{ fontSize: 12, color: feedback.type === "ok" ? "var(--green)" : "var(--red)" }}>
+            {feedback.msg}
+          </span>
+        )}
+      </div>
+      <dl className="data-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+        {fields.map((f) => (
+          <EditableField
+            key={f.key}
+            label={f.label}
+            value={f.value}
+            canEdit={canEdit && f.key !== "_location"}
+            onSave={(v) => saveField(f.key, v)}
+            mono={f.mono}
+          />
+        ))}
+      </dl>
+    </div>
+  );
 }
 
 function BookingKindTab({
@@ -193,29 +362,11 @@ export default function ItemDetailsPage() {
 
       {activeTab === "info" && (
         <div className="details-grid" style={{ marginTop: 14 }}>
-          <div className="card details-card">
-            <div className="card-header"><h2>Information</h2></div>
-            <div style={{ padding: 16 }}>
-              <DataList
-                columns={2}
-                items={[
-                  { label: "Item name", value: asset.assetTag },
-                  { label: "Brand", value: asset.brand },
-                  { label: "Model", value: asset.model },
-                  { label: "Category", value: asset.type },
-                  { label: "Location", value: asset.location.name },
-                  { label: "Purchase price", value: asset.purchasePrice ? `$${asset.purchasePrice}` : "—" },
-                  { label: "Purchase date", value: formatDate(asset.purchaseDate) },
-                  { label: "Serial number", value: <span style={{ fontFamily: "monospace" }}>{asset.serialNumber}</span> },
-                  { label: "Description", value: asset.metadata?.description || "—" },
-                  { label: "Owner", value: asset.metadata?.owner || "—" },
-                  { label: "Department", value: asset.metadata?.department || "—" },
-                  { label: "UW Asset Tag", value: asset.metadata?.uwAssetTag || "—" },
-                  { label: "Fiscal Year", value: asset.metadata?.fiscalYearPurchased || "—" },
-                ]}
-              />
-            </div>
-          </div>
+          <EditableInfoCard
+            asset={asset}
+            canEdit={currentUserRole === "ADMIN" || currentUserRole === "STAFF"}
+            onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
+          />
 
           <div style={{ display: "grid", gap: 16 }}>
             <div className="card">
