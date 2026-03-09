@@ -57,11 +57,11 @@ Last updated: 2026-03-09
 - [x] Wire PATCH /api/assets/[id] for saves
 - [x] Show success/error feedback with role-based visibility
 
-### Slice 4: Create Flow — Item-Kind-Aware Form
-- [ ] Replace inline create with proper create card
-- [ ] Add item-kind selector (serialized vs bulk)
-- [ ] Enforce required fields per kind
-- [ ] Optional metadata section (collapsed by default)
+### Slice 4: Create Flow — Item-Kind-Aware Form ✅
+- [x] Replace inline create with proper create card
+- [x] Add item-kind selector (serialized vs bulk)
+- [x] Enforce required fields per kind
+- [x] Optional metadata section (collapsed by default)
 
 ---
 
