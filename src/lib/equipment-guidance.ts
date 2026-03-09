@@ -42,6 +42,22 @@ export const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
     level: "warning",
     condition: (ctx) => ctx.selectedSectionKeys.includes("camera_body"),
   },
+  {
+    id: "lens-needs-body",
+    section: "lenses",
+    message: "You\u2019ve added lenses but no camera body. Add a body in the Bodies section.",
+    level: "warning",
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("lenses") &&
+      !ctx.selectedSectionKeys.includes("camera_body"),
+  },
+  {
+    id: "audio-with-video",
+    section: "other",
+    message: "Don\u2019t forget audio gear \u2014 recorder, microphone, or wireless kit.",
+    level: "info",
+    condition: (ctx) => ctx.selectedSectionKeys.includes("camera_body"),
+  },
 ];
 
 /**

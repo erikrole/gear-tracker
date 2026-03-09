@@ -103,12 +103,6 @@ export function canPerformAction(
   return { allowed: true };
 }
 
-/**
- * Get all allowed actions for the given actor and booking.
- */
-/**
- * Get all allowed actions for the given actor and booking.
- */
 export function getAllowedActions(
   actor: ActorContext,
   booking: BookingContext
