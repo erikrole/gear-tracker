@@ -46,22 +46,22 @@ Last updated: 2026-03-09
 - [x] Fix pagination text to "Showing X to Y of Z"
 - [x] Add Import link in top bar actions
 
-### Slice 2: Item Detail — Tab Structure + Layout
-- [ ] Replace Dashboard tab with Reservations + Check-outs tabs
-- [ ] Reservations tab: filter bookings to RESERVATION kind
-- [ ] Check-outs tab: filter bookings to CHECKOUT kind
-- [ ] Fix details-grid direction (info wider, side panels narrower)
+### Slice 2: Item Detail — Tab Structure + Layout ✅
+- [x] Replace Dashboard tab with Reservations + Check-outs tabs
+- [x] Reservations tab: filter bookings to RESERVATION kind
+- [x] Check-outs tab: filter bookings to CHECKOUT kind
+- [x] Fix details-grid direction (info wider, side panels narrower)
 
-### Slice 3: Item Detail — Inline Edit on Info Tab
-- [ ] Make metadata fields editable for ADMIN/STAFF
-- [ ] Wire PATCH /api/assets/[id] for saves
-- [ ] Show success/error feedback with role-based visibility
+### Slice 3: Item Detail — Inline Edit on Info Tab ✅
+- [x] Make metadata fields editable for ADMIN/STAFF
+- [x] Wire PATCH /api/assets/[id] for saves
+- [x] Show success/error feedback with role-based visibility
 
-### Slice 4: Create Flow — Item-Kind-Aware Form
-- [ ] Replace inline create with proper create card
-- [ ] Add item-kind selector (serialized vs bulk)
-- [ ] Enforce required fields per kind
-- [ ] Optional metadata section (collapsed by default)
+### Slice 4: Create Flow — Item-Kind-Aware Form ✅
+- [x] Replace inline create with proper create card
+- [x] Add item-kind selector (serialized vs bulk)
+- [x] Enforce required fields per kind
+- [x] Optional metadata section (collapsed by default)
 
 ---
 

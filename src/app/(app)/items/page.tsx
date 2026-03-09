@@ -116,6 +116,169 @@ function StatusDot({ item }: { item: Asset }) {
   );
 }
 
+type ItemKind = "serialized" | "bulk";
+
+const inputStyle = { padding: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 };
+
+function CreateItemCard({
+  locations,
+  onCreated,
+  onClose,
+}: {
+  locations: Location[];
+  onCreated: () => void;
+  onClose: () => void;
+}) {
+  const [kind, setKind] = useState<ItemKind>("serialized");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [showMeta, setShowMeta] = useState(false);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+    const form = new FormData(e.currentTarget);
+
+    try {
+      let res: globalThis.Response;
+      if (kind === "serialized") {
+        const notes: Record<string, string> = {};
+        const desc = String(form.get("description") || "").trim();
+        const owner = String(form.get("owner") || "").trim();
+        if (desc) notes.description = desc;
+        if (owner) notes.owner = owner;
+
+        res = await fetch("/api/assets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assetTag: String(form.get("assetTag") || ""),
+            type: String(form.get("type") || "equipment"),
+            brand: String(form.get("brand") || ""),
+            model: String(form.get("model") || ""),
+            serialNumber: String(form.get("serialNumber") || ""),
+            qrCodeValue: String(form.get("qrCodeValue") || ""),
+            locationId: String(form.get("locationId") || ""),
+            ...(Object.keys(notes).length ? { notes: JSON.stringify(notes) } : {}),
+          }),
+        });
+      } else {
+        res = await fetch("/api/bulk-skus", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: String(form.get("name") || ""),
+            category: String(form.get("category") || ""),
+            unit: String(form.get("unit") || ""),
+            locationId: String(form.get("locationId") || ""),
+            binQrCodeValue: String(form.get("binQrCodeValue") || ""),
+            initialQuantity: parseInt(String(form.get("initialQuantity") || "0"), 10),
+            minThreshold: parseInt(String(form.get("minThreshold") || "0"), 10),
+          }),
+        });
+      }
+
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Failed to create item");
+        setSubmitting(false);
+        return;
+      }
+
+      setSubmitting(false);
+      onClose();
+      onCreated();
+    } catch {
+      setError("Network error");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>New item</h2>
+        <div style={{ display: "flex", gap: 4 }}>
+          {(["serialized", "bulk"] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              className={`btn btn-sm ${kind === k ? "btn-primary" : ""}`}
+              onClick={() => { setKind(k); setError(""); }}
+            >
+              {k === "serialized" ? "Serialized" : "Bulk"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ padding: 16 }}>
+        {kind === "serialized" ? (
+          <>
+            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
+              <input name="assetTag" placeholder="Tag name *" required style={inputStyle} />
+              <input name="type" placeholder="Category *" defaultValue="equipment" required style={inputStyle} />
+              <select name="locationId" required style={inputStyle}>
+                <option value="">Location *</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <input name="brand" placeholder="Brand *" required style={inputStyle} />
+              <input name="model" placeholder="Model *" required style={inputStyle} />
+              <input name="serialNumber" placeholder="Serial number *" required style={inputStyle} />
+              <input name="qrCodeValue" placeholder="QR code value *" required style={inputStyle} />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMeta((v) => !v)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--text-secondary)",
+                fontSize: 12,
+                cursor: "pointer",
+                marginTop: 12,
+                padding: 0,
+              }}
+            >
+              {showMeta ? "Hide" : "Show"} optional fields
+            </button>
+
+            {showMeta && (
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)", marginTop: 10 }}>
+                <input name="description" placeholder="Description" style={inputStyle} />
+                <input name="owner" placeholder="Owner" style={inputStyle} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
+            <input name="name" placeholder="Product name *" required style={inputStyle} />
+            <input name="category" placeholder="Category *" required style={inputStyle} />
+            <input name="unit" placeholder="Unit (e.g. ea, box) *" required style={inputStyle} />
+            <select name="locationId" required style={inputStyle}>
+              <option value="">Location *</option>
+              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+            <input name="binQrCodeValue" placeholder="Bin QR code *" required style={inputStyle} />
+            <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" style={inputStyle} />
+            <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" style={inputStyle} />
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
+          </button>
+        </div>
+        {error && <div style={{ color: "var(--red)", fontSize: 13, marginTop: 8 }}>{error}</div>}
+      </form>
+    </div>
+  );
+}
+
 export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems] = useState<Asset[]>([]);
@@ -126,9 +289,7 @@ export default function ItemsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const limit = 25;
 
   async function reload() {
@@ -160,42 +321,6 @@ export default function ItemsPage() {
       .then((json) => { if (json) setLocations(json.data?.locations || []); });
   }, []);
 
-  async function handleCreateItem(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError("");
-    const form = new FormData(e.currentTarget);
-
-    const payload = {
-      assetTag: String(form.get("assetTag") || ""),
-      type: String(form.get("type") || "equipment"),
-      brand: String(form.get("brand") || "Unknown"),
-      model: String(form.get("model") || "Unknown"),
-      serialNumber: String(form.get("serialNumber") || ""),
-      qrCodeValue: String(form.get("qrCodeValue") || ""),
-      locationId: String(form.get("locationId") || "")
-    };
-
-    const res = await fetch("/api/assets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const json = await res.json();
-
-    if (!res.ok) {
-      setError(json.error || "Failed to create item");
-      setSubmitting(false);
-      return;
-    }
-
-    e.currentTarget.reset();
-    setShowCreate(false);
-    setSubmitting(false);
-    await reload();
-  }
-
   const totalPages = Math.ceil(total / limit);
   const rangeStart = total === 0 ? 0 : page * limit + 1;
   const rangeEnd = Math.min((page + 1) * limit, total);
@@ -207,31 +332,17 @@ export default function ItemsPage() {
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/import" className="btn">Import</Link>
           <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
-            {showCreate ? "Close" : "New asset"}
+            {showCreate ? "Close" : "New item"}
           </button>
         </div>
       </div>
 
       {showCreate && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="card-header"><h2>Create item</h2></div>
-          <form onSubmit={handleCreateItem} style={{ padding: 16, display: "grid", gap: 10, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-            <input name="assetTag" placeholder="Asset tag" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="brand" placeholder="Brand" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="model" placeholder="Model" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="type" placeholder="Type" defaultValue="equipment" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="serialNumber" placeholder="Serial number" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="qrCodeValue" placeholder="QR code value" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <select name="locationId" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
-              <option value="">Select location</option>
-              {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-            </select>
-            <div style={{ gridColumn: "span 2", display: "flex", justifyContent: "flex-end" }}>
-              <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? "Saving..." : "Create item"}</button>
-            </div>
-            {error && <div style={{ gridColumn: "1 / -1", color: "var(--red)", fontSize: 13 }}>{error}</div>}
-          </form>
-        </div>
+        <CreateItemCard
+          locations={locations}
+          onCreated={reload}
+          onClose={() => setShowCreate(false)}
+        />
       )}
 
       <div className="card">
