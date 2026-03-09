@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useRef, useState } from "react";
+
+type ActiveBooking = {
+  id: string;
+  kind: string;
+  title: string;
+  requesterName: string;
+};
 
 type Asset = {
   id: string;
@@ -13,6 +21,7 @@ type Asset = {
   status: string;
   computedStatus: string;
   location: { id: string; name: string };
+  activeBooking: ActiveBooking | null;
 };
 
 type Location = { id: string; name: string };
@@ -32,7 +41,83 @@ const statusDotColor: Record<string, string> = {
   RETIRED: "#9ca3af",
 };
 
+function StatusDot({ item }: { item: Asset }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  const hasBooking = item.activeBooking !== null;
+  const label = item.computedStatus.replace("_", " ").toLowerCase();
+  const bookingPath = item.activeBooking
+    ? item.activeBooking.kind === "CHECKOUT"
+      ? `/checkouts/${item.activeBooking.id}`
+      : `/reservations/${item.activeBooking.id}`
+    : null;
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <span
+      ref={ref}
+      style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
+      onMouseEnter={() => hasBooking && setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <span
+        onClick={(e) => {
+          if (hasBooking) { e.stopPropagation(); setOpen((v) => !v); }
+        }}
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          backgroundColor: statusDotColor[item.computedStatus] || "#9ca3af",
+          cursor: hasBooking ? "pointer" : "default",
+        }}
+      />
+      {open && item.activeBooking && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            left: 16,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "white",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            boxShadow: "0 4px 12px rgba(0,0,0,.1)",
+            padding: "8px 12px",
+            whiteSpace: "nowrap",
+            zIndex: 50,
+            fontSize: 12,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 2, textTransform: "capitalize" }}>{label}</div>
+          <div style={{ color: "var(--text-secondary)", marginBottom: 4 }}>
+            {item.activeBooking.title} &middot; {item.activeBooking.requesterName}
+          </div>
+          {bookingPath && (
+            <Link
+              href={bookingPath}
+              style={{ color: "var(--primary)", fontWeight: 500, textDecoration: "none" }}
+            >
+              View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
+            </Link>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
 export default function ItemsPage() {
+  const router = useRouter();
   const [items, setItems] = useState<Asset[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [total, setTotal] = useState(0);
@@ -217,23 +302,18 @@ export default function ItemsPage() {
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.id}>
+                  <tr
+                    key={item.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => router.push(`/items/${item.id}`)}
+                  >
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span
-                          title={item.computedStatus.replace("_", " ").toLowerCase()}
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            backgroundColor: statusDotColor[item.computedStatus] || "#9ca3af",
-                            flexShrink: 0,
-                          }}
-                        />
+                        <StatusDot item={item} />
                         <div>
-                          <Link href={`/items/${item.id}`} className="row-link" style={{ fontWeight: 600 }}>
+                          <span className="row-link" style={{ fontWeight: 600 }}>
                             {item.assetTag}
-                          </Link>
+                          </span>
                           <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                             {item.brand} {item.model}
                           </div>
