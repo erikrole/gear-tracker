@@ -16,6 +16,7 @@ const createAssetSchema = z.object({
   purchaseDate: z.string().optional(),
   purchasePrice: z.number().positive().optional(),
   locationId: z.string().cuid(),
+  categoryId: z.string().cuid().optional(),
   status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).default("AVAILABLE"),
   notes: z.string().max(10000).optional()
 });
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
     const q = searchParams.get("q")?.trim();
     const statusParam = searchParams.get("status");
     const locationId = searchParams.get("location_id");
+    const categoryId = searchParams.get("category_id");
 
     // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
     // post-enrichment filtering. Stored statuses filter at the DB level.
@@ -36,6 +38,7 @@ export async function GET(req: Request) {
 
     const where = {
       ...(locationId ? { locationId } : {}),
+      ...(categoryId ? { categoryId } : {}),
       // For derived status filters, only look at AVAILABLE assets (those are
       // the only ones that can be CHECKED_OUT or RESERVED after enrichment).
       ...(isStoredFilter ? { status: statusParam as never } : {}),
@@ -59,7 +62,7 @@ export async function GET(req: Request) {
       // then paginate in-memory. This is acceptable for typical inventory sizes.
       const rawAll = await db.asset.findMany({
         where,
-        include: { location: true },
+        include: { location: true, category: true },
         orderBy: { assetTag: "asc" }
       });
 
@@ -81,7 +84,7 @@ export async function GET(req: Request) {
     const [rawData, total] = await Promise.all([
       db.asset.findMany({
         where,
-        include: { location: true },
+        include: { location: true, category: true },
         orderBy: { assetTag: "asc" },
         take: limit,
         skip: offset
@@ -161,11 +164,13 @@ export async function POST(req: Request) {
         purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
         purchasePrice: body.purchasePrice,
         locationId: body.locationId,
+        categoryId: body.categoryId ?? null,
         status: body.status,
         notes: body.notes
       },
       include: {
-        location: true
+        location: true,
+        category: true
       }
     });
 

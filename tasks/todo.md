@@ -36,7 +36,7 @@ Last updated: 2026-03-09
 
 ---
 
-## 🔴 Active — Items Page Finish (Pre-Import Hardening)
+## ✅ Completed — Items Page Finish (Pre-Import Hardening)
 
 ### Slice 1: Items List — Columns, Filters, Pagination ✅
 - [x] Update table columns per spec: Name cell (tagName primary, brand/model secondary), Category, Location, Status
@@ -45,6 +45,10 @@ Last updated: 2026-03-09
 - [x] Change rows per page from 20 to 25
 - [x] Fix pagination text to "Showing X to Y of Z"
 - [x] Add Import link in top bar actions
+- [x] Status dot (green/red/purple/amber/gray) replaces text badge — left of name
+- [x] Clickable rows navigate to item detail
+- [x] Status dot hover shows active booking popover with direct link
+- [x] API returns activeBooking (id, kind, title, requesterName) per asset
 
 ### Slice 2: Item Detail — Tab Structure + Layout ✅
 - [x] Replace Dashboard tab with Reservations + Check-outs tabs
@@ -64,6 +68,10 @@ Last updated: 2026-03-09
 - [x] Optional metadata section (collapsed by default)
 
 ---
+
+### Future — Item Detail Dashboard Overview Tab
+- [ ] Add Dashboard tab back as landing page with check-outs, reservations, and events overview on one page
+- [ ] Distinct from the dedicated Check-outs and Reservations tabs (which remain for filtered views)
 
 ### Phase A Remaining
 

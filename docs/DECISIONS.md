@@ -153,11 +153,12 @@
 - Decision:
   - Prioritize in this order:
     1. ✅ Checkout UX v2 — Complete (PRs 20–25)
-    2. B&H metadata enrichment — Not started; next up
-    3. ✅ Event sync phase 1 — Complete (ICS ingest, hardening PRs 26–30)
-    4. ✅ Equipment picker upgrade — Complete (sectioned picker, guidance rules, PRs 22–25)
-    5. Notification center improvements — Partial (escalation schedule shipped; D-009 acceptance pending)
-    6. Student dashboard baseline — Not started; brief needed
+    2. ✅ Items page finish — Complete (list columns/filters/pagination, status dot + booking popover, detail tabs, inline edit, item-kind create form)
+    3. B&H metadata enrichment — Not started; next up
+    4. ✅ Event sync phase 1 — Complete (ICS ingest, hardening PRs 26–30)
+    5. ✅ Equipment picker upgrade — Complete (sectioned picker, guidance rules, PRs 22–25)
+    6. Notification center improvements — Partial (escalation schedule shipped; D-009 acceptance pending)
+    7. Student dashboard baseline — Not started; brief needed
 - Consequences:
   - Maximizes immediate operational impact.
   - Advanced reporting intentionally deferred.

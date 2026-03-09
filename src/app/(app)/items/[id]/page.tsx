@@ -20,6 +20,7 @@ type AssetDetail = {
   notes: string | null;
   location: { name: string };
   department: { name: string } | null;
+  category: { id: string; name: string } | null;
   metadata: Record<string, string> | null;
   history: Array<{
     id: string;
@@ -193,7 +194,7 @@ function EditableInfoCard({
     { label: "Item name", key: "assetTag", value: asset.assetTag },
     { label: "Brand", key: "brand", value: asset.brand },
     { label: "Model", key: "model", value: asset.model },
-    { label: "Category", key: "type", value: asset.type },
+    { label: "Category", key: "type", value: asset.category?.name || asset.type },
     { label: "Location", key: "_location", value: asset.location.name },
     { label: "Purchase price", key: "purchasePrice", value: asset.purchasePrice ? String(asset.purchasePrice) : "" },
     { label: "Purchase date", key: "purchaseDate", value: asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : "" },
