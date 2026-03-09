@@ -38,13 +38,13 @@ Last updated: 2026-03-09
 
 ## 🔴 Active — Items Page Finish (Pre-Import Hardening)
 
-### Slice 1: Items List — Columns, Filters, Pagination
-- [ ] Update table columns per spec: Name cell (tagName primary, brand/model secondary), Category, Location, Status
-- [ ] Add location filter dropdown (from /api/form-options)
-- [ ] Add CHECKED_OUT and RESERVED to status filter (derived statuses)
-- [ ] Change rows per page from 20 to 25
-- [ ] Fix pagination text to "Showing X to Y of Z"
-- [ ] Add Import link in top bar actions
+### Slice 1: Items List — Columns, Filters, Pagination ✅
+- [x] Update table columns per spec: Name cell (tagName primary, brand/model secondary), Category, Location, Status
+- [x] Add location filter dropdown (from /api/form-options)
+- [x] Add CHECKED_OUT and RESERVED to status filter (derived statuses)
+- [x] Change rows per page from 20 to 25
+- [x] Fix pagination text to "Showing X to Y of Z"
+- [x] Add Import link in top bar actions
 
 ### Slice 2: Item Detail — Tab Structure + Layout
 - [ ] Replace Dashboard tab with Reservations + Check-outs tabs

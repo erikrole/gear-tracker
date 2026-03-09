@@ -12,7 +12,7 @@ type Asset = {
   serialNumber: string;
   status: string;
   computedStatus: string;
-  location: { name: string };
+  location: { id: string; name: string };
 };
 
 type Location = { id: string; name: string };
@@ -47,11 +47,12 @@ export default function ItemsPage() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const limit = 20;
+  const limit = 25;
 
   async function reload() {
     setLoading(true);
@@ -60,6 +61,7 @@ export default function ItemsPage() {
     params.set("offset", String(page * limit));
     if (search) params.set("q", search);
     if (statusFilter) params.set("status", statusFilter);
+    if (locationFilter) params.set("location_id", locationFilter);
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -73,7 +75,7 @@ export default function ItemsPage() {
 
   useEffect(() => {
     reload();
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, locationFilter]);
 
   useEffect(() => {
     fetch("/api/form-options")
@@ -118,14 +120,19 @@ export default function ItemsPage() {
   }
 
   const totalPages = Math.ceil(total / limit);
+  const rangeStart = total === 0 ? 0 : page * limit + 1;
+  const rangeEnd = Math.min((page + 1) * limit, total);
 
   return (
     <>
       <div className="page-header">
         <h1>Items</h1>
-        <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? "Close" : "Add item"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/import" className="btn">Import</Link>
+          <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+            {showCreate ? "Close" : "New asset"}
+          </button>
+        </div>
       </div>
 
       {showCreate && (
@@ -179,8 +186,24 @@ export default function ItemsPage() {
           >
             <option value="">All statuses</option>
             <option value="AVAILABLE">Available</option>
+            <option value="CHECKED_OUT">Checked out</option>
+            <option value="RESERVED">Reserved</option>
             <option value="MAINTENANCE">Maintenance</option>
             <option value="RETIRED">Retired</option>
+          </select>
+          <select
+            value={locationFilter}
+            onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
+            style={{
+              padding: "7px 12px",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
+              fontSize: 13,
+              background: "white",
+            }}
+          >
+            <option value="">All locations</option>
+            {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
           </select>
         </div>
 
@@ -193,22 +216,29 @@ export default function ItemsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Asset Tag</th>
-                  <th>Brand / Model</th>
-                  <th>Type</th>
-                  <th>Serial Number</th>
+                  <th>Name</th>
+                  <th>Category</th>
                   <th>Location</th>
+                  <th className="hide-mobile">Brand</th>
+                  <th className="hide-mobile">Model</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td style={{ fontWeight: 600 }}><Link href={`/items/${item.id}`} className="row-link">{item.assetTag}</Link></td>
-                    <td>{item.brand} {item.model}</td>
+                    <td>
+                      <Link href={`/items/${item.id}`} className="row-link" style={{ fontWeight: 600 }}>
+                        {item.assetTag}
+                      </Link>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        {item.brand} {item.model}
+                      </div>
+                    </td>
                     <td>{item.type}</td>
-                    <td style={{ fontFamily: "monospace", fontSize: 12 }}>{item.serialNumber}</td>
                     <td>{item.location.name}</td>
+                    <td className="hide-mobile">{item.brand}</td>
+                    <td className="hide-mobile">{item.model}</td>
                     <td>
                       <span className={`badge ${statusBadge[item.computedStatus] || "badge-gray"}`}>
                         {statusLabel[item.computedStatus] || item.computedStatus.toLowerCase()}
@@ -218,15 +248,15 @@ export default function ItemsPage() {
                 ))}
               </tbody>
             </table>
-            {totalPages > 1 && (
-              <div className="pagination">
-                <span>Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}</span>
+            <div className="pagination">
+              <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
+              {totalPages > 1 && (
                 <div className="pagination-btns">
                   <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
                   <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </div>
