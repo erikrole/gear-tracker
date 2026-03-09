@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, parsePagination } from "@/lib/http";
 import { enrichAssetsWithStatus } from "@/lib/services/status";
+import { BookingStatus } from "@prisma/client";
 
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
@@ -72,8 +73,9 @@ export async function GET(req: Request) {
       const filtered = enriched.filter((a) => a.computedStatus === statusParam);
       const total = filtered.length;
       const data = filtered.slice(offset, offset + limit);
+      const dataWithBookings = await attachActiveBookings(data);
 
-      return ok({ data, total, limit, offset });
+      return ok({ data: dataWithBookings, total, limit, offset });
     }
 
     const [rawData, total] = await Promise.all([
@@ -95,10 +97,52 @@ export async function GET(req: Request) {
       data = rawData.map((a) => ({ ...a, computedStatus: a.status }));
     }
 
-    return ok({ data, total, limit, offset });
+    const enrichedWithBookings = await attachActiveBookings(data);
+    return ok({ data: enrichedWithBookings, total, limit, offset });
   } catch (error) {
     return fail(error);
   }
+}
+
+/** Attach activeBooking (id, kind, title, requester) for CHECKED_OUT / RESERVED assets. */
+async function attachActiveBookings<T extends { id: string; computedStatus: string }>(
+  assets: T[]
+): Promise<Array<T & { activeBooking: { id: string; kind: string; title: string; requesterName: string } | null }>> {
+  const needsBooking = assets.filter(
+    (a) => a.computedStatus === "CHECKED_OUT" || a.computedStatus === "RESERVED"
+  );
+
+  if (needsBooking.length === 0) {
+    return assets.map((a) => ({ ...a, activeBooking: null }));
+  }
+
+  const allocations = await db.assetAllocation.findMany({
+    where: {
+      assetId: { in: needsBooking.map((a) => a.id) },
+      active: true,
+      booking: { status: { in: [BookingStatus.OPEN, BookingStatus.BOOKED] } },
+    },
+    select: {
+      assetId: true,
+      booking: {
+        select: { id: true, kind: true, title: true, requester: { select: { name: true } } },
+      },
+    },
+  });
+
+  const bookingByAsset = new Map<string, { id: string; kind: string; title: string; requesterName: string }>();
+  for (const alloc of allocations) {
+    if (!bookingByAsset.has(alloc.assetId)) {
+      bookingByAsset.set(alloc.assetId, {
+        id: alloc.booking.id,
+        kind: alloc.booking.kind,
+        title: alloc.booking.title,
+        requesterName: alloc.booking.requester.name,
+      });
+    }
+  }
+
+  return assets.map((a) => ({ ...a, activeBooking: bookingByAsset.get(a.id) ?? null }));
 }
 
 export async function POST(req: Request) {
