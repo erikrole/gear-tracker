@@ -24,20 +24,12 @@ type Response = {
   offset: number;
 };
 
-const statusBadge: Record<string, string> = {
-  AVAILABLE: "badge-green",
-  CHECKED_OUT: "badge-blue",
-  RESERVED: "badge-purple",
-  MAINTENANCE: "badge-orange",
-  RETIRED: "badge-gray",
-};
-
-const statusLabel: Record<string, string> = {
-  AVAILABLE: "available",
-  CHECKED_OUT: "checked out",
-  RESERVED: "reserved",
-  MAINTENANCE: "maintenance",
-  RETIRED: "retired",
+const statusDotColor: Record<string, string> = {
+  AVAILABLE: "#22c55e",
+  CHECKED_OUT: "#ef4444",
+  RESERVED: "#a855f7",
+  MAINTENANCE: "#f59e0b",
+  RETIRED: "#9ca3af",
 };
 
 export default function ItemsPage() {
@@ -221,29 +213,37 @@ export default function ItemsPage() {
                   <th>Location</th>
                   <th className="hide-mobile">Brand</th>
                   <th className="hide-mobile">Model</th>
-                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <Link href={`/items/${item.id}`} className="row-link" style={{ fontWeight: 600 }}>
-                        {item.assetTag}
-                      </Link>
-                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                        {item.brand} {item.model}
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span
+                          title={item.computedStatus.replace("_", " ").toLowerCase()}
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            backgroundColor: statusDotColor[item.computedStatus] || "#9ca3af",
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div>
+                          <Link href={`/items/${item.id}`} className="row-link" style={{ fontWeight: 600 }}>
+                            {item.assetTag}
+                          </Link>
+                          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                            {item.brand} {item.model}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td>{item.type}</td>
                     <td>{item.location.name}</td>
                     <td className="hide-mobile">{item.brand}</td>
                     <td className="hide-mobile">{item.model}</td>
-                    <td>
-                      <span className={`badge ${statusBadge[item.computedStatus] || "badge-gray"}`}>
-                        {statusLabel[item.computedStatus] || item.computedStatus.toLowerCase()}
-                      </span>
-                    </td>
                   </tr>
                 ))}
               </tbody>
