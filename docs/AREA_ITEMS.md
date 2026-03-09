@@ -273,3 +273,4 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - 2026-03-01: Rewritten into hardened V1 list/create/detail spec based on Cheqroom references and Gear Tracker rules.
 - 2026-03-01: Added explicit B&H auto-import and editable-prefill behavior.
 - 2026-03-02: Added mobile list/search behavior alignment and contract dependency.
+- 2026-03-09: Items page V1 implementation complete (slices 1–4): list columns/filters/pagination, status dot with booking popover, clickable rows, detail tabs (Check-outs/Reservations/Info/History), inline edit for ADMIN/STAFF, item-kind-aware create form.
