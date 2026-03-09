@@ -153,7 +153,7 @@
 - Decision:
   - Prioritize in this order:
     1. ✅ Checkout UX v2 — Complete (PRs 20–25)
-    2. ✅ Items page finish — Complete (list columns/filters/pagination, status dot + booking popover, detail tabs, inline edit, item-kind create form)
+    2. ✅ Items page finish — Complete for baseline scope (list columns/filters/pagination, status dot + booking popover, detail tabs, inline edit, item-kind create form); detail-dashboard expansion now specified in `AREA_ITEMS.md`
     3. B&H metadata enrichment — Not started; next up
     4. ✅ Event sync phase 1 — Complete (ICS ingest, hardening PRs 26–30)
     5. ✅ Equipment picker upgrade — Complete (sectioned picker, guidance rules, PRs 22–25)
@@ -208,10 +208,13 @@
   - Serialized assets are tag-first (`tagName`) and must preserve distinct identity semantics.
   - Bulk items follow quantity-first semantics and separate validation path.
   - UI status shown for items is derived from active allocations; no direct editable authoritative status.
+  - Item detail header uses a fixed derived-status set with booking-aware deep links: `Available`, `Check Out by {user}`, `Reserved by {user}`, `Checking Out`, `Needs Maintenance`, and `Retired`.
   - Eligibility toggles (reserve/check-out/custody) are policy flags, not live status values.
+  - `Delete` on items is reserved for policy-safe records with no active allocations and no historical booking links; otherwise operators use `Retire`.
+  - Item detail defaults to an `Info` dashboard view that combines booking overview and editable item information, with QR thumbnail rendering and controlled fiscal-year/category inputs.
 - Consequences:
   - Lower risk of identity drift and status confusion.
-  - Requires explicit branching in form validation and mutation endpoints.
+  - Requires explicit branching in form validation, mutation endpoints, QR uniqueness checks, and delete gating.
 
 ## D-014: Cheqroom Importer Is Lossless and Non-Authoritative for Status
 - Date: 2026-03-01

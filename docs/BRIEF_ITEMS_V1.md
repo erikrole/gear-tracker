@@ -3,7 +3,7 @@
 ## 1) Feature Header
 - Feature name: Items V1 (Tag-First, Policy-Safe)
 - Owner: Wisconsin Athletics Creative Product
-- Date: 2026-03-02
+- Date: 2026-03-09
 - Priority: `High`
 - Target phase: `Now`
 
@@ -20,7 +20,7 @@
 ### In scope
 - Items list page controls, columns, row behavior, and role-based top actions.
 - Create item flow with serialized vs bulk mode.
-- Item detail page structure with tabs, action header, and side panels.
+- Item detail page structure with dashboard-style `Info` tab, linked status line, actions menu, calendar/history/settings tabs, and item information card.
 - Safe metadata/image prefill behavior.
 - B&H URL import with server-side metadata extraction and editable prefills.
 
@@ -44,29 +44,36 @@
 
 ## 7) Data and API Impact (High-Level)
 - Data model impact: no major model rewrite required; enforce item-kind-specific validation and identity constraints.
-- Read-path impact: list rows and detail header must display derived status and tag-first identity.
-- Write-path impact: create/edit/import/export paths require role and validation guards.
+- Read-path impact: list rows and detail header must display derived status, deep-linked booking context, and tag-first identity.
+- Write-path impact: create/edit/import/export paths require role and validation guards, including QR uniqueness and policy-safe delete rules.
 - External integration impact: B&H metadata and image enrichment for supported URLs with partial-result tolerance.
 
 ## 8) UX Flow
 1. Find item via list filters/search/table.
 2. Create new serialized or bulk item through item-kind-guided form.
-3. Open detail page for reserve/check-out and workflow context.
-4. Edit metadata and policy toggles by role, with audit history.
+3. Open detail page and land on the `Info` dashboard view with checkout/reservation overview on the left and item information on the right.
+4. Use linked status states and `Actions` menu for duplication, retirement, maintenance, and policy-safe deletion.
+5. Edit metadata, QR/tracking code, and policy toggles by role, with audit history.
 
 ## 9) Acceptance Criteria (Testable)
 1. Item list includes required filters and columns.
 2. Serialized rows show `tagName` as primary label.
 3. Create form enforces required fields by item kind.
-4. Item detail exposes required tabs and side panels.
-5. Status displays are derived and cannot be directly edited.
-6. Export/import visibility is role-correct.
-7. Prefill behavior never overwrites `tagName`.
-8. B&H import auto-prefills supported metadata fields from product URL.
-9. Users can override B&H-prefilled fields before save.
-10. B&H import failure does not block manual creation.
-11. Mutations are auditable.
-12. Mobile items list behavior follows `AREA_MOBILE.md` (search-first, action-sheet parity).
+4. Item detail exposes `Info`, `Check Outs`, `Reservations`, `Calendar`, `History`, and `Settings` tabs.
+5. Header status line supports `Available`, `Check Out by {user}`, `Reserved by {user}`, `Checking Out`, `Needs Maintenance`, and `Retired`, with links where booking context exists.
+6. `Info` tab shows both operational overview cards and the item information card by default.
+7. `Actions` menu includes Duplicate, Retire, Delete, and Needs Maintenance, with policy-safe delete gating.
+8. Category and fiscal-year-purchased fields use controlled dropdowns; fiscal-year options follow a July 1 rollover, so March 9, 2026 maps to FY `2026`.
+9. QR code thumbnail renders from stored text code, and items without one support unique generation or manual entry.
+10. Empty optional values render as inline `Add ...` prompts instead of blank fields.
+11. Status displays are derived and cannot be directly edited.
+12. Export/import visibility is role-correct.
+13. Prefill behavior never overwrites `tagName`.
+14. B&H import auto-prefills supported metadata fields from product URL.
+15. Users can override B&H-prefilled fields before save.
+16. B&H import failure does not block manual creation.
+17. Mutations are auditable.
+18. Mobile items list behavior follows `AREA_MOBILE.md` (search-first, action-sheet parity).
 
 ## 10) Edge Cases
 - Missing row thumbnails.
@@ -75,6 +82,9 @@
 - B&H URL is unsupported or unreachable.
 - Student attempts item edit via deep link/API.
 - Asset with active allocations receives metadata edit request.
+- Item has no QR code and needs generation or manual entry.
+- Item has no purchase metadata and should show inline `Add ...` prompts.
+- Item has historical bookings, so `Delete` must be blocked and `Retire` used instead.
 
 ## 11) File Scope for Claude
 - Allowed files to modify:
@@ -88,10 +98,10 @@
 ## 12) Developer Brief (No Code)
 1. Implement item list controls and role-aware top actions.
 2. Implement item-kind-aware create flow and validation.
-3. Implement item detail information architecture and action mapping.
-4. Enforce derived status display and mutation authorization policy.
+3. Implement item detail information architecture, linked status line, and action mapping.
+4. Enforce derived status display, QR uniqueness, delete gating, and mutation authorization policy.
 5. Implement B&H import flow with non-blocking fetch and editable prefills.
-6. Add regression tests for identity collisions, permission bypass, and prefill safety.
+6. Add regression tests for identity collisions, permission bypass, QR uniqueness, delete gating, and prefill safety.
 
 ## 13) Test Plan (High-Level)
 - Unit: item-kind validation and role-action matrix.

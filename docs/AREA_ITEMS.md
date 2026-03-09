@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-02
+- Last Updated: 2026-03-09
 - Status: Active
 - Version: V1
 
@@ -43,8 +43,9 @@ Treat physical gear identity as primary, make list and detail views action-orien
 ### Item Detail
 1. User opens item details from list.
 2. Header exposes fast actions (`Reserve`, `Check out`) by permission and policy.
-3. Tabs expose contextual history and linked workflows.
-4. Side panels expose tracking codes, location details, and policy toggles.
+3. Header status line exposes live operational state with linked booking context when applicable.
+4. `Info` tab opens the default dashboard view with active check-out, upcoming reservations, and editable item information in a split layout.
+5. Additional tabs expose contextual history, calendars, linked workflows, and policy settings.
 
 ## Items List Surface (V1)
 
@@ -155,33 +156,83 @@ Treat physical gear identity as primary, make list and detail views action-orien
 ### Header
 1. Primary title: `tagName` for serialized items.
 2. Secondary metadata: `productName`, `brand`, `model`, and tracking code.
-3. Derived status badge (for example `Available`, `Checked out`).
+3. Derived status line sits directly under the headline and uses these labels and colors:
+   - `Available` (green)
+   - `Check Out by {user}` (red, clickable to the active checkout)
+   - `Reserved by {user}` (purple, clickable to the active reservation)
+   - `Checking Out` (blue, clickable to the in-progress checkout draft)
+   - `Needs Maintenance` (orange)
+   - `Retired` (gray)
+4. Status remains derived from active allocations, booking state, maintenance flag, and retirement state. It is not manually editable freeform text.
 4. Primary actions:
    - Reserve
    - Check out
-5. Actions button for secondary item operations.
+5. `Actions` button exposes secondary operations:
+   - Duplicate
+   - Retire
+   - Delete
+   - Needs Maintenance
+6. `Delete` is allowed only for policy-safe records with no linked reservation history, checkout history, or active allocations. Otherwise the action is hidden or blocked with guidance to use `Retire`.
 
 ### Tabs
 1. `Info`
-2. `Reservations`
-3. `Check-outs`
-4. `History`
-5. `Attachments`
-6. `Map` is optional and can be deferred if no distinct value over location panel.
+2. `Check Outs`
+3. `Reservations`
+4. `Calendar`
+5. `History`
+6. `Settings`
 
-### Info Panel
+### Info Tab Dashboard Layout
+1. `Info` is the default tab and acts as the item dashboard.
+2. Desktop layout is split:
+   - Left column: operational overview cards
+   - Right column: item information card
+3. Mobile stacks these sections vertically with operational cards first.
+
+### Left Column: Operational Overview
+1. Show both check-outs and reservations by default without requiring a tab switch.
+2. Active check-out card displays:
+   - Due-back countdown
+   - Checkout name or linked event name
+   - Current holder
+   - Direct link into the checkout record
+3. Reservation overview lists upcoming reservations for the item:
+   - Reservation title or event
+   - Time window
+   - Owner
+   - Direct link into the reservation record
+4. If no active check-out or upcoming reservation exists, show a clear empty state instead of blank space.
+
+### Right Column: Item Information Card
 1. Core metadata fields and editable values by role.
 2. Immutable identity values displayed clearly where edits are restricted.
-3. Audit-backed edit history available via `History` tab.
+3. Empty optional fields render as action-oriented placeholder text in a distinct muted-accent color, for example `Add purchase price`.
+4. Audit-backed edit history remains available via `History` tab.
+5. `Category` uses a dropdown wired to the canonical category list.
+6. `Link` field is available for item-specific external URL entry.
+7. `Fiscal Year Purchased` uses predetermined dropdown options based on July 1 fiscal-year rollover:
+   - On March 9, 2026, the current fiscal year option is `2026`
+   - Option generation should align future values to the same July 1 rule
 
-### Side Panels
-1. Tracking codes (QR/barcode/asset code)
-2. Location details
-3. Settings toggles:
+### Tracking Code and QR Behavior
+1. Show QR code / tracking code inside the item information card instead of a detached side panel.
+2. Render a QR thumbnail from the stored text code when a code exists.
+3. If no QR code exists, provide:
+   - `Generate QR code` action that creates a new unique code
+   - Manual text input to type or paste a QR code
+4. Manual QR entry must validate uniqueness before save.
+5. Tracking code edits must remain auditable.
+
+### Settings Tab
+1. Settings toggles:
    - Available for reservation
    - Available for check out
    - Available for custody
-4. These toggles represent eligibility policy, not current real-time status.
+2. These toggles represent eligibility policy, not current real-time status.
+3. Toggle help text should make the operational meaning explicit:
+   - Available for reservation: item can be used in reservations
+   - Available for check out: item can be used in check-outs
+   - Available for custody: item can be taken into custody by a user
 
 ## Bug Traps and Mitigations
 
@@ -189,6 +240,21 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - Mitigation:
   - Do not provide direct editable status field.
   - Always compute status for display from active allocations.
+
+### Trap: Item delete conflicts with audit and booking history
+- Mitigation:
+  - Allow deletion only for records with no active allocations and no historical booking links.
+  - Route all other end-of-life handling through `Retire`.
+
+### Trap: QR generation creates duplicate tracking identity
+- Mitigation:
+  - Use unique-code generation with collision check before save.
+  - Validate manually entered QR codes against the same uniqueness rule.
+
+### Trap: Info tab becomes blank when item has no linked activity or metadata
+- Mitigation:
+  - Use explicit empty states and inline `Add ...` prompts for missing values.
+  - Keep item information card populated even when no booking data exists.
 
 ### Trap: Serialized and bulk logic bleed into each other
 - Mitigation:
@@ -234,18 +300,27 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - B&H URL is invalid, unsupported, or temporarily unreachable.
 - B&H page returns image but missing brand/model fields.
 - Tracking code removal requested on asset with active allocations.
+- Item has no QR code and needs first-time generation.
+- Item has no purchase metadata and should show inline `Add ...` prompts.
+- Item is in an in-progress checkout draft (`Checking Out`) and detail header must deep-link correctly.
 
 ## Acceptance Criteria
 1. Items list supports required filters, search, and baseline columns.
 2. `tagName` is primary in list and detail for serialized assets.
-3. Item status shown to users is derived, not manually controlled.
-4. Create flow enforces required fields by item kind.
-5. Detail page exposes tabs and side panels with role-appropriate actions.
-6. Export and import visibility follow role rules.
-7. Image and metadata prefill never overwrite `tagName`.
-8. B&H URL import auto-prefills supported fields and allows manual overrides.
-9. B&H import failures do not block item creation.
-10. All item mutations are auditable.
+3. Header status line supports the defined labels, colors, and deep links for active reservation, checkout, and draft-checkout states.
+4. Item status shown to users is derived, not manually controlled.
+5. Create flow enforces required fields by item kind.
+6. Default `Info` tab shows both operational overview cards and the item information card.
+7. Item detail exposes required tabs and role-appropriate actions.
+8. `Actions` menu includes Duplicate, Retire, Delete, and Needs Maintenance with policy-safe gating.
+9. Category and fiscal year fields use controlled dropdowns.
+10. QR code thumbnail renders from stored text code, and missing-code flow supports generation or manual entry.
+11. Empty optional fields show inline `Add ...` prompts instead of blank values.
+12. Export and import visibility follow role rules.
+13. Image and metadata prefill never overwrite `tagName`.
+14. B&H URL import auto-prefills supported fields and allows manual overrides.
+15. B&H import failures do not block item creation.
+16. All item mutations are auditable.
 
 ## Dependencies
 - User role and ownership model from `AREA_USERS.md`.
@@ -263,7 +338,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 ## Developer Brief (No Code)
 1. Implement list controls and table schema with tag-first identity and derived status indicators.
 2. Implement create flow split by serialized vs bulk item kind, with strict validation.
-3. Implement detail layout with action header, workflow tabs, and policy side panels.
+3. Implement detail layout with linked status header, workflow tabs, dashboard-style `Info` view, and `Settings` tab policy controls.
 4. Enforce role-based edit visibility and server-side authorization checks.
 5. Implement B&H import boundary with non-blocking prefill and editable overrides.
 6. Preserve metadata enrichment safety and audit coverage for every mutation.
@@ -274,3 +349,4 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - 2026-03-01: Added explicit B&H auto-import and editable-prefill behavior.
 - 2026-03-02: Added mobile list/search behavior alignment and contract dependency.
 - 2026-03-09: Items page V1 implementation complete (slices 1–4): list columns/filters/pagination, status dot with booking popover, clickable rows, detail tabs (Check-outs/Reservations/Info/History), inline edit for ADMIN/STAFF, item-kind-aware create form.
+- 2026-03-09: Expanded item detail spec with status-line states, working `Actions` menu requirements, dashboard-style `Info` tab, `Calendar` and `Settings` tabs, QR generation/manual entry rules, inline missing-value prompts, and fiscal-year dropdown guidance.
