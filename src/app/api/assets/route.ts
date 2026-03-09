@@ -24,10 +24,21 @@ export async function GET(req: Request) {
     await requireAuth();
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim();
+    const statusParam = searchParams.get("status");
+    const locationId = searchParams.get("location_id");
+
+    // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
+    // post-enrichment filtering. Stored statuses filter at the DB level.
+    const derivedStatuses = ["CHECKED_OUT", "RESERVED"];
+    const isDerivedFilter = statusParam && derivedStatuses.includes(statusParam);
+    const isStoredFilter = statusParam && !isDerivedFilter;
 
     const where = {
-      ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
-      ...(searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
+      ...(locationId ? { locationId } : {}),
+      // For derived status filters, only look at AVAILABLE assets (those are
+      // the only ones that can be CHECKED_OUT or RESERVED after enrichment).
+      ...(isStoredFilter ? { status: statusParam as never } : {}),
+      ...(isDerivedFilter ? { status: "AVAILABLE" as never } : {}),
       ...(q
         ? {
             OR: [
@@ -41,6 +52,29 @@ export async function GET(req: Request) {
     };
 
     const { limit, offset } = parsePagination(searchParams);
+
+    if (isDerivedFilter) {
+      // For derived status filters, fetch all matching assets, enrich, filter,
+      // then paginate in-memory. This is acceptable for typical inventory sizes.
+      const rawAll = await db.asset.findMany({
+        where,
+        include: { location: true },
+        orderBy: { assetTag: "asc" }
+      });
+
+      let enriched;
+      try {
+        enriched = await enrichAssetsWithStatus(rawAll);
+      } catch {
+        enriched = rawAll.map((a) => ({ ...a, computedStatus: a.status as string }));
+      }
+
+      const filtered = enriched.filter((a) => a.computedStatus === statusParam);
+      const total = filtered.length;
+      const data = filtered.slice(offset, offset + limit);
+
+      return ok({ data, total, limit, offset });
+    }
 
     const [rawData, total] = await Promise.all([
       db.asset.findMany({
