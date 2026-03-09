@@ -38,10 +38,11 @@ type AssetDetail = {
   }>;
 };
 
-type TabKey = "dashboard" | "info" | "history";
+type TabKey = "checkouts" | "reservations" | "info" | "history";
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "dashboard", label: "Dashboard" },
+  { key: "checkouts", label: "Check-outs" },
+  { key: "reservations", label: "Reservations" },
   { key: "info", label: "Info" },
   { key: "history", label: "History" }
 ];
@@ -61,10 +62,61 @@ function formatDateTime(value: string) {
   });
 }
 
+function BookingKindTab({
+  kind,
+  groups,
+  onSelectBooking,
+}: {
+  kind: "CHECKOUT" | "RESERVATION";
+  groups: Array<{ month: string; items: AssetDetail["history"] }>;
+  onSelectBooking: (id: string) => void;
+}) {
+  const label = kind === "CHECKOUT" ? "check-outs" : "reservations";
+  const filtered = groups
+    .map((g) => ({ month: g.month, items: g.items.filter((e) => e.booking.kind === kind) }))
+    .filter((g) => g.items.length > 0);
+
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div style={{ padding: 16 }}>
+        {filtered.length === 0 ? (
+          <div className="empty-state">No {label} yet for this item.</div>
+        ) : (
+          filtered.map((group) => (
+            <div key={group.month} style={{ marginBottom: 16 }}>
+              <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>{group.month}</h3>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Booking</th>
+                    <th>Requester</th>
+                    <th>When</th>
+                    <th>Location</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.items.map((entry) => (
+                    <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => onSelectBooking(entry.booking.id)}>
+                      <td><span className="row-link">{entry.booking.title}</span></td>
+                      <td>{entry.booking.requester.name}</td>
+                      <td>{formatDate(entry.booking.startsAt)}</td>
+                      <td>{entry.booking.location.name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
+  const [activeTab, setActiveTab] = useState<TabKey>("checkouts");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
 
@@ -131,45 +183,12 @@ export default function ItemDetailsPage() {
         ))}
       </div>
 
-      {activeTab === "dashboard" && (
-        <div className="card" style={{ marginTop: 14 }}>
-          <div className="card-header"><h2>Bookings</h2></div>
-          <div style={{ padding: 16 }}>
-            {historyByMonth.length === 0 ? (
-              <div className="empty-state">No bookings yet for this item.</div>
-            ) : (
-              historyByMonth.map((group) => (
-                <div key={group.month} style={{ marginBottom: 16 }}>
-                  <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>{group.month}</h3>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Type</th>
-                        <th>Booking</th>
-                        <th>Requester</th>
-                        <th>When</th>
-                        <th>Location</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.items.map((entry) => (
-                        <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => setSelectedBookingId(entry.booking.id)}>
-                          <td>{entry.booking.kind.toLowerCase()}</td>
-                          <td>
-                            <span className="row-link">{entry.booking.title}</span>
-                          </td>
-                          <td>{entry.booking.requester.name}</td>
-                          <td>{formatDate(entry.booking.startsAt)}</td>
-                          <td>{entry.booking.location.name}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+      {(activeTab === "checkouts" || activeTab === "reservations") && (
+        <BookingKindTab
+          kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}
+          groups={historyByMonth}
+          onSelectBooking={setSelectedBookingId}
+        />
       )}
 
       {activeTab === "info" && (
