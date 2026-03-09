@@ -10,6 +10,9 @@
 ## Product Mission
 Replace Cheqroom with an athletics-first, event-driven gear system for Wisconsin Athletics Creative across Camp Randall Stadium and Kohl Center.
 
+## North Star
+Read `NORTH_STAR.md` first in any Claude session. It is the authoritative product direction document: what Gear Tracker is, who it serves, product principles, decision filters, roadmap, and gaps in current planning.
+
 ## Core Invariants
 1. Asset status is derived from active allocations, never authoritative stored status.
 2. Booking integrity protections remain intact (SERIALIZABLE + overlap prevention).
@@ -29,28 +32,35 @@ Replace Cheqroom with an athletics-first, event-driven gear system for Wisconsin
 10. Mobile Operations: `AREA_MOBILE.md`
 
 ## Phase Sequence Across Areas
-1. Phase A (Now): Checkouts + Events + Items foundation.
-2. Phase B (Next): Dashboard expansion + Notifications escalation + Picker improvements.
+1. Phase A (Now):
+   - ✅ Checkouts + Equipment Picker (Checkout UX V2 — complete, PRs 20–25)
+   - ✅ Events foundation + ICS sync hardening (complete, PRs 26–30)
+   - ⬜ B&H metadata enrichment (next)
+   - ⬜ Student mobile hardening
+2. Phase B (Next): Dashboard expansion + Notifications escalation (D-009) + Picker improvements + Calendar source health UI.
 3. Phase C (Later): Templates, kiosk, board, analytics, and integrations.
 
 ## Immediate Brief Queue
-1. Checkout UX v2 (event-default creation flow).
-2. B&H metadata enrichment (safe prefill and image-source handling).
-3. Event sync phase 1 (ICS ingest and booking linkage).
-4. Student-first mobile operations hardening (dashboard, lists, scan parity).
+1. ✅ Checkout UX v2 — Complete.
+2. B&H metadata enrichment — Next. Write `BRIEF_BH_ENRICHMENT_V1.md` before implementing.
+3. ✅ Event sync phase 1 — Complete.
+4. Student-first mobile operations hardening — Write `BRIEF_STUDENT_MOBILE_V1.md` before implementing.
 
 ## Implementation Brief Files
-1. Checkout UX V2: `BRIEF_CHECKOUT_UX_V2.md`
+1. ✅ Checkout UX V2: `BRIEF_CHECKOUT_UX_V2.md` — Shipped.
 2. Reservations Lifecycle V1: `BRIEF_RESERVATIONS_V1.md`
 3. Items List + Create + Detail V1: `BRIEF_ITEMS_V1.md`
 4. Cheqroom CSV Importer V1: `BRIEF_CHEQROOM_IMPORTER_V1.md`
+5. B&H Enrichment V1: `BRIEF_BH_ENRICHMENT_V1.md` — Pending creation.
+6. Student Mobile V1: `BRIEF_STUDENT_MOBILE_V1.md` — Pending creation.
 
 ## Working Rule for Claude Sessions
-1. Load only the relevant `AREA_*.md` file.
-2. Load `DECISIONS.md` only for invariants that affect the change.
-3. Use `FEATURE_BRIEF_TEMPLATE.md` to scope the request before implementation.
-4. For role or visibility changes, always include `AREA_USERS.md`.
-5. For dashboard, list, or scan changes that touch phone UX, include `AREA_MOBILE.md`.
+1. Read `NORTH_STAR.md` first — it is the product direction anchor.
+2. Load only the relevant `AREA_*.md` file.
+3. Load `DECISIONS.md` only for invariants that affect the change.
+4. Use `FEATURE_BRIEF_TEMPLATE.md` to scope the request before implementation.
+5. For role or visibility changes, always include `AREA_USERS.md`.
+6. For dashboard, list, or scan changes that touch phone UX, include `AREA_MOBILE.md`.
 
 ## Sync Checklist (Required Per Scope Update)
 1. Update `DECISIONS.md` if behavior changes a durable rule.
@@ -66,3 +76,4 @@ Replace Cheqroom with an athletics-first, event-driven gear system for Wisconsin
 - 2026-03-01: Added items implementation brief file.
 - 2026-03-01: Added importer area and Cheqroom CSV importer brief.
 - 2026-03-02: Added mobile operations area and scope-sync checklist.
+- 2026-03-09: Added NORTH_STAR.md reference as first read. Updated phase sequence and brief queue to reflect shipped Checkout UX V2 and Event sync. Added pending briefs for B&H enrichment and student mobile.

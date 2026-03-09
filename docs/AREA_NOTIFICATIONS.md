@@ -1,53 +1,135 @@
-# Notifications Area Scope
+# Notifications Area Scope (V1 Implemented)
 
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-01
-- Status: Active
+- Last Updated: 2026-03-09
+- Status: Active — escalation schedule implemented; multi-recipient escalation pending D-009 acceptance
+- Version: V1
 
 ## Direction
-Move from basic reminders to actionable, policy-driven escalation.
+Surface custody urgency and overdue situations to the right people at the right time, with zero duplicate noise and a clear escalation path.
 
-## Now
-1. Keep overdue detection stable.
-2. Keep in-app notification baseline and deep links reliable.
-3. Keep email support behavior consistent for existing alerts.
+## Core Rules
+1. Notifications are triggers for action, not passive information.
+2. Deduplication is mandatory — the same notification type fires at most once per booking per window.
+3. In-app and email channels coexist; dev mode logs to console in place of SMTP.
+4. Escalation recipients for the 24h overdue trigger are not yet formalized — D-009 must be accepted before wiring multi-recipient escalation.
+5. Notification center is read-only list in V1; mark-as-read is optional.
 
-## Next
-1. Add admin escalation when overdue exceeds 24 hours.
-2. Improve notification center with read state, priority, and filtering.
-3. Add dedup rules so retries do not spam recipients.
+## Escalation Schedule (Implemented)
 
-## Later
-1. Extend alerts to external channels such as Slack.
-2. Tune policy by sport, role, or location.
+All triggers are relative to `booking.endsAt`:
 
-## Acceptance Criteria
-1. Escalation triggers once per policy window.
-2. Admin recipients are configurable and auditable.
-3. Notification links route to relevant booking or item context.
-4. Read and unread state is clear and stable.
+| Hours from Due | Type | Title |
+|---|---|---|
+| −4h | `checkout_due_reminder` | Checkout due in 4 hours |
+| 0h | `checkout_due_now` | Checkout is due now |
+| +2h | `checkout_overdue_2h` | Checkout is 2 hours overdue |
+| +24h | `checkout_overdue_24h` | Checkout is 24 hours overdue |
+
+Implementation: `src/lib/services/notifications.ts`
+
+## Deduplication (Implemented)
+- Key format: `"{bookingId}:{type}"`
+- Stored in `Notification.dedupeKey` (unique index)
+- A notification record is created once per booking per trigger type
+- Job skips re-creation if `dedupeKey` already exists
+- Result: job is idempotent and safe to run on any cadence
+
+## Channels (V1)
+- **In-app**: `Notification` record created for the checkout requester; visible in notification center
+- **Email**: SMTP via env vars in production; `console.log` fallback in dev (no SMTP required locally)
+- **Admin escalation**: 24h trigger should reach admin/manager recipients — pending D-009 acceptance
+
+## Cron / Job Runner
+- Endpoint: `POST /api/notifications/process`
+- Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates notifications for matching windows
+- Trigger cadence: called by Cloudflare Cron Trigger (configure in `wrangler.jsonc`) or admin trigger
+- Job is fully idempotent — safe to call multiple times per hour due to dedup logic
+
+## Notification Center (V1)
+- Route: `/notifications`
+- Content: all in-app notifications for current user, ordered by `createdAt` descending
+- Mark-as-read: optional in V1; `read` boolean field exists on `Notification` model
+- Empty state: `No notifications`
+- Deep links: each notification should link to the relevant booking detail
+
+## Dashboard Integration
+- Overdue banner count: driven by direct booking query (not notification records) for accuracy
+- Badge counts on nav items for Reservations and Check-outs can show overdue + due-today urgency
+- Overdue count in banner must remain consistent with `AREA_DASHBOARD.md` overdue banner spec
+
+## Pending: D-009 Acceptance Criteria
+
+D-009 (Overdue Escalation Policy) is status `Proposed`. To formally accept:
+1. Define escalation recipient model: who receives the 24h notification beyond the requester? (admin roles? all staff? location-aware staff?)
+2. Define alert fatigue controls: maximum notifications per booking? opt-out mechanism per user?
+3. Define dedup and retry behavior for email channel failures
+4. Write acceptance test for escalation recipient routing
+
+Until D-009 is accepted:
+- All 4 triggers create notifications for the requester only
+- Multi-recipient escalation is NOT wired
+- No changes to escalation schedule without updating D-009
+
+## Bug Traps and Mitigations
+
+### Trap: Same trigger fires multiple times
+- Mitigation: dedupeKey prevents duplicate records; job is idempotent
+
+### Trap: Booking completed but notification job fires again
+- Mitigation: job scans only `status = OPEN` checkouts; completed records are excluded
+
+### Trap: Email failure silently drops notification
+- Mitigation: in-app notification is created first; email is best-effort and logged on failure
+
+### Trap: Dev environment sends real emails during local testing
+- Mitigation: SMTP credentials absent in dev → console.log fallback; never hard-fails
+
+### Trap: Extended checkout re-triggers already-sent notifications
+- Mitigation: dedupeKey is keyed to booking + type, not due time — extension creates no duplicates for past trigger windows; only future windows with new types would fire
 
 ## Edge Cases
-- Duplicate overdue triggers due to retry logic.
-- Reopened booking after completion.
-- Clock skew around 24-hour threshold boundaries.
+- Checkout extended after overdue trigger already fired — dedup prevents re-fire for same window
+- User has no email on file — create in-app notification only; skip email silently
+- Admin manually resolves overdue without system notification — no reconciliation needed
+- Notification record exists for a booking that was later cancelled — show in notification center as historical; no re-trigger
+- Notification center shows records for soft-deleted or cancelled bookings — handle gracefully in query (null-safe booking join)
+
+## Acceptance Criteria (V1 — Implemented)
+1. All 4 escalation triggers fire at correct relative times
+2. Deduplication prevents duplicate notifications per booking per type
+3. In-app notification records appear in notification center for the requester
+4. Dev mode shows console output instead of sending SMTP email
+5. Job endpoint is safe to call repeatedly without creating duplicates
+
+## Acceptance Criteria (D-009 Pending)
+1. Escalation recipient model is formally defined and documented
+2. 24h trigger reaches admin/manager recipients in addition to student requester
+3. Alert fatigue controls implemented (per-booking notification cap or opt-out)
+4. Email failure path logged without crashing the job runner
 
 ## Dependencies
-- Booking state and due-time data.
-- Role and recipient management.
-- Audit logging for escalation events.
+- `AREA_CHECKOUTS.md` — booking lifecycle, `endsAt` field, `OPEN` state contract
+- `AREA_USERS.md` — recipient role resolution for future multi-recipient escalation
+- `AREA_DASHBOARD.md` — overdue banner count consistency
+- `AREA_PLATFORM_INTEGRITY.md` — audit logging of notification creation events
 
-## Out of Scope (Current Window)
-- Complex multi-channel campaign orchestration.
-- Messaging templates with per-team branding variants.
+## Out of Scope (V1)
+1. Push notifications (native or web push)
+2. SMS notifications
+3. Per-user notification preferences or opt-out controls
+4. Reservation-based notification triggers (only checkout overdue in V1)
+5. Multi-channel campaign orchestration or template management
 
 ## Developer Brief (No Code)
-1. Add threshold-based escalation engine with dedup keys.
-2. Improve notification center read model and filtering behavior.
-3. Keep deep-link routing stable and testable.
-4. Add audit visibility for escalation decisions.
+1. Escalation job is implemented; do not modify schedule without updating D-009
+2. Multi-recipient escalation requires a recipient resolution function (by role, location, or explicit list) — implement only after D-009 is accepted
+3. Dashboard overdue count must query bookings directly for real-time accuracy; do not use notification records as count source
+4. Add notification center UI polish (pagination, mark-as-read) in Phase B
+5. When D-009 is accepted: add recipient model, audit escalation routing events, and add test for multi-recipient delivery
 
 ## Change Log
-- 2026-03-01: Initial standalone area scope created.
+- 2026-03-01: Initial stub created.
+- 2026-03-09: Rewritten as V1 spec to formalize implemented escalation schedule, dedup behavior, channel model, and D-009 acceptance requirements.

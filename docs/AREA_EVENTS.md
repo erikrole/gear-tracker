@@ -14,16 +14,22 @@ Make athletics schedule data the operational backbone for booking and checkout w
 2. V1 does not require a standalone Upcoming Events section on dashboard mobile or desktop.
 3. Missing or stale event records must never block non-event booking operations.
 
-## Now
-1. Ingest UW Badgers ICS feed.
-2. Normalize records into Event model for operational use.
-3. Support sport filtering for checkout selection.
+## Now (Implemented)
+1. Ingest UW Badgers ICS feed — idempotent upsert by `external_id` (ICS UID). Source URL: `webcal://uwbadgers.com/api/v2/Calendar/subscribe?type=ics&locationIndicator=H`.
+2. Normalize records into CalendarEvent model for operational use.
+3. Support sport filtering for checkout selection (30-day event picker window via `resolveEventDefaults`).
 4. Persist booking linkage fields (`eventId`, `sportCode`).
+5. Events API defaults to `startsAt >= now()` when no `startDate` param supplied — avoids stale-looking event list.
+6. Calendar source deletion: `DELETE /api/calendar-sources/[id]` — nullifies `eventId` on linked bookings (SET NULL before cascade), then deletes source and its events.
+7. Calendar sync hardening: per-event error isolation so one malformed ICS event cannot crash the entire source sync.
+8. Batch DB operations in sync pipeline to stay within Cloudflare Worker subrequest limits.
+9. Production sync diagnostics: structured logging for missing event counts and sync failure details.
 
 ## Next
-1. Reliability hardening for sync retries and stale-data visibility.
-2. Better normalization for opponent and venue fields.
-3. Fallback behavior for partial or malformed event records.
+1. Calendar source enable/disable toggle — pause a feed without deleting its configuration.
+2. Sync health admin UI — show last synced time, event count, last error per source on Events page.
+3. Better normalization for opponent and venue fields.
+4. Stale-data visibility: surface last sync time on source management table.
 
 ## Later
 1. Multi-source event ingestion, if required.
@@ -60,3 +66,4 @@ Make athletics schedule data the operational backbone for booking and checkout w
 ## Change Log
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-02: Added explicit dashboard-scope boundary and mobile/dashboard dependency alignment.
+- 2026-03-09: Expanded "Now" to reflect shipped implementation: source deletion, upcoming-default filter, sync hardening, batch DB ops, production diagnostics. Added enable/disable and sync health UI to Next.

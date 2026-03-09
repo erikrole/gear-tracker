@@ -24,13 +24,14 @@ Optimize handoff and return execution so daily operators can move fast without d
 2. Event tie-in defaults ON.
 3. If event tie-in ON:
    - Select sport
-   - Select event in next 30 days
+   - Select event in next 30 days (30-day window via `resolveEventDefaults` in `src/lib/services/event-defaults.ts`)
    - Prefill title, time window, and location from event context
 4. Select borrower/owner.
-5. Select equipment (serialized and bulk).
+5. Select equipment using the sectioned picker (see Equipment Picker section below).
 6. Save as:
    - `OPEN` for immediate handoff
    - `BOOKED` for future handoff
+7. Interrupted flows save as `DRAFT` and are recoverable from dashboard Drafts section.
 
 ### Edit Checkout
 1. User opens checkout detail.
@@ -51,7 +52,54 @@ Optimize handoff and return execution so daily operators can move fast without d
 2. Canceled records remain auditable.
 3. No hard delete.
 
+## Equipment Picker (V1 Implemented)
+
+The checkout equipment picker uses a kit-first sectioned flow with locked forward progression. Implementation: `src/lib/equipment-sections.ts`, `src/lib/equipment-guidance.ts`.
+
+### Section Order (Locked Forward Progression)
+1. **Bodies** — camera bodies, camcorders, cinema cameras, DSLRs, mirrorless
+2. **Lenses** — lenses
+3. **Batteries** — batteries, chargers, power supplies, V-mount, gold mount
+4. **Accessories** — monitors, recorders, rigs, cages, gimbals, transmitters
+5. **Others** — cables, audio, tripods, and catch-all items
+
+Users advance through sections in order. They may always return to a previously reached section but cannot skip ahead. This ensures essential items (bodies, then lenses, then power) are reviewed before accessories.
+
+### Section Classification
+Assets are classified into sections by keyword matching against the asset's `type` field (from Cheqroom category import). Classification is case-insensitive substring matching. Implementation: `classifyAssetType()` in `src/lib/equipment-sections.ts`.
+
+### Equipment Guidance Rules
+Context-aware hints appear per section based on what has already been selected in other sections. All matching rules for the active section are shown simultaneously. Implementation: `getActiveGuidance()` in `src/lib/equipment-guidance.ts`.
+
+Current rules:
+- `body-needs-batteries` (warning): "You selected a camera body — don't forget batteries and chargers." — shown in Batteries section when camera_body has selections
+
+Adding new rules: add entries to `EQUIPMENT_GUIDANCE_RULES` array in `src/lib/equipment-guidance.ts`. No schema changes required.
+
+Planned rules (not yet implemented, tracked in NORTH_STAR.md):
+- `lens-needs-body`: warn if lenses selected without a body
+- `audio-with-video`: hint about audio gear when video camera selected
+- `drone-battery-check`: warn about spare batteries and prop guards for drone items
+
+### Conflict Feedback During Picker
+Items that are unavailable for the selected booking window show an inline conflict badge. Badge includes reason (e.g., "Already reserved by [booking title]") and the conflicting window. Implementation via availability check at picker load time.
+
+### DRAFT Booking State
+- `DRAFT` is a pre-BOOKED state for interrupted checkout creation flows
+- Allowed actions on DRAFT: `edit`, `cancel`
+- DRAFT records appear in dashboard Drafts section for recovery
+- DRAFT is never shown in main checkout lists (only in Drafts lane)
+- Auto-created when checkout creation is interrupted before final save
+- Implementation: `BookingStatus.DRAFT` in `src/lib/services/checkout-rules.ts`
+
+---
+
 ## Action Matrix by State
+
+### `DRAFT`
+- Allowed actions:
+  - Edit (resume)
+  - Cancel (discard)
 
 ### `BOOKED`
 - Allowed actions:
@@ -150,3 +198,4 @@ Optimize handoff and return execution so daily operators can move fast without d
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-01: Rewritten into hardened V1 workflow, logic, and failure-mode spec.
 - 2026-03-02: Added explicit mobile contract dependency and list-action alignment.
+- 2026-03-09: Added Equipment Picker section (kit-first sectioned flow, locked progression, guidance rules, conflict feedback). Added DRAFT booking state. Reflected shipped implementation from PRs 22–25.
