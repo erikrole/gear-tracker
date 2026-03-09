@@ -58,10 +58,10 @@ Make athletics schedule data the operational backbone for booking and checkout w
 - Manual event authoring UI beyond current needs.
 
 ## Developer Brief (No Code)
-1. Build idempotent event ingest and normalization pipeline.
-2. Define strict fallback behavior for incomplete source events.
-3. Expose optimized query surface for checkout event picker.
-4. Add monitoring for sync failures and stale imports.
+1. Core ingest pipeline is implemented — do not rewrite without a Decision record.
+2. Next work: calendar source enable/disable toggle (`CalendarSource.enabled` flag, sync job skips disabled sources).
+3. Next work: sync health UI — surface `lastFetchedAt` and `lastError` from CalendarSource on the Events admin view.
+4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
 - 2026-03-01: Initial standalone area scope created.
