@@ -23,6 +23,8 @@
 - D-013: Item identity and item-kind behavior are explicit and non-interchangeable
 - D-014: Cheqroom importer must be lossless and non-authoritative for live status
 - D-015: Student-first mobile operations contract with role-adaptive action surfaces
+- D-016: Equipment picker sections and guidance rules are code-defined in V1
+- D-017: DRAFT booking state is valid but informally specced until a future brief formalizes it
 
 ---
 
@@ -123,31 +125,39 @@
 
 ## D-009: Overdue Escalation Policy
 - Date: 2026-03-01
-- Status: Proposed
+- Status: Partially Implemented — schedule and dedup shipped; recipient model pending acceptance
 - Context:
-  - Overdue notifications exist, but escalation is not formalized.
-- Decision:
-  - Escalate to admin recipients when overdue exceeds 24 hours, with dedup logic.
+  - Overdue notifications exist, but multi-recipient escalation is not formalized.
+- Decision (Implemented):
+  - Escalation schedule: -4h, 0h, +2h, +24h relative to `booking.endsAt`
+  - Dedup key: `"{bookingId}:{type}"` — prevents re-fire per booking per window
+  - Current behavior: all 4 triggers notify the checkout requester only
+  - Implementation: `src/lib/services/notifications.ts`
+- Decision (Pending Acceptance):
+  - Define admin/manager escalation recipients for the +24h trigger
+  - Define alert fatigue controls (per-booking cap, opt-out)
+  - Define email failure retry behavior
 - Consequences:
-  - Faster recovery of missing gear.
+  - Faster recovery of missing gear once full escalation is wired.
   - Needs policy controls to avoid alert fatigue.
-- Exit Criteria to Accept:
-  - Escalation recipient model approved.
-  - Dedup and retry behavior tested.
+- Exit Criteria to Formally Accept:
+  - Escalation recipient model approved and documented.
+  - Multi-recipient escalation implemented and tested.
+  - Alert fatigue controls defined and implemented.
 
 ## D-010: Sequencing Priorities
 - Date: 2026-03-01
-- Status: Accepted
+- Status: Accepted (updated 2026-03-09 to reflect shipped items)
 - Context:
   - Multiple initiatives compete for near-term bandwidth.
 - Decision:
   - Prioritize in this order:
-    1. Checkout UX v2
-    2. B&H metadata enrichment
-    3. Event sync phase 1
-    4. Equipment picker upgrade
-    5. Notification center improvements
-    6. Student dashboard baseline
+    1. ✅ Checkout UX v2 — Complete (PRs 20–25)
+    2. B&H metadata enrichment — Not started; next up
+    3. ✅ Event sync phase 1 — Complete (ICS ingest, hardening PRs 26–30)
+    4. ✅ Equipment picker upgrade — Complete (sectioned picker, guidance rules, PRs 22–25)
+    5. Notification center improvements — Partial (escalation schedule shipped; D-009 acceptance pending)
+    6. Student dashboard baseline — Not started; brief needed
 - Consequences:
   - Maximizes immediate operational impact.
   - Advanced reporting intentionally deferred.
@@ -229,6 +239,39 @@
   - Lower cognitive load and faster student task completion.
   - Every area touching dashboard or list interactions must validate behavior against `AREA_MOBILE.md`.
 
+## D-016: Equipment Picker Sections and Guidance Rules Are Code-Defined in V1
+- Date: 2026-03-09
+- Status: Accepted
+- Context:
+  - The checkout picker uses a sectioned kit-first flow with context-aware guidance hints.
+  - Configuring sections and rules via a database admin UI adds complexity without clear near-term need.
+- Decision:
+  - Equipment sections are defined in `src/lib/equipment-sections.ts`.
+  - Guidance rules are defined in `src/lib/equipment-guidance.ts`.
+  - New sections or rules are added via code PR, not an admin UI.
+  - Database-configurable rules are deferred to Phase C.
+- Consequences:
+  - Fast to add new rules; requires a code deployment.
+  - Operators cannot self-serve rule changes without engineering support.
+- Guardrails:
+  - New guidance rules must be reviewed against actual equipment workflows, not added speculatively.
+
+## D-017: DRAFT Booking State Is Valid but Informally Specced
+- Date: 2026-03-09
+- Status: Accepted (behavior) / Proposed (full formalization)
+- Context:
+  - `checkout-rules.ts` handles a `DRAFT` booking state (allows `edit` and `cancel`) but AREA_CHECKOUTS.md and DECISIONS.md did not formally document this state.
+- Decision:
+  - DRAFT is a valid pre-BOOKED state for interrupted checkout creation flows.
+  - DRAFT allows edit and cancel only; no transitions to OPEN or COMPLETED from DRAFT.
+  - DRAFT records appear in dashboard Drafts section only; excluded from main checkout list.
+  - Full DRAFT lifecycle (creation trigger, auto-expiry, recovery UI) should be formalized in a future brief before extending DRAFT behavior.
+- Consequences:
+  - Dashboard Drafts section recovers interrupted flows.
+  - DRAFT state must be explicitly excluded from checkout list queries.
+- Guardrails:
+  - No new DRAFT behavior (auto-expiry, promotion rules, sharing) without a formal brief.
+
 ---
 
 ## Decision Rules for Future Changes
@@ -255,3 +298,4 @@
 ## Change Log
 - 2026-03-01: Initial decision log created from project memory dump.
 - 2026-03-02: Added student-first mobile operations contract decision.
+- 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).
