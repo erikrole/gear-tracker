@@ -16,6 +16,7 @@ const patchAssetSchema = z
     purchaseDate: z.string().optional(),
     purchasePrice: z.number().positive().optional(),
     locationId: z.string().cuid().optional(),
+    categoryId: z.string().cuid().nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
     notes: z.string().max(10000).optional()
   })
@@ -37,7 +38,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
     const asset = await db.asset.findUnique({
       where: { id: params.id },
-      include: { location: true }
+      include: { location: true, category: true }
     });
 
     if (!asset) {
@@ -106,7 +107,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {})
       },
       include: {
-        location: true
+        location: true,
+        category: true
       }
     });
 

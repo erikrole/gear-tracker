@@ -11,6 +11,8 @@ type ActiveBooking = {
   requesterName: string;
 };
 
+type CategoryOption = { id: string; name: string; parentId: string | null };
+
 type Asset = {
   id: string;
   assetTag: string;
@@ -21,6 +23,7 @@ type Asset = {
   status: string;
   computedStatus: string;
   location: { id: string; name: string };
+  category: { id: string; name: string } | null;
   activeBooking: ActiveBooking | null;
 };
 
@@ -122,10 +125,12 @@ const inputStyle = { padding: 8, border: "1px solid var(--border)", borderRadius
 
 function CreateItemCard({
   locations,
+  categories,
   onCreated,
   onClose,
 }: {
   locations: Location[];
+  categories: CategoryOption[];
   onCreated: () => void;
   onClose: () => void;
 }) {
@@ -149,6 +154,7 @@ function CreateItemCard({
         if (desc) notes.description = desc;
         if (owner) notes.owner = owner;
 
+        const categoryId = String(form.get("categoryId") || "");
         res = await fetch("/api/assets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -160,6 +166,7 @@ function CreateItemCard({
             serialNumber: String(form.get("serialNumber") || ""),
             qrCodeValue: String(form.get("qrCodeValue") || ""),
             locationId: String(form.get("locationId") || ""),
+            ...(categoryId ? { categoryId } : {}),
             ...(Object.keys(notes).length ? { notes: JSON.stringify(notes) } : {}),
           }),
         });
@@ -218,7 +225,20 @@ function CreateItemCard({
           <>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
               <input name="assetTag" placeholder="Tag name *" required style={inputStyle} />
-              <input name="type" placeholder="Category *" defaultValue="equipment" required style={inputStyle} />
+              <select name="categoryId" style={inputStyle}>
+                <option value="">Category</option>
+                {categories.filter((c) => !c.parentId).map((parent) => (
+                  <optgroup key={parent.id} label={parent.name}>
+                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                      <option key={child.id} value={child.id}>{child.name}</option>
+                    ))}
+                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                      <option value={parent.id}>{parent.name}</option>
+                    )}
+                  </optgroup>
+                ))}
+              </select>
+              <input name="type" type="hidden" defaultValue="equipment" />
               <select name="locationId" required style={inputStyle}>
                 <option value="">Location *</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -255,7 +275,20 @@ function CreateItemCard({
         ) : (
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
             <input name="name" placeholder="Product name *" required style={inputStyle} />
-            <input name="category" placeholder="Category *" required style={inputStyle} />
+            <select name="categoryId" style={inputStyle}>
+              <option value="">Category</option>
+              {categories.filter((c) => !c.parentId).map((parent) => (
+                <optgroup key={parent.id} label={parent.name}>
+                  {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                    <option key={child.id} value={child.id}>{child.name}</option>
+                  ))}
+                  {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                    <option value={parent.id}>{parent.name}</option>
+                  )}
+                </optgroup>
+              ))}
+            </select>
+            <input name="category" type="hidden" defaultValue="general" />
             <input name="unit" placeholder="Unit (e.g. ea, box) *" required style={inputStyle} />
             <select name="locationId" required style={inputStyle}>
               <option value="">Location *</option>
@@ -283,11 +316,13 @@ export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems] = useState<Asset[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const limit = 25;
@@ -300,6 +335,7 @@ export default function ItemsPage() {
     if (search) params.set("q", search);
     if (statusFilter) params.set("status", statusFilter);
     if (locationFilter) params.set("location_id", locationFilter);
+    if (categoryFilter) params.set("category_id", categoryFilter);
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -313,12 +349,15 @@ export default function ItemsPage() {
 
   useEffect(() => {
     reload();
-  }, [page, search, statusFilter, locationFilter]);
+  }, [page, search, statusFilter, locationFilter, categoryFilter]);
 
   useEffect(() => {
     fetch("/api/form-options")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json) setLocations(json.data?.locations || []); });
+    fetch("/api/categories")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setCategories(json.data || []); });
   }, []);
 
   const totalPages = Math.ceil(total / limit);
@@ -340,6 +379,7 @@ export default function ItemsPage() {
       {showCreate && (
         <CreateItemCard
           locations={locations}
+          categories={categories}
           onCreated={reload}
           onClose={() => setShowCreate(false)}
         />
@@ -393,6 +433,29 @@ export default function ItemsPage() {
             <option value="">All locations</option>
             {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
           </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
+            style={{
+              padding: "7px 12px",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
+              fontSize: 13,
+              background: "white",
+            }}
+          >
+            <option value="">All categories</option>
+            {categories.filter((c) => !c.parentId).map((parent) => (
+              <optgroup key={parent.id} label={parent.name}>
+                {categories.filter((c) => c.parentId === parent.id).length === 0
+                  ? <option value={parent.id}>{parent.name}</option>
+                  : categories.filter((c) => c.parentId === parent.id).map((child) => (
+                    <option key={child.id} value={child.id}>{child.name}</option>
+                  ))
+                }
+              </optgroup>
+            ))}
+          </select>
         </div>
 
         {loading ? (
@@ -431,7 +494,7 @@ export default function ItemsPage() {
                         </div>
                       </div>
                     </td>
-                    <td>{item.type}</td>
+                    <td>{item.category?.name || item.type}</td>
                     <td>{item.location.name}</td>
                     <td className="hide-mobile">{item.brand}</td>
                     <td className="hide-mobile">{item.model}</td>

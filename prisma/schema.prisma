@@ -124,6 +124,22 @@ model Department {
   @@map("departments")
 }
 
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  parentId  String?    @map("parent_id")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  assets    Asset[]
+  bulkSkus  BulkSku[]
+
+  @@unique([name, parentId])
+  @@index([parentId])
+  @@map("categories")
+}
+
 model Asset {
   id               String                   @id @default(cuid())
   assetTag         String                   @unique @map("asset_tag")
@@ -140,6 +156,7 @@ model Asset {
   residualValue    Decimal?                 @db.Decimal(10, 2) @map("residual_value")
   locationId       String                   @map("location_id")
   departmentId     String?                  @map("department_id")
+  categoryId       String?                  @map("category_id")
   status           AssetStatus              @default(AVAILABLE)
   consumable       Boolean                  @default(false)
   imageUrl         String?                  @map("image_url")
@@ -149,6 +166,7 @@ model Asset {
   updatedAt        DateTime                 @updatedAt @map("updated_at")
   location         Location                 @relation(fields: [locationId], references: [id])
   department       Department?              @relation(fields: [departmentId], references: [id])
+  category         Category?                @relation(fields: [categoryId], references: [id])
   bookingItems     BookingSerializedItem[]
   allocations      AssetAllocation[]
   scans            ScanEvent[]
@@ -156,6 +174,7 @@ model Asset {
 
   @@index([locationId])
   @@index([departmentId])
+  @@index([categoryId])
   @@index([brand, model])
   @@index([primaryScanCode])
   @@map("assets")
@@ -253,12 +272,14 @@ model BulkSku {
   category          String
   unit              String
   locationId        String             @map("location_id")
+  categoryId        String?            @map("category_id")
   binQrCodeValue    String             @map("bin_qr_code_value")
   minThreshold      Int                @default(0) @map("min_threshold")
   active            Boolean            @default(true)
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
   location          Location           @relation(fields: [locationId], references: [id])
+  categoryRel       Category?          @relation(fields: [categoryId], references: [id])
   balances          BulkStockBalance[]
   movements         BulkStockMovement[]
   bookingItems      BookingBulkItem[]
@@ -266,6 +287,7 @@ model BulkSku {
 
   @@unique([locationId, binQrCodeValue])
   @@index([locationId, active])
+  @@index([categoryId])
   @@map("bulk_skus")
 }
 

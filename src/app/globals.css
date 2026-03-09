@@ -1954,6 +1954,70 @@ a:hover {
   gap: 12px;
 }
 
+/* ===== Settings Split Layout ===== */
+.settings-split {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.settings-sidebar {
+  position: sticky;
+  top: 80px;
+}
+
+.settings-main {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .settings-split {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .settings-sidebar {
+    position: static;
+  }
+}
+
+/* ===== Category List ===== */
+.cat-list-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  min-height: 48px;
+}
+
+.cat-row:last-child {
+  border-bottom: none;
+}
+
+.cat-row:hover {
+  background: rgba(59, 130, 246, 0.02);
+}
+
+.cat-row-name {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  min-width: 0;
+}
+
+.cat-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* ===== Print styles ===== */
 @media print {
   .sidebar,

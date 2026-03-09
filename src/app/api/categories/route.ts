@@ -1,0 +1,91 @@
+export const runtime = "edge";
+import { z } from "zod";
+import { requireAuth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { fail, ok } from "@/lib/http";
+
+const createSchema = z.object({
+  name: z.string().min(1).max(100),
+  parentId: z.string().cuid().nullable().optional(),
+});
+
+export async function GET() {
+  try {
+    await requireAuth();
+
+    const [categories, assetCounts, bulkCounts] = await Promise.all([
+      db.category.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, parentId: true },
+      }),
+      db.asset.groupBy({
+        by: ["categoryId"],
+        where: { categoryId: { not: null } },
+        _count: { id: true },
+      }),
+      db.bulkSku.groupBy({
+        by: ["categoryId"],
+        where: { categoryId: { not: null } },
+        _count: { id: true },
+      }),
+    ]);
+
+    const countMap = new Map<string, number>();
+    for (const row of assetCounts) {
+      if (row.categoryId) {
+        countMap.set(row.categoryId, (countMap.get(row.categoryId) ?? 0) + row._count.id);
+      }
+    }
+    for (const row of bulkCounts) {
+      if (row.categoryId) {
+        countMap.set(row.categoryId, (countMap.get(row.categoryId) ?? 0) + row._count.id);
+      }
+    }
+
+    const data = categories.map((c) => ({
+      ...c,
+      itemCount: countMap.get(c.id) ?? 0,
+    }));
+
+    return ok({ data });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const user = await requireAuth();
+    if (user.role !== "ADMIN" && user.role !== "STAFF") {
+      return ok({ error: "Forbidden" }, 403);
+    }
+
+    const body = createSchema.parse(await req.json());
+
+    if (body.parentId) {
+      const parent = await db.category.findUnique({ where: { id: body.parentId } });
+      if (!parent) return ok({ error: "Parent category not found" }, 404);
+    }
+
+    const category = await db.category.create({
+      data: {
+        name: body.name,
+        parentId: body.parentId ?? null,
+      },
+    });
+
+    await db.auditLog.create({
+      data: {
+        actorUserId: user.id,
+        entityType: "category",
+        entityId: category.id,
+        action: "created",
+        afterJson: { name: category.name, parentId: category.parentId },
+      },
+    });
+
+    return ok({ data: category }, 201);
+  } catch (error) {
+    return fail(error);
+  }
+}
