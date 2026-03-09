@@ -36,7 +36,34 @@ Last updated: 2026-03-09
 
 ---
 
-## 🔴 Active Queue
+## 🔴 Active — Items Page Finish (Pre-Import Hardening)
+
+### Slice 1: Items List — Columns, Filters, Pagination
+- [ ] Update table columns per spec: Name cell (tagName primary, brand/model secondary), Category, Location, Status
+- [ ] Add location filter dropdown (from /api/form-options)
+- [ ] Add CHECKED_OUT and RESERVED to status filter (derived statuses)
+- [ ] Change rows per page from 20 to 25
+- [ ] Fix pagination text to "Showing X to Y of Z"
+- [ ] Add Import link in top bar actions
+
+### Slice 2: Item Detail — Tab Structure + Layout
+- [ ] Replace Dashboard tab with Reservations + Check-outs tabs
+- [ ] Reservations tab: filter bookings to RESERVATION kind
+- [ ] Check-outs tab: filter bookings to CHECKOUT kind
+- [ ] Fix details-grid direction (info wider, side panels narrower)
+
+### Slice 3: Item Detail — Inline Edit on Info Tab
+- [ ] Make metadata fields editable for ADMIN/STAFF
+- [ ] Wire PATCH /api/assets/[id] for saves
+- [ ] Show success/error feedback with role-based visibility
+
+### Slice 4: Create Flow — Item-Kind-Aware Form
+- [ ] Replace inline create with proper create card
+- [ ] Add item-kind selector (serialized vs bulk)
+- [ ] Enforce required fields per kind
+- [ ] Optional metadata section (collapsed by default)
+
+---
 
 ### Phase A Remaining
 
