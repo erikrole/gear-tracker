@@ -9,6 +9,7 @@ import { deriveAssetStatus } from "@/lib/services/status";
 const patchAssetSchema = z
   .object({
     assetTag: z.string().min(1).optional(),
+    name: z.string().max(500).nullable().optional(),
     type: z.string().min(1).optional(),
     brand: z.string().min(1).optional(),
     model: z.string().min(1).optional(),

@@ -27,6 +27,7 @@ type UpcomingReservation = {
 type AssetDetail = {
   id: string;
   assetTag: string;
+  name: string | null;
   type: string;
   brand: string;
   model: string;
@@ -300,17 +301,60 @@ function FiscalYearField({ value, canEdit, onSave }: { value: string; canEdit: b
 
 /* ── Category Select Field ──────────────────────────────── */
 
-function CategoryField({ value, canEdit, categories, onSave }: { value: string; canEdit: boolean; categories: CategoryOption[]; onSave: (id: string) => Promise<void> }) {
+function CategoryField({ value, canEdit, categories, onSave, onCategoriesChanged }: { value: string; canEdit: boolean; categories: CategoryOption[]; onSave: (id: string) => Promise<void>; onCategoriesChanged: () => void }) {
   const [editing, setEditing] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { if (creating) inputRef.current?.focus(); }, [creating]);
+
+  async function handleCreateCategory() {
+    if (!newCatName.trim()) { setCreating(false); return; }
+    setSaving(true);
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newCatName.trim() }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      onCategoriesChanged();
+      if (json.data?.id) await onSave(json.data.id);
+    }
+    setSaving(false);
+    setCreating(false);
+    setNewCatName("");
+  }
 
   return (
     <div className="data-list-row">
       <dt className="data-list-label">Category</dt>
       <dd className="data-list-value">
-        {editing ? (
+        {creating ? (
+          <div style={{ display: "flex", gap: 4 }}>
+            <input
+              ref={inputRef}
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+              placeholder="Category name"
+              disabled={saving}
+              onBlur={handleCreateCategory}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateCategory();
+                if (e.key === "Escape") { setCreating(false); setNewCatName(""); }
+              }}
+              style={{ width: 140, padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, outline: "none" }}
+            />
+          </div>
+        ) : editing ? (
           <select
             defaultValue=""
-            onChange={async (e) => { await onSave(e.target.value); setEditing(false); }}
+            onChange={async (e) => {
+              if (e.target.value === "__create__") { setEditing(false); setCreating(true); return; }
+              await onSave(e.target.value); setEditing(false);
+            }}
             onBlur={() => setEditing(false)}
             autoFocus
             style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, textAlign: "right", outline: "none" }}
@@ -326,6 +370,7 @@ function CategoryField({ value, canEdit, categories, onSave }: { value: string; 
                 }
               </optgroup>
             ))}
+            <option value="__create__">+ Create new category</option>
           </select>
         ) : (
           <span
@@ -337,6 +382,32 @@ function CategoryField({ value, canEdit, categories, onSave }: { value: string; 
         )}
       </dd>
     </div>
+  );
+}
+
+/* ── QR Code Visual ─────────────────────────────────────── */
+
+function QRCodeImage({ value }: { value: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!value || !canvasRef.current) return;
+    setLoaded(false);
+    import("qrcode").then((QRCode) => {
+      if (!canvasRef.current) return;
+      QRCode.toCanvas(canvasRef.current, value, { width: 120, margin: 2 }, () => {
+        setLoaded(true);
+      });
+    });
+  }, [value]);
+
+  if (!value) return null;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ display: "block", borderRadius: 6, border: "1px solid var(--border-light)", opacity: loaded ? 1 : 0 }}
+    />
   );
 }
 
@@ -383,13 +454,18 @@ function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit:
   return (
     <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-light)" }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>TRACKING CODES</div>
-      <div className="tracking-row" style={{ marginBottom: 8 }}>
-        <span>QR</span>
-        <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
-      </div>
-      <div className="tracking-row">
-        <span>Serial</span>
-        <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 8 }}>
+        <QRCodeImage value={asset.qrCodeValue} />
+        <div style={{ flex: 1 }}>
+          <div className="tracking-row" style={{ marginBottom: 8 }}>
+            <span>QR</span>
+            <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
+          </div>
+          <div className="tracking-row">
+            <span>Serial</span>
+            <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
+          </div>
+        </div>
       </div>
       {canEdit && (
         <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -423,13 +499,14 @@ function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit:
 /* ── Info Tab: Item Information Card ────────────────────── */
 
 function ItemInfoCard({
-  asset, canEdit, categories, onFieldSaved, onRefresh,
+  asset, canEdit, categories, onFieldSaved, onRefresh, onCategoriesChanged,
 }: {
   asset: AssetDetail;
   canEdit: boolean;
   categories: CategoryOption[];
   onFieldSaved: (updated: Partial<AssetDetail>) => void;
   onRefresh: () => void;
+  onCategoriesChanged: () => void;
 }) {
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
 
@@ -491,7 +568,8 @@ function ItemInfoCard({
   }
 
   const fields: Array<{ label: string; key: string; value: string; placeholder?: string; mono?: boolean }> = [
-    { label: "Item name", key: "assetTag", value: asset.assetTag },
+    { label: "Item name", key: "name", value: asset.name || "", placeholder: "Add item name" },
+    { label: "Tag name", key: "assetTag", value: asset.assetTag },
     { label: "Brand", key: "brand", value: asset.brand, placeholder: "Add brand" },
     { label: "Model", key: "model", value: asset.model, placeholder: "Add model" },
     { label: "Location", key: "_location", value: asset.location.name },
@@ -534,6 +612,7 @@ function ItemInfoCard({
           canEdit={canEdit}
           categories={categories}
           onSave={saveCategory}
+          onCategoriesChanged={onCategoriesChanged}
         />
         <FiscalYearField
           value={asset.metadata?.fiscalYearPurchased || ""}
@@ -610,10 +689,11 @@ function OperationalOverview({ asset, onSelectBooking }: { asset: AssetDetail; o
 /* ── Booking Kind Tab ───────────────────────────────────── */
 
 function BookingKindTab({
-  kind, groups, onSelectBooking,
+  kind, groups, asset, onSelectBooking,
 }: {
   kind: "CHECKOUT" | "RESERVATION";
   groups: Array<{ month: string; items: AssetDetail["history"] }>;
+  asset: AssetDetail;
   onSelectBooking: (id: string) => void;
 }) {
   const label = kind === "CHECKOUT" ? "check-outs" : "reservations";
@@ -621,31 +701,79 @@ function BookingKindTab({
     .map((g) => ({ month: g.month, items: g.items.filter((e) => e.booking.kind === kind) }))
     .filter((g) => g.items.length > 0);
 
+  const activeBooking = asset.activeBooking;
+  const showActiveCard = kind === "CHECKOUT" && activeBooking && activeBooking.kind === "CHECKOUT";
+  const showUpcoming = kind === "RESERVATION" && asset.upcomingReservations.length > 0;
+
   return (
-    <div className="card" style={{ marginTop: 14 }}>
-      <div style={{ padding: 16 }}>
-        {filtered.length === 0 ? (
-          <div className="empty-state">No {label} yet for this item.</div>
-        ) : (
-          filtered.map((group) => (
-            <div key={group.month} style={{ marginBottom: 16 }}>
-              <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>{group.month}</h3>
-              <table className="data-table">
-                <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
-                <tbody>
-                  {group.items.map((entry) => (
-                    <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => onSelectBooking(entry.booking.id)}>
-                      <td><span className="row-link">{entry.booking.title}</span></td>
-                      <td>{entry.booking.requester.name}</td>
-                      <td>{formatDate(entry.booking.startsAt)}</td>
-                      <td>{entry.booking.location.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+    <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
+      {/* Active checkout card at top of Check Outs tab */}
+      {showActiveCard && activeBooking && (
+        <div className="card">
+          <div className="card-header"><h2>Active Check-out</h2></div>
+          <div style={{ padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+              <strong>{activeBooking.title}</strong>
+              <span className="badge badge-orange" style={{ fontSize: 11 }}>{dueBackText(activeBooking.endsAt)}</span>
             </div>
-          ))
-        )}
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
+              Held by <strong>{activeBooking.requesterName}</strong>
+            </div>
+            <button className="btn btn-sm" onClick={() => onSelectBooking(activeBooking.id)}>
+              View checkout &rarr;
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming reservations at top of Reservations tab */}
+      {showUpcoming && (
+        <div className="card">
+          <div className="card-header"><h2>Upcoming Reservations</h2></div>
+          <div style={{ padding: 16 }}>
+            <div style={{ display: "grid", gap: 10 }}>
+              {asset.upcomingReservations.map((r) => (
+                <div key={r.bookingId} className="event-row" style={{ cursor: "pointer" }} onClick={() => onSelectBooking(r.bookingId)}>
+                  <div className="event-row-main">
+                    <div className="event-row-title">{r.title}</div>
+                    <div className="event-row-meta">
+                      {formatDate(r.startsAt)} – {formatDate(r.endsAt)} &middot; {r.requesterName}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History table */}
+      <div className="card">
+        <div className="card-header"><h2>{kind === "CHECKOUT" ? "Check-out" : "Reservation"} History</h2></div>
+        <div style={{ padding: 16 }}>
+          {filtered.length === 0 ? (
+            <div className="empty-state">No {label} yet for this item.</div>
+          ) : (
+            filtered.map((group) => (
+              <div key={group.month} style={{ marginBottom: 16 }}>
+                <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>{group.month}</h3>
+                <table className="data-table">
+                  <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
+                  <tbody>
+                    {group.items.map((entry) => (
+                      <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => onSelectBooking(entry.booking.id)}>
+                        <td><span className="row-link">{entry.booking.title}</span></td>
+                        <td>{entry.booking.requester.name}</td>
+                        <td>{formatDate(entry.booking.startsAt)}</td>
+                        <td>{entry.booking.location.name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
@@ -755,14 +883,18 @@ export default function ItemDetailsPage() {
       .then((json) => { if (json?.data) setAsset(json.data); });
   }
 
+  function loadCategories() {
+    fetch("/api/categories")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setCategories(json.data || []); });
+  }
+
   useEffect(() => {
     loadAsset();
     fetch("/api/me")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
-    fetch("/api/categories")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setCategories(json.data || []); });
+    loadCategories();
   }, [id]);
 
   const historyByMonth = useMemo(() => {
@@ -812,11 +944,11 @@ export default function ItemDetailsPage() {
     <>
       <div className="breadcrumb"><Link href="/items">Items</Link> <span>&rsaquo;</span> {asset.assetTag}</div>
       <div className="page-header" style={{ marginBottom: 4 }}>
-        <h1>{asset.assetTag}</h1>
+        <h1>{asset.name || asset.assetTag}</h1>
         <div style={{ display: "flex", gap: 8 }}>
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-          <button className="btn btn-primary">Reserve</button>
-          <button className="btn btn-primary">Check out</button>
+          <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>Reserve</Link>
+          <Link href={`/checkouts?newFor=${asset.id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>Check out</Link>
         </div>
       </div>
 
@@ -848,6 +980,7 @@ export default function ItemDetailsPage() {
             categories={categories}
             onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
             onRefresh={loadAsset}
+            onCategoriesChanged={loadCategories}
           />
         </div>
       )}
@@ -857,6 +990,7 @@ export default function ItemDetailsPage() {
         <BookingKindTab
           kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}
           groups={historyByMonth}
+          asset={asset}
           onSelectBooking={setSelectedBookingId}
         />
       )}
