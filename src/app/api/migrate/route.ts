@@ -149,11 +149,47 @@ CREATE TABLE IF NOT EXISTS "notifications" (
 CREATE UNIQUE INDEX IF NOT EXISTS "notifications_dedupe_key_key" ON "notifications"("dedupe_key");
 CREATE INDEX IF NOT EXISTS "notifications_user_id_read_at_idx" ON "notifications"("user_id", "read_at");
 CREATE INDEX IF NOT EXISTS "notifications_type_created_at_idx" ON "notifications"("type", "created_at");
+
+-- ── Migration 0005: Categories ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS "categories" (
+  "id" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "parent_id" TEXT,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX IF NOT EXISTS "categories_parent_id_idx" ON "categories"("parent_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "categories_name_parent_id_key" ON "categories"("name", "parent_id");
+DO $$ BEGIN
+  ALTER TABLE "categories" ADD CONSTRAINT "categories_parent_id_fkey"
+    FOREIGN KEY ("parent_id") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "category_id" TEXT;
+CREATE INDEX IF NOT EXISTS "assets_category_id_idx" ON "assets"("category_id");
+DO $$ BEGIN
+  ALTER TABLE "assets" ADD CONSTRAINT "assets_category_id_fkey"
+    FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+ALTER TABLE "bulk_skus" ADD COLUMN IF NOT EXISTS "category_id" TEXT;
+CREATE INDEX IF NOT EXISTS "bulk_skus_category_id_idx" ON "bulk_skus"("category_id");
+DO $$ BEGIN
+  ALTER TABLE "bulk_skus" ADD CONSTRAINT "bulk_skus_category_id_fkey"
+    FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ── Migration 0006: Asset policy toggles ────────────────────────────
+ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "available_for_reservation" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "available_for_checkout" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "available_for_custody" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "assets" ADD COLUMN IF NOT EXISTS "link_url" TEXT;
 `;
 
 /**
  * POST /api/migrate
- * Runs the Phase 1 migration (idempotent). Admin only.
+ * Runs all migrations (idempotent). Admin only.
  */
 export async function POST() {
   try {
