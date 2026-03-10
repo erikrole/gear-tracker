@@ -50,7 +50,7 @@ export const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
   },
   {
     id: "audio-with-video",
-    section: "audio",
+    section: "accessories",
     message: "Don\u2019t forget audio gear \u2014 recorder, microphone, or wireless kit.",
     level: "info",
     condition: (ctx) => ctx.selectedSectionKeys.includes("cameras"),

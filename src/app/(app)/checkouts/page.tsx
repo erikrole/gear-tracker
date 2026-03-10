@@ -49,6 +49,7 @@ type CalendarEvent = {
 type AvailableAsset = {
   id: string;
   assetTag: string;
+  name: string | null;
   brand: string;
   model: string;
   serialNumber: string;
@@ -445,8 +446,7 @@ export default function CheckoutsPage() {
   // Section counts (total available, not filtered)
   const sectionCounts = useMemo(() => {
     const counts: Record<EquipmentSectionKey, number> = {
-      cameras: 0, lenses: 0, batteries: 0, audio: 0, monitors: 0,
-      tripods: 0, lighting: 0, media_storage: 0, office: 0,
+      cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
     };
     for (const key of Object.keys(counts) as EquipmentSectionKey[]) {
       counts[key] = (assetsBySection[key]?.length || 0) + (bulkBySection[key]?.length || 0);
@@ -673,8 +673,8 @@ export default function CheckoutsPage() {
                     return (
                       <div key={assetId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", minHeight: 36, gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.assetTag}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.brand} {asset.model}</span>
+                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.name || asset.assetTag}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.name ? `${asset.assetTag} · ` : ""}{asset.brand} {asset.model}</span>
                         </div>
                         <button type="button" style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
                           onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
@@ -784,8 +784,8 @@ export default function CheckoutsPage() {
                                   style={!isAvailable ? { opacity: 0.45, cursor: "default", pointerEvents: "none" as const } : undefined}
                                 >
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: 13 }}>
-                                      {asset.assetTag}
+                                    <div style={{ fontWeight: 700, fontSize: 14 }}>
+                                      {asset.name || asset.assetTag}
                                       {!isAvailable && (
                                         <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 500, color: "var(--red, #dc2626)", textTransform: "uppercase" }}>
                                           {asset.status === "MAINTENANCE" ? "In Maintenance" : asset.status.toLowerCase()}
@@ -793,7 +793,7 @@ export default function CheckoutsPage() {
                                       )}
                                     </div>
                                     <div className="equip-picker-meta">
-                                      {asset.brand} {asset.model}
+                                      {asset.name ? `${asset.assetTag} · ` : ""}{asset.brand} {asset.model}
                                       {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
                                       {asset.location ? ` · ${asset.location.name}` : ""}
                                     </div>

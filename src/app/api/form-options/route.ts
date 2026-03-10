@@ -21,7 +21,7 @@ export async function GET() {
         where: { status: { not: "RETIRED" } },
         orderBy: { assetTag: "asc" },
         select: {
-          id: true, assetTag: true, brand: true, model: true,
+          id: true, assetTag: true, name: true, brand: true, model: true,
           serialNumber: true, type: true, status: true, locationId: true,
           location: { select: { name: true } },
           category: { select: { name: true } }

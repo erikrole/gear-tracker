@@ -1,8 +1,12 @@
 /**
  * Equipment section definitions for guided checkout picker.
  *
- * 9 tabs mapped to inventory categories:
- *   Cameras, Lenses, Batteries, Audio, Monitors, Tripods, Lighting, Media Storage, Office
+ * 5 tabs with DB-category batching:
+ *   Cameras  ← "Cameras" category
+ *   Lenses   ← "Lenses" category
+ *   Batteries ← "Batteries" category
+ *   Accessories ← "Monitors", "Audio", "Tripods" categories
+ *   Others   ← "Lighting", "Media Storage", "Office" categories
  *
  * Classification priority:
  *   1. Asset's DB category name (via categoryId → Category.name)
@@ -13,12 +17,8 @@ export type EquipmentSectionKey =
   | "cameras"
   | "lenses"
   | "batteries"
-  | "audio"
-  | "monitors"
-  | "tripods"
-  | "lighting"
-  | "media_storage"
-  | "office";
+  | "accessories"
+  | "others";
 
 export type EquipmentSection = {
   key: EquipmentSectionKey;
@@ -30,12 +30,8 @@ export const EQUIPMENT_SECTIONS: EquipmentSection[] = [
   { key: "cameras", label: "Cameras", description: "Camera bodies and camcorders" },
   { key: "lenses", label: "Lenses", description: "Camera lenses" },
   { key: "batteries", label: "Batteries", description: "Batteries, chargers, and power" },
-  { key: "audio", label: "Audio", description: "Microphones, mixers, and audio gear" },
-  { key: "monitors", label: "Monitors", description: "Monitors and recorders" },
-  { key: "tripods", label: "Tripods", description: "Tripods and support" },
-  { key: "lighting", label: "Lighting", description: "Lights, reflectors, and diffusers" },
-  { key: "media_storage", label: "Media Storage", description: "Cards, drives, and readers" },
-  { key: "office", label: "Office", description: "Office supplies and misc gear" },
+  { key: "accessories", label: "Accessories", description: "Monitors, audio, and tripods" },
+  { key: "others", label: "Others", description: "Lighting, media storage, and office" },
 ];
 
 /** Index lookup for section ordering. */
@@ -44,7 +40,6 @@ export function sectionIndex(key: EquipmentSectionKey): number {
 }
 
 /**
- * Check if a section tab should be enabled given the highest section the user has reached.
  * All tabs are always reachable (no forward-lock).
  */
 export function isSectionReachable(
@@ -56,31 +51,36 @@ export function isSectionReachable(
 
 /**
  * Category name → equipment section mapping.
- * Keys are lowercased category names (or parent category names).
+ * Keys are lowercased category names.
  */
 const CATEGORY_MAP: Record<string, EquipmentSectionKey> = {
+  // Cameras tab
   cameras: "cameras",
   camera: "cameras",
   "camera bodies": "cameras",
   bodies: "cameras",
+  // Lenses tab
   lenses: "lenses",
   lens: "lenses",
+  // Batteries tab
   batteries: "batteries",
   battery: "batteries",
-  audio: "audio",
-  microphones: "audio",
-  monitors: "monitors",
-  monitor: "monitors",
-  recorders: "monitors",
-  tripods: "tripods",
-  tripod: "tripods",
-  support: "tripods",
-  lighting: "lighting",
-  lights: "lighting",
-  "media storage": "media_storage",
-  "media cards": "media_storage",
-  storage: "media_storage",
-  office: "office",
+  // Accessories tab (Monitors, Audio, Tripods)
+  monitors: "accessories",
+  monitor: "accessories",
+  recorders: "accessories",
+  audio: "accessories",
+  microphones: "accessories",
+  tripods: "accessories",
+  tripod: "accessories",
+  support: "accessories",
+  // Others tab (Lighting, Media Storage, Office)
+  lighting: "others",
+  lights: "others",
+  "media storage": "others",
+  "media cards": "others",
+  storage: "others",
+  office: "others",
 };
 
 /**
@@ -96,26 +96,15 @@ const BUCKET_KEYWORDS: Record<EquipmentSectionKey, string[]> = {
     "battery", "batteries", "charger", "power supply", "power",
     "v-mount", "vmount", "gold mount",
   ],
-  audio: [
-    "microphone", "mic", "audio", "mixer", "headphone", "speaker",
-    "wireless audio", "lavalier", "shotgun mic",
+  accessories: [
+    "monitor", "recorder", "rig", "cage", "gimbal", "stabilizer",
+    "follow focus", "matte box", "accessory", "accessories",
+    "transmitter", "receiver", "wireless",
+    "microphone", "mic", "audio", "mixer", "headphone",
+    "lavalier", "shotgun mic",
+    "tripod", "monopod", "slider",
   ],
-  monitors: [
-    "monitor", "recorder", "transmitter", "receiver", "wireless video",
-  ],
-  tripods: [
-    "tripod", "monopod", "gimbal", "stabilizer", "rig", "cage",
-    "follow focus", "matte box", "slider",
-  ],
-  lighting: [
-    "light", "lighting", "led panel", "reflector", "diffuser",
-    "gel", "softbox", "fresnel", "strobe",
-  ],
-  media_storage: [
-    "card", "cf card", "sd card", "ssd", "hard drive", "reader",
-    "card reader", "storage", "media",
-  ],
-  office: [], // catch-all — never matched by keywords
+  others: [], // catch-all — never matched by keywords
 };
 
 /**
@@ -131,9 +120,7 @@ export function classifyAssetType(type: string, categoryName?: string | null): E
 
   // 2. Fallback to keyword matching on type
   const normalized = type.toLowerCase().trim();
-  const orderedKeys: EquipmentSectionKey[] = [
-    "cameras", "lenses", "batteries", "audio", "monitors", "tripods", "lighting", "media_storage",
-  ];
+  const orderedKeys: EquipmentSectionKey[] = ["cameras", "lenses", "batteries", "accessories"];
   for (const key of orderedKeys) {
     for (const keyword of BUCKET_KEYWORDS[key]) {
       if (normalized.includes(keyword)) {
@@ -142,7 +129,7 @@ export function classifyAssetType(type: string, categoryName?: string | null): E
     }
   }
 
-  return "office";
+  return "others";
 }
 
 /**
@@ -165,12 +152,8 @@ export function groupAssetsBySection<T extends SerializedAssetLike>(
     cameras: [],
     lenses: [],
     batteries: [],
-    audio: [],
-    monitors: [],
-    tripods: [],
-    lighting: [],
-    media_storage: [],
-    office: [],
+    accessories: [],
+    others: [],
   };
 
   for (const asset of assets) {
@@ -191,12 +174,8 @@ export function groupBulkBySection<T extends BulkSkuLike>(
     cameras: [],
     lenses: [],
     batteries: [],
-    audio: [],
-    monitors: [],
-    tripods: [],
-    lighting: [],
-    media_storage: [],
-    office: [],
+    accessories: [],
+    others: [],
   };
 
   for (const sku of skus) {
