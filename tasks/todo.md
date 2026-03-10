@@ -59,10 +59,9 @@ Last updated: 2026-03-10
 ### Reservations V1 — Checkout Parity (Active)
 - Plan: `tasks/reservations-v1-plan.md`
 - Brief: `docs/BRIEF_RESERVATIONS_V1.md`
-- [ ] Slice 1: Reservation rules + action gating (reservation-rules.ts, permission enforcement)
-- [ ] Slice 2: Reservation detail page V2 (tabs, inline edit, actions, equipment panel)
-- [ ] Slice 3: Reservation create flow + sectioned equipment picker
-- [ ] Slice 4: Reservation list polish (filters, context menu, export, overdue badges)
+- [x] Slice 1: Reservation rules + action gating (reservation-rules.ts, permission enforcement) ✅
+- [x] Slice 2: Reservation detail page V2 (tabs, inline edit, actions, equipment panel) ✅
+- [x] Slice 3+4: Create flow + sectioned picker + list polish (context menu, overdue badges) ✅
 - [ ] Slice 5: Convert-to-checkout flow (explicit endpoint + UI confirmation)
 
 ### Phase A Remaining
