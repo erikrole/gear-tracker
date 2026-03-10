@@ -82,18 +82,15 @@ const EXPECTED_MIGRATIONS = [
 
 async function checkMigrationTable() {
   try {
-    const rows = await db.$queryRaw<
-      { migration_name: string; finished_at: Date | null }[]
-    >`
-      SELECT migration_name, finished_at
-      FROM "_prisma_migrations"
-      ORDER BY migration_name
-    `;
+    const rows: { migration_name: string; finished_at: Date | null }[] =
+      await db.$queryRawUnsafe(
+        `SELECT migration_name, finished_at FROM "_prisma_migrations" ORDER BY migration_name`,
+      );
     return {
       exists: true,
       migrations: rows.map((r) => ({
         name: r.migration_name,
-        appliedAt: r.finished_at,
+        appliedAt: r.finished_at ? new Date(String(r.finished_at)).toISOString() : null,
       })),
     };
   } catch {
@@ -102,11 +99,9 @@ async function checkMigrationTable() {
 }
 
 async function checkTables() {
-  const rows = await db.$queryRaw<{ tablename: string }[]>`
-    SELECT tablename FROM pg_tables
-    WHERE schemaname = 'public'
-    ORDER BY tablename
-  `;
+  const rows: { tablename: string }[] = await db.$queryRawUnsafe(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
+  );
   const existing = new Set(rows.map((r) => r.tablename));
   return {
     present: EXPECTED_TABLES.filter((t) => existing.has(t)),
@@ -123,12 +118,9 @@ async function checkTables() {
 }
 
 async function checkEnums() {
-  const rows = await db.$queryRaw<{ typname: string }[]>`
-    SELECT t.typname FROM pg_type t
-    JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
-    WHERE n.nspname = 'public' AND t.typtype = 'e'
-    ORDER BY t.typname
-  `;
+  const rows: { typname: string }[] = await db.$queryRawUnsafe(
+    `SELECT t.typname FROM pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typtype = 'e' ORDER BY t.typname`,
+  );
   const existing = new Set(rows.map((r) => r.typname));
   return {
     present: EXPECTED_ENUMS.filter((e) => existing.has(e)),
@@ -137,9 +129,9 @@ async function checkEnums() {
 }
 
 async function checkExtensions() {
-  const rows = await db.$queryRaw<{ extname: string }[]>`
-    SELECT extname FROM pg_extension
-  `;
+  const rows: { extname: string }[] = await db.$queryRawUnsafe(
+    `SELECT extname FROM pg_extension`,
+  );
   const existing = new Set(rows.map((r) => r.extname));
   return {
     present: EXPECTED_EXTENSIONS.filter((e) => existing.has(e)),
@@ -148,15 +140,10 @@ async function checkExtensions() {
 }
 
 async function checkColumns() {
-  const rows = await db.$queryRaw<
-    { table_name: string; column_name: string }[]
-  >`
-    SELECT table_name, column_name
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name IN ('assets', 'bookings', 'calendar_events', 'bulk_skus')
-    ORDER BY table_name, ordinal_position
-  `;
+  const rows: { table_name: string; column_name: string }[] =
+    await db.$queryRawUnsafe(
+      `SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('assets', 'bookings', 'calendar_events', 'bulk_skus') ORDER BY table_name, ordinal_position`,
+    );
 
   const byTable = new Map<string, Set<string>>();
   for (const r of rows) {
