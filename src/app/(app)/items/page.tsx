@@ -16,6 +16,7 @@ type CategoryOption = { id: string; name: string; parentId: string | null };
 type Asset = {
   id: string;
   assetTag: string;
+  name: string | null;
   type: string;
   brand: string;
   model: string;
@@ -489,7 +490,7 @@ export default function ItemsPage() {
                             {item.assetTag}
                           </span>
                           <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                            {item.brand} {item.model}
+                            {item.name || `${item.brand} ${item.model}`}
                           </div>
                         </div>
                       </div>

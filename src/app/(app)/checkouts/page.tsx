@@ -15,6 +15,14 @@ import {
 } from "@/lib/equipment-sections";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 
+const STATUS_DOT_COLORS: Record<string, string> = {
+  AVAILABLE: "#22c55e",
+  CHECKED_OUT: "#ef4444",
+  RESERVED: "#a855f7",
+  MAINTENANCE: "#f59e0b",
+  RETIRED: "#9ca3af",
+};
+
 /* ───── Types ───── */
 
 type Checkout = {
@@ -55,6 +63,7 @@ type AvailableAsset = {
   serialNumber: string;
   type: string;
   status: string;
+  computedStatus: string;
   locationId: string;
   location?: { name: string };
   categoryName?: string | null;
@@ -673,8 +682,8 @@ export default function CheckoutsPage() {
                     return (
                       <div key={assetId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", minHeight: 36, gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.name || asset.assetTag}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.name ? `${asset.assetTag} · ` : ""}{asset.brand} {asset.model}</span>
+                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.assetTag}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.name || `${asset.brand} ${asset.model}`}</span>
                         </div>
                         <button type="button" style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
                           onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
@@ -771,7 +780,9 @@ export default function CheckoutsPage() {
                               <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", padding: "6px 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Assets</div>
                             )}
                             {sectionAssets.slice(0, 50).map((asset) => {
-                              const isAvailable = asset.status === "AVAILABLE";
+                              const isAvailable = asset.computedStatus === "AVAILABLE";
+                              const dotColor = STATUS_DOT_COLORS[asset.computedStatus] || "#9ca3af";
+                              const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
                               return (
                                 <div
                                   key={asset.id}
@@ -781,21 +792,18 @@ export default function CheckoutsPage() {
                                     if (!isAvailable) return;
                                     setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id]);
                                   }}
-                                  style={!isAvailable ? { opacity: 0.45, cursor: "default", pointerEvents: "none" as const } : undefined}
+                                  style={!isAvailable ? { cursor: "default" } : undefined}
                                 >
+                                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: dotColor, flexShrink: 0, marginTop: 5 }} title={statusLabel} />
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 14 }}>
-                                      {asset.name || asset.assetTag}
-                                      {!isAvailable && (
-                                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 500, color: "var(--red, #dc2626)", textTransform: "uppercase" }}>
-                                          {asset.status === "MAINTENANCE" ? "In Maintenance" : asset.status.toLowerCase()}
-                                        </span>
-                                      )}
+                                    <div style={{ fontWeight: 700, fontSize: 14, opacity: isAvailable ? 1 : 0.5 }}>
+                                      {asset.assetTag}
                                     </div>
-                                    <div className="equip-picker-meta">
-                                      {asset.name ? `${asset.assetTag} · ` : ""}{asset.brand} {asset.model}
+                                    <div className="equip-picker-meta" style={{ opacity: isAvailable ? 1 : 0.5 }}>
+                                      {asset.name || `${asset.brand} ${asset.model}`}
                                       {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
                                       {asset.location ? ` · ${asset.location.name}` : ""}
+                                      {!isAvailable && ` · ${statusLabel}`}
                                     </div>
                                   </div>
                                 </div>

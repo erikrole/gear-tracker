@@ -6,9 +6,9 @@ import {
 } from "@/lib/equipment-guidance";
 
 describe("getActiveGuidance", () => {
-  it("returns battery hint when camera_body is selected and active section is batteries", () => {
+  it("returns battery hint when cameras is selected and active section is batteries", () => {
     const ctx: GuidanceContext = {
-      selectedSectionKeys: ["camera_body"],
+      selectedSectionKeys: ["cameras"],
       activeSection: "batteries",
     };
     const hints = getActiveGuidance(ctx);
@@ -27,7 +27,7 @@ describe("getActiveGuidance", () => {
 
   it("does NOT show battery hint when active section is not batteries", () => {
     const ctx: GuidanceContext = {
-      selectedSectionKeys: ["camera_body"],
+      selectedSectionKeys: ["cameras"],
       activeSection: "lenses",
     };
     expect(getActiveGuidance(ctx)).toHaveLength(0);
@@ -36,14 +36,14 @@ describe("getActiveGuidance", () => {
   it("returns empty array when nothing is selected", () => {
     const ctx: GuidanceContext = {
       selectedSectionKeys: [],
-      activeSection: "camera_body",
+      activeSection: "cameras",
     };
     expect(getActiveGuidance(ctx)).toHaveLength(0);
   });
 
   it("returns battery hint even with multiple sections selected", () => {
     const ctx: GuidanceContext = {
-      selectedSectionKeys: ["camera_body", "lenses", "accessories"],
+      selectedSectionKeys: ["cameras", "lenses", "accessories"],
       activeSection: "batteries",
     };
     const hints = getActiveGuidance(ctx);
@@ -68,7 +68,6 @@ describe("EQUIPMENT_GUIDANCE_RULES", () => {
   });
 
   it("is extensible — adding a rule does not break existing ones", () => {
-    // Verify the rules array is a normal array we can spread/concat
     const extended = [
       ...EQUIPMENT_GUIDANCE_RULES,
       {
