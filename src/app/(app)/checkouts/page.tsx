@@ -49,6 +49,7 @@ type CalendarEvent = {
 type AvailableAsset = {
   id: string;
   assetTag: string;
+  name: string | null;
   brand: string;
   model: string;
   serialNumber: string;
@@ -56,6 +57,7 @@ type AvailableAsset = {
   status: string;
   locationId: string;
   location?: { name: string };
+  categoryName?: string | null;
 };
 type BulkSkuOption = {
   id: string;
@@ -63,6 +65,7 @@ type BulkSkuOption = {
   category: string;
   unit: string;
   locationId: string;
+  categoryName?: string | null;
 };
 
 type ListResponse = { data: Checkout[]; total: number; limit: number; offset: number };
@@ -82,6 +85,12 @@ function formatDate(iso: string) {
 
 function formatShortDate(iso: string) {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric" });
+}
+
+function roundTo15Min(date: Date): Date {
+  const ms = date.getTime();
+  const fifteen = 15 * 60 * 1000;
+  return new Date(Math.ceil(ms / fifteen) * fifteen);
 }
 
 function toLocalDateTimeValue(date: Date) {
@@ -116,16 +125,16 @@ export default function CheckoutsPage() {
   const [createTitle, setCreateTitle] = useState("");
   const [createLocationId, setCreateLocationId] = useState("");
   const [createRequester, setCreateRequester] = useState("");
-  const [createStartsAt, setCreateStartsAt] = useState(toLocalDateTimeValue(new Date()));
-  const [createEndsAt, setCreateEndsAt] = useState(toLocalDateTimeValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+  const [createStartsAt, setCreateStartsAt] = useState(() => toLocalDateTimeValue(roundTo15Min(new Date())));
+  const [createEndsAt, setCreateEndsAt] = useState(() => toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))));
   const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // ── Equipment picker state ──
   const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
-  const [showEquipPicker, setShowEquipPicker] = useState(false);
-  const [activeSection, setActiveSection] = useState<EquipmentSectionKey | null>(null);
+  const [showEquipPicker, setShowEquipPicker] = useState(true);
+  const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
   const [highestReached, setHighestReached] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
   const [equipSearch, setEquipSearch] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
@@ -180,6 +189,10 @@ export default function CheckoutsPage() {
         if (json?.user) {
           setCurrentUserId(json.user.id || "");
           setCurrentUserRole(json.user.role || "");
+          // Default requester to current user
+          if (!createRequester && json.user.id) {
+            setCreateRequester(json.user.id);
+          }
         }
       });
   }, []);
@@ -236,7 +249,7 @@ export default function CheckoutsPage() {
 
   async function handleCreate() {
     if (!createTitle.trim()) { setCreateError("Title is required"); return; }
-    if (!createRequester) { setCreateError("Requester is required"); return; }
+    if (!createRequester) { setCreateError("User is required"); return; }
     if (!createLocationId) { setCreateError("Location is required"); return; }
 
     setSubmitting(true);
@@ -302,12 +315,12 @@ export default function CheckoutsPage() {
       setCreateTitle("");
       setCreateSport("");
       setSelectedEvent(null);
-      setCreateStartsAt(toLocalDateTimeValue(new Date()));
-      setCreateEndsAt(toLocalDateTimeValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+      setCreateStartsAt(toLocalDateTimeValue(roundTo15Min(new Date())));
+      setCreateEndsAt(toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))));
       setSelectedAssetIds([]);
       setSelectedBulkItems([]);
-      setShowEquipPicker(false);
-      setActiveSection(null);
+      setShowEquipPicker(true);
+      setActiveSection(EQUIPMENT_SECTIONS[0].key);
       setHighestReached(EQUIPMENT_SECTIONS[0].key);
       setEquipSearch("");
       setSubmitting(false);
@@ -433,7 +446,7 @@ export default function CheckoutsPage() {
   // Section counts (total available, not filtered)
   const sectionCounts = useMemo(() => {
     const counts: Record<EquipmentSectionKey, number> = {
-      camera_body: 0, accessories: 0, lenses: 0, batteries: 0, other: 0,
+      cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
     };
     for (const key of Object.keys(counts) as EquipmentSectionKey[]) {
       counts[key] = (assetsBySection[key]?.length || 0) + (bulkBySection[key]?.length || 0);
@@ -593,7 +606,7 @@ export default function CheckoutsPage() {
             {/* Requester + Location */}
             <div className="field-row">
               <div className="field-compact">
-                <label>Requester</label>
+                <label>User</label>
                 <select value={createRequester} onChange={(e) => setCreateRequester(e.target.value)} required>
                   <option value="">Select...</option>
                   {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -636,25 +649,19 @@ export default function CheckoutsPage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
                   Equipment{equipmentCount > 0 ? ` (${equipmentCount} selected)` : ""}
                 </label>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => {
-                    if (showEquipPicker) {
+                {showEquipPicker && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => {
                       setShowEquipPicker(false);
-                      setActiveSection(null);
                       setEquipSearch("");
-                    } else {
-                      setShowEquipPicker(true);
-                      setActiveSection(EQUIPMENT_SECTIONS[0].key);
-                      setHighestReached(EQUIPMENT_SECTIONS[0].key);
-                      setEquipSearch("");
-                    }
-                  }}
-                  style={{ minHeight: 32 }}
-                >
-                  {showEquipPicker ? "Done adding" : "+ Add equipment"}
-                </button>
+                    }}
+                    style={{ minHeight: 32 }}
+                  >
+                    Done adding
+                  </button>
+                )}
               </div>
 
               {/* Persistent selected items summary */}
@@ -666,8 +673,8 @@ export default function CheckoutsPage() {
                     return (
                       <div key={assetId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", minHeight: 36, gap: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.assetTag}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.brand} {asset.model}</span>
+                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.name || asset.assetTag}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.name ? `${asset.assetTag} · ` : ""}{asset.brand} {asset.model}</span>
                         </div>
                         <button type="button" style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
                           onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
@@ -777,8 +784,8 @@ export default function CheckoutsPage() {
                                   style={!isAvailable ? { opacity: 0.45, cursor: "default", pointerEvents: "none" as const } : undefined}
                                 >
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: 13 }}>
-                                      {asset.assetTag}
+                                    <div style={{ fontWeight: 700, fontSize: 14 }}>
+                                      {asset.name || asset.assetTag}
                                       {!isAvailable && (
                                         <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 500, color: "var(--red, #dc2626)", textTransform: "uppercase" }}>
                                           {asset.status === "MAINTENANCE" ? "In Maintenance" : asset.status.toLowerCase()}
@@ -786,7 +793,7 @@ export default function CheckoutsPage() {
                                       )}
                                     </div>
                                     <div className="equip-picker-meta">
-                                      {asset.brand} {asset.model}
+                                      {asset.name ? `${asset.assetTag} · ` : ""}{asset.brand} {asset.model}
                                       {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
                                       {asset.location ? ` · ${asset.location.name}` : ""}
                                     </div>
@@ -860,7 +867,7 @@ export default function CheckoutsPage() {
                                   {next.label} &rarr;
                                 </button>
                               ) : (
-                                <button type="button" className="btn btn-sm" onClick={() => { setShowEquipPicker(false); setActiveSection(null); setEquipSearch(""); }} style={{ minHeight: 32 }}>
+                                <button type="button" className="btn btn-sm" onClick={() => { setShowEquipPicker(false); setEquipSearch(""); }} style={{ minHeight: 32 }}>
                                   Done
                                 </button>
                               )}
@@ -874,8 +881,18 @@ export default function CheckoutsPage() {
               )}
 
               {equipmentCount === 0 && !showEquipPicker && (
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  No equipment selected. You can also add equipment after creating.
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    No equipment selected. You can also add equipment after creating.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => { setShowEquipPicker(true); setActiveSection(EQUIPMENT_SECTIONS[0].key); }}
+                    style={{ minHeight: 32 }}
+                  >
+                    + Add equipment
+                  </button>
                 </div>
               )}
             </div>

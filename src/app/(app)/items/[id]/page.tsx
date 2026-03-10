@@ -61,8 +61,18 @@ type AssetDetail = {
       title: string;
       startsAt: string;
       endsAt: string;
+      sportCode?: string | null;
       requester: { name: string; email: string };
       location: { name: string };
+      event?: {
+        id: string;
+        summary: string;
+        sportCode: string | null;
+        opponent: string | null;
+        isHome: boolean | null;
+        startsAt: string;
+        endsAt: string;
+      } | null;
     };
   }>;
 };
@@ -786,35 +796,91 @@ function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectB
     .map((e) => e.booking)
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
 
+  // Separate bookings with events and without
+  const eventBookings = allBookings.filter((b) => b.event);
+  const standaloneBookings = allBookings.filter((b) => !b.event);
+
   return (
-    <div className="card" style={{ marginTop: 14 }}>
-      <div className="card-header"><h2>Calendar</h2></div>
-      <div style={{ padding: 16 }}>
-        {allBookings.length === 0 ? (
-          <div className="empty-state">No bookings for this item.</div>
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {allBookings.map((b) => (
-              <div
-                key={b.id}
-                className="event-row"
-                style={{ cursor: "pointer" }}
-                onClick={() => onSelectBooking(b.id)}
-              >
-                <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
-                  {b.kind === "CHECKOUT" ? "CO" : "RES"}
-                </span>
-                <div className="event-row-main">
-                  <div className="event-row-title">{b.title}</div>
-                  <div className="event-row-meta">
-                    {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
+    <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
+      {/* Event-linked bookings */}
+      <div className="card">
+        <div className="card-header"><h2>Event-linked Bookings</h2></div>
+        <div style={{ padding: 16 }}>
+          {eventBookings.length === 0 ? (
+            <div className="empty-state">No event-linked bookings for this item.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {eventBookings.map((b) => (
+                <div
+                  key={b.id}
+                  className="event-row"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => onSelectBooking(b.id)}
+                >
+                  <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
+                    {b.kind === "CHECKOUT" ? "CO" : "RES"}
+                  </span>
+                  <div className="event-row-main">
+                    <div className="event-row-title">
+                      {b.title}
+                      {b.sportCode && <span className="badge-sport" style={{ marginLeft: 6 }}>{b.sportCode}</span>}
+                    </div>
+                    <div className="event-row-meta">
+                      {b.event && (
+                        <span style={{ fontWeight: 500 }}>
+                          {b.event.opponent
+                            ? `${b.event.isHome ? "vs" : "at"} ${b.event.opponent}`
+                            : b.event.summary}
+                          {" · "}
+                        </span>
+                      )}
+                      {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Standalone bookings */}
+      {standaloneBookings.length > 0 && (
+        <div className="card">
+          <div className="card-header"><h2>Other Bookings</h2></div>
+          <div style={{ padding: 16 }}>
+            <div style={{ display: "grid", gap: 8 }}>
+              {standaloneBookings.map((b) => (
+                <div
+                  key={b.id}
+                  className="event-row"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => onSelectBooking(b.id)}
+                >
+                  <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
+                    {b.kind === "CHECKOUT" ? "CO" : "RES"}
+                  </span>
+                  <div className="event-row-main">
+                    <div className="event-row-title">{b.title}</div>
+                    <div className="event-row-meta">
+                      {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {allBookings.length === 0 && (
+        <div className="card">
+          <div className="card-header"><h2>Calendar</h2></div>
+          <div style={{ padding: 16 }}>
+            <div className="empty-state">No bookings for this item.</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

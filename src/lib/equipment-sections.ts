@@ -1,26 +1,24 @@
 /**
  * Equipment section definitions for guided checkout picker.
  *
- * Maps asset type/category to ordered equipment sections:
- * 1. Bodies
- * 2. Lenses
- * 3. Batteries
- * 4. Accessories
- * 5. Others
+ * 5 tabs with DB-category batching:
+ *   Cameras  ← "Cameras" category
+ *   Lenses   ← "Lenses" category
+ *   Batteries ← "Batteries" category
+ *   Accessories ← "Monitors", "Audio", "Tripods" categories
+ *   Others   ← "Lighting", "Media Storage", "Office" categories
  *
- * Progression is locked forward: users must advance in order.
- * Users may always return to previously reached sections.
- *
- * Uses the `type` field on serialized assets (sourced from Cheqroom "Category")
- * and the `category` field on bulk SKUs.
+ * Classification priority:
+ *   1. Asset's DB category name (via categoryId → Category.name)
+ *   2. Fallback: keyword matching on asset `type` string
  */
 
 export type EquipmentSectionKey =
-  | "camera_body"
+  | "cameras"
   | "lenses"
   | "batteries"
   | "accessories"
-  | "other";
+  | "others";
 
 export type EquipmentSection = {
   key: EquipmentSectionKey;
@@ -29,11 +27,11 @@ export type EquipmentSection = {
 };
 
 export const EQUIPMENT_SECTIONS: EquipmentSection[] = [
-  { key: "camera_body", label: "Bodies", description: "Select camera bodies" },
-  { key: "lenses", label: "Lenses", description: "Select lenses" },
+  { key: "cameras", label: "Cameras", description: "Camera bodies and camcorders" },
+  { key: "lenses", label: "Lenses", description: "Camera lenses" },
   { key: "batteries", label: "Batteries", description: "Batteries, chargers, and power" },
-  { key: "accessories", label: "Accessories", description: "Monitors, rigs, and camera accessories" },
-  { key: "other", label: "Others", description: "Cables, audio, tripods, and other gear" },
+  { key: "accessories", label: "Accessories", description: "Monitors, audio, and tripods" },
+  { key: "others", label: "Others", description: "Lighting, media storage, and office" },
 ];
 
 /** Index lookup for section ordering. */
@@ -42,48 +40,87 @@ export function sectionIndex(key: EquipmentSectionKey): number {
 }
 
 /**
- * Check if a section tab should be enabled given the highest section the user has reached.
- * A section is reachable if its index <= highestReachedIndex.
+ * All tabs are always reachable (no forward-lock).
  */
 export function isSectionReachable(
-  sectionKey: EquipmentSectionKey,
-  highestReachedKey: EquipmentSectionKey
+  _sectionKey: EquipmentSectionKey,
+  _highestReachedKey: EquipmentSectionKey
 ): boolean {
-  return sectionIndex(sectionKey) <= sectionIndex(highestReachedKey);
+  return true;
 }
 
 /**
- * Normalized keyword sets for each section bucket.
- * Matching is case-insensitive and uses substring containment.
+ * Category name → equipment section mapping.
+ * Keys are lowercased category names.
+ */
+const CATEGORY_MAP: Record<string, EquipmentSectionKey> = {
+  // Cameras tab
+  cameras: "cameras",
+  camera: "cameras",
+  "camera bodies": "cameras",
+  bodies: "cameras",
+  // Lenses tab
+  lenses: "lenses",
+  lens: "lenses",
+  // Batteries tab
+  batteries: "batteries",
+  battery: "batteries",
+  // Accessories tab (Monitors, Audio, Tripods)
+  monitors: "accessories",
+  monitor: "accessories",
+  recorders: "accessories",
+  audio: "accessories",
+  microphones: "accessories",
+  tripods: "accessories",
+  tripod: "accessories",
+  support: "accessories",
+  // Others tab (Lighting, Media Storage, Office)
+  lighting: "others",
+  lights: "others",
+  "media storage": "others",
+  "media cards": "others",
+  storage: "others",
+  office: "others",
+};
+
+/**
+ * Normalized keyword sets for type-based fallback classification.
  */
 const BUCKET_KEYWORDS: Record<EquipmentSectionKey, string[]> = {
-  camera_body: [
+  cameras: [
     "camera", "camcorder", "cinema camera", "dslr", "mirrorless",
     "video camera", "camera body",
+  ],
+  lenses: ["lens", "lenses"],
+  batteries: [
+    "battery", "batteries", "charger", "power supply", "power",
+    "v-mount", "vmount", "gold mount",
   ],
   accessories: [
     "monitor", "recorder", "rig", "cage", "gimbal", "stabilizer",
     "follow focus", "matte box", "accessory", "accessories",
     "transmitter", "receiver", "wireless",
+    "microphone", "mic", "audio", "mixer", "headphone",
+    "lavalier", "shotgun mic",
+    "tripod", "monopod", "slider",
   ],
-  lenses: [
-    "lens", "lenses",
-  ],
-  batteries: [
-    "battery", "batteries", "charger", "power supply", "power",
-    "v-mount", "vmount", "gold mount",
-  ],
-  other: [], // catch-all — never matched by keywords
+  others: [], // catch-all — never matched by keywords
 };
 
 /**
- * Classify a serialized asset type string into an equipment section.
+ * Classify an asset into an equipment section.
+ * Checks category name first, then falls back to keyword matching on type.
  */
-export function classifyAssetType(type: string): EquipmentSectionKey {
-  const normalized = type.toLowerCase().trim();
+export function classifyAssetType(type: string, categoryName?: string | null): EquipmentSectionKey {
+  // 1. Try category name mapping
+  if (categoryName) {
+    const catKey = CATEGORY_MAP[categoryName.toLowerCase().trim()];
+    if (catKey) return catKey;
+  }
 
-  // Check each bucket in priority order (not "other")
-  const orderedKeys: EquipmentSectionKey[] = ["camera_body", "lenses", "batteries", "accessories"];
+  // 2. Fallback to keyword matching on type
+  const normalized = type.toLowerCase().trim();
+  const orderedKeys: EquipmentSectionKey[] = ["cameras", "lenses", "batteries", "accessories"];
   for (const key of orderedKeys) {
     for (const keyword of BUCKET_KEYWORDS[key]) {
       if (normalized.includes(keyword)) {
@@ -92,18 +129,18 @@ export function classifyAssetType(type: string): EquipmentSectionKey {
     }
   }
 
-  return "other";
+  return "others";
 }
 
 /**
  * Classify a bulk SKU category string into an equipment section.
  */
-export function classifyBulkCategory(category: string): EquipmentSectionKey {
-  return classifyAssetType(category); // Same logic applies
+export function classifyBulkCategory(category: string, categoryName?: string | null): EquipmentSectionKey {
+  return classifyAssetType(category, categoryName);
 }
 
-type SerializedAssetLike = { id: string; type: string; [k: string]: unknown };
-type BulkSkuLike = { id: string; category: string; [k: string]: unknown };
+type SerializedAssetLike = { id: string; type: string; categoryName?: string | null; [k: string]: unknown };
+type BulkSkuLike = { id: string; category: string; categoryName?: string | null; [k: string]: unknown };
 
 /**
  * Group serialized assets by equipment section.
@@ -112,15 +149,15 @@ export function groupAssetsBySection<T extends SerializedAssetLike>(
   assets: T[]
 ): Record<EquipmentSectionKey, T[]> {
   const groups: Record<EquipmentSectionKey, T[]> = {
-    camera_body: [],
-    accessories: [],
+    cameras: [],
     lenses: [],
     batteries: [],
-    other: [],
+    accessories: [],
+    others: [],
   };
 
   for (const asset of assets) {
-    const section = classifyAssetType(asset.type);
+    const section = classifyAssetType(asset.type, asset.categoryName);
     groups[section].push(asset);
   }
 
@@ -134,15 +171,15 @@ export function groupBulkBySection<T extends BulkSkuLike>(
   skus: T[]
 ): Record<EquipmentSectionKey, T[]> {
   const groups: Record<EquipmentSectionKey, T[]> = {
-    camera_body: [],
-    accessories: [],
+    cameras: [],
     lenses: [],
     batteries: [],
-    other: [],
+    accessories: [],
+    others: [],
   };
 
   for (const sku of skus) {
-    const section = classifyBulkCategory(sku.category);
+    const section = classifyBulkCategory(sku.category, sku.categoryName);
     groups[section].push(sku);
   }
 
