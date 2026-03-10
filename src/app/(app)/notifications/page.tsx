@@ -59,21 +59,31 @@ export default function NotificationsPage() {
   }, [page, unreadOnly]);
 
   async function markAllRead() {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_all_read" })
-    });
-    await reload();
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_all_read" })
+      });
+      if (!res.ok) toast("Failed to mark notifications as read", "error");
+      await reload();
+    } catch {
+      toast("Network error", "error");
+    }
   }
 
   async function markRead(id: string) {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_read", id })
-    });
-    await reload();
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_read", id })
+      });
+      if (!res.ok) toast("Failed to mark notification as read", "error");
+      await reload();
+    } catch {
+      toast("Network error", "error");
+    }
   }
 
   async function runProcessing() {
@@ -199,15 +209,18 @@ export default function NotificationsPage() {
                       {n.body}
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                      {n.payload?.bookingId && (
-                        <Link
-                          href={`/checkouts/${n.payload.bookingId}`}
-                          className="btn btn-sm"
-                          style={{ fontSize: 12 }}
-                        >
-                          View checkout
-                        </Link>
-                      )}
+                      {n.payload?.bookingId && (() => {
+                        const kind = n.payload?.bookingKind;
+                        const href = kind === "RESERVATION"
+                          ? `/reservations/${n.payload.bookingId}`
+                          : `/checkouts/${n.payload.bookingId}`;
+                        const label = kind === "RESERVATION" ? "View reservation" : "View checkout";
+                        return (
+                          <Link href={href} className="btn btn-sm" style={{ fontSize: 12 }}>
+                            {label}
+                          </Link>
+                        );
+                      })()}
                       {!n.readAt && (
                         <button
                           className="btn btn-sm"

@@ -63,6 +63,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     fetch("/api/me")
@@ -73,7 +74,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .then((json) => setUser(json.user))
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
-  }, [router]);
+
+    // Fetch unread notification count
+    fetch("/api/notifications?limit=0&unread=true")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.unreadCount != null) setUnreadNotifications(json.unreadCount); })
+      .catch(() => {});
+  }, [router, pathname]);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -98,7 +105,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         className={`sidebar-overlay${sidebarOpen ? " visible" : ""}`}
         onClick={() => setSidebarOpen(false)}
       />
-      <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} unreadNotifications={unreadNotifications} />
       <main className="app-main">
         <header className="topbar">
           <button

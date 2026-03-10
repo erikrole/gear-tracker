@@ -48,12 +48,18 @@ function formatDate(iso: string) {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data) setData(json.data); });
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((json) => { if (json?.data) setData(json.data); else setFetchError(true); })
+      .catch(() => setFetchError(true));
   }, []);
+
+  if (fetchError) {
+    return <div className="empty-state">Failed to load dashboard data. Please refresh the page.</div>;
+  }
 
   if (!data) {
     return (

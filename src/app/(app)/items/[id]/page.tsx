@@ -311,7 +311,7 @@ function FiscalYearField({ value, canEdit, onSave }: { value: string; canEdit: b
 
 /* ── Category Select Field ──────────────────────────────── */
 
-function CategoryField({ value, canEdit, categories, onSave, onCategoriesChanged }: { value: string; canEdit: boolean; categories: CategoryOption[]; onSave: (id: string) => Promise<void>; onCategoriesChanged: () => void }) {
+function CategoryField({ value, currentId, canEdit, categories, onSave, onCategoriesChanged }: { value: string; currentId: string; canEdit: boolean; categories: CategoryOption[]; onSave: (id: string) => Promise<void>; onCategoriesChanged: () => void }) {
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -360,7 +360,7 @@ function CategoryField({ value, canEdit, categories, onSave, onCategoriesChanged
           </div>
         ) : editing ? (
           <select
-            defaultValue=""
+            defaultValue={currentId}
             onChange={async (e) => {
               if (e.target.value === "__create__") { setEditing(false); setCreating(true); return; }
               await onSave(e.target.value); setEditing(false);
@@ -647,6 +647,7 @@ function ItemInfoCard({
         {renderFieldGroup("Administrative", adminFields, (
           <CategoryField
             value={asset.category?.name || ""}
+            currentId={asset.category?.id || ""}
             canEdit={canEdit}
             categories={categories}
             onSave={saveCategory}
