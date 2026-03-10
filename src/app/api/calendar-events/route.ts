@@ -19,8 +19,10 @@ export async function GET(req: Request) {
     const effectiveStartDate = startDate ? new Date(startDate) : new Date();
 
     const where = {
-      startsAt: { gte: effectiveStartDate },
-      ...(endDate ? { endsAt: { lte: new Date(endDate) } } : {}),
+      startsAt: {
+        gte: effectiveStartDate,
+        ...(endDate ? { lte: new Date(endDate) } : {}),
+      },
       ...(unmappedOnly ? { locationId: null } : {}),
       ...(sportCode ? { sportCode } : {}),
       status: { not: "CANCELLED" as const }

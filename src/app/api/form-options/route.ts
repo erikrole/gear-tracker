@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { DEFAULT_LOCATIONS } from "@/lib/default-locations";
+import { deriveAssetStatuses } from "@/lib/services/status";
 
 export async function GET() {
   try {
@@ -34,9 +35,13 @@ export async function GET() {
       })
     ]);
 
+    // Enrich assets with computed status (CHECKED_OUT, RESERVED, etc.)
+    const statusMap = await deriveAssetStatuses(availableAssets.map((a) => a.id));
+
     // Flatten category name onto assets and bulkSkus for equipment section classification
     const assetsWithCategory = availableAssets.map((a) => ({
       ...a,
+      computedStatus: statusMap.get(a.id) ?? a.status,
       categoryName: a.category?.name ?? null,
       category: undefined,
     }));

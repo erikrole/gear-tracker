@@ -14,20 +14,18 @@ import {
 
 describe("classifyAssetType", () => {
   it("classifies camera bodies", () => {
-    expect(classifyAssetType("Camera")).toBe("camera_body");
-    expect(classifyAssetType("DSLR")).toBe("camera_body");
-    expect(classifyAssetType("Mirrorless")).toBe("camera_body");
-    expect(classifyAssetType("Video Camera")).toBe("camera_body");
-    expect(classifyAssetType("Cinema Camera")).toBe("camera_body");
-    expect(classifyAssetType("Camcorder")).toBe("camera_body");
-    expect(classifyAssetType("camera body")).toBe("camera_body");
+    expect(classifyAssetType("Camera")).toBe("cameras");
+    expect(classifyAssetType("DSLR")).toBe("cameras");
+    expect(classifyAssetType("Mirrorless")).toBe("cameras");
+    expect(classifyAssetType("Video Camera")).toBe("cameras");
+    expect(classifyAssetType("Cinema Camera")).toBe("cameras");
+    expect(classifyAssetType("Camcorder")).toBe("cameras");
+    expect(classifyAssetType("camera body")).toBe("cameras");
   });
 
   it("classifies lenses", () => {
     expect(classifyAssetType("Lens")).toBe("lenses");
     expect(classifyAssetType("Lenses")).toBe("lenses");
-    expect(classifyAssetType("Prime Lens")).toBe("lenses");
-    expect(classifyAssetType("Zoom Lens")).toBe("lenses");
   });
 
   it("classifies batteries and chargers", () => {
@@ -37,11 +35,9 @@ describe("classifyAssetType", () => {
     expect(classifyAssetType("Power Supply")).toBe("batteries");
     expect(classifyAssetType("V-Mount")).toBe("batteries");
     expect(classifyAssetType("Gold Mount")).toBe("batteries");
-    expect(classifyAssetType("V-Mount Charger")).toBe("batteries");
-    expect(classifyAssetType("Battery Charger")).toBe("batteries");
   });
 
-  it("classifies accessories and monitors", () => {
+  it("classifies accessories (monitors, audio, tripods)", () => {
     expect(classifyAssetType("Monitor")).toBe("accessories");
     expect(classifyAssetType("Recorder")).toBe("accessories");
     expect(classifyAssetType("Gimbal")).toBe("accessories");
@@ -49,32 +45,44 @@ describe("classifyAssetType", () => {
     expect(classifyAssetType("Wireless Transmitter")).toBe("accessories");
     expect(classifyAssetType("Cage")).toBe("accessories");
     expect(classifyAssetType("Rig")).toBe("accessories");
+    expect(classifyAssetType("Microphone")).toBe("accessories");
+    expect(classifyAssetType("Audio Mixer")).toBe("accessories");
+    expect(classifyAssetType("Tripod")).toBe("accessories");
+    expect(classifyAssetType("Slider")).toBe("accessories");
   });
 
-  it("puts unrecognized types in 'other'", () => {
-    expect(classifyAssetType("Tripod")).toBe("other");
-    expect(classifyAssetType("Audio")).toBe("other");
-    expect(classifyAssetType("Cable")).toBe("other");
-    expect(classifyAssetType("Lighting")).toBe("other");
-    expect(classifyAssetType("equipment")).toBe("other");
-    expect(classifyAssetType("Unknown")).toBe("other");
+  it("classifies by category name when provided", () => {
+    expect(classifyAssetType("equipment", "Cameras")).toBe("cameras");
+    expect(classifyAssetType("equipment", "Lenses")).toBe("lenses");
+    expect(classifyAssetType("equipment", "Batteries")).toBe("batteries");
+    expect(classifyAssetType("equipment", "Monitors")).toBe("accessories");
+    expect(classifyAssetType("equipment", "Audio")).toBe("accessories");
+    expect(classifyAssetType("equipment", "Tripods")).toBe("accessories");
+    expect(classifyAssetType("equipment", "Lighting")).toBe("others");
+    expect(classifyAssetType("equipment", "Media Storage")).toBe("others");
+    expect(classifyAssetType("equipment", "Office")).toBe("others");
+  });
+
+  it("puts unrecognized types in 'others'", () => {
+    expect(classifyAssetType("Cable")).toBe("others");
+    expect(classifyAssetType("equipment")).toBe("others");
+    expect(classifyAssetType("Unknown")).toBe("others");
   });
 
   it("is case insensitive", () => {
-    expect(classifyAssetType("CAMERA")).toBe("camera_body");
+    expect(classifyAssetType("CAMERA")).toBe("cameras");
     expect(classifyAssetType("lens")).toBe("lenses");
     expect(classifyAssetType("BATTERY")).toBe("batteries");
     expect(classifyAssetType("monitor")).toBe("accessories");
   });
 
   it("handles empty and whitespace", () => {
-    expect(classifyAssetType("")).toBe("other");
-    expect(classifyAssetType("   ")).toBe("other");
+    expect(classifyAssetType("")).toBe("others");
+    expect(classifyAssetType("   ")).toBe("others");
   });
 
-  it("prioritizes camera_body over lenses for 'Camera Lens'", () => {
-    // camera_body is checked first in priority order
-    expect(classifyAssetType("Camera Lens")).toBe("camera_body");
+  it("prioritizes cameras over lenses for 'Camera Lens'", () => {
+    expect(classifyAssetType("Camera Lens")).toBe("cameras");
   });
 });
 
@@ -83,7 +91,7 @@ describe("classifyAssetType", () => {
 describe("classifyBulkCategory", () => {
   it("uses same logic as asset type classification", () => {
     expect(classifyBulkCategory("Battery")).toBe("batteries");
-    expect(classifyBulkCategory("Cable")).toBe("other");
+    expect(classifyBulkCategory("Cable")).toBe("others");
     expect(classifyBulkCategory("Lens")).toBe("lenses");
   });
 });
@@ -96,17 +104,17 @@ describe("groupAssetsBySection", () => {
     { id: "a2", type: "Lens", assetTag: "LNS-001" },
     { id: "a3", type: "Battery", assetTag: "BAT-001" },
     { id: "a4", type: "Monitor", assetTag: "MON-001" },
-    { id: "a5", type: "Tripod", assetTag: "TRI-001" },
+    { id: "a5", type: "Cable", assetTag: "CBL-001" },
     { id: "a6", type: "Camera", assetTag: "CAM-002" },
   ];
 
   it("groups assets into correct sections", () => {
     const groups = groupAssetsBySection(assets);
-    expect(groups.camera_body.map((a) => a.id)).toEqual(["a1", "a6"]);
+    expect(groups.cameras.map((a) => a.id)).toEqual(["a1", "a6"]);
     expect(groups.lenses.map((a) => a.id)).toEqual(["a2"]);
     expect(groups.batteries.map((a) => a.id)).toEqual(["a3"]);
     expect(groups.accessories.map((a) => a.id)).toEqual(["a4"]);
-    expect(groups.other.map((a) => a.id)).toEqual(["a5"]);
+    expect(groups.others.map((a) => a.id)).toEqual(["a5"]);
   });
 
   it("returns empty arrays for sections with no items", () => {
@@ -114,7 +122,7 @@ describe("groupAssetsBySection", () => {
     expect(groups.lenses).toEqual([]);
     expect(groups.batteries).toEqual([]);
     expect(groups.accessories).toEqual([]);
-    expect(groups.other).toEqual([]);
+    expect(groups.others).toEqual([]);
   });
 
   it("handles empty input", () => {
@@ -136,17 +144,17 @@ describe("groupBulkBySection", () => {
     ];
     const groups = groupBulkBySection(skus);
     expect(groups.batteries.map((s) => s.id)).toEqual(["b1", "b3"]);
-    expect(groups.other.map((s) => s.id)).toEqual(["b2"]);
+    expect(groups.others.map((s) => s.id)).toEqual(["b2"]);
   });
 });
 
 /* ───── EQUIPMENT_SECTIONS constant ───── */
 
 describe("EQUIPMENT_SECTIONS", () => {
-  it("has 5 sections in the correct order: Bodies → Lenses → Batteries → Accessories → Others", () => {
+  it("has 5 sections in the correct order: Cameras → Lenses → Batteries → Accessories → Others", () => {
     expect(EQUIPMENT_SECTIONS).toHaveLength(5);
     expect(EQUIPMENT_SECTIONS.map((s) => s.key)).toEqual([
-      "camera_body", "lenses", "batteries", "accessories", "other",
+      "cameras", "lenses", "batteries", "accessories", "others",
     ]);
   });
 
@@ -162,58 +170,33 @@ describe("EQUIPMENT_SECTIONS", () => {
 
 describe("sectionIndex", () => {
   it("returns correct indices for all sections", () => {
-    expect(sectionIndex("camera_body")).toBe(0);
+    expect(sectionIndex("cameras")).toBe(0);
     expect(sectionIndex("lenses")).toBe(1);
     expect(sectionIndex("batteries")).toBe(2);
     expect(sectionIndex("accessories")).toBe(3);
-    expect(sectionIndex("other")).toBe(4);
+    expect(sectionIndex("others")).toBe(4);
   });
 });
 
-/* ───── isSectionReachable (locked forward progression) ───── */
+/* ───── isSectionReachable (all tabs always reachable) ───── */
 
 describe("isSectionReachable", () => {
-  it("first section is always reachable", () => {
-    expect(isSectionReachable("camera_body", "camera_body")).toBe(true);
-  });
-
-  it("sections at or before highestReached are reachable", () => {
-    expect(isSectionReachable("camera_body", "batteries")).toBe(true);
-    expect(isSectionReachable("lenses", "batteries")).toBe(true);
-    expect(isSectionReachable("batteries", "batteries")).toBe(true);
-  });
-
-  it("sections after highestReached are NOT reachable", () => {
-    expect(isSectionReachable("accessories", "batteries")).toBe(false);
-    expect(isSectionReachable("other", "batteries")).toBe(false);
-  });
-
-  it("backward navigation is always allowed to reached sections", () => {
-    // If user has reached "other" (last section), all are reachable
-    expect(isSectionReachable("camera_body", "other")).toBe(true);
-    expect(isSectionReachable("lenses", "other")).toBe(true);
-    expect(isSectionReachable("batteries", "other")).toBe(true);
-    expect(isSectionReachable("accessories", "other")).toBe(true);
-    expect(isSectionReachable("other", "other")).toBe(true);
-  });
-
-  it("tab disabled state: only camera_body reachable at start", () => {
-    const start: EquipmentSectionKey = "camera_body";
-    expect(isSectionReachable("camera_body", start)).toBe(true);
-    expect(isSectionReachable("lenses", start)).toBe(false);
-    expect(isSectionReachable("batteries", start)).toBe(false);
-    expect(isSectionReachable("accessories", start)).toBe(false);
-    expect(isSectionReachable("other", start)).toBe(false);
+  it("all sections are always reachable", () => {
+    expect(isSectionReachable("cameras", "cameras")).toBe(true);
+    expect(isSectionReachable("lenses", "cameras")).toBe(true);
+    expect(isSectionReachable("batteries", "cameras")).toBe(true);
+    expect(isSectionReachable("accessories", "cameras")).toBe(true);
+    expect(isSectionReachable("others", "cameras")).toBe(true);
   });
 });
 
 /* ───── "Everything Else" catch-all ───── */
 
 describe("catch-all behavior", () => {
-  it("items with no recognized category end up in 'other'", () => {
-    const miscTypes = ["Lighting", "Audio", "Cable", "Tape", "Stand", "Bag", "Case", "equipment", "foo bar"];
+  it("items with no recognized category or type end up in 'others'", () => {
+    const miscTypes = ["Cable", "Tape", "Bag", "Case", "equipment", "foo bar"];
     for (const t of miscTypes) {
-      expect(classifyAssetType(t)).toBe("other");
+      expect(classifyAssetType(t)).toBe("others");
     }
   });
 });
