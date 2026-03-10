@@ -1,7 +1,35 @@
 export const runtime = "edge";
+import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, HttpError } from "@/lib/http";
+
+const patchSourceSchema = z.object({
+  name: z.string().min(1).optional(),
+  url: z.string().url().optional(),
+  enabled: z.boolean().optional(),
+}).refine((d) => Object.keys(d).length > 0, { message: "No fields to update" });
+
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    await requireAuth();
+    const { id } = await ctx.params;
+
+    const source = await db.calendarSource.findUnique({ where: { id } });
+    if (!source) throw new HttpError(404, "Source not found");
+
+    const body = patchSourceSchema.parse(await req.json());
+    const updated = await db.calendarSource.update({
+      where: { id },
+      data: body,
+      include: { _count: { select: { events: true } } },
+    });
+
+    return ok({ data: updated });
+  } catch (error) {
+    return fail(error);
+  }
+}
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
