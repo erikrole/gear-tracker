@@ -206,7 +206,7 @@ export default function BookingDetailsSheet({
       const res = await fetch(`/api/bookings/${bookingId}`);
       if (res.ok) {
         const json = await res.json();
-        setBooking(json.data);
+        if (json?.data) setBooking(json.data);
       }
     } catch { /* network */ }
     setLoading(false);

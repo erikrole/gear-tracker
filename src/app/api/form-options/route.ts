@@ -24,7 +24,7 @@ export async function GET() {
         select: {
           id: true, assetTag: true, name: true, brand: true, model: true,
           serialNumber: true, type: true, status: true, locationId: true,
-          location: { select: { name: true } },
+          location: { select: { id: true, name: true } },
           category: { select: { name: true } }
         }
       }),

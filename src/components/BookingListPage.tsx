@@ -203,7 +203,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         setCreateLocationId(json.data.locations?.[0]?.id || "");
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
-      });
+      })
+      .catch(() => { /* form-options unavailable */ });
     fetch("/api/me")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
@@ -214,7 +215,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
             setCreateRequester(json.user.id);
           }
         }
-      });
+      })
+      .catch(() => { /* auth unavailable */ });
   }, []);
 
   // Fetch events when sport selected
