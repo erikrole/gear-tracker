@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { updateReservation } from "@/lib/services/bookings";
-import { getAllowedReservationActions, requireReservationAction } from "@/lib/services/reservation-rules";
+import { getAllowedReservationActions, requireReservationAction } from "@/lib/services/booking-rules";
 import { updateReservationSchema } from "@/lib/validation";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {

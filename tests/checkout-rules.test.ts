@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canPerformAction, getAllowedActions, type CheckoutAction } from "@/lib/services/checkout-rules";
+import { canPerformAction, getAllowedActions, type CheckoutAction } from "@/lib/services/booking-rules";
 
 const admin = { id: "admin-1", role: "ADMIN" as const };
 const staff = { id: "staff-1", role: "STAFF" as const };

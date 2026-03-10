@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { createBooking } from "@/lib/services/bookings";
-import { requireReservationAction } from "@/lib/services/reservation-rules";
+import { requireReservationAction } from "@/lib/services/booking-rules";
 
 /**
  * POST /api/reservations/[id]/convert

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
-import { getAllowedReservationActionsClient } from "@/lib/reservation-actions";
+import { getAllowedReservationActionsClient } from "@/lib/booking-actions";
 import {
   EQUIPMENT_SECTIONS,
   classifyAssetType,

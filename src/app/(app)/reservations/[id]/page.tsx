@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DataList from "@/components/DataList";
-import type { ReservationAction } from "@/lib/reservation-actions";
+import type { ReservationAction } from "@/lib/booking-actions";
 
 /* ───── Types ───── */
 

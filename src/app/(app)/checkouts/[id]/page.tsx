@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import DataList from "@/components/DataList";
-import type { CheckoutAction } from "@/lib/checkout-actions";
+import type { CheckoutAction } from "@/lib/booking-actions";
 
 type Checkout = {
   id: string;

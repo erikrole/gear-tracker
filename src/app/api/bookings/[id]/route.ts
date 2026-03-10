@@ -6,8 +6,7 @@ import {
   updateReservation,
   updateCheckout
 } from "@/lib/services/bookings";
-import { requireCheckoutAction, getAllowedActions } from "@/lib/services/checkout-rules";
-import { getAllowedReservationActions, requireReservationAction } from "@/lib/services/reservation-rules";
+import { requireCheckoutAction, getAllowedActions, getAllowedReservationActions, requireReservationAction } from "@/lib/services/booking-rules";
 import { updateBookingSchema } from "@/lib/validation";
 
 export async function GET(
