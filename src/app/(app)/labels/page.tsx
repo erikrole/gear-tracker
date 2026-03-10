@@ -1,6 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+function LabelQRCode({ value }: { value: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!value || !canvasRef.current) return;
+    setLoaded(false);
+    import("qrcode").then((QRCode) => {
+      if (!canvasRef.current) return;
+      QRCode.toCanvas(canvasRef.current, value, { width: 80, margin: 1 }, () => {
+        setLoaded(true);
+      });
+    });
+  }, [value]);
+
+  return <canvas ref={canvasRef} style={{ width: 80, height: 80, opacity: loaded ? 1 : 0.3 }} />;
+}
 
 type Asset = {
   id: string;
@@ -119,22 +137,7 @@ export default function LabelsPage() {
           {selectedAssets.map((asset) => (
             <div key={asset.id} className="label-card">
               <div className="label-qr">
-                {/* Simple QR placeholder - in production, use a QR rendering library */}
-                <div style={{
-                  width: 80,
-                  height: 80,
-                  border: "2px solid #000",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 8,
-                  fontFamily: "monospace",
-                  textAlign: "center",
-                  padding: 4,
-                  wordBreak: "break-all"
-                }}>
-                  {asset.qrCodeValue}
-                </div>
+                <LabelQRCode value={asset.qrCodeValue} />
               </div>
               <div className="label-info">
                 <div className="label-tag">{asset.assetTag}</div>

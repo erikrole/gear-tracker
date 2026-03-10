@@ -1,7 +1,16 @@
 export const runtime = "edge";
+import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, parsePagination } from "@/lib/http";
+
+const patchNotificationSchema = z.object({
+  action: z.enum(["mark_all_read", "mark_read"]),
+  id: z.string().cuid().optional(),
+}).refine(
+  (data) => data.action !== "mark_read" || !!data.id,
+  { message: "id is required for mark_read action" }
+);
 
 export async function GET(req: Request) {
   try {
@@ -35,7 +44,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const user = await requireAuth();
-    const body = await req.json();
+    const body = patchNotificationSchema.parse(await req.json());
 
     if (body.action === "mark_all_read") {
       await db.notification.updateMany({
@@ -45,15 +54,11 @@ export async function PATCH(req: Request) {
       return ok({ success: true });
     }
 
-    if (body.action === "mark_read" && body.id) {
-      await db.notification.updateMany({
-        where: { id: body.id, userId: user.id },
-        data: { readAt: new Date() }
-      });
-      return ok({ success: true });
-    }
-
-    return ok({ success: false });
+    await db.notification.updateMany({
+      where: { id: body.id!, userId: user.id },
+      data: { readAt: new Date() }
+    });
+    return ok({ success: true });
   } catch (error) {
     return fail(error);
   }

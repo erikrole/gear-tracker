@@ -29,12 +29,18 @@ function formatDate(iso: string) {
 export default function CheckoutDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [checkout, setCheckout] = useState<Checkout | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     fetch(`/api/checkouts/${id}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data) setCheckout(json.data); });
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((json) => { if (json?.data) setCheckout(json.data); else setFetchError(true); })
+      .catch(() => setFetchError(true));
   }, [id]);
+
+  if (fetchError) {
+    return <div className="empty-state">Checkout not found or failed to load. <Link href="/checkouts">Back to checkouts</Link></div>;
+  }
 
   if (!checkout) {
     return <div className="loading-spinner"><div className="spinner" /></div>;

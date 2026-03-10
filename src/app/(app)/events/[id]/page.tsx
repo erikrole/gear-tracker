@@ -43,12 +43,18 @@ function formatDate(iso: string) {
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<CalendarEvent | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     fetch(`/api/calendar-events/${id}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data) setEvent(json.data); });
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((json) => { if (json?.data) setEvent(json.data); else setFetchError(true); })
+      .catch(() => setFetchError(true));
   }, [id]);
+
+  if (fetchError) {
+    return <div className="empty-state">Event not found or failed to load. <Link href="/events">Back to events</Link></div>;
+  }
 
   if (!event) {
     return <div className="loading-spinner"><div className="spinner" /></div>;
