@@ -8,6 +8,7 @@ import { BookingStatus } from "@prisma/client";
 
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
+  name: z.string().max(500).optional(),
   type: z.string().min(1),
   brand: z.string().min(1),
   model: z.string().min(1),
@@ -17,6 +18,7 @@ const createAssetSchema = z.object({
   purchasePrice: z.number().positive().optional(),
   locationId: z.string().cuid(),
   categoryId: z.string().cuid().optional(),
+  linkUrl: z.string().url().max(2000).optional(),
   status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).default("AVAILABLE"),
   notes: z.string().max(10000).optional()
 });
@@ -156,6 +158,7 @@ export async function POST(req: Request) {
     const asset = await db.asset.create({
       data: {
         assetTag: body.assetTag,
+        name: body.name ?? null,
         type: body.type,
         brand: body.brand,
         model: body.model,
@@ -165,6 +168,7 @@ export async function POST(req: Request) {
         purchasePrice: body.purchasePrice,
         locationId: body.locationId,
         categoryId: body.categoryId ?? null,
+        linkUrl: body.linkUrl ?? null,
         status: body.status,
         notes: body.notes
       },

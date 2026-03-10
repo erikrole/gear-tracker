@@ -58,24 +58,22 @@ Last updated: 2026-03-10
 
 ### Phase A Remaining
 
-- [ ] **B&H Metadata Enrichment** — Priority #2 per D-010
-  - Write `docs/BRIEF_BH_ENRICHMENT_V1.md` first
-  - Scope: server-side fetch boundary, parser fallback behavior, image source policy
-  - Key constraint: never overwrite tagName; import failures must not block item creation
-  - Ref: AREA_ITEMS.md §B&H Product Import
+- [x] **B&H Metadata Enrichment** — Slice 1: Parser + API + Create Form ✅
+  - Brief: `docs/BRIEF_BH_ENRICHMENT_V1.md`
+  - Parser: `src/lib/services/bh-parser.ts` (JSON-LD + OG + title fallbacks)
+  - API: `POST /api/enrichment/bh` (server-side fetch, domain validation)
+  - UI: "Paste B&H URL" in create form, auto-prefills brand/model/name
+  - Tests: `tests/bh-parser.test.ts` (15 tests)
+
+- [x] **Equipment Guidance Rules** ✅ (shipped in Checkout UX V2)
+  - `body-needs-batteries`, `lens-needs-body`, `audio-with-video` all live
+  - `drone-battery-check`: deferred — needs drone items first
 
 - [ ] **Student Mobile Hardening** — D-015 accepted, brief missing
   - Write `docs/BRIEF_STUDENT_MOBILE_V1.md` first
   - Define student KPIs: taps-to-action, task-completion time, scan success rate
   - Scope: student dashboard actions, scan parity, owned-work list UX
   - Ref: AREA_MOBILE.md, AREA_DASHBOARD.md, DECISIONS.md D-015
-
-- [ ] **Equipment Guidance Rules Expansion**
-  - Add `lens-needs-body` rule: warn if lens selected without a camera body
-  - Add `audio-with-video` hint: remind about audio gear for video body selections
-  - Add `drone-battery-check`: spare batteries + prop guard reminder for drone items
-  - File to edit: `src/lib/equipment-guidance.ts`
-  - Ref: NORTH_STAR.md §Feature Improvement Suggestions
 
 ### Phase B Prep
 
