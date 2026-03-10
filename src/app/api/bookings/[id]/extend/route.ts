@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { extendBooking } from "@/lib/services/bookings";
 import { requireCheckoutAction } from "@/lib/services/checkout-rules";
+import { requireReservationAction } from "@/lib/services/reservation-rules";
 import { extendBookingSchema } from "@/lib/validation";
 
 export async function POST(
@@ -15,10 +16,11 @@ export async function POST(
     const { id } = await ctx.params;
     const body = extendBookingSchema.parse(await req.json());
 
-    // If the booking is a checkout, enforce action gating
     const booking = await db.booking.findUnique({ where: { id } });
     if (booking?.kind === "CHECKOUT") {
       await requireCheckoutAction(id, actor, "extend");
+    } else if (booking?.kind === "RESERVATION") {
+      await requireReservationAction(id, actor, "extend");
     }
 
     const updated = await extendBooking(id, actor.id, new Date(body.endsAt));

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { cancelBooking } from "@/lib/services/bookings";
 import { requireCheckoutAction } from "@/lib/services/checkout-rules";
+import { requireReservationAction } from "@/lib/services/reservation-rules";
 
 export async function POST(
   _req: Request,
@@ -13,10 +14,11 @@ export async function POST(
     const actor = await requireAuth();
     const { id } = await ctx.params;
 
-    // If the booking is a checkout, enforce checkout action gating
     const booking = await db.booking.findUnique({ where: { id } });
     if (booking?.kind === "CHECKOUT") {
       await requireCheckoutAction(id, actor, "cancel");
+    } else if (booking?.kind === "RESERVATION") {
+      await requireReservationAction(id, actor, "cancel");
     }
 
     const result = await cancelBooking(id, actor.id);
