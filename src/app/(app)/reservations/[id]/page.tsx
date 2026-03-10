@@ -277,18 +277,25 @@ export default function ReservationDetailsPage() {
     });
   }
 
-  // Build checkout conversion URL with prefill params
-  const checkoutUrl = useMemo(() => {
-    if (!reservation) return "/checkouts";
-    const params = new URLSearchParams();
-    params.set("fromReservation", reservation.id);
-    params.set("title", reservation.title);
-    params.set("locationId", reservation.location.id);
-    params.set("startsAt", reservation.startsAt);
-    params.set("endsAt", reservation.endsAt);
-    params.set("requesterId", reservation.requester.id);
-    return `/checkouts?new=1&${params}`;
-  }, [reservation]);
+  async function handleConvert() {
+    if (!confirm("Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created with the same items."))
+      return;
+    setActionLoading("convert");
+    setActionError("");
+    const res = await fetch(`/api/reservations/${id}/convert`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setActionError(
+        (json as Record<string, string>).error || "Conversion failed"
+      );
+      setActionLoading(null);
+    } else {
+      const json = await res.json();
+      router.push(`/checkouts/${json.data.id}`);
+    }
+  }
 
   /* ── Render ── */
 
@@ -333,13 +340,13 @@ export default function ReservationDetailsPage() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canConvert && (
-            <Link
-              href={checkoutUrl}
+            <button
               className="btn btn-primary btn-sm"
-              style={{ textDecoration: "none" }}
+              onClick={handleConvert}
+              disabled={!!actionLoading}
             >
-              Start checkout
-            </Link>
+              {actionLoading === "convert" ? "Converting..." : "Start checkout"}
+            </button>
           )}
           {canEdit && (
             <button
