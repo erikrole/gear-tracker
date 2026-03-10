@@ -176,7 +176,7 @@ function CreateItemCard({
         nameRef.current.value = d.name;
       }
       if (!d.brand && !d.model && !d.name) {
-        setBhError("Could not extract product info from this page");
+        setBhError(d.warning || "Could not extract product info from this page");
       }
     } catch {
       setBhError("Network error");

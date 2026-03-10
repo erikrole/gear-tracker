@@ -577,23 +577,53 @@ function ItemInfoCard({
     }
   }
 
-  const fields: Array<{ label: string; key: string; value: string; placeholder?: string; mono?: boolean }> = [
+  type FieldDef = { label: string; key: string; value: string; placeholder?: string; mono?: boolean };
+
+  const identityFields: FieldDef[] = [
+    { label: "Asset tag", key: "assetTag", value: asset.assetTag },
     { label: "Item name", key: "name", value: asset.name || "", placeholder: "Add item name" },
-    { label: "Tag name", key: "assetTag", value: asset.assetTag },
     { label: "Brand", key: "brand", value: asset.brand, placeholder: "Add brand" },
     { label: "Model", key: "model", value: asset.model, placeholder: "Add model" },
-    { label: "Location", key: "_location", value: asset.location.name },
-    { label: "Link", key: "linkUrl", value: asset.linkUrl || "", placeholder: "Add link" },
-    { label: "Purchase price", key: "purchasePrice", value: asset.purchasePrice ? String(asset.purchasePrice) : "", placeholder: "Add purchase price" },
-    { label: "Purchase date", key: "purchaseDate", value: asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : "", placeholder: "Add purchase date" },
-    { label: "Warranty date", key: "warrantyDate", value: asset.warrantyDate ? String(asset.warrantyDate).slice(0, 10) : "", placeholder: "Add warranty date" },
-    { label: "Residual value", key: "residualValue", value: asset.residualValue ? String(asset.residualValue) : "", placeholder: "Add residual value" },
     { label: "Serial number", key: "serialNumber", value: asset.serialNumber, mono: true },
     { label: "Description", key: "metadata.description", value: asset.metadata?.description || "", placeholder: "Add description" },
+  ];
+
+  const procurementFields: FieldDef[] = [
+    { label: "Purchase price", key: "purchasePrice", value: asset.purchasePrice ? String(asset.purchasePrice) : "", placeholder: "Add purchase price" },
+    { label: "Purchase date", key: "purchaseDate", value: asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : "", placeholder: "Add purchase date" },
+    { label: "Residual value", key: "residualValue", value: asset.residualValue ? String(asset.residualValue) : "", placeholder: "Add residual value" },
+    { label: "Warranty date", key: "warrantyDate", value: asset.warrantyDate ? String(asset.warrantyDate).slice(0, 10) : "", placeholder: "Add warranty date" },
+    { label: "Link", key: "linkUrl", value: asset.linkUrl || "", placeholder: "Add product link" },
+  ];
+
+  const adminFields: FieldDef[] = [
+    { label: "Location", key: "_location", value: asset.location.name },
     { label: "Owner", key: "metadata.owner", value: asset.metadata?.owner || "", placeholder: "Add owner" },
     { label: "Department", key: "metadata.department", value: asset.metadata?.department || "", placeholder: "Add department" },
     { label: "UW Asset Tag", key: "metadata.uwAssetTag", value: asset.metadata?.uwAssetTag || "", placeholder: "Add UW asset tag" },
   ];
+
+  function renderFieldGroup(title: string, fields: FieldDef[], extra?: React.ReactNode) {
+    return (
+      <>
+        <div style={{ gridColumn: "1 / -1", fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "var(--text-muted)", padding: "10px 16px 2px", borderTop: "1px solid var(--border-light)" }}>
+          {title}
+        </div>
+        {fields.map((f) => (
+          <EditableField
+            key={f.key}
+            label={f.label}
+            value={f.value}
+            placeholder={f.placeholder}
+            canEdit={canEdit && f.key !== "_location"}
+            onSave={(v) => saveField(f.key, v)}
+            mono={f.mono}
+          />
+        ))}
+        {extra}
+      </>
+    );
+  }
 
   return (
     <div className="card details-card">
@@ -606,29 +636,23 @@ function ItemInfoCard({
         )}
       </div>
       <dl className="data-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-        {fields.map((f) => (
-          <EditableField
-            key={f.key}
-            label={f.label}
-            value={f.value}
-            placeholder={f.placeholder}
-            canEdit={canEdit && f.key !== "_location"}
-            onSave={(v) => saveField(f.key, v)}
-            mono={f.mono}
+        {renderFieldGroup("Identity", identityFields)}
+        {renderFieldGroup("Procurement", procurementFields, (
+          <FiscalYearField
+            value={asset.metadata?.fiscalYearPurchased || ""}
+            canEdit={canEdit}
+            onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
           />
         ))}
-        <CategoryField
-          value={asset.category?.name || ""}
-          canEdit={canEdit}
-          categories={categories}
-          onSave={saveCategory}
-          onCategoriesChanged={onCategoriesChanged}
-        />
-        <FiscalYearField
-          value={asset.metadata?.fiscalYearPurchased || ""}
-          canEdit={canEdit}
-          onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
-        />
+        {renderFieldGroup("Administrative", adminFields, (
+          <CategoryField
+            value={asset.category?.name || ""}
+            canEdit={canEdit}
+            categories={categories}
+            onSave={saveCategory}
+            onCategoriesChanged={onCategoriesChanged}
+          />
+        ))}
       </dl>
       <QRSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
@@ -1009,8 +1033,13 @@ export default function ItemDetailsPage() {
   return (
     <>
       <div className="breadcrumb"><Link href="/items">Items</Link> <span>&rsaquo;</span> {asset.assetTag}</div>
-      <div className="page-header" style={{ marginBottom: 4 }}>
-        <h1>{asset.name || asset.assetTag}</h1>
+      <div className="page-header" style={{ marginBottom: 0 }}>
+        <div>
+          <h1 style={{ marginBottom: 0 }}>{asset.assetTag}</h1>
+          {asset.name && (
+            <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 2 }}>{asset.name}</div>
+          )}
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
           <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>Reserve</Link>
@@ -1019,7 +1048,7 @@ export default function ItemDetailsPage() {
       </div>
 
       {/* Status line */}
-      <div style={{ marginBottom: 18 }}>
+      <div style={{ marginBottom: 18, marginTop: 6 }}>
         <StatusLine asset={asset} />
       </div>
 
@@ -1039,7 +1068,6 @@ export default function ItemDetailsPage() {
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
         <div className="details-grid" style={{ marginTop: 14 }}>
-          <OperationalOverview asset={asset} onSelectBooking={setSelectedBookingId} />
           <ItemInfoCard
             asset={asset}
             canEdit={canEdit}
@@ -1048,6 +1076,7 @@ export default function ItemDetailsPage() {
             onRefresh={loadAsset}
             onCategoriesChanged={loadCategories}
           />
+          <OperationalOverview asset={asset} onSelectBooking={setSelectedBookingId} />
         </div>
       )}
 

@@ -21,6 +21,18 @@ export async function POST(req: Request) {
     const data = await parseBHProduct(url);
     return ok({ data });
   } catch (error) {
-    return fail(error);
+    if (error instanceof HttpError) return fail(error);
+    // Never return 500 for enrichment — return 200 with warning
+    console.error("B&H enrichment error:", error);
+    return ok({
+      data: {
+        name: null,
+        brand: null,
+        model: null,
+        imageUrl: null,
+        sourceUrl: "",
+        warning: "Unexpected error during enrichment",
+      },
+    });
   }
 }
