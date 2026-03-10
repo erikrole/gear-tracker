@@ -56,6 +56,15 @@ Last updated: 2026-03-10
 - [ ] Add Dashboard tab back as landing page with check-outs, reservations, and events overview on one page
 - [ ] Distinct from the dedicated Check-outs and Reservations tabs (which remain for filtered views)
 
+### Reservations V1 — Checkout Parity (Active)
+- Plan: `tasks/reservations-v1-plan.md`
+- Brief: `docs/BRIEF_RESERVATIONS_V1.md`
+- [ ] Slice 1: Reservation rules + action gating (reservation-rules.ts, permission enforcement)
+- [ ] Slice 2: Reservation detail page V2 (tabs, inline edit, actions, equipment panel)
+- [ ] Slice 3: Reservation create flow + sectioned equipment picker
+- [ ] Slice 4: Reservation list polish (filters, context menu, export, overdue badges)
+- [ ] Slice 5: Convert-to-checkout flow (explicit endpoint + UI confirmation)
+
 ### Phase A Remaining
 
 - [x] **B&H Metadata Enrichment** — Slice 1: Parser + API + Create Form ✅

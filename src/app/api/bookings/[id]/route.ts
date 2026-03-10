@@ -7,6 +7,7 @@ import {
   updateCheckout
 } from "@/lib/services/bookings";
 import { requireCheckoutAction, getAllowedActions } from "@/lib/services/checkout-rules";
+import { getAllowedReservationActions, requireReservationAction } from "@/lib/services/reservation-rules";
 import { updateBookingSchema } from "@/lib/validation";
 
 export async function GET(
@@ -18,10 +19,11 @@ export async function GET(
     const { id } = await ctx.params;
     const detail = await getBookingDetail(id);
 
-    // Include allowed actions for checkout bookings
     const allowedActions = detail.kind === "CHECKOUT"
       ? getAllowedActions(actor, detail)
-      : undefined;
+      : detail.kind === "RESERVATION"
+        ? getAllowedReservationActions(actor, detail)
+        : undefined;
 
     return ok({ data: { ...detail, allowedActions } });
   } catch (error) {
@@ -41,9 +43,10 @@ export async function PATCH(
     // Fetch the booking to determine kind
     const detail = await getBookingDetail(id);
 
-    // Enforce checkout action gating for checkouts
     if (detail.kind === "CHECKOUT") {
       await requireCheckoutAction(id, actor, "edit");
+    } else if (detail.kind === "RESERVATION") {
+      await requireReservationAction(id, actor, "edit");
     }
 
     let updated;
