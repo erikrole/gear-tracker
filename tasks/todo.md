@@ -1,6 +1,6 @@
 # Current Task Queue
 
-Last updated: 2026-03-09
+Last updated: 2026-03-10
 
 ---
 
@@ -34,38 +34,21 @@ Last updated: 2026-03-09
 - ✅ Updated docs/DECISIONS.md: D-016, D-017, D-009 partial status, D-010 shipped items
 - ✅ Updated docs/PRODUCT_SCOPE.md: NORTH_STAR.md reference, phase status, brief queue
 
----
+### Items Page Finish (2026-03-09)
+- ✅ Slice 1: Items List — Columns, Filters, Pagination
+- ✅ Slice 2: Item Detail — Tab Structure + Layout
+- ✅ Slice 3: Item Detail — Inline Edit on Info Tab
+- ✅ Slice 4: Create Flow — Item-Kind-Aware Form
 
-## ✅ Completed — Items Page Finish (Pre-Import Hardening)
-
-### Slice 1: Items List — Columns, Filters, Pagination ✅
-- [x] Update table columns per spec: Name cell (tagName primary, brand/model secondary), Category, Location, Status
-- [x] Add location filter dropdown (from /api/form-options)
-- [x] Add CHECKED_OUT and RESERVED to status filter (derived statuses)
-- [x] Change rows per page from 20 to 25
-- [x] Fix pagination text to "Showing X to Y of Z"
-- [x] Add Import link in top bar actions
-- [x] Status dot (green/red/purple/amber/gray) replaces text badge — left of name
-- [x] Clickable rows navigate to item detail
-- [x] Status dot hover shows active booking popover with direct link
-- [x] API returns activeBooking (id, kind, title, requesterName) per asset
-
-### Slice 2: Item Detail — Tab Structure + Layout ✅
-- [x] Replace Dashboard tab with Reservations + Check-outs tabs
-- [x] Reservations tab: filter bookings to RESERVATION kind
-- [x] Check-outs tab: filter bookings to CHECKOUT kind
-- [x] Fix details-grid direction (info wider, side panels narrower)
-
-### Slice 3: Item Detail — Inline Edit on Info Tab ✅
-- [x] Make metadata fields editable for ADMIN/STAFF
-- [x] Wire PATCH /api/assets/[id] for saves
-- [x] Show success/error feedback with role-based visibility
-
-### Slice 4: Create Flow — Item-Kind-Aware Form ✅
-- [x] Replace inline create with proper create card
-- [x] Add item-kind selector (serialized vs bulk)
-- [x] Enforce required fields per kind
-- [x] Optional metadata section (collapsed by default)
+### Items Page Polish + Checkout UX Fixes (2026-03-10)
+- ✅ Equipment picker: 5 tabs (Cameras, Lenses, Batteries, Accessories, Others) with DB category batching
+- ✅ Equipment picker: assetTag as bold headline, item name as subtitle reference
+- ✅ Equipment picker: color status dots (green/red/purple/amber) for all items including unavailable
+- ✅ Equipment picker: computedStatus enrichment via deriveAssetStatuses in form-options API
+- ✅ Items list page: assetTag as big name, item name (not brand+model) as subline
+- ✅ Sport abbreviations fixed: MHO→MHKY, WHO→WHKY, MTF→MTRACK, WTF→WTRACK
+- ✅ Tie-to-event fix: calendar API date filter on startsAt instead of endsAt
+- ✅ Categories page: hookrightarrow renders as Unicode ↪
 
 ---
 
@@ -75,24 +58,22 @@ Last updated: 2026-03-09
 
 ### Phase A Remaining
 
-- [ ] **B&H Metadata Enrichment** — Priority #2 per D-010
-  - Write `docs/BRIEF_BH_ENRICHMENT_V1.md` first
-  - Scope: server-side fetch boundary, parser fallback behavior, image source policy
-  - Key constraint: never overwrite tagName; import failures must not block item creation
-  - Ref: AREA_ITEMS.md §B&H Product Import
+- [x] **B&H Metadata Enrichment** — Slice 1: Parser + API + Create Form ✅
+  - Brief: `docs/BRIEF_BH_ENRICHMENT_V1.md`
+  - Parser: `src/lib/services/bh-parser.ts` (JSON-LD + OG + title fallbacks)
+  - API: `POST /api/enrichment/bh` (server-side fetch, domain validation)
+  - UI: "Paste B&H URL" in create form, auto-prefills brand/model/name
+  - Tests: `tests/bh-parser.test.ts` (15 tests)
+
+- [x] **Equipment Guidance Rules** ✅ (shipped in Checkout UX V2)
+  - `body-needs-batteries`, `lens-needs-body`, `audio-with-video` all live
+  - `drone-battery-check`: deferred — needs drone items first
 
 - [ ] **Student Mobile Hardening** — D-015 accepted, brief missing
   - Write `docs/BRIEF_STUDENT_MOBILE_V1.md` first
   - Define student KPIs: taps-to-action, task-completion time, scan success rate
   - Scope: student dashboard actions, scan parity, owned-work list UX
   - Ref: AREA_MOBILE.md, AREA_DASHBOARD.md, DECISIONS.md D-015
-
-- [ ] **Equipment Guidance Rules Expansion**
-  - Add `lens-needs-body` rule: warn if lens selected without a camera body
-  - Add `audio-with-video` hint: remind about audio gear for video body selections
-  - Add `drone-battery-check`: spare batteries + prop guard reminder for drone items
-  - File to edit: `src/lib/equipment-guidance.ts`
-  - Ref: NORTH_STAR.md §Feature Improvement Suggestions
 
 ### Phase B Prep
 
