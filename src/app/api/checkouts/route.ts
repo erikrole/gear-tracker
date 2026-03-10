@@ -13,19 +13,33 @@ export async function GET(req: Request) {
     await requireAuth();
     const { searchParams } = new URL(req.url);
 
+    const q = searchParams.get("q")?.trim();
+    const sortParam = searchParams.get("sort");
+
     const where: Prisma.BookingWhereInput = {
       kind: BookingKind.CHECKOUT,
       ...(searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
       ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
-      ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {})
+      ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
+      ...(q ? {
+        OR: [
+          { title: { contains: q, mode: "insensitive" as const } },
+          { requester: { name: { contains: q, mode: "insensitive" as const } } },
+        ],
+      } : {}),
     };
+
+    const orderBy: Prisma.BookingOrderByWithRelationInput[] =
+      sortParam === "oldest" ? [{ startsAt: "asc" }, { id: "asc" }]
+      : sortParam === "title" ? [{ title: "asc" }, { id: "asc" }]
+      : [{ startsAt: "desc" }, { id: "asc" }];
 
     const { limit, offset } = parsePagination(searchParams);
 
     const [data, total] = await Promise.all([
       db.booking.findMany({
         where,
-        orderBy: [{ startsAt: "desc" }, { id: "asc" }],
+        orderBy,
         include: {
           location: true,
           requester: { select: { id: true, name: true, email: true } },

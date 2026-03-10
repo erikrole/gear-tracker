@@ -28,12 +28,18 @@ function formatDate(iso: string) {
 export default function ReservationDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     fetch(`/api/reservations/${id}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data) setReservation(json.data); });
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((json) => { if (json?.data) setReservation(json.data); else setFetchError(true); })
+      .catch(() => setFetchError(true));
   }, [id]);
+
+  if (fetchError) {
+    return <div className="empty-state">Reservation not found or failed to load. <Link href="/reservations">Back to reservations</Link></div>;
+  }
 
   if (!reservation) {
     return <div className="loading-spinner"><div className="spinner" /></div>;

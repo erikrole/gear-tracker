@@ -53,6 +53,10 @@ export default function ReservationsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
@@ -64,6 +68,10 @@ export default function ReservationsPage() {
       const params = new URLSearchParams();
       params.set("limit", String(limit));
       params.set("offset", String(page * limit));
+      if (search) params.set("q", search);
+      if (sort) params.set("sort", sort);
+      if (statusFilter) params.set("status", statusFilter);
+      if (locationFilter) params.set("location_id", locationFilter);
       const res = await fetch(`/api/reservations?${params}`);
       if (res.ok) {
         const json: Response = await res.json();
@@ -76,7 +84,7 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     reload();
-  }, [page]);
+  }, [page, search, sort, statusFilter, locationFilter]);
 
   useEffect(() => {
     fetch("/api/form-options")
@@ -172,6 +180,53 @@ export default function ReservationsPage() {
       )}
 
       <div className="card">
+        <div className="card-header" style={{ flexWrap: "wrap", gap: 8 }}>
+          <h2>All reservations</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: "auto", alignItems: "center" }}>
+            <input
+              type="text"
+              placeholder="Search by title or requester..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, minHeight: 36, minWidth: 200 }}
+            />
+
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, background: "white", minHeight: 36 }}
+            >
+              <option value="">All statuses</option>
+              <option value="DRAFT">Draft</option>
+              <option value="BOOKED">Booked</option>
+              <option value="OPEN">Open</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+
+            {locations.length > 1 && (
+              <select
+                value={locationFilter}
+                onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
+                style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, background: "white", minHeight: 36 }}
+              >
+                <option value="">All locations</option>
+                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            )}
+
+            <select
+              value={sort}
+              onChange={(e) => { setSort(e.target.value); setPage(0); }}
+              style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, background: "white", minHeight: 36 }}
+            >
+              <option value="">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="title">Title A–Z</option>
+            </select>
+          </div>
+        </div>
+
         {loading ? (
           <div className="loading-spinner"><div className="spinner" /></div>
         ) : items.length === 0 ? (

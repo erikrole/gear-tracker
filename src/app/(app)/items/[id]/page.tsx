@@ -1090,11 +1090,13 @@ export default function ItemDetailsPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [fetchError, setFetchError] = useState(false);
 
   function loadAsset() {
     fetch(`/api/assets/${id}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data) setAsset(json.data); });
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((json) => { if (json?.data) setAsset(json.data); else setFetchError(true); })
+      .catch(() => setFetchError(true));
   }
 
   function loadCategories() {
@@ -1148,6 +1150,10 @@ export default function ItemDetailsPage() {
         alert((json as Record<string, string>).error || "Delete failed");
       }
     }
+  }
+
+  if (fetchError) {
+    return <div className="empty-state">Item not found or failed to load. <Link href="/items">Back to items</Link></div>;
   }
 
   if (!asset) {

@@ -2,7 +2,7 @@ export const runtime = "edge";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { fail, ok, HttpError } from "@/lib/http";
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -57,14 +57,14 @@ export async function POST(req: Request) {
   try {
     const user = await requireAuth();
     if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      return ok({ error: "Forbidden" }, 403);
+      throw new HttpError(403, "Forbidden");
     }
 
     const body = createSchema.parse(await req.json());
 
     if (body.parentId) {
       const parent = await db.category.findUnique({ where: { id: body.parentId } });
-      if (!parent) return ok({ error: "Parent category not found" }, 404);
+      if (!parent) throw new HttpError(404, "Parent category not found");
     }
 
     const category = await db.category.create({
