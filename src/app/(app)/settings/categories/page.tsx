@@ -162,7 +162,7 @@ function CategoryRow({
     <>
       <div className="cat-row" style={{ paddingLeft: depth > 0 ? 24 + depth * 24 : 16 }}>
         <div className="cat-row-name" style={{ fontWeight: isChild ? 400 : 600 }}>
-          {isChild && <span style={{ color: "var(--text-muted)", marginRight: 8 }}>&hookrightarrow;</span>}
+          {isChild && <span style={{ color: "var(--border)", marginRight: 8, fontSize: 11 }}>&#x251C;</span>}
           {renaming ? (
             <input
               ref={inputRef}
@@ -205,7 +205,7 @@ function CategoryRow({
       {addingSub && (
         <div className="cat-row" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
           <div className="cat-row-name">
-            <span style={{ color: "var(--text-muted)", marginRight: 8 }}>&hookrightarrow;</span>
+            <span style={{ color: "var(--border)", marginRight: 8, fontSize: 11 }}>&#x251C;</span>
             <input
               ref={subInputRef}
               value={subName}

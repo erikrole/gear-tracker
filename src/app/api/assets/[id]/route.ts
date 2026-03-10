@@ -66,7 +66,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
           booking: {
             include: {
               requester: { select: { id: true, name: true, email: true } },
-              location: { select: { id: true, name: true } }
+              location: { select: { id: true, name: true } },
+              event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true, startsAt: true, endsAt: true } }
             }
           }
         },
@@ -155,8 +156,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
             title: entry.booking.title,
             startsAt: entry.booking.startsAt,
             endsAt: entry.booking.endsAt,
+            sportCode: entry.booking.sportCode,
             requester: entry.booking.requester,
             location: entry.booking.location,
+            event: entry.booking.event ? {
+              id: entry.booking.event.id,
+              summary: entry.booking.event.summary,
+              sportCode: entry.booking.event.sportCode,
+              opponent: entry.booking.event.opponent,
+              isHome: entry.booking.event.isHome,
+              startsAt: entry.booking.event.startsAt,
+              endsAt: entry.booking.event.endsAt,
+            } : null,
           },
         })),
       },

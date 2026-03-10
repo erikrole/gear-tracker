@@ -23,17 +23,30 @@ export async function GET() {
         select: {
           id: true, assetTag: true, brand: true, model: true,
           serialNumber: true, type: true, status: true, locationId: true,
-          location: { select: { name: true } }
+          location: { select: { name: true } },
+          category: { select: { name: true } }
         }
       }),
       db.bulkSku.findMany({
         where: { active: true },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, category: true, unit: true, locationId: true }
+        select: { id: true, name: true, category: true, unit: true, locationId: true, categoryRel: { select: { name: true } } }
       })
     ]);
 
-    return ok({ data: { locations, users, availableAssets, bulkSkus } });
+    // Flatten category name onto assets and bulkSkus for equipment section classification
+    const assetsWithCategory = availableAssets.map((a) => ({
+      ...a,
+      categoryName: a.category?.name ?? null,
+      category: undefined,
+    }));
+    const bulkSkusFlat = bulkSkus.map((s) => ({
+      ...s,
+      categoryName: s.categoryRel?.name ?? null,
+      categoryRel: undefined,
+    }));
+
+    return ok({ data: { locations, users, availableAssets: assetsWithCategory, bulkSkus: bulkSkusFlat } });
   } catch (error) {
     return fail(error);
   }

@@ -1,28 +1,52 @@
-/** UW Athletics sport codes */
+/** UW Athletics sport codes — all 23 varsity sports */
 export const SPORT_CODES = [
-  { code: "FB", label: "Football" },
+  // ── Men's Sports (11) ──
   { code: "MBB", label: "Men's Basketball" },
-  { code: "WBB", label: "Women's Basketball" },
-  { code: "VB", label: "Volleyball" },
+  { code: "MXC", label: "Men's Cross Country" },
+  { code: "FB", label: "Football" },
+  { code: "MGOLF", label: "Men's Golf" },
   { code: "MHO", label: "Men's Hockey" },
+  { code: "MROW", label: "Men's Rowing" },
+  { code: "MSOC", label: "Men's Soccer" },
+  { code: "MSWIM", label: "Men's Swimming & Diving" },
+  { code: "MTEN", label: "Men's Tennis" },
+  { code: "MTF", label: "Men's Track & Field" },
+  { code: "WRES", label: "Wrestling" },
+  // ── Women's Sports (12) ──
+  { code: "WBB", label: "Women's Basketball" },
+  { code: "WXC", label: "Women's Cross Country" },
+  { code: "WGOLF", label: "Women's Golf" },
   { code: "WHO", label: "Women's Hockey" },
+  { code: "LROW", label: "Lightweight Rowing" },
+  { code: "WROW", label: "Women's Rowing" },
   { code: "WSOC", label: "Women's Soccer" },
   { code: "SB", label: "Softball" },
-  { code: "BASE", label: "Baseball" },
-  { code: "WRES", label: "Wrestling" },
-  { code: "SWIM", label: "Swimming & Diving" },
-  { code: "TF", label: "Track & Field" },
-  { code: "XC", label: "Cross Country" },
-  { code: "GOLF", label: "Golf" },
-  { code: "ROW", label: "Rowing" },
-  { code: "TEN", label: "Tennis" },
-  { code: "GYM", label: "Gymnastics" },
+  { code: "WSWIM", label: "Women's Swimming & Diving" },
+  { code: "WTEN", label: "Women's Tennis" },
+  { code: "WTF", label: "Women's Track & Field" },
+  { code: "VB", label: "Volleyball" },
 ] as const;
 
 export type SportCode = (typeof SPORT_CODES)[number]["code"];
 
+/** Legacy code aliases — maps old ungendered codes to labels for backward compat */
+const LEGACY_LABELS: Record<string, string> = {
+  SWIM: "Swimming & Diving",
+  TF: "Track & Field",
+  XC: "Cross Country",
+  GOLF: "Golf",
+  ROW: "Rowing",
+  TEN: "Tennis",
+  GYM: "Gymnastics",
+  BASE: "Baseball",
+};
+
 export function sportLabel(code: string): string {
-  return SPORT_CODES.find((s) => s.code === code)?.label ?? code;
+  return (
+    SPORT_CODES.find((s) => s.code === code)?.label ??
+    LEGACY_LABELS[code] ??
+    code
+  );
 }
 
 /**
