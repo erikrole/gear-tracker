@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { Prisma, BookingStatus } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 
 const patchAssetSchema = z
@@ -18,7 +19,11 @@ const patchAssetSchema = z
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
-    notes: z.string().max(10000).optional()
+    notes: z.string().max(10000).optional(),
+    linkUrl: z.string().url().nullable().optional(),
+    availableForReservation: z.boolean().optional(),
+    availableForCheckout: z.boolean().optional(),
+    availableForCustody: z.boolean().optional(),
   })
   .strict();
 
@@ -52,7 +57,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       computedStatus = asset.status;
     }
 
-    const [bookingHistory] = await Promise.all([
+    // Fetch active booking for status line deep links
+    const [bookingHistory, activeAllocs, upcomingReservations] = await Promise.all([
       db.bookingSerializedItem.findMany({
         where: { assetId: params.id },
         include: {
@@ -64,15 +70,80 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
           }
         },
         orderBy: [{ createdAt: "desc" }],
-        take: 100
-      })
+        take: 100,
+      }),
+      db.assetAllocation.findMany({
+        where: { assetId: params.id, active: true },
+        include: {
+          booking: {
+            select: {
+              id: true,
+              kind: true,
+              status: true,
+              title: true,
+              startsAt: true,
+              endsAt: true,
+              requester: { select: { name: true } },
+            },
+          },
+        },
+      }),
+      db.bookingSerializedItem.findMany({
+        where: {
+          assetId: params.id,
+          booking: {
+            kind: "RESERVATION",
+            status: { in: [BookingStatus.BOOKED] },
+            startsAt: { gte: new Date() },
+          },
+        },
+        include: {
+          booking: {
+            select: {
+              id: true,
+              title: true,
+              startsAt: true,
+              endsAt: true,
+              requester: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { booking: { startsAt: "asc" } },
+        take: 10,
+      }),
     ]);
+
+    // Build active booking info for status line
+    let activeBooking: { id: string; kind: string; status: string; title: string; endsAt: string; requesterName: string } | null = null;
+    for (const alloc of activeAllocs) {
+      activeBooking = {
+        id: alloc.booking.id,
+        kind: alloc.booking.kind,
+        status: alloc.booking.status,
+        title: alloc.booking.title,
+        endsAt: alloc.booking.endsAt.toISOString(),
+        requesterName: alloc.booking.requester.name,
+      };
+      break;
+    }
+
+    // Check if item has any booking history (for delete gating)
+    const hasBookingHistory = bookingHistory.length > 0;
 
     return ok({
       data: {
         ...asset,
         computedStatus,
         metadata: parseNotes(asset.notes),
+        activeBooking,
+        hasBookingHistory,
+        upcomingReservations: upcomingReservations.map((r) => ({
+          bookingId: r.booking.id,
+          title: r.booking.title,
+          startsAt: r.booking.startsAt,
+          endsAt: r.booking.endsAt,
+          requesterName: r.booking.requester.name,
+        })),
         history: bookingHistory.map((entry) => ({
           id: entry.id,
           createdAt: entry.createdAt,
@@ -84,10 +155,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
             startsAt: entry.booking.startsAt,
             endsAt: entry.booking.endsAt,
             requester: entry.booking.requester,
-            location: entry.booking.location
-          }
-        }))
-      }
+            location: entry.booking.location,
+          },
+        })),
+      },
     });
   } catch (error) {
     return fail(error);
@@ -96,23 +167,88 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
+    if (user.role !== "ADMIN" && user.role !== "STAFF") {
+      throw new HttpError(403, "Forbidden");
+    }
+
     const params = await ctx.params;
     const body = patchAssetSchema.parse(await req.json());
+
+    // QR code uniqueness check if updating qrCodeValue
+    if (body.qrCodeValue) {
+      const existing = await db.asset.findUnique({ where: { qrCodeValue: body.qrCodeValue } });
+      if (existing && existing.id !== params.id) {
+        throw new HttpError(409, "QR code already in use by another asset");
+      }
+    }
+
+    const before = await db.asset.findUnique({ where: { id: params.id } });
+    if (!before) throw new HttpError(404, "Asset not found");
 
     const asset = await db.asset.update({
       where: { id: params.id },
       data: {
         ...body,
-        ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {})
+        ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {}),
       },
-      include: {
-        location: true,
-        category: true
-      }
+      include: { location: true, category: true },
+    });
+
+    await db.auditLog.create({
+      data: {
+        actorUserId: user.id,
+        entityType: "asset",
+        entityId: params.id,
+        action: "updated",
+        beforeJson: body as unknown as Prisma.InputJsonValue,
+        afterJson: body as unknown as Prisma.InputJsonValue,
+      },
     });
 
     return ok({ data: asset });
+  } catch (error) {
+    return fail(error);
+  }
+}
+
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const user = await requireAuth();
+    if (user.role !== "ADMIN") {
+      throw new HttpError(403, "Only admins can delete assets");
+    }
+
+    const { id } = await ctx.params;
+    const asset = await db.asset.findUnique({ where: { id } });
+    if (!asset) throw new HttpError(404, "Asset not found");
+
+    // Policy check: block delete if any booking history or active allocations
+    const [bookingCount, activeAllocCount] = await Promise.all([
+      db.bookingSerializedItem.count({ where: { assetId: id } }),
+      db.assetAllocation.count({ where: { assetId: id, active: true } }),
+    ]);
+
+    if (bookingCount > 0 || activeAllocCount > 0) {
+      throw new HttpError(
+        409,
+        "Cannot delete: this item has booking history. Use Retire instead."
+      );
+    }
+
+    await db.asset.delete({ where: { id } });
+
+    await db.auditLog.create({
+      data: {
+        actorUserId: user.id,
+        entityType: "asset",
+        entityId: id,
+        action: "deleted",
+        beforeJson: { assetTag: asset.assetTag, type: asset.type },
+      },
+    });
+
+    return ok({ success: true });
   } catch (error) {
     return fail(error);
   }

@@ -1,9 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+
+/* ── Types ─────────────────────────────────────────────── */
+
+type ActiveBookingDetail = {
+  id: string;
+  kind: string;
+  status: string;
+  title: string;
+  endsAt: string;
+  requesterName: string;
+};
+
+type UpcomingReservation = {
+  bookingId: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  requesterName: string;
+};
 
 type AssetDetail = {
   id: string;
@@ -15,13 +34,22 @@ type AssetDetail = {
   qrCodeValue: string;
   purchaseDate: string | null;
   purchasePrice: string | number | null;
+  warrantyDate: string | null;
+  residualValue: string | number | null;
   status: string;
   computedStatus: string;
   notes: string | null;
+  linkUrl: string | null;
   location: { name: string };
   department: { name: string } | null;
   category: { id: string; name: string } | null;
+  availableForReservation: boolean;
+  availableForCheckout: boolean;
+  availableForCustody: boolean;
   metadata: Record<string, string> | null;
+  activeBooking: ActiveBookingDetail | null;
+  hasBookingHistory: boolean;
+  upcomingReservations: UpcomingReservation[];
   history: Array<{
     id: string;
     createdAt: string;
@@ -38,14 +66,20 @@ type AssetDetail = {
   }>;
 };
 
-type TabKey = "checkouts" | "reservations" | "info" | "history";
+type CategoryOption = { id: string; name: string; parentId: string | null };
 
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "checkouts", label: "Check-outs" },
-  { key: "reservations", label: "Reservations" },
+type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "history" | "settings";
+
+const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
-  { key: "history", label: "History" }
+  { key: "checkouts", label: "Check Outs" },
+  { key: "reservations", label: "Reservations" },
+  { key: "calendar", label: "Calendar" },
+  { key: "history", label: "History" },
+  { key: "settings", label: "Settings" },
 ];
+
+/* ── Helpers ────────────────────────────────────────────── */
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -53,27 +87,135 @@ function formatDate(value: string | null) {
 }
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
+  return new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+function dueBackText(endsAt: string): string {
+  const ms = new Date(endsAt).getTime() - Date.now();
+  if (ms < 0) return "Overdue";
+  const hours = Math.floor(ms / 3600000);
+  if (hours < 24) return `Due back in ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `Due back in ${days}d`;
+}
+
+function getFiscalYearOptions(): string[] {
+  const now = new Date();
+  const month = now.getMonth(); // 0-indexed
+  const year = now.getFullYear();
+  const currentFY = month >= 6 ? year + 1 : year; // July 1 rollover
+  const options: string[] = [];
+  for (let fy = currentFY + 1; fy >= currentFY - 10; fy--) {
+    options.push(String(fy));
+  }
+  return options;
+}
+
+/* ── Status Line ────────────────────────────────────────── */
+
+function StatusLine({ asset }: { asset: AssetDetail }) {
+  const s = asset.computedStatus;
+  const b = asset.activeBooking;
+
+  if (s === "AVAILABLE") {
+    return <span style={{ color: "var(--green)", fontWeight: 600, fontSize: 14 }}>Available</span>;
+  }
+  if (s === "CHECKED_OUT" && b) {
+    const href = `/checkouts/${b.id}`;
+    if (b.status === "DRAFT") {
+      return (
+        <Link href={href} style={{ color: "var(--blue)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+          Checking Out
+        </Link>
+      );
+    }
+    return (
+      <Link href={href} style={{ color: "var(--red)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+        Checked Out by {b.requesterName}
+      </Link>
+    );
+  }
+  if (s === "RESERVED" && b) {
+    return (
+      <Link href={`/reservations/${b.id}`} style={{ color: "var(--purple)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+        Reserved by {b.requesterName}
+      </Link>
+    );
+  }
+  if (s === "MAINTENANCE") {
+    return <span style={{ color: "var(--orange)", fontWeight: 600, fontSize: 14 }}>Needs Maintenance</span>;
+  }
+  if (s === "RETIRED") {
+    return <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: 14 }}>Retired</span>;
+  }
+  return <span style={{ color: "var(--text-secondary)", fontSize: 14 }}>{s}</span>;
+}
+
+/* ── Actions Dropdown ───────────────────────────────────── */
+
+function ActionsMenu({
+  asset,
+  onAction,
+}: {
+  asset: AssetDetail;
+  onAction: (action: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  const canDelete = !asset.hasBookingHistory;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button className="btn" onClick={() => setOpen((v) => !v)}>Actions</button>
+      {open && (
+        <div className="ctx-menu" style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 60 }}>
+          <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("duplicate"); }}>
+            Duplicate
+          </button>
+          <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("maintenance"); }}>
+            {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
+          </button>
+          <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("retire"); }}>
+            Retire
+          </button>
+          <div className="ctx-menu-sep" />
+          <button
+            className="ctx-menu-item danger"
+            disabled={!canDelete}
+            style={!canDelete ? { opacity: 0.4, cursor: "not-allowed" } : {}}
+            title={!canDelete ? "Item has booking history — use Retire instead" : "Permanently delete this item"}
+            onClick={() => { if (canDelete) { setOpen(false); onAction("delete"); } }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Editable Field ─────────────────────────────────────── */
+
 function EditableField({
-  label,
-  value,
-  canEdit,
-  onSave,
-  mono,
+  label, value, placeholder, canEdit, onSave, mono, type,
 }: {
   label: string;
   value: string;
+  placeholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
   mono?: boolean;
+  type?: "text" | "select";
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -92,11 +234,17 @@ function EditableField({
     setEditing(false);
   }
 
+  const isEmpty = !value;
+  const displayText = isEmpty && placeholder ? placeholder : (value || "—");
+  const displayStyle = isEmpty && placeholder
+    ? { color: "var(--text-muted)", fontStyle: "italic" as const, cursor: canEdit ? "pointer" : "default" }
+    : { cursor: canEdit ? "pointer" : "default", borderBottom: canEdit ? "1px dashed var(--border)" : "none", padding: "0 2px" };
+
   return (
     <div className="data-list-row">
       <dt className="data-list-label">{label}</dt>
       <dd className="data-list-value" style={mono ? { fontFamily: "monospace" } : undefined}>
-        {editing ? (
+        {editing && type !== "select" ? (
           <input
             ref={inputRef}
             value={draft}
@@ -104,28 +252,11 @@ function EditableField({
             onBlur={commit}
             onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
             disabled={saving}
-            style={{
-              width: "100%",
-              padding: "2px 6px",
-              border: "1px solid var(--border)",
-              borderRadius: 4,
-              fontSize: 13,
-              fontFamily: mono ? "monospace" : "inherit",
-              textAlign: "right",
-              outline: "none",
-            }}
+            style={{ width: "100%", padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, fontFamily: mono ? "monospace" : "inherit", textAlign: "right", outline: "none" }}
           />
         ) : (
-          <span
-            onClick={() => canEdit && setEditing(true)}
-            style={{
-              cursor: canEdit ? "pointer" : "default",
-              borderBottom: canEdit ? "1px dashed var(--border)" : "none",
-              padding: "0 2px",
-            }}
-            title={canEdit ? "Click to edit" : undefined}
-          >
-            {value || "—"}
+          <span onClick={() => canEdit && setEditing(true)} style={displayStyle} title={canEdit ? "Click to edit" : undefined}>
+            {displayText}
           </span>
         )}
       </dd>
@@ -133,14 +264,172 @@ function EditableField({
   );
 }
 
-function EditableInfoCard({
-  asset,
-  canEdit,
-  onFieldSaved,
+/* ── Fiscal Year Select Field ───────────────────────────── */
+
+function FiscalYearField({ value, canEdit, onSave }: { value: string; canEdit: boolean; onSave: (v: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const options = getFiscalYearOptions();
+
+  return (
+    <div className="data-list-row">
+      <dt className="data-list-label">Fiscal Year</dt>
+      <dd className="data-list-value">
+        {editing ? (
+          <select
+            value={value}
+            onChange={async (e) => { await onSave(e.target.value); setEditing(false); }}
+            onBlur={() => setEditing(false)}
+            autoFocus
+            style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, textAlign: "right", outline: "none" }}
+          >
+            <option value="">—</option>
+            {options.map((fy) => <option key={fy} value={fy}>{fy}</option>)}
+          </select>
+        ) : (
+          <span
+            onClick={() => canEdit && setEditing(true)}
+            style={!value ? { color: "var(--text-muted)", fontStyle: "italic", cursor: canEdit ? "pointer" : "default" } : { cursor: canEdit ? "pointer" : "default", borderBottom: canEdit ? "1px dashed var(--border)" : "none", padding: "0 2px" }}
+          >
+            {value || "Add fiscal year"}
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+/* ── Category Select Field ──────────────────────────────── */
+
+function CategoryField({ value, canEdit, categories, onSave }: { value: string; canEdit: boolean; categories: CategoryOption[]; onSave: (id: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <div className="data-list-row">
+      <dt className="data-list-label">Category</dt>
+      <dd className="data-list-value">
+        {editing ? (
+          <select
+            defaultValue=""
+            onChange={async (e) => { await onSave(e.target.value); setEditing(false); }}
+            onBlur={() => setEditing(false)}
+            autoFocus
+            style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, textAlign: "right", outline: "none" }}
+          >
+            <option value="">—</option>
+            {categories.filter((c) => !c.parentId).map((parent) => (
+              <optgroup key={parent.id} label={parent.name}>
+                {categories.filter((c) => c.parentId === parent.id).length === 0
+                  ? <option value={parent.id}>{parent.name}</option>
+                  : categories.filter((c) => c.parentId === parent.id).map((child) => (
+                    <option key={child.id} value={child.id}>{child.name}</option>
+                  ))
+                }
+              </optgroup>
+            ))}
+          </select>
+        ) : (
+          <span
+            onClick={() => canEdit && setEditing(true)}
+            style={!value ? { color: "var(--text-muted)", fontStyle: "italic", cursor: canEdit ? "pointer" : "default" } : { cursor: canEdit ? "pointer" : "default", borderBottom: canEdit ? "1px dashed var(--border)" : "none", padding: "0 2px" }}
+          >
+            {value || "Add category"}
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+/* ── QR Code Section ────────────────────────────────────── */
+
+function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const [manualEntry, setManualEntry] = useState(false);
+  const [qrDraft, setQrDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function generateQR() {
+    setSaving(true);
+    setError("");
+    const res = await fetch(`/api/assets/${asset.id}/generate-qr`, { method: "POST" });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError((json as Record<string, string>).error || "Failed");
+    }
+    setSaving(false);
+    onRefresh();
+  }
+
+  async function saveManualQR() {
+    if (!qrDraft.trim()) { setManualEntry(false); return; }
+    setSaving(true);
+    setError("");
+    const res = await fetch(`/api/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ qrCodeValue: qrDraft.trim() }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setError((json as Record<string, string>).error || "Failed");
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    setManualEntry(false);
+    onRefresh();
+  }
+
+  return (
+    <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-light)" }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>TRACKING CODES</div>
+      <div className="tracking-row" style={{ marginBottom: 8 }}>
+        <span>QR</span>
+        <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
+      </div>
+      <div className="tracking-row">
+        <span>Serial</span>
+        <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
+      </div>
+      {canEdit && (
+        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn btn-sm" onClick={generateQR} disabled={saving}>
+            {saving ? "..." : "Generate new QR"}
+          </button>
+          <button className="btn btn-sm" onClick={() => setManualEntry(true)}>
+            Enter QR manually
+          </button>
+        </div>
+      )}
+      {manualEntry && (
+        <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+          <input
+            value={qrDraft}
+            onChange={(e) => setQrDraft(e.target.value)}
+            placeholder="Enter QR code..."
+            style={{ flex: 1, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13 }}
+            onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
+            autoFocus
+          />
+          <button className="btn btn-sm btn-primary" onClick={saveManualQR} disabled={saving}>Save</button>
+          <button className="btn btn-sm" onClick={() => setManualEntry(false)}>Cancel</button>
+        </div>
+      )}
+      {error && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 6 }}>{error}</div>}
+    </div>
+  );
+}
+
+/* ── Info Tab: Item Information Card ────────────────────── */
+
+function ItemInfoCard({
+  asset, canEdit, categories, onFieldSaved, onRefresh,
 }: {
   asset: AssetDetail;
   canEdit: boolean;
+  categories: CategoryOption[];
   onFieldSaved: (updated: Partial<AssetDetail>) => void;
+  onRefresh: () => void;
 }) {
   const [feedback, setFeedback] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
 
@@ -148,19 +437,17 @@ function EditableInfoCard({
     setFeedback(null);
     try {
       const body: Record<string, unknown> = {};
-
-      if (patchKey === "purchasePrice") {
+      if (patchKey === "purchasePrice" || patchKey === "residualValue") {
         const num = parseFloat(value);
-        if (value && isNaN(num)) { setFeedback({ type: "err", msg: "Invalid price" }); return; }
+        if (value && isNaN(num)) { setFeedback({ type: "err", msg: "Invalid number" }); return; }
         body[patchKey] = value ? num : undefined;
       } else if (patchKey.startsWith("metadata.")) {
-        // Metadata fields are stored in the notes JSON blob
         const metaKey = patchKey.split(".")[1];
         const currentMeta = asset.metadata || {};
         const newMeta = { ...currentMeta, [metaKey]: value || undefined };
         body.notes = JSON.stringify(newMeta);
       } else {
-        body[patchKey] = value;
+        body[patchKey] = value || null;
       }
 
       const res = await fetch(`/api/assets/${asset.id}`, {
@@ -178,7 +465,6 @@ function EditableInfoCard({
       setFeedback({ type: "ok", msg: "Saved" });
       setTimeout(() => setFeedback((f) => f?.msg === "Saved" ? null : f), 2000);
 
-      // Optimistically update parent state
       if (patchKey.startsWith("metadata.")) {
         const metaKey = patchKey.split(".")[1];
         onFieldSaved({ metadata: { ...asset.metadata, [metaKey]: value } });
@@ -190,26 +476,41 @@ function EditableInfoCard({
     }
   }
 
-  const fields: Array<{ label: string; key: string; value: string; mono?: boolean }> = [
+  async function saveCategory(categoryId: string) {
+    setFeedback(null);
+    const res = await fetch(`/api/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId: categoryId || null }),
+    });
+    if (res.ok) {
+      setFeedback({ type: "ok", msg: "Saved" });
+      setTimeout(() => setFeedback((f) => f?.msg === "Saved" ? null : f), 2000);
+      onRefresh();
+    }
+  }
+
+  const fields: Array<{ label: string; key: string; value: string; placeholder?: string; mono?: boolean }> = [
     { label: "Item name", key: "assetTag", value: asset.assetTag },
-    { label: "Brand", key: "brand", value: asset.brand },
-    { label: "Model", key: "model", value: asset.model },
-    { label: "Category", key: "type", value: asset.category?.name || asset.type },
+    { label: "Brand", key: "brand", value: asset.brand, placeholder: "Add brand" },
+    { label: "Model", key: "model", value: asset.model, placeholder: "Add model" },
     { label: "Location", key: "_location", value: asset.location.name },
-    { label: "Purchase price", key: "purchasePrice", value: asset.purchasePrice ? String(asset.purchasePrice) : "" },
-    { label: "Purchase date", key: "purchaseDate", value: asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : "" },
+    { label: "Link", key: "linkUrl", value: asset.linkUrl || "", placeholder: "Add link" },
+    { label: "Purchase price", key: "purchasePrice", value: asset.purchasePrice ? String(asset.purchasePrice) : "", placeholder: "Add purchase price" },
+    { label: "Purchase date", key: "purchaseDate", value: asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : "", placeholder: "Add purchase date" },
+    { label: "Warranty date", key: "warrantyDate", value: asset.warrantyDate ? String(asset.warrantyDate).slice(0, 10) : "", placeholder: "Add warranty date" },
+    { label: "Residual value", key: "residualValue", value: asset.residualValue ? String(asset.residualValue) : "", placeholder: "Add residual value" },
     { label: "Serial number", key: "serialNumber", value: asset.serialNumber, mono: true },
-    { label: "Description", key: "metadata.description", value: asset.metadata?.description || "" },
-    { label: "Owner", key: "metadata.owner", value: asset.metadata?.owner || "" },
-    { label: "Department", key: "metadata.department", value: asset.metadata?.department || "" },
-    { label: "UW Asset Tag", key: "metadata.uwAssetTag", value: asset.metadata?.uwAssetTag || "" },
-    { label: "Fiscal Year", key: "metadata.fiscalYearPurchased", value: asset.metadata?.fiscalYearPurchased || "" },
+    { label: "Description", key: "metadata.description", value: asset.metadata?.description || "", placeholder: "Add description" },
+    { label: "Owner", key: "metadata.owner", value: asset.metadata?.owner || "", placeholder: "Add owner" },
+    { label: "Department", key: "metadata.department", value: asset.metadata?.department || "", placeholder: "Add department" },
+    { label: "UW Asset Tag", key: "metadata.uwAssetTag", value: asset.metadata?.uwAssetTag || "", placeholder: "Add UW asset tag" },
   ];
 
   return (
     <div className="card details-card">
       <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2>Information</h2>
+        <h2>Item Information</h2>
         {feedback && (
           <span style={{ fontSize: 12, color: feedback.type === "ok" ? "var(--green)" : "var(--red)" }}>
             {feedback.msg}
@@ -222,20 +523,94 @@ function EditableInfoCard({
             key={f.key}
             label={f.label}
             value={f.value}
+            placeholder={f.placeholder}
             canEdit={canEdit && f.key !== "_location"}
             onSave={(v) => saveField(f.key, v)}
             mono={f.mono}
           />
         ))}
+        <CategoryField
+          value={asset.category?.name || ""}
+          canEdit={canEdit}
+          categories={categories}
+          onSave={saveCategory}
+        />
+        <FiscalYearField
+          value={asset.metadata?.fiscalYearPurchased || ""}
+          canEdit={canEdit}
+          onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
+        />
       </dl>
+      <QRSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );
 }
 
+/* ── Info Tab: Operational Overview ─────────────────────── */
+
+function OperationalOverview({ asset, onSelectBooking }: { asset: AssetDetail; onSelectBooking: (id: string) => void }) {
+  const b = asset.activeBooking;
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* Active Checkout Card */}
+      <div className="card">
+        <div className="card-header"><h2>Active Check-out</h2></div>
+        <div style={{ padding: 16 }}>
+          {b && b.kind === "CHECKOUT" ? (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                <strong>{b.title}</strong>
+                <span className="badge badge-orange" style={{ fontSize: 11 }}>{dueBackText(b.endsAt)}</span>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
+                Held by <strong>{b.requesterName}</strong>
+              </div>
+              <button className="btn btn-sm" onClick={() => onSelectBooking(b.id)}>
+                View checkout &rarr;
+              </button>
+            </div>
+          ) : (
+            <div className="empty-state" style={{ padding: "16px 0" }}>No active check-out</div>
+          )}
+        </div>
+      </div>
+
+      {/* Upcoming Reservations */}
+      <div className="card">
+        <div className="card-header"><h2>Upcoming Reservations</h2></div>
+        <div style={{ padding: 16 }}>
+          {asset.upcomingReservations.length === 0 ? (
+            <div className="empty-state" style={{ padding: "16px 0" }}>No upcoming reservations</div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {asset.upcomingReservations.map((r) => (
+                <div
+                  key={r.bookingId}
+                  className="event-row"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => onSelectBooking(r.bookingId)}
+                >
+                  <div className="event-row-main">
+                    <div className="event-row-title">{r.title}</div>
+                    <div className="event-row-meta">
+                      {formatDate(r.startsAt)} – {formatDate(r.endsAt)} &middot; {r.requesterName}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Booking Kind Tab ───────────────────────────────────── */
+
 function BookingKindTab({
-  kind,
-  groups,
-  onSelectBooking,
+  kind, groups, onSelectBooking,
 }: {
   kind: "CHECKOUT" | "RESERVATION";
   groups: Array<{ month: string; items: AssetDetail["history"] }>;
@@ -256,14 +631,7 @@ function BookingKindTab({
             <div key={group.month} style={{ marginBottom: 16 }}>
               <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>{group.month}</h3>
               <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Booking</th>
-                    <th>Requester</th>
-                    <th>When</th>
-                    <th>Location</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
                 <tbody>
                   {group.items.map((entry) => (
                     <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => onSelectBooking(entry.booking.id)}>
@@ -283,33 +651,158 @@ function BookingKindTab({
   );
 }
 
+/* ── Calendar Tab ───────────────────────────────────────── */
+
+function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectBooking: (id: string) => void }) {
+  const allBookings = asset.history
+    .map((e) => e.booking)
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div className="card-header"><h2>Calendar</h2></div>
+      <div style={{ padding: 16 }}>
+        {allBookings.length === 0 ? (
+          <div className="empty-state">No bookings for this item.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {allBookings.map((b) => (
+              <div
+                key={b.id}
+                className="event-row"
+                style={{ cursor: "pointer" }}
+                onClick={() => onSelectBooking(b.id)}
+              >
+                <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
+                  {b.kind === "CHECKOUT" ? "CO" : "RES"}
+                </span>
+                <div className="event-row-main">
+                  <div className="event-row-title">{b.title}</div>
+                  <div className="event-row-meta">
+                    {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Settings Tab ───────────────────────────────────────── */
+
+function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const [saving, setSaving] = useState(false);
+
+  async function toggleSetting(field: string, currentValue: boolean) {
+    setSaving(true);
+    await fetch(`/api/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: !currentValue }),
+    });
+    setSaving(false);
+    onRefresh();
+  }
+
+  const toggles = [
+    { field: "availableForReservation", label: "Available for reservation", value: asset.availableForReservation, help: "When enabled, this item can be included in reservations." },
+    { field: "availableForCheckout", label: "Available for check out", value: asset.availableForCheckout, help: "When enabled, this item can be checked out to users." },
+    { field: "availableForCustody", label: "Available for custody", value: asset.availableForCustody, help: "When enabled, this item can be taken into custody by a user." },
+  ];
+
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <div className="card-header"><h2>Policy Settings</h2></div>
+      <div style={{ padding: 16 }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0, marginBottom: 16 }}>
+          These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
+        </p>
+        {toggles.map((t) => (
+          <div key={t.field} className="toggle-row" style={{ marginBottom: 16 }}>
+            <button
+              className={`toggle${t.value ? " on" : ""}`}
+              onClick={() => canEdit && toggleSetting(t.field, t.value)}
+              disabled={saving || !canEdit}
+            />
+            <div>
+              <div className="toggle-label">{t.label}</div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{t.help}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Page ──────────────────────────────────────────── */
+
 export default function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>("checkouts");
+  const [activeTab, setActiveTab] = useState<TabKey>("info");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
 
-  useEffect(() => {
+  function loadAsset() {
     fetch(`/api/assets/${id}`)
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json?.data) setAsset(json.data); });
+  }
+
+  useEffect(() => {
+    loadAsset();
     fetch("/api/me")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
+    fetch("/api/categories")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setCategories(json.data || []); });
   }, [id]);
 
   const historyByMonth = useMemo(() => {
     if (!asset) return [] as Array<{ month: string; items: AssetDetail["history"] }>;
     const groups = new Map<string, AssetDetail["history"]>();
-
     for (const item of asset.history) {
       const month = new Date(item.booking.startsAt).toLocaleDateString("en-US", { month: "long", year: "numeric" });
       groups.set(month, [...(groups.get(month) || []), item]);
     }
-
     return Array.from(groups.entries()).map(([month, items]) => ({ month, items }));
   }, [asset]);
+
+  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+
+  async function handleAction(action: string) {
+    if (!asset) return;
+    if (action === "duplicate") {
+      const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
+      if (res.ok) {
+        const json = await res.json();
+        router.push(`/items/${json.data.id}`);
+      }
+    } else if (action === "retire") {
+      if (!confirm("Retire this item? It will no longer be available for bookings.")) return;
+      await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
+      loadAsset();
+    } else if (action === "maintenance") {
+      await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
+      loadAsset();
+    } else if (action === "delete") {
+      if (!confirm("Permanently delete this item? This cannot be undone.")) return;
+      const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/items");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        alert((json as Record<string, string>).error || "Delete failed");
+      }
+    }
+  }
 
   if (!asset) {
     return <div className="loading-spinner"><div className="spinner" /></div>;
@@ -317,32 +810,24 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <div className="breadcrumb"><Link href="/items">Items</Link> <span>›</span> {asset.assetTag}</div>
-      <div className="page-header" style={{ marginBottom: 6 }}>
+      <div className="breadcrumb"><Link href="/items">Items</Link> <span>&rsaquo;</span> {asset.assetTag}</div>
+      <div className="page-header" style={{ marginBottom: 4 }}>
         <h1>{asset.assetTag}</h1>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn">Actions</button>
+          {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
           <button className="btn btn-primary">Reserve</button>
           <button className="btn btn-primary">Check out</button>
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, color: "var(--text-secondary)" }}>
-        <span className={`badge ${
-          asset.computedStatus === "AVAILABLE" ? "badge-green" :
-          asset.computedStatus === "CHECKED_OUT" ? "badge-blue" :
-          asset.computedStatus === "RESERVED" ? "badge-purple" :
-          asset.computedStatus === "MAINTENANCE" ? "badge-orange" :
-          "badge-gray"
-        }`}>{
-          asset.computedStatus === "CHECKED_OUT" ? "checked out" :
-          asset.computedStatus.toLowerCase()
-        }</span>
-        <span style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</span>
-        <span style={{ fontFamily: "monospace" }}>{asset.serialNumber}</span>
+
+      {/* Status line */}
+      <div style={{ marginBottom: 18 }}>
+        <StatusLine asset={asset} />
       </div>
 
+      {/* Tabs */}
       <div className="item-tabs">
-        {tabs.map((tab) => (
+        {tabDefs.map((tab) => (
           <button
             key={tab.key}
             className={`item-tab ${activeTab === tab.key ? "active" : ""}`}
@@ -353,6 +838,21 @@ export default function ItemDetailsPage() {
         ))}
       </div>
 
+      {/* Info tab — dashboard layout */}
+      {activeTab === "info" && (
+        <div className="details-grid" style={{ marginTop: 14 }}>
+          <OperationalOverview asset={asset} onSelectBooking={setSelectedBookingId} />
+          <ItemInfoCard
+            asset={asset}
+            canEdit={canEdit}
+            categories={categories}
+            onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
+            onRefresh={loadAsset}
+          />
+        </div>
+      )}
+
+      {/* Check-outs / Reservations tabs */}
       {(activeTab === "checkouts" || activeTab === "reservations") && (
         <BookingKindTab
           kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}
@@ -361,30 +861,12 @@ export default function ItemDetailsPage() {
         />
       )}
 
-      {activeTab === "info" && (
-        <div className="details-grid" style={{ marginTop: 14 }}>
-          <EditableInfoCard
-            asset={asset}
-            canEdit={currentUserRole === "ADMIN" || currentUserRole === "STAFF"}
-            onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
-          />
-
-          <div style={{ display: "grid", gap: 16 }}>
-            <div className="card">
-              <div className="card-header"><h2>Tracking codes</h2></div>
-              <div style={{ padding: 16, display: "grid", gap: 12 }}>
-                <div className="tracking-row"><span>QR</span><strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong></div>
-                <div className="tracking-row"><span>Serial</span><strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong></div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-header"><h2>Location details</h2></div>
-              <div style={{ padding: 16 }}>{asset.location.name}</div>
-            </div>
-          </div>
-        </div>
+      {/* Calendar tab */}
+      {activeTab === "calendar" && (
+        <CalendarTab asset={asset} onSelectBooking={setSelectedBookingId} />
       )}
 
+      {/* History tab */}
       {activeTab === "history" && (
         <div className="card" style={{ marginTop: 14 }}>
           <div className="card-header"><h2>History</h2></div>
@@ -408,6 +890,11 @@ export default function ItemDetailsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Settings tab */}
+      {activeTab === "settings" && (
+        <SettingsTab asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
       )}
 
       <BookingDetailsSheet

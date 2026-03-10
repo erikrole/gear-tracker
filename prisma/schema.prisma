@@ -159,6 +159,10 @@ model Asset {
   categoryId       String?                  @map("category_id")
   status           AssetStatus              @default(AVAILABLE)
   consumable       Boolean                  @default(false)
+  availableForReservation Boolean            @default(true) @map("available_for_reservation")
+  availableForCheckout    Boolean            @default(true) @map("available_for_checkout")
+  availableForCustody     Boolean            @default(true) @map("available_for_custody")
+  linkUrl          String?                  @map("link_url")
   imageUrl         String?                  @map("image_url")
   uwAssetTag       String?                  @map("uw_asset_tag")
   notes            String?
