@@ -416,6 +416,30 @@ export default function BookingDetailsSheet({
     }
   }
 
+  async function handleConvert() {
+    if (!booking) return;
+    if (!confirm("Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created.")) return;
+
+    try {
+      const res = await fetch(`/api/reservations/${booking.id}/convert`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        toast("Converted to checkout", "success");
+        onUpdated?.();
+        onClose();
+        window.location.href = `/checkouts/${json.data.id}`;
+      } else {
+        const json = await res.json();
+        toast(json.error || "Failed to convert", "error");
+      }
+    } catch {
+      toast("Failed to convert", "error");
+    }
+  }
+
   // Check-in state
   const [checkinLoading, setCheckinLoading] = useState(false);
 
@@ -477,25 +501,14 @@ export default function BookingDetailsSheet({
     setCheckinLoading(false);
   }
 
-  // Use server-provided allowedActions for checkouts; fall back to state-based checks for reservations
+  // Use server-provided allowedActions for both checkouts and reservations
   const actions = booking?.allowedActions ?? [];
-  const canEdit = booking && (
-    booking.kind === "CHECKOUT"
-      ? actions.includes("edit")
-      : (booking.status === "BOOKED" || booking.status === "OPEN")
-  );
-  const canCancel = booking && (
-    booking.kind === "CHECKOUT"
-      ? actions.includes("cancel")
-      : (booking.status === "BOOKED" || booking.status === "OPEN")
-  );
-  const canExtend = booking && (
-    booking.kind === "CHECKOUT"
-      ? actions.includes("extend")
-      : false
-  );
+  const canEdit = booking && actions.includes("edit");
+  const canCancel = booking && actions.includes("cancel");
+  const canExtend = booking && actions.includes("extend");
   const canCheckin = booking && booking.kind === "CHECKOUT" && actions.includes("checkin");
   const canOpen = booking && booking.kind === "CHECKOUT" && actions.includes("open");
+  const canConvert = booking && booking.kind === "RESERVATION" && actions.includes("convert");
   const canEditEquipment = canEdit;
 
   const filteredSerializedItems = booking?.serializedItems.filter((item) => {
@@ -679,10 +692,10 @@ export default function BookingDetailsSheet({
                             {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
                           </span>
                         )},
-                        { label: "Location", value: booking.location.name },
+                        { label: "Location", value: booking.location?.name ?? "\u2014" },
                         { label: "Start", value: formatDateTime(booking.startsAt) },
                         { label: "Due", value: formatDateTime(booking.endsAt) },
-                        { label: "Requester", value: `${booking.requester.name} (${booking.requester.email})` },
+                        { label: "Requester", value: `${booking.requester?.name ?? "Unknown"} (${booking.requester?.email ?? ""})` },
                         ...(booking.notes ? [{ label: "Notes", value: booking.notes }] : []),
                       ]}
                     />
@@ -1240,6 +1253,11 @@ export default function BookingDetailsSheet({
                 onClick={handleCheckinAll}
               >
                 {checkinLoading ? "Checking in..." : "Check in all"}
+              </button>
+            )}
+            {canConvert && (
+              <button className="btn btn-primary" onClick={handleConvert} style={{ minHeight: 44 }}>
+                Start checkout
               </button>
             )}
             {canCancel && (

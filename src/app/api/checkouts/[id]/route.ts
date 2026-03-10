@@ -2,7 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
-import { getAllowedActions } from "@/lib/services/checkout-rules";
+import { getAllowedActions } from "@/lib/services/booking-rules";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {

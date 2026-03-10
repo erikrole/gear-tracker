@@ -3,8 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { extendBooking } from "@/lib/services/bookings";
-import { requireCheckoutAction } from "@/lib/services/checkout-rules";
-import { requireReservationAction } from "@/lib/services/reservation-rules";
+import { requireCheckoutAction, requireReservationAction } from "@/lib/services/booking-rules";
 import { extendBookingSchema } from "@/lib/validation";
 
 export async function POST(

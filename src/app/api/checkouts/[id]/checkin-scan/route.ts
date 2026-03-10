@@ -3,7 +3,7 @@ import { ScanType } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { fail, HttpError, ok } from "@/lib/http";
 import { recordScan } from "@/lib/services/scans";
-import { requireCheckoutAction } from "@/lib/services/checkout-rules";
+import { requireCheckoutAction } from "@/lib/services/booking-rules";
 import { scanSchema } from "@/lib/validation";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {

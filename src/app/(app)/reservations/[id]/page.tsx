@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DataList from "@/components/DataList";
-import type { ReservationAction } from "@/lib/reservation-actions";
+import type { ReservationAction } from "@/lib/booking-actions";
 
 /* ───── Types ───── */
 
@@ -277,18 +277,35 @@ export default function ReservationDetailsPage() {
     });
   }
 
-  // Build checkout conversion URL with prefill params
-  const checkoutUrl = useMemo(() => {
-    if (!reservation) return "/checkouts";
-    const params = new URLSearchParams();
-    params.set("fromReservation", reservation.id);
-    params.set("title", reservation.title);
-    params.set("locationId", reservation.location.id);
-    params.set("startsAt", reservation.startsAt);
-    params.set("endsAt", reservation.endsAt);
-    params.set("requesterId", reservation.requester.id);
-    return `/checkouts?new=1&${params}`;
-  }, [reservation]);
+  async function handleConvert() {
+    if (!confirm("Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created with the same items."))
+      return;
+    setActionLoading("convert");
+    setActionError("");
+    try {
+      const res = await fetch(`/api/reservations/${id}/convert`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError(
+          (json as Record<string, string>).error || "Conversion failed"
+        );
+        setActionLoading(null);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        const checkoutId = (json as { data?: { id?: string } })?.data?.id;
+        if (checkoutId) {
+          router.push(`/checkouts/${checkoutId}`);
+        } else {
+          router.push("/checkouts");
+        }
+      }
+    } catch {
+      setActionError("Network error during conversion");
+      setActionLoading(null);
+    }
+  }
 
   /* ── Render ── */
 
@@ -333,13 +350,13 @@ export default function ReservationDetailsPage() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canConvert && (
-            <Link
-              href={checkoutUrl}
+            <button
               className="btn btn-primary btn-sm"
-              style={{ textDecoration: "none" }}
+              onClick={handleConvert}
+              disabled={!!actionLoading}
             >
-              Start checkout
-            </Link>
+              {actionLoading === "convert" ? "Converting..." : "Start checkout"}
+            </button>
           )}
           {canEdit && (
             <button
@@ -482,16 +499,16 @@ export default function ReservationDetailsPage() {
                     </span>
                   ),
                 },
-                { label: "Location", value: reservation.location.name },
+                { label: "Location", value: reservation.location?.name ?? "\u2014" },
                 { label: "From", value: formatDate(reservation.startsAt) },
                 { label: "To", value: formatDate(reservation.endsAt) },
                 {
                   label: "Requester",
                   value: (
                     <>
-                      {reservation.requester.name}{" "}
+                      {reservation.requester?.name ?? "Unknown"}{" "}
                       <span className="muted">
-                        ({reservation.requester.email})
+                        ({reservation.requester?.email ?? ""})
                       </span>
                     </>
                   ),

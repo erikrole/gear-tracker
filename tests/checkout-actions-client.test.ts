@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getAllowedActionsClient, type CheckoutAction } from "@/lib/checkout-actions";
+import { getAllowedActionsClient, type CheckoutAction } from "@/lib/booking-actions";
 
 /* ───── Test helpers ───── */
 

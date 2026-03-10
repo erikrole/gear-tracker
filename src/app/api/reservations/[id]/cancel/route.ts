@@ -1,7 +1,7 @@
 export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { cancelReservation } from "@/lib/services/bookings";
-import { requireReservationAction } from "@/lib/services/reservation-rules";
+import { requireReservationAction } from "@/lib/services/booking-rules";
 import { fail, ok } from "@/lib/http";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
