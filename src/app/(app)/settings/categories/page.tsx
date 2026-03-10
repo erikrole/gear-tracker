@@ -349,10 +349,6 @@ export default function CategoriesPage() {
 
           {loading ? (
             <div className="loading-spinner"><div className="spinner" /></div>
-          ) : tree.length === 0 ? (
-            <div className="empty-state">
-              {search ? "No categories match your search" : "No categories yet"}
-            </div>
           ) : (
             <div className="cat-list">
               {adding && (
@@ -380,9 +376,15 @@ export default function CategoriesPage() {
                   </div>
                 </div>
               )}
-              {tree.map((node) => (
-                <CategoryRow key={node.id} node={node} depth={0} onRefresh={load} />
-              ))}
+              {tree.length === 0 && !adding ? (
+                <div className="empty-state">
+                  {search ? "No categories match your search" : "No categories yet"}
+                </div>
+              ) : (
+                tree.map((node) => (
+                  <CategoryRow key={node.id} node={node} depth={0} onRefresh={load} />
+                ))
+              )}
             </div>
           )}
         </div>
