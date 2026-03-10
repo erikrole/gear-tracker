@@ -59,21 +59,31 @@ export default function NotificationsPage() {
   }, [page, unreadOnly]);
 
   async function markAllRead() {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_all_read" })
-    });
-    await reload();
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_all_read" })
+      });
+      if (!res.ok) toast("Failed to mark notifications as read", "error");
+      await reload();
+    } catch {
+      toast("Network error", "error");
+    }
   }
 
   async function markRead(id: string) {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "mark_read", id })
-    });
-    await reload();
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_read", id })
+      });
+      if (!res.ok) toast("Failed to mark notification as read", "error");
+      await reload();
+    } catch {
+      toast("Network error", "error");
+    }
   }
 
   async function runProcessing() {

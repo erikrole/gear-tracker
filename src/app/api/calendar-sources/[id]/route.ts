@@ -12,7 +12,10 @@ const patchSourceSchema = z.object({
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
+    if (user.role !== "ADMIN" && user.role !== "STAFF") {
+      throw new HttpError(403, "Forbidden");
+    }
     const { id } = await ctx.params;
 
     const source = await db.calendarSource.findUnique({ where: { id } });
@@ -33,7 +36,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
+    if (user.role !== "ADMIN" && user.role !== "STAFF") {
+      throw new HttpError(403, "Forbidden");
+    }
     const { id } = await ctx.params;
 
     const source = await db.calendarSource.findUnique({ where: { id } });
