@@ -129,9 +129,10 @@ type SidebarProps = {
   user: { name: string; email: string } | null;
   open?: boolean;
   onClose?: () => void;
+  unreadNotifications?: number;
 };
 
-export default function Sidebar({ user, open, onClose }: SidebarProps) {
+export default function Sidebar({ user, open, onClose, unreadNotifications = 0 }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -163,6 +164,20 @@ export default function Sidebar({ user, open, onClose }: SidebarProps) {
             >
               {item.icon}
               {item.label}
+              {item.href === "/notifications" && unreadNotifications > 0 && (
+                <span style={{
+                  marginLeft: "auto",
+                  background: "var(--red, #ef4444)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  padding: "1px 7px",
+                  minWidth: 18,
+                  textAlign: "center",
+                  lineHeight: "18px",
+                }}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+              )}
             </Link>
           );
         })}

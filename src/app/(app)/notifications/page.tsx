@@ -209,15 +209,18 @@ export default function NotificationsPage() {
                       {n.body}
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                      {n.payload?.bookingId && (
-                        <Link
-                          href={`/checkouts/${n.payload.bookingId}`}
-                          className="btn btn-sm"
-                          style={{ fontSize: 12 }}
-                        >
-                          View checkout
-                        </Link>
-                      )}
+                      {n.payload?.bookingId && (() => {
+                        const kind = n.payload?.bookingKind;
+                        const href = kind === "RESERVATION"
+                          ? `/reservations/${n.payload.bookingId}`
+                          : `/checkouts/${n.payload.bookingId}`;
+                        const label = kind === "RESERVATION" ? "View reservation" : "View checkout";
+                        return (
+                          <Link href={href} className="btn btn-sm" style={{ fontSize: 12 }}>
+                            {label}
+                          </Link>
+                        );
+                      })()}
                       {!n.readAt && (
                         <button
                           className="btn btn-sm"
