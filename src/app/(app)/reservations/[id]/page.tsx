@@ -282,18 +282,28 @@ export default function ReservationDetailsPage() {
       return;
     setActionLoading("convert");
     setActionError("");
-    const res = await fetch(`/api/reservations/${id}/convert`, {
-      method: "POST",
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setActionError(
-        (json as Record<string, string>).error || "Conversion failed"
-      );
+    try {
+      const res = await fetch(`/api/reservations/${id}/convert`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError(
+          (json as Record<string, string>).error || "Conversion failed"
+        );
+        setActionLoading(null);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        const checkoutId = (json as { data?: { id?: string } })?.data?.id;
+        if (checkoutId) {
+          router.push(`/checkouts/${checkoutId}`);
+        } else {
+          router.push("/checkouts");
+        }
+      }
+    } catch {
+      setActionError("Network error during conversion");
       setActionLoading(null);
-    } else {
-      const json = await res.json();
-      router.push(`/checkouts/${json.data.id}`);
     }
   }
 
@@ -489,16 +499,16 @@ export default function ReservationDetailsPage() {
                     </span>
                   ),
                 },
-                { label: "Location", value: reservation.location.name },
+                { label: "Location", value: reservation.location?.name ?? "\u2014" },
                 { label: "From", value: formatDate(reservation.startsAt) },
                 { label: "To", value: formatDate(reservation.endsAt) },
                 {
                   label: "Requester",
                   value: (
                     <>
-                      {reservation.requester.name}{" "}
+                      {reservation.requester?.name ?? "Unknown"}{" "}
                       <span className="muted">
-                        ({reservation.requester.email})
+                        ({reservation.requester?.email ?? ""})
                       </span>
                     </>
                   ),

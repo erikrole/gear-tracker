@@ -15,7 +15,7 @@ type Checkout = {
   location: { name: string };
   requester: { id: string; name: string; email: string };
   serializedItems: Array<{ id: string; asset: { id: string; assetTag: string; brand: string; model: string; serialNumber: string } }>;
-  bulkItems: Array<{ id: string; bulkSku: { name: string }; plannedQuantity: number; actualQuantity: number | null }>;
+  bulkItems: Array<{ id: string; bulkSku: { name: string }; plannedQuantity: number; checkedOutQuantity: number | null }>;
   allowedActions: CheckoutAction[];
 };
 
@@ -206,10 +206,10 @@ export default function CheckoutDetailsPage() {
             <DataList
               items={[
                 { label: "Name", value: checkout.title },
-                { label: "Location", value: checkout.location.name },
+                { label: "Location", value: checkout.location?.name ?? "\u2014" },
                 { label: "From", value: formatDate(checkout.startsAt) },
                 { label: "To", value: formatDate(checkout.endsAt) },
-                { label: "User", value: <>{checkout.requester.name} <span className="muted">({checkout.requester.email})</span></> },
+                { label: "User", value: <>{checkout.requester?.name ?? "Unknown"} <span className="muted">({checkout.requester?.email ?? ""})</span></> },
               ]}
             />
           </div>
@@ -268,8 +268,8 @@ export default function CheckoutDetailsPage() {
                 {checkout.bulkItems.map((item) => (
                   <tr key={item.id}>
                     {canCheckin && <td></td>}
-                    <td style={{ fontWeight: 600 }}>{item.bulkSku.name}</td>
-                    <td>Qty: {item.actualQuantity ?? item.plannedQuantity}</td>
+                    <td style={{ fontWeight: 600 }}>{item.bulkSku?.name ?? "Unknown"}</td>
+                    <td>Qty: {item.checkedOutQuantity ?? item.plannedQuantity}</td>
                     <td></td>
                   </tr>
                 ))}

@@ -400,6 +400,20 @@ export default function ReservationsPage() {
     } catch { /* network */ }
   }
 
+  async function handleConvertFromMenu(bookingId: string) {
+    const r = items.find((i) => i.id === bookingId);
+    if (!r || !confirm(`Convert "${r.title}" to a checkout? The reservation will be cancelled.`)) return;
+    try {
+      const res = await fetch(`/api/reservations/${bookingId}/convert`, { method: "POST" });
+      if (res.ok) {
+        const json = await res.json();
+        window.location.href = `/checkouts/${json.data.id}`;
+      } else {
+        await reload();
+      }
+    } catch { /* network */ }
+  }
+
   // ── Derived ──
 
   const totalPages = Math.ceil(total / limit);
@@ -988,16 +1002,16 @@ export default function ReservationsPage() {
                             <span className="row-link">{r.title}</span>
                           </div>
                           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, display: "flex", gap: 6, alignItems: "center" }}>
-                            {r.requester.name}
+                            {r.requester?.name ?? "Unknown"}
                             {" · "}
                             {formatShortDate(r.startsAt)} &ndash; {formatShortDate(r.endsAt)}
                             {r.sportCode && <span className="badge-sport">{r.sportCode}</span>}
                           </div>
                         </td>
-                        <td className="hide-mobile">{r.requester.name}</td>
+                        <td className="hide-mobile">{r.requester?.name ?? "Unknown"}</td>
                         <td className="hide-mobile">{formatDate(r.startsAt)} &ndash; {formatDate(r.endsAt)}</td>
-                        <td className="hide-mobile">{r.location.name}</td>
-                        <td className="hide-mobile">{r.serializedItems.length + r.bulkItems.length}</td>
+                        <td className="hide-mobile">{r.location?.name ?? "\u2014"}</td>
+                        <td className="hide-mobile">{(r.serializedItems?.length ?? 0) + (r.bulkItems?.length ?? 0)}</td>
                         <td>
                           <span className={`badge ${isOverdue ? "badge-red" : (statusBadge[r.status] || "badge-gray")}`}>
                             {isOverdue ? "overdue" : r.status.toLowerCase()}
@@ -1083,17 +1097,7 @@ export default function ReservationsPage() {
                 <div className="ctx-menu-sep" />
                 <button
                   className="ctx-menu-item"
-                  onClick={() => ctxAction(() => {
-                    const r = ctxMenu.reservation;
-                    const params = new URLSearchParams();
-                    params.set("fromReservation", r.id);
-                    params.set("title", r.title);
-                    params.set("locationId", r.location.id);
-                    params.set("startsAt", r.startsAt);
-                    params.set("endsAt", r.endsAt);
-                    params.set("requesterId", r.requester.id);
-                    window.location.href = `/checkouts?new=1&${params}`;
-                  })}
+                  onClick={() => ctxAction(() => handleConvertFromMenu(ctxMenu.reservation.id))}
                 >
                   Start checkout
                 </button>
