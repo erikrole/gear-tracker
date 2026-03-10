@@ -53,6 +53,13 @@ export async function GET() {
 
     return ok({ data: { locations, users, availableAssets: assetsWithCategory, bulkSkus: bulkSkusFlat } });
   } catch (error) {
+    // Surface the real error for debugging (not just generic 500)
+    if (error instanceof Error && !("status" in error)) {
+      return Response.json(
+        { error: "Internal server error", debug: error.message },
+        { status: 500 },
+      );
+    }
     return fail(error);
   }
 }
