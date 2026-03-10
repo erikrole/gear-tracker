@@ -83,16 +83,18 @@ Last updated: 2026-03-10
   - Update D-009 from Proposed to Accepted once resolved
   - Ref: docs/AREA_NOTIFICATIONS.md, docs/DECISIONS.md D-009
 
-- [ ] **Calendar Source Enable/Disable**
-  - Add `enabled` boolean toggle to CalendarSource
-  - Sync job skips disabled sources
-  - UI: enable/disable per-source in Events page source management table
-  - Ref: AREA_EVENTS.md §Next
+- [x] **Calendar Source Enable/Disable** ✅
+  - Schema: `enabled` field already existed with `@default(true)`
+  - Sync: `syncAllCalendarSources()` already filters `{ where: { enabled: true } }`
+  - API: `PATCH /api/calendar-sources/[id]` — toggle enabled, update name/url
+  - UI: Enable/Disable button per source in Events page source management table
+  - Disabled sources dimmed, Sync button disabled when source is disabled
 
-- [ ] **Sync Health Admin UI**
-  - Show "Last synced at / event count / last error" per source on Events page
-  - Source: `CalendarSource.lastFetchedAt`, `lastError` fields already exist in schema
-  - Ref: AREA_EVENTS.md §Next
+- [x] **Sync Health Admin UI** ✅
+  - Events page source table shows: event count, last synced date (with full timestamp tooltip)
+  - Error badge with inline error message preview (truncated, full on hover)
+  - Status badges: green "active", gray "disabled", red "error"
+  - Disabled rows visually dimmed (opacity 0.6)
 
 ---
 

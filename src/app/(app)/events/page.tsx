@@ -104,6 +104,17 @@ export default function EventsPage() {
     setSyncing(null);
   }
 
+  async function handleToggleEnabled(sourceId: string, enabled: boolean) {
+    try {
+      const res = await fetch(`/api/calendar-sources/${sourceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (res.ok) await loadSources();
+    } catch { /* network error */ }
+  }
+
   async function handleDeleteSource(sourceId: string) {
     if (!confirm("Delete this source and all its events? Bookings linked to these events will be unlinked.")) return;
     try {
@@ -243,29 +254,51 @@ export default function EventsPage() {
                   <th>Events</th>
                   <th>Last synced</th>
                   <th>Status</th>
+                  <th>Enabled</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {sources.map((source) => (
-                  <tr key={source.id}>
+                  <tr key={source.id} style={source.enabled ? {} : { opacity: 0.6 }}>
                     <td style={{ fontWeight: 600 }}>{source.name}</td>
                     <td>{source._count.events}</td>
-                    <td>{source.lastFetchedAt ? formatDate(source.lastFetchedAt) : "Never"}</td>
+                    <td>
+                      {source.lastFetchedAt ? (
+                        <span title={new Date(source.lastFetchedAt).toLocaleString()}>
+                          {formatDate(source.lastFetchedAt)}
+                        </span>
+                      ) : "Never"}
+                    </td>
                     <td>
                       {source.lastError ? (
-                        <span className="badge badge-red" title={source.lastError}>error</span>
+                        <span className="badge badge-red" title={source.lastError} style={{ cursor: "help" }}>error</span>
                       ) : source.enabled ? (
                         <span className="badge badge-green">active</span>
                       ) : (
                         <span className="badge badge-gray">disabled</span>
                       )}
+                      {source.lastError && (
+                        <div style={{ fontSize: 11, color: "var(--red, #dc2626)", marginTop: 2, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={source.lastError}>
+                          {source.lastError}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className={`btn btn-sm ${source.enabled ? "" : "btn-primary"}`}
+                        onClick={() => handleToggleEnabled(source.id, !source.enabled)}
+                        title={source.enabled ? "Disable this source (sync will skip it)" : "Enable this source"}
+                      >
+                        {source.enabled ? "Disable" : "Enable"}
+                      </button>
                     </td>
                     <td style={{ display: "flex", gap: 4 }}>
                       <button
                         className="btn btn-sm"
                         onClick={() => handleSync(source.id)}
-                        disabled={syncing === source.id}
+                        disabled={syncing === source.id || !source.enabled}
+                        title={!source.enabled ? "Enable source before syncing" : ""}
                       >
                         {syncing === source.id ? "Syncing..." : "Sync now"}
                       </button>

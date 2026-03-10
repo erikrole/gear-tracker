@@ -207,14 +207,25 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       include: { location: true, category: true },
     });
 
+    // Build granular before/after diff for changed fields only
+    const changedKeys = Object.keys(body);
+    const beforeDiff: Record<string, unknown> = {};
+    const afterDiff: Record<string, unknown> = {};
+    for (const key of changedKeys) {
+      const beforeVal = (before as Record<string, unknown>)[key];
+      const afterVal = (asset as Record<string, unknown>)[key];
+      beforeDiff[key] = beforeVal ?? null;
+      afterDiff[key] = afterVal ?? null;
+    }
+
     await db.auditLog.create({
       data: {
         actorUserId: user.id,
         entityType: "asset",
         entityId: params.id,
         action: "updated",
-        beforeJson: body as unknown as Prisma.InputJsonValue,
-        afterJson: body as unknown as Prisma.InputJsonValue,
+        beforeJson: beforeDiff as Prisma.InputJsonValue,
+        afterJson: afterDiff as Prisma.InputJsonValue,
       },
     });
 

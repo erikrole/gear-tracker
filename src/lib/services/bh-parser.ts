@@ -12,6 +12,8 @@ export type BHProductData = {
   model: string | null;
   imageUrl: string | null;
   sourceUrl: string;
+  /** Diagnostic: why did the fetch/parse fail? */
+  warning?: string;
 };
 
 const BH_DOMAIN = "bhphotovideo.com";
@@ -43,7 +45,7 @@ export async function parseBHProduct(url: string): Promise<BHProductData> {
   };
 
   if (!isValidBHUrl(url)) {
-    return empty;
+    return { ...empty, warning: "Invalid B&H URL" };
   }
 
   let html: string;
@@ -55,20 +57,30 @@ export async function parseBHProduct(url: string): Promise<BHProductData> {
       signal: controller.signal,
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; GearTracker/1.0; +https://gear-tracker.wisc.edu)",
-        Accept: "text/html",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
       },
     });
 
     clearTimeout(timeout);
 
-    if (!res.ok) return empty;
+    if (!res.ok) {
+      return { ...empty, warning: `B&H returned HTTP ${res.status} — site may be blocking automated requests` };
+    }
     html = await res.text();
-  } catch {
-    return empty;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "unknown error";
+    return { ...empty, warning: `Could not reach B&H: ${msg}` };
   }
 
-  return parseHTML(html, url);
+  const result = parseHTML(html, url);
+
+  if (!result.name && !result.brand && !result.model) {
+    result.warning = "Page fetched but no product data found — B&H may require browser access";
+  }
+
+  return result;
 }
 
 /**
