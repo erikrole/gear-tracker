@@ -817,95 +817,109 @@ function BookingKindTab({
 /* ── Calendar Tab ───────────────────────────────────────── */
 
 function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectBooking: (id: string) => void }) {
-  const allBookings = asset.history
-    .map((e) => e.booking)
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  const [viewDate, setViewDate] = useState(() => new Date());
 
-  // Separate bookings with events and without
-  const eventBookings = allBookings.filter((b) => b.event);
-  const standaloneBookings = allBookings.filter((b) => !b.event);
+  const allBookings = useMemo(
+    () => asset.history.map((e) => e.booking),
+    [asset.history]
+  );
+
+  // Deduplicate bookings by id (same booking can appear multiple times from history)
+  const uniqueBookings = useMemo(() => {
+    const seen = new Set<string>();
+    return allBookings.filter((b) => {
+      if (seen.has(b.id)) return false;
+      seen.add(b.id);
+      return true;
+    });
+  }, [allBookings]);
+
+  // Build calendar grid for current month
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startPad = firstDay.getDay(); // 0=Sun
+  const daysInMonth = lastDay.getDate();
+
+  const monthLabel = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Map bookings to days: which bookings overlap each day?
+  const dayBookings = useMemo(() => {
+    const map = new Map<number, Array<typeof uniqueBookings[0]>>();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStart = new Date(year, month, d).getTime();
+      const dayEnd = new Date(year, month, d + 1).getTime();
+      const overlapping = uniqueBookings.filter((b) => {
+        const bs = new Date(b.startsAt).getTime();
+        const be = new Date(b.endsAt).getTime();
+        return bs < dayEnd && be > dayStart;
+      });
+      if (overlapping.length > 0) map.set(d, overlapping);
+    }
+    return map;
+  }, [uniqueBookings, year, month, daysInMonth]);
+
+  const today = new Date();
+  const isToday = (d: number) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+
+  function prevMonth() { setViewDate(new Date(year, month - 1, 1)); }
+  function nextMonth() { setViewDate(new Date(year, month + 1, 1)); }
+  function goToday() { setViewDate(new Date()); }
+
+  // Build grid cells: padding + days
+  const cells: Array<{ day: number | null }> = [];
+  for (let i = 0; i < startPad; i++) cells.push({ day: null });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d });
 
   return (
-    <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
-      {/* Event-linked bookings */}
+    <div style={{ marginTop: 14 }}>
       <div className="card">
-        <div className="card-header"><h2>Event-linked Bookings</h2></div>
-        <div style={{ padding: 16 }}>
-          {eventBookings.length === 0 ? (
-            <div className="empty-state">No event-linked bookings for this item.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 8 }}>
-              {eventBookings.map((b) => (
-                <div
-                  key={b.id}
-                  className="event-row"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectBooking(b.id)}
-                >
-                  <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
-                    {b.kind === "CHECKOUT" ? "CO" : "RES"}
-                  </span>
-                  <div className="event-row-main">
-                    <div className="event-row-title">
-                      {b.title}
-                      {b.sportCode && <span className="badge-sport" style={{ marginLeft: 6 }}>{b.sportCode}</span>}
-                    </div>
-                    <div className="event-row-meta">
-                      {b.event && (
-                        <span style={{ fontWeight: 500 }}>
-                          {b.event.opponent
-                            ? `${b.event.isHome ? "vs" : "at"} ${b.event.opponent}`
-                            : b.event.summary}
-                          {" · "}
-                        </span>
-                      )}
-                      {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="card-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
+            <h2 style={{ minWidth: 160, textAlign: "center" }}>{monthLabel}</h2>
+            <button className="btn btn-sm" onClick={nextMonth}>&rsaquo;</button>
+          </div>
+          <button className="btn btn-sm" onClick={goToday}>Today</button>
+        </div>
+        <div style={{ padding: "12px 16px" }}>
+          {/* Day headers */}
+          <div className="cal-grid">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              <div key={d} className="cal-header">{d}</div>
+            ))}
+            {cells.map((cell, i) => (
+              <div key={i} className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""}`}>
+                {cell.day && (
+                  <>
+                    <span className="cal-day-num">{cell.day}</span>
+                    {dayBookings.get(cell.day)?.slice(0, 3).map((b) => (
+                      <button
+                        key={b.id}
+                        className={`cal-booking ${b.kind === "CHECKOUT" ? "cal-booking-co" : "cal-booking-res"}`}
+                        onClick={() => onSelectBooking(b.id)}
+                        title={`${b.kind === "CHECKOUT" ? "CO" : "RES"}: ${b.title} (${b.requester.name})`}
+                      >
+                        {b.title}
+                      </button>
+                    ))}
+                    {(dayBookings.get(cell.day)?.length ?? 0) > 3 && (
+                      <span className="cal-more">+{(dayBookings.get(cell.day)?.length ?? 0) - 3} more</span>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Standalone bookings */}
-      {standaloneBookings.length > 0 && (
-        <div className="card">
-          <div className="card-header"><h2>Other Bookings</h2></div>
-          <div style={{ padding: 16 }}>
-            <div style={{ display: "grid", gap: 8 }}>
-              {standaloneBookings.map((b) => (
-                <div
-                  key={b.id}
-                  className="event-row"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectBooking(b.id)}
-                >
-                  <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
-                    {b.kind === "CHECKOUT" ? "CO" : "RES"}
-                  </span>
-                  <div className="event-row-main">
-                    <div className="event-row-title">{b.title}</div>
-                    <div className="event-row-meta">
-                      {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {allBookings.length === 0 && (
-        <div className="card">
-          <div className="card-header"><h2>Calendar</h2></div>
-          <div style={{ padding: 16 }}>
-            <div className="empty-state">No bookings for this item.</div>
-          </div>
-        </div>
-      )}
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 12, color: "var(--text-secondary)" }}>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#3b82f6", marginRight: 4, verticalAlign: "middle" }} />Check-out</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#8b5cf6", marginRight: 4, verticalAlign: "middle" }} />Reservation</span>
+      </div>
     </div>
   );
 }
@@ -1166,7 +1180,14 @@ export default function ItemDetailsPage() {
       <div className="breadcrumb"><Link href="/items">Items</Link> <span>&rsaquo;</span> {asset.assetTag}</div>
       <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
-          <h1 style={{ marginBottom: 0 }}>{asset.assetTag}</h1>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <h1 style={{ marginBottom: 0 }}>{asset.assetTag}</h1>
+            {asset.metadata?.uwAssetTag && (
+              <span style={{ fontSize: 14, color: "var(--text-secondary)", fontWeight: 500 }}>
+                UW {asset.metadata.uwAssetTag}
+              </span>
+            )}
+          </div>
           {asset.name && (
             <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 2 }}>{asset.name}</div>
           )}
@@ -1244,6 +1265,7 @@ export default function ItemDetailsPage() {
       <BookingDetailsSheet
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
+        onUpdated={loadAsset}
         currentUserRole={currentUserRole}
       />
     </>
