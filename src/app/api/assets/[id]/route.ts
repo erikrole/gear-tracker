@@ -95,8 +95,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
           assetId: params.id,
           booking: {
             kind: "RESERVATION",
-            status: { in: [BookingStatus.BOOKED] },
-            startsAt: { gte: new Date() },
+            status: { in: [BookingStatus.BOOKED, BookingStatus.OPEN] },
+            endsAt: { gt: new Date() },
           },
         },
         include: {

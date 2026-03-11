@@ -1287,7 +1287,7 @@ a:hover {
 
 .tracking-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2397,58 +2397,49 @@ a:hover {
   }
 }
 
-/* ── Asset Tag Label (physical label style) ──────────── */
+/* ── Asset Tag Label (matches physical Brother 0.47" label) ── */
 
 .asset-tag-label {
-  padding: 16px;
-  border-top: 1px solid var(--border-light);
-}
-
-.asset-tag-label-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  background: #1a1a2e;
-  border-radius: 8px;
-  padding: 20px 28px;
-  aspect-ratio: 2.13 / 1;
-  max-width: 380px;
-  margin: 0 auto;
+  gap: 0;
+  background: #000;
+  border-radius: 4px;
+  padding: 6px 8px;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .asset-tag-label-text {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  flex: 1;
+  gap: 0;
+  padding-right: 6px;
 }
 
 .asset-tag-label-line {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
-  font-family: system-ui, -apple-system, sans-serif;
+  /* Gotham XNarrow Bold — fall back to condensed sans-serif */
+  font-family: "Gotham XNarrow", "Barlow Condensed", "Arial Narrow", sans-serif;
   color: #fff;
-  letter-spacing: 0.04em;
-  line-height: 1.15;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
   text-align: center;
 }
 
 .asset-tag-label-qr {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
   flex-shrink: 0;
-  border-radius: 4px;
-  overflow: hidden;
+  line-height: 0;
 }
 
 .asset-tag-label-qr canvas {
   display: block;
   filter: invert(1);
   border: none !important;
+  border-radius: 0 !important;
 }
 
 /* ── QR Modal ────────────────────────────────────────── */
