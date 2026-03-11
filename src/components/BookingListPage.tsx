@@ -457,11 +457,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     const keys = new Set<EquipmentSectionKey>();
     for (const id of selectedAssetIds) {
       const asset = availableAssets.find((a) => a.id === id);
-      if (asset) keys.add(classifyAssetType(asset.type));
+      if (asset) keys.add(classifyAssetType(asset.type, (asset as Record<string, unknown>).categoryName as string | null | undefined));
     }
     for (const item of selectedBulkItems) {
       const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
-      if (sku) keys.add(classifyAssetType(sku.category));
+      if (sku) keys.add(classifyAssetType(sku.category, (sku as Record<string, unknown>).categoryName as string | null | undefined));
     }
     return Array.from(keys);
   }, [selectedAssetIds, selectedBulkItems, availableAssets, bulkSkus]);
