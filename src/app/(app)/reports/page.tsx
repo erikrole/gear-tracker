@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { formatDateFull } from "@/lib/format";
 
 type UtilizationData = {
   totalAssets: number;
@@ -61,14 +62,6 @@ const statusBadge: Record<string, string> = {
   MAINTENANCE: "badge-orange",
   RETIRED: "badge-gray",
 };
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-US", {
@@ -270,7 +263,7 @@ function CheckoutReport({ data, days, onDaysChange }: { data: CheckoutData; days
                       </Link>
                     </td>
                     <td>{c.requester}</td>
-                    <td>{formatDate(c.endsAt)}</td>
+                    <td>{formatDateFull(c.endsAt)}</td>
                     <td>{c.itemCount}</td>
                     <td>
                       <span className={`badge ${c.isOverdue ? "badge-red" : c.status === "OPEN" ? "badge-green" : "badge-gray"}`}>

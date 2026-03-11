@@ -3,6 +3,12 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 
+// Sort comparator: overdue first, then nearest due date
+const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOverdue: boolean; endsAt: string }) => {
+  if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+  return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
+};
+
 export async function GET() {
   try {
     const user = await requireAuth();
@@ -114,12 +120,6 @@ export async function GET() {
         },
       }),
     ]);
-
-    // Sort comparator: overdue first, then nearest due date
-    const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOverdue: boolean; endsAt: string }) => {
-      if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
-      return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
-    };
 
     // Build "my possession" items: flatten booking → individual assets
     const myPossession = myCheckoutBookings.flatMap((booking) =>

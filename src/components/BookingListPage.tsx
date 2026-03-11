@@ -13,6 +13,7 @@ import {
   sectionIndex,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
+import { formatDateShort } from "@/lib/format";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
@@ -98,10 +99,6 @@ export type BookingListConfig = {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-
-function formatShortDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric" });
 }
 
 function roundTo15Min(date: Date): Date {
@@ -1004,7 +1001,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, display: "flex", gap: 6, alignItems: "center" }}>
                             {item.requester?.name ?? "Unknown"}
                             {" · "}
-                            {formatShortDate(item.startsAt)} &ndash; {formatShortDate(item.endsAt)}
+                            {formatDateShort(item.startsAt)} &ndash; {formatDateShort(item.endsAt)}
                             {item.sportCode && <span className="badge-sport">{item.sportCode}</span>}
                             {config.showEventBadge && item.event && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>event</span>}
                           </div>

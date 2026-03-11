@@ -61,7 +61,7 @@ export function formatDateFull(iso: string | null) {
 
 /** "Mar 11, 2026, 3:00 PM" */
 export function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
+  return new Date(iso).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",

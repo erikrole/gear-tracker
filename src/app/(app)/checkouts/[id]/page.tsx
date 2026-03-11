@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import DataList from "@/components/DataList";
 import type { CheckoutAction } from "@/lib/booking-actions";
+import { formatDateTime } from "@/lib/format";
 
 type Checkout = {
   id: string;
@@ -18,16 +19,6 @@ type Checkout = {
   bulkItems: Array<{ id: string; bulkSku: { name: string }; plannedQuantity: number; checkedOutQuantity: number | null }>;
   allowedActions: CheckoutAction[];
 };
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit"
-  });
-}
 
 const statusBadgeClass: Record<string, string> = {
   DRAFT: "badge-gray",
@@ -207,8 +198,8 @@ export default function CheckoutDetailsPage() {
               items={[
                 { label: "Name", value: checkout.title },
                 { label: "Location", value: checkout.location?.name ?? "\u2014" },
-                { label: "From", value: formatDate(checkout.startsAt) },
-                { label: "To", value: formatDate(checkout.endsAt) },
+                { label: "From", value: formatDateTime(checkout.startsAt) },
+                { label: "To", value: formatDateTime(checkout.endsAt) },
                 { label: "User", value: <>{checkout.requester?.name ?? "Unknown"} <span className="muted">({checkout.requester?.email ?? ""})</span></> },
               ]}
             />
