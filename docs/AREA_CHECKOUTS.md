@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-02
-- Status: Active
+- Last Updated: 2026-03-11
+- Status: Active — V1 Shipped
 - Version: V1
 
 ## Direction
@@ -96,6 +96,8 @@ Items that are unavailable for the selected booking window show an inline confli
 
 ## Action Matrix by State
 
+Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT]`
+
 ### `DRAFT`
 - Allowed actions:
   - Edit (resume)
@@ -111,9 +113,10 @@ Items that are unavailable for the selected booking window show an inline confli
 ### `OPEN`
 - Allowed actions:
   - View
-  - Extend
-  - Edit
-  - Check in (partial or full)
+  - Edit (staff+ or owner)
+  - Extend (staff+ or owner)
+  - Cancel (staff+ only — students cannot cancel OPEN checkouts even if owner)
+  - Check in (partial or full, staff+ or owner)
 
 ### `COMPLETED`
 - Allowed actions:
@@ -179,7 +182,7 @@ Items that are unavailable for the selected booking window show an inline confli
 - Event normalization read model from `AREA_EVENTS.md`.
 - Equipment selection behavior from `AREA_ITEMS.md`.
 - Permission policy from `AREA_USERS.md`.
-- Integrity constraints and audit requirements from `AREA_PLATFORM_INTEGRITY.md`.
+- Integrity constraints and audit requirements from `DECISIONS.md` (D-001, D-006, D-007).
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Out of Scope (V1)
@@ -199,3 +202,4 @@ Items that are unavailable for the selected booking window show an inline confli
 - 2026-03-01: Rewritten into hardened V1 workflow, logic, and failure-mode spec.
 - 2026-03-02: Added explicit mobile contract dependency and list-action alignment.
 - 2026-03-09: Added Equipment Picker section (kit-first sectioned flow, locked progression, guidance rules, conflict feedback). Added DRAFT booking state. Reflected shipped implementation from PRs 22–25.
+- 2026-03-11: Docs hardening — added `booking-rules.ts` as action matrix source of truth. Added cancel-on-OPEN staff-only rule. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md. Marked V1 as shipped.

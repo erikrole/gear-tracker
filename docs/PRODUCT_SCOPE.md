@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-03-02
+- Last Updated: 2026-03-11
 - Status: Living index
 - Purpose: route planning work to focused area files so implementation agents can load only relevant context
 
@@ -35,7 +35,9 @@ Read `NORTH_STAR.md` first in any Claude session. It is the authoritative produc
 1. Phase A (Now):
    - ✅ Checkouts + Equipment Picker (Checkout UX V2 — complete, PRs 20–25)
    - ✅ Events foundation + ICS sync hardening (complete, PRs 26–30)
-   - ⬜ B&H metadata enrichment (next)
+   - ✅ Reservations V1 (complete, PRs 33–38)
+   - ✅ Items V1 (complete, PRs 31–32)
+   - ⬜ B&H metadata enrichment (next — brief ready)
    - ⬜ Student mobile hardening
 2. Phase B (Next): Dashboard expansion + Notifications escalation (D-009) + Picker improvements + Calendar source health UI.
 3. Phase C (Later): Templates, kiosk, board, analytics, and integrations.
@@ -48,10 +50,10 @@ Read `NORTH_STAR.md` first in any Claude session. It is the authoritative produc
 
 ## Implementation Brief Files
 1. ✅ Checkout UX V2: `BRIEF_CHECKOUT_UX_V2.md` — Shipped.
-2. Reservations Lifecycle V1: `BRIEF_RESERVATIONS_V1.md`
-3. Items List + Create + Detail V1: `BRIEF_ITEMS_V1.md`
+2. ✅ Reservations Lifecycle V1: `BRIEF_RESERVATIONS_V1.md` — Shipped.
+3. ✅ Items List + Create + Detail V1: `BRIEF_ITEMS_V1.md` — Shipped.
 4. Cheqroom CSV Importer V1: `BRIEF_CHEQROOM_IMPORTER_V1.md`
-5. B&H Enrichment V1: `BRIEF_BH_ENRICHMENT_V1.md` — Pending creation.
+5. B&H Enrichment V1: `BRIEF_BH_ENRICHMENT_V1.md` — Ready.
 6. Student Mobile V1: `BRIEF_STUDENT_MOBILE_V1.md` — Pending creation.
 
 ## Working Rule for Claude Sessions
@@ -77,3 +79,4 @@ Read `NORTH_STAR.md` first in any Claude session. It is the authoritative produc
 - 2026-03-01: Added importer area and Cheqroom CSV importer brief.
 - 2026-03-02: Added mobile operations area and scope-sync checklist.
 - 2026-03-09: Added NORTH_STAR.md reference as first read. Updated phase sequence and brief queue to reflect shipped Checkout UX V2 and Event sync. Added pending briefs for B&H enrichment and student mobile.
+- 2026-03-11: Docs hardening pass — marked Reservations V1 and Items V1 as shipped. Updated B&H enrichment status to Ready. Synced brief index to reality.

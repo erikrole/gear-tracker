@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-03-02
+- Last Updated: 2026-03-11
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -133,10 +133,11 @@
   - Dedup key: `"{bookingId}:{type}"` — prevents re-fire per booking per window
   - Current behavior: all 4 triggers notify the checkout requester only
   - Implementation: `src/lib/services/notifications.ts`
-- Decision (Pending Acceptance):
+- Decision (Pending Acceptance — Phase B):
   - Define admin/manager escalation recipients for the +24h trigger
   - Define alert fatigue controls (per-booking cap, opt-out)
-  - Define email failure retry behavior
+  - Email channel is Phase B; V1 acceptance = in-app escalation only
+- Reference: `AREA_NOTIFICATIONS.md` is the full spec for escalation behavior
 - Consequences:
   - Faster recovery of missing gear once full escalation is wired.
   - Needs policy controls to avoid alert fatigue.
@@ -260,9 +261,9 @@
 - Guardrails:
   - New guidance rules must be reviewed against actual equipment workflows, not added speculatively.
 
-## D-017: DRAFT Booking State Is Valid but Informally Specced
+## D-017: DRAFT Booking State Is Valid
 - Date: 2026-03-09
-- Status: Accepted (behavior) / Proposed (full formalization)
+- Status: Accepted
 - Context:
   - `checkout-rules.ts` handles a `DRAFT` booking state (allows `edit` and `cancel`) but AREA_CHECKOUTS.md and DECISIONS.md did not formally document this state.
 - Decision:
@@ -303,3 +304,4 @@
 - 2026-03-01: Initial decision log created from project memory dump.
 - 2026-03-02: Added student-first mobile operations contract decision.
 - 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).
+- 2026-03-11: Docs hardening — moved D-017 to Accepted. Clarified D-009 email as Phase B. Added AREA_NOTIFICATIONS.md cross-reference to D-009.

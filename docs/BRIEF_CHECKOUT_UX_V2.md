@@ -6,6 +6,7 @@
 - Date: 2026-03-02
 - Priority: `High`
 - Target phase: `Now`
+- Status: **Shipped** (PRs 20–25)
 
 ## 2) Problem
 - Current pain: Checkout creation and action handling are too generic and can produce inconsistent operational behavior.
