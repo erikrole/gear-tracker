@@ -2396,3 +2396,70 @@ a:hover {
     break-inside: avoid;
   }
 }
+
+/* ── Asset Tag Label ─────────────────────────────────── */
+
+.asset-tag-label {
+  padding: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.asset-tag-label-inner {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  text-align: center;
+  background: var(--surface);
+}
+
+.asset-tag-label-tag {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.asset-tag-label-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.asset-tag-label-barcode {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 1px;
+  height: 32px;
+  margin-bottom: 4px;
+}
+
+.asset-tag-label-bar {
+  display: inline-block;
+  height: 100%;
+  background: var(--text-primary);
+  border-radius: 0.5px;
+}
+
+.asset-tag-label-code {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+}
+
+/* ── Header Action Buttons (consistent sizing) ────────── */
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.header-action-btn {
+  min-width: 100px;
+  text-align: center;
+  justify-content: center;
+}

@@ -12,6 +12,7 @@ type ActiveBookingDetail = {
   kind: string;
   status: string;
   title: string;
+  startsAt: string;
   endsAt: string;
   requesterName: string;
 };
@@ -108,6 +109,40 @@ function dueBackText(endsAt: string): string {
   if (hours < 24) return `Due back in ${hours}h`;
   const days = Math.floor(hours / 24);
   return `Due back in ${days}d`;
+}
+
+/* ── Countdown helpers (shared with dashboard) ───────── */
+
+type UrgencyLevel = "overdue" | "critical" | "warning" | "normal";
+
+function getUrgency(startsAt: string, endsAt: string, now: Date): UrgencyLevel {
+  const end = new Date(endsAt).getTime();
+  const remaining = end - now.getTime();
+  if (remaining <= 0) return "overdue";
+  const duration = end - new Date(startsAt).getTime();
+  if (duration <= 0) return "critical";
+  const pctRemaining = remaining / duration;
+  if (pctRemaining <= 0.10) return "critical";
+  if (pctRemaining <= 0.25) return "warning";
+  return "normal";
+}
+
+function formatCountdown(endsAt: string, now: Date): string {
+  const diff = new Date(endsAt).getTime() - now.getTime();
+  const absDiff = Math.abs(diff);
+  const days = Math.floor(absDiff / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((absDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  const minutes = Math.floor((absDiff % (60 * 60 * 1000)) / (60 * 1000));
+  let timeStr: string;
+  if (days > 0) { timeStr = `${days}d ${hours}h`; }
+  else if (hours > 0) { timeStr = `${hours}h ${minutes}m`; }
+  else { timeStr = `${minutes}m`; }
+  if (diff <= 0) return `OVERDUE BY ${timeStr}`;
+  return `DUE BACK IN ${timeStr}`;
+}
+
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function getFiscalYearOptions(): string[] {
@@ -508,11 +543,34 @@ function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit:
 
 /* ── Info Tab: Item Information Card ────────────────────── */
 
+function AssetTagLabel({ assetTag, brand, model }: { assetTag: string; brand: string; model: string }) {
+  return (
+    <div className="asset-tag-label">
+      <div className="asset-tag-label-inner">
+        <div className="asset-tag-label-tag">{assetTag}</div>
+        <div className="asset-tag-label-desc">{brand} {model}</div>
+        <div className="asset-tag-label-barcode">
+          {/* Simple barcode visual using CSS stripes */}
+          {Array.from({ length: 30 }).map((_, i) => (
+            <span
+              key={i}
+              className="asset-tag-label-bar"
+              style={{ width: (assetTag.charCodeAt(i % assetTag.length) % 3) + 1 }}
+            />
+          ))}
+        </div>
+        <div className="asset-tag-label-code">{assetTag}</div>
+      </div>
+    </div>
+  );
+}
+
 function ItemInfoCard({
-  asset, canEdit, categories, onFieldSaved, onRefresh, onCategoriesChanged,
+  asset, canEdit, currentUserRole, categories, onFieldSaved, onRefresh, onCategoriesChanged,
 }: {
   asset: AssetDetail;
   canEdit: boolean;
+  currentUserRole: string;
   categories: CategoryOption[];
   onFieldSaved: (updated: Partial<AssetDetail>) => void;
   onRefresh: () => void;
@@ -637,7 +695,7 @@ function ItemInfoCard({
       </div>
       <dl className="data-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         {renderFieldGroup("Identity", identityFields)}
-        {renderFieldGroup("Procurement", procurementFields, (
+        {currentUserRole !== "STUDENT" && renderFieldGroup("Procurement", procurementFields, (
           <FiscalYearField
             value={asset.metadata?.fiscalYearPurchased || ""}
             canEdit={canEdit}
@@ -656,67 +714,80 @@ function ItemInfoCard({
         ))}
       </dl>
       <QRSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
+      <AssetTagLabel assetTag={asset.assetTag} brand={asset.brand} model={asset.model} />
     </div>
   );
 }
 
-/* ── Info Tab: Operational Overview ─────────────────────── */
+/* ── Info Tab: Operational Overview (Dashboard-style cards) ── */
 
-function OperationalOverview({ asset, onSelectBooking }: { asset: AssetDetail; onSelectBooking: (id: string) => void }) {
+function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDetail; now: Date; onSelectBooking: (id: string) => void }) {
   const b = asset.activeBooking;
+  const hasActiveCheckout = b && b.kind === "CHECKOUT";
+  const hasReservations = asset.upcomingReservations.length > 0;
+
+  if (!hasActiveCheckout && !hasReservations) {
+    return (
+      <div className="card">
+        <div className="card-header"><h2>Bookings</h2></div>
+        <div className="empty-state" style={{ padding: 24 }}>No active bookings for this item</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      {/* Active Checkout Card */}
-      <div className="card">
-        <div className="card-header"><h2>Active Check-out</h2></div>
-        <div style={{ padding: 16 }}>
-          {b && b.kind === "CHECKOUT" ? (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-                <strong>{b.title}</strong>
-                <span className="badge badge-orange" style={{ fontSize: 11 }}>{dueBackText(b.endsAt)}</span>
+      {/* Active Checkout — dashboard-style possession card */}
+      {hasActiveCheckout && b && (
+        <div className="card">
+          <div className="card-header"><h2>Active Check-out</h2></div>
+          <div className="card-body card-body-compact">
+            <button
+              className="possession-card"
+              onClick={() => onSelectBooking(b.id)}
+            >
+              <div className={`countdown-bar countdown-${getUrgency(b.startsAt, b.endsAt, now)}`}>
+                {getUrgency(b.startsAt, b.endsAt, now) !== "normal"
+                  ? formatCountdown(b.endsAt, now)
+                  : `Due ${formatDateShort(b.endsAt)}`}
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
-                Held by <strong>{b.requesterName}</strong>
+              <div className="possession-card-body">
+                <span className="possession-asset-tag">{b.title}</span>
+                <span className="possession-asset-name">
+                  Held by {b.requesterName}
+                </span>
+                <span className="ops-row-meta">{dueBackText(b.endsAt)}</span>
               </div>
-              <button className="btn btn-sm" onClick={() => onSelectBooking(b.id)}>
-                View checkout &rarr;
-              </button>
-            </div>
-          ) : (
-            <div className="empty-state" style={{ padding: "16px 0" }}>No active check-out</div>
-          )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Upcoming Reservations */}
-      <div className="card">
-        <div className="card-header"><h2>Upcoming Reservations</h2></div>
-        <div style={{ padding: 16 }}>
-          {asset.upcomingReservations.length === 0 ? (
-            <div className="empty-state" style={{ padding: "16px 0" }}>No upcoming reservations</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {asset.upcomingReservations.map((r) => (
-                <div
-                  key={r.bookingId}
-                  className="event-row"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectBooking(r.bookingId)}
-                >
-                  <div className="event-row-main">
-                    <div className="event-row-title">{r.title}</div>
-                    <div className="event-row-meta">
-                      {formatDate(r.startsAt)} – {formatDate(r.endsAt)} &middot; {r.requesterName}
-                    </div>
-                  </div>
+      {/* Upcoming Reservations — dashboard-style cards */}
+      {hasReservations && (
+        <div className="card">
+          <div className="card-header">
+            <h2>Upcoming Reservations</h2>
+            <span className="section-count">{asset.upcomingReservations.length}</span>
+          </div>
+          <div className="card-body card-body-compact">
+            {asset.upcomingReservations.map((r) => (
+              <button
+                key={r.bookingId}
+                className="ops-row"
+                onClick={() => onSelectBooking(r.bookingId)}
+              >
+                <div className="ops-row-main">
+                  <span className="ops-row-title">{r.title}</span>
+                  <span className="ops-row-meta">
+                    {r.requesterName} &middot; {formatDateShort(r.startsAt)} – {formatDateShort(r.endsAt)}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1106,6 +1177,7 @@ export default function ItemDetailsPage() {
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [fetchError, setFetchError] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   function loadAsset() {
     fetch(`/api/assets/${id}`)
@@ -1127,6 +1199,12 @@ export default function ItemDetailsPage() {
       .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
     loadCategories();
   }, [id]);
+
+  // Live countdown tick every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const historyByMonth = useMemo(() => {
     if (!asset) return [] as Array<{ month: string; items: AssetDetail["history"] }>;
@@ -1192,10 +1270,10 @@ export default function ItemDetailsPage() {
             <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 2 }}>{asset.name}</div>
           )}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="header-actions">
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-          <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>Reserve</Link>
-          <Link href={`/checkouts?newFor=${asset.id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>Check out</Link>
+          <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary header-action-btn" style={{ textDecoration: "none" }}>Reserve</Link>
+          <Link href={`/checkouts?newFor=${asset.id}`} className="btn btn-primary header-action-btn" style={{ textDecoration: "none" }}>Check out</Link>
         </div>
       </div>
 
@@ -1223,12 +1301,13 @@ export default function ItemDetailsPage() {
           <ItemInfoCard
             asset={asset}
             canEdit={canEdit}
+            currentUserRole={currentUserRole}
             categories={categories}
             onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
             onRefresh={loadAsset}
             onCategoriesChanged={loadCategories}
           />
-          <OperationalOverview asset={asset} onSelectBooking={setSelectedBookingId} />
+          <OperationalOverview asset={asset} now={now} onSelectBooking={setSelectedBookingId} />
         </div>
       )}
 
