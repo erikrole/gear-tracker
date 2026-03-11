@@ -53,7 +53,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 1. `New asset` visible to `ADMIN` and `STAFF`.
 2. `Import` visible to `ADMIN` and `STAFF`.
 3. `Export` visible to `ADMIN` and `STAFF`; hidden for `STUDENT`.
-4. `Customize overview` deferred in V1 unless low effort and no performance risk.
+4. `Customize overview` deferred — not in V1.
 
 ### Filters and Controls
 1. Search input for identity and metadata fields.
@@ -326,7 +326,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - User role and ownership model from `AREA_USERS.md`.
 - Reservation and checkout linkage from `AREA_RESERVATIONS.md` and `AREA_CHECKOUTS.md`.
 - Metadata enrichment behavior from B&H workflow.
-- Integrity rules from `AREA_PLATFORM_INTEGRITY.md`.
+- Integrity rules from `DECISIONS.md` (D-001, D-006, D-007).
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Out of Scope (V1)
@@ -350,3 +350,4 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - 2026-03-02: Added mobile list/search behavior alignment and contract dependency.
 - 2026-03-09: Items page V1 implementation complete (slices 1–4): list columns/filters/pagination, status dot with booking popover, clickable rows, detail tabs (Check-outs/Reservations/Info/History), inline edit for ADMIN/STAFF, item-kind-aware create form.
 - 2026-03-09: Expanded item detail spec with status-line states, working `Actions` menu requirements, dashboard-style `Info` tab, `Calendar` and `Settings` tabs, QR generation/manual entry rules, inline missing-value prompts, and fiscal-year dropdown guidance.
+- 2026-03-11: Docs hardening — resolved "Customize overview" ambiguity: deferred, not in V1. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md.

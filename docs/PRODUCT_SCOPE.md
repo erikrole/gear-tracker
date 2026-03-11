@@ -26,10 +26,9 @@ Read `NORTH_STAR.md` first in any Claude session. It is the authoritative produc
 4. Reservations: `AREA_RESERVATIONS.md`
 5. Events: `AREA_EVENTS.md`
 6. Notifications: `AREA_NOTIFICATIONS.md`
-7. Platform Integrity: `AREA_PLATFORM_INTEGRITY.md`
-8. Users: `AREA_USERS.md`
-9. Importer: `AREA_IMPORTER.md`
-10. Mobile Operations: `AREA_MOBILE.md`
+7. Users: `AREA_USERS.md`
+8. Importer: `AREA_IMPORTER.md`
+9. Mobile Operations: `AREA_MOBILE.md`
 
 ## Phase Sequence Across Areas
 1. Phase A (Now):
@@ -52,7 +51,7 @@ Read `NORTH_STAR.md` first in any Claude session. It is the authoritative produc
 1. ✅ Checkout UX V2: `BRIEF_CHECKOUT_UX_V2.md` — Shipped.
 2. ✅ Reservations Lifecycle V1: `BRIEF_RESERVATIONS_V1.md` — Shipped.
 3. ✅ Items List + Create + Detail V1: `BRIEF_ITEMS_V1.md` — Shipped.
-4. Cheqroom CSV Importer V1: `BRIEF_CHEQROOM_IMPORTER_V1.md`
+4. CSV Importer V1 (Cheqroom preset): `BRIEF_CHEQROOM_IMPORTER_V1.md`
 5. B&H Enrichment V1: `BRIEF_BH_ENRICHMENT_V1.md` — Ready.
 6. Student Mobile V1: `BRIEF_STUDENT_MOBILE_V1.md` — Pending creation.
 

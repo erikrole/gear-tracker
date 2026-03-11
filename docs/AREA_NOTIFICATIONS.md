@@ -114,7 +114,7 @@ Until D-009 is accepted:
 - `AREA_CHECKOUTS.md` — booking lifecycle, `endsAt` field, `OPEN` state contract
 - `AREA_USERS.md` — recipient role resolution for future multi-recipient escalation
 - `AREA_DASHBOARD.md` — overdue banner count consistency
-- `AREA_PLATFORM_INTEGRITY.md` — audit logging of notification creation events
+- `DECISIONS.md` (D-007) — audit logging of notification creation events
 
 ## Out of Scope (V1)
 1. Push notifications (native or web push)

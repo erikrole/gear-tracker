@@ -1,38 +1,45 @@
-# Importer Area Scope (V1 Cheqroom CSV)
+# Importer Area Scope (V1 Generic CSV with Cheqroom Preset)
 
 ## Document Control
 - Area: Importer
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-01
+- Last Updated: 2026-03-11
 - Status: Active
 - Version: V1
 
 ## Direction
-Build a lossless Cheqroom CSV importer that parses every column, maps supported fields into Gear Tracker models, and preserves unmapped values for audit.
+Build a generic CSV import pipeline with column mapping. The Cheqroom export format is the first preset mapping, but the architecture supports any CSV source.
 
 ## Goals
-1. Parse entire CSV without silent data loss.
+1. Parse any CSV without silent data loss.
 2. Import items as serialized or bulk records based on source kind.
 3. Preserve all source values even when no first-class target field exists.
 4. Produce deterministic import report with row-level errors and warnings.
 5. Keep asset status derived from allocations, not imported status text.
 
+## Architecture: Generic CSV Mapper
+
+### Core Pipeline
+1. Upload CSV → parse headers and sample rows.
+2. Column mapping step: user maps source columns to Gear Tracker target fields (or selects a preset).
+3. Validate mapped rows against target field requirements.
+4. Persist mapped data + full source payload snapshot.
+5. Return import report (`created`, `updated`, `skipped`, `errors`, `warnings`).
+
+### Presets
+Presets are pre-filled column mappings for known CSV formats. V1 ships with one preset:
+- **Cheqroom Export** — maps all known Cheqroom columns automatically (see mapping table below)
+
+Future presets require no architecture changes — just a new mapping configuration.
+
 ## Input Contract
-- Supported source: Cheqroom item export CSV.
-- Expected shape: wide CSV with item, metadata, location, financial, tracking, and custody/check-out columns.
+- Supported source: any CSV file.
+- Cheqroom preset expects: wide CSV with item, metadata, location, financial, tracking, and custody/check-out columns.
 - Parser must tolerate:
-  - Extra columns
+  - Extra columns (stored in sourcePayload)
   - Missing optional columns
   - Empty cells
   - Mixed timestamp formats
-
-## High-Level Import Pipeline
-1. Upload CSV and run header normalization.
-2. Parse all rows into raw staging records.
-3. Validate required minimum fields for item creation.
-4. Map normalized fields into target item model.
-5. Persist mapped data + full source payload snapshot.
-6. Return import report (`created`, `updated`, `skipped`, `errors`, `warnings`).
 
 ## Lossless Parsing Rule
 Every source column must be handled by exactly one path:
@@ -41,7 +48,7 @@ Every source column must be handled by exactly one path:
 
 No column is discarded.
 
-## Source to Target Mapping (V1)
+## Cheqroom Preset: Source to Target Mapping
 
 ### Identity and Classification
 - `Name` -> `tagName` (serialized primary label)
@@ -180,12 +187,12 @@ No column is discarded.
 ## Dependencies
 - `AREA_ITEMS.md` for target field semantics.
 - `AREA_USERS.md` for import permissions.
-- `AREA_PLATFORM_INTEGRITY.md` for audit and integrity guardrails.
+- `DECISIONS.md` (D-001, D-006, D-007) for audit and integrity guardrails.
 
 ## Out of Scope (V1)
 1. Auto-creating historical bookings from checkout snapshot columns.
 2. Attachment file ingestion from remote image URLs beyond metadata linking.
-3. Interactive column mapping UI.
+3. Custom preset creation UI (presets are code-defined in V1).
 
 ## Developer Brief (No Code)
 1. Build a staged importer with raw-row preservation and deterministic mapping.
@@ -196,3 +203,4 @@ No column is discarded.
 
 ## Change Log
 - 2026-03-01: Initial importer area scope created for Cheqroom CSV migration.
+- 2026-03-11: Docs hardening — reframed as generic CSV mapper with Cheqroom preset. Removed Cheqroom-specific framing from title, direction, and pipeline. Added preset architecture section. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md.

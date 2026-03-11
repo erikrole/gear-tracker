@@ -16,7 +16,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
 3. Overdue is visually red and prioritized.
 4. Overdue banner includes inline highest-priority items.
 5. Section row cap is 5, with `View all` for overflow.
-6. Saved filters are included only if implementation is low effort.
+6. Saved filters are deferred — not in V1.
 7. No keyboard shortcut layer in V1.
 8. Add a draft system for in-progress booking flows.
 9. No standalone Upcoming Events section in dashboard V1.
@@ -29,7 +29,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
    - Reservations needing action
 3. My Gear in Custody cards
 4. Drafts section (recover in-progress reservation/checkout drafts)
-5. Optional: lightweight filter chips (Sport, Location) if easy to ship
+5. Filter chips (Sport, Location) are deferred — not in V1
 
 ## Section Specs
 
@@ -163,3 +163,4 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-03-01: Rewritten as concrete V1 ops-first dashboard spec with no standalone upcoming-events section.
 - 2026-03-01: Added permission model and draft-system requirements.
 - 2026-03-02: Linked dashboard mobile behavior to shared `AREA_MOBILE.md` contract.
+- 2026-03-11: Docs hardening — resolved hedged features: saved filters → deferred, filter chips → deferred. Removed ambiguous "if low effort" qualifiers.

@@ -73,7 +73,7 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 ### Top Bar Actions
 1. `New reservation` primary CTA is always visible.
 2. `Export` is visible to `STAFF` and `ADMIN`; hidden for `STUDENT`.
-3. `Customize overview` is deferred in V1 unless low effort and no performance hit.
+3. `Customize overview` deferred — not in V1.
 
 ### Filters and Controls
 1. Status scope control (default `Upcoming`).
