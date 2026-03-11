@@ -84,7 +84,7 @@ Priority order: Overdue banner → In My Possession → My Reservations → Rese
 ### 4. Overdue Banner (Full Width, Top)
 - Only shows when overdue count > 0
 - Red background, count + top 3 overdue item names
-- Clicking opens checkouts list filtered to overdue
+- Clicking an overdue item opens its respective booking detail
 
 ### 5. What Gets Removed
 - Donut charts (Items by Status, Items by Location, Items by Category) → move to a future Reports page
