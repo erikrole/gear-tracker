@@ -185,6 +185,9 @@ function normalizeRows(content: string): { headers: string[]; rows: NormalizedRo
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
+    if (user.role !== "ADMIN" && user.role !== "STAFF") {
+      throw new HttpError(403, "Only admins and staff can import assets");
+    }
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get("mode") || "import";
 
