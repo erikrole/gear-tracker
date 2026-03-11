@@ -116,13 +116,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     ]);
 
     // Build active booking info for status line
-    let activeBooking: { id: string; kind: string; status: string; title: string; endsAt: string; requesterName: string } | null = null;
+    let activeBooking: { id: string; kind: string; status: string; title: string; startsAt: string; endsAt: string; requesterName: string } | null = null;
     for (const alloc of activeAllocs) {
       activeBooking = {
         id: alloc.booking.id,
         kind: alloc.booking.kind,
         status: alloc.booking.status,
         title: alloc.booking.title,
+        startsAt: alloc.booking.startsAt.toISOString(),
         endsAt: alloc.booking.endsAt.toISOString(),
         requesterName: alloc.booking.requester.name,
       };

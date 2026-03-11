@@ -25,9 +25,17 @@ Last updated: 2026-03-11
 
 ---
 
+## Recently Shipped
+
+- [x] **Dashboard V2** — Ops-first split layout with live countdown timers (2026-03-11)
+- [x] **Item Detail: UW Asset Tag Mirror** — uwAssetTag shown in page header (2026-03-11)
+- [x] **Item Detail: Calendar Grid** — Month-view calendar with booking blocks (2026-03-11)
+- [x] **Item Detail: Booking Refresh Fix** — BookingDetailsSheet onUpdated wired to reload data (2026-03-11)
+
+---
+
 ## Next Up (Unstarted)
 
-- [ ] **Item Detail Dashboard Overview Tab** — Add landing page with check-outs, reservations, and events overview
 - [ ] **Duplicate/Clone Action** — Single "Duplicate" action for reservations (deferred from V1 shipped)
 
 ---

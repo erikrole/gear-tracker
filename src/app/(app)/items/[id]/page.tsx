@@ -12,6 +12,7 @@ type ActiveBookingDetail = {
   kind: string;
   status: string;
   title: string;
+  startsAt: string;
   endsAt: string;
   requesterName: string;
 };
@@ -108,6 +109,40 @@ function dueBackText(endsAt: string): string {
   if (hours < 24) return `Due back in ${hours}h`;
   const days = Math.floor(hours / 24);
   return `Due back in ${days}d`;
+}
+
+/* ── Countdown helpers (shared with dashboard) ───────── */
+
+type UrgencyLevel = "overdue" | "critical" | "warning" | "normal";
+
+function getUrgency(startsAt: string, endsAt: string, now: Date): UrgencyLevel {
+  const end = new Date(endsAt).getTime();
+  const remaining = end - now.getTime();
+  if (remaining <= 0) return "overdue";
+  const duration = end - new Date(startsAt).getTime();
+  if (duration <= 0) return "critical";
+  const pctRemaining = remaining / duration;
+  if (pctRemaining <= 0.10) return "critical";
+  if (pctRemaining <= 0.25) return "warning";
+  return "normal";
+}
+
+function formatCountdown(endsAt: string, now: Date): string {
+  const diff = new Date(endsAt).getTime() - now.getTime();
+  const absDiff = Math.abs(diff);
+  const days = Math.floor(absDiff / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((absDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  const minutes = Math.floor((absDiff % (60 * 60 * 1000)) / (60 * 1000));
+  let timeStr: string;
+  if (days > 0) { timeStr = `${days}d ${hours}h`; }
+  else if (hours > 0) { timeStr = `${hours}h ${minutes}m`; }
+  else { timeStr = `${minutes}m`; }
+  if (diff <= 0) return `OVERDUE BY ${timeStr}`;
+  return `DUE BACK IN ${timeStr}`;
+}
+
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function getFiscalYearOptions(): string[] {
@@ -508,11 +543,34 @@ function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit:
 
 /* ── Info Tab: Item Information Card ────────────────────── */
 
+function AssetTagLabel({ assetTag, brand, model }: { assetTag: string; brand: string; model: string }) {
+  return (
+    <div className="asset-tag-label">
+      <div className="asset-tag-label-inner">
+        <div className="asset-tag-label-tag">{assetTag}</div>
+        <div className="asset-tag-label-desc">{brand} {model}</div>
+        <div className="asset-tag-label-barcode">
+          {/* Simple barcode visual using CSS stripes */}
+          {Array.from({ length: 30 }).map((_, i) => (
+            <span
+              key={i}
+              className="asset-tag-label-bar"
+              style={{ width: (assetTag.charCodeAt(i % assetTag.length) % 3) + 1 }}
+            />
+          ))}
+        </div>
+        <div className="asset-tag-label-code">{assetTag}</div>
+      </div>
+    </div>
+  );
+}
+
 function ItemInfoCard({
-  asset, canEdit, categories, onFieldSaved, onRefresh, onCategoriesChanged,
+  asset, canEdit, currentUserRole, categories, onFieldSaved, onRefresh, onCategoriesChanged,
 }: {
   asset: AssetDetail;
   canEdit: boolean;
+  currentUserRole: string;
   categories: CategoryOption[];
   onFieldSaved: (updated: Partial<AssetDetail>) => void;
   onRefresh: () => void;
@@ -637,7 +695,7 @@ function ItemInfoCard({
       </div>
       <dl className="data-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         {renderFieldGroup("Identity", identityFields)}
-        {renderFieldGroup("Procurement", procurementFields, (
+        {currentUserRole !== "STUDENT" && renderFieldGroup("Procurement", procurementFields, (
           <FiscalYearField
             value={asset.metadata?.fiscalYearPurchased || ""}
             canEdit={canEdit}
@@ -656,67 +714,80 @@ function ItemInfoCard({
         ))}
       </dl>
       <QRSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
+      <AssetTagLabel assetTag={asset.assetTag} brand={asset.brand} model={asset.model} />
     </div>
   );
 }
 
-/* ── Info Tab: Operational Overview ─────────────────────── */
+/* ── Info Tab: Operational Overview (Dashboard-style cards) ── */
 
-function OperationalOverview({ asset, onSelectBooking }: { asset: AssetDetail; onSelectBooking: (id: string) => void }) {
+function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDetail; now: Date; onSelectBooking: (id: string) => void }) {
   const b = asset.activeBooking;
+  const hasActiveCheckout = b && b.kind === "CHECKOUT";
+  const hasReservations = asset.upcomingReservations.length > 0;
+
+  if (!hasActiveCheckout && !hasReservations) {
+    return (
+      <div className="card">
+        <div className="card-header"><h2>Bookings</h2></div>
+        <div className="empty-state" style={{ padding: 24 }}>No active bookings for this item</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      {/* Active Checkout Card */}
-      <div className="card">
-        <div className="card-header"><h2>Active Check-out</h2></div>
-        <div style={{ padding: 16 }}>
-          {b && b.kind === "CHECKOUT" ? (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-                <strong>{b.title}</strong>
-                <span className="badge badge-orange" style={{ fontSize: 11 }}>{dueBackText(b.endsAt)}</span>
+      {/* Active Checkout — dashboard-style possession card */}
+      {hasActiveCheckout && b && (
+        <div className="card">
+          <div className="card-header"><h2>Active Check-out</h2></div>
+          <div className="card-body card-body-compact">
+            <button
+              className="possession-card"
+              onClick={() => onSelectBooking(b.id)}
+            >
+              <div className={`countdown-bar countdown-${getUrgency(b.startsAt, b.endsAt, now)}`}>
+                {getUrgency(b.startsAt, b.endsAt, now) !== "normal"
+                  ? formatCountdown(b.endsAt, now)
+                  : `Due ${formatDateShort(b.endsAt)}`}
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
-                Held by <strong>{b.requesterName}</strong>
+              <div className="possession-card-body">
+                <span className="possession-asset-tag">{b.title}</span>
+                <span className="possession-asset-name">
+                  Held by {b.requesterName}
+                </span>
+                <span className="ops-row-meta">{dueBackText(b.endsAt)}</span>
               </div>
-              <button className="btn btn-sm" onClick={() => onSelectBooking(b.id)}>
-                View checkout &rarr;
-              </button>
-            </div>
-          ) : (
-            <div className="empty-state" style={{ padding: "16px 0" }}>No active check-out</div>
-          )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Upcoming Reservations */}
-      <div className="card">
-        <div className="card-header"><h2>Upcoming Reservations</h2></div>
-        <div style={{ padding: 16 }}>
-          {asset.upcomingReservations.length === 0 ? (
-            <div className="empty-state" style={{ padding: "16px 0" }}>No upcoming reservations</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {asset.upcomingReservations.map((r) => (
-                <div
-                  key={r.bookingId}
-                  className="event-row"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectBooking(r.bookingId)}
-                >
-                  <div className="event-row-main">
-                    <div className="event-row-title">{r.title}</div>
-                    <div className="event-row-meta">
-                      {formatDate(r.startsAt)} – {formatDate(r.endsAt)} &middot; {r.requesterName}
-                    </div>
-                  </div>
+      {/* Upcoming Reservations — dashboard-style cards */}
+      {hasReservations && (
+        <div className="card">
+          <div className="card-header">
+            <h2>Upcoming Reservations</h2>
+            <span className="section-count">{asset.upcomingReservations.length}</span>
+          </div>
+          <div className="card-body card-body-compact">
+            {asset.upcomingReservations.map((r) => (
+              <button
+                key={r.bookingId}
+                className="ops-row"
+                onClick={() => onSelectBooking(r.bookingId)}
+              >
+                <div className="ops-row-main">
+                  <span className="ops-row-title">{r.title}</span>
+                  <span className="ops-row-meta">
+                    {r.requesterName} &middot; {formatDateShort(r.startsAt)} – {formatDateShort(r.endsAt)}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -817,95 +888,109 @@ function BookingKindTab({
 /* ── Calendar Tab ───────────────────────────────────────── */
 
 function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectBooking: (id: string) => void }) {
-  const allBookings = asset.history
-    .map((e) => e.booking)
-    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  const [viewDate, setViewDate] = useState(() => new Date());
 
-  // Separate bookings with events and without
-  const eventBookings = allBookings.filter((b) => b.event);
-  const standaloneBookings = allBookings.filter((b) => !b.event);
+  const allBookings = useMemo(
+    () => asset.history.map((e) => e.booking),
+    [asset.history]
+  );
+
+  // Deduplicate bookings by id (same booking can appear multiple times from history)
+  const uniqueBookings = useMemo(() => {
+    const seen = new Set<string>();
+    return allBookings.filter((b) => {
+      if (seen.has(b.id)) return false;
+      seen.add(b.id);
+      return true;
+    });
+  }, [allBookings]);
+
+  // Build calendar grid for current month
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startPad = firstDay.getDay(); // 0=Sun
+  const daysInMonth = lastDay.getDate();
+
+  const monthLabel = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Map bookings to days: which bookings overlap each day?
+  const dayBookings = useMemo(() => {
+    const map = new Map<number, Array<typeof uniqueBookings[0]>>();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStart = new Date(year, month, d).getTime();
+      const dayEnd = new Date(year, month, d + 1).getTime();
+      const overlapping = uniqueBookings.filter((b) => {
+        const bs = new Date(b.startsAt).getTime();
+        const be = new Date(b.endsAt).getTime();
+        return bs < dayEnd && be > dayStart;
+      });
+      if (overlapping.length > 0) map.set(d, overlapping);
+    }
+    return map;
+  }, [uniqueBookings, year, month, daysInMonth]);
+
+  const today = new Date();
+  const isToday = (d: number) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+
+  function prevMonth() { setViewDate(new Date(year, month - 1, 1)); }
+  function nextMonth() { setViewDate(new Date(year, month + 1, 1)); }
+  function goToday() { setViewDate(new Date()); }
+
+  // Build grid cells: padding + days
+  const cells: Array<{ day: number | null }> = [];
+  for (let i = 0; i < startPad; i++) cells.push({ day: null });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d });
 
   return (
-    <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
-      {/* Event-linked bookings */}
+    <div style={{ marginTop: 14 }}>
       <div className="card">
-        <div className="card-header"><h2>Event-linked Bookings</h2></div>
-        <div style={{ padding: 16 }}>
-          {eventBookings.length === 0 ? (
-            <div className="empty-state">No event-linked bookings for this item.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 8 }}>
-              {eventBookings.map((b) => (
-                <div
-                  key={b.id}
-                  className="event-row"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectBooking(b.id)}
-                >
-                  <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
-                    {b.kind === "CHECKOUT" ? "CO" : "RES"}
-                  </span>
-                  <div className="event-row-main">
-                    <div className="event-row-title">
-                      {b.title}
-                      {b.sportCode && <span className="badge-sport" style={{ marginLeft: 6 }}>{b.sportCode}</span>}
-                    </div>
-                    <div className="event-row-meta">
-                      {b.event && (
-                        <span style={{ fontWeight: 500 }}>
-                          {b.event.opponent
-                            ? `${b.event.isHome ? "vs" : "at"} ${b.event.opponent}`
-                            : b.event.summary}
-                          {" · "}
-                        </span>
-                      )}
-                      {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="card-header">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
+            <h2 style={{ minWidth: 160, textAlign: "center" }}>{monthLabel}</h2>
+            <button className="btn btn-sm" onClick={nextMonth}>&rsaquo;</button>
+          </div>
+          <button className="btn btn-sm" onClick={goToday}>Today</button>
+        </div>
+        <div style={{ padding: "12px 16px" }}>
+          {/* Day headers */}
+          <div className="cal-grid">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              <div key={d} className="cal-header">{d}</div>
+            ))}
+            {cells.map((cell, i) => (
+              <div key={i} className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""}`}>
+                {cell.day && (
+                  <>
+                    <span className="cal-day-num">{cell.day}</span>
+                    {dayBookings.get(cell.day)?.slice(0, 3).map((b) => (
+                      <button
+                        key={b.id}
+                        className={`cal-booking ${b.kind === "CHECKOUT" ? "cal-booking-co" : "cal-booking-res"}`}
+                        onClick={() => onSelectBooking(b.id)}
+                        title={`${b.kind === "CHECKOUT" ? "CO" : "RES"}: ${b.title} (${b.requester.name})`}
+                      >
+                        {b.title}
+                      </button>
+                    ))}
+                    {(dayBookings.get(cell.day)?.length ?? 0) > 3 && (
+                      <span className="cal-more">+{(dayBookings.get(cell.day)?.length ?? 0) - 3} more</span>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Standalone bookings */}
-      {standaloneBookings.length > 0 && (
-        <div className="card">
-          <div className="card-header"><h2>Other Bookings</h2></div>
-          <div style={{ padding: 16 }}>
-            <div style={{ display: "grid", gap: 8 }}>
-              {standaloneBookings.map((b) => (
-                <div
-                  key={b.id}
-                  className="event-row"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectBooking(b.id)}
-                >
-                  <span className={`badge ${b.kind === "CHECKOUT" ? "badge-blue" : "badge-purple"}`} style={{ fontSize: 10, flexShrink: 0 }}>
-                    {b.kind === "CHECKOUT" ? "CO" : "RES"}
-                  </span>
-                  <div className="event-row-main">
-                    <div className="event-row-title">{b.title}</div>
-                    <div className="event-row-meta">
-                      {formatDate(b.startsAt)} – {formatDate(b.endsAt)} &middot; {b.requester.name}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {allBookings.length === 0 && (
-        <div className="card">
-          <div className="card-header"><h2>Calendar</h2></div>
-          <div style={{ padding: 16 }}>
-            <div className="empty-state">No bookings for this item.</div>
-          </div>
-        </div>
-      )}
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 12, color: "var(--text-secondary)" }}>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#3b82f6", marginRight: 4, verticalAlign: "middle" }} />Check-out</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#8b5cf6", marginRight: 4, verticalAlign: "middle" }} />Reservation</span>
+      </div>
     </div>
   );
 }
@@ -1092,6 +1177,7 @@ export default function ItemDetailsPage() {
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [fetchError, setFetchError] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   function loadAsset() {
     fetch(`/api/assets/${id}`)
@@ -1113,6 +1199,12 @@ export default function ItemDetailsPage() {
       .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
     loadCategories();
   }, [id]);
+
+  // Live countdown tick every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const historyByMonth = useMemo(() => {
     if (!asset) return [] as Array<{ month: string; items: AssetDetail["history"] }>;
@@ -1166,15 +1258,22 @@ export default function ItemDetailsPage() {
       <div className="breadcrumb"><Link href="/items">Items</Link> <span>&rsaquo;</span> {asset.assetTag}</div>
       <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
-          <h1 style={{ marginBottom: 0 }}>{asset.assetTag}</h1>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <h1 style={{ marginBottom: 0 }}>{asset.assetTag}</h1>
+            {asset.metadata?.uwAssetTag && (
+              <span style={{ fontSize: 14, color: "var(--text-secondary)", fontWeight: 500 }}>
+                UW {asset.metadata.uwAssetTag}
+              </span>
+            )}
+          </div>
           {asset.name && (
             <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 2 }}>{asset.name}</div>
           )}
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="header-actions">
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-          <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>Reserve</Link>
-          <Link href={`/checkouts?newFor=${asset.id}`} className="btn btn-primary" style={{ textDecoration: "none" }}>Check out</Link>
+          <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary header-action-btn" style={{ textDecoration: "none" }}>Reserve</Link>
+          <Link href={`/checkouts?newFor=${asset.id}`} className="btn btn-primary header-action-btn" style={{ textDecoration: "none" }}>Check out</Link>
         </div>
       </div>
 
@@ -1202,12 +1301,13 @@ export default function ItemDetailsPage() {
           <ItemInfoCard
             asset={asset}
             canEdit={canEdit}
+            currentUserRole={currentUserRole}
             categories={categories}
             onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
             onRefresh={loadAsset}
             onCategoriesChanged={loadCategories}
           />
-          <OperationalOverview asset={asset} onSelectBooking={setSelectedBookingId} />
+          <OperationalOverview asset={asset} now={now} onSelectBooking={setSelectedBookingId} />
         </div>
       )}
 
@@ -1244,6 +1344,7 @@ export default function ItemDetailsPage() {
       <BookingDetailsSheet
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
+        onUpdated={loadAsset}
         currentUserRole={currentUserRole}
       />
     </>
