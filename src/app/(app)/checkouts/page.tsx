@@ -36,9 +36,15 @@ const config: BookingListConfig = {
         const c = items.find((i: BookingItem) => i.id === bookingId);
         if (!c || !confirm(`Cancel "${c.title}"?`)) return;
         try {
-          await fetch(`/api/bookings/${bookingId}/cancel`, { method: "POST" });
+          const res = await fetch(`/api/bookings/${bookingId}/cancel`, { method: "POST" });
+          if (!res.ok) {
+            const json = await res.json().catch(() => ({}));
+            alert((json as Record<string, string>).error || "Cancel failed");
+          }
           await reload();
-        } catch { /* network */ }
+        } catch {
+          alert("Network error \u2014 please try again.");
+        }
       },
     },
   ],

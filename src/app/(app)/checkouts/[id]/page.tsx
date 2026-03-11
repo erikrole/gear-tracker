@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DataList from "@/components/DataList";
 import type { CheckoutAction } from "@/lib/booking-actions";
 import { formatDateTime } from "@/lib/format";
@@ -39,25 +39,29 @@ export default function CheckoutDetailsPage() {
   const [extendDate, setExtendDate] = useState("");
   const [checkinIds, setCheckinIds] = useState<Set<string>>(new Set());
 
-  function reload() {
+  const reload = useCallback(() => {
     fetch(`/api/checkouts/${id}`)
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
       .then((json) => { if (json?.data) setCheckout(json.data); else setFetchError(true); })
       .catch(() => setFetchError(true));
-  }
+  }, [id]);
 
-  useEffect(() => { reload(); }, [id]);
+  useEffect(() => { reload(); }, [reload]);
 
   async function handleCancel() {
     if (!confirm("Cancel this checkout? This action cannot be undone.")) return;
     setActionLoading("cancel");
     setActionError("");
-    const res = await fetch(`/api/bookings/${id}/cancel`, { method: "POST" });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setActionError((json as Record<string, string>).error || "Cancel failed");
-    } else {
-      reload();
+    try {
+      const res = await fetch(`/api/bookings/${id}/cancel`, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError((json as Record<string, string>).error || "Cancel failed");
+      } else {
+        reload();
+      }
+    } catch {
+      setActionError("Network error \u2014 please try again.");
     }
     setActionLoading(null);
   }
@@ -66,18 +70,22 @@ export default function CheckoutDetailsPage() {
     if (!extendDate) return;
     setActionLoading("extend");
     setActionError("");
-    const res = await fetch(`/api/bookings/${id}/extend`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endsAt: new Date(extendDate).toISOString() }),
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setActionError((json as Record<string, string>).error || "Extend failed");
-    } else {
-      setShowExtend(false);
-      setExtendDate("");
-      reload();
+    try {
+      const res = await fetch(`/api/bookings/${id}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endsAt: new Date(extendDate).toISOString() }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError((json as Record<string, string>).error || "Extend failed");
+      } else {
+        setShowExtend(false);
+        setExtendDate("");
+        reload();
+      }
+    } catch {
+      setActionError("Network error \u2014 please try again.");
     }
     setActionLoading(null);
   }
@@ -86,17 +94,21 @@ export default function CheckoutDetailsPage() {
     if (checkinIds.size === 0) return;
     setActionLoading("checkin");
     setActionError("");
-    const res = await fetch(`/api/checkouts/${id}/checkin-items`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assetIds: Array.from(checkinIds) }),
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setActionError((json as Record<string, string>).error || "Check-in failed");
-    } else {
-      setCheckinIds(new Set());
-      reload();
+    try {
+      const res = await fetch(`/api/checkouts/${id}/checkin-items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetIds: Array.from(checkinIds) }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError((json as Record<string, string>).error || "Check-in failed");
+      } else {
+        setCheckinIds(new Set());
+        reload();
+      }
+    } catch {
+      setActionError("Network error \u2014 please try again.");
     }
     setActionLoading(null);
   }
@@ -105,12 +117,16 @@ export default function CheckoutDetailsPage() {
     if (!confirm("Complete check-in? Any items not yet returned will be flagged.")) return;
     setActionLoading("complete-checkin");
     setActionError("");
-    const res = await fetch(`/api/checkouts/${id}/complete-checkin`, { method: "POST" });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setActionError((json as Record<string, string>).error || "Complete check-in failed");
-    } else {
-      reload();
+    try {
+      const res = await fetch(`/api/checkouts/${id}/complete-checkin`, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError((json as Record<string, string>).error || "Complete check-in failed");
+      } else {
+        reload();
+      }
+    } catch {
+      setActionError("Network error \u2014 please try again.");
     }
     setActionLoading(null);
   }
@@ -136,7 +152,7 @@ export default function CheckoutDetailsPage() {
 
   return (
     <>
-      <div className="breadcrumb"><Link href="/checkouts">Check-outs</Link> <span>&rsaquo;</span> {checkout.title}</div>
+      <div className="breadcrumb"><Link href="/checkouts">Check-outs</Link> <span>{"\u203a"}</span> {checkout.title}</div>
       <div className="page-header" style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1>{checkout.title}</h1>

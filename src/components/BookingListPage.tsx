@@ -184,7 +184,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         setItems(json.data ?? []);
         setTotal(json.total ?? 0);
       }
-    } catch { /* network */ }
+    } catch { /* network — list stays at previous state */ }
     setLoading(false);
   }, [page, search, sort, statusFilter, sportFilter, locationFilter, config.apiBase, config.hasSportFilter]);
 
@@ -385,13 +385,19 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     if (!item) return;
     const extended = new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000);
     try {
-      await fetch(`/api/bookings/${bookingId}/extend`, {
+      const res = await fetch(`/api/bookings/${bookingId}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: extended.toISOString() }),
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert((json as Record<string, string>).error || "Extend failed");
+      }
       await reload();
-    } catch { /* network */ }
+    } catch {
+      alert("Network error \u2014 please try again.");
+    }
   }
 
   // ── Derived ──
@@ -532,7 +538,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                       </div>
                     ) : events.length === 0 ? (
                       <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13, border: "1px solid var(--border-light)", borderRadius: "var(--radius)" }}>
-                        No upcoming events for {sportLabel(createSport)}. Toggle off &ldquo;Tie to event&rdquo; to create without an event, or add events via the Events page.
+                        No upcoming events for {sportLabel(createSport)}. Toggle off {"\u201c"}Tie to event{"\u201d"} to create without an event, or add events via the Events page.
                       </div>
                     ) : (
                       <div style={{ maxHeight: 240, overflowY: "auto" }}>
@@ -808,7 +814,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                               >
                                 <div>
                                   <div style={{ fontWeight: 600, fontSize: 13 }}>{sku.name}</div>
-                                  <div className="equip-picker-meta">{sku.category} &middot; {sku.unit}</div>
+                                  <div className="equip-picker-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
                                 </div>
                               </div>
                             ))}
@@ -847,12 +853,12 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                             <>
                               {prev ? (
                                 <button type="button" className="btn btn-sm" onClick={() => advanceToSection(prev.key)} style={{ minHeight: 32 }}>
-                                  &larr; {prev.label}
+                                  {"\u2190"} {prev.label}
                                 </button>
                               ) : <span />}
                               {next ? (
                                 <button type="button" className="btn btn-sm" onClick={() => advanceToSection(next.key)} style={{ minHeight: 32 }}>
-                                  {next.label} &rarr;
+                                  {next.label} {"\u2192"}
                                 </button>
                               ) : (
                                 <button type="button" className="btn btn-sm" onClick={() => { setShowEquipPicker(false); setEquipSearch(""); }} style={{ minHeight: 32 }}>
@@ -1001,13 +1007,13 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, display: "flex", gap: 6, alignItems: "center" }}>
                             {item.requester?.name ?? "Unknown"}
                             {" · "}
-                            {formatDateShort(item.startsAt)} &ndash; {formatDateShort(item.endsAt)}
+                            {formatDateShort(item.startsAt)} {"\u2013"} {formatDateShort(item.endsAt)}
                             {item.sportCode && <span className="badge-sport">{item.sportCode}</span>}
                             {config.showEventBadge && item.event && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>event</span>}
                           </div>
                         </td>
                         <td className="hide-mobile">{item.requester?.name ?? "Unknown"}</td>
-                        <td className="hide-mobile">{formatDate(item.startsAt)} &ndash; {formatDate(item.endsAt)}</td>
+                        <td className="hide-mobile">{formatDate(item.startsAt)} {"\u2013"} {formatDate(item.endsAt)}</td>
                         <td className="hide-mobile">{item.location?.name ?? "\u2014"}</td>
                         <td className="hide-mobile">{(item.serializedItems?.length ?? 0) + (item.bulkItems?.length ?? 0)}</td>
                         <td>
@@ -1017,7 +1023,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
                           <button className="overflow-btn" onClick={(e) => handleOverflow(e, item)}>
-                            &middot;&middot;&middot;
+                            {"\u2026"}
                           </button>
                         </td>
                       </tr>

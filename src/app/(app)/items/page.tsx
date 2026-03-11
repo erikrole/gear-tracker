@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 type ActiveBooking = {
   id: string;
@@ -104,14 +104,14 @@ function StatusDot({ item }: { item: Asset }) {
         >
           <div style={{ fontWeight: 600, marginBottom: 2, textTransform: "capitalize" }}>{label}</div>
           <div style={{ color: "var(--text-secondary)", marginBottom: 4 }}>
-            {item.activeBooking.title} &middot; {item.activeBooking.requesterName}
+            {item.activeBooking.title} \u00b7 {item.activeBooking.requesterName}
           </div>
           {bookingPath && (
             <Link
               href={bookingPath}
               style={{ color: "var(--primary)", fontWeight: 500, textDecoration: "none" }}
             >
-              View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
+              View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} {"\u2192"}
             </Link>
           )}
         </div>
@@ -386,6 +386,14 @@ function CreateItemCard({
   );
 }
 
+const filterSelectStyle = {
+  padding: "7px 12px",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius)",
+  fontSize: 13,
+  background: "white",
+} as const;
+
 export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems] = useState<Asset[]>([]);
@@ -394,44 +402,55 @@ export default function ItemsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const limit = 25;
 
-  async function reload() {
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const reload = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     const params = new URLSearchParams();
     params.set("limit", String(limit));
     params.set("offset", String(page * limit));
-    if (search) params.set("q", search);
+    if (debouncedSearch) params.set("q", debouncedSearch);
     if (statusFilter) params.set("status", statusFilter);
     if (locationFilter) params.set("location_id", locationFilter);
     if (categoryFilter) params.set("category_id", categoryFilter);
 
     try {
       const res = await fetch(`/api/assets?${params}`);
-      if (!res.ok) { setLoading(false); return; }
+      if (!res.ok) { setLoadError(true); setLoading(false); return; }
       const json: Response = await res.json();
       setItems(json.data ?? []);
       setTotal(json.total ?? 0);
-    } catch { /* network error */ }
+    } catch {
+      setLoadError(true);
+    }
     setLoading(false);
-  }
+  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter]);
 
-  useEffect(() => {
-    reload();
-  }, [page, search, statusFilter, locationFilter, categoryFilter]);
+  useEffect(() => { reload(); }, [reload]);
 
   useEffect(() => {
     fetch("/api/form-options")
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setLocations(json.data?.locations || []); });
+      .then((json) => { if (json) setLocations(json.data?.locations || []); })
+      .catch(() => {});
     fetch("/api/categories")
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setCategories(json.data || []); });
+      .then((json) => { if (json) setCategories(json.data || []); })
+      .catch(() => {});
   }, []);
 
   const totalPages = Math.ceil(total / limit);
@@ -478,13 +497,7 @@ export default function ItemsPage() {
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            style={{
-              padding: "7px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: 13,
-              background: "white",
-            }}
+            style={filterSelectStyle}
           >
             <option value="">All statuses</option>
             <option value="AVAILABLE">Available</option>
@@ -496,13 +509,7 @@ export default function ItemsPage() {
           <select
             value={locationFilter}
             onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
-            style={{
-              padding: "7px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: 13,
-              background: "white",
-            }}
+            style={filterSelectStyle}
           >
             <option value="">All locations</option>
             {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
@@ -510,13 +517,7 @@ export default function ItemsPage() {
           <select
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
-            style={{
-              padding: "7px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: 13,
-              background: "white",
-            }}
+            style={filterSelectStyle}
           >
             <option value="">All categories</option>
             {categories.filter((c) => !c.parentId).map((parent) => (
@@ -534,6 +535,11 @@ export default function ItemsPage() {
 
         {loading ? (
           <div className="loading-spinner"><div className="spinner" /></div>
+        ) : loadError ? (
+          <div className="empty-state">
+            Failed to load items.{" "}
+            <button className="btn btn-sm" onClick={reload} style={{ marginLeft: 8 }}>Retry</button>
+          </div>
         ) : items.length === 0 ? (
           <div className="empty-state">No items found</div>
         ) : (

@@ -164,16 +164,20 @@ export default function ReservationDetailsPage() {
       return;
     setActionLoading("cancel");
     setActionError("");
-    const res = await fetch(`/api/reservations/${id}/cancel`, {
-      method: "POST",
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setActionError(
-        (json as Record<string, string>).error || "Cancel failed"
-      );
-    } else {
-      reload();
+    try {
+      const res = await fetch(`/api/reservations/${id}/cancel`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError(
+          (json as Record<string, string>).error || "Cancel failed"
+        );
+      } else {
+        reload();
+      }
+    } catch {
+      setActionError("Network error \u2014 please try again.");
     }
     setActionLoading(null);
   }
@@ -182,20 +186,24 @@ export default function ReservationDetailsPage() {
     if (!extendDate) return;
     setActionLoading("extend");
     setActionError("");
-    const res = await fetch(`/api/bookings/${id}/extend`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endsAt: new Date(extendDate).toISOString() }),
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setActionError(
-        (json as Record<string, string>).error || "Extend failed"
-      );
-    } else {
-      setShowExtend(false);
-      setExtendDate("");
-      reload();
+    try {
+      const res = await fetch(`/api/bookings/${id}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endsAt: new Date(extendDate).toISOString() }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError(
+          (json as Record<string, string>).error || "Extend failed"
+        );
+      } else {
+        setShowExtend(false);
+        setExtendDate("");
+        reload();
+      }
+    } catch {
+      setActionError("Network error \u2014 please try again.");
     }
     setActionLoading(null);
   }
@@ -324,7 +332,7 @@ export default function ReservationDetailsPage() {
     <>
       {/* Breadcrumb */}
       <div className="breadcrumb">
-        <Link href="/reservations">Reservations</Link> <span>&rsaquo;</span>{" "}
+        <Link href="/reservations">Reservations</Link> <span>{"\u203a"}</span>{" "}
         {reservation.title}
       </div>
 
@@ -646,7 +654,7 @@ export default function ReservationDetailsPage() {
                     {actionLabels[entry.action] || entry.action}
                   </div>
                   <div className="timeline-meta">
-                    {entry.actor.name} &middot;{" "}
+                    {entry.actor.name} {"\u00b7"}{" "}
                     {formatRelative(entry.createdAt)}
                   </div>
 

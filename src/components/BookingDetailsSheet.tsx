@@ -666,7 +666,7 @@ export default function BookingDetailsSheet({
                         {conflictError.conflicts.map((c, i) => (
                           <div key={i}>
                             {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}{" "}
-                            ({formatDateTime(c.startsAt)} &ndash; {formatDateTime(c.endsAt)})
+                            ({formatDateTime(c.startsAt)} {"\u2013"} {formatDateTime(c.endsAt)})
                           </div>
                         ))}
                       </div>
@@ -696,7 +696,7 @@ export default function BookingDetailsSheet({
                   {returnSuggestion && booking.isActive && (
                     <div className="sheet-section" style={{ paddingTop: 0 }}>
                       <div className="return-suggestion">
-                        <span style={{ fontSize: 16 }}>&#8629;</span>
+                        <span style={{ fontSize: 16 }}>{"\u21b5"}</span>
                         {returnSuggestion}
                       </div>
                     </div>
@@ -911,7 +911,7 @@ export default function BookingDetailsSheet({
                         {conflictError.conflicts.map((c, i) => (
                           <div key={i}>
                             {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}{" "}
-                            ({formatDateTime(c.startsAt)} &ndash; {formatDateTime(c.endsAt)})
+                            ({formatDateTime(c.startsAt)} {"\u2013"} {formatDateTime(c.endsAt)})
                           </div>
                         ))}
                       </div>
@@ -1078,7 +1078,7 @@ export default function BookingDetailsSheet({
                                 >
                                   <div>
                                     <div style={{ fontWeight: 600 }}>{sku.name}</div>
-                                    <div className="equip-picker-meta">{sku.category} &middot; {sku.unit}</div>
+                                    <div className="equip-picker-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
                                   </div>
                                 </div>
                               ))
@@ -1148,7 +1148,7 @@ export default function BookingDetailsSheet({
                             {actionLabels[entry.action] || entry.action}
                           </div>
                           <div className="timeline-meta">
-                            {entry.actor.name} &middot; {formatRelative(entry.createdAt)}
+                            {entry.actor.name} {"\u00b7"} {formatRelative(entry.createdAt)}
                           </div>
 
                           {/* Extended detail */}
