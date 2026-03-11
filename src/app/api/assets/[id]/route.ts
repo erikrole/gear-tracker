@@ -95,7 +95,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
           assetId: params.id,
           booking: {
             kind: "RESERVATION",
-            status: { in: [BookingStatus.BOOKED, BookingStatus.OPEN] },
+            status: { in: [BookingStatus.DRAFT, BookingStatus.BOOKED, BookingStatus.OPEN] },
             endsAt: { gt: new Date() },
           },
         },
@@ -140,13 +140,23 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         metadata: parseNotes(asset.notes),
         activeBooking,
         hasBookingHistory,
-        upcomingReservations: upcomingReservations.map((r) => ({
-          bookingId: r.booking.id,
-          title: r.booking.title,
-          startsAt: r.booking.startsAt,
-          endsAt: r.booking.endsAt,
-          requesterName: r.booking.requester.name,
-        })),
+        upcomingReservations: (() => {
+          const seen = new Set<string>();
+          if (activeBooking) seen.add(activeBooking.id);
+          return upcomingReservations
+            .filter((r) => {
+              if (seen.has(r.booking.id)) return false;
+              seen.add(r.booking.id);
+              return true;
+            })
+            .map((r) => ({
+              bookingId: r.booking.id,
+              title: r.booking.title,
+              startsAt: r.booking.startsAt,
+              endsAt: r.booking.endsAt,
+              requesterName: r.booking.requester.name,
+            }));
+        })(),
         history: bookingHistory.map((entry) => ({
           id: entry.id,
           createdAt: entry.createdAt,

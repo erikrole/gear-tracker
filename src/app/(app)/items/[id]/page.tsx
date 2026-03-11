@@ -432,7 +432,7 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
 
 /* ── QR Code Visual ─────────────────────────────────────── */
 
-function QRCodeCanvas({ value, size }: { value: string; size: number }) {
+function QRCodeCanvas({ value, size, margin = 2 }: { value: string; size: number; margin?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -441,7 +441,7 @@ function QRCodeCanvas({ value, size }: { value: string; size: number }) {
     setLoaded(false);
     import("qrcode").then((QRCode) => {
       if (!canvasRef.current) return;
-      QRCode.toCanvas(canvasRef.current, value, { width: size, margin: 2 }, () => {
+      QRCode.toCanvas(canvasRef.current, value, { width: size, margin }, () => {
         setLoaded(true);
       });
     });
@@ -571,17 +571,17 @@ function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetai
               ))}
             </div>
             <div className="asset-tag-label-qr">
-              <QRCodeCanvas value={asset.qrCodeValue} size={80} />
+              <QRCodeCanvas value={asset.qrCodeValue} size={80} margin={0} />
             </div>
           </button>
-          <div>
-            <div className="tracking-row" style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="tracking-row">
               <span>QR</span>
-              <strong style={{ fontFamily: "monospace", marginLeft: 8 }}>{asset.qrCodeValue}</strong>
+              <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
             </div>
             <div className="tracking-row">
               <span>Serial</span>
-              <strong style={{ fontFamily: "monospace", marginLeft: 8 }}>{asset.serialNumber}</strong>
+              <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
             </div>
           </div>
         </div>

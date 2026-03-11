@@ -1288,10 +1288,10 @@ a:hover {
 .tracking-row {
   display: flex;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .history-feed {
@@ -2404,8 +2404,8 @@ a:hover {
   align-items: center;
   gap: 0;
   background: #000;
-  border-radius: 4px;
-  padding: 6px 8px;
+  border-radius: 2px;
+  padding: 2px;
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -2416,17 +2416,17 @@ a:hover {
   flex-direction: column;
   align-items: center;
   gap: 0;
-  padding-right: 6px;
+  padding: 0 8px;
 }
 
 .asset-tag-label-line {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   /* Gotham XNarrow Bold — fall back to condensed sans-serif */
   font-family: "Gotham XNarrow", "Barlow Condensed", "Arial Narrow", sans-serif;
   color: #fff;
   letter-spacing: 0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
   text-align: center;
 }
 
@@ -2440,6 +2440,7 @@ a:hover {
   filter: invert(1);
   border: none !important;
   border-radius: 0 !important;
+  /* Remove QR canvas margin so black bg merges with label */
 }
 
 /* ── QR Modal ────────────────────────────────────────── */
