@@ -120,13 +120,21 @@ function CategoryRow({
       setNewName(node.name);
       return;
     }
-    await fetch(`/api/categories/${node.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim() }),
-    });
-    setRenaming(false);
-    onRefresh();
+    try {
+      const res = await fetch(`/api/categories/${node.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as Record<string, string>).error || "Rename failed");
+      }
+      setRenaming(false);
+      onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Rename failed");
+    }
   }
 
   async function saveSub() {
@@ -134,24 +142,35 @@ function CategoryRow({
       setAddingSub(false);
       return;
     }
-    await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: subName.trim(), parentId: node.id }),
-    });
-    setSubName("");
-    setAddingSub(false);
-    onRefresh();
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: subName.trim(), parentId: node.id }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as Record<string, string>).error || "Failed to add subcategory");
+      }
+      setSubName("");
+      setAddingSub(false);
+      onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add subcategory");
+    }
   }
 
   async function handleDelete() {
-    const res = await fetch(`/api/categories/${node.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const json = await res.json();
-      alert(json.error || "Delete failed");
-      return;
+    try {
+      const res = await fetch(`/api/categories/${node.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as Record<string, string>).error || "Delete failed");
+      }
+      onRefresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Delete failed");
     }
-    onRefresh();
   }
 
   const isChild = depth > 0;
@@ -261,14 +280,22 @@ export default function CategoriesPage() {
 
   async function createRoot() {
     if (!newName.trim()) { setAdding(false); return; }
-    await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim() }),
-    });
-    setNewName("");
-    setAdding(false);
-    load();
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as Record<string, string>).error || "Failed to create category");
+      }
+      setNewName("");
+      setAdding(false);
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to create category");
+    }
   }
 
   let tree = buildTree(categories);

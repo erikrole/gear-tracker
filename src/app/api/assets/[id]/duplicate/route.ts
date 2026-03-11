@@ -2,12 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
-
-function randomHex(bytes: number): string {
-  const array = new Uint8Array(bytes);
-  crypto.getRandomValues(array);
-  return Array.from(array).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+import { randomHex } from "@/lib/crypto";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
