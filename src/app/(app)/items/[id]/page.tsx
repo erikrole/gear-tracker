@@ -547,70 +547,43 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
   );
 }
 
-/* ── QR Code Section (Tracking Codes) ──────────────────── */
+/* ── Tracking Codes Section (with asset tag label) ─────── */
 
-function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const [showModal, setShowModal] = useState(false);
-
-  return (
-    <>
-      <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-light)" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>TRACKING CODES</div>
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 8 }}>
-          <button
-            onClick={() => setShowModal(true)}
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
-            title="Click to enlarge QR code"
-          >
-            <QRCodeCanvas value={asset.qrCodeValue} size={120} />
-          </button>
-          <div style={{ flex: 1 }}>
-            <div className="tracking-row" style={{ marginBottom: 8 }}>
-              <span>QR</span>
-              <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
-            </div>
-            <div className="tracking-row">
-              <span>Serial</span>
-              <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-      {showModal && (
-        <QRModal
-          asset={asset}
-          canEdit={canEdit}
-          onRefresh={() => { onRefresh(); }}
-          onClose={() => setShowModal(false)}
-        />
-      )}
-    </>
-  );
-}
-
-/* ── Info Tab: Item Information Card ────────────────────── */
-
-function AssetTagLabel({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
   const [showModal, setShowModal] = useState(false);
   // Split asset tag into stacked lines by spaces (e.g. "FB FX3 1" → ["FB", "FX3", "1"])
   const tagLines = asset.assetTag.split(/[\s]+/).filter(Boolean);
 
   return (
     <>
-      <div className="asset-tag-label">
-        <div className="asset-tag-label-inner">
-          <div className="asset-tag-label-text">
-            {tagLines.map((line, i) => (
-              <div key={i} className="asset-tag-label-line">{line}</div>
-            ))}
-          </div>
+      <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-light)" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>TRACKING CODES</div>
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+          {/* Asset tag label replaces standalone QR image */}
           <button
-            className="asset-tag-label-qr"
+            className="asset-tag-label"
             onClick={() => setShowModal(true)}
             title="Click to enlarge QR code"
           >
-            <QRCodeCanvas value={asset.qrCodeValue} size={100} />
+            <div className="asset-tag-label-text">
+              {tagLines.map((line, i) => (
+                <div key={i} className="asset-tag-label-line">{line}</div>
+              ))}
+            </div>
+            <div className="asset-tag-label-qr">
+              <QRCodeCanvas value={asset.qrCodeValue} size={80} />
+            </div>
           </button>
+          <div>
+            <div className="tracking-row" style={{ marginBottom: 6 }}>
+              <span>QR</span>
+              <strong style={{ fontFamily: "monospace", marginLeft: 8 }}>{asset.qrCodeValue}</strong>
+            </div>
+            <div className="tracking-row">
+              <span>Serial</span>
+              <strong style={{ fontFamily: "monospace", marginLeft: 8 }}>{asset.serialNumber}</strong>
+            </div>
+          </div>
         </div>
       </div>
       {showModal && (
@@ -773,8 +746,7 @@ function ItemInfoCard({
           />
         ))}
       </dl>
-      <QRSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
-      <AssetTagLabel asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
+      <TrackingCodesSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );
 }
