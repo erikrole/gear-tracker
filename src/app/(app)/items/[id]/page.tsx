@@ -432,7 +432,7 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
 
 /* ── QR Code Visual ─────────────────────────────────────── */
 
-function QRCodeImage({ value }: { value: string }) {
+function QRCodeCanvas({ value, size }: { value: string; size: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -441,11 +441,11 @@ function QRCodeImage({ value }: { value: string }) {
     setLoaded(false);
     import("qrcode").then((QRCode) => {
       if (!canvasRef.current) return;
-      QRCode.toCanvas(canvasRef.current, value, { width: 120, margin: 2 }, () => {
+      QRCode.toCanvas(canvasRef.current, value, { width: size, margin: 2 }, () => {
         setLoaded(true);
       });
     });
-  }, [value]);
+  }, [value, size]);
 
   if (!value) return null;
   return (
@@ -456,13 +456,14 @@ function QRCodeImage({ value }: { value: string }) {
   );
 }
 
-/* ── QR Code Section ────────────────────────────────────── */
+/* ── QR Modal ──────────────────────────────────────────── */
 
-function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void; onClose: () => void }) {
   const [manualEntry, setManualEntry] = useState(false);
   const [qrDraft, setQrDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   async function generateQR() {
     setSaving(true);
@@ -493,75 +494,134 @@ function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit:
     }
     setSaving(false);
     setManualEntry(false);
+    setQrDraft("");
     onRefresh();
   }
 
   return (
-    <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-light)" }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>TRACKING CODES</div>
-      <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 8 }}>
-        <QRCodeImage value={asset.qrCodeValue} />
-        <div style={{ flex: 1 }}>
-          <div className="tracking-row" style={{ marginBottom: 8 }}>
-            <span>QR</span>
-            <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
-          </div>
-          <div className="tracking-row">
-            <span>Serial</span>
-            <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
+    <div
+      ref={backdropRef}
+      className="qr-modal-backdrop"
+      onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
+    >
+      <div className="qr-modal">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ margin: 0 }}>QR Code</h2>
+          <button className="btn btn-sm" onClick={onClose}>Close</button>
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <QRCodeCanvas value={asset.qrCodeValue} size={240} />
+        </div>
+        <div style={{ textAlign: "center", fontFamily: "monospace", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+          {asset.qrCodeValue}
+        </div>
+        {canEdit && (
+          <>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 8 }}>
+              <button className="btn" onClick={generateQR} disabled={saving}>
+                {saving ? "..." : "Generate new QR"}
+              </button>
+              <button className="btn" onClick={() => setManualEntry(true)}>
+                Enter QR manually
+              </button>
+            </div>
+            {manualEntry && (
+              <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+                <input
+                  value={qrDraft}
+                  onChange={(e) => setQrDraft(e.target.value)}
+                  placeholder="Paste or type QR code..."
+                  style={{ flex: 1, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 14 }}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
+                  autoFocus
+                />
+                <button className="btn btn-primary" onClick={saveManualQR} disabled={saving}>Save</button>
+                <button className="btn" onClick={() => setManualEntry(false)}>Cancel</button>
+              </div>
+            )}
+            {error && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 6, textAlign: "center" }}>{error}</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── QR Code Section (Tracking Codes) ──────────────────── */
+
+function QRSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const [showModal, setShowModal] = useState(false);
+
+  return (
+    <>
+      <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-light)" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>TRACKING CODES</div>
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 8 }}>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+            title="Click to enlarge QR code"
+          >
+            <QRCodeCanvas value={asset.qrCodeValue} size={120} />
+          </button>
+          <div style={{ flex: 1 }}>
+            <div className="tracking-row" style={{ marginBottom: 8 }}>
+              <span>QR</span>
+              <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
+            </div>
+            <div className="tracking-row">
+              <span>Serial</span>
+              <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
+            </div>
           </div>
         </div>
       </div>
-      {canEdit && (
-        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn btn-sm" onClick={generateQR} disabled={saving}>
-            {saving ? "..." : "Generate new QR"}
-          </button>
-          <button className="btn btn-sm" onClick={() => setManualEntry(true)}>
-            Enter QR manually
-          </button>
-        </div>
+      {showModal && (
+        <QRModal
+          asset={asset}
+          canEdit={canEdit}
+          onRefresh={() => { onRefresh(); }}
+          onClose={() => setShowModal(false)}
+        />
       )}
-      {manualEntry && (
-        <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
-          <input
-            value={qrDraft}
-            onChange={(e) => setQrDraft(e.target.value)}
-            placeholder="Enter QR code..."
-            style={{ flex: 1, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13 }}
-            onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
-            autoFocus
-          />
-          <button className="btn btn-sm btn-primary" onClick={saveManualQR} disabled={saving}>Save</button>
-          <button className="btn btn-sm" onClick={() => setManualEntry(false)}>Cancel</button>
-        </div>
-      )}
-      {error && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 6 }}>{error}</div>}
-    </div>
+    </>
   );
 }
 
 /* ── Info Tab: Item Information Card ────────────────────── */
 
-function AssetTagLabel({ assetTag, brand, model }: { assetTag: string; brand: string; model: string }) {
+function AssetTagLabel({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const [showModal, setShowModal] = useState(false);
+  // Split asset tag into stacked lines by spaces (e.g. "FB FX3 1" → ["FB", "FX3", "1"])
+  const tagLines = asset.assetTag.split(/[\s]+/).filter(Boolean);
+
   return (
-    <div className="asset-tag-label">
-      <div className="asset-tag-label-inner">
-        <div className="asset-tag-label-tag">{assetTag}</div>
-        <div className="asset-tag-label-desc">{brand} {model}</div>
-        <div className="asset-tag-label-barcode">
-          {/* Simple barcode visual using CSS stripes */}
-          {Array.from({ length: 30 }).map((_, i) => (
-            <span
-              key={i}
-              className="asset-tag-label-bar"
-              style={{ width: (assetTag.charCodeAt(i % assetTag.length) % 3) + 1 }}
-            />
-          ))}
+    <>
+      <div className="asset-tag-label">
+        <div className="asset-tag-label-inner">
+          <div className="asset-tag-label-text">
+            {tagLines.map((line, i) => (
+              <div key={i} className="asset-tag-label-line">{line}</div>
+            ))}
+          </div>
+          <button
+            className="asset-tag-label-qr"
+            onClick={() => setShowModal(true)}
+            title="Click to enlarge QR code"
+          >
+            <QRCodeCanvas value={asset.qrCodeValue} size={100} />
+          </button>
         </div>
-        <div className="asset-tag-label-code">{assetTag}</div>
       </div>
-    </div>
+      {showModal && (
+        <QRModal
+          asset={asset}
+          canEdit={canEdit}
+          onRefresh={onRefresh}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -714,7 +774,7 @@ function ItemInfoCard({
         ))}
       </dl>
       <QRSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
-      <AssetTagLabel assetTag={asset.assetTag} brand={asset.brand} model={asset.model} />
+      <AssetTagLabel asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );
 }
@@ -723,10 +783,10 @@ function ItemInfoCard({
 
 function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDetail; now: Date; onSelectBooking: (id: string) => void }) {
   const b = asset.activeBooking;
-  const hasActiveCheckout = b && b.kind === "CHECKOUT";
+  const hasActiveBooking = !!b;
   const hasReservations = asset.upcomingReservations.length > 0;
 
-  if (!hasActiveCheckout && !hasReservations) {
+  if (!hasActiveBooking && !hasReservations) {
     return (
       <div className="card">
         <div className="card-header"><h2>Bookings</h2></div>
@@ -735,12 +795,14 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
     );
   }
 
+  const activeLabel = b?.kind === "CHECKOUT" ? "Active Check-out" : "Active Reservation";
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      {/* Active Checkout — dashboard-style possession card */}
-      {hasActiveCheckout && b && (
+      {/* Active Booking — dashboard-style possession card */}
+      {hasActiveBooking && b && (
         <div className="card">
-          <div className="card-header"><h2>Active Check-out</h2></div>
+          <div className="card-header"><h2>{activeLabel}</h2></div>
           <div className="card-body card-body-compact">
             <button
               className="possession-card"
@@ -754,7 +816,7 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
               <div className="possession-card-body">
                 <span className="possession-asset-tag">{b.title}</span>
                 <span className="possession-asset-name">
-                  Held by {b.requesterName}
+                  {b.kind === "CHECKOUT" ? "Held" : "Reserved"} by {b.requesterName}
                 </span>
                 <span className="ops-row-meta">{dueBackText(b.endsAt)}</span>
               </div>
@@ -763,7 +825,7 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
         </div>
       )}
 
-      {/* Upcoming Reservations — dashboard-style cards */}
+      {/* Upcoming Reservations */}
       {hasReservations && (
         <div className="card">
           <div className="card-header">

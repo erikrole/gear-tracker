@@ -2397,7 +2397,7 @@ a:hover {
   }
 }
 
-/* ── Asset Tag Label ─────────────────────────────────── */
+/* ── Asset Tag Label (physical label style) ──────────── */
 
 .asset-tag-label {
   padding: 16px;
@@ -2405,49 +2405,71 @@ a:hover {
 }
 
 .asset-tag-label-inner {
-  border: 2px dashed var(--border);
-  border-radius: 8px;
-  padding: 14px 18px;
-  text-align: center;
-  background: var(--surface);
-}
-
-.asset-tag-label-tag {
-  font-size: 20px;
-  font-weight: 700;
-  font-family: monospace;
-  letter-spacing: 0.05em;
-  color: var(--text-primary);
-  margin-bottom: 2px;
-}
-
-.asset-tag-label-desc {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
-}
-
-.asset-tag-label-barcode {
   display: flex;
+  align-items: center;
   justify-content: center;
-  align-items: flex-end;
-  gap: 1px;
-  height: 32px;
-  margin-bottom: 4px;
+  gap: 16px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 20px 28px;
+  aspect-ratio: 2.13 / 1;
+  max-width: 380px;
+  margin: 0 auto;
 }
 
-.asset-tag-label-bar {
-  display: inline-block;
-  height: 100%;
-  background: var(--text-primary);
-  border-radius: 0.5px;
+.asset-tag-label-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
 }
 
-.asset-tag-label-code {
-  font-size: 10px;
-  font-family: monospace;
-  color: var(--text-muted);
-  letter-spacing: 0.12em;
+.asset-tag-label-line {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #fff;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.asset-tag-label-qr {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.asset-tag-label-qr canvas {
+  display: block;
+  filter: invert(1);
+  border: none !important;
+}
+
+/* ── QR Modal ────────────────────────────────────────── */
+
+.qr-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.qr-modal {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Header Action Buttons (consistent sizing) ────────── */
