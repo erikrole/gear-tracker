@@ -117,6 +117,7 @@ export async function GET() {
         type: item.asset.type,
         bookingId: booking.id,
         bookingTitle: booking.title,
+        startsAt: booking.startsAt.toISOString(),
         endsAt: booking.endsAt.toISOString(),
         isOverdue: booking.endsAt < now,
       }))

@@ -24,6 +24,7 @@ type MyPossessionItem = {
   type: string;
   bookingId: string;
   bookingTitle: string;
+  startsAt: string;
   endsAt: string;
   isOverdue: boolean;
 };
@@ -69,11 +70,18 @@ type DashboardData = {
 
 type UrgencyLevel = "overdue" | "critical" | "warning" | "normal";
 
-function getUrgency(endsAt: string, now: Date): UrgencyLevel {
-  const diff = new Date(endsAt).getTime() - now.getTime();
-  if (diff <= 0) return "overdue";
-  if (diff <= 24 * 60 * 60 * 1000) return "critical";
-  if (diff <= 7 * 24 * 60 * 60 * 1000) return "warning";
+function getUrgency(startsAt: string, endsAt: string, now: Date): UrgencyLevel {
+  const end = new Date(endsAt).getTime();
+  const remaining = end - now.getTime();
+  if (remaining <= 0) return "overdue";
+
+  const duration = end - new Date(startsAt).getTime();
+  // Guard against zero/negative duration
+  if (duration <= 0) return "critical";
+
+  const pctRemaining = remaining / duration;
+  if (pctRemaining <= 0.10) return "critical";   // <10% left → red
+  if (pctRemaining <= 0.25) return "warning";    // <25% left → amber
   return "normal";
 }
 
@@ -288,7 +296,7 @@ export default function DashboardPage() {
             ) : (
               <div className="card-body card-body-compact">
                 {data.myPossession.map((item) => {
-                  const urgency = getUrgency(item.endsAt, now);
+                  const urgency = getUrgency(item.startsAt, item.endsAt, now);
                   return (
                     <button
                       key={`${item.bookingId}-${item.assetId}`}
