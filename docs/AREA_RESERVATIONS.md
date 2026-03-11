@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-02
-- Status: Active
+- Last Updated: 2026-03-11
+- Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
 ## Direction
@@ -73,7 +73,7 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 ### Top Bar Actions
 1. `New reservation` primary CTA is always visible.
 2. `Export` is visible to `STAFF` and `ADMIN`; hidden for `STUDENT`.
-3. `Customize overview` is deferred in V1 unless low effort and no performance hit.
+3. `Customize overview` deferred — not in V1.
 
 ### Filters and Controls
 1. Status scope control (default `Upcoming`).
@@ -117,44 +117,32 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 4. `OPEN` -> `CANCELLED` not allowed in normal flow; use return/check-in workflow.
 5. `COMPLETED` and `CANCELLED` are terminal in V1.
 
-## Edit and Action Matrix
+## Action Matrix by State
+
+Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVATION]`
+
+### `DRAFT`
+- Allowed actions: Edit, Cancel
+- Access: staff+ or owner
 
 ### `BOOKED`
-- Allowed actions:
-  - View
-  - Edit
-  - Cancel
-  - Start checkout
-  - Reserve again (clone as new `BOOKED`)
-  - Repeat reservation (new draft from prior values)
-
-### `OPEN`
-- Allowed actions:
-  - View
-  - Edit (bounded)
-  - Extend
-  - Check in
+- Allowed actions: Edit, Extend, Cancel, Convert to checkout
+- Access: staff+ or owner
 
 ### `COMPLETED`
-- Allowed actions:
-  - View only
+- Allowed actions: View only
 
 ### `CANCELLED`
-- Allowed actions:
-  - View only
+- Allowed actions: View only
 
-## Actions Menu (Cheqroom-Inspired, Gear Tracker Mapped)
-1. Keep in V1:
-   - Edit
-   - Proceed to check-out
-   - Reserve again
-   - Repeat reservation
-   - Cancel reservation
-2. Replace:
-   - `Close reservation` maps to archive/cancel policy, not hard close with data loss.
-3. Defer:
-   - Spotcheck creation from reservation actions.
-   - PDF generation from reservation actions.
+**Note**: Reservations do not use the `OPEN` state — they convert directly to a checkout (new `OPEN` booking linked via `sourceReservationId`).
+
+## Actions Menu (V1 Shipped)
+1. Edit — respects state + role gating
+2. Proceed to check-out — converts `BOOKED` reservation to `OPEN` checkout
+3. Extend — extends booking window (conflict-checked)
+4. Cancel reservation — soft cancel, record preserved for audit
+5. Deferred: Spotcheck creation, PDF generation, duplicate/clone
 
 ## Bug Traps and Mitigations
 
@@ -220,7 +208,7 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 12. List and detail views remain consistent after edit/cancel/start-checkout actions.
 
 ## Dependencies
-- Booking and allocation constraints from `AREA_PLATFORM_INTEGRITY.md`.
+- Booking and allocation constraints from `DECISIONS.md` (D-001, D-006, D-007).
 - User permission model from `AREA_USERS.md`.
 - Event context behavior from `AREA_EVENTS.md`.
 - Mobile operations contract from `AREA_MOBILE.md`.
@@ -246,3 +234,4 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 - 2026-03-01: Added reservation detail-page and actions-menu behavior from Cheqroom context.
 - 2026-03-01: Added reservations list-page controls, columns, and role-based export behavior.
 - 2026-03-02: Added explicit mobile row-interaction contract alignment.
+- 2026-03-11: Docs hardening — synced action matrix to shipped `booking-rules.ts`. Removed Cheqroom action mapping. Replaced "Reserve again"/"Repeat reservation" with deferred duplicate action. Added DRAFT state. Marked V1 as shipped.

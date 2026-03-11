@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-03-02
+- Last Updated: 2026-03-11
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -24,7 +24,11 @@
 - D-014: Cheqroom importer must be lossless and non-authoritative for live status
 - D-015: Student-first mobile operations contract with role-adaptive action surfaces
 - D-016: Equipment picker sections and guidance rules are code-defined in V1
-- D-017: DRAFT booking state is valid but informally specced until a future brief formalizes it
+- D-017: DRAFT booking state is valid
+- D-018: Asset financial fields are Phase B
+- D-019: Department model is Phase B
+- D-020: Kit management is Phase B
+- D-021: UW asset tag is an optional import field
 
 ---
 
@@ -133,10 +137,11 @@
   - Dedup key: `"{bookingId}:{type}"` — prevents re-fire per booking per window
   - Current behavior: all 4 triggers notify the checkout requester only
   - Implementation: `src/lib/services/notifications.ts`
-- Decision (Pending Acceptance):
+- Decision (Pending Acceptance — Phase B):
   - Define admin/manager escalation recipients for the +24h trigger
   - Define alert fatigue controls (per-booking cap, opt-out)
-  - Define email failure retry behavior
+  - Email channel is Phase B; V1 acceptance = in-app escalation only
+- Reference: `AREA_NOTIFICATIONS.md` is the full spec for escalation behavior
 - Consequences:
   - Faster recovery of missing gear once full escalation is wired.
   - Needs policy controls to avoid alert fatigue.
@@ -260,9 +265,9 @@
 - Guardrails:
   - New guidance rules must be reviewed against actual equipment workflows, not added speculatively.
 
-## D-017: DRAFT Booking State Is Valid but Informally Specced
+## D-017: DRAFT Booking State Is Valid
 - Date: 2026-03-09
-- Status: Accepted (behavior) / Proposed (full formalization)
+- Status: Accepted
 - Context:
   - `checkout-rules.ts` handles a `DRAFT` booking state (allows `edit` and `cancel`) but AREA_CHECKOUTS.md and DECISIONS.md did not formally document this state.
 - Decision:
@@ -276,7 +281,60 @@
 - Guardrails:
   - No new DRAFT behavior (auto-expiry, promotion rules, sharing) without a formal brief.
 
+## D-018: Asset Financial Fields Are Phase B
+- Date: 2026-03-11
+- Status: Accepted
+- Context:
+  - Schema has `purchasePrice`, `warrantyDate`, `residualValue` on Asset with no UI exposure.
+- Decision:
+  - These fields remain in schema. Expose in item detail Settings tab for admin users in Phase B.
+  - Not surfaced in V1 UI — import can populate them via CSV, they're stored but not displayed.
+- Consequences:
+  - No UI work needed in V1. Schema is ready when Phase B prioritizes financial metadata.
+
+## D-019: Department Model Is Phase B
+- Date: 2026-03-11
+- Status: Accepted
+- Context:
+  - `departmentId` FK exists on Asset, Department model exists in schema, but no filter or display in UI.
+- Decision:
+  - Department is an optional organizational grouping, deferred to Phase B.
+  - Import can populate it, but no filter/dropdown/display in V1.
+- Consequences:
+  - No scope creep from adding department features prematurely.
+
+## D-020: Kit Management Is Phase B
+- Date: 2026-03-11
+- Status: Accepted
+- Context:
+  - Full Kit/KitMembership schema exists (kit creation, item membership, active status) but zero UI.
+- Decision:
+  - Kit creation UI and kit-based checkout are Phase B. Schema is ready.
+  - V1 imports may reference kits in `sourcePayload` metadata only.
+- Consequences:
+  - Kit features can be built without schema migration when prioritized.
+
+## D-021: UW Asset Tag Is an Optional Import Field
+- Date: 2026-03-11
+- Status: Accepted
+- Context:
+  - `uwAssetTag` on Asset is a university-specific asset tracking identifier from Cheqroom import.
+- Decision:
+  - Keep as optional field. Importable via CSV. Expose in item detail for admin users.
+  - Not a primary identity field — `tagName` remains primary per D-004.
+- Consequences:
+  - Supports institutional tracking without polluting the tag-first identity model.
+
 ---
+
+## Platform Invariants
+
+These are non-negotiable integrity constraints. Every feature must preserve them. Previously tracked in `AREA_PLATFORM_INTEGRITY.md` (now folded here to eliminate duplication).
+
+1. **Derived status** (D-001): Asset availability is computed from active allocations, never stored as authoritative.
+2. **SERIALIZABLE transactions** (D-006): Booking mutations use SERIALIZABLE isolation + PostgreSQL exclusion constraints for overlap prevention.
+3. **Audit completeness** (D-007): Every mutation path emits audit records with actor, diff, and timestamp.
+4. **Concurrency safety**: Performance improvements must not weaken correctness constraints. Cache boundaries for event and metadata read paths are pending (see Pending Decisions).
 
 ## Decision Rules for Future Changes
 1. Any proposal that risks D-001 or D-006 requires explicit architecture review.
@@ -303,3 +361,4 @@
 - 2026-03-01: Initial decision log created from project memory dump.
 - 2026-03-02: Added student-first mobile operations contract decision.
 - 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).
+- 2026-03-11: Docs hardening — moved D-017 to Accepted. Clarified D-009 email as Phase B. Added AREA_NOTIFICATIONS.md cross-reference to D-009. Folded AREA_PLATFORM_INTEGRITY.md into Platform Invariants section. Added D-018 (asset financial fields → Phase B), D-019 (department → Phase B), D-020 (kit management → Phase B), D-021 (UW asset tag → optional import field).

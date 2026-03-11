@@ -6,6 +6,7 @@
 - Date: 2026-03-09
 - Priority: `High`
 - Target phase: `Now`
+- Status: **Shipped** (PRs 31–32)
 
 ## 2) Problem
 - Current pain: Item workflows can become metadata-heavy, inconsistent, and disconnected from operational actions.

@@ -6,6 +6,7 @@
 - Date: 2026-03-02
 - Priority: `High`
 - Target phase: `Now`
+- Status: **Shipped** (PRs 33–38)
 
 ## 2) Problem
 - Current pain: Reservation transitions and edit behavior can drift without explicit guardrails.

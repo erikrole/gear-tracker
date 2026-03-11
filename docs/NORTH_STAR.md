@@ -167,7 +167,9 @@ Use these questions before adding any feature:
 | Checkout UX V2 (action gating, event defaults, sectioned picker, partial check-in) | ✅ Complete |
 | Calendar sync hardening (crash isolation, batch DB ops, Date.UTC, diagnostics) | ✅ Complete |
 | Events page improvements (upcoming default, source deletion) | ✅ Complete |
-| B&H metadata enrichment (isolated prefill, non-destructive, non-blocking) | ⬜ Not started |
+| Reservations V1 (lifecycle, detail sheet, list page, action gating) | ✅ Complete |
+| Items V1 (list, create, detail, inline edit, item-kind form) | ✅ Complete |
+| B&H metadata enrichment (isolated prefill, non-destructive, non-blocking) | ⬜ Brief ready |
 | Student mobile hardening (brief + implementation) | ⬜ Not started |
 | Equipment guidance rules expansion (lens+body, audio, drone) | ⬜ Not started |
 
@@ -200,29 +202,30 @@ Use these questions before adding any feature:
 
 ---
 
-## 11. Gaps in Current Planning (as of 2026-03-09)
+## 11. Gaps in Current Planning (as of 2026-03-11)
 
 These are open items that must be resolved before implementing related features:
 
-1. `AREA_NOTIFICATIONS.md` missing — notification escalation is implemented but has no formal area spec
+1. ~~`AREA_NOTIFICATIONS.md` missing~~ — **Closed**: file exists, escalation schedule documented
 2. Student mobile KPI definitions not yet defined (pending in DECISIONS.md)
 3. Venue mapping governance owner not assigned
 4. Event sync refresh cadence and staleness thresholds not formalized
 5. B&H metadata cache TTL target not defined
 6. Phase C features (kiosk, templates, analytics) unscoped and unbriefed
 7. Draft persistence model underspecified — referenced in AREA_DASHBOARD.md but no owning spec
-8. DRAFT booking state exists in `checkout-rules.ts` but is not formally specced in AREA_CHECKOUTS.md
-9. Equipment guidance rules hardcoded with only 1 rule; no admin-configuration path defined
+8. ~~DRAFT booking state not formally specced~~ — **Closed**: D-017 accepted, documented in AREA_CHECKOUTS.md
+9. Equipment guidance rules hardcoded with only 1 rule; no admin-configuration path defined (D-016 defers to Phase C)
 10. Calendar source enable/disable not specced — only delete is implemented
 
 ---
 
 ## 12. Recommended Next 3 Planning Docs
 
-**Priority 1: `AREA_NOTIFICATIONS.md`**
-- D-009 is still Proposed; escalation implementation exists but recipient model is not accepted
+**Priority 1: D-009 Recipient Model Acceptance**
+- `AREA_NOTIFICATIONS.md` exists; D-009 escalation schedule is shipped
+- Still pending: recipient model for +24h escalation, alert fatigue controls
 - Blocks: notification center polish, overdue escalation wiring, dashboard badge counts
-- Action: create this file before Phase B begins
+- Action: finalize D-009 acceptance criteria before Phase B begins
 
 **Priority 2: `BRIEF_STUDENT_MOBILE_V1.md`**
 - D-015 accepted but no implementation brief exists
@@ -249,3 +252,4 @@ These are tracked here as candidates for future planning cycles:
 
 ## Change Log
 - 2026-03-09: Initial north star document created. Synthesized from all AREA_*.md, DECISIONS.md, prompts/, and codebase review as of PR #32.
+- 2026-03-11: Docs hardening — closed gaps #1 (AREA_NOTIFICATIONS exists) and #8 (DRAFT specced in D-017 + AREA_CHECKOUTS). Added Reservations V1 and Items V1 to Phase A shipped. Updated B&H enrichment status. Refreshed planning doc priorities.

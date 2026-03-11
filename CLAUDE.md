@@ -92,3 +92,16 @@ After merging Codex or any parallel branch:
 - Check for duplicate function names (e.g. `window.prompt` wrappers)
 - Remove dead modal code or stale imports from merge artifacts
 - Run `npm run build` to confirm clean compilation before declaring done
+
+### 12. Doc Sync on Ship (NON-NEGOTIABLE)
+When shipping a feature, the PR must:
+- Update the relevant `AREA_*.md` file's change log and mark acceptance criteria as met
+- Update `docs/GAPS_AND_RISKS.md` if the feature closes a gap or pending decision
+- No feature is "done" until its area doc reflects shipped reality
+
+### 13. Plan File Lifecycle
+Plan files in `tasks/` follow this lifecycle:
+1. `tasks/[feature]-plan.md` — created during planning
+2. Active during implementation (slices checked off)
+3. Moved to `tasks/archive/` when all slices ship
+4. Never deleted — archive preserves decision context
