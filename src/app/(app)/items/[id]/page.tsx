@@ -432,7 +432,7 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
 
 /* ── QR Code Visual ─────────────────────────────────────── */
 
-function QRCodeCanvas({ value, size }: { value: string; size: number }) {
+function QRCodeCanvas({ value, size, margin = 2 }: { value: string; size: number; margin?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -441,11 +441,11 @@ function QRCodeCanvas({ value, size }: { value: string; size: number }) {
     setLoaded(false);
     import("qrcode").then((QRCode) => {
       if (!canvasRef.current) return;
-      QRCode.toCanvas(canvasRef.current, value, { width: size, margin: 2 }, () => {
+      QRCode.toCanvas(canvasRef.current, value, { width: size, margin }, () => {
         setLoaded(true);
       });
     });
-  }, [value, size]);
+  }, [value, size, margin]);
 
   if (!value) return null;
   return (
@@ -571,17 +571,17 @@ function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetai
               ))}
             </div>
             <div className="asset-tag-label-qr">
-              <QRCodeCanvas value={asset.qrCodeValue} size={80} />
+              <QRCodeCanvas value={asset.qrCodeValue} size={80} margin={0} />
             </div>
           </button>
-          <div>
-            <div className="tracking-row" style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="tracking-row">
               <span>QR</span>
-              <strong style={{ fontFamily: "monospace", marginLeft: 8 }}>{asset.qrCodeValue}</strong>
+              <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
             </div>
             <div className="tracking-row">
               <span>Serial</span>
-              <strong style={{ fontFamily: "monospace", marginLeft: 8 }}>{asset.serialNumber}</strong>
+              <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
             </div>
           </div>
         </div>
@@ -842,25 +842,25 @@ function BookingKindTab({
     .filter((g) => g.items.length > 0);
 
   const activeBooking = asset.activeBooking;
-  const showActiveCard = kind === "CHECKOUT" && activeBooking && activeBooking.kind === "CHECKOUT";
+  const showActiveCard = activeBooking && activeBooking.kind === kind;
   const showUpcoming = kind === "RESERVATION" && asset.upcomingReservations.length > 0;
 
   return (
     <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
-      {/* Active checkout card at top of Check Outs tab */}
+      {/* Active booking card at top of matching tab */}
       {showActiveCard && activeBooking && (
         <div className="card">
-          <div className="card-header"><h2>Active Check-out</h2></div>
+          <div className="card-header"><h2>Active {kind === "CHECKOUT" ? "Check-out" : "Reservation"}</h2></div>
           <div style={{ padding: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <strong>{activeBooking.title}</strong>
               <span className="badge badge-orange" style={{ fontSize: 11 }}>{dueBackText(activeBooking.endsAt)}</span>
             </div>
             <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
-              Held by <strong>{activeBooking.requesterName}</strong>
+              {kind === "CHECKOUT" ? "Held" : "Reserved"} by <strong>{activeBooking.requesterName}</strong>
             </div>
             <button className="btn btn-sm" onClick={() => onSelectBooking(activeBooking.id)}>
-              View checkout &rarr;
+              View {kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
             </button>
           </div>
         </div>
@@ -1234,10 +1234,17 @@ export default function ItemDetailsPage() {
     loadCategories();
   }, [id]);
 
-  // Live countdown tick every 60 seconds
+  // Live countdown tick every 60 seconds + refresh on tab focus
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(interval);
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") setNow(new Date());
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const historyByMonth = useMemo(() => {
