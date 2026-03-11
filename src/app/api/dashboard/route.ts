@@ -2,58 +2,43 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
-import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
 export async function GET() {
   try {
-    await requireAuth();
-
+    const user = await requireAuth();
     const now = new Date();
-
-    let statusCounts: Record<string, number>;
-    try {
-      statusCounts = await countAssetsByEffectiveStatus();
-    } catch {
-      // Fallback if allocation tables not yet migrated
-      const counts = await db.asset.groupBy({ by: ["status"], _count: true });
-      statusCounts = { AVAILABLE: 0, CHECKED_OUT: 0, RESERVED: 0, MAINTENANCE: 0, RETIRED: 0 };
-      for (const c of counts) statusCounts[c.status] = c._count;
-    }
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     const [
-      totalAssets,
-      reservationsBooked,
-      reservationsOverdue,
-      checkoutsOpen,
-      checkoutsOverdue,
-      recentReservations,
-      recentCheckouts,
-      assetsByLocation,
-      assetsByType,
+      // Global: all checkouts (overdue first, then nearest due)
+      allCheckouts,
+      checkoutsOverdueCount,
+      // Global: all reservations (soonest start)
+      allReservations,
+      // Upcoming events (next 7 days)
+      upcomingEvents,
+      // Personal: my checked-out items via allocations
+      myCheckoutBookings,
+      // Personal: my reservations
+      myReservations,
+      // Overdue: top 3 for banner
+      topOverdue,
     ] = await Promise.all([
-      db.asset.count(),
-      db.booking.count({
-        where: { kind: "RESERVATION", status: "BOOKED" },
-      }),
-      db.booking.count({
-        where: {
-          kind: "RESERVATION",
-          status: "BOOKED",
-          endsAt: { lt: now },
-        },
-      }),
-      db.booking.count({
+      db.booking.findMany({
         where: { kind: "CHECKOUT", status: "OPEN" },
+        orderBy: { endsAt: "asc" },
+        take: 5,
+        include: {
+          requester: { select: { id: true, name: true } },
+          location: { select: { id: true, name: true } },
+          _count: { select: { serializedItems: true, bulkItems: true } },
+        },
       }),
       db.booking.count({
-        where: {
-          kind: "CHECKOUT",
-          status: "OPEN",
-          endsAt: { lt: now },
-        },
+        where: { kind: "CHECKOUT", status: "OPEN", endsAt: { lt: now } },
       }),
       db.booking.findMany({
-        where: { kind: "RESERVATION", status: { in: ["BOOKED", "DRAFT"] } },
+        where: { kind: "RESERVATION", status: "BOOKED" },
         orderBy: { startsAt: "asc" },
         take: 5,
         include: {
@@ -62,66 +47,158 @@ export async function GET() {
           _count: { select: { serializedItems: true, bulkItems: true } },
         },
       }),
-      db.booking.findMany({
-        where: { kind: "CHECKOUT", status: "OPEN" },
-        orderBy: { startsAt: "desc" },
+      db.calendarEvent.findMany({
+        where: {
+          startsAt: { gte: now, lte: sevenDaysFromNow },
+          status: "CONFIRMED",
+        },
+        orderBy: { startsAt: "asc" },
         take: 5,
         include: {
-          requester: { select: { id: true, name: true } },
+          location: { select: { id: true, name: true } },
+        },
+      }),
+      db.booking.findMany({
+        where: {
+          kind: "CHECKOUT",
+          status: "OPEN",
+          requesterUserId: user.id,
+        },
+        include: {
+          serializedItems: {
+            include: {
+              asset: {
+                select: { id: true, assetTag: true, brand: true, model: true, type: true },
+              },
+            },
+          },
+        },
+      }),
+      db.booking.findMany({
+        where: {
+          kind: "RESERVATION",
+          status: "BOOKED",
+          requesterUserId: user.id,
+        },
+        orderBy: { startsAt: "asc" },
+        take: 5,
+        include: {
           location: { select: { id: true, name: true } },
           _count: { select: { serializedItems: true, bulkItems: true } },
         },
       }),
-      db.asset.groupBy({
-        by: ["locationId"],
-        _count: true,
-      }),
-      db.asset.groupBy({
-        by: ["type"],
-        _count: true,
+      db.booking.findMany({
+        where: {
+          kind: "CHECKOUT",
+          status: "OPEN",
+          endsAt: { lt: now },
+        },
+        orderBy: { endsAt: "asc" },
+        take: 3,
+        include: {
+          requester: { select: { id: true, name: true } },
+          serializedItems: {
+            take: 3,
+            include: {
+              asset: { select: { assetTag: true } },
+            },
+          },
+        },
       }),
     ]);
 
-    // Resolve location names for the grouped data
-    const locationIds = assetsByLocation.map((g) => g.locationId);
-    const locations =
-      locationIds.length > 0
-        ? await db.location.findMany({
-            where: { id: { in: locationIds } },
-            select: { id: true, name: true },
-          })
-        : [];
+    // Build "my possession" items: flatten booking → individual assets
+    const myPossession = myCheckoutBookings.flatMap((booking) =>
+      booking.serializedItems.map((item) => ({
+        assetId: item.asset.id,
+        assetTag: item.asset.assetTag,
+        brand: item.asset.brand,
+        model: item.asset.model,
+        type: item.asset.type,
+        bookingId: booking.id,
+        bookingTitle: booking.title,
+        startsAt: booking.startsAt.toISOString(),
+        endsAt: booking.endsAt.toISOString(),
+        isOverdue: booking.endsAt < now,
+      }))
+    );
 
-    const locationMap = Object.fromEntries(locations.map((l) => [l.id, l.name]));
+    // Sort: overdue first, then nearest due
+    myPossession.sort((a, b) => {
+      if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+      return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
+    });
+
+    // Format checkouts for response
+    const checkouts = allCheckouts.map((c) => ({
+      id: c.id,
+      title: c.title,
+      requesterName: c.requester.name,
+      startsAt: c.startsAt.toISOString(),
+      endsAt: c.endsAt.toISOString(),
+      itemCount: c._count.serializedItems + c._count.bulkItems,
+      status: c.status,
+      isOverdue: c.endsAt < now,
+    }));
+
+    // Sort checkouts: overdue first, then nearest due
+    checkouts.sort((a, b) => {
+      if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+      return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
+    });
+
+    const reservations = allReservations.map((r) => ({
+      id: r.id,
+      title: r.title,
+      requesterName: r.requester.name,
+      startsAt: r.startsAt.toISOString(),
+      endsAt: r.endsAt.toISOString(),
+      itemCount: r._count.serializedItems + r._count.bulkItems,
+      status: r.status,
+      isOverdue: r.endsAt < now,
+    }));
+
+    const events = upcomingEvents.map((e) => ({
+      id: e.id,
+      title: e.summary,
+      sportCode: e.sportCode ?? null,
+      startsAt: e.startsAt.toISOString(),
+      location: e.location?.name ?? null,
+      opponent: e.opponent ?? null,
+      isHome: e.isHome ?? null,
+    }));
+
+    const overdueItems = topOverdue.map((b) => ({
+      bookingId: b.id,
+      bookingTitle: b.title,
+      requesterName: b.requester.name,
+      assetTags: b.serializedItems.map((si) => si.asset.assetTag),
+      endsAt: b.endsAt.toISOString(),
+    }));
 
     return ok({
       data: {
-        items: {
-          available: statusCounts.AVAILABLE,
-          checkedOut: statusCounts.CHECKED_OUT,
-          reserved: statusCounts.RESERVED,
-          maintenance: statusCounts.MAINTENANCE,
-          retired: statusCounts.RETIRED,
-          total: totalAssets,
+        checkouts: {
+          total: allCheckouts.length < 5 ? allCheckouts.length : checkoutsOverdueCount + allCheckouts.length,
+          overdue: checkoutsOverdueCount,
+          items: checkouts,
         },
         reservations: {
-          booked: reservationsBooked,
-          overdue: reservationsOverdue,
+          total: allReservations.length,
+          items: reservations,
         },
-        checkouts: {
-          open: checkoutsOpen,
-          overdue: checkoutsOverdue,
-        },
-        recentReservations,
-        recentCheckouts,
-        itemsByLocation: assetsByLocation.map((g) => ({
-          location: locationMap[g.locationId] || "Unknown",
-          count: g._count,
+        upcomingEvents: events,
+        myPossession,
+        myReservations: myReservations.map((r) => ({
+          id: r.id,
+          title: r.title,
+          startsAt: r.startsAt.toISOString(),
+          endsAt: r.endsAt.toISOString(),
+          itemCount: r._count.serializedItems + r._count.bulkItems,
+          locationName: r.location?.name ?? null,
         })),
-        itemsByType: assetsByType.map((g) => ({
-          type: g.type,
-          count: g._count,
-        })),
+        overdueCount: checkoutsOverdueCount,
+        overdueItems,
       },
     });
   } catch (error) {
