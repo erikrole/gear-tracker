@@ -11,7 +11,7 @@
 export type BookingKind = "CHECKOUT" | "RESERVATION";
 
 export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open";
-export type ReservationAction = "edit" | "extend" | "cancel" | "convert";
+export type ReservationAction = "edit" | "extend" | "cancel" | "convert" | "duplicate";
 export type BookingAction = CheckoutAction | ReservationAction;
 
 export type BookingContext = {
@@ -57,9 +57,9 @@ const STATE_ACTIONS: Record<BookingKind, Record<string, Set<string>>> = {
   },
   RESERVATION: {
     DRAFT: new Set(["edit", "cancel"]),
-    BOOKED: new Set(["edit", "extend", "cancel", "convert"]),
-    COMPLETED: new Set(),
-    CANCELLED: new Set(),
+    BOOKED: new Set(["edit", "extend", "cancel", "convert", "duplicate"]),
+    COMPLETED: new Set(["duplicate"]),
+    CANCELLED: new Set(["duplicate"]),
   },
 };
 

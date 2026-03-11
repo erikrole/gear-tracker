@@ -142,7 +142,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 2. Proceed to check-out — converts `BOOKED` reservation to `OPEN` checkout
 3. Extend — extends booking window (conflict-checked)
 4. Cancel reservation — soft cancel, record preserved for audit
-5. Deferred: Spotcheck creation, PDF generation, duplicate/clone
+5. Duplicate — creates DRAFT copy with same items/location/notes; available on BOOKED, COMPLETED, CANCELLED
+6. Deferred: Spotcheck creation, PDF generation
 
 ## Bug Traps and Mitigations
 

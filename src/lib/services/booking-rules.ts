@@ -18,19 +18,20 @@ import type { AuthUser } from "@/lib/auth";
  * | open     | ✗            | staff+/owner | ✗             | ✗         | ✗         |
  *
  * Reservation state × action matrix:
- * | Action   | DRAFT        | BOOKED       | COMPLETED | CANCELLED |
- * |----------|-------------|-------------|-----------|-----------|
- * | edit     | staff+/owner | staff+/owner | ✗         | ✗         |
- * | extend   | ✗            | staff+/owner | ✗         | ✗         |
- * | cancel   | staff+/owner | staff+/owner | ✗         | ✗         |
- * | convert  | ✗            | staff+/owner | ✗         | ✗         |
+ * | Action    | DRAFT        | BOOKED       | COMPLETED    | CANCELLED    |
+ * |-----------|-------------|-------------|-------------|-------------|
+ * | edit      | staff+/owner | staff+/owner | ✗            | ✗            |
+ * | extend    | ✗            | staff+/owner | ✗            | ✗            |
+ * | cancel    | staff+/owner | staff+/owner | ✗            | ✗            |
+ * | convert   | ✗            | staff+/owner | ✗            | ✗            |
+ * | duplicate | ✗            | staff+/owner | staff+/owner | staff+/owner |
  *
  * "staff+" = ADMIN or STAFF
  * "owner" = STUDENT who is the requester or creator of the booking
  */
 
 export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open";
-export type ReservationAction = "edit" | "extend" | "cancel" | "convert";
+export type ReservationAction = "edit" | "extend" | "cancel" | "convert" | "duplicate";
 export type BookingAction = string;
 
 export type ActionCheckResult = {
@@ -75,15 +76,15 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   },
   [BookingKind.RESERVATION]: {
     [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
-    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "convert"]),
+    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "convert", "duplicate"]),
     [BookingStatus.OPEN]: new Set(),
-    [BookingStatus.COMPLETED]: new Set(),
-    [BookingStatus.CANCELLED]: new Set(),
+    [BookingStatus.COMPLETED]: new Set(["duplicate"]),
+    [BookingStatus.CANCELLED]: new Set(["duplicate"]),
   },
 };
 
 const ALL_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open"];
-const ALL_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert"];
+const ALL_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert", "duplicate"];
 
 /**
  * Check if a specific action is allowed for the given actor and booking.

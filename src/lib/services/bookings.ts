@@ -1039,6 +1039,79 @@ export async function checkinItems(
   );
 }
 
+/**
+ * Duplicate a reservation as a new DRAFT copy.
+ * Copies title, requester, location, dates, items, and notes.
+ * No availability check — DRAFT has no allocations.
+ * User must edit dates and confirm (DRAFT → BOOKED) to allocate.
+ */
+export async function duplicateReservation(sourceId: string, actorUserId: string) {
+  const source = await db.booking.findUnique({
+    where: { id: sourceId },
+    include: { serializedItems: true, bulkItems: true },
+  });
+
+  if (!source) {
+    throw new HttpError(404, "Reservation not found");
+  }
+
+  if (source.kind !== BookingKind.RESERVATION) {
+    throw new HttpError(400, "Only reservations can be duplicated");
+  }
+
+  const booking = await db.booking.create({
+    data: {
+      kind: BookingKind.RESERVATION,
+      title: `${source.title} (copy)`,
+      requesterUserId: source.requesterUserId,
+      locationId: source.locationId,
+      startsAt: source.startsAt,
+      endsAt: source.endsAt,
+      status: BookingStatus.DRAFT,
+      createdBy: actorUserId,
+      notes: source.notes,
+      eventId: source.eventId,
+      sportCode: source.sportCode,
+      serializedItems: {
+        createMany: {
+          data: source.serializedItems.map((item) => ({
+            assetId: item.assetId,
+            allocationStatus: "active",
+          })),
+        },
+      },
+      bulkItems: {
+        createMany: {
+          data: source.bulkItems.map((item) => ({
+            bulkSkuId: item.bulkSkuId,
+            plannedQuantity: item.plannedQuantity,
+          })),
+        },
+      },
+    },
+  });
+
+  await db.auditLog.create({
+    data: {
+      actorUserId,
+      entityType: "booking",
+      entityId: booking.id,
+      action: "duplicated",
+      beforeJson: { sourceReservationId: sourceId },
+      afterJson: {
+        title: booking.title,
+        startsAt: booking.startsAt,
+        endsAt: booking.endsAt,
+      },
+    },
+  });
+
+  return db.booking.findUniqueOrThrow({
+    where: { id: booking.id },
+    include: bookingInclude,
+  });
+}
+
 export async function getBookingDetail(bookingId: string) {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
