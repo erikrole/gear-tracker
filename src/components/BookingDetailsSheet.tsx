@@ -234,6 +234,96 @@ export default function BookingDetailsSheet({
     } catch { /* network */ }
   }, []);
 
+  // Check-in state (must be before early return to satisfy Rules of Hooks)
+  const [checkinLoading, setCheckinLoading] = useState(false);
+
+  const checkinProgress = useMemo(() => {
+    if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") return null;
+    const total = booking.serializedItems.length;
+    if (total === 0) return null;
+    const returned = booking.serializedItems.filter((i) => i.allocationStatus === "returned").length;
+    return { returned, total, percent: Math.round((returned / total) * 100) };
+  }, [booking]);
+
+  // Filter audit entries for history tab
+  const filteredAuditLogs = useMemo(() => {
+    if (!booking) return [];
+    if (historyFilter === "all") return booking.auditLogs;
+    if (historyFilter === "equipment") {
+      return booking.auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
+    }
+    // "booking" = everything except equipment-only actions
+    return booking.auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+  }, [booking, historyFilter]);
+
+  // Equipment picker filtering
+  const pickerAssets = useMemo(() => {
+    if (!booking) return [];
+    const q = pickerSearch.toLowerCase();
+    return availableAssets.filter((a) => {
+      if (editSerializedIds.includes(a.id)) return false;
+      if (!q) return true;
+      return (
+        a.assetTag.toLowerCase().includes(q) ||
+        a.brand.toLowerCase().includes(q) ||
+        a.model.toLowerCase().includes(q)
+      );
+    });
+  }, [availableAssets, editSerializedIds, pickerSearch, booking]);
+
+  const pickerBulkSkus = useMemo(() => {
+    if (!booking) return [];
+    const q = pickerSearch.toLowerCase();
+    const existingSkuIds = new Set(editBulkItems.map((i) => i.bulkSkuId));
+    return bulkSkus.filter((s) => {
+      if (existingSkuIds.has(s.id)) return false;
+      if (!q) return true;
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q)
+      );
+    });
+  }, [bulkSkus, editBulkItems, pickerSearch, booking]);
+
+  // Build return suggestion text
+  const returnSuggestion = useMemo(() => {
+    if (!booking) return null;
+    if (booking.locationMode === "SINGLE") {
+      return `Return to ${booking.itemLocations[0]?.name || booking.location.name}`;
+    }
+    const names = booking.itemLocations.map((l) => l.name);
+    return `Return to both: ${names.join(" + ")}`;
+  }, [booking]);
+
+  // Resolve names for equipment editing display
+  const resolveAssetName = useCallback(
+    (assetId: string) => {
+      const fromBooking = booking?.serializedItems.find(
+        (i) => i.asset.id === assetId
+      );
+      if (fromBooking)
+        return `${fromBooking.asset.assetTag} - ${fromBooking.asset.brand} ${fromBooking.asset.model}`;
+      const fromAvailable = availableAssets.find((a) => a.id === assetId);
+      if (fromAvailable)
+        return `${fromAvailable.assetTag} - ${fromAvailable.brand} ${fromAvailable.model}`;
+      return assetId;
+    },
+    [booking, availableAssets]
+  );
+
+  const resolveSkuName = useCallback(
+    (skuId: string) => {
+      const fromBooking = booking?.bulkItems.find(
+        (i) => i.bulkSku.id === skuId
+      );
+      if (fromBooking) return fromBooking.bulkSku.name;
+      const fromOptions = bulkSkus.find((s) => s.id === skuId);
+      if (fromOptions) return fromOptions.name;
+      return skuId;
+    },
+    [booking, bulkSkus]
+  );
+
   if (!bookingId) return null;
 
   function enterEditMode() {
@@ -440,17 +530,6 @@ export default function BookingDetailsSheet({
     }
   }
 
-  // Check-in state
-  const [checkinLoading, setCheckinLoading] = useState(false);
-
-  const checkinProgress = useMemo(() => {
-    if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") return null;
-    const total = booking.serializedItems.length;
-    if (total === 0) return null;
-    const returned = booking.serializedItems.filter((i) => i.allocationStatus === "returned").length;
-    return { returned, total, percent: Math.round((returned / total) * 100) };
-  }, [booking]);
-
   async function handleCheckinItem(assetId: string) {
     if (!booking) return;
     setCheckinLoading(true);
@@ -527,17 +606,6 @@ export default function BookingDetailsSheet({
     return item.bulkSku.name.toLowerCase().includes(equipSearch.toLowerCase());
   });
 
-  // Filter audit entries for history tab
-  const filteredAuditLogs = useMemo(() => {
-    if (!booking) return [];
-    if (historyFilter === "all") return booking.auditLogs;
-    if (historyFilter === "equipment") {
-      return booking.auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
-    }
-    // "booking" = everything except equipment-only actions
-    return booking.auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
-  }, [booking, historyFilter]);
-
   function toggleDiff(entryId: string) {
     setExpandedDiffs((prev) => {
       const next = new Set(prev);
@@ -546,74 +614,6 @@ export default function BookingDetailsSheet({
       return next;
     });
   }
-
-  // Equipment picker filtering
-  const pickerAssets = useMemo(() => {
-    if (!booking) return [];
-    const q = pickerSearch.toLowerCase();
-    return availableAssets.filter((a) => {
-      if (editSerializedIds.includes(a.id)) return false;
-      if (!q) return true;
-      return (
-        a.assetTag.toLowerCase().includes(q) ||
-        a.brand.toLowerCase().includes(q) ||
-        a.model.toLowerCase().includes(q)
-      );
-    });
-  }, [availableAssets, editSerializedIds, pickerSearch, booking]);
-
-  const pickerBulkSkus = useMemo(() => {
-    if (!booking) return [];
-    const q = pickerSearch.toLowerCase();
-    const existingSkuIds = new Set(editBulkItems.map((i) => i.bulkSkuId));
-    return bulkSkus.filter((s) => {
-      if (existingSkuIds.has(s.id)) return false;
-      if (!q) return true;
-      return (
-        s.name.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
-      );
-    });
-  }, [bulkSkus, editBulkItems, pickerSearch, booking]);
-
-  // Build return suggestion text
-  const returnSuggestion = useMemo(() => {
-    if (!booking) return null;
-    if (booking.locationMode === "SINGLE") {
-      return `Return to ${booking.itemLocations[0]?.name || booking.location.name}`;
-    }
-    const names = booking.itemLocations.map((l) => l.name);
-    return `Return to both: ${names.join(" + ")}`;
-  }, [booking]);
-
-  // Resolve names for equipment editing display
-  const resolveAssetName = useCallback(
-    (assetId: string) => {
-      const fromBooking = booking?.serializedItems.find(
-        (i) => i.asset.id === assetId
-      );
-      if (fromBooking)
-        return `${fromBooking.asset.assetTag} - ${fromBooking.asset.brand} ${fromBooking.asset.model}`;
-      const fromAvailable = availableAssets.find((a) => a.id === assetId);
-      if (fromAvailable)
-        return `${fromAvailable.assetTag} - ${fromAvailable.brand} ${fromAvailable.model}`;
-      return assetId;
-    },
-    [booking, availableAssets]
-  );
-
-  const resolveSkuName = useCallback(
-    (skuId: string) => {
-      const fromBooking = booking?.bulkItems.find(
-        (i) => i.bulkSku.id === skuId
-      );
-      if (fromBooking) return fromBooking.bulkSku.name;
-      const fromOptions = bulkSkus.find((s) => s.id === skuId);
-      if (fromOptions) return fromOptions.name;
-      return skuId;
-    },
-    [booking, bulkSkus]
-  );
 
   return (
     <>
