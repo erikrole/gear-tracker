@@ -23,3 +23,11 @@
 - Sport abbreviations must match the organization's actual codes (MHKY not MHO, WTRACK not WTF). Verify abbreviations with the user rather than guessing.
 - When filtering events by date window, filter the start time within the window (`startsAt >= now AND startsAt <= endDate`), not the end time. Filtering `endsAt <= endDate` excludes multi-day events that start in the window but end after it.
 - Equipment picker items need computed status (CHECKED_OUT, RESERVED) not just stored status. The form-options API must call `deriveAssetStatuses` to show real-time availability with color dots.
+
+## Session 2026-03-11
+
+### Patterns
+- When the user says "match the label style" they mean the **physical label** stuck on the gear — not a generic UI card. Always ask for or reference the physical artifact before designing digital representations.
+- Physical asset labels are black-background with white text/QR, split into stacked lines (e.g. "FB FX3 1" → three centered lines). QR code is inverted white-on-black. Aspect ratio ~0.47.
+- QR code interactions should be consolidated into a modal: click to enlarge, generate new, paste/type new. Don't scatter QR actions as small buttons below the inline QR — the modal is the single interaction point.
+- `activeBooking` in the asset API can be CHECKOUT or RESERVATION kind. UI that checks `kind === "CHECKOUT"` as the only condition for showing the active booking card will silently hide active reservations. Always handle both booking kinds.
