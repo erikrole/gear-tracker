@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DataList from "@/components/DataList";
 import type { ReservationAction } from "@/lib/booking-actions";
+import { formatDateTime } from "@/lib/format";
 
 /* ───── Types ───── */
 
@@ -61,16 +62,6 @@ type Reservation = {
 };
 
 /* ───── Helpers ───── */
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function formatRelative(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -500,8 +491,8 @@ export default function ReservationDetailsPage() {
                   ),
                 },
                 { label: "Location", value: reservation.location?.name ?? "\u2014" },
-                { label: "From", value: formatDate(reservation.startsAt) },
-                { label: "To", value: formatDate(reservation.endsAt) },
+                { label: "From", value: formatDateTime(reservation.startsAt) },
+                { label: "To", value: formatDateTime(reservation.endsAt) },
                 {
                   label: "Requester",
                   value: (
@@ -519,7 +510,7 @@ export default function ReservationDetailsPage() {
                 ...(reservation.notes
                   ? [{ label: "Notes", value: reservation.notes }]
                   : []),
-                { label: "Created", value: formatDate(reservation.createdAt) },
+                { label: "Created", value: formatDateTime(reservation.createdAt) },
               ]}
             />
 
@@ -665,7 +656,7 @@ export default function ReservationDetailsPage() {
                     typeof entry.afterJson.endsAt === "string" && (
                       <div className="timeline-detail">
                         Extended to{" "}
-                        {formatDate(entry.afterJson.endsAt as string)}
+                        {formatDateTime(entry.afterJson.endsAt as string)}
                       </div>
                     )}
 

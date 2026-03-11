@@ -42,24 +42,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     await requireAuth();
     const params = await ctx.params;
 
-    const asset = await db.asset.findUnique({
-      where: { id: params.id },
-      include: { location: true, category: true }
-    });
-
-    if (!asset) {
-      throw new HttpError(404, "Asset not found");
-    }
-
-    let computedStatus: string;
-    try {
-      computedStatus = await deriveAssetStatus(params.id);
-    } catch {
-      computedStatus = asset.status;
-    }
-
-    // Fetch active booking for status line deep links
-    const [bookingHistory, activeAllocs, upcomingReservations] = await Promise.all([
+    const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations] = await Promise.all([
+      db.asset.findUnique({
+        where: { id: params.id },
+        include: { location: true, category: true }
+      }),
+      deriveAssetStatus(params.id).catch(() => null),
       db.bookingSerializedItem.findMany({
         where: { assetId: params.id },
         include: {
@@ -114,6 +102,12 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         take: 10,
       }),
     ]);
+
+    if (!asset) {
+      throw new HttpError(404, "Asset not found");
+    }
+
+    const computedStatus = derivedStatus ?? asset.status;
 
     // Build active booking info for status line
     let activeBooking: { id: string; kind: string; status: string; title: string; startsAt: string; endsAt: string; requesterName: string } | null = null;

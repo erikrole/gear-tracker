@@ -3,6 +3,12 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 
+// Sort comparator: overdue first, then nearest due date
+const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOverdue: boolean; endsAt: string }) => {
+  if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+  return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
+};
+
 export async function GET() {
   try {
     const user = await requireAuth();
@@ -12,9 +18,11 @@ export async function GET() {
     const [
       // Global: all checkouts (overdue first, then nearest due)
       allCheckouts,
+      checkoutsTotalCount,
       checkoutsOverdueCount,
       // Global: all reservations (soonest start)
       allReservations,
+      reservationsTotalCount,
       // Upcoming events (next 7 days)
       upcomingEvents,
       // Personal: my checked-out items via allocations
@@ -35,6 +43,9 @@ export async function GET() {
         },
       }),
       db.booking.count({
+        where: { kind: "CHECKOUT", status: "OPEN" },
+      }),
+      db.booking.count({
         where: { kind: "CHECKOUT", status: "OPEN", endsAt: { lt: now } },
       }),
       db.booking.findMany({
@@ -46,6 +57,9 @@ export async function GET() {
           location: { select: { id: true, name: true } },
           _count: { select: { serializedItems: true, bulkItems: true } },
         },
+      }),
+      db.booking.count({
+        where: { kind: "RESERVATION", status: "BOOKED" },
       }),
       db.calendarEvent.findMany({
         where: {
@@ -123,11 +137,7 @@ export async function GET() {
       }))
     );
 
-    // Sort: overdue first, then nearest due
-    myPossession.sort((a, b) => {
-      if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
-      return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
-    });
+    myPossession.sort(sortOverdueFirst);
 
     // Format checkouts for response
     const checkouts = allCheckouts.map((c) => ({
@@ -141,11 +151,7 @@ export async function GET() {
       isOverdue: c.endsAt < now,
     }));
 
-    // Sort checkouts: overdue first, then nearest due
-    checkouts.sort((a, b) => {
-      if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
-      return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
-    });
+    checkouts.sort(sortOverdueFirst);
 
     const reservations = allReservations.map((r) => ({
       id: r.id,
@@ -155,7 +161,7 @@ export async function GET() {
       endsAt: r.endsAt.toISOString(),
       itemCount: r._count.serializedItems + r._count.bulkItems,
       status: r.status,
-      isOverdue: r.endsAt < now,
+      isOverdue: false,
     }));
 
     const events = upcomingEvents.map((e) => ({
@@ -179,12 +185,12 @@ export async function GET() {
     return ok({
       data: {
         checkouts: {
-          total: allCheckouts.length < 5 ? allCheckouts.length : checkoutsOverdueCount + allCheckouts.length,
+          total: checkoutsTotalCount,
           overdue: checkoutsOverdueCount,
           items: checkouts,
         },
         reservations: {
-          total: allReservations.length,
+          total: reservationsTotalCount,
           items: reservations,
         },
         upcomingEvents: events,
