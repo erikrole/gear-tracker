@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/Toast";
 import DataList from "@/components/DataList";
+import { formatDateTime } from "@/lib/format";
 
 /* ───── Types ───── */
 
@@ -100,16 +101,6 @@ type Props = {
 };
 
 /* ───── Helpers ───── */
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function formatRelative(iso: string) {
   const d = new Date(iso);

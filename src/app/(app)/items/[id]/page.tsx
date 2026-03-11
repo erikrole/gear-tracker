@@ -4,6 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+import {
+  getUrgency,
+  formatCountdown,
+  formatDateShort,
+  formatDateFull,
+  formatDateTime,
+} from "@/lib/format";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -92,58 +99,6 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 ];
 
 /* ── Helpers ────────────────────────────────────────────── */
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
-}
-
-function dueBackText(endsAt: string): string {
-  const ms = new Date(endsAt).getTime() - Date.now();
-  if (ms < 0) return "Overdue";
-  const hours = Math.floor(ms / 3600000);
-  if (hours < 24) return `Due back in ${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `Due back in ${days}d`;
-}
-
-/* ── Countdown helpers (shared with dashboard) ───────── */
-
-type UrgencyLevel = "overdue" | "critical" | "warning" | "normal";
-
-function getUrgency(startsAt: string, endsAt: string, now: Date): UrgencyLevel {
-  const end = new Date(endsAt).getTime();
-  const remaining = end - now.getTime();
-  if (remaining <= 0) return "overdue";
-  const duration = end - new Date(startsAt).getTime();
-  if (duration <= 0) return "critical";
-  const pctRemaining = remaining / duration;
-  if (pctRemaining <= 0.10) return "critical";
-  if (pctRemaining <= 0.25) return "warning";
-  return "normal";
-}
-
-function formatCountdown(endsAt: string, now: Date): string {
-  const diff = new Date(endsAt).getTime() - now.getTime();
-  const absDiff = Math.abs(diff);
-  const days = Math.floor(absDiff / (24 * 60 * 60 * 1000));
-  const hours = Math.floor((absDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-  const minutes = Math.floor((absDiff % (60 * 60 * 1000)) / (60 * 1000));
-  let timeStr: string;
-  if (days > 0) { timeStr = `${days}d ${hours}h`; }
-  else if (hours > 0) { timeStr = `${hours}h ${minutes}m`; }
-  else { timeStr = `${minutes}m`; }
-  if (diff <= 0) return `OVERDUE BY ${timeStr}`;
-  return `DUE BACK IN ${timeStr}`;
-}
-
-function formatDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 function getFiscalYearOptions(): string[] {
   const now = new Date();
@@ -790,7 +745,7 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
                 <span className="possession-asset-name">
                   {b.kind === "CHECKOUT" ? "Held" : "Reserved"} by {b.requesterName}
                 </span>
-                <span className="ops-row-meta">{dueBackText(b.endsAt)}</span>
+                <span className="ops-row-meta">{formatCountdown(b.endsAt, now)}</span>
               </div>
             </button>
           </div>
@@ -829,11 +784,12 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
 /* ── Booking Kind Tab ───────────────────────────────────── */
 
 function BookingKindTab({
-  kind, groups, asset, onSelectBooking,
+  kind, groups, asset, now, onSelectBooking,
 }: {
   kind: "CHECKOUT" | "RESERVATION";
   groups: Array<{ month: string; items: AssetDetail["history"] }>;
   asset: AssetDetail;
+  now: Date;
   onSelectBooking: (id: string) => void;
 }) {
   const label = kind === "CHECKOUT" ? "check-outs" : "reservations";
@@ -854,7 +810,7 @@ function BookingKindTab({
           <div style={{ padding: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
               <strong>{activeBooking.title}</strong>
-              <span className="badge badge-orange" style={{ fontSize: 11 }}>{dueBackText(activeBooking.endsAt)}</span>
+              <span className="badge badge-orange" style={{ fontSize: 11 }}>{formatCountdown(activeBooking.endsAt, now)}</span>
             </div>
             <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
               {kind === "CHECKOUT" ? "Held" : "Reserved"} by <strong>{activeBooking.requesterName}</strong>
@@ -877,7 +833,7 @@ function BookingKindTab({
                   <div className="event-row-main">
                     <div className="event-row-title">{r.title}</div>
                     <div className="event-row-meta">
-                      {formatDate(r.startsAt)} – {formatDate(r.endsAt)} &middot; {r.requesterName}
+                      {formatDateFull(r.startsAt)} – {formatDateFull(r.endsAt)} &middot; {r.requesterName}
                     </div>
                   </div>
                 </div>
@@ -904,7 +860,7 @@ function BookingKindTab({
                       <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => onSelectBooking(entry.booking.id)}>
                         <td><span className="row-link">{entry.booking.title}</span></td>
                         <td>{entry.booking.requester.name}</td>
-                        <td>{formatDate(entry.booking.startsAt)}</td>
+                        <td>{formatDateFull(entry.booking.startsAt)}</td>
                         <td>{entry.booking.location.name}</td>
                       </tr>
                     ))}
@@ -1358,6 +1314,7 @@ export default function ItemDetailsPage() {
           kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}
           groups={historyByMonth}
           asset={asset}
+          now={now}
           onSelectBooking={setSelectedBookingId}
         />
       )}
