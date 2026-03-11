@@ -164,3 +164,4 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-03-01: Added permission model and draft-system requirements.
 - 2026-03-02: Linked dashboard mobile behavior to shared `AREA_MOBILE.md` contract.
 - 2026-03-11: Docs hardening — resolved hedged features: saved filters → deferred, filter chips → deferred. Removed ambiguous "if low effort" qualifiers.
+- 2026-03-11: **V2 shipped** — two-column split layout (global ops left, personal accountability right). Live countdown timers on "In My Possession" items. Overdue banner with click-through to booking detail. Donut charts removed (future Reports page). Upcoming Events section added. All roles see all data; students read-only. Mobile stacks right column first.

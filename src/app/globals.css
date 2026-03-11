@@ -428,7 +428,7 @@ a:hover {
   padding: 20px;
 }
 
-/* ===== Dashboard Grid ===== */
+/* ===== Dashboard Grid (legacy) ===== */
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -441,6 +441,248 @@ a:hover {
 
 .dashboard-grid .card.span-3 {
   grid-column: span 3;
+}
+
+/* ===== Dashboard V2 Split Layout ===== */
+.dashboard-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Overdue Banner ── */
+.overdue-banner {
+  background: var(--red-bg, #fef2f2);
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-lg);
+  padding: 14px 20px;
+  margin-bottom: 20px;
+}
+
+.overdue-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.overdue-banner-items {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.overdue-banner-link {
+  background: none;
+  border: none;
+  color: #dc2626;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  font-family: inherit;
+}
+
+.overdue-banner-link:hover {
+  color: #991b1b;
+}
+
+/* ── Section Count Badge ── */
+.section-count {
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* ── Ops Row (clickable list items) ── */
+.card-body-compact {
+  padding: 4px 0;
+}
+
+.ops-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.ops-row:hover {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.ops-row-static {
+  cursor: default;
+}
+
+.ops-row-static:hover {
+  background: none;
+}
+
+.ops-row + .ops-row,
+.ops-row + .ops-row-static,
+.ops-row-static + .ops-row {
+  border-top: 1px solid var(--border-light);
+}
+
+.ops-row-overdue {
+  background: rgba(220, 38, 38, 0.03);
+}
+
+.ops-row-overdue:hover {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.ops-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ops-row-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ops-row-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ops-row-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Event sport badge ── */
+.event-sport {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* ── Possession Card (right column items) ── */
+.possession-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.possession-card:hover {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.possession-card + .possession-card {
+  border-top: 1px solid var(--border-light);
+}
+
+/* ── Countdown Bar ── */
+.countdown-bar {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 6px 20px;
+  text-transform: uppercase;
+}
+
+.countdown-overdue {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.06);
+  animation: pulse-overdue 2s ease-in-out infinite;
+}
+
+.countdown-critical {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.countdown-warning {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.04);
+}
+
+.countdown-normal {
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+@keyframes pulse-overdue {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.possession-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 20px 12px;
+}
+
+.possession-asset-tag {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.possession-asset-name {
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── Mobile: stack columns vertically ── */
+@media (max-width: 768px) {
+  .dashboard-split {
+    grid-template-columns: 1fr;
+  }
+
+  /* On mobile, right column (personal) comes first */
+  .dashboard-col-right {
+    order: -1;
+  }
 }
 
 /* ===== Summary Cards ===== */

@@ -164,36 +164,35 @@ type EventSummary = {
 ## Slice Plan
 
 ### Slice 1: API + Data Layer
-- [ ] Refactor `GET /api/dashboard` to return V2 shape
-- [ ] Add `myPossession` query: current user's OPEN checkouts → join serializedItems → asset for tagName + endsAt
-- [ ] Add `myReservations` query: current user's BOOKED reservations
-- [ ] Add `upcomingEvents` query: events in next 7 days
-- [ ] Keep backward-compatible: old fields can coexist during migration
-- [ ] Verify total query count stays ≤ 10
+- [x] Refactor `GET /api/dashboard` to return V2 shape
+- [x] Add `myPossession` query: current user's OPEN checkouts → join serializedItems → asset for tagName + endsAt
+- [x] Add `myReservations` query: current user's BOOKED reservations
+- [x] Add `upcomingEvents` query: events in next 7 days
+- [x] Verify total query count stays ≤ 10 (7 queries in Promise.all)
 
 ### Slice 2: Layout + Left Column
-- [ ] Replace 3-column chart grid with 2-column split layout
-- [ ] Implement left column: Checked Out section, Reserved section, Upcoming Events section
-- [ ] Each section: header with count badge, card list (max 5), "View all →" link
-- [ ] Row click opens BookingDetailsSheet
-- [ ] Remove donut charts and stat pair cards
-- [ ] Mobile: stack columns vertically
+- [x] Replace 3-column chart grid with 2-column split layout
+- [x] Implement left column: Reserved section, Checked Out section, Upcoming Events section
+- [x] Each section: header with count badge, card list (max 5)
+- [x] Row click opens BookingDetailsSheet
+- [x] Remove donut charts and stat pair cards
+- [x] Mobile: stack columns vertically (right column first)
 
 ### Slice 3: Right Column + Countdown
-- [ ] Implement "In My Possession" section with per-item cards
-- [ ] Implement countdown logic:
+- [x] Implement "In My Possession" section with per-item cards
+- [x] Implement countdown logic:
   - `useEffect` with `setInterval(60_000)` updating relative time strings
   - Color thresholds: red (<24h or overdue), amber (1–7d), green (>7d)
   - Bold countdown bar above each item card
-- [ ] Implement "My Reservations" section
-- [ ] Overdue items show `OVERDUE BY Xh Ym` in pulsing red
+- [x] Implement "My Reservations" section
+- [x] Overdue items show `OVERDUE BY Xh Ym` in pulsing red
 
 ### Slice 4: Overdue Banner + Polish
-- [ ] Full-width overdue banner at top (red, count + top 3 items)
-- [ ] Click-through to checkouts list filtered to overdue
-- [ ] Role-based visibility: students see only their own data in all sections
-- [ ] Mobile layout validation against AREA_MOBILE.md
-- [ ] Empty states for each section
+- [x] Full-width overdue banner at top (red, count + top 3 items)
+- [x] Clicking an overdue item opens its respective booking detail
+- [x] All roles see all data in left column (students read-only)
+- [x] Mobile layout: right column (personal) shows first
+- [x] Empty states for each section
 
 ---
 
