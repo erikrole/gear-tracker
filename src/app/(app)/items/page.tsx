@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { CategorySelect } from "@/components/CategorySelect";
 
 type ActiveBooking = {
   id: string;
@@ -299,19 +300,7 @@ function CreateItemCard({
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
               <input name="assetTag" placeholder="Tag name *" required style={inputStyle} />
               <input name="itemName" ref={nameRef} placeholder="Product name" style={inputStyle} />
-              <select name="categoryId" style={inputStyle}>
-                <option value="">Category</option>
-                {categories.filter((c) => !c.parentId).map((parent) => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                      <option key={child.id} value={child.id}>{child.name}</option>
-                    ))}
-                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                      <option value={parent.id}>{parent.name}</option>
-                    )}
-                  </optgroup>
-                ))}
-              </select>
+              <CategorySelect name="categoryId" categories={categories} style={inputStyle} />
               <input name="type" type="hidden" defaultValue="equipment" />
               <select name="locationId" required style={inputStyle}>
                 <option value="">Location *</option>
@@ -349,19 +338,7 @@ function CreateItemCard({
         ) : (
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
             <input name="name" placeholder="Product name *" required style={inputStyle} />
-            <select name="categoryId" style={inputStyle}>
-              <option value="">Category</option>
-              {categories.filter((c) => !c.parentId).map((parent) => (
-                <optgroup key={parent.id} label={parent.name}>
-                  {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))}
-                  {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                    <option value={parent.id}>{parent.name}</option>
-                  )}
-                </optgroup>
-              ))}
-            </select>
+            <CategorySelect name="categoryId" categories={categories} style={inputStyle} />
             <input name="category" type="hidden" defaultValue="general" />
             <input name="unit" placeholder="Unit (e.g. ea, box) *" required style={inputStyle} />
             <select name="locationId" required style={inputStyle}>
@@ -507,9 +484,11 @@ export default function ItemsPage() {
             <option value="">All locations</option>
             {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
           </select>
-          <select
+          <CategorySelect
+            categories={categories}
             value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
+            onChange={(v) => { setCategoryFilter(v); setPage(0); }}
+            placeholder="All categories"
             style={{
               padding: "7px 12px",
               border: "1px solid var(--border)",
@@ -517,19 +496,7 @@ export default function ItemsPage() {
               fontSize: 13,
               background: "white",
             }}
-          >
-            <option value="">All categories</option>
-            {categories.filter((c) => !c.parentId).map((parent) => (
-              <optgroup key={parent.id} label={parent.name}>
-                {categories.filter((c) => c.parentId === parent.id).length === 0
-                  ? <option value={parent.id}>{parent.name}</option>
-                  : categories.filter((c) => c.parentId === parent.id).map((child) => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))
-                }
-              </optgroup>
-            ))}
-          </select>
+          />
         </div>
 
         {loading ? (

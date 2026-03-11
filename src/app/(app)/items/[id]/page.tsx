@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+import { CategorySelect } from "@/components/CategorySelect";
 import {
   getUrgency,
   formatCountdown,
@@ -1217,28 +1218,40 @@ export default function ItemDetailsPage() {
 
   async function handleAction(action: string) {
     if (!asset) return;
-    if (action === "duplicate") {
-      const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
-      if (res.ok) {
+
+    async function apiPost(path: string): Promise<globalThis.Response> {
+      const res = await fetch(path, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as Record<string, string>).error || `Action failed (${res.status})`);
+      }
+      return res;
+    }
+
+    try {
+      if (action === "duplicate") {
+        const res = await apiPost(`/api/assets/${asset.id}/duplicate`);
         const json = await res.json();
         router.push(`/items/${json.data.id}`);
+      } else if (action === "retire") {
+        if (!confirm("Retire this item? It will no longer be available for bookings.")) return;
+        await apiPost(`/api/assets/${asset.id}/retire`);
+        loadAsset();
+      } else if (action === "maintenance") {
+        await apiPost(`/api/assets/${asset.id}/maintenance`);
+        loadAsset();
+      } else if (action === "delete") {
+        if (!confirm("Permanently delete this item? This cannot be undone.")) return;
+        const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
+        if (res.ok) {
+          router.push("/items");
+        } else {
+          const json = await res.json().catch(() => ({}));
+          alert((json as Record<string, string>).error || "Delete failed");
+        }
       }
-    } else if (action === "retire") {
-      if (!confirm("Retire this item? It will no longer be available for bookings.")) return;
-      await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
-      loadAsset();
-    } else if (action === "maintenance") {
-      await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
-      loadAsset();
-    } else if (action === "delete") {
-      if (!confirm("Permanently delete this item? This cannot be undone.")) return;
-      const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
-      if (res.ok) {
-        router.push("/items");
-      } else {
-        const json = await res.json().catch(() => ({}));
-        alert((json as Record<string, string>).error || "Delete failed");
-      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Action failed");
     }
   }
 

@@ -36,7 +36,8 @@ Last updated: 2026-03-11
 
 ## Next Up (Unstarted)
 
-- [ ] **Duplicate/Clone Action** — Single "Duplicate" action for reservations (deferred from V1 shipped)
+- [x] **Duplicate/Clone Action** — Single "Duplicate" action for reservations (shipped 2026-03-11)
+- [ ] **Items Pages: Simplify, Harden & Polish** — Fix silent save failures, add missing audit log, extract shared components
 
 ---
 

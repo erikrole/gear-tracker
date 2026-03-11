@@ -17,6 +17,8 @@ const patchAssetSchema = z
     qrCodeValue: z.string().min(1).optional(),
     purchaseDate: z.string().optional(),
     purchasePrice: z.number().positive().optional(),
+    warrantyDate: z.string().optional(),
+    residualValue: z.number().min(0).optional(),
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
@@ -208,6 +210,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       data: {
         ...body,
         ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {}),
+        ...(body.warrantyDate ? { warrantyDate: new Date(body.warrantyDate) } : {}),
       },
       include: { location: true, category: true },
     });

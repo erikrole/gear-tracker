@@ -152,7 +152,7 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
 
 export async function POST(req: Request) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const body = createAssetSchema.parse(await req.json());
 
     const asset = await db.asset.create({
@@ -176,6 +176,22 @@ export async function POST(req: Request) {
         location: true,
         category: true
       }
+    });
+
+    await db.auditLog.create({
+      data: {
+        actorUserId: user.id,
+        entityType: "asset",
+        entityId: asset.id,
+        action: "created",
+        afterJson: {
+          assetTag: asset.assetTag,
+          type: asset.type,
+          brand: asset.brand,
+          model: asset.model,
+          locationId: asset.locationId,
+        },
+      },
     });
 
     return ok({ data: asset }, 201);
