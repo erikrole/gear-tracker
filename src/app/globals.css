@@ -2477,3 +2477,163 @@ a:hover {
   text-align: center;
   justify-content: center;
 }
+
+/* ===== Booking List Table (Cheqroom-style) ===== */
+
+.booking-table-wrap {
+  overflow-x: auto;
+}
+
+.booking-table th {
+  white-space: nowrap;
+}
+
+/* Sortable column headers */
+.sort-header {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sort-header:hover {
+  color: var(--text);
+}
+
+.sort-header-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sort-arrow {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Name cell with status dot underneath */
+.booking-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.booking-status-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-label {
+  color: var(--text-secondary);
+}
+
+/* Status visual states */
+tr.status-cancelled .row-link,
+tr.status-cancelled .booking-name-cell > .row-link,
+.booking-mobile-card.status-cancelled .row-link {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+tr.status-cancelled .status-label,
+.booking-mobile-card.status-cancelled .status-label {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+tr.status-completed,
+.booking-mobile-card.status-completed {
+  opacity: 0.55;
+}
+
+tr.status-overdue .status-label,
+.booking-mobile-card.status-overdue .status-label {
+  color: var(--red);
+  font-weight: 600;
+}
+
+/* Date cell: date bold on top, day+time below */
+.date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.date-main {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.date-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ── Mobile: hide desktop table, show card list ── */
+.booking-mobile-list {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .booking-table-wrap {
+    display: none;
+  }
+
+  .booking-mobile-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .booking-mobile-card {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .booking-mobile-card:last-child {
+    border-bottom: none;
+  }
+
+  .booking-mobile-card:active {
+    background: rgba(59, 130, 246, 0.03);
+  }
+
+  .booking-mobile-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .booking-mobile-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .booking-mobile-name .row-link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .booking-mobile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
