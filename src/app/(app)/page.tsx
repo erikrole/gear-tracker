@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import {
-  getUrgency,
-  formatCountdown,
   formatDateShort,
   formatDateRange,
   formatOverdueElapsed,
@@ -21,19 +19,6 @@ type BookingSummary = {
   endsAt: string;
   itemCount: number;
   status: string;
-  isOverdue: boolean;
-};
-
-type MyPossessionItem = {
-  assetId: string;
-  assetTag: string;
-  brand: string;
-  model: string;
-  type: string;
-  bookingId: string;
-  bookingTitle: string;
-  startsAt: string;
-  endsAt: string;
   isOverdue: boolean;
 };
 
@@ -75,7 +60,6 @@ type DashboardData = {
   teamCheckouts: { total: number; overdue: number; items: BookingSummary[] };
   teamReservations: { total: number; items: BookingSummary[] };
   upcomingEvents: EventSummary[];
-  myPossession: MyPossessionItem[];
   myReservations: MyReservation[];
   overdueCount: number;
   overdueItems: OverdueItem[];
@@ -182,43 +166,6 @@ export default function DashboardPage() {
         {/* ────── Left Column: My Gear ────── */}
         <div className="dashboard-col dashboard-col-left">
           <span className="dashboard-col-label">My Gear</span>
-
-          {/* In My Possession */}
-          <div className="card">
-            <div className="card-header">
-              <h2>In my possession</h2>
-              <span className="section-count">{data.myPossession.length}</span>
-            </div>
-            {data.myPossession.length === 0 ? (
-              <div className="empty-state">Nothing checked out to you</div>
-            ) : (
-              <div className="card-body card-body-compact">
-                {data.myPossession.map((item) => {
-                  const urgency = getUrgency(item.startsAt, item.endsAt, now);
-                  return (
-                    <button
-                      key={`${item.bookingId}-${item.assetId}`}
-                      className="possession-card"
-                      onClick={() => setSelectedBookingId(item.bookingId)}
-                    >
-                      <div className={`countdown-bar countdown-${urgency}`}>
-                        {urgency !== "normal"
-                          ? formatCountdown(item.endsAt, now)
-                          : `Due ${formatDateShort(item.endsAt)}`}
-                      </div>
-                      <div className="possession-card-body">
-                        <span className="possession-asset-tag">{item.assetTag}</span>
-                        <span className="possession-asset-name">
-                          {item.brand} {item.model}
-                        </span>
-                        <span className="ops-row-meta">{item.bookingTitle}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
           {/* My Checkouts */}
           <div className="card">

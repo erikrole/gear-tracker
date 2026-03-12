@@ -66,8 +66,6 @@ export async function GET() {
       dueTodayCount,
       // Upcoming events (next 7 days)
       upcomingEvents,
-      // Personal: my checked-out items via allocations (for possession cards)
-      myCheckoutBookings,
       // Personal: my reservations
       myReservations,
       // Overdue: top items for banner
@@ -131,23 +129,6 @@ export async function GET() {
           location: { select: { id: true, name: true } },
         },
       }),
-      // My possession (individual assets)
-      db.booking.findMany({
-        where: {
-          kind: "CHECKOUT",
-          status: "OPEN",
-          requesterUserId: user.id,
-        },
-        include: {
-          serializedItems: {
-            include: {
-              asset: {
-                select: { id: true, assetTag: true, brand: true, model: true, type: true },
-              },
-            },
-          },
-        },
-      }),
       // My reservations
       db.booking.findMany({
         where: {
@@ -182,24 +163,6 @@ export async function GET() {
         },
       }),
     ]);
-
-    // Build "my possession" items: flatten booking → individual assets
-    const myPossession = myCheckoutBookings.flatMap((booking) =>
-      booking.serializedItems.map((item) => ({
-        assetId: item.asset.id,
-        assetTag: item.asset.assetTag,
-        brand: item.asset.brand,
-        model: item.asset.model,
-        type: item.asset.type,
-        bookingId: booking.id,
-        bookingTitle: booking.title,
-        startsAt: booking.startsAt.toISOString(),
-        endsAt: booking.endsAt.toISOString(),
-        isOverdue: booking.endsAt < now,
-      }))
-    );
-
-    myPossession.sort(sortOverdueFirst);
 
     // Format team checkouts
     const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
@@ -252,7 +215,6 @@ export async function GET() {
           items: teamReservations,
         },
         upcomingEvents: events,
-        myPossession,
         myReservations: myReservations.map((r) => ({
           id: r.id,
           title: r.title,
