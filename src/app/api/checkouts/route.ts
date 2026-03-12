@@ -29,10 +29,14 @@ export async function GET(req: Request) {
       } : {}),
     };
 
-    const orderBy: Prisma.BookingOrderByWithRelationInput[] =
-      sortParam === "oldest" ? [{ startsAt: "asc" }, { id: "asc" }]
-      : sortParam === "title" ? [{ title: "asc" }, { id: "asc" }]
-      : [{ startsAt: "desc" }, { id: "asc" }];
+    const SORT_MAP: Record<string, Prisma.BookingOrderByWithRelationInput[]> = {
+      oldest: [{ startsAt: "asc" }, { id: "asc" }],
+      title: [{ title: "asc" }, { id: "asc" }],
+      title_desc: [{ title: "desc" }, { id: "asc" }],
+      endsAt: [{ endsAt: "asc" }, { id: "asc" }],
+      endsAt_desc: [{ endsAt: "desc" }, { id: "asc" }],
+    };
+    const orderBy = (sortParam && SORT_MAP[sortParam]) || [{ startsAt: "desc" }, { id: "asc" }];
 
     const { limit, offset } = parsePagination(searchParams);
 

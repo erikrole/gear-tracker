@@ -20,10 +20,10 @@ const config: BookingListConfig = {
     { value: "COMPLETED", label: "Completed" },
     { value: "CANCELLED", label: "Cancelled" },
   ],
-  defaultTieToEvent: false,
-  hasSportFilter: false,
+  defaultTieToEvent: true,
+  hasSportFilter: true,
   overdueStatus: "BOOKED",
-  showEventBadge: false,
+  showEventBadge: true,
   contextMenuExtras: [
     {
       action: "convert",

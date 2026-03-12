@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type CalendarEvent = {
   id: string;
@@ -23,6 +23,18 @@ type CalendarSource = {
   lastFetchedAt: string | null;
   lastError: string | null;
   _count: { events: number };
+};
+
+type LocationMapping = {
+  id: string;
+  pattern: string;
+  priority: number;
+  location: { id: string; name: string };
+};
+
+type Location = {
+  id: string;
+  name: string;
 };
 
 function formatDate(iso: string) {
@@ -52,16 +64,87 @@ export default function EventsPage() {
   const [syncDiagnostics, setSyncDiagnostics] = useState<any>(null);
   const [showAddSource, setShowAddSource] = useState(false);
   const [unmappedOnly, setUnmappedOnly] = useState(false);
+  const [includePast, setIncludePast] = useState(false);
+  const [showMappings, setShowMappings] = useState(false);
+  const [mappings, setMappings] = useState<LocationMapping[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [showAddMapping, setShowAddMapping] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
     loadEvents();
     loadSources();
-  }, [unmappedOnly]);
+  }, [unmappedOnly, includePast]);
+
+  const loadMappings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/location-mappings");
+      if (res.ok) { const json = await res.json(); setMappings(json.data ?? []); }
+    } catch { /* network error */ }
+  }, []);
+
+  const loadLocations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/locations");
+      if (res.ok) { const json = await res.json(); setLocations(json.data ?? []); }
+    } catch { /* network error */ }
+  }, []);
+
+  useEffect(() => {
+    if (showMappings) { loadMappings(); loadLocations(); }
+  }, [showMappings, loadMappings, loadLocations]);
+
+  // Load events for calendar view month
+  useEffect(() => {
+    if (viewMode !== "calendar") return;
+    const startDate = calMonth.toISOString();
+    const endDate = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    const params = new URLSearchParams({ startDate, endDate, includePast: "true", limit: "200" });
+    fetch(`/api/calendar-events?${params}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setCalEvents(json.data); })
+      .catch(() => {});
+  }, [viewMode, calMonth]);
+
+  // Calendar grid computation
+  const calCells = useMemo(() => {
+    const year = calMonth.getFullYear();
+    const month = calMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: Array<{ day: number | null }> = [];
+    for (let i = 0; i < firstDay; i++) cells.push({ day: null });
+    for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d });
+    return cells;
+  }, [calMonth]);
+
+  const calEventsByDay = useMemo(() => {
+    const map = new Map<number, CalendarEvent[]>();
+    for (const ev of calEvents) {
+      const d = new Date(ev.startsAt).getDate();
+      if (!map.has(d)) map.set(d, []);
+      map.get(d)!.push(ev);
+    }
+    return map;
+  }, [calEvents]);
+
+  function isToday(day: number) {
+    const now = new Date();
+    return calMonth.getFullYear() === now.getFullYear() && calMonth.getMonth() === now.getMonth() && day === now.getDate();
+  }
+
+  function prevMonth() { setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1)); }
+  function nextMonth() { setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1)); }
+  function goCalToday() { const d = new Date(); setCalMonth(new Date(d.getFullYear(), d.getMonth(), 1)); }
 
   async function loadEvents() {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: "50", startDate: new Date().toISOString() });
+      const params = new URLSearchParams({ limit: "50" });
+      if (!includePast) params.set("startDate", new Date().toISOString());
+      if (includePast) params.set("includePast", "true");
       if (unmappedOnly) params.set("unmapped", "true");
       const res = await fetch(`/api/calendar-events?${params}`);
       if (res.ok) { const json = await res.json(); setEvents(json.data ?? []); }
@@ -126,6 +209,38 @@ export default function EventsPage() {
     } catch { /* network error */ }
   }
 
+  async function handleAddMapping(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    try {
+      const res = await fetch("/api/location-mappings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pattern: form.get("pattern"),
+          locationId: form.get("locationId"),
+          priority: parseInt(form.get("priority") as string) || 0,
+        })
+      });
+      if (res.ok) {
+        setShowAddMapping(false);
+        await loadMappings();
+        e.currentTarget.reset();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        alert((json as Record<string, string>).error || "Failed to create mapping");
+      }
+    } catch { alert("Network error \u2014 please try again."); }
+  }
+
+  async function handleDeleteMapping(id: string) {
+    if (!confirm("Delete this venue mapping?")) return;
+    try {
+      const res = await fetch(`/api/location-mappings/${id}`, { method: "DELETE" });
+      if (res.ok) await loadMappings();
+    } catch { alert("Network error \u2014 please try again."); }
+  }
+
   async function handleAddSource(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -149,6 +264,9 @@ export default function EventsPage() {
       <div className="page-header">
         <h1>Events</h1>
         <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn" onClick={() => setShowMappings(!showMappings)}>
+            {showMappings ? "Hide mappings" : "Venue mappings"}
+          </button>
           <button className="btn" onClick={() => setShowSources(!showSources)}>
             {showSources ? "Hide sources" : "Manage sources"}
           </button>
@@ -226,6 +344,69 @@ export default function EventsPage() {
         </details>
       )}
 
+      {/* Venue mapping panel */}
+      {showMappings && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header">
+            <h2>Venue Mappings</h2>
+            <button className="btn btn-sm btn-primary" onClick={() => setShowAddMapping(!showAddMapping)}>
+              {showAddMapping ? "Cancel" : "Add mapping"}
+            </button>
+          </div>
+
+          <div style={{ padding: "8px 16px 0", fontSize: 12, color: "var(--text-secondary)" }}>
+            Patterns are matched against the combined venue + summary text from calendar events during sync. Supports regex or plain text (case-insensitive).
+          </div>
+
+          {showAddMapping && (
+            <form onSubmit={handleAddMapping} style={{ padding: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input name="pattern" placeholder="Pattern (regex or text)" required style={{ flex: 2, minWidth: 150, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+              <select name="locationId" required style={{ flex: 1, minWidth: 120, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+                <option value="">Select location</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+              <input name="priority" type="number" defaultValue="0" placeholder="Priority" style={{ width: 80, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} title="Higher priority mappings are checked first" />
+              <button type="submit" className="btn btn-primary">Add</button>
+            </form>
+          )}
+
+          {mappings.length === 0 ? (
+            <div className="empty-state">No venue mappings configured. Add patterns to automatically map calendar events to locations.</div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Pattern</th>
+                  <th>Location</th>
+                  <th>Priority</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {mappings.map((m) => (
+                  <tr key={m.id}>
+                    <td style={{ fontFamily: "monospace", fontSize: 12 }}>{m.pattern}</td>
+                    <td><span className="badge badge-blue">{m.location.name}</span></td>
+                    <td>{m.priority}</td>
+                    <td>
+                      <button
+                        className="btn btn-sm"
+                        style={{ color: "var(--red, #dc2626)" }}
+                        onClick={() => handleDeleteMapping(m.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {/* Sources management panel */}
       {showSources && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -274,7 +455,11 @@ export default function EventsPage() {
                       {source.lastError ? (
                         <span className="badge badge-red" title={source.lastError} style={{ cursor: "help" }}>error</span>
                       ) : source.enabled ? (
-                        <span className="badge badge-green">active</span>
+                        source.lastFetchedAt && (Date.now() - new Date(source.lastFetchedAt).getTime()) > 24 * 60 * 60 * 1000 ? (
+                          <span className="badge badge-orange" title={`Last synced ${formatDate(source.lastFetchedAt)}`} style={{ cursor: "help" }}>stale</span>
+                        ) : (
+                          <span className="badge badge-green">active</span>
+                        )
                       ) : (
                         <span className="badge badge-gray">disabled</span>
                       )}
@@ -318,66 +503,132 @@ export default function EventsPage() {
         </div>
       )}
 
-      {/* Filter */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={unmappedOnly}
-            onChange={(e) => setUnmappedOnly(e.target.checked)}
-            style={{ width: 16, height: 16 }}
-          />
-          Show only unmapped events
-        </label>
-      </div>
-
-      {/* Events list */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Upcoming Events ({events.length})</h2>
+      {/* Filters and view toggle */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 4, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <button
+            className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : ""}`}
+            onClick={() => setViewMode("list")}
+            style={{ borderRadius: 0, border: "none" }}
+          >
+            List
+          </button>
+          <button
+            className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : ""}`}
+            onClick={() => setViewMode("calendar")}
+            style={{ borderRadius: 0, border: "none" }}
+          >
+            Calendar
+          </button>
         </div>
-
-        {loading ? (
-          <div className="loading-spinner"><div className="spinner" /></div>
-        ) : events.length === 0 ? (
-          <div className="empty-state">No events found. Add a calendar source and sync.</div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Location</th>
-                <th>Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((event) => (
-                <tr key={event.id}>
-                  <td style={{ fontWeight: 600 }}>
-                    <Link href={`/events/${event.id}`} className="row-link">
-                      {event.summary}
-                    </Link>
-                  </td>
-                  <td>{formatDate(event.startsAt)}</td>
-                  <td>{event.allDay ? "All day" : `${formatTime(event.startsAt)} - ${formatTime(event.endsAt)}`}</td>
-                  <td>
-                    {event.location ? (
-                      <span className="badge badge-blue">{event.location.name}</span>
-                    ) : (
-                      <span className="badge badge-orange">needs mapping</span>
-                    )}
-                  </td>
-                  <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    {event.source?.name}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {viewMode === "list" && (
+          <>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+              <input type="checkbox" checked={unmappedOnly} onChange={(e) => setUnmappedOnly(e.target.checked)} style={{ width: 16, height: 16 }} />
+              Unmapped only
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+              <input type="checkbox" checked={includePast} onChange={(e) => setIncludePast(e.target.checked)} style={{ width: 16, height: 16 }} />
+              Include past events
+            </label>
+          </>
         )}
       </div>
+
+      {/* Calendar view */}
+      {viewMode === "calendar" && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header" style={{ justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button className="btn btn-sm" onClick={prevMonth}>{"\u2039"}</button>
+              <h2 style={{ minWidth: 160, textAlign: "center" }}>
+                {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+              </h2>
+              <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
+            </div>
+            <button className="btn btn-sm" onClick={goCalToday}>Today</button>
+          </div>
+          <div style={{ padding: "12px 16px" }}>
+            <div className="cal-grid">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                <div key={d} className="cal-header">{d}</div>
+              ))}
+              {calCells.map((cell, i) => (
+                <div key={i} className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""}`}>
+                  {cell.day && (
+                    <>
+                      <span className="cal-day-num">{cell.day}</span>
+                      {calEventsByDay.get(cell.day)?.slice(0, 3).map((ev) => (
+                        <Link
+                          key={ev.id}
+                          href={`/events/${ev.id}`}
+                          className="cal-booking cal-booking-co"
+                          title={ev.summary}
+                        >
+                          {ev.summary}
+                        </Link>
+                      ))}
+                      {(calEventsByDay.get(cell.day)?.length ?? 0) > 3 && (
+                        <span className="cal-more">+{(calEventsByDay.get(cell.day)?.length ?? 0) - 3} more</span>
+                      )}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Events list */}
+      {viewMode === "list" && (
+        <div className="card">
+          <div className="card-header">
+            <h2>{includePast ? "All" : "Upcoming"} Events ({events.length})</h2>
+          </div>
+
+          {loading ? (
+            <div className="loading-spinner"><div className="spinner" /></div>
+          ) : events.length === 0 ? (
+            <div className="empty-state">No events found. Add a calendar source and sync.</div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Location</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((event) => (
+                  <tr key={event.id}>
+                    <td style={{ fontWeight: 600 }}>
+                      <Link href={`/events/${event.id}`} className="row-link">
+                        {event.summary}
+                      </Link>
+                    </td>
+                    <td>{formatDate(event.startsAt)}</td>
+                    <td>{event.allDay ? "All day" : `${formatTime(event.startsAt)} - ${formatTime(event.endsAt)}`}</td>
+                    <td>
+                      {event.location ? (
+                        <span className="badge badge-blue">{event.location.name}</span>
+                      ) : (
+                        <span className="badge badge-orange">needs mapping</span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                      {event.source?.name}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </>
   );
 }

@@ -97,8 +97,95 @@ export type BookingListConfig = {
 
 /* ───── Helpers ───── */
 
+function formatDateCol(iso: string) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase(),
+    day: d.toLocaleDateString("en-US", { weekday: "short" }),
+  };
+}
+
+function formatDuration(startIso: string, endIso: string): string {
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  const hours = Math.round(ms / (1000 * 60 * 60));
+  if (hours < 1) return "< 1 hour";
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""}`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days} day${days !== 1 ? "s" : ""}`;
+  const weeks = Math.round(days / 7);
+  return `${weeks} week${weeks !== 1 ? "s" : ""}`;
+}
+
+type SortKey = "title" | "startsAt" | "endsAt";
+type SortDir = "asc" | "desc";
+
+function toSortParam(key: SortKey, dir: SortDir): string {
+  if (key === "startsAt") return dir === "asc" ? "oldest" : "";
+  if (key === "endsAt") return dir === "asc" ? "endsAt" : "endsAt_desc";
+  return dir === "asc" ? "title" : "title_desc";
+}
+
+function parseSortParam(s: string): { key: SortKey; dir: SortDir } | null {
+  if (s === "oldest") return { key: "startsAt", dir: "asc" };
+  if (s === "" || !s) return { key: "startsAt", dir: "desc" };
+  if (s === "title") return { key: "title", dir: "asc" };
+  if (s === "title_desc") return { key: "title", dir: "desc" };
+  if (s === "endsAt") return { key: "endsAt", dir: "asc" };
+  if (s === "endsAt_desc") return { key: "endsAt", dir: "desc" };
+  return null;
+}
+
+function getStatusVisual(status: string, isOverdue: boolean): { dot: string; label: string; className: string } {
+  if (isOverdue) return { dot: "#ef4444", label: "Overdue", className: "status-overdue" };
+  switch (status) {
+    case "OPEN":
+    case "DRAFT":
+    case "BOOKED":
+      return { dot: "#22c55e", label: status === "BOOKED" ? "Booked" : status === "DRAFT" ? "Draft" : "Open", className: "status-active" };
+    case "CANCELLED":
+      return { dot: "#9ca3af", label: "Cancelled", className: "status-cancelled" };
+    case "COMPLETED":
+      return { dot: "#9ca3af", label: "Completed", className: "status-completed" };
+    default:
+      return { dot: "#9ca3af", label: status.toLowerCase(), className: "" };
+  }
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function SortHeader({ label, sortKey, currentSort, onSort }: {
+  label: string;
+  sortKey: SortKey;
+  currentSort: string;
+  onSort: (param: string) => void;
+}) {
+  const parsed = parseSortParam(currentSort);
+  const isActive = parsed?.key === sortKey;
+  const dir = isActive ? parsed.dir : null;
+
+  function handleClick() {
+    if (!isActive) {
+      // First click: sort ascending (except startsAt defaults desc)
+      onSort(toSortParam(sortKey, sortKey === "startsAt" ? "desc" : "asc"));
+    } else {
+      // Toggle direction
+      onSort(toSortParam(sortKey, dir === "asc" ? "desc" : "asc"));
+    }
+  }
+
+  return (
+    <th className="sort-header" onClick={handleClick}>
+      <span className="sort-header-inner">
+        {label}
+        {isActive && (
+          <span className="sort-arrow">{dir === "asc" ? "\u2191" : "\u2193"}</span>
+        )}
+      </span>
+    </th>
+  );
 }
 
 function roundTo15Min(date: Date): Date {
@@ -958,15 +1045,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
               </select>
             )}
 
-            <select
-              value={sort}
-              onChange={(e) => { setSort(e.target.value); setPage(0); }}
-              style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, background: "white", minHeight: 36 }}
-            >
-              <option value="">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="title">Title A–Z</option>
-            </select>
           </div>
         </div>
 
@@ -977,50 +1055,58 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           <div className="empty-state">No {config.labelPlural.toLowerCase()} found</div>
         ) : (
           <>
-            <div className="checkout-table-desktop">
-              <table className="data-table">
+            {/* Desktop table */}
+            <div className="booking-table-wrap">
+              <table className="data-table booking-table">
                 <thead>
                   <tr>
-                    <th>Title</th>
-                    <th>Requester</th>
-                    <th>Period</th>
-                    <th>Location</th>
-                    <th>Items</th>
-                    <th>Status</th>
+                    <SortHeader label="Name" sortKey="title" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                    <SortHeader label="From" sortKey="startsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                    <SortHeader label="To" sortKey="endsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                    <th className="hide-mobile">Duration</th>
+                    <th className="hide-mobile">User</th>
+                    <th className="hide-mobile">Items</th>
                     <th style={{ width: 44 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => {
                     const isOverdue = item.status === config.overdueStatus && new Date(item.endsAt) < new Date();
+                    const sv = getStatusVisual(item.status, isOverdue);
+                    const from = formatDateCol(item.startsAt);
+                    const to = formatDateCol(item.endsAt);
                     return (
                       <tr
                         key={item.id}
+                        className={sv.className}
                         style={{ cursor: "pointer" }}
                         onClick={() => setSelectedBookingId(item.id)}
                         onContextMenu={(e) => handleContextMenu(e, item)}
                       >
                         <td>
-                          <div style={{ fontWeight: 500 }}>
-                            <span className="row-link">{item.title}</span>
-                          </div>
-                          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2, display: "flex", gap: 6, alignItems: "center" }}>
-                            {item.requester?.name ?? "Unknown"}
-                            {" · "}
-                            {formatDateShort(item.startsAt)} {"\u2013"} {formatDateShort(item.endsAt)}
-                            {item.sportCode && <span className="badge-sport">{item.sportCode}</span>}
-                            {config.showEventBadge && item.event && <span style={{ fontSize: 10, color: "var(--text-muted)" }}>event</span>}
+                          <div className="booking-name-cell">
+                            <span className="row-link" style={{ fontWeight: 500 }}>{item.title}</span>
+                            <span className="booking-status-line">
+                              <span className="status-dot" style={{ background: sv.dot }} />
+                              <span className="status-label">{sv.label}</span>
+                            </span>
                           </div>
                         </td>
+                        <td className="hide-mobile">
+                          <div className="date-cell">
+                            <span className="date-main">{from.date}</span>
+                            <span className="date-sub">{from.day} {from.time}</span>
+                          </div>
+                        </td>
+                        <td className="hide-mobile">
+                          <div className="date-cell">
+                            <span className="date-main">{to.date}</span>
+                            <span className="date-sub">{to.day} {to.time}</span>
+                          </div>
+                        </td>
+                        <td className="hide-mobile">{formatDuration(item.startsAt, item.endsAt)}</td>
                         <td className="hide-mobile">{item.requester?.name ?? "Unknown"}</td>
-                        <td className="hide-mobile">{formatDate(item.startsAt)} {"\u2013"} {formatDate(item.endsAt)}</td>
-                        <td className="hide-mobile">{item.location?.name ?? "\u2014"}</td>
                         <td className="hide-mobile">{(item.serializedItems?.length ?? 0) + (item.bulkItems?.length ?? 0)}</td>
-                        <td>
-                          <span className={`badge ${isOverdue ? "badge-red" : (config.statusBadge[item.status] || "badge-gray")}`}>
-                            {isOverdue ? "overdue" : item.status.toLowerCase()}
-                          </span>
-                        </td>
                         <td onClick={(e) => e.stopPropagation()}>
                           <button className="overflow-btn" onClick={(e) => handleOverflow(e, item)}>
                             {"\u2026"}
@@ -1031,6 +1117,44 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile card list */}
+            <div className="booking-mobile-list">
+              {items.map((item) => {
+                const isOverdue = item.status === config.overdueStatus && new Date(item.endsAt) < new Date();
+                const sv = getStatusVisual(item.status, isOverdue);
+                return (
+                  <div
+                    key={item.id}
+                    className={`booking-mobile-card ${sv.className}`}
+                    onClick={() => setSelectedBookingId(item.id)}
+                  >
+                    <div className="booking-mobile-top">
+                      <div className="booking-mobile-name">
+                        <span className="row-link" style={{ fontWeight: 500 }}>{item.title}</span>
+                        <span className="booking-status-line">
+                          <span className="status-dot" style={{ background: sv.dot }} />
+                          <span className="status-label">{sv.label}</span>
+                        </span>
+                      </div>
+                      <button
+                        className="overflow-btn"
+                        onClick={(e) => { e.stopPropagation(); handleOverflow(e, item); }}
+                      >
+                        {"\u2026"}
+                      </button>
+                    </div>
+                    <div className="booking-mobile-meta">
+                      <span>{formatDateShort(item.startsAt)} {"\u2013"} {formatDateShort(item.endsAt)}</span>
+                      <span>{"\u00b7"}</span>
+                      <span>{item.requester?.name ?? "Unknown"}</span>
+                      <span>{"\u00b7"}</span>
+                      <span>{formatDuration(item.startsAt, item.endsAt)}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {totalPages > 1 && (

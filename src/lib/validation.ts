@@ -23,6 +23,8 @@ export const createReservationSchema = z.object({
   endsAt: z.string(),
   serializedAssetIds: z.array(z.string().cuid()).default([]),
   bulkItems: z.array(bulkItemSchema).default([]),
+  eventId: z.string().cuid().optional(),
+  sportCode: z.string().max(10).optional(),
   notes: z.string().max(10000).optional()
 });
 

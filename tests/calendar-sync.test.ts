@@ -395,6 +395,9 @@ function makeExistingRow(overrides: Partial<ExistingEventRow> & { id: string; ex
     allDay: false,
     status: "CONFIRMED",
     locationId: null,
+    sportCode: null,
+    opponent: null,
+    isHome: null,
     ...overrides,
   };
 }
