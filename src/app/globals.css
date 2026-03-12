@@ -457,44 +457,194 @@ a:hover {
   gap: 20px;
 }
 
-/* ── Overdue Banner ── */
-.overdue-banner {
-  background: var(--red-bg, #fef2f2);
-  border: 1px solid #fca5a5;
-  border-radius: var(--radius-lg);
-  padding: 14px 20px;
+.dashboard-col-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  padding-left: 2px;
+}
+
+.view-all-link {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 10px 20px;
+  border-top: 1px solid var(--border-light);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.view-all-link:hover {
+  color: var(--text);
+}
+
+.quick-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Stat Strip ── */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
   margin-bottom: 20px;
 }
 
-.overdue-banner-content {
+.stat-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-strip-value {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-strip-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.stat-strip-danger .stat-strip-value {
+  color: #dc2626;
+}
+
+.stat-strip-danger {
+  border-color: rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.04);
+}
+
+.stat-strip-warning .stat-strip-value {
+  color: #d97706;
+}
+
+.stat-strip-warning {
+  border-color: rgba(217, 119, 6, 0.25);
+  background: rgba(217, 119, 6, 0.04);
+}
+
+/* ── Overdue Banner ── */
+.overdue-banner {
+  background: #c5050c;
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  color: white;
+  border-left: 4px solid #7f1d1d;
+}
+
+.overdue-banner-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-  color: #dc2626;
-  font-size: 14px;
-  font-weight: 500;
+  margin-bottom: 10px;
 }
 
-.overdue-banner-items {
+.overdue-banner-title {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.overdue-banner-link {
-  background: none;
-  border: none;
-  color: #dc2626;
+.overdue-banner-icon {
+  flex-shrink: 0;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  animation: pulse-dot-anim 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-dot-anim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.overdue-banner-viewall {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.overdue-banner-viewall:hover {
+  color: white;
   text-decoration: underline;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  font-family: inherit;
 }
 
-.overdue-banner-link:hover {
-  color: #991b1b;
+.overdue-banner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overdue-banner-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  color: white;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.overdue-banner-item:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.overdue-banner-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overdue-elapsed {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.overdue-banner-item-who {
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
 }
 
 /* ── Section Count Badge ── */
@@ -548,11 +698,37 @@ a:hover {
 }
 
 .ops-row-overdue {
-  background: rgba(220, 38, 38, 0.03);
+  background: rgba(220, 38, 38, 0.06);
+  border-left: 3px solid #dc2626;
 }
 
 .ops-row-overdue:hover {
-  background: rgba(220, 38, 38, 0.06);
+  background: rgba(220, 38, 38, 0.10);
+}
+
+.ops-row-due-today {
+  border-left: 3px solid #d97706;
+  background: rgba(217, 119, 6, 0.04);
+}
+
+.ops-row-due-today:hover {
+  background: rgba(217, 119, 6, 0.08);
+}
+
+.overdue-badge-inline {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  padding: 1px 6px;
+  border-radius: 99px;
+  margin-left: 4px;
+}
+
+.due-today-badge {
+  color: #d97706;
+  font-weight: 700;
 }
 
 .ops-row-main {
@@ -679,9 +855,20 @@ a:hover {
     grid-template-columns: 1fr;
   }
 
-  /* On mobile, right column (personal) comes first */
-  .dashboard-col-right {
-    order: -1;
+  /* On mobile, left column (My Gear) stacks first by default (natural order) */
+
+  .stat-strip {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .stat-strip-value {
+    font-size: 22px;
+  }
+
+  .quick-actions .btn {
+    font-size: 12px;
+    padding: 6px 10px;
   }
 }
 

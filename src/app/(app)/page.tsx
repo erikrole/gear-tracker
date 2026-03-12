@@ -7,6 +7,8 @@ import {
   formatCountdown,
   formatDateShort,
   formatDateRange,
+  formatOverdueElapsed,
+  isDueToday,
 } from "@/lib/format";
 
 /* ───── Types ───── */
@@ -63,8 +65,15 @@ type OverdueItem = {
 };
 
 type DashboardData = {
-  checkouts: { total: number; overdue: number; items: BookingSummary[] };
-  reservations: { total: number; items: BookingSummary[] };
+  stats: {
+    checkedOut: number;
+    overdue: number;
+    reserved: number;
+    dueToday: number;
+  };
+  myCheckouts: { total: number; items: BookingSummary[] };
+  teamCheckouts: { total: number; overdue: number; items: BookingSummary[] };
+  teamReservations: { total: number; items: BookingSummary[] };
   upcomingEvents: EventSummary[];
   myPossession: MyPossessionItem[];
   myReservations: MyReservation[];
@@ -109,26 +118,60 @@ export default function DashboardPage() {
 
   return (
     <>
+      {/* ══════ Page Header + Quick Actions ══════ */}
       <div className="page-header">
         <h1>Dashboard</h1>
+        <div className="quick-actions">
+          <a href="/checkouts/new" className="btn">New checkout</a>
+          <a href="/reservations/new" className="btn">New reservation</a>
+        </div>
+      </div>
+
+      {/* ══════ Stat Strip ══════ */}
+      <div className="stat-strip">
+        <div className="stat-strip-item">
+          <span className="stat-strip-value">{data.stats.checkedOut}</span>
+          <span className="stat-strip-label">Checked out</span>
+        </div>
+        <div className={`stat-strip-item ${data.stats.overdue > 0 ? "stat-strip-danger" : ""}`}>
+          <span className="stat-strip-value">{data.stats.overdue}</span>
+          <span className="stat-strip-label">Overdue</span>
+        </div>
+        <div className="stat-strip-item">
+          <span className="stat-strip-value">{data.stats.reserved}</span>
+          <span className="stat-strip-label">Reserved</span>
+        </div>
+        <div className={`stat-strip-item ${data.stats.dueToday > 0 ? "stat-strip-warning" : ""}`}>
+          <span className="stat-strip-value">{data.stats.dueToday}</span>
+          <span className="stat-strip-label">Due today</span>
+        </div>
       </div>
 
       {/* ══════ Overdue Banner ══════ */}
       {data.overdueCount > 0 && (
         <div className="overdue-banner">
-          <div className="overdue-banner-content">
-            <strong>{data.overdueCount} overdue checkout{data.overdueCount !== 1 ? "s" : ""}</strong>
-            <span className="overdue-banner-items">
-              {data.overdueItems.map((item, i) => (
-                <button
-                  key={item.bookingId}
-                  className="overdue-banner-link"
-                  onClick={() => setSelectedBookingId(item.bookingId)}
-                >
-                  {item.bookingTitle}{i < data.overdueItems.length - 1 ? "," : ""}
-                </button>
-              ))}
-            </span>
+          <div className="overdue-banner-header">
+            <div className="overdue-banner-title">
+              <svg className="overdue-banner-icon" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span className="pulse-dot" />
+              <strong>{data.overdueCount} overdue checkout{data.overdueCount !== 1 ? "s" : ""}</strong>
+            </div>
+            <a href="/checkouts?filter=overdue" className="overdue-banner-viewall">View all overdue &rarr;</a>
+          </div>
+          <div className="overdue-banner-list">
+            {data.overdueItems.map((item) => (
+              <button
+                key={item.bookingId}
+                className="overdue-banner-item"
+                onClick={() => setSelectedBookingId(item.bookingId)}
+              >
+                <span className="overdue-banner-item-title">{item.bookingTitle}</span>
+                <span className="overdue-elapsed">{formatOverdueElapsed(item.endsAt, now)}</span>
+                <span className="overdue-banner-item-who">{item.requesterName}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -136,103 +179,9 @@ export default function DashboardPage() {
       {/* ══════ Two-Column Split ══════ */}
       <div className="dashboard-split">
 
-        {/* ────── Left Column: Global Ops ────── */}
+        {/* ────── Left Column: My Gear ────── */}
         <div className="dashboard-col dashboard-col-left">
-
-          {/* Reserved */}
-          <div className="card">
-            <div className="card-header">
-              <h2>Reserved</h2>
-              <span className="section-count">{data.reservations.total}</span>
-            </div>
-            {data.reservations.items.length === 0 ? (
-              <div className="empty-state">No active reservations</div>
-            ) : (
-              <div className="card-body card-body-compact">
-                {data.reservations.items.map((r) => (
-                  <button
-                    key={r.id}
-                    className="ops-row"
-                    onClick={() => setSelectedBookingId(r.id)}
-                  >
-                    <div className="ops-row-main">
-                      <span className="ops-row-title">{r.title}</span>
-                      <span className="ops-row-meta">
-                        {r.requesterName} &middot; {formatDateRange(r.startsAt, r.endsAt)}
-                      </span>
-                    </div>
-                    <span className="ops-row-count">{r.itemCount} item{r.itemCount !== 1 ? "s" : ""}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Checked Out */}
-          <div className="card">
-            <div className="card-header">
-              <h2>Checked out</h2>
-              <span className="section-count">{data.checkouts.total}</span>
-            </div>
-            {data.checkouts.items.length === 0 ? (
-              <div className="empty-state">No open check-outs</div>
-            ) : (
-              <div className="card-body card-body-compact">
-                {data.checkouts.items.map((c) => (
-                  <button
-                    key={c.id}
-                    className={`ops-row ${c.isOverdue ? "ops-row-overdue" : ""}`}
-                    onClick={() => setSelectedBookingId(c.id)}
-                  >
-                    <div className="ops-row-main">
-                      <span className="ops-row-title">{c.title}</span>
-                      <span className="ops-row-meta">
-                        {c.requesterName} &middot; Due {formatDateShort(c.endsAt)}
-                      </span>
-                    </div>
-                    <span className="ops-row-count">{c.itemCount} item{c.itemCount !== 1 ? "s" : ""}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Upcoming Events */}
-          <div className="card">
-            <div className="card-header">
-              <h2>Upcoming events</h2>
-            </div>
-            {data.upcomingEvents.length === 0 ? (
-              <div className="empty-state">No upcoming events</div>
-            ) : (
-              <div className="card-body card-body-compact">
-                {data.upcomingEvents.map((e) => (
-                  <div key={e.id} className="ops-row ops-row-static">
-                    <div className="ops-row-main">
-                      <span className="ops-row-title">
-                        {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
-                        {e.opponent ? `vs ${e.opponent}` : e.title}
-                      </span>
-                      <span className="ops-row-meta">
-                        {formatDateShort(e.startsAt)}
-                        {e.location && ` \u00B7 ${e.location}`}
-                      </span>
-                    </div>
-                    {e.isHome !== null && (
-                      <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
-                        {e.isHome ? "Home" : "Away"}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-        </div>
-
-        {/* ────── Right Column: Personal ────── */}
-        <div className="dashboard-col dashboard-col-right">
+          <span className="dashboard-col-label">My Gear</span>
 
           {/* In My Possession */}
           <div className="card">
@@ -271,6 +220,44 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* My Checkouts */}
+          <div className="card">
+            <div className="card-header">
+              <h2>My checkouts</h2>
+              <span className="section-count">{data.myCheckouts.total}</span>
+            </div>
+            {data.myCheckouts.items.length === 0 ? (
+              <div className="empty-state">No open check-outs</div>
+            ) : (
+              <div className="card-body card-body-compact">
+                {data.myCheckouts.items.map((c) => (
+                  <button
+                    key={c.id}
+                    className={`ops-row ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : ""}`}
+                    onClick={() => setSelectedBookingId(c.id)}
+                  >
+                    <div className="ops-row-main">
+                      <span className="ops-row-title">{c.title}</span>
+                      <span className="ops-row-meta">
+                        {c.isOverdue ? (
+                          <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
+                        ) : isDueToday(c.endsAt, now) ? (
+                          <span className="due-today-badge">Due today</span>
+                        ) : (
+                          <>Due {formatDateShort(c.endsAt)}</>
+                        )}
+                      </span>
+                    </div>
+                    <span className="ops-row-count">{c.itemCount} item{c.itemCount !== 1 ? "s" : ""}</span>
+                  </button>
+                ))}
+                {data.myCheckouts.total > data.myCheckouts.items.length && (
+                  <a href="/checkouts?mine=true" className="view-all-link">View all {data.myCheckouts.total} &rarr;</a>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* My Reservations */}
           <div className="card">
             <div className="card-header">
@@ -296,6 +283,114 @@ export default function DashboardPage() {
                     </div>
                     <span className="ops-row-count">{r.itemCount} item{r.itemCount !== 1 ? "s" : ""}</span>
                   </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ────── Right Column: Team Activity ────── */}
+        <div className="dashboard-col dashboard-col-right">
+          <span className="dashboard-col-label">Team Activity</span>
+
+          {/* Team Checkouts */}
+          <div className="card">
+            <div className="card-header">
+              <h2>Checked out</h2>
+              <span className="section-count">{data.teamCheckouts.total}</span>
+            </div>
+            {data.teamCheckouts.items.length === 0 ? (
+              <div className="empty-state">No open check-outs</div>
+            ) : (
+              <div className="card-body card-body-compact">
+                {data.teamCheckouts.items.map((c) => (
+                  <button
+                    key={c.id}
+                    className={`ops-row ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : ""}`}
+                    onClick={() => setSelectedBookingId(c.id)}
+                  >
+                    <div className="ops-row-main">
+                      <span className="ops-row-title">{c.title}</span>
+                      <span className="ops-row-meta">
+                        {c.requesterName} &middot;{" "}
+                        {c.isOverdue ? (
+                          <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
+                        ) : isDueToday(c.endsAt, now) ? (
+                          <span className="due-today-badge">Due today</span>
+                        ) : (
+                          <>Due {formatDateShort(c.endsAt)}</>
+                        )}
+                      </span>
+                    </div>
+                    <span className="ops-row-count">{c.itemCount} item{c.itemCount !== 1 ? "s" : ""}</span>
+                  </button>
+                ))}
+                {data.teamCheckouts.total > data.teamCheckouts.items.length && (
+                  <a href="/checkouts" className="view-all-link">View all {data.teamCheckouts.total} &rarr;</a>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Team Reservations */}
+          <div className="card">
+            <div className="card-header">
+              <h2>Reserved</h2>
+              <span className="section-count">{data.teamReservations.total}</span>
+            </div>
+            {data.teamReservations.items.length === 0 ? (
+              <div className="empty-state">No active reservations</div>
+            ) : (
+              <div className="card-body card-body-compact">
+                {data.teamReservations.items.map((r) => (
+                  <button
+                    key={r.id}
+                    className="ops-row"
+                    onClick={() => setSelectedBookingId(r.id)}
+                  >
+                    <div className="ops-row-main">
+                      <span className="ops-row-title">{r.title}</span>
+                      <span className="ops-row-meta">
+                        {r.requesterName} &middot; {formatDateRange(r.startsAt, r.endsAt)}
+                      </span>
+                    </div>
+                    <span className="ops-row-count">{r.itemCount} item{r.itemCount !== 1 ? "s" : ""}</span>
+                  </button>
+                ))}
+                {data.teamReservations.total > data.teamReservations.items.length && (
+                  <a href="/reservations" className="view-all-link">View all {data.teamReservations.total} &rarr;</a>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming Events */}
+          <div className="card">
+            <div className="card-header">
+              <h2>Upcoming events</h2>
+            </div>
+            {data.upcomingEvents.length === 0 ? (
+              <div className="empty-state">No upcoming events</div>
+            ) : (
+              <div className="card-body card-body-compact">
+                {data.upcomingEvents.map((e) => (
+                  <div key={e.id} className="ops-row ops-row-static">
+                    <div className="ops-row-main">
+                      <span className="ops-row-title">
+                        {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
+                        {e.opponent ? `vs ${e.opponent}` : e.title}
+                      </span>
+                      <span className="ops-row-meta">
+                        {formatDateShort(e.startsAt)}
+                        {e.location && ` \u00B7 ${e.location}`}
+                      </span>
+                    </div>
+                    {e.isHome !== null && (
+                      <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
+                        {e.isHome ? "Home" : "Away"}
+                      </span>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
