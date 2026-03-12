@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import {
   getUrgency,
@@ -769,7 +769,7 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
                 <div className="ops-row-main">
                   <span className="ops-row-title">{r.title}</span>
                   <span className="ops-row-meta">
-                    {r.requesterName} &middot; {formatDateShort(r.startsAt)} – {formatDateShort(r.endsAt)}
+                    {r.requesterName} {"\u00b7"} {formatDateShort(r.startsAt)} – {formatDateShort(r.endsAt)}
                   </span>
                 </div>
               </button>
@@ -816,7 +816,7 @@ function BookingKindTab({
               {kind === "CHECKOUT" ? "Held" : "Reserved"} by <strong>{activeBooking.requesterName}</strong>
             </div>
             <button className="btn btn-sm" onClick={() => onSelectBooking(activeBooking.id)}>
-              View {kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
+              View {kind === "CHECKOUT" ? "checkout" : "reservation"} {"\u2192"}
             </button>
           </div>
         </div>
@@ -833,7 +833,7 @@ function BookingKindTab({
                   <div className="event-row-main">
                     <div className="event-row-title">{r.title}</div>
                     <div className="event-row-meta">
-                      {formatDateFull(r.startsAt)} – {formatDateFull(r.endsAt)} &middot; {r.requesterName}
+                      {formatDateFull(r.startsAt)} – {formatDateFull(r.endsAt)} {"\u00b7"} {r.requesterName}
                     </div>
                   </div>
                 </div>
@@ -938,9 +938,9 @@ function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectB
       <div className="card">
         <div className="card-header">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
+            <button className="btn btn-sm" onClick={prevMonth}>{"\u2039"}</button>
             <h2 style={{ minWidth: 160, textAlign: "center" }}>{monthLabel}</h2>
-            <button className="btn btn-sm" onClick={nextMonth}>&rsaquo;</button>
+            <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
           </div>
           <button className="btn btn-sm" onClick={goToday}>Today</button>
         </div>
@@ -1169,26 +1169,28 @@ export default function ItemDetailsPage() {
   const [fetchError, setFetchError] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
-  function loadAsset() {
+  const loadAsset = useCallback(() => {
     fetch(`/api/assets/${id}`)
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
       .then((json) => { if (json?.data) setAsset(json.data); else setFetchError(true); })
       .catch(() => setFetchError(true));
-  }
+  }, [id]);
 
-  function loadCategories() {
+  const loadCategories = useCallback(() => {
     fetch("/api/categories")
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setCategories(json.data || []); });
-  }
+      .then((json) => { if (json) setCategories(json.data || []); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     loadAsset();
     fetch("/api/me")
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); });
+      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); })
+      .catch(() => {});
     loadCategories();
-  }, [id]);
+  }, [loadAsset, loadCategories]);
 
   // Live countdown tick every 60 seconds + refresh on tab focus
   useEffect(() => {
@@ -1215,31 +1217,50 @@ export default function ItemDetailsPage() {
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
+  const [actionBusy, setActionBusy] = useState(false);
+
   async function handleAction(action: string) {
-    if (!asset) return;
-    if (action === "duplicate") {
-      const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
-      if (res.ok) {
-        const json = await res.json();
-        router.push(`/items/${json.data.id}`);
+    if (!asset || actionBusy) return;
+    setActionBusy(true);
+    try {
+      if (action === "duplicate") {
+        const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
+        if (res.ok) {
+          const json = await res.json();
+          router.push(`/items/${json.data.id}`);
+        } else {
+          const json = await res.json().catch(() => ({}));
+          alert((json as Record<string, string>).error || "Duplicate failed");
+        }
+      } else if (action === "retire") {
+        if (!confirm("Retire this item? It will no longer be available for bookings.")) { setActionBusy(false); return; }
+        const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          alert((json as Record<string, string>).error || "Retire failed");
+        }
+        loadAsset();
+      } else if (action === "maintenance") {
+        const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          alert((json as Record<string, string>).error || "Action failed");
+        }
+        loadAsset();
+      } else if (action === "delete") {
+        if (!confirm("Permanently delete this item? This cannot be undone.")) { setActionBusy(false); return; }
+        const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
+        if (res.ok) {
+          router.push("/items");
+        } else {
+          const json = await res.json().catch(() => ({}));
+          alert((json as Record<string, string>).error || "Delete failed");
+        }
       }
-    } else if (action === "retire") {
-      if (!confirm("Retire this item? It will no longer be available for bookings.")) return;
-      await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
-      loadAsset();
-    } else if (action === "maintenance") {
-      await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
-      loadAsset();
-    } else if (action === "delete") {
-      if (!confirm("Permanently delete this item? This cannot be undone.")) return;
-      const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
-      if (res.ok) {
-        router.push("/items");
-      } else {
-        const json = await res.json().catch(() => ({}));
-        alert((json as Record<string, string>).error || "Delete failed");
-      }
+    } catch {
+      alert("Network error \u2014 please try again.");
     }
+    setActionBusy(false);
   }
 
   if (fetchError) {
@@ -1252,7 +1273,7 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <div className="breadcrumb"><Link href="/items">Items</Link> <span>&rsaquo;</span> {asset.assetTag}</div>
+      <div className="breadcrumb"><Link href="/items">Items</Link> <span>{"\u203a"}</span> {asset.assetTag}</div>
       <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>

@@ -37,9 +37,13 @@ const config: BookingListConfig = {
             const json = await res.json();
             window.location.href = `/checkouts/${json.data.id}`;
           } else {
+            const json = await res.json().catch(() => ({}));
+            alert((json as Record<string, string>).error || "Conversion failed");
             await reload();
           }
-        } catch { /* network */ }
+        } catch {
+          alert("Network error \u2014 please try again.");
+        }
       },
     },
     {
@@ -50,9 +54,15 @@ const config: BookingListConfig = {
         const r = items.find((i: BookingItem) => i.id === bookingId);
         if (!r || !confirm(`Cancel "${r.title}"?`)) return;
         try {
-          await fetch(`/api/reservations/${bookingId}/cancel`, { method: "POST" });
+          const res = await fetch(`/api/reservations/${bookingId}/cancel`, { method: "POST" });
+          if (!res.ok) {
+            const json = await res.json().catch(() => ({}));
+            alert((json as Record<string, string>).error || "Cancel failed");
+          }
           await reload();
-        } catch { /* network */ }
+        } catch {
+          alert("Network error \u2014 please try again.");
+        }
       },
     },
   ],
