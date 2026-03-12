@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { CalendarEventStatus } from "@prisma/client";
+import { SPORT_CODES } from "@/lib/sports";
 
 /** Max events per createMany / update batch — keeps Worker subrequests in check */
 export const WRITE_CHUNK_SIZE = 50;
@@ -136,6 +137,63 @@ export type SyncResult = {
   error?: string;
 };
 
+// ── Sport code extraction from ICS summaries ──
+
+const SPORT_CODE_SET = new Set<string>(SPORT_CODES.map((s) => s.code));
+
+/**
+ * Extracts sport code, opponent, and home/away from an event summary.
+ * Patterns matched:
+ *   "{SPORT_CODE} vs {opponent}"  → isHome = true
+ *   "{SPORT_CODE} at {opponent}"  → isHome = false
+ *   "{SPORT_CODE} vs {opponent} (Neutral)" → isHome = null
+ *   "{SPORT_CODE} - {description}" → sport only, no opponent
+ *   Summaries starting with sport label ("Men's Basketball vs ...") also matched
+ */
+export function extractSportInfo(summary: string): {
+  sportCode: string | null;
+  opponent: string | null;
+  isHome: boolean | null;
+} {
+  const trimmed = summary.trim();
+
+  // Try matching "{CODE} vs/at {opponent}" pattern
+  const codeMatch = trimmed.match(/^(\w+)\s+(vs\.?|at)\s+(.+?)(?:\s*\(Neutral\))?$/i);
+  if (codeMatch) {
+    const code = codeMatch[1].toUpperCase();
+    if (SPORT_CODE_SET.has(code)) {
+      const prep = codeMatch[2].toLowerCase().replace(".", "");
+      const opponent = codeMatch[3].trim();
+      const isNeutral = /\(Neutral\)/i.test(trimmed);
+      return {
+        sportCode: code,
+        opponent: opponent || null,
+        isHome: isNeutral ? null : prep === "vs" ? true : false,
+      };
+    }
+  }
+
+  // Try matching sport code at start of summary with other separator
+  const dashMatch = trimmed.match(/^(\w+)\s*[-\u2013\u2014:]\s*(.+)$/);
+  if (dashMatch) {
+    const code = dashMatch[1].toUpperCase();
+    if (SPORT_CODE_SET.has(code)) {
+      return { sportCode: code, opponent: null, isHome: null };
+    }
+  }
+
+  // Try matching just a sport code as prefix (e.g., "MBB Practice")
+  const prefixMatch = trimmed.match(/^(\w+)\s/);
+  if (prefixMatch) {
+    const code = prefixMatch[1].toUpperCase();
+    if (SPORT_CODE_SET.has(code)) {
+      return { sportCode: code, opponent: null, isHome: null };
+    }
+  }
+
+  return { sportCode: null, opponent: null, isHome: null };
+}
+
 // ── Validated event shape for DB writes ──
 
 type ValidatedEventData = {
@@ -150,6 +208,9 @@ type ValidatedEventData = {
   allDay: boolean;
   status: CalendarEventStatus;
   locationId: string | null;
+  sportCode: string | null;
+  opponent: string | null;
+  isHome: boolean | null;
 };
 
 export type ExistingEventRow = {
@@ -162,6 +223,9 @@ export type ExistingEventRow = {
   allDay: boolean;
   status: string;
   locationId: string | null;
+  sportCode: string | null;
+  opponent: string | null;
+  isHome: boolean | null;
 };
 
 export type ParsedIcsEvent = {
@@ -211,6 +275,8 @@ export function splitEventsForSync(
         }
       }
 
+      const { sportCode, opponent, isHome } = extractSportInfo(event.summary);
+
       const data: ValidatedEventData = {
         externalId: event.uid,
         summary: event.summary,
@@ -223,6 +289,9 @@ export function splitEventsForSync(
         allDay: startParsed.allDay,
         status,
         locationId,
+        sportCode,
+        opponent,
+        isHome,
       };
 
       const existing = existingMap.get(event.uid);
@@ -234,7 +303,10 @@ export function splitEventsForSync(
           existing.endsAt.getTime() !== data.endsAt.getTime() ||
           existing.allDay !== data.allDay ||
           existing.status !== data.status ||
-          existing.locationId !== data.locationId;
+          existing.locationId !== data.locationId ||
+          existing.sportCode !== data.sportCode ||
+          existing.opponent !== data.opponent ||
+          existing.isHome !== data.isHome;
 
         if (changed) {
           toUpdate.push({ id: existing.id, data });
@@ -331,6 +403,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     select: {
       id: true, externalId: true, summary: true, description: true,
       startsAt: true, endsAt: true, allDay: true, status: true, locationId: true,
+      sportCode: true, opponent: true, isHome: true,
     }
   });
 

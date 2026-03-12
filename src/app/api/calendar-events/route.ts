@@ -12,17 +12,17 @@ export async function GET(req: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const unmappedOnly = searchParams.get("unmapped") === "true";
+    const includePast = searchParams.get("includePast") === "true";
 
     const sportCode = searchParams.get("sportCode");
 
-    // Default to upcoming events from now unless an explicit startDate is given
-    const effectiveStartDate = startDate ? new Date(startDate) : new Date();
+    // Default to upcoming events from now unless includePast or explicit startDate
+    const startsAtFilter = includePast
+      ? { ...(startDate ? { gte: new Date(startDate) } : {}), ...(endDate ? { lte: new Date(endDate) } : {}) }
+      : { gte: startDate ? new Date(startDate) : new Date(), ...(endDate ? { lte: new Date(endDate) } : {}) };
 
     const where = {
-      startsAt: {
-        gte: effectiveStartDate,
-        ...(endDate ? { lte: new Date(endDate) } : {}),
-      },
+      ...(Object.keys(startsAtFilter).length > 0 ? { startsAt: startsAtFilter } : {}),
       ...(unmappedOnly ? { locationId: null } : {}),
       ...(sportCode ? { sportCode } : {}),
       status: { not: "CANCELLED" as const }
