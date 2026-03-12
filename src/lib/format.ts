@@ -70,6 +70,26 @@ export function formatDateTime(iso: string) {
   });
 }
 
+/** Compact overdue elapsed: "3d" or "5h" or "12m" */
+export function formatOverdueElapsed(endsAt: string, now: Date): string {
+  const diff = now.getTime() - new Date(endsAt).getTime();
+  if (diff <= 0) return "";
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  if (days > 0) return `${days}d overdue`;
+  if (hours > 0) return `${hours}h overdue`;
+  const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+  return `${minutes}m overdue`;
+}
+
+/** Check if endsAt falls on today */
+export function isDueToday(endsAt: string, now: Date): boolean {
+  const end = new Date(endsAt);
+  return end.getFullYear() === now.getFullYear() &&
+    end.getMonth() === now.getMonth() &&
+    end.getDate() === now.getDate();
+}
+
 /** "Mar 11 – Mar 14" or "Mar 11" if same day */
 export function formatDateRange(startsAt: string, endsAt: string) {
   const s = new Date(startsAt);
