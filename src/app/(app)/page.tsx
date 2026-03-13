@@ -185,7 +185,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.myCheckouts.total}</span>
             </div>
             {data.myCheckouts.items.length === 0 ? (
-              <div className="empty-state">No open check-outs</div>
+              <div className="empty-state">No open checkouts</div>
             ) : (
               <div className="card-body card-body-compact">
                 {data.myCheckouts.items.map((c) => (
@@ -258,7 +258,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.teamCheckouts.total}</span>
             </div>
             {data.teamCheckouts.items.length === 0 ? (
-              <div className="empty-state">No open check-outs</div>
+              <div className="empty-state">No open checkouts</div>
             ) : (
               <div className="card-body card-body-compact">
                 {data.teamCheckouts.items.map((c) => (

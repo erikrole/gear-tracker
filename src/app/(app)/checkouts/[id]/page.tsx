@@ -112,7 +112,7 @@ export default function CheckoutDetailsPage() {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setActionError((json as Record<string, string>).error || "Check-in failed");
+        setActionError((json as Record<string, string>).error || "Check in failed");
       } else {
         setCheckinIds(new Set());
         reload();
@@ -125,9 +125,9 @@ export default function CheckoutDetailsPage() {
 
   async function handleCompleteCheckin() {
     const ok = await confirm({
-      title: "Complete check-in",
-      message: "Complete check-in? Any items not yet returned will be flagged.",
-      confirmLabel: "Complete check-in",
+      title: "Complete check in",
+      message: "Complete check in? Any items not yet returned will be flagged.",
+      confirmLabel: "Complete check in",
     });
     if (!ok) return;
     setActionLoading("complete-checkin");
@@ -136,7 +136,7 @@ export default function CheckoutDetailsPage() {
       const res = await fetch(`/api/checkouts/${id}/complete-checkin`, { method: "POST" });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setActionError((json as Record<string, string>).error || "Complete check-in failed");
+        setActionError((json as Record<string, string>).error || "Complete check in failed");
       } else {
         reload();
       }
@@ -167,7 +167,7 @@ export default function CheckoutDetailsPage() {
 
   return (
     <>
-      <div className="breadcrumb"><Link href="/checkouts">Check-outs</Link> <span>{"\u203a"}</span> {checkout.title}</div>
+      <div className="breadcrumb"><Link href="/checkouts">Checkouts</Link> <span>{"\u203a"}</span> {checkout.title}</div>
       <div className="page-header" style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1>{checkout.title}</h1>
@@ -185,7 +185,7 @@ export default function CheckoutDetailsPage() {
           )}
           {canCheckin && (
             <button className="btn btn-sm" onClick={handleCompleteCheckin} disabled={!!actionLoading}>
-              {actionLoading === "complete-checkin" ? "Completing..." : "Complete check-in"}
+              {actionLoading === "complete-checkin" ? "Completing..." : "Complete check in"}
             </button>
           )}
           {canCancel && (
@@ -223,7 +223,7 @@ export default function CheckoutDetailsPage() {
 
       <div className="details-grid">
         <div className="card details-card">
-          <div className="card-header"><h2>Check-out details</h2></div>
+          <div className="card-header"><h2>Checkout details</h2></div>
           <div style={{ padding: 16 }}>
             <DataList
               items={[
@@ -247,7 +247,7 @@ export default function CheckoutDetailsPage() {
             )}
           </div>
           {checkout.serializedItems.length === 0 && checkout.bulkItems.length === 0 ? (
-            <div className="empty-state">No items in this check-out.</div>
+            <div className="empty-state">No items in this checkout.</div>
           ) : (
             <table className="data-table">
               <thead>

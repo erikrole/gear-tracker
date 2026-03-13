@@ -93,7 +93,7 @@ type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "history" | "
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
-  { key: "checkouts", label: "Check Outs" },
+  { key: "checkouts", label: "Checkouts" },
   { key: "reservations", label: "Reservations" },
   { key: "calendar", label: "Calendar" },
   { key: "history", label: "History" },
@@ -128,13 +128,13 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
     if (b.status === "DRAFT") {
       return (
         <Link href={href} className="status-text status-text-checking-out no-underline">
-          Checking Out
+          Checking out
         </Link>
       );
     }
     return (
       <Link href={href} className="status-text status-text-checked-out no-underline">
-        Checked Out by {b.requesterName}
+        Checked out by {b.requesterName}
       </Link>
     );
   }
@@ -179,7 +179,7 @@ function ActionsMenu({
 
   return (
     <div ref={ref} className="relative">
-      <button className="btn" onClick={() => setOpen((v) => !v)}>Actions</button>
+      <button className="btn header-action-btn" onClick={() => setOpen((v) => !v)}>Actions</button>
       {open && (
         <div className="ctx-menu ctx-menu-anchor">
           <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("duplicate"); }}>
@@ -723,7 +723,7 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
     );
   }
 
-  const activeLabel = b?.kind === "CHECKOUT" ? "Active Check-out" : "Active Reservation";
+  const activeLabel = b?.kind === "CHECKOUT" ? "Active Checkout" : "Active Reservation";
 
   return (
     <div className="flex-col gap-16">
@@ -793,7 +793,7 @@ function BookingKindTab({
   now: Date;
   onSelectBooking: (id: string) => void;
 }) {
-  const label = kind === "CHECKOUT" ? "check-outs" : "reservations";
+  const label = kind === "CHECKOUT" ? "checkouts" : "reservations";
   const filtered = groups
     .map((g) => ({ month: g.month, items: g.items.filter((e) => e.booking.kind === kind) }))
     .filter((g) => g.items.length > 0);
@@ -807,7 +807,7 @@ function BookingKindTab({
       {/* Active booking card at top of matching tab */}
       {showActiveCard && activeBooking && (
         <div className="card">
-          <div className="card-header"><h2>Active {kind === "CHECKOUT" ? "Check-out" : "Reservation"}</h2></div>
+          <div className="card-header"><h2>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</h2></div>
           <div className="p-16">
             <div className="flex-between mb-8" style={{ alignItems: "baseline" }}>
               <strong>{activeBooking.title}</strong>
@@ -846,7 +846,7 @@ function BookingKindTab({
 
       {/* History table */}
       <div className="card">
-        <div className="card-header"><h2>{kind === "CHECKOUT" ? "Check-out" : "Reservation"} History</h2></div>
+        <div className="card-header"><h2>{kind === "CHECKOUT" ? "Checkout" : "Reservation"} History</h2></div>
         <div className="p-16">
           {filtered.length === 0 ? (
             <div className="empty-state">No {label} yet for this item.</div>
@@ -979,7 +979,7 @@ function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectB
 
       {/* Legend */}
       <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 12, color: "var(--text-secondary)" }}>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#3b82f6", marginRight: 4, verticalAlign: "middle" }} />Check-out</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#3b82f6", marginRight: 4, verticalAlign: "middle" }} />Checkout</span>
         <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#8b5cf6", marginRight: 4, verticalAlign: "middle" }} />Reservation</span>
       </div>
     </div>
@@ -1344,7 +1344,7 @@ export default function ItemDetailsPage() {
         </div>
       )}
 
-      {/* Check-outs / Reservations tabs */}
+      {/* Checkouts / Reservations tabs */}
       {(activeTab === "checkouts" || activeTab === "reservations") && (
         <BookingKindTab
           kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}

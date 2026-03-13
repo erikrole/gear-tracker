@@ -12,7 +12,7 @@ export default function KitsPage() {
         <EmptyState
           icon="box"
           title="Kits coming soon"
-          description="Group items together for easy check-out and tracking."
+          description="Group items together for easy checkout and tracking."
         />
       </div>
     </>

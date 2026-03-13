@@ -42,7 +42,7 @@ const bottomNavItems = [
     ),
   },
   {
-    label: "Check-outs",
+    label: "Checkouts",
     href: "/checkouts",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
