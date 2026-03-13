@@ -140,7 +140,7 @@ const actionLabels: Record<string, string> = {
   updated: "Updated",
   extended: "Extended",
   cancelled: "Cancelled",
-  checkin_completed: "Check-in completed",
+  checkin_completed: "Check in completed",
   cancelled_by_checkout_conversion: "Converted to checkout",
   "booking.items_added": "Items added",
   "booking.items_removed": "Items removed",
@@ -227,7 +227,7 @@ export default function BookingDetailsSheet({
     } catch { /* network */ }
   }, []);
 
-  // Check-in state (must be before early return to satisfy Rules of Hooks)
+  // Check in state (must be before early return to satisfy Rules of Hooks)
   const [checkinLoading, setCheckinLoading] = useState(false);
 
   const checkinProgress = useMemo(() => {
@@ -720,10 +720,10 @@ export default function BookingDetailsSheet({
                     </div>
                   )}
 
-                  {/* Partial check-in progress */}
+                  {/* Partial check in progress */}
                   {checkinProgress && checkinProgress.returned > 0 && (
                     <div className="sheet-section">
-                      <div className="sheet-section-title">Check-in progress</div>
+                      <div className="sheet-section-title">Check in progress</div>
                       <div className="progress-row">
                         <div className="progress-track">
                           <div

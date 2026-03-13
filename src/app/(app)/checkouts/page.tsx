@@ -12,8 +12,8 @@ export default function CheckoutsPage() {
   const config: BookingListConfig = useMemo(() => ({
     kind: "CHECKOUT",
     apiBase: "/api/checkouts",
-    label: "check-out",
-    labelPlural: "Check-outs",
+    label: "checkout",
+    labelPlural: "Checkouts",
     statusBadge: {
       DRAFT: "badge-gray",
       OPEN: "badge-green",

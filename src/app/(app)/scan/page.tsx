@@ -49,7 +49,7 @@ export default function ScanPage() {
   const [cameraError, setCameraError] = useState("");
   const [manualCode, setManualCode] = useState("");
 
-  // Check-in state
+  // Check in state
   const [foundCheckout, setFoundCheckout] = useState<OpenCheckout | null>(null);
   const [checkinMessage, setCheckinMessage] = useState("");
 
@@ -121,7 +121,7 @@ export default function ScanPage() {
           toast(`Item not found: ${value}`, "error");
         }
       } else {
-        // Check-in mode: scan to find the open checkout containing this item
+        // Check in mode: scan to find the open checkout containing this item
         try {
           const asset = await lookupAsset(value);
           if (!asset) {
@@ -220,7 +220,7 @@ export default function ScanPage() {
             boxShadow: mode === "checkin" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
           }}
         >
-          Quick Check-in
+          Quick Check in
         </button>
       </div>
 
@@ -393,7 +393,7 @@ export default function ScanPage() {
         </>
       )}
 
-      {/* ── Check-in mode ── */}
+      {/* ── Check in mode ── */}
       {mode === "checkin" && (
         <>
           {checkinMessage && (
@@ -455,7 +455,7 @@ export default function ScanPage() {
                     lineHeight: "20px"
                   }}
                 >
-                  Go to check-in
+                  Go to check in
                 </a>
               </div>
             </div>
