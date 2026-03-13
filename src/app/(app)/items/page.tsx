@@ -104,7 +104,6 @@ function StatusDot({ item }: { item: Asset }) {
 
 type ItemKind = "serialized" | "bulk";
 
-/* form-input class replaces inline inputStyle */
 
 function CreateItemCard({
   locations,
@@ -359,7 +358,6 @@ function CreateItemCard({
   );
 }
 
-/* form-select class replaces inline filterSelectStyle */
 
 export default function ItemsPage() {
   const router = useRouter();
