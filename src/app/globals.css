@@ -3057,6 +3057,165 @@ tr.status-overdue .status-label,
 .rounded { border-radius: var(--radius); }
 .rounded-sm { border-radius: 6px; }
 
+/* Flex extras */
+.flex-1 { flex: 1; }
+.flex-end { display: flex; justify-content: flex-end; }
+.inline-flex { display: inline-flex; }
+.items-center { align-items: center; }
+
+/* Grid */
+.grid-3col { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
+.grid-2col { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
+
+/* Positioning */
+.relative { position: relative; }
+.absolute { position: absolute; }
+
+/* Cursor */
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }
+
+/* Additional spacing */
+.mb-4 { margin-bottom: 4px; }
+.mt-14 { margin-top: 14px; }
+.ml-auto { margin-left: auto; }
+.gap-2 { gap: 2px; }
+
+/* Additional colors */
+.text-orange { color: var(--orange); }
+.text-purple { color: var(--purple); }
+
 /* Misc */
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shrink-0 { flex-shrink: 0; }
+.nowrap { white-space: nowrap; }
+.no-underline { text-decoration: none; }
+
+/* ===== Form Controls ===== */
+
+.form-input,
+.form-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: white;
+  color: var(--text-primary);
+  outline: none;
+  min-height: 36px;
+}
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+/* Filter bar (compact inputs) */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.filter-bar .form-input {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* Alert banners */
+.alert-warning {
+  color: var(--text-warning, #92400e);
+  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--bg-warning, #fef9c3);
+  border-radius: var(--radius);
+}
+.alert-error {
+  color: var(--red);
+  font-size: 13px;
+}
+
+/* Toggle link (unstyled button that looks like a link) */
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+.btn-link:hover {
+  color: var(--text-primary);
+}
+
+/* Status text */
+.status-text {
+  font-weight: 600;
+  font-size: 14px;
+}
+.status-text-available { color: var(--green); }
+.status-text-checked-out { color: var(--red); }
+.status-text-checking-out { color: var(--blue); }
+.status-text-reserved { color: var(--purple); }
+.status-text-maintenance { color: var(--orange); }
+.status-text-retired { color: var(--text-muted); }
+
+/* Popover card (e.g. status dot hover) */
+.popover {
+  position: absolute;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  padding: 8px 12px;
+  white-space: nowrap;
+  z-index: 50;
+  font-size: 12px;
+}
+
+/* Context menu positioning */
+.ctx-menu-anchor {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  z-index: 60;
+}
+
+/* ===== Touch Target Audit ===== */
+
+/* Minimum 44px touch target on interactive elements */
+button,
+[role="button"],
+.btn {
+  min-height: 44px;
+}
+.btn-sm {
+  min-height: 36px;
+}
+/* Links in nav / lists get touch padding */
+.sidebar-nav a,
+.bottom-nav a,
+.ctx-menu-item {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+/* Table rows that are clickable */
+tr.cursor-pointer td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+/* Select and input touch targets */
+select,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="date"],
+textarea {
+  min-height: 44px;
+}

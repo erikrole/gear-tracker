@@ -121,37 +121,37 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
   const b = asset.activeBooking;
 
   if (s === "AVAILABLE") {
-    return <span style={{ color: "var(--green)", fontWeight: 600, fontSize: 14 }}>Available</span>;
+    return <span className="status-text status-text-available">Available</span>;
   }
   if (s === "CHECKED_OUT" && b) {
     const href = `/checkouts/${b.id}`;
     if (b.status === "DRAFT") {
       return (
-        <Link href={href} style={{ color: "var(--blue)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+        <Link href={href} className="status-text status-text-checking-out no-underline">
           Checking Out
         </Link>
       );
     }
     return (
-      <Link href={href} style={{ color: "var(--red)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+      <Link href={href} className="status-text status-text-checked-out no-underline">
         Checked Out by {b.requesterName}
       </Link>
     );
   }
   if (s === "RESERVED" && b) {
     return (
-      <Link href={`/reservations/${b.id}`} style={{ color: "var(--purple)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+      <Link href={`/reservations/${b.id}`} className="status-text status-text-reserved no-underline">
         Reserved by {b.requesterName}
       </Link>
     );
   }
   if (s === "MAINTENANCE") {
-    return <span style={{ color: "var(--orange)", fontWeight: 600, fontSize: 14 }}>Needs Maintenance</span>;
+    return <span className="status-text status-text-maintenance">Needs Maintenance</span>;
   }
   if (s === "RETIRED") {
-    return <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: 14 }}>Retired</span>;
+    return <span className="status-text status-text-retired">Retired</span>;
   }
-  return <span style={{ color: "var(--text-secondary)", fontSize: 14 }}>{s}</span>;
+  return <span className="text-secondary text-base">{s}</span>;
 }
 
 /* ── Actions Dropdown ───────────────────────────────────── */
@@ -178,10 +178,10 @@ function ActionsMenu({
   const canDelete = !asset.hasBookingHistory;
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} className="relative">
       <button className="btn" onClick={() => setOpen((v) => !v)}>Actions</button>
       {open && (
-        <div className="ctx-menu" style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 60 }}>
+        <div className="ctx-menu ctx-menu-anchor">
           <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("duplicate"); }}>
             Duplicate
           </button>
@@ -195,7 +195,6 @@ function ActionsMenu({
           <button
             className="ctx-menu-item danger"
             disabled={!canDelete}
-            style={!canDelete ? { opacity: 0.4, cursor: "not-allowed" } : {}}
             title={!canDelete ? "Item has booking history — use Retire instead" : "Permanently delete this item"}
             onClick={() => { if (canDelete) { setOpen(false); onAction("delete"); } }}
           >
@@ -462,19 +461,19 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
       onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
     >
       <div className="qr-modal">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div className="flex-between mb-16">
           <h2 style={{ margin: 0 }}>QR Code</h2>
           <button className="btn btn-sm" onClick={onClose}>Close</button>
         </div>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+        <div className="flex-center mb-16" style={{ justifyContent: "center" }}>
           <QRCodeCanvas value={asset.qrCodeValue} size={240} />
         </div>
-        <div style={{ textAlign: "center", fontFamily: "monospace", fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+        <div className="font-semibold font-mono mb-16" style={{ textAlign: "center", fontSize: 16 }}>
           {asset.qrCodeValue}
         </div>
         {canEdit && (
           <>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 8 }}>
+            <div className="flex gap-8 mb-8" style={{ justifyContent: "center" }}>
               <button className="btn" onClick={generateQR} disabled={saving}>
                 {saving ? "..." : "Generate new QR"}
               </button>
@@ -483,12 +482,12 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
               </button>
             </div>
             {manualEntry && (
-              <div style={{ marginTop: 8, display: "flex", gap: 6 }}>
+              <div className="flex gap-6 mt-8">
                 <input
                   value={qrDraft}
                   onChange={(e) => setQrDraft(e.target.value)}
                   placeholder="Paste or type QR code..."
-                  style={{ flex: 1, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 14 }}
+                  className="form-input flex-1"
                   onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
                   autoFocus
                 />
@@ -496,7 +495,7 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
                 <button className="btn" onClick={() => setManualEntry(false)}>Cancel</button>
               </div>
             )}
-            {error && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 6, textAlign: "center" }}>{error}</div>}
+            {error && <div className="alert-error mt-8" style={{ textAlign: "center" }}>{error}</div>}
           </>
         )}
       </div>
@@ -513,9 +512,9 @@ function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetai
 
   return (
     <>
-      <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-light)" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>TRACKING CODES</div>
-        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+      <div className="p-16 border-t">
+        <div className="text-xs font-semibold text-secondary mb-8" style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>TRACKING CODES</div>
+        <div className="flex gap-12" style={{ alignItems: "flex-start" }}>
           {/* Asset tag label replaces standalone QR image */}
           <button
             className="asset-tag-label"
@@ -531,14 +530,14 @@ function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetai
               <QRCodeCanvas value={asset.qrCodeValue} size={80} margin={0} />
             </div>
           </button>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="flex-col gap-4">
             <div className="tracking-row">
               <span>QR</span>
-              <strong style={{ fontFamily: "monospace" }}>{asset.qrCodeValue}</strong>
+              <strong className="font-mono">{asset.qrCodeValue}</strong>
             </div>
             <div className="tracking-row">
               <span>Serial</span>
-              <strong style={{ fontFamily: "monospace" }}>{asset.serialNumber}</strong>
+              <strong className="font-mono">{asset.serialNumber}</strong>
             </div>
           </div>
         </div>
@@ -675,10 +674,10 @@ function ItemInfoCard({
 
   return (
     <div className="card details-card">
-      <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="card-header flex-between">
         <h2>Item Information</h2>
         {feedback && (
-          <span style={{ fontSize: 12, color: feedback.type === "ok" ? "var(--green)" : "var(--red)" }}>
+          <span className={`text-xs ${feedback.type === "ok" ? "text-green" : "text-red"}`}>
             {feedback.msg}
           </span>
         )}
@@ -719,7 +718,7 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
     return (
       <div className="card">
         <div className="card-header"><h2>Bookings</h2></div>
-        <div className="empty-state" style={{ padding: 24 }}>No active bookings for this item</div>
+        <div className="empty-state p-16">No active bookings for this item</div>
       </div>
     );
   }
@@ -727,7 +726,7 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
   const activeLabel = b?.kind === "CHECKOUT" ? "Active Check-out" : "Active Reservation";
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div className="flex-col gap-16">
       {/* Active Booking — dashboard-style possession card */}
       {hasActiveBooking && b && (
         <div className="card">
@@ -804,17 +803,17 @@ function BookingKindTab({
   const showUpcoming = kind === "RESERVATION" && asset.upcomingReservations.length > 0;
 
   return (
-    <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
+    <div className="flex-col gap-16 mt-14">
       {/* Active booking card at top of matching tab */}
       {showActiveCard && activeBooking && (
         <div className="card">
           <div className="card-header"><h2>Active {kind === "CHECKOUT" ? "Check-out" : "Reservation"}</h2></div>
-          <div style={{ padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+          <div className="p-16">
+            <div className="flex-between mb-8" style={{ alignItems: "baseline" }}>
               <strong>{activeBooking.title}</strong>
-              <span className="badge badge-orange" style={{ fontSize: 11 }}>{formatCountdown(activeBooking.endsAt, now)}</span>
+              <span className="badge badge-orange text-xs">{formatCountdown(activeBooking.endsAt, now)}</span>
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
+            <div className="text-sm text-secondary mb-8">
               {kind === "CHECKOUT" ? "Held" : "Reserved"} by <strong>{activeBooking.requesterName}</strong>
             </div>
             <button className="btn btn-sm" onClick={() => onSelectBooking(activeBooking.id)}>
@@ -828,10 +827,10 @@ function BookingKindTab({
       {showUpcoming && (
         <div className="card">
           <div className="card-header"><h2>Upcoming Reservations</h2></div>
-          <div style={{ padding: 16 }}>
-            <div style={{ display: "grid", gap: 10 }}>
+          <div className="p-16">
+            <div className="flex-col gap-10">
               {asset.upcomingReservations.map((r) => (
-                <div key={r.bookingId} className="event-row" style={{ cursor: "pointer" }} onClick={() => onSelectBooking(r.bookingId)}>
+                <div key={r.bookingId} className="event-row cursor-pointer" onClick={() => onSelectBooking(r.bookingId)}>
                   <div className="event-row-main">
                     <div className="event-row-title">{r.title}</div>
                     <div className="event-row-meta">
@@ -848,18 +847,18 @@ function BookingKindTab({
       {/* History table */}
       <div className="card">
         <div className="card-header"><h2>{kind === "CHECKOUT" ? "Check-out" : "Reservation"} History</h2></div>
-        <div style={{ padding: 16 }}>
+        <div className="p-16">
           {filtered.length === 0 ? (
             <div className="empty-state">No {label} yet for this item.</div>
           ) : (
             filtered.map((group) => (
-              <div key={group.month} style={{ marginBottom: 16 }}>
-                <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>{group.month}</h3>
+              <div key={group.month} className="mb-16">
+                <h3 className="text-xl mb-8" style={{ margin: 0 }}>{group.month}</h3>
                 <table className="data-table">
                   <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
                   <tbody>
                     {group.items.map((entry) => (
-                      <tr key={entry.id} style={{ cursor: "pointer" }} onClick={() => onSelectBooking(entry.booking.id)}>
+                      <tr key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(entry.booking.id)}>
                         <td><span className="row-link">{entry.booking.title}</span></td>
                         <td>{entry.booking.requester.name}</td>
                         <td>{formatDateFull(entry.booking.startsAt)}</td>
@@ -936,17 +935,17 @@ function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectB
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d });
 
   return (
-    <div style={{ marginTop: 14 }}>
+    <div className="mt-14">
       <div className="card">
         <div className="card-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button className="btn btn-sm" onClick={prevMonth}>{"\u2039"}</button>
+          <div className="flex-center gap-8">
+            <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
             <h2 style={{ minWidth: 160, textAlign: "center" }}>{monthLabel}</h2>
             <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
           </div>
           <button className="btn btn-sm" onClick={goToday}>Today</button>
         </div>
-        <div style={{ padding: "12px 16px" }}>
+        <div className="p-16">
           {/* Day headers */}
           <div className="cal-grid">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
@@ -1090,7 +1089,7 @@ function ActivityFeed({ assetId }: { assetId: string }) {
                 )}
               </div>
               {isUpdate && changes.length > 0 && (
-                <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
+                <div className="text-xs text-secondary mt-4">
                   {changes.map((key) => (
                     <div key={key} style={{ padding: "1px 0" }}>
                       {describeFieldChange(
@@ -1134,14 +1133,14 @@ function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdi
   ];
 
   return (
-    <div className="card" style={{ marginTop: 14 }}>
+    <div className="card mt-14">
       <div className="card-header"><h2>Policy Settings</h2></div>
-      <div style={{ padding: 16 }}>
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0, marginBottom: 16 }}>
+      <div className="p-16">
+        <p className="text-sm text-secondary mb-16" style={{ marginTop: 0 }}>
           These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
         </p>
         {toggles.map((t) => (
-          <div key={t.field} className="toggle-row" style={{ marginBottom: 16 }}>
+          <div key={t.field} className="toggle-row mb-16">
             <button
               className={`toggle${t.value ? " on" : ""}`}
               onClick={() => canEdit && toggleSetting(t.field, t.value)}
@@ -1149,7 +1148,7 @@ function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdi
             />
             <div>
               <div className="toggle-label">{t.label}</div>
-              <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{t.help}</div>
+              <div className="text-xs text-secondary" style={{ marginTop: 2 }}>{t.help}</div>
             </div>
           </div>
         ))}
@@ -1292,27 +1291,27 @@ export default function ItemDetailsPage() {
       <div className="breadcrumb"><Link href="/items">Items</Link> <span>{"\u203a"}</span> {asset.assetTag}</div>
       <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+          <div className="flex gap-12" style={{ alignItems: "baseline" }}>
             <h1 style={{ marginBottom: 0 }}>{asset.assetTag}</h1>
             {asset.metadata?.uwAssetTag && (
-              <span style={{ fontSize: 14, color: "var(--text-secondary)", fontWeight: 500 }}>
+              <span className="text-base text-secondary font-medium">
                 UW {asset.metadata.uwAssetTag}
               </span>
             )}
           </div>
           {asset.name && (
-            <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 2 }}>{asset.name}</div>
+            <div className="text-base text-secondary" style={{ marginTop: 2 }}>{asset.name}</div>
           )}
         </div>
         <div className="header-actions">
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-          <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary header-action-btn" style={{ textDecoration: "none" }}>Reserve</Link>
-          <Link href={`/checkouts?newFor=${asset.id}`} className="btn btn-primary header-action-btn" style={{ textDecoration: "none" }}>Check out</Link>
+          <Link href={`/reservations?newFor=${asset.id}`} className="btn btn-primary header-action-btn no-underline">Reserve</Link>
+          <Link href={`/checkouts?newFor=${asset.id}`} className="btn btn-primary header-action-btn no-underline">Check out</Link>
         </div>
       </div>
 
       {/* Status line */}
-      <div style={{ marginBottom: 18, marginTop: 6 }}>
+      <div className="mb-16 mt-8">
         <StatusLine asset={asset} />
       </div>
 
@@ -1331,7 +1330,7 @@ export default function ItemDetailsPage() {
 
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
-        <div className="details-grid" style={{ marginTop: 14 }}>
+        <div className="details-grid mt-14">
           <ItemInfoCard
             asset={asset}
             canEdit={canEdit}
@@ -1363,9 +1362,9 @@ export default function ItemDetailsPage() {
 
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
-        <div className="card" style={{ marginTop: 14 }}>
+        <div className="card mt-14">
           <div className="card-header"><h2>Activity Log</h2></div>
-          <div style={{ padding: 16 }}>
+          <div className="p-16">
             <ActivityFeed assetId={asset.id} />
           </div>
         </div>

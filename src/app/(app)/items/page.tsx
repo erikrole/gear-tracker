@@ -39,12 +39,12 @@ type Response = {
   offset: number;
 };
 
-const statusDotColor: Record<string, string> = {
-  AVAILABLE: "#22c55e",
-  CHECKED_OUT: "#ef4444",
-  RESERVED: "#a855f7",
-  MAINTENANCE: "#f59e0b",
-  RETIRED: "#9ca3af",
+const statusDotClass: Record<string, string> = {
+  AVAILABLE: "status-available",
+  CHECKED_OUT: "status-checked-out",
+  RESERVED: "status-reserved",
+  MAINTENANCE: "status-maintenance",
+  RETIRED: "status-retired",
 };
 
 function StatusDot({ item }: { item: Asset }) {
@@ -70,7 +70,7 @@ function StatusDot({ item }: { item: Asset }) {
   return (
     <span
       ref={ref}
-      style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
+      className="relative inline-flex shrink-0"
       onMouseEnter={() => hasBooking && setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
@@ -78,42 +78,22 @@ function StatusDot({ item }: { item: Asset }) {
         onClick={(e) => {
           if (hasBooking) { e.stopPropagation(); setOpen((v) => !v); }
         }}
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          backgroundColor: statusDotColor[item.computedStatus] || "#9ca3af",
-          cursor: hasBooking ? "pointer" : "default",
-        }}
+        className={`status-dot ${statusDotClass[item.computedStatus] || "status-retired"}`}
+        style={{ width: 8, height: 8, cursor: hasBooking ? "pointer" : "default" }}
       />
       {open && item.activeBooking && (
         <div
           onClick={(e) => e.stopPropagation()}
-          style={{
-            position: "absolute",
-            left: 16,
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: "white",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            boxShadow: "0 4px 12px rgba(0,0,0,.1)",
-            padding: "8px 12px",
-            whiteSpace: "nowrap",
-            zIndex: 50,
-            fontSize: 12,
-          }}
+          className="popover"
+          style={{ left: 16, top: "50%", transform: "translateY(-50%)" }}
         >
-          <div style={{ fontWeight: 600, marginBottom: 2, textTransform: "capitalize" }}>{label}</div>
-          <div style={{ color: "var(--text-secondary)", marginBottom: 4 }}>
-            {item.activeBooking.title} \u00b7 {item.activeBooking.requesterName}
+          <div className="font-semibold mb-4" style={{ textTransform: "capitalize" }}>{label}</div>
+          <div className="text-secondary mb-4">
+            {item.activeBooking.title} &middot; {item.activeBooking.requesterName}
           </div>
           {bookingPath && (
-            <Link
-              href={bookingPath}
-              style={{ color: "var(--primary)", fontWeight: 500, textDecoration: "none" }}
-            >
-              View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} {"\u2192"}
+            <Link href={bookingPath} className="font-medium no-underline" style={{ color: "var(--primary)" }}>
+              View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
             </Link>
           )}
         </div>
@@ -124,7 +104,7 @@ function StatusDot({ item }: { item: Asset }) {
 
 type ItemKind = "serialized" | "bulk";
 
-const inputStyle = { padding: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 };
+/* form-input class replaces inline inputStyle */
 
 function CreateItemCard({
   locations,
@@ -254,10 +234,10 @@ function CreateItemCard({
   }
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="card mb-16">
+      <div className="card-header flex-between">
         <h2>New item</h2>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className="flex gap-4">
           {(["serialized", "bulk"] as const).map((k) => (
             <button
               key={k}
@@ -271,37 +251,36 @@ function CreateItemCard({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ padding: 16 }}>
+      <form onSubmit={handleSubmit} className="p-16">
         {kind === "serialized" ? (
           <>
             {/* B&H product URL enrichment */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div className="flex gap-8 mb-8">
               <input
                 placeholder="B&H product URL (optional — auto-fills brand, model, name)"
                 value={bhUrl}
                 onChange={(e) => setBhUrl(e.target.value)}
-                style={{ ...inputStyle, flex: 1 }}
+                className="form-input flex-1"
               />
               <button
                 type="button"
-                className="btn btn-sm"
+                className="btn btn-sm nowrap"
                 disabled={bhLoading || !bhUrl.trim()}
                 onClick={enrichFromBH}
-                style={{ minHeight: 36, whiteSpace: "nowrap" }}
               >
                 {bhLoading ? "Fetching..." : "Fetch info"}
               </button>
             </div>
             {bhError && (
-              <div style={{ color: "var(--text-warning, #92400e)", fontSize: 12, marginBottom: 8, padding: "4px 8px", background: "var(--bg-warning, #fef9c3)", borderRadius: "var(--radius)" }}>
+              <div className="alert-warning mb-8">
                 {bhError} — you can still fill in the fields manually.
               </div>
             )}
 
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
-              <input name="assetTag" placeholder="Tag name *" required style={inputStyle} />
-              <input name="itemName" ref={nameRef} placeholder="Product name" style={inputStyle} />
-              <select name="categoryId" style={inputStyle}>
+            <div className="grid-3col">
+              <input name="assetTag" placeholder="Tag name *" required className="form-input" />
+              <input name="itemName" ref={nameRef} placeholder="Product name" className="form-input" />
+              <select name="categoryId" className="form-input">
                 <option value="">Category</option>
                 {categories.filter((c) => !c.parentId).map((parent) => (
                   <optgroup key={parent.id} label={parent.name}>
@@ -315,43 +294,35 @@ function CreateItemCard({
                 ))}
               </select>
               <input name="type" type="hidden" defaultValue="equipment" />
-              <select name="locationId" required style={inputStyle}>
+              <select name="locationId" required className="form-input">
                 <option value="">Location *</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              <input name="brand" ref={brandRef} placeholder="Brand *" required style={inputStyle} />
-              <input name="model" ref={modelRef} placeholder="Model *" required style={inputStyle} />
-              <input name="serialNumber" placeholder="Serial number *" required style={inputStyle} />
-              <input name="qrCodeValue" placeholder="QR code value *" required style={inputStyle} />
+              <input name="brand" ref={brandRef} placeholder="Brand *" required className="form-input" />
+              <input name="model" ref={modelRef} placeholder="Model *" required className="form-input" />
+              <input name="serialNumber" placeholder="Serial number *" required className="form-input" />
+              <input name="qrCodeValue" placeholder="QR code value *" required className="form-input" />
             </div>
 
             <button
               type="button"
               onClick={() => setShowMeta((v) => !v)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--text-secondary)",
-                fontSize: 12,
-                cursor: "pointer",
-                marginTop: 12,
-                padding: 0,
-              }}
+              className="btn-link mt-12"
             >
               {showMeta ? "Hide" : "Show"} optional fields
             </button>
 
             {showMeta && (
-              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)", marginTop: 10 }}>
-                <input name="description" placeholder="Description" style={inputStyle} />
-                <input name="owner" placeholder="Owner" style={inputStyle} />
+              <div className="grid-3col mt-12">
+                <input name="description" placeholder="Description" className="form-input" />
+                <input name="owner" placeholder="Owner" className="form-input" />
               </div>
             )}
           </>
         ) : (
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(3, 1fr)" }}>
-            <input name="name" placeholder="Product name *" required style={inputStyle} />
-            <select name="categoryId" style={inputStyle}>
+          <div className="grid-3col">
+            <input name="name" placeholder="Product name *" required className="form-input" />
+            <select name="categoryId" className="form-input">
               <option value="">Category</option>
               {categories.filter((c) => !c.parentId).map((parent) => (
                 <optgroup key={parent.id} label={parent.name}>
@@ -365,36 +336,30 @@ function CreateItemCard({
               ))}
             </select>
             <input name="category" type="hidden" defaultValue="general" />
-            <input name="unit" placeholder="Unit (e.g. ea, box) *" required style={inputStyle} />
-            <select name="locationId" required style={inputStyle}>
+            <input name="unit" placeholder="Unit (e.g. ea, box) *" required className="form-input" />
+            <select name="locationId" required className="form-input">
               <option value="">Location *</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <input name="binQrCodeValue" placeholder="Bin QR code *" required style={inputStyle} />
-            <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" style={inputStyle} />
-            <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" style={inputStyle} />
+            <input name="binQrCodeValue" placeholder="Bin QR code *" required className="form-input" />
+            <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" className="form-input" />
+            <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" className="form-input" />
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
+        <div className="flex-end gap-8 mt-14">
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
           </button>
         </div>
-        {error && <div style={{ color: "var(--red)", fontSize: 13, marginTop: 8 }}>{error}</div>}
+        {error && <div className="alert-error mt-8">{error}</div>}
       </form>
     </div>
   );
 }
 
-const filterSelectStyle = {
-  padding: "7px 12px",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  fontSize: 13,
-  background: "white",
-} as const;
+/* form-select class replaces inline filterSelectStyle */
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -463,7 +428,7 @@ export default function ItemsPage() {
     <>
       <div className="page-header">
         <h1>Items</h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-8">
           <Link href="/import" className="btn">Import</Link>
           <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Close" : "New item"}
@@ -481,25 +446,18 @@ export default function ItemsPage() {
       )}
 
       <div className="card">
-        <div className="card-header" style={{ gap: 12 }}>
+        <div className="card-header filter-bar">
           <input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            style={{
-              flex: 1,
-              padding: "7px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              outline: "none",
-              fontSize: 13,
-            }}
+            className="form-input"
           />
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            style={filterSelectStyle}
+            className="form-select"
           >
             <option value="">All statuses</option>
             <option value="AVAILABLE">Available</option>
@@ -511,7 +469,7 @@ export default function ItemsPage() {
           <select
             value={locationFilter}
             onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
-            style={filterSelectStyle}
+            className="form-select"
           >
             <option value="">All locations</option>
             {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
@@ -519,7 +477,7 @@ export default function ItemsPage() {
           <select
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
-            style={filterSelectStyle}
+            className="form-select"
           >
             <option value="">All categories</option>
             {categories.filter((c) => !c.parentId).map((parent) => (
@@ -557,17 +515,17 @@ export default function ItemsPage() {
                 {items.map((item) => (
                   <tr
                     key={item.id}
-                    style={{ cursor: "pointer" }}
+                    className="cursor-pointer"
                     onClick={() => router.push(`/items/${item.id}`)}
                   >
                     <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div className="flex-center gap-10">
                         <StatusDot item={item} />
                         <div>
-                          <span className="row-link" style={{ fontWeight: 600 }}>
+                          <span className="row-link font-semibold">
                             {item.assetTag}
                           </span>
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                          <div className="text-xs text-secondary">
                             {item.name || `${item.brand} ${item.model}`}
                           </div>
                         </div>
