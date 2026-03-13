@@ -96,24 +96,31 @@ export default function ProfilePage() {
     setMessage("Password updated");
   }
 
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
+
   async function updateRole(userId: string, role: ManagedUser["role"]) {
     setMessage("");
     setError("");
+    setUpdatingRoleId(userId);
 
-    const res = await fetch(`/api/users/${userId}/role`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role })
-    });
+    try {
+      const res = await fetch(`/api/users/${userId}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role })
+      });
 
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Failed to update role");
-      return;
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Failed to update role");
+        return;
+      }
+
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
+      setMessage("Role updated");
+    } finally {
+      setUpdatingRoleId(null);
     }
-
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
-    setMessage("Role updated");
   }
 
   if (!profile) {
@@ -188,7 +195,8 @@ export default function ProfilePage() {
                     <select
                       value={user.role}
                       onChange={(e) => updateRole(user.id, e.target.value as ManagedUser["role"])}
-                      style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "white" }}
+                      disabled={updatingRoleId === user.id}
+                      style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "white", opacity: updatingRoleId === user.id ? 0.6 : 1 }}
                     >
                       <option value="ADMIN">Admin</option>
                       <option value="STAFF">Staff</option>

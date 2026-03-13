@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useToast } from "@/components/Toast";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Category = {
   id: string;
@@ -99,6 +101,8 @@ function CategoryRow({
   depth: number;
   onRefresh: () => void;
 }) {
+  const { toast } = useToast();
+  const confirm = useConfirm();
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(node.name);
   const [addingSub, setAddingSub] = useState(false);
@@ -145,10 +149,17 @@ function CategoryRow({
   }
 
   async function handleDelete() {
+    const ok = await confirm({
+      title: "Delete category",
+      message: `Delete "${node.name}"? Items in this category will be uncategorized.`,
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     const res = await fetch(`/api/categories/${node.id}`, { method: "DELETE" });
     if (!res.ok) {
       const json = await res.json();
-      alert(json.error || "Delete failed");
+      toast(json.error || "Delete failed", "error");
       return;
     }
     onRefresh();

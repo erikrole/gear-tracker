@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/Toast";
+import { useConfirm } from "@/components/ConfirmDialog";
 import DataList from "@/components/DataList";
 import { formatDateTime } from "@/lib/format";
 
@@ -155,6 +156,7 @@ export default function BookingDetailsSheet({
   currentUserRole,
 }: Props) {
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>("info");
@@ -477,7 +479,13 @@ export default function BookingDetailsSheet({
 
   async function handleCancel() {
     if (!booking) return;
-    if (!confirm(`Cancel "${booking.title}"? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: "Cancel booking",
+      message: `Cancel "${booking.title}"? This cannot be undone.`,
+      confirmLabel: "Cancel booking",
+      variant: "danger",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/bookings/${booking.id}/cancel`, {
@@ -499,7 +507,12 @@ export default function BookingDetailsSheet({
 
   async function handleConvert() {
     if (!booking) return;
-    if (!confirm("Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created.")) return;
+    const ok = await confirm({
+      title: "Convert to checkout",
+      message: "Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created.",
+      confirmLabel: "Start checkout",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/reservations/${booking.id}/convert`, {
@@ -548,7 +561,12 @@ export default function BookingDetailsSheet({
     if (!booking) return;
     const activeItems = booking.serializedItems.filter((i) => i.allocationStatus !== "returned");
     if (activeItems.length === 0) return;
-    if (!confirm(`Check in all ${activeItems.length} remaining item(s)?`)) return;
+    const ok = await confirm({
+      title: "Check in all items",
+      message: `Check in all ${activeItems.length} remaining item(s)?`,
+      confirmLabel: "Check in all",
+    });
+    if (!ok) return;
 
     setCheckinLoading(true);
     try {
@@ -943,10 +961,14 @@ export default function BookingDetailsSheet({
                           <button
                             className="btn btn-sm"
                             style={{ color: "var(--red)", borderColor: "var(--red)", flexShrink: 0 }}
-                            onClick={() => {
-                              if (confirm("Remove this item from the booking?")) {
-                                removeSerializedItem(assetId);
-                              }
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: "Remove item",
+                                message: "Remove this item from the booking?",
+                                confirmLabel: "Remove",
+                                variant: "danger",
+                              });
+                              if (ok) removeSerializedItem(assetId);
                             }}
                           >
                             Remove

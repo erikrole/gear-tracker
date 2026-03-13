@@ -33,6 +33,8 @@ export default function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [markingId, setMarkingId] = useState<string | null>(null);
   const limit = 20;
 
   async function reload() {
@@ -59,6 +61,7 @@ export default function NotificationsPage() {
   }, [page, unreadOnly]);
 
   async function markAllRead() {
+    setMarkingAll(true);
     try {
       const res = await fetch("/api/notifications", {
         method: "PATCH",
@@ -70,9 +73,11 @@ export default function NotificationsPage() {
     } catch {
       toast("Network error", "error");
     }
+    setMarkingAll(false);
   }
 
   async function markRead(id: string) {
+    setMarkingId(id);
     try {
       const res = await fetch("/api/notifications", {
         method: "PATCH",
@@ -84,6 +89,7 @@ export default function NotificationsPage() {
     } catch {
       toast("Network error", "error");
     }
+    setMarkingId(null);
   }
 
   async function runProcessing() {
@@ -138,8 +144,8 @@ export default function NotificationsPage() {
             {processing ? "Processing..." : "Check overdue"}
           </button>
           {unreadCount > 0 && (
-            <button className="btn btn-sm" onClick={markAllRead}>
-              Mark all read
+            <button className="btn btn-sm" onClick={markAllRead} disabled={markingAll}>
+              {markingAll ? "Marking..." : "Mark all read"}
             </button>
           )}
         </div>
@@ -226,8 +232,9 @@ export default function NotificationsPage() {
                           className="btn btn-sm"
                           style={{ fontSize: 12 }}
                           onClick={() => markRead(n.id)}
+                          disabled={markingId === n.id}
                         >
-                          Mark read
+                          {markingId === n.id ? "..." : "Mark read"}
                         </button>
                       )}
                     </div>

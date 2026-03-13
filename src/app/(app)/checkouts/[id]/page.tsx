@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import DataList from "@/components/DataList";
 import type { CheckoutAction } from "@/lib/booking-actions";
 import { formatDateTime } from "@/lib/format";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
 
 type Checkout = {
   id: string;
@@ -31,6 +33,8 @@ const statusBadgeClass: Record<string, string> = {
 export default function CheckoutDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const [checkout, setCheckout] = useState<Checkout | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -49,19 +53,25 @@ export default function CheckoutDetailsPage() {
   useEffect(() => { reload(); }, [reload]);
 
   async function handleCancel() {
-    if (!confirm("Cancel this checkout? This action cannot be undone.")) return;
+    const ok = await confirm({
+      title: "Cancel checkout",
+      message: "Cancel this checkout? This action cannot be undone.",
+      confirmLabel: "Cancel checkout",
+      variant: "danger",
+    });
+    if (!ok) return;
     setActionLoading("cancel");
     setActionError("");
     try {
       const res = await fetch(`/api/bookings/${id}/cancel`, { method: "POST" });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setActionError((json as Record<string, string>).error || "Cancel failed");
+        toast((json as Record<string, string>).error || "Cancel failed", "error");
       } else {
         reload();
       }
     } catch {
-      setActionError("Network error \u2014 please try again.");
+      toast("Network error — please try again.", "error");
     }
     setActionLoading(null);
   }
@@ -114,7 +124,12 @@ export default function CheckoutDetailsPage() {
   }
 
   async function handleCompleteCheckin() {
-    if (!confirm("Complete check-in? Any items not yet returned will be flagged.")) return;
+    const ok = await confirm({
+      title: "Complete check-in",
+      message: "Complete check-in? Any items not yet returned will be flagged.",
+      confirmLabel: "Complete check-in",
+    });
+    if (!ok) return;
     setActionLoading("complete-checkin");
     setActionError("");
     try {
