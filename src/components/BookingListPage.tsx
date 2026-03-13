@@ -16,6 +16,8 @@ import {
 import { formatDateShort } from "@/lib/format";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 import { useToast } from "@/components/Toast";
+import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   AVAILABLE: "#22c55e",
@@ -1052,9 +1054,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
         {/* ════════ Booking list ════════ */}
         {loading ? (
-          <div className="loading-spinner"><div className="spinner" /></div>
+          <SkeletonTable rows={6} cols={5} />
         ) : items.length === 0 ? (
-          <div className="empty-state">No {config.labelPlural.toLowerCase()} found</div>
+          <EmptyState icon="clipboard" title={`No ${config.labelPlural.toLowerCase()} found`} description="Try adjusting your search or filters." />
         ) : (
           <>
             {/* Desktop table */}

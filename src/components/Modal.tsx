@@ -31,13 +31,16 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
     <div
       ref={overlayRef}
       className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
     >
       <div className="modal-panel">
         <div className="modal-header">
-          <h2>{title}</h2>
+          <h2 id="modal-title">{title}</h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             &times;
           </button>

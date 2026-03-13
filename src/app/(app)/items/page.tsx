@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 
 type ActiveBooking = {
   id: string;
@@ -534,14 +536,11 @@ export default function ItemsPage() {
         </div>
 
         {loading ? (
-          <div className="loading-spinner"><div className="spinner" /></div>
+          <SkeletonTable rows={8} cols={5} />
         ) : loadError ? (
-          <div className="empty-state">
-            Failed to load items.{" "}
-            <button className="btn btn-sm" onClick={reload} style={{ marginLeft: 8 }}>Retry</button>
-          </div>
+          <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={reload} />
         ) : items.length === 0 ? (
-          <div className="empty-state">No items found</div>
+          <EmptyState icon="search" title="No items found" description="Try adjusting your search or filters." />
         ) : (
           <>
             <table className="data-table">

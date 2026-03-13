@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+import { SkeletonCard } from "@/components/Skeleton";
 import {
   formatDateShort,
   formatDateRange,
@@ -94,9 +95,19 @@ export default function DashboardPage() {
 
   if (!data) {
     return (
-      <div className="loading-spinner">
-        <div className="spinner" />
-      </div>
+      <>
+        <div className="page-header"><h1>Dashboard</h1></div>
+        <div className="dashboard-split">
+          <div className="dashboard-col dashboard-col-left">
+            <SkeletonCard rows={3} />
+            <SkeletonCard rows={3} />
+          </div>
+          <div className="dashboard-col dashboard-col-right">
+            <SkeletonCard rows={4} />
+            <SkeletonCard rows={3} />
+          </div>
+        </div>
+      </>
     );
   }
 
