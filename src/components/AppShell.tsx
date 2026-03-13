@@ -12,17 +12,11 @@ const bottomNavItems = [
     label: "Home",
     href: "/",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
-        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-      </svg>
-    ),
-  },
-  {
-    label: "Scan",
-    href: "/scan",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
-        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 010 2H5v2a1 1 0 01-2 0V4zm0 8a1 1 0 012 0v2h2a1 1 0 110 2H4a1 1 0 01-1-1v-3zm10-9a1 1 0 100 2h2v2a1 1 0 102 0V4a1 1 0 00-1-1h-3zm4 9a1 1 0 10-2 0v2h-2a1 1 0 100 2h3a1 1 0 001-1v-3z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
   },
@@ -30,18 +24,30 @@ const bottomNavItems = [
     label: "Items",
     href: "/items",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
-        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+        <path d="M2 17l10 5 10-5" />
+        <path d="M2 12l10 5 10-5" />
       </svg>
     ),
   },
   {
-    label: "Checkouts",
+    label: "Reservations",
+    href: "/reservations",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M12 8v8M8 12h8" />
+      </svg>
+    ),
+  },
+  {
+    label: "Check-outs",
     href: "/checkouts",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
-        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
+        <rect x="5" y="2" width="14" height="20" rx="2" />
+        <path d="M9 12l2 2 4-4" />
       </svg>
     ),
   },
@@ -49,8 +55,10 @@ const bottomNavItems = [
     label: "More",
     href: "#menu",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
-        <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
+        <circle cx="12" cy="5" r="1" fill="currentColor" />
+        <circle cx="12" cy="12" r="1" fill="currentColor" />
+        <circle cx="12" cy="19" r="1" fill="currentColor" />
       </svg>
     ),
   },
@@ -105,7 +113,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         className={`sidebar-overlay${sidebarOpen ? " visible" : ""}`}
         onClick={() => setSidebarOpen(false)}
       />
-      <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} unreadNotifications={unreadNotifications} />
+      <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onSignOut={handleLogout} />
       <main className="app-main">
         <header className="topbar">
           <button
@@ -124,10 +132,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <input type="text" placeholder="Search items, reservations..." />
           </div>
           <div className="topbar-actions">
-            <Link href="/profile" className="btn">Profile</Link>
-            <button className="btn" onClick={handleLogout} disabled={loggingOut}>
-              {loggingOut ? "Signing out..." : "Sign out"}
-            </button>
+            <Link href="/notifications" className="btn topbar-icon-btn" aria-label="Notifications">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
+              {unreadNotifications > 0 && (
+                <span className="topbar-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+              )}
+            </Link>
+            <Link href="/profile" className="btn topbar-icon-btn" aria-label="Profile">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </Link>
           </div>
         </header>
         <div className="page-content">{children}</div>

@@ -8,17 +8,21 @@ const navItems = [
     label: "Dashboard",
     href: "/",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
   },
   {
-    label: "Scan",
-    href: "/scan",
+    label: "Calendar",
+    href: "/events",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 010 2H5v2a1 1 0 01-2 0V4zm0 8a1 1 0 012 0v2h2a1 1 0 110 2H4a1 1 0 01-1-1v-3zm10-9a1 1 0 100 2h2v2a1 1 0 102 0V4a1 1 0 00-1-1h-3zm4 9a1 1 0 10-2 0v2h-2a1 1 0 100 2h3a1 1 0 001-1v-3z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
       </svg>
     ),
   },
@@ -26,8 +30,31 @@ const navItems = [
     label: "Items",
     href: "/items",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+        <path d="M2 17l10 5 10-5" />
+        <path d="M2 12l10 5 10-5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Kits",
+    href: "/kits",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+        <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" />
+      </svg>
+    ),
+  },
+  {
+    label: "Users",
+    href: "/users",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
       </svg>
     ),
   },
@@ -35,8 +62,9 @@ const navItems = [
     label: "Reservations",
     href: "/reservations",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1V8a1 1 0 011-1h1z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M12 8v8M8 12h8" />
       </svg>
     ),
   },
@@ -44,112 +72,48 @@ const navItems = [
     label: "Check-outs",
     href: "/checkouts",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9.707 5.707a1 1 0 00-1.414-1.414L9 12.586l-1.293-1.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2" />
+        <path d="M9 12l2 2 4-4" />
       </svg>
     ),
-  },
-  {
-    label: "Events",
-    href: "/events",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-      </svg>
-    )
-  },
-  {
-    label: "Labels",
-    href: "/labels",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-      </svg>
-    )
-  },
-  {
-    label: "Import",
-    href: "/import",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-      </svg>
-    )
-  },
-  {
-    label: "Notifications",
-    href: "/notifications",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-      </svg>
-    )
-  },
-  {
-    label: "Reports",
-    href: "/reports",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-      </svg>
-    )
-  },
-  {
-    label: "Users",
-    href: "/users",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path d="M13 7a3 3 0 11-6 0 3 3 0 016 0z" />
-        <path fillRule="evenodd" d="M5 14a4 4 0 118 0v1a1 1 0 11-2 0v-1a2 2 0 10-4 0v1a1 1 0 11-2 0v-1z" clipRule="evenodd" />
-      </svg>
-    )
   },
   {
     label: "Settings",
     href: "/settings",
     icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
       </svg>
     ),
   },
-  {
-    label: "Profile",
-    href: "/profile",
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 2a4 4 0 100 8 4 4 0 000-8zM3 16a7 7 0 1114 0v1a1 1 0 11-2 0v-1a5 5 0 10-10 0v1a1 1 0 11-2 0v-1z" clipRule="evenodd" />
-      </svg>
-    ),
-  }
 ];
 
 type SidebarProps = {
   user: { name: string; email: string } | null;
   open?: boolean;
   onClose?: () => void;
-  unreadNotifications?: number;
+  onSignOut?: () => void;
 };
 
-export default function Sidebar({ user, open, onClose, unreadNotifications = 0 }: SidebarProps) {
+export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
-      <div className="sidebar-header">
-        <div className="sidebar-brand-wrap">
-          <div className="w-logo">W</div>
-          <div className="sidebar-brand">Creative</div>
+      {/* User profile header */}
+      {user && (
+        <div className="sidebar-profile">
+          <div className="sidebar-avatar-lg">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="sidebar-profile-name">{user.name}</div>
         </div>
-      </div>
+      )}
 
-      <select className="sidebar-location" defaultValue="all">
-        <option value="all">All locations</option>
-      </select>
-
+      {/* Navigation */}
       <nav className="sidebar-nav">
-        <div className="sidebar-section-label">Main</div>
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -164,36 +128,18 @@ export default function Sidebar({ user, open, onClose, unreadNotifications = 0 }
             >
               {item.icon}
               {item.label}
-              {item.href === "/notifications" && unreadNotifications > 0 && (
-                <span style={{
-                  marginLeft: "auto",
-                  background: "var(--red, #ef4444)",
-                  color: "#fff",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  borderRadius: 10,
-                  padding: "1px 7px",
-                  minWidth: 18,
-                  textAlign: "center",
-                  lineHeight: "18px",
-                }}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
-              )}
             </Link>
           );
         })}
       </nav>
 
-      {user && (
-        <Link href="/profile" className="sidebar-footer" style={{ textDecoration: "none", color: "inherit" }}>
-          <div className="sidebar-avatar">
-            {user.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="sidebar-user-info">
-            <div className="sidebar-user-name">{user.name}</div>
-            <div className="sidebar-user-email">{user.email}</div>
-          </div>
-        </Link>
-      )}
+      {/* Log out */}
+      <button className="sidebar-logout" onClick={onSignOut}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+        </svg>
+        Log out
+      </button>
     </aside>
   );
 }
