@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
+import EmptyState from "@/components/EmptyState";
 
 type Notification = {
   id: string;
@@ -174,9 +175,11 @@ export default function NotificationsPage() {
             <div className="spinner" />
           </div>
         ) : notifications.length === 0 ? (
-          <div className="empty-state">
-            {unreadOnly ? "No unread notifications" : "No notifications yet"}
-          </div>
+          <EmptyState
+            icon="bell"
+            title={unreadOnly ? "No unread notifications" : "No notifications yet"}
+            description={unreadOnly ? "All caught up!" : "You'll see overdue alerts and booking updates here."}
+          />
         ) : (
           <>
             <div style={{ display: "flex", flexDirection: "column" }}>

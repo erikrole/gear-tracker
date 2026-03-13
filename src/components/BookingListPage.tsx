@@ -16,6 +16,8 @@ import {
 import { formatDateShort } from "@/lib/format";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 import { useToast } from "@/components/Toast";
+import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   AVAILABLE: "#22c55e",
@@ -617,20 +619,20 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                 </div>
 
                 {createSport && (
-                  <div style={{ marginBottom: 14 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
+                  <div className="event-section">
+                    <label className="event-section-label">
                       Upcoming events (next 30 days)
                     </label>
                     {eventsLoading ? (
-                      <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+                      <div className="empty-message">
                         Loading events...
                       </div>
                     ) : events.length === 0 ? (
-                      <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13, border: "1px solid var(--border-light)", borderRadius: "var(--radius)" }}>
+                      <div className="empty-message-bordered">
                         No upcoming events for {sportLabel(createSport)}. Toggle off {"\u201c"}Tie to event{"\u201d"} to create without an event, or add events via the Events page.
                       </div>
                     ) : (
-                      <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                      <div className="event-scroll">
                         {events.map((ev) => (
                           <div
                             key={ev.id}
@@ -650,7 +652,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                               </div>
                             </div>
                             {ev.isHome !== null && (
-                              <span className="badge badge-gray" style={{ fontSize: 10 }}>
+                              <span className="badge badge-gray badge-gray-sm">
                                 {ev.isHome ? "HOME" : "AWAY"}
                               </span>
                             )}
@@ -731,9 +733,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
             </div>
 
             {/* Equipment picker — sectioned flow */}
-            <div style={{ marginTop: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+            <div className="equip-picker-wrap">
+              <div className="equip-picker-header">
+                <label className="equip-picker-label">
                   Equipment{equipmentCount > 0 ? ` (${equipmentCount} selected)` : ""}
                 </label>
                 {showEquipPicker && (
@@ -741,7 +743,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                     type="button"
                     className="btn btn-sm"
                     onClick={() => { setShowEquipPicker(false); setEquipSearch(""); }}
-                    style={{ minHeight: 32 }}
                   >
                     Done adding
                   </button>
@@ -750,17 +751,17 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
               {/* Persistent selected items summary */}
               {equipmentCount > 0 && (
-                <div style={{ marginBottom: 8, border: "1px solid var(--border-light)", borderRadius: "var(--radius)", padding: "6px 10px" }}>
+                <div className="equip-selected-box">
                   {selectedAssetIds.map((assetId) => {
                     const asset = availableAssets.find((a) => a.id === assetId);
                     if (!asset) return null;
                     return (
-                      <div key={assetId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", minHeight: 36, gap: 8 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, fontSize: 12 }}>{asset.assetTag}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>{asset.name || `${asset.brand} ${asset.model}`}</span>
+                      <div key={assetId} className="equip-selected-row">
+                        <div className="flex-truncate">
+                          <span className="equip-selected-tag">{asset.assetTag}</span>
+                          <span className="equip-selected-detail">{asset.name || `${asset.brand} ${asset.model}`}</span>
                         </div>
-                        <button type="button" style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
+                        <button type="button" className="remove-btn"
                           onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
                       </div>
                     );
@@ -768,13 +769,13 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                   {selectedBulkItems.map((item) => {
                     const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
                     return (
-                      <div key={item.bulkSkuId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 0", minHeight: 36, gap: 8 }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, fontSize: 12 }}>{sku?.name || item.bulkSkuId}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 6 }}>&times;{item.quantity}</span>
+                      <div key={item.bulkSkuId} className="equip-selected-row">
+                        <div className="flex-truncate">
+                          <span className="equip-selected-tag">{sku?.name || item.bulkSkuId}</span>
+                          <span className="equip-selected-detail">&times;{item.quantity}</span>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <div className="qty-stepper" style={{ flexShrink: 0 }}>
+                        <div className="bulk-actions">
+                          <div className="qty-stepper">
                             <button type="button" onClick={() => {
                               if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
                               else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
@@ -786,7 +787,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                             }} />
                             <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}>+</button>
                           </div>
-                          <button type="button" style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 14, padding: "2px 6px" }}
+                          <button type="button" className="remove-btn"
                             onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}>&times;</button>
                         </div>
                       </div>
@@ -797,9 +798,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
               {/* Sectioned picker */}
               {showEquipPicker && (
-                <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
+                <div className="section-picker">
                   {/* Section tabs */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 0, borderBottom: "1px solid var(--border)" }}>
+                  <div className="section-tabs">
                     {EQUIPMENT_SECTIONS.map((sec) => {
                       const reachable = isSectionReachable(sec.key, highestReached);
                       const isActive = activeSection === sec.key;
@@ -808,26 +809,12 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                           key={sec.key}
                           type="button"
                           disabled={!reachable}
+                          className={`section-tab${isActive ? " active" : ""}`}
                           onClick={() => { if (reachable) { setActiveSection(sec.key); setEquipSearch(""); } }}
-                          style={{
-                            flex: "1 1 auto",
-                            padding: "8px 10px",
-                            fontSize: 11,
-                            fontWeight: isActive ? 700 : 400,
-                            background: isActive ? "var(--bg-active, #f0f4ff)" : "transparent",
-                            border: "none",
-                            borderBottom: isActive ? "2px solid var(--primary, #3b82f6)" : "2px solid transparent",
-                            cursor: reachable ? "pointer" : "default",
-                            color: isActive ? "var(--primary, #3b82f6)" : reachable ? "var(--text-secondary)" : "var(--text-secondary)",
-                            opacity: reachable ? 1 : 0.4,
-                            whiteSpace: "nowrap",
-                            minHeight: 36,
-                            pointerEvents: reachable ? "auto" : "none",
-                          }}
                         >
                           {sec.label}
                           {sectionCounts[sec.key] > 0 && (
-                            <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>({sectionCounts[sec.key]})</span>
+                            <span className="section-tab-count">({sectionCounts[sec.key]})</span>
                           )}
                         </button>
                       );
@@ -836,23 +823,20 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
                   {/* Active section content */}
                   {activeSection && (
-                    <div style={{ padding: 10 }}>
+                    <div className="section-content">
                       <input
+                        className="picker-search"
                         placeholder="Search this section..."
                         value={equipSearch}
                         onChange={(e) => setEquipSearch(e.target.value)}
-                        style={{
-                          width: "100%", padding: "8px 12px", border: "1px solid var(--border)",
-                          borderRadius: "var(--radius)", fontSize: 13, outline: "none", boxSizing: "border-box",
-                        }}
                       />
 
-                      <div style={{ maxHeight: 220, overflowY: "auto", marginTop: 6 }}>
+                      <div className="picker-scroll">
                         {/* Serialized assets */}
                         {sectionAssets.length > 0 && (
                           <>
                             {sectionBulk.length > 0 && (
-                              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", padding: "6px 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Assets</div>
+                              <div className="section-subheading">Assets</div>
                             )}
                             {sectionAssets.slice(0, 50).map((asset) => {
                               const isAvailable = asset.computedStatus === "AVAILABLE";
@@ -867,14 +851,13 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                                     if (!isAvailable) return;
                                     setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id]);
                                   }}
-                                  style={!isAvailable ? { cursor: "default" } : undefined}
                                 >
-                                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: dotColor, flexShrink: 0, marginTop: 5 }} title={statusLabel} />
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 14, opacity: isAvailable ? 1 : 0.5 }}>
+                                  <span className="equip-picker-dot" style={{ backgroundColor: dotColor }} title={statusLabel} />
+                                  <div className="flex-truncate">
+                                    <div className="asset-tag-label">
                                       {asset.assetTag}
                                     </div>
-                                    <div className="equip-picker-meta" style={{ opacity: isAvailable ? 1 : 0.5 }}>
+                                    <div className="equip-picker-meta">
                                       {asset.name || `${asset.brand} ${asset.model}`}
                                       {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
                                       {asset.location ? ` · ${asset.location.name}` : ""}
@@ -891,7 +874,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                         {sectionBulk.length > 0 && (
                           <>
                             {sectionAssets.length > 0 && (
-                              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-secondary)", padding: "8px 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bulk Items</div>
+                              <div className="section-subheading">Bulk Items</div>
                             )}
                             {sectionBulk.slice(0, 50).map((sku) => (
                               <div
@@ -902,7 +885,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                                 )}
                               >
                                 <div>
-                                  <div style={{ fontWeight: 600, fontSize: 13 }}>{sku.name}</div>
+                                  <div className="bulk-sku-name">{sku.name}</div>
                                   <div className="equip-picker-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
                                 </div>
                               </div>
@@ -911,7 +894,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                         )}
 
                         {sectionAssets.length === 0 && sectionBulk.length === 0 && (
-                          <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+                          <div className="empty-message">
                             {equipSearch ? "No matching items in this section" : "No available items in this section"}
                           </div>
                         )}
@@ -922,18 +905,14 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                         <div
                           key={rule.id}
                           data-guidance={rule.id}
-                          style={{
-                            padding: "6px 10px", marginBottom: 4, borderRadius: "var(--radius)", fontSize: 12,
-                            background: rule.level === "warning" ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)",
-                            color: rule.level === "warning" ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)",
-                          }}
+                          className={`guidance-hint ${rule.level === "warning" ? "guidance-warning" : "guidance-info"}`}
                         >
                           {rule.message}
                         </div>
                       ))}
 
                       {/* Section navigation */}
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--border-light)" }}>
+                      <div className="section-nav">
                         {(() => {
                           const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
                           const prev = idx > 0 ? EQUIPMENT_SECTIONS[idx - 1] : null;
@@ -941,16 +920,16 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                           return (
                             <>
                               {prev ? (
-                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(prev.key)} style={{ minHeight: 32 }}>
+                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(prev.key)}>
                                   {"\u2190"} {prev.label}
                                 </button>
                               ) : <span />}
                               {next ? (
-                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(next.key)} style={{ minHeight: 32 }}>
+                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(next.key)}>
                                   {next.label} {"\u2192"}
                                 </button>
                               ) : (
-                                <button type="button" className="btn btn-sm" onClick={() => { setShowEquipPicker(false); setEquipSearch(""); }} style={{ minHeight: 32 }}>
+                                <button type="button" className="btn btn-sm" onClick={() => { setShowEquipPicker(false); setEquipSearch(""); }}>
                                   Done
                                 </button>
                               )}
@@ -964,15 +943,14 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
               )}
 
               {equipmentCount === 0 && !showEquipPicker && (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                <div className="equip-empty-hint">
+                  <div className="equip-empty-text">
                     No equipment selected. You can also add equipment after creating.
                   </div>
                   <button
                     type="button"
                     className="btn btn-sm"
                     onClick={() => { setShowEquipPicker(true); setActiveSection(EQUIPMENT_SECTIONS[0].key); }}
-                    style={{ minHeight: 32 }}
                   >
                     + Add equipment
                   </button>
@@ -981,7 +959,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
             </div>
 
             {createError && (
-              <div style={{ color: "var(--red)", fontSize: 13, marginTop: 4 }}>{createError}</div>
+              <div className="alert-error">{createError}</div>
             )}
           </div>
 
@@ -991,7 +969,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
               className="btn btn-primary"
               disabled={submitting}
               onClick={handleCreate}
-              style={{ minHeight: 44 }}
             >
               {submitting ? "Creating..." : `Create ${config.label}`}
             </button>
@@ -1001,21 +978,21 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
       {/* ════════ Filter bar ════════ */}
       <div className="card">
-        <div className="card-header" style={{ flexWrap: "wrap", gap: 8 }}>
+        <div className="card-header card-header-wrap">
           <h2>All {config.labelPlural.toLowerCase()}</h2>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: "auto", alignItems: "center" }}>
+          <div className="booking-filters">
             <input
               type="text"
+              className="form-input"
               placeholder="Search by title or requester..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, minHeight: 36, minWidth: 200 }}
             />
 
             <select
+              className="form-select"
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-              style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, background: "white", minHeight: 36 }}
             >
               <option value="">All statuses</option>
               {config.statusOptions.map((opt) => (
@@ -1025,9 +1002,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
             {config.hasSportFilter && sportCodesInUse.length > 0 && (
               <select
+                className="form-select"
                 value={sportFilter}
                 onChange={(e) => { setSportFilter(e.target.value); setPage(0); }}
-                style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, background: "white", minHeight: 36 }}
               >
                 <option value="">All sports</option>
                 {SPORT_CODES.map((s) => (
@@ -1038,9 +1015,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
             {locations.length > 1 && (
               <select
+                className="form-select"
                 value={locationFilter}
                 onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
-                style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: 13, background: "white", minHeight: 36 }}
               >
                 <option value="">All locations</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -1052,9 +1029,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
         {/* ════════ Booking list ════════ */}
         {loading ? (
-          <div className="loading-spinner"><div className="spinner" /></div>
+          <SkeletonTable rows={6} cols={5} />
         ) : items.length === 0 ? (
-          <div className="empty-state">No {config.labelPlural.toLowerCase()} found</div>
+          <EmptyState icon="clipboard" title={`No ${config.labelPlural.toLowerCase()} found`} description="Try adjusting your search or filters." />
         ) : (
           <>
             {/* Desktop table */}
@@ -1068,7 +1045,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                     <th className="hide-mobile">Duration</th>
                     <th className="hide-mobile">User</th>
                     <th className="hide-mobile">Items</th>
-                    <th style={{ width: 44 }}></th>
+                    <th className="col-overflow"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1080,14 +1057,13 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                     return (
                       <tr
                         key={item.id}
-                        className={sv.className}
-                        style={{ cursor: "pointer" }}
+                        className={`${sv.className} cursor-pointer`}
                         onClick={() => setSelectedBookingId(item.id)}
                         onContextMenu={(e) => handleContextMenu(e, item)}
                       >
                         <td>
                           <div className="booking-name-cell">
-                            <span className="row-link" style={{ fontWeight: 500 }}>{item.title}</span>
+                            <span className="row-link">{item.title}</span>
                             <span className="booking-status-line">
                               <span className="status-dot" style={{ background: sv.dot }} />
                               <span className="status-label">{sv.label}</span>
@@ -1134,7 +1110,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                   >
                     <div className="booking-mobile-top">
                       <div className="booking-mobile-name">
-                        <span className="row-link" style={{ fontWeight: 500 }}>{item.title}</span>
+                        <span className="row-link">{item.title}</span>
                         <span className="booking-status-line">
                           <span className="status-dot" style={{ background: sv.dot }} />
                           <span className="status-label">{sv.label}</span>

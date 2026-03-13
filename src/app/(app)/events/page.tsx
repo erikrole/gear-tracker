@@ -279,7 +279,7 @@ export default function EventsPage() {
     <>
       <div className="page-header">
         <h1>Events</h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-8">
           <button className="btn" onClick={() => setShowMappings(!showMappings)}>
             {showMappings ? "Hide mappings" : "Venue mappings"}
           </button>
@@ -362,7 +362,7 @@ export default function EventsPage() {
 
       {/* Venue mapping panel */}
       {showMappings && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card mb-16">
           <div className="card-header">
             <h2>Venue Mappings</h2>
             <button className="btn btn-sm btn-primary" onClick={() => setShowAddMapping(!showAddMapping)}>
@@ -370,20 +370,20 @@ export default function EventsPage() {
             </button>
           </div>
 
-          <div style={{ padding: "8px 16px 0", fontSize: 12, color: "var(--text-secondary)" }}>
+          <div className="text-xs text-secondary" style={{ padding: "8px 16px 0" }}>
             Patterns are matched against the combined venue + summary text from calendar events during sync. Supports regex or plain text (case-insensitive).
           </div>
 
           {showAddMapping && (
-            <form onSubmit={handleAddMapping} style={{ padding: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input name="pattern" placeholder="Pattern (regex or text)" required style={{ flex: 2, minWidth: 150, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-              <select name="locationId" required style={{ flex: 1, minWidth: 120, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+            <form onSubmit={handleAddMapping} className="flex flex-wrap gap-8 p-16">
+              <input name="pattern" placeholder="Pattern (regex or text)" required className="form-input" style={{ flex: 2, minWidth: 150 }} />
+              <select name="locationId" required className="form-select" style={{ flex: 1, minWidth: 120 }}>
                 <option value="">Select location</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.id}>{loc.name}</option>
                 ))}
               </select>
-              <input name="priority" type="number" defaultValue="0" placeholder="Priority" style={{ width: 80, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} title="Higher priority mappings are checked first" />
+              <input name="priority" type="number" defaultValue="0" placeholder="Priority" className="form-input" style={{ width: 80 }} title="Higher priority mappings are checked first" />
               <button type="submit" className="btn btn-primary">Add</button>
             </form>
           )}
@@ -403,13 +403,12 @@ export default function EventsPage() {
               <tbody>
                 {mappings.map((m) => (
                   <tr key={m.id}>
-                    <td style={{ fontFamily: "monospace", fontSize: 12 }}>{m.pattern}</td>
+                    <td className="font-mono text-xs">{m.pattern}</td>
                     <td><span className="badge badge-blue">{m.location.name}</span></td>
                     <td>{m.priority}</td>
                     <td>
                       <button
-                        className="btn btn-sm"
-                        style={{ color: "var(--red, #dc2626)" }}
+                        className="btn btn-sm text-red"
                         onClick={() => handleDeleteMapping(m.id)}
                       >
                         Delete
@@ -425,7 +424,7 @@ export default function EventsPage() {
 
       {/* Sources management panel */}
       {showSources && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card mb-16">
           <div className="card-header">
             <h2>Calendar Sources</h2>
             <button className="btn btn-sm btn-primary" onClick={() => setShowAddSource(!showAddSource)}>
@@ -434,9 +433,9 @@ export default function EventsPage() {
           </div>
 
           {showAddSource && (
-            <form onSubmit={handleAddSource} style={{ padding: 16, display: "flex", gap: 8 }}>
-              <input name="name" placeholder="Source name" required style={{ flex: 1, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-              <input name="url" placeholder="webcal:// or https:// URL" required style={{ flex: 2, padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <form onSubmit={handleAddSource} className="flex gap-8 p-16">
+              <input name="name" placeholder="Source name" required className="form-input flex-1" />
+              <input name="url" placeholder="webcal:// or https:// URL" required className="form-input" style={{ flex: 2 }} />
               <button type="submit" className="btn btn-primary">Add</button>
             </form>
           )}
@@ -458,7 +457,7 @@ export default function EventsPage() {
               <tbody>
                 {sources.map((source) => (
                   <tr key={source.id} style={source.enabled ? {} : { opacity: 0.6 }}>
-                    <td style={{ fontWeight: 600 }}>{source.name}</td>
+                    <td className="font-semibold">{source.name}</td>
                     <td>{source._count.events}</td>
                     <td>
                       {source.lastFetchedAt ? (
@@ -494,7 +493,7 @@ export default function EventsPage() {
                         {source.enabled ? "Disable" : "Enable"}
                       </button>
                     </td>
-                    <td style={{ display: "flex", gap: 4 }}>
+                    <td className="flex gap-4">
                       <button
                         className="btn btn-sm"
                         onClick={() => handleSync(source.id)}
@@ -504,8 +503,7 @@ export default function EventsPage() {
                         {syncing === source.id ? "Syncing..." : "Sync now"}
                       </button>
                       <button
-                        className="btn btn-sm"
-                        style={{ color: "var(--red, #dc2626)" }}
+                        className="btn btn-sm text-red"
                         onClick={() => handleDeleteSource(source.id)}
                       >
                         Delete
@@ -520,8 +518,8 @@ export default function EventsPage() {
       )}
 
       {/* Filters and view toggle */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 4, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+      <div className="flex-center flex-wrap gap-16 mb-16">
+        <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <button
             className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : ""}`}
             onClick={() => setViewMode("list")}
@@ -539,12 +537,12 @@ export default function EventsPage() {
         </div>
         {viewMode === "list" && (
           <>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-              <input type="checkbox" checked={unmappedOnly} onChange={(e) => setUnmappedOnly(e.target.checked)} style={{ width: 16, height: 16 }} />
+            <label className="flex-center gap-6 text-sm cursor-pointer">
+              <input type="checkbox" checked={unmappedOnly} onChange={(e) => setUnmappedOnly(e.target.checked)} />
               Unmapped only
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-              <input type="checkbox" checked={includePast} onChange={(e) => setIncludePast(e.target.checked)} style={{ width: 16, height: 16 }} />
+            <label className="flex-center gap-6 text-sm cursor-pointer">
+              <input type="checkbox" checked={includePast} onChange={(e) => setIncludePast(e.target.checked)} />
               Include past events
             </label>
           </>
@@ -553,10 +551,10 @@ export default function EventsPage() {
 
       {/* Calendar view */}
       {viewMode === "calendar" && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="card-header" style={{ justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button className="btn btn-sm" onClick={prevMonth}>{"\u2039"}</button>
+        <div className="card mb-16">
+          <div className="card-header flex-between">
+            <div className="flex-center gap-8">
+              <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
               <h2 style={{ minWidth: 160, textAlign: "center" }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
               </h2>
@@ -564,7 +562,7 @@ export default function EventsPage() {
             </div>
             <button className="btn btn-sm" onClick={goCalToday}>Today</button>
           </div>
-          <div style={{ padding: "12px 16px" }}>
+          <div className="p-16">
             <div className="cal-grid">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                 <div key={d} className="cal-header">{d}</div>
@@ -621,7 +619,7 @@ export default function EventsPage() {
               <tbody>
                 {events.map((event) => (
                   <tr key={event.id}>
-                    <td style={{ fontWeight: 600 }}>
+                    <td className="font-semibold">
                       <Link href={`/events/${event.id}`} className="row-link">
                         {event.summary}
                       </Link>
@@ -635,7 +633,7 @@ export default function EventsPage() {
                         <span className="badge badge-orange">needs mapping</span>
                       )}
                     </td>
-                    <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    <td className="text-xs text-secondary">
                       {event.source?.name}
                     </td>
                   </tr>

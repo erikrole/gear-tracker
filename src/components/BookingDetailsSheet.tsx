@@ -634,11 +634,11 @@ export default function BookingDetailsSheet({
         {/* Header */}
         <div className="sheet-header">
           <div>
-            <h2 style={{ fontFamily: "var(--font-heading)" }}>
+            <h2 className="sheet-title">
               {booking?.title || "Loading..."}
             </h2>
             {booking && (
-              <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+              <div className="badge-row">
                 <span className={`badge ${statusBadge[booking.status] || "badge-gray"}`}>
                   {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
                 </span>
@@ -678,7 +678,7 @@ export default function BookingDetailsSheet({
                 <>
                   {/* Conflict error banner */}
                   {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
-                    <div className="sheet-section" style={{ paddingBottom: 0 }}>
+                    <div className="sheet-section sheet-section-no-pb">
                       <div className="conflict-error">
                         <strong>Scheduling conflict</strong>
                         {conflictError.conflicts.map((c, i) => (
@@ -712,9 +712,9 @@ export default function BookingDetailsSheet({
 
                   {/* Return suggestion (C) */}
                   {returnSuggestion && booking.isActive && (
-                    <div className="sheet-section" style={{ paddingTop: 0 }}>
+                    <div className="sheet-section sheet-section-no-pt">
                       <div className="return-suggestion">
-                        <span style={{ fontSize: 16 }}>{"\u21b5"}</span>
+                        <span className="return-icon">{"\u21b5"}</span>
                         {returnSuggestion}
                       </div>
                     </div>
@@ -724,19 +724,17 @@ export default function BookingDetailsSheet({
                   {checkinProgress && checkinProgress.returned > 0 && (
                     <div className="sheet-section">
                       <div className="sheet-section-title">Check-in progress</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ flex: 1, height: 8, background: "var(--border-light)", borderRadius: 4, overflow: "hidden" }}>
+                      <div className="progress-row">
+                        <div className="progress-track">
                           <div
+                            className="progress-fill"
                             style={{
                               width: `${checkinProgress.percent}%`,
-                              height: "100%",
                               background: checkinProgress.percent === 100 ? "#22c55e" : "#3b82f6",
-                              borderRadius: 4,
-                              transition: "width 0.3s ease",
                             }}
                           />
                         </div>
-                        <span style={{ fontSize: 12, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+                        <span className="progress-label">
                           {checkinProgress.returned}/{checkinProgress.total} returned
                         </span>
                       </div>
@@ -800,16 +798,15 @@ export default function BookingDetailsSheet({
                     />
                   </div>
 
-                  <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                  <div className="action-row-mt">
                     <button
                       className="btn btn-primary"
                       disabled={saving}
                       onClick={handleSave}
-                      style={{ minHeight: 44 }}
                     >
                       {saving ? "Saving..." : "Save changes"}
                     </button>
-                    <button className="btn" onClick={() => setEditMode(false)} style={{ minHeight: 44 }}>Cancel</button>
+                    <button className="btn" onClick={() => setEditMode(false)}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -817,27 +814,21 @@ export default function BookingDetailsSheet({
               {/* ── Equipment Tab - View Mode ── */}
               {tab === "equipment" && !equipEditMode && (
                 <>
-                  <div className="sheet-section" style={{ paddingBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                  <div className="sheet-section sheet-equip-bar">
                     <input
+                      className="picker-search"
                       placeholder="Search equipment..."
                       value={equipSearch}
                       onChange={(e) => setEquipSearch(e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius)",
-                        fontSize: 13,
-                        outline: "none",
-                      }}
+                      style={{ flex: 1 }}
                     />
                     {canEditEquipment && (
-                      <button className="btn btn-sm" onClick={enterEquipEditMode} style={{ minHeight: 36 }}>
+                      <button className="btn btn-sm" onClick={enterEquipEditMode}>
                         Edit
                       </button>
                     )}
                     {!canEditEquipment && booking.kind === "CHECKOUT" && (
-                      <span style={{ fontSize: 12, color: "var(--text-secondary)", alignSelf: "center" }}>
+                      <span className="text-hint">
                         View only
                       </span>
                     )}
@@ -852,27 +843,26 @@ export default function BookingDetailsSheet({
                             <th>Item</th>
                             <th>Brand/Model</th>
                             <th>Serial</th>
-                            {canCheckin && <th style={{ width: 90 }}>Status</th>}
+                            {canCheckin && <th className="col-status">Status</th>}
                           </tr>
                         </thead>
                         <tbody>
                           {filteredSerializedItems.map((item) => (
-                            <tr key={item.id} style={item.allocationStatus === "returned" ? { opacity: 0.55 } : undefined}>
-                              <td style={{ fontWeight: 600 }}>
+                            <tr key={item.id} className={item.allocationStatus === "returned" ? "returned-row" : undefined}>
+                              <td className="cell-bold">
                                 <Link href={`/items/${item.asset.id}`} className="row-link">{item.asset.assetTag}</Link>
                               </td>
                               <td>{item.asset.brand} {item.asset.model}</td>
-                              <td style={{ fontFamily: "monospace", fontSize: 11 }}>{item.asset.serialNumber}</td>
+                              <td className="cell-mono">{item.asset.serialNumber}</td>
                               {canCheckin && (
                                 <td>
                                   {item.allocationStatus === "returned" ? (
-                                    <span className="badge badge-purple" style={{ fontSize: 10 }}>returned</span>
+                                    <span className="badge badge-purple badge-purple-sm">returned</span>
                                   ) : (
                                     <button
-                                      className="btn btn-sm"
+                                      className="btn btn-sm btn-return"
                                       disabled={checkinLoading}
                                       onClick={(e) => { e.stopPropagation(); handleCheckinItem(item.asset.id); }}
-                                      style={{ minHeight: 32, fontSize: 11 }}
                                     >
                                       Return
                                     </button>
@@ -900,7 +890,7 @@ export default function BookingDetailsSheet({
                         <tbody>
                           {filteredBulkItems.map((item) => (
                             <tr key={item.id}>
-                              <td style={{ fontWeight: 600 }}>{item.bulkSku.name}</td>
+                              <td className="cell-bold">{item.bulkSku.name}</td>
                               <td>{item.bulkSku.category}</td>
                               <td>{item.plannedQuantity} {item.bulkSku.unit}</td>
                             </tr>
@@ -923,7 +913,7 @@ export default function BookingDetailsSheet({
                 <>
                   {/* Conflict error */}
                   {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
-                    <div className="sheet-section" style={{ paddingBottom: 0 }}>
+                    <div className="sheet-section sheet-section-no-pb">
                       <div className="conflict-error">
                         <strong>Scheduling conflict</strong>
                         {conflictError.conflicts.map((c, i) => (
@@ -945,22 +935,13 @@ export default function BookingDetailsSheet({
                       {editSerializedIds.map((assetId) => (
                         <div
                           key={assetId}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "6px 0",
-                            borderBottom: "1px solid var(--border-light)",
-                            gap: 8,
-                            minHeight: 44,
-                          }}
+                          className="equip-edit-row"
                         >
-                          <span style={{ fontSize: 13 }}>
+                          <span className="equip-edit-name">
                             {resolveAssetName(assetId)}
                           </span>
                           <button
-                            className="btn btn-sm"
-                            style={{ color: "var(--red)", borderColor: "var(--red)", flexShrink: 0 }}
+                            className="btn btn-sm btn-danger-outline"
                             onClick={async () => {
                               const ok = await confirm({
                                 title: "Remove item",
@@ -987,17 +968,9 @@ export default function BookingDetailsSheet({
                       {editBulkItems.map((item) => (
                         <div
                           key={item.bulkSkuId}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "6px 0",
-                            borderBottom: "1px solid var(--border-light)",
-                            gap: 8,
-                            minHeight: 44,
-                          }}
+                          className="equip-edit-row"
                         >
-                          <span style={{ fontSize: 13, flex: 1 }}>
+                          <span className="equip-edit-name-flex">
                             {resolveSkuName(item.bulkSkuId)}
                           </span>
                           <div className="qty-stepper">
@@ -1015,8 +988,7 @@ export default function BookingDetailsSheet({
                             </button>
                           </div>
                           <button
-                            className="btn btn-sm"
-                            style={{ color: "var(--red)", borderColor: "var(--red)", flexShrink: 0 }}
+                            className="btn btn-sm btn-danger-outline"
                             onClick={() => removeBulkItem(item.bulkSkuId)}
                           >
                             &times;
@@ -1030,15 +1002,14 @@ export default function BookingDetailsSheet({
                   <div className="sheet-section">
                     {!addingItems ? (
                       <button
-                        className="btn"
+                        className="btn btn-full"
                         onClick={() => { setAddingItems(true); setPickerSearch(""); }}
-                        style={{ width: "100%", minHeight: 44 }}
                       >
                         + Add items
                       </button>
                     ) : (
                       <div>
-                        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                        <div className="picker-tabs">
                           <button
                             className={`filter-chip ${pickerTab === "serialized" ? "active" : ""}`}
                             onClick={() => setPickerTab("serialized")}
@@ -1056,20 +1027,13 @@ export default function BookingDetailsSheet({
                           placeholder={pickerTab === "serialized" ? "Search by tag, brand, model..." : "Search bulk items..."}
                           value={pickerSearch}
                           onChange={(e) => setPickerSearch(e.target.value)}
+                          className="picker-search"
                           autoFocus
-                          style={{
-                            width: "100%",
-                            padding: "8px 12px",
-                            border: "1px solid var(--border)",
-                            borderRadius: "var(--radius)",
-                            fontSize: 13,
-                            outline: "none",
-                          }}
                         />
                         <div className="equip-picker-list">
                           {pickerTab === "serialized" ? (
                             pickerAssets.length === 0 ? (
-                              <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+                              <div className="empty-message">
                                 {pickerSearch ? "No matching assets" : "No available assets"}
                               </div>
                             ) : (
@@ -1080,7 +1044,7 @@ export default function BookingDetailsSheet({
                                   onClick={() => addSerializedItem(asset.id)}
                                 >
                                   <div>
-                                    <div style={{ fontWeight: 600 }}>{asset.assetTag}</div>
+                                    <div className="picker-item-name">{asset.assetTag}</div>
                                     <div className="equip-picker-meta">{asset.brand} {asset.model}</div>
                                   </div>
                                 </div>
@@ -1088,7 +1052,7 @@ export default function BookingDetailsSheet({
                             )
                           ) : (
                             pickerBulkSkus.length === 0 ? (
-                              <div style={{ padding: 16, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+                              <div className="empty-message">
                                 {pickerSearch ? "No matching bulk items" : "No available bulk items"}
                               </div>
                             ) : (
@@ -1099,7 +1063,7 @@ export default function BookingDetailsSheet({
                                   onClick={() => addBulkItem(sku.id)}
                                 >
                                   <div>
-                                    <div style={{ fontWeight: 600 }}>{sku.name}</div>
+                                    <div className="picker-item-name">{sku.name}</div>
                                     <div className="equip-picker-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
                                   </div>
                                 </div>
@@ -1108,8 +1072,7 @@ export default function BookingDetailsSheet({
                           )}
                         </div>
                         <button
-                          className="btn btn-sm"
-                          style={{ marginTop: 8 }}
+                          className="btn btn-sm btn-mt"
                           onClick={() => setAddingItems(false)}
                         >
                           Done adding
@@ -1120,19 +1083,17 @@ export default function BookingDetailsSheet({
 
                   {/* Save / Cancel equip edit */}
                   <div className="sheet-section">
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div className="action-row">
                       <button
                         className="btn btn-primary"
                         disabled={equipSaving}
                         onClick={handleEquipSave}
-                        style={{ minHeight: 44 }}
                       >
                         {equipSaving ? "Saving..." : "Save equipment"}
                       </button>
                       <button
                         className="btn"
                         onClick={() => { setEquipEditMode(false); setConflictError(null); }}
-                        style={{ minHeight: 44 }}
                       >
                         Cancel
                       </button>
@@ -1184,7 +1145,7 @@ export default function BookingDetailsSheet({
                           {entry.action === "updated" && entry.afterJson && (
                             <div className="timeline-detail">
                               {Object.keys(entry.afterJson).filter((k) => k !== "serializedAssetIds" && k !== "bulkItems").map((k) => (
-                                <span key={k} style={{ marginRight: 8 }}>{k}</span>
+                                <span key={k} className="field-tag">{k}</span>
                               ))}
                             </div>
                           )}
@@ -1233,7 +1194,7 @@ export default function BookingDetailsSheet({
                                     </div>
                                   )}
                                   {entry.afterJson && (
-                                    <div style={{ marginTop: entry.beforeJson ? 8 : 0 }}>
+                                    <div className={entry.beforeJson ? "diff-after-section" : undefined}>
                                       <strong>After:</strong>{"\n"}
                                       {JSON.stringify(entry.afterJson, null, 2)}
                                     </div>
@@ -1256,12 +1217,11 @@ export default function BookingDetailsSheet({
         {booking && !editMode && !equipEditMode && (
           <div className="sheet-actions">
             {canEdit && (
-              <button className="btn btn-primary" onClick={enterEditMode} style={{ minHeight: 44 }}>Edit</button>
+              <button className="btn btn-primary" onClick={enterEditMode}>Edit</button>
             )}
             {canCheckin && (
               <button
-                className="btn"
-                style={{ minHeight: 44, background: "#22c55e", color: "white", border: "none" }}
+                className="btn btn-checkin"
                 disabled={checkinLoading}
                 onClick={handleCheckinAll}
               >
@@ -1269,19 +1229,18 @@ export default function BookingDetailsSheet({
               </button>
             )}
             {canConvert && (
-              <button className="btn btn-primary" onClick={handleConvert} style={{ minHeight: 44 }}>
+              <button className="btn btn-primary" onClick={handleConvert}>
                 Start checkout
               </button>
             )}
             {canCancel && (
-              <button className="btn btn-danger" onClick={handleCancel} style={{ minHeight: 44 }}>
+              <button className="btn btn-danger" onClick={handleCancel}>
                 {booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
               </button>
             )}
             <Link
               href={booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`}
-              className="btn"
-              style={{ textDecoration: "none", marginLeft: "auto", minHeight: 44, display: "inline-flex", alignItems: "center" }}
+              className="btn btn-full-page"
             >
               Full page
             </Link>
