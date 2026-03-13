@@ -15,6 +15,7 @@ import {
 } from "@/lib/equipment-sections";
 import { formatDateShort } from "@/lib/format";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
+import { useToast } from "@/components/Toast";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   AVAILABLE: "#22c55e",
@@ -203,6 +204,7 @@ function toLocalDateTimeValue(date: Date) {
 /* ───── Component ───── */
 
 export default function BookingListPage({ config }: { config: BookingListConfig }) {
+  const { toast } = useToast();
   // ── List state ──
   const [items, setItems] = useState<BookingItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -479,11 +481,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alert((json as Record<string, string>).error || "Extend failed");
+        toast((json as Record<string, string>).error || "Extend failed", "error");
       }
       await reload();
     } catch {
-      alert("Network error \u2014 please try again.");
+      toast("Network error — please try again.", "error");
     }
   }
 

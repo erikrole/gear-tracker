@@ -11,6 +11,8 @@ import {
   formatDateFull,
   formatDateTime,
 } from "@/lib/format";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -1161,6 +1163,8 @@ function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdi
 export default function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const confirmDialog = useConfirm();
+  const { toast } = useToast();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("info");
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -1230,35 +1234,47 @@ export default function ItemDetailsPage() {
           router.push(`/items/${json.data.id}`);
         } else {
           const json = await res.json().catch(() => ({}));
-          alert((json as Record<string, string>).error || "Duplicate failed");
+          toast((json as Record<string, string>).error || "Duplicate failed", "error");
         }
       } else if (action === "retire") {
-        if (!confirm("Retire this item? It will no longer be available for bookings.")) { setActionBusy(false); return; }
+        const ok = await confirmDialog({
+          title: "Retire item",
+          message: "Retire this item? It will no longer be available for bookings.",
+          confirmLabel: "Retire",
+          variant: "danger",
+        });
+        if (!ok) { setActionBusy(false); return; }
         const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          alert((json as Record<string, string>).error || "Retire failed");
+          toast((json as Record<string, string>).error || "Retire failed", "error");
         }
         loadAsset();
       } else if (action === "maintenance") {
         const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
         if (!res.ok) {
           const json = await res.json().catch(() => ({}));
-          alert((json as Record<string, string>).error || "Action failed");
+          toast((json as Record<string, string>).error || "Action failed", "error");
         }
         loadAsset();
       } else if (action === "delete") {
-        if (!confirm("Permanently delete this item? This cannot be undone.")) { setActionBusy(false); return; }
+        const ok = await confirmDialog({
+          title: "Delete item",
+          message: "Permanently delete this item? This cannot be undone.",
+          confirmLabel: "Delete",
+          variant: "danger",
+        });
+        if (!ok) { setActionBusy(false); return; }
         const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
         if (res.ok) {
           router.push("/items");
         } else {
           const json = await res.json().catch(() => ({}));
-          alert((json as Record<string, string>).error || "Delete failed");
+          toast((json as Record<string, string>).error || "Delete failed", "error");
         }
       }
     } catch {
-      alert("Network error \u2014 please try again.");
+      toast("Network error — please try again.", "error");
     }
     setActionBusy(false);
   }

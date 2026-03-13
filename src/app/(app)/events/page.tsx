@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
 
 type CalendarEvent = {
   id: string;
@@ -54,6 +56,8 @@ function formatTime(iso: string) {
 }
 
 export default function EventsPage() {
+  const confirmDialog = useConfirm();
+  const { toast } = useToast();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [sources, setSources] = useState<CalendarSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,7 +203,13 @@ export default function EventsPage() {
   }
 
   async function handleDeleteSource(sourceId: string) {
-    if (!confirm("Delete this source and all its events? Bookings linked to these events will be unlinked.")) return;
+    const ok = await confirmDialog({
+      title: "Delete calendar source",
+      message: "Delete this source and all its events? Bookings linked to these events will be unlinked.",
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/calendar-sources/${sourceId}`, { method: "DELETE" });
       if (res.ok) {
@@ -228,17 +238,23 @@ export default function EventsPage() {
         e.currentTarget.reset();
       } else {
         const json = await res.json().catch(() => ({}));
-        alert((json as Record<string, string>).error || "Failed to create mapping");
+        toast((json as Record<string, string>).error || "Failed to create mapping", "error");
       }
-    } catch { alert("Network error \u2014 please try again."); }
+    } catch { toast("Network error — please try again.", "error"); }
   }
 
   async function handleDeleteMapping(id: string) {
-    if (!confirm("Delete this venue mapping?")) return;
+    const ok = await confirmDialog({
+      title: "Delete venue mapping",
+      message: "Delete this venue mapping?",
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/location-mappings/${id}`, { method: "DELETE" });
       if (res.ok) await loadMappings();
-    } catch { alert("Network error \u2014 please try again."); }
+    } catch { toast("Network error — please try again.", "error"); }
   }
 
   async function handleAddSource(e: FormEvent<HTMLFormElement>) {

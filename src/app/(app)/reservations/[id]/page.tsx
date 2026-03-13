@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DataList from "@/components/DataList";
 import type { ReservationAction } from "@/lib/booking-actions";
 import { formatDateTime } from "@/lib/format";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
 
 /* ───── Types ───── */
 
@@ -108,6 +110,8 @@ type HistoryFilter = "all" | "booking" | "equipment";
 export default function ReservationDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -160,8 +164,13 @@ export default function ReservationDetailsPage() {
   /* ── Actions ── */
 
   async function handleCancel() {
-    if (!confirm("Cancel this reservation? This action cannot be undone."))
-      return;
+    const ok = await confirm({
+      title: "Cancel reservation",
+      message: "Cancel this reservation? This action cannot be undone.",
+      confirmLabel: "Cancel reservation",
+      variant: "danger",
+    });
+    if (!ok) return;
     setActionLoading("cancel");
     setActionError("");
     try {
@@ -170,14 +179,12 @@ export default function ReservationDetailsPage() {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setActionError(
-          (json as Record<string, string>).error || "Cancel failed"
-        );
+        toast((json as Record<string, string>).error || "Cancel failed", "error");
       } else {
         reload();
       }
     } catch {
-      setActionError("Network error \u2014 please try again.");
+      toast("Network error — please try again.", "error");
     }
     setActionLoading(null);
   }
@@ -277,8 +284,12 @@ export default function ReservationDetailsPage() {
   }
 
   async function handleConvert() {
-    if (!confirm("Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created with the same items."))
-      return;
+    const ok = await confirm({
+      title: "Convert to checkout",
+      message: "Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created with the same items.",
+      confirmLabel: "Start checkout",
+    });
+    if (!ok) return;
     setActionLoading("convert");
     setActionError("");
     try {
@@ -287,9 +298,7 @@ export default function ReservationDetailsPage() {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setActionError(
-          (json as Record<string, string>).error || "Conversion failed"
-        );
+        toast((json as Record<string, string>).error || "Conversion failed", "error");
         setActionLoading(null);
       } else {
         const json = await res.json().catch(() => ({}));
@@ -301,7 +310,7 @@ export default function ReservationDetailsPage() {
         }
       }
     } catch {
-      setActionError("Network error during conversion");
+      toast("Network error during conversion", "error");
       setActionLoading(null);
     }
   }
