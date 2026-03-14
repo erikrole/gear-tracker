@@ -1,6 +1,6 @@
 # Current Task Queue
 
-Last updated: 2026-03-11
+Last updated: 2026-03-14
 
 ---
 
@@ -39,12 +39,13 @@ Last updated: 2026-03-11
 - [x] **Item Detail: UW Asset Tag Mirror** — uwAssetTag shown in page header (2026-03-11)
 - [x] **Item Detail: Calendar Grid** — Month-view calendar with booking blocks (2026-03-11)
 - [x] **Item Detail: Booking Refresh Fix** — BookingDetailsSheet onUpdated wired to reload data (2026-03-11)
+- [x] **Duplicate/Clone Action** — Duplicate button on reservation detail + list context menu (2026-03-14)
 
 ---
 
 ## Next Up (Unstarted)
 
-- [ ] **Duplicate/Clone Action** — Single "Duplicate" action for reservations (deferred from V1 shipped)
+(empty)
 
 ---
 
