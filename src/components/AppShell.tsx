@@ -143,6 +143,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">Skip to content</a>
+
       {/* Mobile search overlay */}
       {searchOpen && (
         <div className="search-overlay" onClick={() => setSearchOpen(false)}>
@@ -224,7 +226,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         </header>
-        <div className="page-content">{children}</div>
+        <div id="main-content" className="page-content">{children}</div>
       </main>
 
       {/* Mobile bottom nav */}
