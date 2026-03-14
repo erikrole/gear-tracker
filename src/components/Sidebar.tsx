@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const navItems = [
@@ -108,8 +109,50 @@ type SidebarProps = {
   onSignOut?: () => void;
 };
 
+type ThemePref = "system" | "light" | "dark";
+
+function useTheme() {
+  const [theme, setThemeState] = useState<ThemePref>("system");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("theme") as ThemePref | null;
+    if (stored && ["system", "light", "dark"].includes(stored)) {
+      setThemeState(stored);
+      applyTheme(stored);
+    }
+  }, []);
+
+  function applyTheme(pref: ThemePref) {
+    const root = document.documentElement;
+    if (pref === "dark") {
+      root.setAttribute("data-theme", "dark");
+    } else if (pref === "light") {
+      root.setAttribute("data-theme", "light");
+    } else {
+      root.removeAttribute("data-theme");
+    }
+  }
+
+  function setTheme(pref: ThemePref) {
+    setThemeState(pref);
+    localStorage.setItem("theme", pref);
+    applyTheme(pref);
+  }
+
+  return { theme, setTheme };
+}
+
 export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps) {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+
+  function cycleTheme() {
+    const next: ThemePref = theme === "system" ? "dark" : theme === "dark" ? "light" : "system";
+    setTheme(next);
+  }
+
+  const themeIcon = theme === "dark" ? "\u{1F319}" : theme === "light" ? "\u2600\uFE0F" : "\u{1F4BB}";
+  const themeLabel = theme === "system" ? "System" : theme === "dark" ? "Dark" : "Light";
 
   return (
     <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
@@ -143,6 +186,14 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
           );
         })}
       </nav>
+
+      {/* Theme toggle */}
+      <div className="theme-toggle-row">
+        <button className="sidebar-logout" onClick={cycleTheme} style={{ marginTop: 0 }}>
+          <span>{themeIcon}</span>
+          {themeLabel}
+        </button>
+      </div>
 
       {/* Log out */}
       <button className="sidebar-logout" onClick={onSignOut}>

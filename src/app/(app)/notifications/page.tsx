@@ -128,15 +128,12 @@ export default function NotificationsPage() {
         <h1>
           Notifications
           {unreadCount > 0 && (
-            <span
-              className="badge badge-blue"
-              style={{ marginLeft: 8, fontSize: 13, verticalAlign: "middle" }}
-            >
+            <span className="badge badge-blue notif-badge">
               {unreadCount} unread
             </span>
           )}
         </h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="notif-header-actions">
           <button
             className="btn btn-sm"
             onClick={runProcessing}
@@ -153,8 +150,8 @@ export default function NotificationsPage() {
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ gap: 12 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+        <div className="card-header notif-filter-bar">
+          <label className="notif-filter-label">
             <input
               type="checkbox"
               checked={unreadOnly}
@@ -165,7 +162,7 @@ export default function NotificationsPage() {
             />
             Unread only
           </label>
-          <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-muted)" }}>
+          <span className="notif-count">
             {total} notification{total !== 1 ? "s" : ""}
           </span>
         </div>
@@ -182,42 +179,23 @@ export default function NotificationsPage() {
           />
         ) : (
           <>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="notif-list">
               {notifications.map((n) => (
-                <div
-                  key={n.id}
-                  style={{
-                    padding: "12px 16px",
-                    borderBottom: "1px solid var(--border)",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    background: n.readAt ? "transparent" : "var(--bg-highlight, rgba(59,130,246,0.04))"
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: n.readAt ? "transparent" : "var(--blue, #3b82f6)",
-                      marginTop: 6,
-                      flexShrink: 0
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: n.readAt ? 400 : 600, fontSize: 14 }}>
+                <div key={n.id} className={`notif-card${n.readAt ? "" : " notif-unread"}`}>
+                  <div className={`notif-dot${n.readAt ? "" : " active"}`} />
+                  <div className="notif-content">
+                    <div className="notif-title-row">
+                      <span className={`notif-title${n.readAt ? "" : " unread"}`}>
                         {n.title}
                       </span>
-                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      <span className="notif-time">
                         {formatTime(n.sentAt)}
                       </span>
                     </div>
-                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+                    <div className="notif-body">
                       {n.body}
                     </div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <div className="notif-actions">
                       {n.payload?.bookingId && (() => {
                         const kind = n.payload?.bookingKind;
                         const href = kind === "RESERVATION"
@@ -225,15 +203,14 @@ export default function NotificationsPage() {
                           : `/checkouts/${n.payload.bookingId}`;
                         const label = kind === "RESERVATION" ? "View reservation" : "View checkout";
                         return (
-                          <Link href={href} className="btn btn-sm" style={{ fontSize: 12 }}>
+                          <Link href={href} className="btn btn-sm notif-action-btn">
                             {label}
                           </Link>
                         );
                       })()}
                       {!n.readAt && (
                         <button
-                          className="btn btn-sm"
-                          style={{ fontSize: 12 }}
+                          className="btn btn-sm notif-action-btn"
                           onClick={() => markRead(n.id)}
                           disabled={markingId === n.id}
                         >

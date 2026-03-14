@@ -949,7 +949,7 @@ function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectB
         <div className="card-header">
           <div className="flex-center gap-8">
             <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
-            <h2 style={{ minWidth: 160, textAlign: "center" }}>{monthLabel}</h2>
+            <h2 className="cal-month-label">{monthLabel}</h2>
             <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
           </div>
           <button className="btn btn-sm" onClick={goToday}>Today</button>
@@ -987,9 +987,9 @@ function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectB
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 16, marginTop: 12, fontSize: 12, color: "var(--text-secondary)" }}>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#3b82f6", marginRight: 4, verticalAlign: "middle" }} />Checkout</span>
-        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#8b5cf6", marginRight: 4, verticalAlign: "middle" }} />Reservation</span>
+      <div className="cal-legend">
+        <span><span className="cal-legend-dot" style={{ background: "#3b82f6" }} />Checkout</span>
+        <span><span className="cal-legend-dot" style={{ background: "#8b5cf6" }} />Reservation</span>
       </div>
     </div>
   );
