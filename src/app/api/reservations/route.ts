@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { fail, ok, parsePagination } from "@/lib/http";
 import { createBooking } from "@/lib/services/bookings";
 import { parseDateRange } from "@/lib/time";
+import { createAuditEntry } from "@/lib/audit";
 import { createReservationSchema } from "@/lib/validation";
 
 export async function GET(req: Request) {
@@ -89,6 +90,15 @@ export async function POST(req: Request) {
       createdBy: actor.id,
       eventId: body.eventId,
       sportCode: body.sportCode,
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: reservation.id,
+      action: "create",
+      after: { title: reservation.title ?? body.title, kind: "RESERVATION" },
     });
 
     return ok({ data: reservation }, 201);

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createBulkSkuSchema } from "@/lib/validation";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function GET(req: Request) {
   try {
@@ -72,6 +73,15 @@ export async function POST(req: Request) {
         where: { id: sku.id },
         include: { balances: true }
       });
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "bulk_sku",
+      entityId: result.id,
+      action: "create",
+      after: { name: body.name, initialQuantity: body.initialQuantity },
     });
 
     return ok({ data: result }, 201);

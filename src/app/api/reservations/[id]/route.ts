@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { updateReservation } from "@/lib/services/bookings";
 import { getAllowedReservationActions, requireReservationAction } from "@/lib/services/booking-rules";
+import { createAuditEntry } from "@/lib/audit";
 import { updateReservationSchema } from "@/lib/validation";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -53,6 +54,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       bulkItems: body.bulkItems,
       notes: body.notes,
       status: body.status
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: params.id,
+      action: "edit",
+      after: body,
     });
 
     return ok({ data: reservation });

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { cancelBooking } from "@/lib/services/bookings";
 import { requireCheckoutAction, requireReservationAction } from "@/lib/services/booking-rules";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function POST(
   _req: Request,
@@ -21,6 +22,13 @@ export async function POST(
     }
 
     const result = await cancelBooking(id, actor.id);
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: id,
+      action: "cancel",
+    });
     return ok(result);
   } catch (error) {
     return fail(error);

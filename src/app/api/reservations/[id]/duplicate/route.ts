@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 import { createBooking } from "@/lib/services/bookings";
 import { requireReservationAction } from "@/lib/services/booking-rules";
 
@@ -47,6 +48,15 @@ export async function POST(
       createdBy: actor.id,
       eventId: source.eventId ?? undefined,
       sportCode: source.sportCode ?? undefined,
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: duplicate.id,
+      action: "duplicate",
+      after: { sourceReservationId: id, title: duplicate.title },
     });
 
     return ok({ data: duplicate }, 201);

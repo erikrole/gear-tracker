@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, HttpError } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 const patchSourceSchema = z.object({
   name: z.string().min(1).optional(),
@@ -26,6 +27,15 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       where: { id },
       data: body,
       include: { _count: { select: { events: true } } },
+    });
+
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "calendar_source",
+      entityId: id,
+      action: "edit",
+      after: body,
     });
 
     return ok({ data: updated });
@@ -54,6 +64,15 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 
     // Cascade deletes associated CalendarEvent rows (schema onDelete: Cascade)
     await db.calendarSource.delete({ where: { id } });
+
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "calendar_source",
+      entityId: id,
+      action: "delete",
+      before: { name: source.name },
+    });
 
     return ok({ deleted: true });
   } catch (error) {

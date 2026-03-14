@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { hashPassword, requireAuth, verifyPassword } from "@/lib/auth";
 import { changePasswordSchema, updateProfileSchema } from "@/lib/validation";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function GET() {
   try {
@@ -58,6 +59,14 @@ export async function PATCH(req: Request) {
         data: { passwordHash: nextHash }
       });
 
+      await createAuditEntry({
+        actorId: actor.id,
+        actorRole: actor.role,
+        entityType: "user",
+        entityId: actor.id,
+        action: "password_change",
+      });
+
       return ok({ message: "Password updated" });
     }
 
@@ -74,6 +83,15 @@ export async function PATCH(req: Request) {
       include: {
         location: { select: { id: true, name: true } }
       }
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "user",
+      entityId: actor.id,
+      action: "profile_update",
+      after: payload,
     });
 
     return ok({
