@@ -1836,6 +1836,29 @@ textarea:focus-visible {
 }
 
 /* ===== Item page tabs ===== */
+.cal-month-label {
+  min-width: 160px;
+  text-align: center;
+  margin: 0;
+}
+
+.cal-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cal-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
 .item-tabs {
   display: flex;
   gap: 20px;
@@ -4704,5 +4727,78 @@ tr.returned-row { opacity: 0.55; }
   .field-row {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+}
+
+/* ===== Item Detail Page Mobile Fixes ===== */
+@media (max-width: 768px) {
+  /* Page header: stack title and actions vertically */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  /* Action buttons: full-width row, compact */
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .header-action-btn {
+    min-width: 0;
+    flex: 1 1 auto;
+    min-height: 44px;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  /* Tabs: horizontal scroll instead of wrapping */
+  .item-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .item-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .item-tab {
+    white-space: nowrap;
+    padding: 10px 14px;
+    min-height: 44px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  /* Details list: reduce label width for more value space */
+  .details-list > div {
+    grid-template-columns: 80px 1fr;
+    gap: 10px;
+  }
+
+  /* Calendar month label */
+  .cal-month-label {
+    min-width: 120px;
+    font-size: 15px;
+  }
+
+  /* Calendar legend */
+  .cal-legend {
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11px;
+  }
+
+  /* Booking card active: stack title and countdown */
+  .flex-between {
+    flex-wrap: wrap;
+    gap: 6px;
   }
 }
