@@ -17,8 +17,8 @@ type Checkout = {
   endsAt: string;
   location: { name: string };
   requester: { id: string; name: string; email: string };
-  serializedItems: Array<{ id: string; asset: { id: string; assetTag: string; brand: string; model: string; serialNumber: string } }>;
-  bulkItems: Array<{ id: string; bulkSku: { name: string }; plannedQuantity: number; checkedOutQuantity: number | null }>;
+  serializedItems: Array<{ id: string; allocationStatus: string; asset: { id: string; assetTag: string; brand: string; model: string; serialNumber: string } }>;
+  bulkItems: Array<{ id: string; bulkSku: { name: string }; plannedQuantity: number; checkedOutQuantity: number | null; checkedInQuantity: number | null }>;
   allowedActions: CheckoutAction[];
 };
 
@@ -300,54 +300,88 @@ export default function CheckoutDetailsPage() {
           {checkout.serializedItems.length === 0 && checkout.bulkItems.length === 0 ? (
             <div className="empty-state">No items in this checkout.</div>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  {canCheckin && <th style={{ width: 32 }}></th>}
-                  <th>Item</th>
-                  <th>Brand/Model</th>
-                  <th>Serial</th>
-                </tr>
-              </thead>
-              <tbody>
-                {checkout.serializedItems.map((item) => (
-                  <tr key={item.id}>
-                    {canCheckin && (
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={checkinIds.has(item.asset.id)}
-                          onChange={() => {
-                            setCheckinIds((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(item.asset.id)) next.delete(item.asset.id);
-                              else next.add(item.asset.id);
-                              return next;
-                            });
-                          }}
-                          style={{ width: 16, height: 16 }}
-                        />
-                      </td>
+            <div>
+              {checkout.serializedItems.map((item) => {
+                const returned = item.allocationStatus === "returned";
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 16px",
+                      borderBottom: "1px solid var(--border)",
+                      background: returned ? "#f0fdf4" : "white",
+                      minHeight: 52,
+                    }}
+                  >
+                    {canCheckin && !returned && (
+                      <input
+                        type="checkbox"
+                        checked={checkinIds.has(item.asset.id)}
+                        onChange={() => {
+                          setCheckinIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.asset.id)) next.delete(item.asset.id);
+                            else next.add(item.asset.id);
+                            return next;
+                          });
+                        }}
+                        style={{ width: 20, height: 20, flexShrink: 0 }}
+                      />
                     )}
-                    <td>
-                      <Link href={`/items/${item.asset.id}`} style={{ fontWeight: 600, color: "var(--blue)" }}>
+                    {returned && (
+                      <div style={{
+                        width: 20, height: 20, borderRadius: "50%",
+                        background: "#22c55e", color: "white",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      }}>
+                        {"\u2713"}
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Link href={`/items/${item.asset.id}`} style={{ fontWeight: 600, color: "var(--blue)", textDecoration: "none" }}>
                         {item.asset.assetTag}
                       </Link>
-                    </td>
-                    <td>{item.asset.brand} {item.asset.model}</td>
-                    <td style={{ fontFamily: "monospace" }}>{item.asset.serialNumber}</td>
-                  </tr>
-                ))}
-                {checkout.bulkItems.map((item) => (
-                  <tr key={item.id}>
-                    {canCheckin && <td></td>}
-                    <td style={{ fontWeight: 600 }}>{item.bulkSku?.name ?? "Unknown"}</td>
-                    <td>Qty: {item.checkedOutQuantity ?? item.plannedQuantity}</td>
-                    <td></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                        {item.asset.brand} {item.asset.model}
+                      </div>
+                    </div>
+                    {returned ? (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#22c55e", flexShrink: 0 }}>Returned</span>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--text-secondary)", fontFamily: "monospace", flexShrink: 0 }}>
+                        {item.asset.serialNumber}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              {checkout.bulkItems.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 16px",
+                    borderBottom: "1px solid var(--border)",
+                    minHeight: 52,
+                  }}
+                >
+                  {canCheckin && <div style={{ width: 20 }} />}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{item.bulkSku?.name ?? "Unknown"}</div>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                      Qty: {item.checkedOutQuantity ?? item.plannedQuantity}
+                      {(item.checkedInQuantity ?? 0) > 0 && ` \u2014 ${item.checkedInQuantity} returned`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
