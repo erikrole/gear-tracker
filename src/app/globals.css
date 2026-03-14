@@ -56,14 +56,26 @@
 
   --green: #22c55e;
   --green-bg: #f0fdf4;
+  --green-text: #16a34a;
   --orange: #f59e0b;
   --orange-bg: #fffbeb;
+  --orange-text: #d97706;
   --red: #ef4444;
   --red-bg: #fef2f2;
+  --red-text: #dc2626;
+  --red-dark: #991b1b;
   --purple: #7c3aed;
   --purple-bg: #f5f3ff;
+  --purple-light: #8b5cf6;
   --pink: #ec4899;
   --blue: #3b82f6;
+  --blue-bg: #eff6ff;
+  --blue-text: #2563eb;
+
+  --indigo: #6366f1;
+  --overlay: rgba(0, 0, 0, 0.4);
+  --wi-red-hover: #a8040a;
+  --wi-red-dark: #7f1d1d;
 
   --radius: 10px;
   --radius-lg: 16px;
@@ -92,10 +104,65 @@
   --text-3xl: 26px;
 
   /* Focus ring */
-  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px #6366f1;
+  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--indigo);
 
   --wi-red: #c5050c;
   --wi-dark: #282728;
+}
+
+/* ===== Dark Mode ===== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --bg: #0f1117;
+    --panel: rgba(30, 32, 40, 0.85);
+    --panel-solid: #1a1c24;
+    --text: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --accent: #d4d4d8;
+    --accent-hover: #e4e4e7;
+    --accent-soft: rgba(255, 255, 255, 0.06);
+    --border: rgba(255, 255, 255, 0.1);
+    --border-light: rgba(255, 255, 255, 0.05);
+
+    --green: #4ade80;
+    --green-bg: rgba(34, 197, 94, 0.12);
+    --green-text: #4ade80;
+    --orange: #fbbf24;
+    --orange-bg: rgba(245, 158, 11, 0.12);
+    --orange-text: #fbbf24;
+    --red: #f87171;
+    --red-bg: rgba(239, 68, 68, 0.12);
+    --red-text: #f87171;
+    --red-dark: #fca5a5;
+    --purple: #a78bfa;
+    --purple-bg: rgba(124, 58, 237, 0.12);
+    --purple-light: #a78bfa;
+    --pink: #f472b6;
+    --blue: #60a5fa;
+    --blue-bg: rgba(59, 130, 246, 0.12);
+    --blue-text: #60a5fa;
+
+    --indigo: #818cf8;
+    --overlay: rgba(0, 0, 0, 0.6);
+    --wi-red: #dc2626;
+    --wi-red-hover: #ef4444;
+    --wi-red-dark: #991b1b;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+
+    --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--indigo);
+
+    --wi-dark: #1a1a1a;
+
+    --sidebar-bg: #0a0b0f;
+    --sidebar-hover: rgba(255, 255, 255, 0.06);
+    --sidebar-active: rgba(255, 255, 255, 0.1);
+  }
 }
 
 * {
@@ -157,6 +224,31 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ===== Selection & Placeholder ===== */
+::selection {
+  background: var(--indigo);
+  color: #fff;
+}
+
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+/* ===== Scrollbar ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* ===== App Shell ===== */
 .app-shell {
@@ -239,7 +331,7 @@ textarea:focus-visible {
   position: absolute;
   top: 2px;
   right: 2px;
-  background: var(--red, #ef4444);
+  background: var(--red);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -324,7 +416,7 @@ textarea:focus-visible {
 }
 
 .sidebar-nav a.active {
-  background: #6366f1;
+  background: var(--indigo);
   color: #fff;
 }
 
@@ -416,8 +508,8 @@ textarea:focus-visible {
 }
 
 .btn-primary:hover {
-  background: #1a1a1a;
-  border-color: #1a1a1a;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn-sm {
@@ -558,7 +650,7 @@ textarea:focus-visible {
 }
 
 .stat-strip-danger .stat-strip-value {
-  color: #dc2626;
+  color: var(--red-text);
 }
 
 .stat-strip-danger {
@@ -567,7 +659,7 @@ textarea:focus-visible {
 }
 
 .stat-strip-warning .stat-strip-value {
-  color: #d97706;
+  color: var(--orange-text);
 }
 
 .stat-strip-warning {
@@ -577,12 +669,12 @@ textarea:focus-visible {
 
 /* ── Overdue Banner ── */
 .overdue-banner {
-  background: #c5050c;
+  background: var(--wi-red);
   border-radius: var(--radius-lg);
   padding: 16px 20px;
   margin-bottom: 20px;
   color: white;
-  border-left: 4px solid #7f1d1d;
+  border-left: 4px solid var(--wi-red-dark);
 }
 
 .overdue-banner-header {
@@ -735,7 +827,7 @@ textarea:focus-visible {
 
 .ops-row-overdue {
   background: rgba(220, 38, 38, 0.06);
-  border-left: 3px solid #dc2626;
+  border-left: 3px solid var(--red-text);
 }
 
 .ops-row-overdue:hover {
@@ -743,7 +835,7 @@ textarea:focus-visible {
 }
 
 .ops-row-due-today {
-  border-left: 3px solid #d97706;
+  border-left: 3px solid var(--orange-text);
   background: rgba(217, 119, 6, 0.04);
 }
 
@@ -755,7 +847,7 @@ textarea:focus-visible {
   display: inline-block;
   font-size: 11px;
   font-weight: 700;
-  color: #dc2626;
+  color: var(--red-text);
   background: rgba(220, 38, 38, 0.08);
   padding: 1px 6px;
   border-radius: 99px;
@@ -763,7 +855,7 @@ textarea:focus-visible {
 }
 
 .due-today-badge {
-  color: #d97706;
+  color: var(--orange-text);
   font-weight: 700;
 }
 
@@ -841,18 +933,18 @@ textarea:focus-visible {
 }
 
 .countdown-overdue {
-  color: #dc2626;
+  color: var(--red-text);
   background: rgba(220, 38, 38, 0.06);
   animation: pulse-overdue 2s ease-in-out infinite;
 }
 
 .countdown-critical {
-  color: #dc2626;
+  color: var(--red-text);
   background: rgba(220, 38, 38, 0.04);
 }
 
 .countdown-warning {
-  color: #d97706;
+  color: var(--orange-text);
   background: rgba(217, 119, 6, 0.04);
 }
 
@@ -1060,32 +1152,32 @@ textarea:focus-visible {
 
 .badge-green {
   background: var(--green-bg);
-  color: #16a34a;
+  color: var(--green-text);
 }
 
 .badge-orange {
   background: var(--orange-bg);
-  color: #d97706;
+  color: var(--orange-text);
 }
 
 .badge-red {
   background: var(--red-bg);
-  color: #dc2626;
+  color: var(--red-text);
 }
 
 .badge-purple {
   background: var(--purple-bg);
-  color: #7c3aed;
+  color: var(--purple);
 }
 
 .badge-gray {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--accent-soft);
+  color: var(--text-secondary);
 }
 
 .badge-blue {
-  background: #eff6ff;
-  color: #2563eb;
+  background: var(--blue-bg);
+  color: var(--blue-text);
 }
 
 /* ===== Empty State ===== */
@@ -1253,7 +1345,7 @@ textarea:focus-visible {
 }
 
 .login-btn:hover {
-  background: #a8040a;
+  background: var(--wi-red-hover);
 }
 
 .login-btn:disabled {
@@ -1331,7 +1423,7 @@ textarea:focus-visible {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2230,7 +2322,7 @@ textarea:focus-visible {
 }
 
 .equip-picker-item.selected {
-  background: #eff6ff;
+  background: var(--blue-bg);
 }
 
 .equip-picker-meta {
@@ -2280,7 +2372,7 @@ textarea:focus-visible {
   border-radius: var(--radius);
   padding: 12px 16px;
   font-size: 13px;
-  color: #991b1b;
+  color: var(--red-dark);
   margin-bottom: 12px;
 }
 
@@ -2695,7 +2787,7 @@ textarea:focus-visible {
 
 .cal-booking-co {
   background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
+  color: var(--blue-text);
 }
 
 .cal-booking-co:hover {
@@ -2704,7 +2796,7 @@ textarea:focus-visible {
 
 .cal-booking-res {
   background: rgba(139, 92, 246, 0.12);
-  color: #7c3aed;
+  color: var(--purple);
 }
 
 .cal-booking-res:hover {
@@ -3602,7 +3694,7 @@ tr.returned-row { opacity: 0.55; }
 
 /* Check-in all button */
 .btn-checkin {
-  background: #22c55e;
+  background: var(--green);
   color: white;
   border: none;
 }
@@ -3628,7 +3720,10 @@ tr.returned-row { opacity: 0.55; }
   font-size: 13px;
   text-align: right;
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.inline-edit-input:hover { border-color: var(--text-muted); }
+.inline-edit-input:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .inline-edit-input.mono { font-family: monospace; }
 .inline-edit-input.narrow { width: 140px; }
 .inline-edit-select {
@@ -3638,12 +3733,21 @@ tr.returned-row { opacity: 0.55; }
   font-size: 13px;
   text-align: right;
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.editable-display { cursor: default; }
+.inline-edit-select:hover { border-color: var(--text-muted); }
+.inline-edit-select:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.editable-display {
+  cursor: default;
+  border-radius: 3px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
 .editable-display.can-edit { cursor: pointer; }
+.editable-display.can-edit:hover { background: var(--accent-soft); }
 .editable-display.empty { color: var(--text-muted); font-style: italic; }
 .editable-display:not(.empty) { padding: 0 2px; }
 .editable-display:not(.empty).can-edit { border-bottom: 1px dashed var(--border); }
+.editable-display:not(.empty).can-edit:hover { border-bottom-color: var(--accent); }
 
 /* ── Field group header (section divider in data list) ──── */
 .field-group-header {
@@ -3687,8 +3791,8 @@ tr.returned-row { opacity: 0.55; }
   margin-right: 4px;
   vertical-align: middle;
 }
-.cal-legend-swatch-co { background: #3b82f6; }
-.cal-legend-swatch-res { background: #8b5cf6; }
+.cal-legend-swatch-co { background: var(--blue); }
+.cal-legend-swatch-res { background: var(--purple-light); }
 .cal-month-label {
   min-width: 160px;
   text-align: center;
@@ -3696,7 +3800,7 @@ tr.returned-row { opacity: 0.55; }
 
 /* ── History dot booking variant ────────────────────────── */
 .history-dot.booking {
-  background: var(--blue, #3b82f6);
+  background: var(--blue);
   color: #fff;
 }
 
