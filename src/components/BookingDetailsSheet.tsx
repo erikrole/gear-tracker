@@ -234,7 +234,10 @@ export default function BookingDetailsSheet({
     } catch { /* network */ }
   }, []);
 
-  // Check in state (must be before early return to satisfy Rules of Hooks)
+  // Action loading states (must be before early return to satisfy Rules of Hooks)
+  const [extending, setExtending] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [checkinLoading, setCheckinLoading] = useState(false);
 
   const checkinProgress = useMemo(() => {
@@ -460,7 +463,8 @@ export default function BookingDetailsSheet({
   }
 
   async function handleExtend(days: number) {
-    if (!booking) return;
+    if (!booking || extending) return;
+    setExtending(true);
     const current = new Date(booking.endsAt);
     const extended = new Date(current.getTime() + days * 24 * 60 * 60 * 1000);
 
@@ -482,10 +486,11 @@ export default function BookingDetailsSheet({
     } catch {
       toast("Failed to extend", "error");
     }
+    setExtending(false);
   }
 
   async function handleCancel() {
-    if (!booking) return;
+    if (!booking || cancelling) return;
     const ok = await confirm({
       title: "Cancel booking",
       message: `Cancel "${booking.title}"? This cannot be undone.`,
@@ -494,6 +499,7 @@ export default function BookingDetailsSheet({
     });
     if (!ok) return;
 
+    setCancelling(true);
     try {
       const res = await fetch(`/api/bookings/${booking.id}/cancel`, {
         method: "POST",
@@ -510,10 +516,11 @@ export default function BookingDetailsSheet({
     } catch {
       toast("Failed to cancel", "error");
     }
+    setCancelling(false);
   }
 
   async function handleConvert() {
-    if (!booking) return;
+    if (!booking || converting) return;
     const ok = await confirm({
       title: "Convert to checkout",
       message: "Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created.",
@@ -521,6 +528,7 @@ export default function BookingDetailsSheet({
     });
     if (!ok) return;
 
+    setConverting(true);
     try {
       const res = await fetch(`/api/reservations/${booking.id}/convert`, {
         method: "POST",
@@ -539,6 +547,7 @@ export default function BookingDetailsSheet({
     } catch {
       toast("Failed to convert", "error");
     }
+    setConverting(false);
   }
 
   async function handleCheckinItem(assetId: string) {
@@ -755,9 +764,9 @@ export default function BookingDetailsSheet({
                     <div className="sheet-section">
                       <div className="sheet-section-title">Extend due date</div>
                       <div className="extend-buttons">
-                        <button className="btn" onClick={() => handleExtend(1)}>+1 day</button>
-                        <button className="btn" onClick={() => handleExtend(3)}>+3 days</button>
-                        <button className="btn" onClick={() => handleExtend(7)}>+1 week</button>
+                        <button className="btn" onClick={() => handleExtend(1)} disabled={extending}>{extending ? "..." : "+1 day"}</button>
+                        <button className="btn" onClick={() => handleExtend(3)} disabled={extending}>{extending ? "..." : "+3 days"}</button>
+                        <button className="btn" onClick={() => handleExtend(7)} disabled={extending}>{extending ? "..." : "+1 week"}</button>
                       </div>
                     </div>
                   )}
@@ -1238,13 +1247,13 @@ export default function BookingDetailsSheet({
               </button>
             )}
             {canConvert && (
-              <button className="btn btn-primary" onClick={handleConvert}>
-                Start checkout
+              <button className="btn btn-primary" onClick={handleConvert} disabled={converting}>
+                {converting ? "Converting..." : "Start checkout"}
               </button>
             )}
             {canCancel && (
-              <button className="btn btn-danger" onClick={handleCancel}>
-                {booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
+              <button className="btn btn-danger" onClick={handleCancel} disabled={cancelling}>
+                {cancelling ? "Cancelling..." : booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
               </button>
             )}
             <Link

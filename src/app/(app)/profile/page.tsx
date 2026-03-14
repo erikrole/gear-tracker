@@ -25,6 +25,8 @@ export default function ProfilePage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -48,52 +50,62 @@ export default function ProfilePage() {
     e.preventDefault();
     setMessage("");
     setError("");
+    setSavingProfile(true);
 
-    const form = new FormData(e.currentTarget);
-    const payload = {
-      name: String(form.get("name") || ""),
-      locationId: String(form.get("locationId") || "") || null
-    };
+    try {
+      const form = new FormData(e.currentTarget);
+      const payload = {
+        name: String(form.get("name") || ""),
+        locationId: String(form.get("locationId") || "") || null
+      };
 
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Failed to update profile");
-      return;
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Failed to update profile");
+      } else {
+        setProfile(json.data);
+        setMessage("Profile saved");
+      }
+    } catch {
+      setError("Network error");
     }
-
-    setProfile(json.data);
-    setMessage("Profile saved");
+    setSavingProfile(false);
   }
 
   async function changePassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
     setError("");
+    setSavingPassword(true);
 
-    const form = new FormData(e.currentTarget);
-    const currentPassword = String(form.get("currentPassword") || "");
-    const newPassword = String(form.get("newPassword") || "");
+    try {
+      const form = new FormData(e.currentTarget);
+      const currentPassword = String(form.get("currentPassword") || "");
+      const newPassword = String(form.get("newPassword") || "");
 
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "change_password", currentPassword, newPassword })
-    });
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "change_password", currentPassword, newPassword })
+      });
 
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Failed to update password");
-      return;
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || "Failed to update password");
+      } else {
+        e.currentTarget.reset();
+        setMessage("Password updated");
+      }
+    } catch {
+      setError("Network error");
     }
-
-    e.currentTarget.reset();
-    setMessage("Password updated");
+    setSavingPassword(false);
   }
 
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
@@ -154,7 +166,9 @@ export default function ProfilePage() {
               {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
             </select>
           </label>
-          <button className="btn btn-primary" type="submit">Save profile</button>
+          <button className="btn btn-primary" type="submit" disabled={savingProfile}>
+            {savingProfile ? "Saving..." : "Save profile"}
+          </button>
         </form>
       </div>
 
@@ -169,7 +183,9 @@ export default function ProfilePage() {
             New password
             <input name="newPassword" type="password" required minLength={8} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
           </label>
-          <button className="btn btn-primary" type="submit">Update password</button>
+          <button className="btn btn-primary" type="submit" disabled={savingPassword}>
+            {savingPassword ? "Updating..." : "Update password"}
+          </button>
         </form>
       </div>
 
