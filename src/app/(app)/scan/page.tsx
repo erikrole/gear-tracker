@@ -53,6 +53,25 @@ type LookupResult = {
   primaryScanCode?: string;
 };
 
+type ItemPreview = {
+  id: string;
+  assetTag: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  computedStatus: string;
+  location: { name: string } | null;
+  category: { name: string } | null;
+  activeBooking: {
+    id: string;
+    kind: string;
+    title: string;
+    startsAt: string;
+    endsAt: string;
+    requesterName: string;
+  } | null;
+};
+
 // ── Component ──
 
 export default function ScanPage() {
@@ -68,14 +87,15 @@ export default function ScanPage() {
     checkoutId && phaseParam === "CHECKIN" ? "checkin" :
     "lookup";
 
-  // Auto-start camera in booking modes (user came here to scan)
-  const [scanning, setScanning] = useState(mode !== "lookup");
+  // Auto-start camera — user navigated here to scan
+  const [scanning, setScanning] = useState(true);
   const [cameraError, setCameraError] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [processing, setProcessing] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<{ message: string; success: boolean } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [itemPreview, setItemPreview] = useState<ItemPreview | null>(null);
 
   // Booking scan state
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
@@ -124,10 +144,11 @@ export default function ScanPage() {
     }
   }
 
-  // ── Lookup mode: scan → navigate to item ──
+  // ── Lookup mode: scan → show item preview bottom sheet ──
   const handleLookupScan = useCallback(async (value: string) => {
     setProcessing(true);
     setLastScanResult(null);
+    setItemPreview(null);
     try {
       let searchTerm = value;
       const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
@@ -149,7 +170,26 @@ export default function ScanPage() {
 
       if (match) {
         vibrate();
-        router.push(`/items/${match.id}`);
+        // Fetch full item detail for the preview
+        const detailRes = await fetch(`/api/assets/${match.id}`);
+        if (detailRes.ok) {
+          const detailJson = await detailRes.json();
+          setItemPreview(detailJson.data as ItemPreview);
+        } else {
+          // Fallback: still show what we have from search
+          setItemPreview({
+            id: match.id,
+            assetTag: match.assetTag,
+            brand: match.brand,
+            model: match.model,
+            serialNumber: "",
+            computedStatus: "AVAILABLE",
+            location: null,
+            category: null,
+            activeBooking: null,
+          });
+        }
+        setProcessing(false);
         return;
       }
 
@@ -158,7 +198,7 @@ export default function ScanPage() {
       setLastScanResult({ message: "Network error", success: false });
     }
     setProcessing(false);
-  }, [router]);
+  }, []);
 
   // ── Booking scan: record scan event ──
   const handleBookingScan = useCallback(async (value: string) => {
@@ -245,6 +285,28 @@ export default function ScanPage() {
   const totalItems = progress?.serializedTotal ?? 0;
   const scannedItems = progress?.serializedScanned ?? 0;
   const progressPct = totalItems > 0 ? Math.round((scannedItems / totalItems) * 100) : 0;
+
+  // ── Status display helpers ──
+  function statusLabel(s: string) {
+    switch (s) {
+      case "AVAILABLE": return "Available";
+      case "CHECKED_OUT": return "Checked Out";
+      case "RESERVED": return "Reserved";
+      case "MAINTENANCE": return "In Maintenance";
+      case "RETIRED": return "Retired";
+      default: return s;
+    }
+  }
+  function statusColor(s: string) {
+    switch (s) {
+      case "AVAILABLE": return { bg: "#dcfce7", text: "#166534" };
+      case "CHECKED_OUT": return { bg: "#dbeafe", text: "#1e40af" };
+      case "RESERVED": return { bg: "#fef9c3", text: "#854d0e" };
+      case "MAINTENANCE": return { bg: "#fed7aa", text: "#9a3412" };
+      case "RETIRED": return { bg: "#f3f4f6", text: "#6b7280" };
+      default: return { bg: "#f3f4f6", text: "#6b7280" };
+    }
+  }
 
   // ── Render ──
   return (
@@ -594,6 +656,100 @@ export default function ScanPage() {
             }
           </button>
         </div>
+      )}
+
+      {/* ── Item preview bottom sheet (lookup mode) ── */}
+      {itemPreview && (
+        <>
+          <div className="sheet-overlay" onClick={() => setItemPreview(null)} />
+          <div className="sheet-panel" style={{ maxWidth: 480 }}>
+            {/* Drag handle */}
+            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "#d1d5db" }} />
+            </div>
+
+            <div className="sheet-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <h2 style={{ margin: 0 }}>{itemPreview.assetTag}</h2>
+                <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 2 }}>
+                  {itemPreview.brand} {itemPreview.model}
+                </div>
+              </div>
+              <span style={{
+                padding: "4px 10px",
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                background: statusColor(itemPreview.computedStatus).bg,
+                color: statusColor(itemPreview.computedStatus).text,
+                whiteSpace: "nowrap",
+              }}>
+                {statusLabel(itemPreview.computedStatus)}
+              </span>
+            </div>
+
+            <div className="sheet-section" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {itemPreview.serialNumber && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Serial</span>
+                  <span style={{ fontFamily: "monospace" }}>{itemPreview.serialNumber}</span>
+                </div>
+              )}
+              {itemPreview.location && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Location</span>
+                  <span>{itemPreview.location.name}</span>
+                </div>
+              )}
+              {itemPreview.category && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Category</span>
+                  <span>{itemPreview.category.name}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Current holder / active booking */}
+            {itemPreview.activeBooking && (
+              <div className="sheet-section" style={{
+                background: statusColor(itemPreview.computedStatus).bg,
+                borderRadius: 10,
+                margin: "0 16px",
+                padding: "12px 14px",
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: statusColor(itemPreview.computedStatus).text, marginBottom: 4 }}>
+                  {itemPreview.activeBooking.kind === "CHECKOUT" ? "Currently with" : "Reserved by"}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>
+                  {itemPreview.activeBooking.requesterName}
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+                  {itemPreview.activeBooking.title}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+                  {new Date(itemPreview.activeBooking.startsAt).toLocaleDateString()} &ndash; {new Date(itemPreview.activeBooking.endsAt).toLocaleDateString()}
+                </div>
+              </div>
+            )}
+
+            <div className="sheet-actions" style={{ display: "flex", gap: 8 }}>
+              <button
+                className="btn"
+                onClick={() => setItemPreview(null)}
+                style={{ flex: 1, minHeight: 48 }}
+              >
+                Dismiss
+              </button>
+              <Link
+                href={`/items/${itemPreview.id}`}
+                className="btn btn-primary"
+                style={{ flex: 1, minHeight: 48, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                View Details
+              </Link>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Inline styles for animations */}
