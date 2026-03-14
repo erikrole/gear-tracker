@@ -78,21 +78,19 @@ function StatusDot({ item }: { item: Asset }) {
         onClick={(e) => {
           if (hasBooking) { e.stopPropagation(); setOpen((v) => !v); }
         }}
-        className={`status-dot ${statusDotClass[item.computedStatus] || "status-retired"}`}
-        style={{ width: 8, height: 8, cursor: hasBooking ? "pointer" : "default" }}
+        className={`status-dot status-dot-sm ${statusDotClass[item.computedStatus] || "status-retired"}${hasBooking ? " cursor-pointer" : ""}`}
       />
       {open && item.activeBooking && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="popover"
-          style={{ left: 16, top: "50%", transform: "translateY(-50%)" }}
+          className="popover popover-side"
         >
-          <div className="font-semibold mb-4" style={{ textTransform: "capitalize" }}>{label}</div>
+          <div className="font-semibold mb-4 capitalize">{label}</div>
           <div className="text-secondary mb-4">
             {item.activeBooking.title} &middot; {item.activeBooking.requesterName}
           </div>
           {bookingPath && (
-            <Link href={bookingPath} className="font-medium no-underline" style={{ color: "var(--primary)" }}>
+            <Link href={bookingPath} className="font-medium no-underline text-primary">
               View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
             </Link>
           )}

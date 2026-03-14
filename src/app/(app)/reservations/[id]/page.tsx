@@ -346,8 +346,8 @@ export default function ReservationDetailsPage() {
       </div>
 
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="page-header mb-12">
+        <div className="res-header">
           <h1>{reservation.title}</h1>
           <span
             className={`badge ${statusBadgeClass[reservation.status] || "badge-gray"}`}
@@ -356,7 +356,7 @@ export default function ReservationDetailsPage() {
           </span>
           {isOverdue && <span className="badge badge-red">overdue</span>}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="res-actions">
           {canConvert && (
             <button
               className="btn btn-primary btn-sm"
@@ -386,8 +386,7 @@ export default function ReservationDetailsPage() {
           )}
           {canCancel && (
             <button
-              className="btn btn-sm"
-              style={{ color: "var(--red)" }}
+              className="btn btn-sm text-red"
               onClick={handleCancel}
               disabled={!!actionLoading}
             >
@@ -399,31 +398,16 @@ export default function ReservationDetailsPage() {
 
       {/* Error banner */}
       {actionError && (
-        <div
-          className="card"
-          style={{
-            padding: "10px 16px",
-            marginBottom: 12,
-            color: "var(--red)",
-            border: "1px solid var(--red)",
-          }}
-        >
+        <div className="alert-error mb-12">
           {actionError}
         </div>
       )}
 
       {/* Extend panel */}
       {showExtend && (
-        <div className="card" style={{ padding: 16, marginBottom: 12 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <label style={{ fontSize: 13, fontWeight: 600 }}>
+        <div className="card res-conflict-banner">
+          <div className="flex-center gap-10 flex-wrap">
+            <label className="res-extend-label">
               New end date:
             </label>
             <input
@@ -431,11 +415,7 @@ export default function ReservationDetailsPage() {
               value={extendDate}
               onChange={(e) => setExtendDate(e.target.value)}
               min={reservation.endsAt.slice(0, 16)}
-              style={{
-                padding: "6px 10px",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-              }}
+              className="form-input"
             />
             <button
               className="btn btn-primary btn-sm"
@@ -454,7 +434,7 @@ export default function ReservationDetailsPage() {
               Cancel
             </button>
           </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          <div className="res-extend-actions">
             {[
               { label: "+1 day", days: 1 },
               { label: "+3 days", days: 3 },
@@ -462,9 +442,8 @@ export default function ReservationDetailsPage() {
             ].map(({ label, days }) => (
               <button
                 key={days}
-                className="btn btn-sm"
+                className="btn btn-sm text-xs"
                 onClick={() => handleQuickExtend(days)}
-                style={{ fontSize: 12 }}
               >
                 {label}
               </button>
@@ -474,7 +453,7 @@ export default function ReservationDetailsPage() {
       )}
 
       {/* Tabs */}
-      <div className="tab-bar" style={{ marginBottom: 16 }}>
+      <div className="tab-bar res-tab-bar">
         {(["info", "equipment", "history"] as TabKey[]).map((t) => (
           <button
             key={t}
@@ -493,7 +472,7 @@ export default function ReservationDetailsPage() {
       {/* ── Info Tab ── */}
       {tab === "info" && (
         <div className="card details-card">
-          <div style={{ padding: 16 }}>
+          <div className="p-16">
             <DataList
               items={[
                 { label: "Title", value: reservation.title },
@@ -534,15 +513,7 @@ export default function ReservationDetailsPage() {
             {/* Return location suggestion for mixed-location equipment */}
             {reservation.locationMode === "MIXED" &&
               reservation.itemLocations.length > 1 && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    padding: "8px 12px",
-                    background: "var(--surface-alt, #f8f9fa)",
-                    borderRadius: 6,
-                    fontSize: 13,
-                  }}
-                >
+                <div className="alert-info mt-12">
                   Equipment spans multiple locations:{" "}
                   {reservation.itemLocations.map((l) => l.name).join(", ")}
                 </div>
@@ -556,19 +527,13 @@ export default function ReservationDetailsPage() {
         <div className="card details-card">
           {/* Search */}
           {itemCount > 3 && (
-            <div style={{ padding: "12px 16px 0" }}>
+            <div className="p-16" style={{ paddingBottom: 0 }}>
               <input
                 type="text"
                 placeholder="Search equipment..."
                 value={equipSearch}
                 onChange={(e) => setEquipSearch(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  fontSize: 14,
-                }}
+                className="form-input"
               />
             </div>
           )}
@@ -595,7 +560,7 @@ export default function ReservationDetailsPage() {
                     <td>
                       <Link
                         href={`/items/${item.asset.id}`}
-                        style={{ fontWeight: 600, color: "var(--blue)" }}
+                        className="font-semibold text-blue"
                       >
                         {item.asset.assetTag}
                       </Link>
@@ -603,7 +568,7 @@ export default function ReservationDetailsPage() {
                     <td>
                       {item.asset.brand} {item.asset.model}
                     </td>
-                    <td style={{ fontFamily: "monospace" }}>
+                    <td className="font-mono">
                       {item.asset.serialNumber}
                     </td>
                     <td>{item.asset.location?.name ?? "\u2014"}</td>
@@ -611,7 +576,7 @@ export default function ReservationDetailsPage() {
                 ))}
                 {filteredBulk.map((item) => (
                   <tr key={item.id}>
-                    <td style={{ fontWeight: 600 }}>{item.bulkSku.name}</td>
+                    <td className="font-semibold">{item.bulkSku.name}</td>
                     <td>
                       Qty: {item.plannedQuantity}{" "}
                       <span className="muted">{item.bulkSku.unit}</span>
@@ -628,9 +593,9 @@ export default function ReservationDetailsPage() {
 
       {/* ── History Tab ── */}
       {tab === "history" && (
-        <div className="card details-card" style={{ padding: 16 }}>
+        <div className="card details-card res-details-card">
           {/* Filter chips */}
-          <div className="filter-chips" style={{ marginBottom: 12 }}>
+          <div className="filter-chips res-details-chips">
             {(
               [
                 ["all", "All"],
@@ -686,7 +651,7 @@ export default function ReservationDetailsPage() {
                             k !== "serializedAssetIds" && k !== "bulkItems"
                         )
                         .map((k) => (
-                          <span key={k} style={{ marginRight: 8 }}>
+                          <span key={k} className="field-tag">
                             {k}
                           </span>
                         ))}
@@ -745,11 +710,7 @@ export default function ReservationDetailsPage() {
                             </div>
                           )}
                           {entry.afterJson && (
-                            <div
-                              style={{
-                                marginTop: entry.beforeJson ? 8 : 0,
-                              }}
-                            >
+                            <div className={entry.beforeJson ? "diff-after-section" : ""}>
                               <strong>After:</strong>
                               {"\n"}
                               {JSON.stringify(entry.afterJson, null, 2)}
