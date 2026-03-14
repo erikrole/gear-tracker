@@ -13,9 +13,9 @@ A `BulkSku` with `trackByNumber: true` gets a set of numbered units (1–N). One
 
 ## Slice Plan
 
-### Slice 1: Schema & Migration
-- [ ] Add `trackByNumber` boolean to `BulkSku` (default `false`)
-- [ ] Create `BulkSkuUnit` model:
+### Slice 1: Schema & Migration ✅
+- [x] Add `trackByNumber` boolean to `BulkSku` (default `false`)
+- [x] Create `BulkSkuUnit` model:
   ```
   BulkSkuUnit {
     id            String   @id @default(cuid())
@@ -29,7 +29,7 @@ A `BulkSku` with `trackByNumber: true` gets a set of numbered units (1–N). One
     @@unique([bulkSkuId, unitNumber])
   }
   ```
-- [ ] Create `BookingBulkUnitAllocation` model (links specific units to bookings):
+- [x] Create `BookingBulkUnitAllocation` model (links specific units to bookings):
   ```
   BookingBulkUnitAllocation {
     id                String   @id @default(cuid())
@@ -41,10 +41,10 @@ A `BulkSku` with `trackByNumber: true` gets a set of numbered units (1–N). One
     @@unique([bookingBulkItemId, bulkSkuUnitId])
   }
   ```
-- [ ] Add relation from `BulkSku` → `BulkSkuUnit[]`
-- [ ] Add relation from `BookingBulkItem` → `BookingBulkUnitAllocation[]`
-- [ ] Generate and apply migration
-- [ ] Validate with `npm run build`
+- [x] Add relation from `BulkSku` → `BulkSkuUnit[]`
+- [x] Add relation from `BookingBulkItem` → `BookingBulkUnitAllocation[]`
+- [x] Generate and apply migration
+- [x] Validate with `npm run build`
 
 ### Slice 2: API / Service Layer
 - [ ] **Create units on BulkSku creation** — when `trackByNumber: true` and quantity > 0, auto-create `BulkSkuUnit` rows 1..N
