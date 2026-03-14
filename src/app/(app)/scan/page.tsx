@@ -1,23 +1,47 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useToast } from "@/components/Toast";
 
-// Dynamic import to avoid SSR issues with html5-qrcode
 const QrScanner = dynamic(() => import("@/components/QrScanner"), { ssr: false });
 
-type ScanMode = "checkout" | "checkin";
+// ── Types ──
 
-type ScannedItem = {
-  scanValue: string;
-  assetTag?: string;
-  brand?: string;
-  model?: string;
-  type?: string;
-  assetId?: string;
-  status: "found" | "not_found" | "already_scanned" | "error";
-  message?: string;
+type ScanMode = "lookup" | "checkout" | "checkin";
+
+type SerializedItemStatus = {
+  assetId: string;
+  assetTag: string;
+  brand: string;
+  model: string;
+  scanned: boolean;
+};
+
+type BulkItemStatus = {
+  bulkSkuId: string;
+  name: string;
+  required: number;
+  scanned: number;
+};
+
+type ScanStatus = {
+  checkoutId: string;
+  title: string;
+  status: string;
+  phase: string;
+  requester: { id: string; name: string };
+  location: { id: string; name: string };
+  serializedItems: SerializedItemStatus[];
+  bulkItems: BulkItemStatus[];
+  progress: {
+    serializedScanned: number;
+    serializedTotal: number;
+    bulkComplete: boolean;
+    allComplete: boolean;
+  };
 };
 
 type LookupResult = {
@@ -25,204 +49,330 @@ type LookupResult = {
   assetTag: string;
   brand: string;
   model: string;
-  type: string;
-  computedStatus: string;
-  location: { name: string };
   qrCodeValue?: string;
   primaryScanCode?: string;
 };
 
-type OpenCheckout = {
-  id: string;
-  title: string;
-  startsAt: string;
-  endsAt: string;
-  requester: { name: string };
-  serializedItems: Array<{ asset: { id: string; assetTag: string; brand: string; model: string } }>;
-};
+// ── Component ──
 
 export default function ScanPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const [mode, setMode] = useState<ScanMode>("checkout");
-  const [scanning, setScanning] = useState(false);
-  const [cart, setCart] = useState<ScannedItem[]>([]);
+
+  // Determine mode from URL params
+  const checkoutId = searchParams.get("checkout");
+  const phaseParam = searchParams.get("phase");
+  const mode: ScanMode =
+    checkoutId && phaseParam === "CHECKOUT" ? "checkout" :
+    checkoutId && phaseParam === "CHECKIN" ? "checkin" :
+    "lookup";
+
+  // Auto-start camera in booking modes (user came here to scan)
+  const [scanning, setScanning] = useState(mode !== "lookup");
   const [cameraError, setCameraError] = useState("");
   const [manualCode, setManualCode] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [lastScanResult, setLastScanResult] = useState<{ message: string; success: boolean } | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
-  // Check in state
-  const [foundCheckout, setFoundCheckout] = useState<OpenCheckout | null>(null);
-  const [checkinMessage, setCheckinMessage] = useState("");
+  // Booking scan state
+  const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(mode !== "lookup");
+  const [loadError, setLoadError] = useState(false);
 
-  const lookupAsset = useCallback(async (scanValue: string): Promise<LookupResult | null> => {
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const manualInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Load scan status for booking modes ──
+  const loadScanStatus = useCallback(async () => {
+    if (!checkoutId || !phaseParam) return;
     try {
-      // Parse bg://item/<assetTag> or bg://case/<name> URLs
-      let searchTerm = scanValue;
-      const bgMatch = scanValue.match(/^bg:\/\/(item|case)\/(.+)$/);
-      if (bgMatch) {
-        searchTerm = bgMatch[2];
-      }
-
-      // Search by asset tag, serial, brand/model, or primary scan code
-      const res = await fetch(`/api/assets?q=${encodeURIComponent(searchTerm)}&limit=5`);
-      if (!res.ok) return null;
+      const res = await fetch(`/api/checkouts/${checkoutId}/scan-status?phase=${phaseParam}`);
+      if (!res.ok) { setLoadError(true); setStatusLoading(false); return; }
       const json = await res.json();
-      const assets = json.data ?? [];
+      const data = json.data as ScanStatus;
 
-      // Exact match on qrCodeValue or primaryScanCode first
-      const exactMatch = assets.find(
-        (a: LookupResult) =>
-          a.qrCodeValue === scanValue ||
-          a.primaryScanCode === scanValue ||
-          a.assetTag === searchTerm
-      );
-      if (exactMatch) return exactMatch;
-
-      // Fall back to first search result
-      if (assets.length > 0) return assets[0];
-
-      return null;
+      // Check if we just completed all items (celebration trigger)
+      setScanStatus((prev) => {
+        if (prev && !prev.progress.allComplete && data.progress.allComplete) {
+          setShowCelebration(true);
+          vibrate(200);
+          setTimeout(() => setShowCelebration(false), 3000);
+        }
+        return data;
+      });
+      setLoadError(false);
     } catch {
-      return null;
+      setLoadError(true);
     }
-  }, []);
+    setStatusLoading(false);
+  }, [checkoutId, phaseParam]);
 
-  const handleScan = useCallback(
-    async (value: string) => {
-      if (mode === "checkout") {
-        // Check if already in cart
-        if (cart.some((item) => item.scanValue === value)) {
-          setCart((prev) => [
-            { scanValue: value, status: "already_scanned", message: "Already in cart" },
-            ...prev.filter((item) => item.scanValue !== value || item.status !== "already_scanned")
-          ]);
-          return;
-        }
+  useEffect(() => {
+    if (mode !== "lookup") {
+      loadScanStatus();
+    }
+  }, [mode, loadScanStatus]);
 
-        const asset = await lookupAsset(value);
-        if (asset) {
-          setCart((prev) => [
-            {
-              scanValue: value,
-              assetTag: asset.assetTag,
-              brand: asset.brand,
-              model: asset.model,
-              type: asset.type,
-              assetId: asset.id,
-              status: "found"
-            },
-            ...prev
-          ]);
-          toast(`Added ${asset.assetTag}`, "success");
-        } else {
-          setCart((prev) => [
-            { scanValue: value, status: "not_found", message: "Item not found" },
-            ...prev
-          ]);
-          toast(`Item not found: ${value}`, "error");
-        }
-      } else {
-        // Check in mode: scan to find the open checkout containing this item
-        try {
-          const asset = await lookupAsset(value);
-          if (!asset) {
-            setCheckinMessage(`Item not found for code: ${value}`);
-            return;
-          }
+  // ── Vibrate on scan (mobile haptic feedback) ──
+  function vibrate(ms = 100) {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(ms);
+    }
+  }
 
-          // Find open checkouts containing this asset
-          const res = await fetch(`/api/checkouts?status=OPEN&limit=50`);
-          if (!res.ok) { setCheckinMessage("Failed to load checkouts"); return; }
-          const json = await res.json();
-          const checkouts = json.data ?? [];
+  // ── Lookup mode: scan → navigate to item ──
+  const handleLookupScan = useCallback(async (value: string) => {
+    setProcessing(true);
+    setLastScanResult(null);
+    try {
+      let searchTerm = value;
+      const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
+      if (bgMatch) searchTerm = bgMatch[2];
 
-          const match = checkouts.find((c: OpenCheckout) =>
-            c.serializedItems?.some((si) => si.asset.id === asset.id)
-          );
-
-          if (match) {
-            setFoundCheckout(match);
-            setCheckinMessage(`Found open checkout: ${match.title}`);
-            toast(`Found checkout: ${match.title}`, "success");
-          } else {
-            setCheckinMessage(`No open checkout found containing ${asset.assetTag}`);
-            toast("No open checkout found for this item", "info");
-          }
-        } catch {
-          setCheckinMessage("Error looking up checkout");
-        }
+      const res = await fetch(`/api/assets?q=${encodeURIComponent(searchTerm)}&limit=5`);
+      if (!res.ok) {
+        setLastScanResult({ message: "Failed to look up item", success: false });
+        setProcessing(false);
+        return;
       }
-    },
-    [mode, cart, lookupAsset]
-  );
+      const json = await res.json();
+      const assets: LookupResult[] = json.data ?? [];
+
+      const exact = assets.find(
+        (a) => a.qrCodeValue === value || a.primaryScanCode === value || a.assetTag === searchTerm
+      );
+      const match = exact ?? assets[0];
+
+      if (match) {
+        vibrate();
+        router.push(`/items/${match.id}`);
+        return;
+      }
+
+      setLastScanResult({ message: `No item found for: ${value}`, success: false });
+    } catch {
+      setLastScanResult({ message: "Network error", success: false });
+    }
+    setProcessing(false);
+  }, [router]);
+
+  // ── Booking scan: record scan event ──
+  const handleBookingScan = useCallback(async (value: string) => {
+    if (!checkoutId || !phaseParam) return;
+    setProcessing(true);
+    setLastScanResult(null);
+
+    const endpoint = phaseParam === "CHECKIN"
+      ? `/api/checkouts/${checkoutId}/checkin-scan`
+      : `/api/checkouts/${checkoutId}/scan`;
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phase: phaseParam,
+          scanType: "SERIALIZED",
+          scanValue: value,
+        }),
+      });
+
+      if (res.ok) {
+        vibrate();
+        setLastScanResult({ message: "Item scanned successfully", success: true });
+        await loadScanStatus();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        const errMsg = (json as Record<string, string>).error || "Scan not recognized";
+        setLastScanResult({ message: errMsg, success: false });
+        vibrate(50);
+      }
+    } catch {
+      setLastScanResult({ message: "Network error \u2014 try again", success: false });
+    }
+    setProcessing(false);
+  }, [checkoutId, phaseParam, loadScanStatus]);
+
+  // ── Route scan to correct handler ──
+  const handleScan = useCallback((value: string) => {
+    if (processing) return;
+    if (mode === "lookup") {
+      handleLookupScan(value);
+    } else {
+      handleBookingScan(value);
+    }
+  }, [mode, processing, handleLookupScan, handleBookingScan]);
 
   const handleManualEntry = () => {
-    if (manualCode.trim()) {
-      handleScan(manualCode.trim());
+    const v = manualCode.trim();
+    if (v) {
+      handleScan(v);
       setManualCode("");
+      manualInputRef.current?.focus();
     }
   };
 
-  const removeFromCart = (scanValue: string) => {
-    setCart((prev) => prev.filter((item) => item.scanValue !== scanValue));
-  };
+  // ── Complete checkout/checkin ──
+  async function handleComplete() {
+    if (!checkoutId) return;
+    setCompleting(true);
 
-  const clearCart = () => {
-    setCart([]);
-  };
+    const endpoint = mode === "checkin"
+      ? `/api/checkouts/${checkoutId}/complete-checkin`
+      : `/api/checkouts/${checkoutId}/complete-checkout`;
 
-  const validItems = cart.filter((item) => item.status === "found");
+    try {
+      const res = await fetch(endpoint, { method: "POST" });
+      if (res.ok) {
+        toast(mode === "checkin" ? "Check-in complete!" : "Checkout confirmed!", "success");
+        router.push(`/checkouts/${checkoutId}`);
+        return;
+      }
+      const json = await res.json().catch(() => ({}));
+      toast((json as Record<string, string>).error || "Could not complete", "error");
+    } catch {
+      toast("Network error \u2014 try again", "error");
+    }
+    setCompleting(false);
+  }
 
+  // ── Progress calculations ──
+  const progress = scanStatus?.progress;
+  const totalItems = progress?.serializedTotal ?? 0;
+  const scannedItems = progress?.serializedScanned ?? 0;
+  const progressPct = totalItems > 0 ? Math.round((scannedItems / totalItems) * 100) : 0;
+
+  // ── Render ──
   return (
     <>
+      {/* Breadcrumb */}
+      {mode !== "lookup" && checkoutId && (
+        <div className="breadcrumb">
+          <Link href="/checkouts">Checkouts</Link>
+          <span>{"\u203a"}</span>
+          <Link href={`/checkouts/${checkoutId}`}>{scanStatus?.title ?? "Checkout"}</Link>
+          <span>{"\u203a"}</span>
+          {mode === "checkout" ? "Scan Out" : "Scan In"}
+        </div>
+      )}
+
       <div className="page-header">
         <h1>Scan</h1>
+        {mode !== "lookup" && (
+          <Link href="/scan" className="btn btn-sm" style={{ textDecoration: "none" }}>
+            Item Look Up
+          </Link>
+        )}
       </div>
 
-      {/* Mode toggle */}
+      {/* Mode pill */}
       <div style={{
-        display: "flex",
-        gap: 4,
-        padding: 4,
-        background: "var(--bg-secondary, #f3f4f6)",
-        borderRadius: 12,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 14px",
+        background: mode === "checkout" ? "#dbeafe" : mode === "checkin" ? "#dcfce7" : "var(--bg-secondary, #f3f4f6)",
+        color: mode === "checkout" ? "#1e40af" : mode === "checkin" ? "#166534" : "var(--text-secondary)",
+        borderRadius: 20,
+        fontSize: 13,
+        fontWeight: 600,
         marginBottom: 16,
-        maxWidth: 320
       }}>
-        <button
-          onClick={() => { setMode("checkout"); setFoundCheckout(null); setCheckinMessage(""); }}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            background: mode === "checkout" ? "white" : "transparent",
-            color: mode === "checkout" ? "var(--text)" : "var(--text-secondary)",
-            boxShadow: mode === "checkout" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
-          }}
-        >
-          Quick Checkout
-        </button>
-        <button
-          onClick={() => { setMode("checkin"); clearCart(); }}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            background: mode === "checkin" ? "white" : "transparent",
-            color: mode === "checkin" ? "var(--text)" : "var(--text-secondary)",
-            boxShadow: mode === "checkin" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
-          }}
-        >
-          Quick Check in
-        </button>
+        <div style={{
+          width: 8, height: 8, borderRadius: "50%",
+          background: mode === "checkout" ? "#3b82f6" : mode === "checkin" ? "#22c55e" : "#9ca3af",
+        }} />
+        {mode === "checkout" ? "Checkout Scan" : mode === "checkin" ? "Check-in Scan" : "Look Up Item"}
       </div>
+
+      {/* Booking context banner (clickable) */}
+      {mode !== "lookup" && statusLoading && (
+        <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div className="spinner" style={{ width: 20, height: 20 }} />
+            <span style={{ color: "var(--text-secondary)", fontSize: 14 }}>Loading checkout details...</span>
+          </div>
+        </div>
+      )}
+
+      {mode !== "lookup" && scanStatus && (
+        <Link
+          href={`/checkouts/${checkoutId}`}
+          className="card"
+          style={{ marginBottom: 16, padding: 16, display: "block", textDecoration: "none", color: "inherit" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{scanStatus.title}</div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                {scanStatus.requester.name} &middot; {scanStatus.location.name}
+              </div>
+            </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ color: "var(--text-secondary)", flexShrink: 0 }}>
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </div>
+
+          {/* Progress bar */}
+          {totalItems > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                <span>{scannedItems} of {totalItems} items scanned</span>
+                <span>{progressPct}%</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 4, background: "#e5e7eb", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%",
+                  borderRadius: 4,
+                  width: `${progressPct}%`,
+                  background: progress?.allComplete ? "#22c55e" : "#3b82f6",
+                  transition: "width 0.3s ease",
+                }} />
+              </div>
+            </div>
+          )}
+        </Link>
+      )}
+
+      {mode !== "lookup" && loadError && (
+        <div className="card" style={{ padding: 16, marginBottom: 16, color: "var(--red)" }}>
+          Failed to load checkout details.{" "}
+          <button className="btn btn-sm" onClick={loadScanStatus}>Retry</button>
+        </div>
+      )}
+
+      {/* Celebration overlay */}
+      {showCelebration && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(0,0,0,0.4)",
+          zIndex: 100,
+          animation: "fadeIn 0.2s ease",
+        }}>
+          <div style={{
+            background: "white",
+            borderRadius: 20,
+            padding: "32px 40px",
+            textAlign: "center",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            animation: "scaleIn 0.3s ease",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>
+              {mode === "checkin" ? "\u2705" : "\u2705"}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>All items scanned!</div>
+            <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+              Tap the button below to {mode === "checkin" ? "complete check-in" : "complete checkout"}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scanner */}
       <div className="card" style={{ marginBottom: 16 }}>
@@ -230,7 +380,8 @@ export default function ScanPage() {
           <h2>{scanning ? "Scanning..." : "Camera"}</h2>
           <button
             className={`btn ${scanning ? "" : "btn-primary"}`}
-            onClick={() => { setScanning(!scanning); setCameraError(""); }}
+            onClick={() => { setScanning(!scanning); setCameraError(""); setLastScanResult(null); }}
+            style={{ minHeight: 44 }}
           >
             {scanning ? "Stop camera" : "Start camera"}
           </button>
@@ -248,220 +399,214 @@ export default function ScanPage() {
 
         {cameraError && (
           <div style={{ padding: "12px 16px", color: "var(--red)", fontSize: 13 }}>
-            Camera error: {cameraError}
+            Camera error: {cameraError}. Try entering the code manually below.
           </div>
         )}
 
-        {/* Manual entry fallback */}
+        {/* Manual entry */}
         <div style={{ padding: 16, display: "flex", gap: 8 }}>
           <input
+            ref={manualInputRef}
             type="text"
-            placeholder="Or enter code manually..."
+            placeholder={mode === "lookup" ? "Enter asset tag or QR code..." : "Enter item QR code..."}
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleManualEntry()}
             style={{
-              flex: 1,
-              padding: "10px 14px",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              fontSize: 15
+              flex: 1, padding: "12px 14px",
+              border: "1px solid var(--border)", borderRadius: 10, fontSize: 16,
+              minHeight: 48,
             }}
           />
           <button
             className="btn btn-primary"
             onClick={handleManualEntry}
-            disabled={!manualCode.trim()}
-            style={{ minWidth: 80, minHeight: 44 }}
+            disabled={!manualCode.trim() || processing}
+            style={{ minWidth: 80, minHeight: 48, fontSize: 15 }}
           >
-            Add
+            {processing ? "..." : mode === "lookup" ? "Look up" : "Scan"}
           </button>
         </div>
+
+        {/* Last scan result inline feedback */}
+        {lastScanResult && (
+          <div style={{
+            padding: "10px 16px",
+            fontSize: 14, fontWeight: 600,
+            color: lastScanResult.success ? "#166534" : "#991b1b",
+            background: lastScanResult.success ? "#f0fdf4" : "#fef2f2",
+            borderTop: "1px solid var(--border)",
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <span style={{ fontSize: 16 }}>{lastScanResult.success ? "\u2713" : "\u2717"}</span>
+            {lastScanResult.message}
+          </div>
+        )}
       </div>
 
-      {/* ── Checkout mode: Cart ── */}
-      {mode === "checkout" && (
-        <>
-          {cart.length > 0 && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div className="card-header">
-                <h2>Cart ({validItems.length} items)</h2>
-                <button className="btn btn-sm" onClick={clearCart}>Clear all</button>
-              </div>
+      {/* Lookup mode hint */}
+      {mode === "lookup" && !scanning && !lastScanResult && (
+        <div style={{
+          textAlign: "center",
+          padding: "32px 16px",
+          color: "var(--text-secondary)",
+          fontSize: 14,
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.4 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48" style={{ display: "inline" }}>
+              <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
+              <line x1="7" y1="12" x2="17" y2="12" />
+              <line x1="12" y1="7" x2="12" y2="17" />
+            </svg>
+          </div>
+          Scan any item&apos;s QR code or enter its asset tag to view details.
+        </div>
+      )}
 
-              <div style={{ maxHeight: 400, overflowY: "auto" }}>
-                {cart.map((item, i) => (
+      {/* ── Booking mode: Item checklist ── */}
+      {mode !== "lookup" && scanStatus && (
+        <div className="card" style={{ marginBottom: progress?.allComplete ? 100 : 16 }}>
+          <div className="card-header">
+            <h2>Items ({scannedItems}/{totalItems})</h2>
+          </div>
+
+          {scanStatus.serializedItems.length === 0 && scanStatus.bulkItems.length === 0 ? (
+            <div className="empty-state">No items to scan.</div>
+          ) : (
+            <>
+              {/* Show unscanned items first, then scanned */}
+              {[...scanStatus.serializedItems]
+                .sort((a, b) => (a.scanned === b.scanned ? 0 : a.scanned ? 1 : -1))
+                .map((item) => (
+                <div
+                  key={item.assetId}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 16px",
+                    borderBottom: "1px solid var(--border)",
+                    background: item.scanned ? "#f0fdf4" : "white",
+                    transition: "background 0.3s ease",
+                    minHeight: 56,
+                  }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                    background: item.scanned ? "#22c55e" : "#e5e7eb",
+                    color: item.scanned ? "white" : "#9ca3af",
+                    fontSize: 14, fontWeight: 700,
+                    transition: "all 0.3s ease",
+                  }}>
+                    {item.scanned ? "\u2713" : ""}
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontWeight: 600,
+                      color: item.scanned ? "#166534" : "var(--text)",
+                    }}>
+                      {item.assetTag}
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                      {item.brand} {item.model}
+                    </div>
+                  </div>
+
+                  {item.scanned && (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#22c55e" }}>Scanned</span>
+                  )}
+                </div>
+              ))}
+
+              {scanStatus.bulkItems.map((item) => {
+                const done = item.scanned >= item.required;
+                return (
                   <div
-                    key={`${item.scanValue}-${i}`}
+                    key={item.bulkSkuId}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
-                      padding: "12px 16px",
+                      padding: "14px 16px",
                       borderBottom: "1px solid var(--border)",
-                      background: item.status === "not_found" ? "#fef2f2" :
-                                  item.status === "already_scanned" ? "#fffbeb" : "white"
+                      background: done ? "#f0fdf4" : "white",
+                      minHeight: 56,
                     }}
                   >
-                    {/* Status dot */}
                     <div style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
+                      width: 28, height: 28, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
                       flexShrink: 0,
-                      background: item.status === "found" ? "#22c55e" :
-                                  item.status === "already_scanned" ? "#f59e0b" : "#ef4444"
-                    }} />
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {item.status === "found" ? (
-                        <>
-                          <div style={{ fontWeight: 600 }}>{item.assetTag}</div>
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                            {item.brand} {item.model} — {item.type}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ fontWeight: 600, fontFamily: "monospace", fontSize: 13 }}>
-                            {item.scanValue}
-                          </div>
-                          <div style={{ fontSize: 12, color: item.status === "not_found" ? "#991b1b" : "#92400e" }}>
-                            {item.message}
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => removeFromCart(item.scanValue)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 4,
-                        color: "var(--text-secondary)",
-                        fontSize: 18,
-                        lineHeight: 1
-                      }}
-                      aria-label="Remove"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Checkout action */}
-          {validItems.length > 0 && (
-            <div style={{
-              position: "sticky",
-              bottom: 16,
-              padding: 16,
-              background: "white",
-              borderRadius: 16,
-              boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12
-            }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 18 }}>{validItems.length} items ready</div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  Continue to create checkout
-                </div>
-              </div>
-              <a
-                href={`/checkouts?prefill=${validItems.map((i) => i.assetId).join(",")}`}
-                className="btn btn-primary"
-                style={{
-                  textDecoration: "none",
-                  padding: "14px 24px",
-                  fontSize: 16,
-                  minHeight: 48,
-                  display: "flex",
-                  alignItems: "center"
-                }}
-              >
-                Checkout
-              </a>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── Check in mode ── */}
-      {mode === "checkin" && (
-        <>
-          {checkinMessage && (
-            <div
-              className="card"
-              style={{
-                padding: 16,
-                marginBottom: 16,
-                background: foundCheckout ? "#f0fdf4" : "#fef2f2"
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>{checkinMessage}</div>
-            </div>
-          )}
-
-          {foundCheckout && (
-            <div className="card">
-              <div className="card-header"><h2>Open Checkout</h2></div>
-              <div style={{ padding: 16 }}>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>{foundCheckout.title}</div>
-                  <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                    {foundCheckout.requester.name} — Due {new Date(foundCheckout.endsAt).toLocaleDateString()}
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
-                    Items ({foundCheckout.serializedItems.length})
-                  </div>
-                  {foundCheckout.serializedItems.map((si) => (
-                    <div key={si.asset.id} style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 0",
-                      borderBottom: "1px solid var(--border)"
+                      background: done ? "#22c55e" : "#e5e7eb",
+                      color: done ? "white" : "#9ca3af",
+                      fontSize: 14, fontWeight: 700,
                     }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
-                      <span style={{ fontWeight: 600 }}>{si.asset.assetTag}</span>
-                      <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
-                        {si.asset.brand} {si.asset.model}
-                      </span>
+                      {done ? "\u2713" : ""}
                     </div>
-                  ))}
-                </div>
-
-                <a
-                  href={`/checkouts/${foundCheckout.id}`}
-                  className="btn btn-primary"
-                  style={{
-                    width: "100%",
-                    textAlign: "center",
-                    textDecoration: "none",
-                    padding: "14px 24px",
-                    fontSize: 16,
-                    display: "block",
-                    minHeight: 48,
-                    lineHeight: "20px"
-                  }}
-                >
-                  Go to check in
-                </a>
-              </div>
-            </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, color: done ? "#166534" : "var(--text)" }}>{item.name}</div>
+                      <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                        {item.scanned} / {item.required} scanned
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
           )}
-        </>
+        </div>
       )}
+
+      {/* ── Complete action (sticky bottom, clears mobile nav) ── */}
+      {mode !== "lookup" && scanStatus?.progress.allComplete && (
+        <div style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: "16px 16px calc(16px + env(safe-area-inset-bottom, 0px))",
+          paddingBottom: "calc(16px + 60px)",
+          background: "white",
+          borderTop: "1px solid var(--border)",
+          boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
+          zIndex: 50,
+        }}>
+          <button
+            className="btn btn-primary"
+            onClick={handleComplete}
+            disabled={completing}
+            style={{
+              width: "100%",
+              padding: "16px 24px",
+              fontSize: 16,
+              fontWeight: 700,
+              minHeight: 52,
+            }}
+          >
+            {completing
+              ? "Completing..."
+              : mode === "checkout"
+                ? "Complete Checkout"
+                : "Complete Check-in"
+            }
+          </button>
+        </div>
+      )}
+
+      {/* Inline styles for animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
     </>
   );
 }

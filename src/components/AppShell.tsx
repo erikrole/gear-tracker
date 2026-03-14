@@ -52,13 +52,13 @@ const bottomNavItems = [
     ),
   },
   {
-    label: "More",
-    href: "#menu",
+    label: "Scan",
+    href: "/scan",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
-        <circle cx="12" cy="5" r="1" fill="currentColor" />
-        <circle cx="12" cy="12" r="1" fill="currentColor" />
-        <circle cx="12" cy="19" r="1" fill="currentColor" />
+        <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
+        <line x1="7" y1="12" x2="17" y2="12" />
+        <line x1="12" y1="7" x2="12" y2="17" />
       </svg>
     ),
   },
@@ -154,18 +154,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile bottom nav */}
       <nav className="bottom-nav">
         {bottomNavItems.map((item) => {
-          if (item.href === "#menu") {
-            return (
-              <button
-                key="menu"
-                className="bottom-nav-item"
-                onClick={() => setSidebarOpen(true)}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            );
-          }
           const isActive =
             item.href === "/"
               ? pathname === "/"
