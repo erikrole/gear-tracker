@@ -18,7 +18,8 @@ export async function GET(req: Request) {
       },
       include: {
         location: true,
-        balances: true
+        balances: true,
+        units: true
       },
       orderBy: [{ locationId: "asc" }, { name: "asc" }]
     });
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
           locationId: body.locationId,
           binQrCodeValue: body.binQrCodeValue,
           minThreshold: body.minThreshold,
+          trackByNumber: body.trackByNumber,
           active: body.active
         }
       });
@@ -69,9 +71,18 @@ export async function POST(req: Request) {
         });
       }
 
+      if (body.trackByNumber && body.initialQuantity > 0) {
+        await tx.bulkSkuUnit.createMany({
+          data: Array.from({ length: body.initialQuantity }, (_, i) => ({
+            bulkSkuId: sku.id,
+            unitNumber: i + 1
+          }))
+        });
+      }
+
       return tx.bulkSku.findUniqueOrThrow({
         where: { id: sku.id },
-        include: { balances: true }
+        include: { balances: true, units: body.trackByNumber }
       });
     });
 

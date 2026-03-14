@@ -20,6 +20,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       scanType: body.scanType as ScanType,
       scanValue: body.scanValue,
       quantity: body.quantity,
+      unitNumbers: body.unitNumbers,
       deviceContext: body.deviceContext
     });
 

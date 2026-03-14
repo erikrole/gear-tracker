@@ -46,16 +46,17 @@ A `BulkSku` with `trackByNumber: true` gets a set of numbered units (1–N). One
 - [x] Generate and apply migration
 - [x] Validate with `npm run build`
 
-### Slice 2: API / Service Layer
-- [ ] **Create units on BulkSku creation** — when `trackByNumber: true` and quantity > 0, auto-create `BulkSkuUnit` rows 1..N
-- [ ] **Add units endpoint** — `POST /api/bulk-skus/[id]/units` to add more units (e.g., expand from 40 → 50)
-- [ ] **Retire/mark lost endpoint** — `PATCH /api/bulk-skus/[id]/units/[unitNumber]` to change unit status
-- [ ] **Update scan service** — when scanning a numbered-bulk QR during checkout:
-  - Instead of just incrementing `checkedOutQuantity`, also record *which* unit numbers via `BookingBulkUnitAllocation`
+### Slice 2: API / Service Layer ✅
+- [x] **Create units on BulkSku creation** — when `trackByNumber: true` and quantity > 0, auto-create `BulkSkuUnit` rows 1..N
+- [x] **Add units endpoint** — `GET/POST /api/bulk-skus/[id]/units` to list and add more units
+- [x] **Retire/mark lost endpoint** — `PATCH /api/bulk-skus/[id]/units/[unitNumber]` to change unit status
+- [x] **Update scan service** — when scanning a numbered-bulk QR during checkout:
+  - Records *which* unit numbers via `BookingBulkUnitAllocation`
   - Unit status transitions: AVAILABLE → CHECKED_OUT on checkout, CHECKED_OUT → AVAILABLE on check-in
-- [ ] **Update completion logic** — `buildScanCompletionState()` should report which specific unit numbers are still outstanding during check-in
-- [ ] Audit log entries for unit status changes
-- [ ] Validate with `npm run build`
+  - Validates unit availability/status before allocation
+- [x] **Update completion logic** — `buildScanCompletionState()` reports specific outstanding unit numbers during check-in
+- [x] Audit log entries for unit status changes
+- [x] Validate with `npm run build`
 
 ### Slice 3: UI — Bulk Inventory & Item Detail
 - [ ] **Create form** — add "Track by number" toggle to bulk SKU creation form

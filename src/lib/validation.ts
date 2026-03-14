@@ -56,6 +56,7 @@ export const scanSchema = z.object({
   scanType: z.enum(["SERIALIZED", "BULK_BIN"]),
   scanValue: z.string().min(1),
   quantity: z.number().int().positive().optional(),
+  unitNumbers: z.array(z.number().int().positive()).optional(),
   deviceContext: z.string().max(500).optional()
 });
 
@@ -72,7 +73,17 @@ export const createBulkSkuSchema = z.object({
   binQrCodeValue: z.string().min(1),
   minThreshold: z.number().int().min(0).default(0),
   active: z.boolean().default(true),
-  initialQuantity: z.number().int().min(0).default(0)
+  initialQuantity: z.number().int().min(0).default(0),
+  trackByNumber: z.boolean().default(false)
+});
+
+export const addBulkUnitsSchema = z.object({
+  count: z.number().int().min(1).max(500)
+});
+
+export const updateBulkUnitSchema = z.object({
+  status: z.enum(["AVAILABLE", "LOST", "RETIRED"]),
+  notes: z.string().max(1000).optional()
 });
 
 export const adjustBulkSchema = z.object({
