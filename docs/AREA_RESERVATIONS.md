@@ -142,7 +142,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 2. Proceed to check-out — converts `BOOKED` reservation to `OPEN` checkout
 3. Extend — extends booking window (conflict-checked)
 4. Cancel reservation — soft cancel, record preserved for audit
-5. Deferred: Spotcheck creation, PDF generation, duplicate/clone
+5. Duplicate — clones a BOOKED reservation with same items, dates, and settings
+6. Deferred: Spotcheck creation, PDF generation
 
 ## Bug Traps and Mitigations
 
@@ -235,3 +236,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-03-01: Added reservations list-page controls, columns, and role-based export behavior.
 - 2026-03-02: Added explicit mobile row-interaction contract alignment.
 - 2026-03-11: Docs hardening — synced action matrix to shipped `booking-rules.ts`. Removed Cheqroom action mapping. Replaced "Reserve again"/"Repeat reservation" with deferred duplicate action. Added DRAFT state. Marked V1 as shipped.
+- 2026-03-14: Shipped duplicate/clone action — detail page button + list context menu entry. API endpoint at POST /api/reservations/[id]/duplicate.
