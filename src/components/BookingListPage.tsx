@@ -218,6 +218,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [statusFilter, setStatusFilter] = useState("");
   const [sportFilter, setSportFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Form options ──
   const [users, setUsers] = useState<FormUser[]>([]);
@@ -989,7 +990,19 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       <div className="card">
         <div className="card-header card-header-wrap">
           <h2>All {config.labelPlural.toLowerCase()}</h2>
-          <div className="booking-filters">
+          <button
+            className="filter-toggle-btn"
+            onClick={() => setFiltersOpen((prev) => !prev)}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+            </svg>
+            Filters
+            {(statusFilter || sportFilter || locationFilter) && (
+              <span className="filter-active-dot" />
+            )}
+          </button>
+          <div className={`booking-filters ${filtersOpen ? "booking-filters-open" : ""}`}>
             <input
               type="text"
               className="form-input"

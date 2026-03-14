@@ -136,7 +136,7 @@ function UtilizationReport({ data }: { data: UtilizationData }) {
   return (
     <>
       {/* Status summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+      <div className="summary-grid" style={{ marginBottom: 16 }}>
         {Object.entries(data.statusCounts).map(([status, count]) => (
           <div key={status} className="card" style={{ padding: 16, textAlign: "center" }}>
             <div style={{ fontSize: 28, fontWeight: 700 }}>{count}</div>
@@ -153,7 +153,7 @@ function UtilizationReport({ data }: { data: UtilizationData }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="grid-2col" style={{ gap: 16 }}>
         {/* By location */}
         <div className="card">
           <div className="card-header"><h2>By location</h2></div>
@@ -224,7 +224,7 @@ function CheckoutReport({ data, days, onDaysChange }: { data: CheckoutData; days
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
+      <div className="summary-grid" style={{ marginBottom: 16 }}>
         <div className="card" style={{ padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 28, fontWeight: 700 }}>{data.totalCheckouts}</div>
           <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Checkouts ({days}d)</div>
@@ -237,7 +237,7 @@ function CheckoutReport({ data, days, onDaysChange }: { data: CheckoutData; days
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+      <div className="grid-2col" style={{ gap: 16 }}>
         {/* Recent checkouts */}
         <div className="card">
           <div className="card-header"><h2>Recent checkouts</h2></div>

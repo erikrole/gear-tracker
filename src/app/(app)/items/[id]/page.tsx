@@ -691,7 +691,7 @@ function ItemInfoCard({
           </span>
         )}
       </div>
-      <dl className="data-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+      <dl className="data-list data-list-2col">
         {renderFieldGroup("Identity", identityFields)}
         {currentUserRole !== "STUDENT" && renderFieldGroup("Procurement", procurementFields, (
           <FiscalYearField
