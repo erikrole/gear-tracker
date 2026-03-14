@@ -20,11 +20,11 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
-  AVAILABLE: "#22c55e",
-  CHECKED_OUT: "#ef4444",
+  AVAILABLE: "var(--green)",
+  CHECKED_OUT: "var(--red)",
   RESERVED: "#a855f7",
-  MAINTENANCE: "#f59e0b",
-  RETIRED: "#9ca3af",
+  MAINTENANCE: "var(--orange)",
+  RETIRED: "var(--text-muted)",
 };
 
 /* ───── Types ───── */
@@ -140,18 +140,18 @@ function parseSortParam(s: string): { key: SortKey; dir: SortDir } | null {
 }
 
 function getStatusVisual(status: string, isOverdue: boolean): { dot: string; label: string; className: string } {
-  if (isOverdue) return { dot: "#ef4444", label: "Overdue", className: "status-overdue" };
+  if (isOverdue) return { dot: "var(--red)", label: "Overdue", className: "status-overdue" };
   switch (status) {
     case "OPEN":
     case "DRAFT":
     case "BOOKED":
-      return { dot: "#22c55e", label: status === "BOOKED" ? "Booked" : status === "DRAFT" ? "Draft" : "Open", className: "status-active" };
+      return { dot: "var(--green)", label: status === "BOOKED" ? "Booked" : status === "DRAFT" ? "Draft" : "Open", className: "status-active" };
     case "CANCELLED":
-      return { dot: "#9ca3af", label: "Cancelled", className: "status-cancelled" };
+      return { dot: "var(--text-muted)", label: "Cancelled", className: "status-cancelled" };
     case "COMPLETED":
-      return { dot: "#9ca3af", label: "Completed", className: "status-completed" };
+      return { dot: "var(--text-muted)", label: "Completed", className: "status-completed" };
     default:
-      return { dot: "#9ca3af", label: status.toLowerCase(), className: "" };
+      return { dot: "var(--text-muted)", label: status.toLowerCase(), className: "" };
   }
 }
 
@@ -849,7 +849,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                             )}
                             {sectionAssets.slice(0, 50).map((asset) => {
                               const isAvailable = asset.computedStatus === "AVAILABLE";
-                              const dotColor = STATUS_DOT_COLORS[asset.computedStatus] || "#9ca3af";
+                              const dotColor = STATUS_DOT_COLORS[asset.computedStatus] || "var(--text-muted)";
                               const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
                               return (
                                 <div

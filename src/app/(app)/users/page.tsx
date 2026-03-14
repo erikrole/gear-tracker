@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { useToast } from "@/components/Toast";
 
 type UserRow = {
   id: string;
@@ -17,18 +18,16 @@ type Location = { id: string; name: string };
 type Role = "ADMIN" | "STAFF" | "STUDENT";
 
 export default function UsersPage() {
+  const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [currentUserRole, setCurrentUserRole] = useState<Role | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<Role | "">("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", locationId: "" });
-  const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
@@ -63,13 +62,6 @@ export default function UsersPage() {
     load();
   }, []);
 
-  // Auto-clear success message
-  useEffect(() => {
-    if (!success) return;
-    const t = setTimeout(() => setSuccess(""), 3000);
-    return () => clearTimeout(t);
-  }, [success]);
-
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
     const matchesSearch =
@@ -83,8 +75,6 @@ export default function UsersPage() {
   async function handleCreateUser(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
-    setError("");
-    setSuccess("");
     const form = new FormData(e.currentTarget);
     const payload = {
       name: String(form.get("name") || ""),
@@ -94,40 +84,49 @@ export default function UsersPage() {
       locationId: String(form.get("locationId") || "") || null,
     };
 
-    const res = await fetch("/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json();
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
 
-    if (!res.ok) {
-      setError(json.error || "Failed to create user");
+      if (!res.ok) {
+        toast(json.error || "Failed to create user", "error");
+        setSubmitting(false);
+        return;
+      }
+
+      e.currentTarget.reset();
       setSubmitting(false);
-      return;
+      toast(`${payload.name} added successfully`, "success");
+      await load();
+    } catch {
+      toast("Network error", "error");
+      setSubmitting(false);
     }
-
-    e.currentTarget.reset();
-    setSubmitting(false);
-    setSuccess(`${payload.name} added successfully`);
-    await load();
   }
 
   async function handleRoleChange(userId: string, newRole: Role) {
     setSaving(userId);
-    const res = await fetch(`/api/users/${userId}/role`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: newRole }),
-    });
-    if (res.ok) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-      );
-      setSuccess("Role updated");
-    } else {
-      const json = await res.json();
-      setError(json.error || "Failed to update role");
+    try {
+      const res = await fetch(`/api/users/${userId}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (res.ok) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+        );
+        toast("Role updated", "success");
+      } else {
+        const json = await res.json();
+        toast(json.error || "Failed to update role", "error");
+      }
+    } catch {
+      toast("Network error", "error");
     }
     setSaving(null);
   }
@@ -139,17 +138,14 @@ export default function UsersPage() {
       email: user.email,
       locationId: user.locationId || "",
     });
-    setEditError("");
   }
 
   function cancelEditing() {
     setEditingId(null);
-    setEditError("");
   }
 
   async function saveEdit(userId: string) {
     setSaving(userId);
-    setEditError("");
     const payload: Record<string, unknown> = {};
     const user = users.find((u) => u.id === userId);
     if (!user) return;
@@ -165,23 +161,27 @@ export default function UsersPage() {
       return;
     }
 
-    const res = await fetch(`/api/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setEditError(json.error || "Failed to update user");
-      setSaving(null);
-      return;
-    }
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to update user", "error");
+        setSaving(null);
+        return;
+      }
 
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, ...json.data } : u))
-    );
-    setEditingId(null);
-    setSuccess("User updated");
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, ...json.data } : u))
+      );
+      setEditingId(null);
+      toast("User updated", "success");
+    } catch {
+      toast("Network error", "error");
+    }
     setSaving(null);
   }
 
@@ -207,61 +207,15 @@ export default function UsersPage() {
               gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
             }}
           >
-            <input
-              name="name"
-              placeholder="Full name"
-              required
-              style={{
-                padding: 8,
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-              }}
-            />
-            <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              required
-              style={{
-                padding: 8,
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-              }}
-            />
-            <input
-              name="password"
-              type="password"
-              minLength={8}
-              placeholder="Temporary password"
-              required
-              style={{
-                padding: 8,
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-              }}
-            />
-            <select
-              name="role"
-              defaultValue="STAFF"
-              style={{
-                padding: 8,
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-              }}
-            >
+            <input className="form-input" name="name" placeholder="Full name" required />
+            <input className="form-input" name="email" type="email" placeholder="Email" required />
+            <input className="form-input" name="password" type="password" minLength={8} placeholder="Temporary password" required />
+            <select className="form-select" name="role" defaultValue="STAFF">
               <option value="ADMIN">Admin</option>
               <option value="STAFF">Staff</option>
               <option value="STUDENT">Student</option>
             </select>
-            <select
-              name="locationId"
-              defaultValue=""
-              style={{
-                padding: 8,
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-              }}
-            >
+            <select className="form-select" name="locationId" defaultValue="">
               <option value="">No location</option>
               {locations.map((location) => (
                 <option key={location.id} value={location.id}>
@@ -284,51 +238,24 @@ export default function UsersPage() {
                 {submitting ? "Adding..." : "Add user"}
               </button>
             </div>
-            {error && (
-              <div style={{ gridColumn: "1 / -1", color: "var(--red)" }}>
-                {error}
-              </div>
-            )}
-            {success && (
-              <div style={{ gridColumn: "1 / -1", color: "var(--green)" }}>
-                {success}
-              </div>
-            )}
           </form>
         </div>
       )}
 
       {/* Search & Filter */}
-      <div
-        className="card"
-        style={{
-          marginBottom: 16,
-          padding: 12,
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-        }}
-      >
+      <div className="card filter-bar" style={{ marginBottom: 16, padding: 12 }}>
         <input
+          className="form-input"
           type="text"
           placeholder="Search by name or email..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            padding: 8,
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-          }}
+          style={{ flex: 1 }}
         />
         <select
+          className="form-select"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value as Role | "")}
-          style={{
-            padding: 8,
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-          }}
         >
           <option value="">All roles</option>
           <option value="ADMIN">Admin</option>
@@ -371,20 +298,17 @@ export default function UsersPage() {
                     <>
                       <td>
                         <input
+                          className="form-input"
                           value={editForm.name}
                           onChange={(e) =>
                             setEditForm((f) => ({ ...f, name: e.target.value }))
                           }
-                          style={{
-                            width: "100%",
-                            padding: 4,
-                            border: "1px solid var(--border)",
-                            borderRadius: 4,
-                          }}
+                          style={{ width: "100%" }}
                         />
                       </td>
                       <td>
                         <input
+                          className="form-input"
                           type="email"
                           value={editForm.email}
                           onChange={(e) =>
@@ -393,26 +317,17 @@ export default function UsersPage() {
                               email: e.target.value,
                             }))
                           }
-                          style={{
-                            width: "100%",
-                            padding: 4,
-                            border: "1px solid var(--border)",
-                            borderRadius: 4,
-                          }}
+                          style={{ width: "100%" }}
                         />
                       </td>
                       <td>
                         <select
+                          className="form-select"
                           value={user.role}
                           onChange={(e) =>
                             handleRoleChange(user.id, e.target.value as Role)
                           }
                           disabled={saving === user.id}
-                          style={{
-                            padding: 4,
-                            border: "1px solid var(--border)",
-                            borderRadius: 4,
-                          }}
                         >
                           <option value="ADMIN">Admin</option>
                           <option value="STAFF">Staff</option>
@@ -421,6 +336,7 @@ export default function UsersPage() {
                       </td>
                       <td>
                         <select
+                          className="form-select"
                           value={editForm.locationId}
                           onChange={(e) =>
                             setEditForm((f) => ({
@@ -428,11 +344,6 @@ export default function UsersPage() {
                               locationId: e.target.value,
                             }))
                           }
-                          style={{
-                            padding: 4,
-                            border: "1px solid var(--border)",
-                            borderRadius: 4,
-                          }}
                         >
                           <option value="">No location</option>
                           {locations.map((loc) => (
@@ -459,17 +370,6 @@ export default function UsersPage() {
                             Cancel
                           </button>
                         </div>
-                        {editError && (
-                          <div
-                            style={{
-                              color: "var(--red)",
-                              fontSize: 12,
-                              marginTop: 4,
-                            }}
-                          >
-                            {editError}
-                          </div>
-                        )}
                       </td>
                     </>
                   ) : (
@@ -479,17 +379,13 @@ export default function UsersPage() {
                       <td>
                         {canEdit ? (
                           <select
+                            className="form-select"
                             value={user.role}
                             onChange={(e) =>
                               handleRoleChange(user.id, e.target.value as Role)
                             }
                             disabled={saving === user.id}
-                            style={{
-                              padding: 4,
-                              border: "1px solid var(--border)",
-                              borderRadius: 4,
-                              background: "transparent",
-                            }}
+                            style={{ background: "transparent" }}
                           >
                             <option value="ADMIN">Admin</option>
                             <option value="STAFF">Staff</option>
@@ -518,13 +414,6 @@ export default function UsersPage() {
           </table>
         )}
 
-        {/* Feedback when not editing (for read-only users) */}
-        {!canEdit && !loading && error && (
-          <div style={{ padding: 16, color: "var(--red)" }}>{error}</div>
-        )}
-        {!canEdit && !loading && success && (
-          <div style={{ padding: 16, color: "var(--green)" }}>{success}</div>
-        )}
       </div>
     </>
   );
