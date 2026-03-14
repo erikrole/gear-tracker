@@ -58,30 +58,17 @@ A `BulkSku` with `trackByNumber: true` gets a set of numbered units (1–N). One
 - [x] Audit log entries for unit status changes
 - [x] Validate with `npm run build`
 
-### Slice 3: UI — Bulk Inventory & Item Detail
-- [ ] **Create form** — add "Track by number" toggle to bulk SKU creation form
-  - When enabled: initial quantity creates numbered units 1..N
-  - Show preview: "This will create units #1 through #40"
-- [ ] **Bulk SKU detail view** — new "Units" section/tab:
-  - Grid of numbered units with status dots (green=available, red=checked out, orange=lost, gray=retired)
-  - Click unit → popover with: current booking (if checked out), notes, mark lost/retire actions
-  - "Add more units" button (appends next N numbers)
-- [ ] **Bulk inventory table** — show unit breakdown for numbered items:
-  - e.g., "38/40 available · 1 checked out · 1 lost"
-- [ ] Validate with `npm run build`
-
-### Slice 4: UI — Scan Flow (Checkout & Check-in)
-- [ ] **Checkout scan** — when scanning a numbered-bulk QR:
-  - Show unit number picker instead of plain quantity input
-  - Options: number pad for individual entry, range selector ("1–10"), or multi-select grid
-  - Selected units get allocated to the booking
-  - Progress shows: "Batteries: 10/10 units selected" with unit numbers listed
-- [ ] **Check-in scan** — when scanning a numbered-bulk QR:
-  - Show which units were checked out on this booking
-  - Staff confirms which came back (pre-checked, uncheck missing ones)
-  - Missing units flagged: "Battery #12 not returned — mark as lost?"
-- [ ] **Scan completion state** — numbered items show specific missing unit numbers, not just a count
-- [ ] Validate with `npm run build`
+### Slice 3 + 4: UI — Bulk Inventory & Scan Flow ✅
+- [x] **Create form** — "Track by number" toggle with info banner
+- [x] **Units grid** — expandable inline grid with color-coded status dots per unit
+  - Click to cycle: Available → Lost → Retired → Available (checked-out units locked)
+  - "Add more units" inline form
+- [x] **Table breakdown** — shows "38/40 available" + summary with `#` badge
+- [x] **Scan page unit picker** — bottom sheet with multi-select grid of available units
+  - Select all / deselect all
+  - Shows allocated unit number tags in checklist
+- [x] **Scan status API** — returns `trackByNumber` flag and `allocatedUnits` per bulk item
+- [x] Validate with `npm run build`
 
 ### Slice 5: Hardening & Docs
 - [ ] Edge cases:

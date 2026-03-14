@@ -20,11 +20,19 @@ type SerializedItemStatus = {
   scanned: boolean;
 };
 
+type AllocatedUnit = {
+  unitNumber: number;
+  checkedOut: boolean;
+  checkedIn: boolean;
+};
+
 type BulkItemStatus = {
   bulkSkuId: string;
   name: string;
   required: number;
   scanned: number;
+  trackByNumber?: boolean;
+  allocatedUnits?: AllocatedUnit[];
 };
 
 type ScanStatus = {
@@ -101,6 +109,15 @@ export default function ScanPage() {
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(mode !== "lookup");
   const [loadError, setLoadError] = useState(false);
+
+  // Numbered bulk unit picker
+  const [unitPicker, setUnitPicker] = useState<{
+    bulkSkuId: string;
+    scanValue: string;
+    name: string;
+    availableUnits: number[];
+  } | null>(null);
+  const [selectedUnits, setSelectedUnits] = useState<Set<number>>(new Set());
 
   const toastRef = useRef(toast);
   toastRef.current = toast;
@@ -200,11 +217,9 @@ export default function ScanPage() {
     setProcessing(false);
   }, []);
 
-  // ── Booking scan: record scan event ──
-  const handleBookingScan = useCallback(async (value: string) => {
-    if (!checkoutId || !phaseParam) return;
-    setProcessing(true);
-    setLastScanResult(null);
+  // ── Submit a scan (serialized or bulk with units) ──
+  const submitScan = useCallback(async (payload: Record<string, unknown>) => {
+    if (!checkoutId || !phaseParam) return false;
 
     const endpoint = phaseParam === "CHECKIN"
       ? `/api/checkouts/${checkoutId}/checkin-scan`
@@ -214,28 +229,124 @@ export default function ScanPage() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phase: phaseParam,
-          scanType: "SERIALIZED",
-          scanValue: value,
-        }),
+        body: JSON.stringify({ phase: phaseParam, ...payload }),
       });
 
       if (res.ok) {
         vibrate();
         setLastScanResult({ message: "Item scanned successfully", success: true });
         await loadScanStatus();
+        return true;
       } else {
         const json = await res.json().catch(() => ({}));
         const errMsg = (json as Record<string, string>).error || "Scan not recognized";
         setLastScanResult({ message: errMsg, success: false });
         vibrate(50);
+        return false;
       }
     } catch {
       setLastScanResult({ message: "Network error \u2014 try again", success: false });
+      return false;
+    }
+  }, [checkoutId, phaseParam, loadScanStatus]);
+
+  // ── Booking scan: record scan event ──
+  const handleBookingScan = useCallback(async (value: string) => {
+    if (!checkoutId || !phaseParam || !scanStatus) return;
+    setProcessing(true);
+    setLastScanResult(null);
+
+    // Check if this QR belongs to a numbered bulk item
+    const numberedBulk = scanStatus.bulkItems.find(
+      (item) => item.trackByNumber
+    );
+
+    // We need to check if the scan value matches a bulk bin QR — try the scan
+    // and if it's a numbered bulk item, the API will tell us we need unitNumbers
+    if (numberedBulk) {
+      // Try as serialized first
+      const res = await fetch(
+        phaseParam === "CHECKIN"
+          ? `/api/checkouts/${checkoutId}/checkin-scan`
+          : `/api/checkouts/${checkoutId}/scan`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phase: phaseParam, scanType: "SERIALIZED", scanValue: value }),
+        }
+      );
+
+      if (res.ok) {
+        vibrate();
+        setLastScanResult({ message: "Item scanned successfully", success: true });
+        await loadScanStatus();
+        setProcessing(false);
+        return;
+      }
+
+      const errJson = await res.json().catch(() => ({}));
+      const errMsg = (errJson as Record<string, string>).error || "";
+
+      // If serialized scan failed, check if it matches a numbered bulk bin
+      const matchingBulk = scanStatus.bulkItems.find(
+        (item) => item.trackByNumber
+      );
+
+      if (matchingBulk && errMsg.includes("does not belong")) {
+        // Fetch available units to show picker
+        const unitsRes = await fetch(`/api/bulk-skus/${matchingBulk.bulkSkuId}/units`);
+        if (unitsRes.ok) {
+          const unitsJson = await unitsRes.json();
+          const units = unitsJson.data as Array<{ unitNumber: number; status: string }>;
+
+          const availableUnits = phaseParam === "CHECKOUT"
+            ? units.filter((u) => u.status === "AVAILABLE").map((u) => u.unitNumber)
+            : units.filter((u) => u.status === "CHECKED_OUT").map((u) => u.unitNumber);
+
+          if (availableUnits.length > 0) {
+            setUnitPicker({
+              bulkSkuId: matchingBulk.bulkSkuId,
+              scanValue: value,
+              name: matchingBulk.name,
+              availableUnits,
+            });
+            setSelectedUnits(new Set(availableUnits));
+            setProcessing(false);
+            return;
+          }
+        }
+      }
+
+      setLastScanResult({ message: errMsg || "Scan not recognized", success: false });
+      vibrate(50);
+      setProcessing(false);
+      return;
+    }
+
+    // Standard flow: try as serialized scan
+    setProcessing(true);
+    await submitScan({ scanType: "SERIALIZED", scanValue: value });
+    setProcessing(false);
+  }, [checkoutId, phaseParam, scanStatus, loadScanStatus, submitScan]);
+
+  // ── Submit numbered bulk unit selection ──
+  async function handleUnitPickerSubmit() {
+    if (!unitPicker || selectedUnits.size === 0) return;
+    setProcessing(true);
+    setLastScanResult(null);
+
+    const success = await submitScan({
+      scanType: "BULK_BIN",
+      scanValue: unitPicker.scanValue,
+      unitNumbers: [...selectedUnits].sort((a, b) => a - b),
+    });
+
+    if (success) {
+      setUnitPicker(null);
+      setSelectedUnits(new Set());
     }
     setProcessing(false);
-  }, [checkoutId, phaseParam, loadScanStatus]);
+  }
 
   // ── Route scan to correct handler ──
   const handleScan = useCallback((value: string) => {
@@ -585,41 +696,157 @@ export default function ScanPage() {
 
               {scanStatus.bulkItems.map((item) => {
                 const done = item.scanned >= item.required;
+                const allocated = item.allocatedUnits ?? [];
                 return (
                   <div
                     key={item.bulkSkuId}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
                       padding: "14px 16px",
                       borderBottom: "1px solid var(--border)",
                       background: done ? "#f0fdf4" : "white",
                       minHeight: 56,
                     }}
                   >
-                    <div style={{
-                      width: 28, height: 28, borderRadius: "50%",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                      background: done ? "#22c55e" : "#e5e7eb",
-                      color: done ? "white" : "#9ca3af",
-                      fontSize: 14, fontWeight: 700,
-                    }}>
-                      {done ? "\u2713" : ""}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, color: done ? "#166534" : "var(--text)" }}>{item.name}</div>
-                      <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                        {item.scanned} / {item.required} scanned
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0,
+                        background: done ? "#22c55e" : "#e5e7eb",
+                        color: done ? "white" : "#9ca3af",
+                        fontSize: 14, fontWeight: 700,
+                      }}>
+                        {done ? "\u2713" : ""}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: done ? "#166534" : "var(--text)" }}>
+                          {item.name}
+                          {item.trackByNumber && (
+                            <span style={{
+                              fontSize: 10, fontWeight: 600, padding: "1px 5px",
+                              borderRadius: 4, background: "#eff6ff", color: "#3b82f6",
+                              marginLeft: 6,
+                            }}>#</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                          {item.scanned} / {item.required} scanned
+                        </div>
                       </div>
                     </div>
+
+                    {/* Show allocated unit numbers */}
+                    {item.trackByNumber && allocated.length > 0 && (
+                      <div style={{
+                        display: "flex", flexWrap: "wrap", gap: 4,
+                        marginTop: 8, marginLeft: 40,
+                      }}>
+                        {allocated.map((u) => (
+                          <span key={u.unitNumber} style={{
+                            fontSize: 11, fontWeight: 600,
+                            padding: "2px 6px", borderRadius: 4,
+                            background: u.checkedIn ? "#dcfce7" : u.checkedOut ? "#dbeafe" : "#f3f4f6",
+                            color: u.checkedIn ? "#166534" : u.checkedOut ? "#1e40af" : "#6b7280",
+                          }}>
+                            #{u.unitNumber}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </>
           )}
         </div>
+      )}
+
+      {/* ── Numbered bulk unit picker ── */}
+      {unitPicker && (
+        <>
+          <div className="sheet-overlay" onClick={() => setUnitPicker(null)} />
+          <div className="sheet-panel" style={{ maxWidth: 480 }}>
+            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "#d1d5db" }} />
+            </div>
+
+            <div className="sheet-header">
+              <h2 style={{ margin: 0 }}>Select {unitPicker.name} units</h2>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
+                {mode === "checkout" ? "Which units are going out?" : "Which units came back?"}
+              </div>
+            </div>
+
+            <div style={{ padding: "0 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>
+                  {selectedUnits.size} of {unitPicker.availableUnits.length} selected
+                </span>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => {
+                    if (selectedUnits.size === unitPicker.availableUnits.length) {
+                      setSelectedUnits(new Set());
+                    } else {
+                      setSelectedUnits(new Set(unitPicker.availableUnits));
+                    }
+                  }}
+                >
+                  {selectedUnits.size === unitPicker.availableUnits.length ? "Deselect all" : "Select all"}
+                </button>
+              </div>
+
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))",
+                gap: 6,
+                maxHeight: 300,
+                overflowY: "auto",
+                paddingBottom: 8,
+              }}>
+                {unitPicker.availableUnits.map((num) => {
+                  const selected = selectedUnits.has(num);
+                  return (
+                    <button
+                      key={num}
+                      onClick={() => {
+                        const next = new Set(selectedUnits);
+                        if (selected) next.delete(num); else next.add(num);
+                        setSelectedUnits(next);
+                      }}
+                      style={{
+                        padding: "8px 4px",
+                        borderRadius: 8,
+                        border: selected ? "2px solid #3b82f6" : "2px solid #e5e7eb",
+                        background: selected ? "#dbeafe" : "white",
+                        fontSize: 14, fontWeight: 600,
+                        cursor: "pointer",
+                        color: selected ? "#1e40af" : "var(--text)",
+                        transition: "all 0.1s",
+                      }}
+                    >
+                      #{num}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="sheet-actions" style={{ display: "flex", gap: 8 }}>
+              <button className="btn" onClick={() => setUnitPicker(null)} style={{ flex: 1, minHeight: 48 }}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleUnitPickerSubmit}
+                disabled={selectedUnits.size === 0 || processing}
+                style={{ flex: 1, minHeight: 48 }}
+              >
+                {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ── Complete action (sticky bottom, clears mobile nav) ── */}
