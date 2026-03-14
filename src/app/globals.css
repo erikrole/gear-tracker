@@ -4615,3 +4615,94 @@ tr.returned-row { opacity: 0.55; }
 .equip-picker-wrap {
   margin-top: 8px;
 }
+
+/* ===== Creation Flow Mobile Fixes ===== */
+@media (max-width: 768px) {
+  /* Create card: reduce padding for 375px screens */
+  .create-card-body {
+    padding: 12px 14px;
+  }
+  .create-card-header {
+    padding: 12px 14px;
+  }
+  .create-card-footer {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .create-card-footer .btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  /* Form inputs: 44px minimum touch target */
+  .field-compact input,
+  .field-compact select {
+    min-height: 44px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  /* Section tabs: 44px touch target */
+  .section-tab {
+    min-height: 44px;
+    padding: 10px 10px;
+    font-size: 12px;
+  }
+
+  /* Picker scroll: taller on mobile for easier browsing */
+  .picker-scroll {
+    max-height: 260px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Picker search: 44px touch target */
+  .picker-search {
+    min-height: 44px;
+    font-size: 16px; /* prevents iOS zoom */
+  }
+
+  /* Event scroll: taller to reduce nested scroll confusion */
+  .event-scroll {
+    max-height: 300px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Remove button: usable touch target */
+  .remove-btn {
+    padding: 8px 10px;
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Qty stepper: 44px buttons */
+  .qty-stepper button {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  .qty-stepper input {
+    height: 44px;
+    font-size: 14px;
+  }
+
+  /* Selected equipment row: taller for touch */
+  .equip-selected-row {
+    min-height: 44px;
+    padding: 6px 0;
+  }
+
+  /* Section content: tighter padding on mobile */
+  .section-content {
+    padding: 8px 6px;
+  }
+
+  /* Field row: stack on mobile */
+  .field-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
