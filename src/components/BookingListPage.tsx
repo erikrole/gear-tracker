@@ -477,15 +477,17 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     fn();
   }
 
+  const [extendingId, setExtendingId] = useState<string | null>(null);
+
   async function handleExtendFromMenu(bookingId: string, days: number) {
     const item = items.find((i) => i.id === bookingId);
-    if (!item) return;
-    const extended = new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000);
+    if (!item || extendingId) return;
+    setExtendingId(bookingId);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endsAt: extended.toISOString() }),
+        body: JSON.stringify({ endsAt: new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString() }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -495,6 +497,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     } catch {
       toast("Network error — please try again.", "error");
     }
+    setExtendingId(null);
   }
 
   // ── Derived ──

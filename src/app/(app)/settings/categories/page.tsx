@@ -107,6 +107,9 @@ function CategoryRow({
   const [newName, setNewName] = useState(node.name);
   const [addingSub, setAddingSub] = useState(false);
   const [subName, setSubName] = useState("");
+  const [savingRename, setSavingRename] = useState(false);
+  const [savingSub, setSavingSub] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const subInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,13 +127,19 @@ function CategoryRow({
       setNewName(node.name);
       return;
     }
-    await fetch(`/api/categories/${node.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim() }),
-    });
-    setRenaming(false);
-    onRefresh();
+    setSavingRename(true);
+    try {
+      await fetch(`/api/categories/${node.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      setRenaming(false);
+      onRefresh();
+    } catch {
+      toast("Failed to rename", "error");
+    }
+    setSavingRename(false);
   }
 
   async function saveSub() {
@@ -138,17 +147,24 @@ function CategoryRow({
       setAddingSub(false);
       return;
     }
-    await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: subName.trim(), parentId: node.id }),
-    });
-    setSubName("");
-    setAddingSub(false);
-    onRefresh();
+    setSavingSub(true);
+    try {
+      await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: subName.trim(), parentId: node.id }),
+      });
+      setSubName("");
+      setAddingSub(false);
+      onRefresh();
+    } catch {
+      toast("Failed to create subcategory", "error");
+    }
+    setSavingSub(false);
   }
 
   async function handleDelete() {
+    if (deleting) return;
     const ok = await confirm({
       title: "Delete category",
       message: `Delete "${node.name}"? Items in this category will be uncategorized.`,
@@ -156,13 +172,19 @@ function CategoryRow({
       variant: "danger",
     });
     if (!ok) return;
-    const res = await fetch(`/api/categories/${node.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const json = await res.json();
-      toast(json.error || "Delete failed", "error");
-      return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/categories/${node.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        toast(json.error || "Delete failed", "error");
+      } else {
+        onRefresh();
+      }
+    } catch {
+      toast("Failed to delete", "error");
     }
-    onRefresh();
+    setDeleting(false);
   }
 
   const isChild = depth > 0;
@@ -184,6 +206,7 @@ function CategoryRow({
                 if (e.key === "Enter") saveRename();
                 if (e.key === "Escape") { setRenaming(false); setNewName(node.name); }
               }}
+              disabled={savingRename}
               style={{
                 padding: "4px 8px",
                 border: "1px solid var(--border)",
@@ -191,6 +214,7 @@ function CategoryRow({
                 fontSize: 13,
                 fontWeight: isChild ? 400 : 600,
                 width: 200,
+                opacity: savingRename ? 0.6 : 1,
               }}
             />
           ) : (
@@ -227,12 +251,14 @@ function CategoryRow({
                 if (e.key === "Enter") saveSub();
                 if (e.key === "Escape") { setAddingSub(false); setSubName(""); }
               }}
+              disabled={savingSub}
               style={{
                 padding: "4px 8px",
                 border: "1px solid var(--border)",
                 borderRadius: 6,
                 fontSize: 13,
                 width: 200,
+                opacity: savingSub ? 0.6 : 1,
               }}
             />
           </div>
@@ -253,6 +279,7 @@ export default function CategoriesPage() {
   const [sortAsc, setSortAsc] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
+  const [creatingRoot, setCreatingRoot] = useState(false);
   const addRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -272,14 +299,18 @@ export default function CategoriesPage() {
 
   async function createRoot() {
     if (!newName.trim()) { setAdding(false); return; }
-    await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim() }),
-    });
-    setNewName("");
-    setAdding(false);
-    load();
+    setCreatingRoot(true);
+    try {
+      await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      setNewName("");
+      setAdding(false);
+      load();
+    } catch { /* network */ }
+    setCreatingRoot(false);
   }
 
   let tree = buildTree(categories);
@@ -375,6 +406,7 @@ export default function CategoriesPage() {
                         if (e.key === "Enter") createRoot();
                         if (e.key === "Escape") { setAdding(false); setNewName(""); }
                       }}
+                      disabled={creatingRoot}
                       style={{
                         padding: "4px 8px",
                         border: "1px solid var(--border)",
@@ -382,6 +414,7 @@ export default function CategoriesPage() {
                         fontSize: 13,
                         fontWeight: 600,
                         width: 200,
+                        opacity: creatingRoot ? 0.6 : 1,
                       }}
                     />
                   </div>
