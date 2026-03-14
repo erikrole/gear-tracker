@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+import EmptyState from "@/components/EmptyState";
 import { SkeletonCard } from "@/components/Skeleton";
 import {
   formatDateShort,
@@ -92,7 +94,15 @@ export default function DashboardPage() {
   }, []);
 
   if (fetchError) {
-    return <div className="empty-state">Failed to load dashboard data. Please refresh the page.</div>;
+    return (
+      <EmptyState
+        icon="box"
+        title="Failed to load dashboard"
+        description="Something went wrong. Please refresh the page."
+        actionLabel="Retry"
+        onAction={loadData}
+      />
+    );
   }
 
   if (!data) {
@@ -143,6 +153,29 @@ export default function DashboardPage() {
           <span className="stat-strip-label">Reserved</span>
         </a>
       </div>
+
+      {/* ══════ Welcome Banner (first-run) ══════ */}
+      {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
+        && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0 && (
+        <div className="welcome-banner">
+          <h2>Welcome to Gear Tracker</h2>
+          <p>Get started by setting up your equipment inventory.</p>
+          <div className="welcome-steps">
+            <Link href="/items" className="welcome-step">
+              <span className="welcome-step-num">1</span>
+              <span>Add your first item</span>
+            </Link>
+            <Link href="/import" className="welcome-step">
+              <span className="welcome-step-num">2</span>
+              <span>Import from spreadsheet</span>
+            </Link>
+            <Link href="/events" className="welcome-step">
+              <span className="welcome-step-num">3</span>
+              <span>Set up calendar sync</span>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ══════ Overdue Banner ══════ */}
       {data.overdueCount > 0 && (
