@@ -199,6 +199,7 @@ function CategoryRow({
           {renaming ? (
             <input
               ref={inputRef}
+              className="cat-inline-input"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onBlur={saveRename}
@@ -207,15 +208,7 @@ function CategoryRow({
                 if (e.key === "Escape") { setRenaming(false); setNewName(node.name); }
               }}
               disabled={savingRename}
-              style={{
-                padding: "4px 8px",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                fontSize: 13,
-                fontWeight: isChild ? 400 : 600,
-                width: 200,
-                opacity: savingRename ? 0.6 : 1,
-              }}
+              style={{ fontWeight: isChild ? 400 : 600, opacity: savingRename ? 0.6 : 1 }}
             />
           ) : (
             node.name
@@ -243,6 +236,7 @@ function CategoryRow({
             <span style={{ color: "var(--text-muted)", marginRight: 8 }}>{"\u21AA"}</span>
             <input
               ref={subInputRef}
+              className="cat-inline-input"
               value={subName}
               onChange={(e) => setSubName(e.target.value)}
               placeholder="Subcategory name"
@@ -252,14 +246,7 @@ function CategoryRow({
                 if (e.key === "Escape") { setAddingSub(false); setSubName(""); }
               }}
               disabled={savingSub}
-              style={{
-                padding: "4px 8px",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                fontSize: 13,
-                width: 200,
-                opacity: savingSub ? 0.6 : 1,
-              }}
+              style={{ opacity: savingSub ? 0.6 : 1 }}
             />
           </div>
         </div>
@@ -337,14 +324,14 @@ export default function CategoriesPage() {
   return (
     <div className="settings-split">
       <div className="settings-sidebar">
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 8px" }}>Categories</h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+        <h1 className="settings-title">Categories</h1>
+        <p className="settings-desc">
           You can store different types of inventory under different categories so your equipment is easier to navigate
         </p>
       </div>
 
       <div className="settings-main">
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <div className="settings-action-row">
           <button
             className="btn btn-primary"
             onClick={() => setAdding(true)}
@@ -355,11 +342,11 @@ export default function CategoriesPage() {
 
         <div className="card">
           <div className="card-header">
-            <div style={{ position: "relative", width: 260 }}>
+            <div className="cat-search-wrap">
               <svg
                 viewBox="0 0 20 20"
                 fill="currentColor"
-                style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, color: "var(--text-muted)" }}
+                className="cat-search-icon"
               >
                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
               </svg>
@@ -368,14 +355,7 @@ export default function CategoriesPage() {
                 placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "7px 12px 7px 34px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius)",
-                  outline: "none",
-                  fontSize: 13,
-                }}
+                className="cat-search-input"
               />
             </div>
           </div>
@@ -383,7 +363,7 @@ export default function CategoriesPage() {
           <div className="cat-list-header">
             <button
               onClick={() => setSortAsc((v) => !v)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 4 }}
+              className="cat-sort-btn"
             >
               Name {sortAsc ? "\u2191\u2193" : "\u2193\u2191"}
             </button>
@@ -398,6 +378,7 @@ export default function CategoriesPage() {
                   <div className="cat-row-name" style={{ fontWeight: 600 }}>
                     <input
                       ref={addRef}
+                      className="cat-inline-input"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="Category name"
@@ -407,15 +388,7 @@ export default function CategoriesPage() {
                         if (e.key === "Escape") { setAdding(false); setNewName(""); }
                       }}
                       disabled={creatingRoot}
-                      style={{
-                        padding: "4px 8px",
-                        border: "1px solid var(--border)",
-                        borderRadius: 6,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        width: 200,
-                        opacity: creatingRoot ? 0.6 : 1,
-                      }}
+                      style={{ fontWeight: 600, opacity: creatingRoot ? 0.6 : 1 }}
                     />
                   </div>
                 </div>

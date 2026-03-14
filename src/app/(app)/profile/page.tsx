@@ -141,7 +141,7 @@ export default function ProfilePage() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header"><h2>My profile</h2></div>
-        <form onSubmit={saveProfile} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
+        <form onSubmit={saveProfile} className="profile-form">
           <label>
             Name
             <input className="form-input" name="name" defaultValue={profile.name} required style={{ width: "100%" }} />
@@ -165,7 +165,7 @@ export default function ProfilePage() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header"><h2>Change password</h2></div>
-        <form onSubmit={changePassword} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
+        <form onSubmit={changePassword} className="profile-form">
           <label>
             Current password
             <input className="form-input" name="currentPassword" type="password" required minLength={8} style={{ width: "100%" }} />
