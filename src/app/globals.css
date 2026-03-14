@@ -98,6 +98,106 @@
   --wi-dark: #282728;
 }
 
+/* ===== Dark Mode ===== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1117;
+    --panel: rgba(30, 32, 40, 0.82);
+    --panel-solid: #1e2028;
+    --text: #e4e4e7;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --accent: #d1d5db;
+    --accent-hover: #e5e7eb;
+    --accent-soft: rgba(255, 255, 255, 0.06);
+    --border: rgba(255, 255, 255, 0.1);
+    --border-light: rgba(255, 255, 255, 0.05);
+    --bg-active: rgba(99, 102, 241, 0.15);
+
+    --green-bg: rgba(34, 197, 94, 0.1);
+    --orange-bg: rgba(245, 158, 11, 0.1);
+    --red-bg: rgba(239, 68, 68, 0.1);
+    --purple-bg: rgba(124, 58, 237, 0.1);
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+
+    --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px #818cf8;
+  }
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1117;
+  --panel: rgba(30, 32, 40, 0.82);
+  --panel-solid: #1e2028;
+  --text: #e4e4e7;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --accent: #d1d5db;
+  --accent-hover: #e5e7eb;
+  --accent-soft: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-light: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(99, 102, 241, 0.15);
+
+  --green-bg: rgba(34, 197, 94, 0.1);
+  --orange-bg: rgba(245, 158, 11, 0.1);
+  --red-bg: rgba(239, 68, 68, 0.1);
+  --purple-bg: rgba(124, 58, 237, 0.1);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-glass: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+
+  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px #818cf8;
+}
+
+/* Dark mode overrides for elements with hardcoded colors */
+[data-theme="dark"] .topbar,
+:root:not([data-theme="light"]) .topbar {
+  background: var(--panel);
+  border-bottom-color: var(--border);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+:root:not([data-theme="light"]) input,
+:root:not([data-theme="light"]) select,
+:root:not([data-theme="light"]) textarea {
+  background: var(--panel-solid);
+  color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) input,
+  :root:not([data-theme="light"]) select,
+  :root:not([data-theme="light"]) textarea {
+    background: var(--panel-solid);
+    color: var(--text);
+  }
+}
+
+/* Theme toggle in sidebar */
+.theme-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--sidebar-text);
+}
+
+.theme-toggle-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -797,7 +897,7 @@ textarea:focus-visible {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: white;
+  background: var(--panel-solid);
   animation: pulse-dot-anim 2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -1662,7 +1762,7 @@ textarea:focus-visible {
   border-radius: var(--radius);
   outline: none;
   transition: border-color 0.15s;
-  background: white;
+  background: var(--panel-solid);
 }
 
 .modal-body .form-group select:focus,
@@ -2770,7 +2870,7 @@ textarea:focus-visible {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: white;
+  background: var(--panel-solid);
   transition: transform 0.2s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
@@ -3303,7 +3403,7 @@ textarea:focus-visible {
 }
 
 .scan-celebration-card {
-  background: white;
+  background: var(--panel-solid);
   border-radius: 20px;
   padding: 32px 40px;
   text-align: center;
@@ -4246,8 +4346,8 @@ tr.status-overdue .status-label,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 13px;
-  background: white;
-  color: var(--text-primary);
+  background: var(--panel-solid);
+  color: var(--text);
   outline: none;
   min-height: 36px;
 }
@@ -4319,7 +4419,7 @@ tr.status-overdue .status-label,
   padding: 0;
 }
 .btn-link:hover {
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 /* Status text */
@@ -4337,7 +4437,7 @@ tr.status-overdue .status-label,
 /* Popover card (e.g. status dot hover) */
 .popover {
   position: absolute;
-  background: white;
+  background: var(--panel-solid);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,.1);
