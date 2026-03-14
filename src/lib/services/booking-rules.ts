@@ -30,7 +30,7 @@ import type { AuthUser } from "@/lib/auth";
  */
 
 export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open";
-export type ReservationAction = "edit" | "extend" | "cancel" | "convert";
+export type ReservationAction = "edit" | "extend" | "cancel" | "convert" | "duplicate";
 export type BookingAction = string;
 
 export type ActionCheckResult = {
@@ -75,7 +75,7 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   },
   [BookingKind.RESERVATION]: {
     [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
-    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "convert"]),
+    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "convert", "duplicate"]),
     [BookingStatus.OPEN]: new Set(),
     [BookingStatus.COMPLETED]: new Set(),
     [BookingStatus.CANCELLED]: new Set(),
@@ -83,7 +83,7 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
 };
 
 const ALL_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open"];
-const ALL_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert"];
+const ALL_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert", "duplicate"];
 
 /**
  * Check if a specific action is allowed for the given actor and booking.
