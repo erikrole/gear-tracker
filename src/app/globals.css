@@ -4730,6 +4730,108 @@ tr.returned-row { opacity: 0.55; }
   }
 }
 
+/* ===== Notifications Page ===== */
+.notif-badge {
+  margin-left: 8px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.notif-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notif-filter-bar {
+  gap: 12px;
+}
+
+.notif-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notif-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.notif-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notif-card {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.notif-unread {
+  background: var(--bg-highlight, rgba(59, 130, 246, 0.04));
+}
+
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.notif-dot.active {
+  background: var(--blue, #3b82f6);
+}
+
+.notif-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-title {
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.notif-title.unread {
+  font-weight: 600;
+}
+
+.notif-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.notif-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.notif-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.notif-action-btn {
+  font-size: 12px;
+}
+
 /* ===== Item Detail Page Mobile Fixes ===== */
 @media (max-width: 768px) {
   /* Page header: stack title and actions vertically */
@@ -4800,5 +4902,36 @@ tr.returned-row { opacity: 0.55; }
   .flex-between {
     flex-wrap: wrap;
     gap: 6px;
+  }
+}
+
+/* ===== Notifications Page Mobile Fixes ===== */
+@media (max-width: 768px) {
+  /* Stack header actions below title */
+  .notif-header-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Action buttons: stack vertically and full-width */
+  .notif-actions {
+    flex-direction: column;
+  }
+
+  .notif-action-btn {
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Title row: allow time to wrap below */
+  .notif-title-row {
+    flex-wrap: wrap;
+  }
+
+  /* Pagination: stack */
+  .pagination {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
   }
 }
