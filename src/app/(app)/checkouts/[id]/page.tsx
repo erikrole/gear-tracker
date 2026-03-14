@@ -163,7 +163,9 @@ export default function CheckoutDetailsPage() {
   const canCancel = actions.includes("cancel");
   const canCheckin = actions.includes("checkin");
   const canEdit = actions.includes("edit");
-  const isOverdue = checkout.status === "OPEN" && new Date(checkout.endsAt) < new Date();
+  const canOpen = actions.includes("open");
+  const isOpen = checkout.status === "OPEN";
+  const isOverdue = isOpen && new Date(checkout.endsAt) < new Date();
 
   return (
     <>
@@ -199,6 +201,55 @@ export default function CheckoutDetailsPage() {
       {actionError && (
         <div className="card" style={{ padding: "10px 16px", marginBottom: 12, color: "var(--red)", border: "1px solid var(--red)" }}>
           {actionError}
+        </div>
+      )}
+
+      {/* Scan action buttons */}
+      {(isOpen || canOpen) && (
+        <div style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 12,
+          flexWrap: "wrap",
+        }}>
+          {isOpen && (
+            <Link
+              href={`/scan?checkout=${id}&phase=CHECKOUT`}
+              className="btn btn-primary"
+              style={{
+                textDecoration: "none",
+                padding: "12px 20px",
+                fontSize: 15,
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                minHeight: 48,
+              }}
+            >
+              Scan Items Out
+            </Link>
+          )}
+          {canCheckin && (
+            <Link
+              href={`/scan?checkout=${id}&phase=CHECKIN`}
+              className="btn"
+              style={{
+                textDecoration: "none",
+                padding: "12px 20px",
+                fontSize: 15,
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                minHeight: 48,
+                background: "#dcfce7",
+                color: "#166534",
+              }}
+            >
+              Scan Items In
+            </Link>
+          )}
         </div>
       )}
 
