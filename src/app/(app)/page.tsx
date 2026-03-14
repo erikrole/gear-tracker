@@ -37,7 +37,9 @@ type EventSummary = {
   title: string;
   sportCode: string | null;
   startsAt: string;
+  endsAt: string;
   location: string | null;
+  locationId: string | null;
   opponent: string | null;
   isHome: boolean | null;
 };
@@ -180,10 +182,10 @@ export default function DashboardPage() {
 
           {/* My Checkouts */}
           <div className="card">
-            <div className="card-header">
+            <a href="/checkouts?mine=true" className="card-header card-header-link">
               <h2>My checkouts</h2>
               <span className="section-count">{data.myCheckouts.total}</span>
-            </div>
+            </a>
             {data.myCheckouts.items.length === 0 ? (
               <div className="empty-state">No open checkouts</div>
             ) : (
@@ -218,10 +220,10 @@ export default function DashboardPage() {
 
           {/* My Reservations */}
           <div className="card">
-            <div className="card-header">
+            <a href="/reservations?mine=true" className="card-header card-header-link">
               <h2>My reservations</h2>
               <span className="section-count">{data.myReservations.length}</span>
-            </div>
+            </a>
             {data.myReservations.length === 0 ? (
               <div className="empty-state">No upcoming reservations</div>
             ) : (
@@ -253,10 +255,10 @@ export default function DashboardPage() {
 
           {/* Team Checkouts */}
           <div className="card">
-            <div className="card-header">
+            <a href="/checkouts" className="card-header card-header-link">
               <h2>Checked out</h2>
               <span className="section-count">{data.teamCheckouts.total}</span>
-            </div>
+            </a>
             {data.teamCheckouts.items.length === 0 ? (
               <div className="empty-state">No open checkouts</div>
             ) : (
@@ -292,10 +294,10 @@ export default function DashboardPage() {
 
           {/* Team Reservations */}
           <div className="card">
-            <div className="card-header">
+            <a href="/reservations" className="card-header card-header-link">
               <h2>Reserved</h2>
               <span className="section-count">{data.teamReservations.total}</span>
-            </div>
+            </a>
             {data.teamReservations.items.length === 0 ? (
               <div className="empty-state">No active reservations</div>
             ) : (
@@ -324,32 +326,58 @@ export default function DashboardPage() {
 
           {/* Upcoming Events */}
           <div className="card">
-            <div className="card-header">
+            <a href="/events" className="card-header card-header-link">
               <h2>Upcoming events</h2>
-            </div>
+            </a>
             {data.upcomingEvents.length === 0 ? (
               <div className="empty-state">No upcoming events</div>
             ) : (
               <div className="card-body card-body-compact">
-                {data.upcomingEvents.map((e) => (
-                  <div key={e.id} className="ops-row ops-row-static">
-                    <div className="ops-row-main">
-                      <span className="ops-row-title">
-                        {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
-                        {e.opponent ? `vs ${e.opponent}` : e.title}
-                      </span>
-                      <span className="ops-row-meta">
-                        {formatDateShort(e.startsAt)}
-                        {e.location && ` \u00B7 ${e.location}`}
-                      </span>
+                {data.upcomingEvents.map((e) => {
+                  const titleParam = encodeURIComponent(e.title);
+                  const startsParam = encodeURIComponent(e.startsAt);
+                  const endsParam = encodeURIComponent(e.endsAt);
+                  const locParam = e.locationId ? `&locationId=${e.locationId}` : "";
+                  return (
+                    <div key={e.id} className="event-row-wrapper">
+                      <a href={`/events/${e.id}`} className="ops-row event-row-clickable">
+                        <div className="ops-row-main">
+                          <span className="ops-row-title">
+                            {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
+                            {e.opponent ? `vs ${e.opponent}` : e.title}
+                          </span>
+                          <span className="ops-row-meta">
+                            {formatDateShort(e.startsAt)}
+                            {e.location && ` \u00B7 ${e.location}`}
+                          </span>
+                        </div>
+                        {e.isHome !== null && (
+                          <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
+                            {e.isHome ? "Home" : "Away"}
+                          </span>
+                        )}
+                      </a>
+                      <div className="event-row-actions">
+                        <a
+                          href={`/checkouts?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}
+                          className="event-action-btn"
+                          title="Checkout for this event"
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                          Checkout
+                        </a>
+                        <a
+                          href={`/reservations?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}
+                          className="event-action-btn"
+                          title="Reserve for this event"
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
+                          Reserve
+                        </a>
+                      </div>
                     </div>
-                    {e.isHome !== null && (
-                      <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
-                        {e.isHome ? "Home" : "Away"}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

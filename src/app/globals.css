@@ -617,6 +617,97 @@ textarea:focus-visible {
   background: rgba(217, 119, 6, 0.04);
 }
 
+/* ── Clickable stat cards (no underline) ── */
+.stat-strip-clickable {
+  text-decoration: none;
+  color: inherit;
+}
+.stat-strip-clickable:hover {
+  text-decoration: none;
+}
+
+/* ── Clickable card headers ── */
+.card-header-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.card-header-link:hover {
+  background: rgba(59, 130, 246, 0.04);
+  text-decoration: none;
+}
+.card-header-link h2 {
+  transition: color 0.15s ease;
+}
+.card-header-link:hover h2 {
+  color: var(--primary, #2563eb);
+}
+
+/* ── Event row with hover actions ── */
+.event-row-wrapper {
+  position: relative;
+}
+
+.event-row-wrapper + .event-row-wrapper {
+  border-top: 1px solid var(--border-light);
+}
+
+.event-row-clickable {
+  text-decoration: none;
+  color: inherit;
+}
+.event-row-clickable:hover {
+  text-decoration: none;
+}
+
+.event-row-actions {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.event-row-wrapper:hover .event-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.event-row-wrapper:hover .badge {
+  opacity: 0;
+}
+
+.event-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.event-action-btn:hover {
+  background: var(--primary, #2563eb);
+  color: white;
+  border-color: var(--primary, #2563eb);
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+
 /* ── Overdue Banner ── */
 .overdue-banner {
   background: #c5050c;

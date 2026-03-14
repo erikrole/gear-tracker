@@ -180,7 +180,9 @@ export async function GET() {
       title: e.summary,
       sportCode: e.sportCode ?? null,
       startsAt: e.startsAt.toISOString(),
+      endsAt: e.endsAt.toISOString(),
       location: e.location?.name ?? null,
+      locationId: e.location?.id ?? null,
       opponent: e.opponent ?? null,
       isHome: e.isHome ?? null,
     }));
