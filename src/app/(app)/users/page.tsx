@@ -200,12 +200,8 @@ export default function UsersPage() {
           </div>
           <form
             onSubmit={handleCreateUser}
-            style={{
-              padding: 16,
-              display: "grid",
-              gap: 10,
-              gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-            }}
+            className="form-grid form-grid-5"
+            style={{ padding: 16 }}
           >
             <input className="form-input" name="name" placeholder="Full name" required />
             <input className="form-input" name="email" type="email" placeholder="Email" required />

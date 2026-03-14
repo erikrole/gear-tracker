@@ -104,7 +104,7 @@ export default function BulkInventoryPage() {
       {showCreate && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-header"><h2>Add bulk SKU</h2></div>
-          <form onSubmit={handleCreate} style={{ padding: 16, display: "grid", gap: 10, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+          <form onSubmit={handleCreate} className="form-grid form-grid-3" style={{ padding: 16 }}>
             <input name="name" placeholder="Name" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
             <input name="category" placeholder="Category" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
             <input name="unit" placeholder="Unit (e.g. each, pair)" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />

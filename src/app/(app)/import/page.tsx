@@ -281,7 +281,7 @@ export default function ImportPage() {
       {step === "preview" && preview && (
         <>
           {/* Summary cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+          <div className="summary-grid" style={{ marginBottom: 16 }}>
             <SummaryCard label="Total items" value={preview.summary.totalItems} />
             <SummaryCard label="With errors" value={preview.summary.withErrors} warn={preview.summary.withErrors > 0} />
             <SummaryCard label="With warnings" value={preview.summary.withWarnings} warn={preview.summary.withWarnings > 0} />
@@ -404,7 +404,7 @@ export default function ImportPage() {
       {/* ── Summary step ── */}
       {step === "summary" && result && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+          <div className="summary-grid" style={{ marginBottom: 16 }}>
             <SummaryCard label="Created" value={result.created} color="var(--green)" />
             <SummaryCard label="Updated" value={result.updated} color="var(--blue)" />
             <SummaryCard label="Skipped" value={result.skipped} warn={result.skipped > 0} />

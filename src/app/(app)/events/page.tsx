@@ -563,6 +563,9 @@ export default function EventsPage() {
             <button className="btn btn-sm" onClick={goCalToday}>Today</button>
           </div>
           <div className="p-16">
+            <div className="cal-mobile-notice" style={{ display: "none" }}>
+              Switch to List view for the best mobile experience.
+            </div>
             <div className="cal-grid">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                 <div key={d} className="cal-header">{d}</div>
