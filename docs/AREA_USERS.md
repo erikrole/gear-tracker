@@ -111,3 +111,4 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-03-01: Renamed area to Users and expanded student read visibility.
 - 2026-03-01: Finalized delete policy, role management scope, and location exception policy.
 - 2026-03-02: Added explicit mobile action-sheet alignment for role-based visibility.
+- 2026-03-14: Shipped enhanced Users page — API access widened per spec (GET: all roles, POST/PATCH: ADMIN+STAFF), inline role/location editing, user detail editing, search/filter, audit logging for all user mutations, role-aware UI gating. Acceptance criteria 1-5 now met.
