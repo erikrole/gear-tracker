@@ -315,6 +315,10 @@ textarea:focus-visible {
 .topbar-icon-btn {
   position: relative;
   padding: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-grid;
+  place-items: center;
   border: none;
   background: none;
   color: var(--text-secondary);
@@ -1473,8 +1477,18 @@ textarea:focus-visible {
   border: none;
   font-size: 22px;
   color: var(--text-secondary);
-  padding: 0 4px;
+  padding: 4px;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-grid;
+  place-items: center;
   line-height: 1;
+  border-radius: var(--radius);
+  transition: background 0.15s, color 0.15s;
+}
+.modal-close:hover {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
 .modal-close:hover {
@@ -1603,6 +1617,224 @@ textarea:focus-visible {
   margin-top: 12px;
 }
 
+/* ── Admin form grid ────────────────────────────────────── */
+.form-grid {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+.form-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.form-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 768px) {
+  .form-grid-5,
+  .form-grid-3 { grid-template-columns: 1fr; }
+}
+.form-grid-narrow { max-width: 520px; }
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+.form-message {
+  padding: 8px 16px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.form-message-success { color: var(--green); }
+.form-message-error { color: var(--red); }
+
+/* ── Notification items ─────────────────────────────────── */
+.notif-list {
+  display: flex;
+  flex-direction: column;
+}
+.notif-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: background 0.15s;
+}
+.notif-item:hover { background: var(--accent-soft); }
+.notif-item.unread { background: rgba(59, 130, 246, 0.04); }
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.notif-dot.unread { background: var(--blue); }
+.notif-content { flex: 1; min-width: 0; }
+.notif-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notif-title { font-size: 14px; }
+.notif-title.unread { font-weight: 600; }
+.notif-time { font-size: 12px; color: var(--text-muted); }
+.notif-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.notif-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.count-label {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── Segmented toggle (pill switcher) ───────────────────── */
+.seg-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-lg);
+  max-width: 320px;
+}
+.seg-toggle-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.seg-toggle-btn.active {
+  background: var(--panel-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.seg-toggle-btn:hover:not(.active) {
+  color: var(--text);
+}
+
+/* ── Stat cards (reports) ──────────────────────────────── */
+.stat-card {
+  padding: 16px;
+  text-align: center;
+}
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  line-height: 1;
+}
+.stat-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.report-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.report-grid-wide {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .report-grid,
+  .report-grid-wide { grid-template-columns: 1fr; }
+}
+
+/* ── Scan cart ─────────────────────────────────────────── */
+.cart-scroll { max-height: 400px; overflow-y: auto; }
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.cart-item-error { background: var(--red-bg); }
+.cart-item-warn { background: var(--orange-bg); }
+.cart-item-content { flex: 1; min-width: 0; }
+.cart-item-title { font-weight: 600; }
+.cart-item-meta { font-size: 12px; color: var(--text-secondary); }
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot-green { background: var(--green); }
+.status-dot-orange { background: var(--orange); }
+.status-dot-red { background: var(--red); }
+
+/* ── Sticky action bar ─────────────────────────────────── */
+.sticky-action-bar {
+  position: sticky;
+  bottom: 16px;
+  padding: 16px;
+  background: var(--panel-solid);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sticky-action-title { font-weight: 700; font-size: 18px; }
+.sticky-action-sub { font-size: 13px; color: var(--text-secondary); }
+
+/* ── Sync message banner ───────────────────────────────── */
+.sync-message {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sync-message-success { background: var(--blue-bg); color: var(--blue-text); }
+.sync-message-error { background: var(--orange-bg); color: var(--orange-text); }
+.sync-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 16px;
+  padding: 4px;
+}
+.sync-dismiss:hover { opacity: 1; }
+
+/* ── View toggle (inline, no pill bg) ──────────────────── */
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.view-toggle .btn { border-radius: 0; border: none; }
+
 /* ===== Checkout table responsive ===== */
 @media (max-width: 768px) {
   .hide-mobile {
@@ -1725,6 +1957,10 @@ textarea:focus-visible {
   padding: 10px 0;
   font-weight: 500;
   color: var(--text-secondary);
+  transition: color 0.15s;
+}
+.item-tab:hover {
+  color: var(--text);
 }
 
 .item-tab.active {
@@ -2008,9 +2244,19 @@ textarea:focus-visible {
   border: none;
   font-size: 22px;
   color: var(--text-secondary);
-  padding: 0 4px;
+  padding: 4px;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-grid;
+  place-items: center;
   line-height: 1;
   cursor: pointer;
+  border-radius: var(--radius);
+  transition: background 0.15s, color 0.15s;
+}
+.sheet-close:hover {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
 .sheet-close:hover {
@@ -2343,9 +2589,16 @@ textarea:focus-visible {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px 0;
+  padding: 6px 8px;
+  min-height: 36px;
   text-decoration: underline;
   text-decoration-style: dotted;
+  border-radius: var(--radius);
+  transition: color 0.15s, background 0.15s;
+}
+.diff-toggle:hover {
+  color: var(--text);
+  background: var(--accent-soft);
 }
 
 .diff-toggle:hover {
@@ -2896,7 +3149,7 @@ textarea:focus-visible {
 .qr-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2904,12 +3157,12 @@ textarea:focus-visible {
 }
 
 .qr-modal {
-  background: var(--surface);
-  border-radius: 12px;
+  background: var(--panel-solid);
+  border-radius: var(--radius-lg);
   padding: 24px;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-glass);
 }
 
 /* ── Header Action Buttons (consistent sizing) ────────── */
@@ -3130,10 +3383,12 @@ tr.status-overdue .status-label,
 .text-green { color: var(--green); }
 .text-blue { color: var(--blue); }
 .text-center { text-align: center; }
-.text-primary { color: var(--primary); }
+.text-primary { color: var(--accent); }
+.text-right { text-align: right; }
 .capitalize { text-transform: capitalize; }
 .mb-0 { margin-bottom: 0; }
 .mb-12 { margin-bottom: 12px; }
+.ml-8 { margin-left: 8px; }
 .mt-0 { margin-top: 0; }
 .flex-wrap { flex-wrap: wrap; }
 
@@ -3210,14 +3465,15 @@ tr.status-overdue .status-label,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 13px;
-  background: white;
-  color: var(--text-primary);
+  background: var(--panel-solid);
+  color: var(--text);
   outline: none;
   min-height: 36px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .form-input:focus,
 .form-select:focus {
-  border-color: var(--primary);
+  border-color: var(--accent);
   box-shadow: var(--focus-ring);
 }
 
@@ -3262,7 +3518,7 @@ tr.status-overdue .status-label,
   padding: 0;
 }
 .btn-link:hover {
-  color: var(--text-primary);
+  color: var(--text);
 }
 
 /* Status text */
@@ -3467,7 +3723,17 @@ textarea {
   color: var(--red);
   cursor: pointer;
   font-size: 14px;
-  padding: 2px 6px;
+  padding: 6px 8px;
+  min-height: 36px;
+  min-width: 36px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius);
+  transition: background 0.15s, color 0.15s;
+}
+.remove-btn:hover {
+  background: var(--red-bg);
+  color: var(--red-text);
 }
 .bulk-actions {
   display: flex;
@@ -3766,6 +4032,9 @@ tr.returned-row { opacity: 0.55; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
+}
+@media (max-width: 640px) {
+  .data-list-2col { grid-template-columns: 1fr; }
 }
 
 /* ── QR code canvas ─────────────────────────────────────── */

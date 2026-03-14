@@ -291,9 +291,9 @@ export default function EventsPage() {
 
       {/* Sync result message */}
       {syncMessage && (
-        <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 8, fontSize: 13, background: syncMessage.includes("failed") ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)", color: syncMessage.includes("failed") ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)" }}>
+        <div className={`sync-message ${syncMessage.includes("failed") ? "sync-message-error" : "sync-message-success"}`}>
           {syncMessage}
-          <button type="button" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>&times;</button>
+          <button type="button" className="sync-dismiss" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }}>&times;</button>
         </div>
       )}
 
@@ -519,18 +519,16 @@ export default function EventsPage() {
 
       {/* Filters and view toggle */}
       <div className="flex-center flex-wrap gap-16 mb-16">
-        <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+        <div className="view-toggle">
           <button
             className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : ""}`}
             onClick={() => setViewMode("list")}
-            style={{ borderRadius: 0, border: "none" }}
           >
             List
           </button>
           <button
             className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : ""}`}
             onClick={() => setViewMode("calendar")}
-            style={{ borderRadius: 0, border: "none" }}
           >
             Calendar
           </button>

@@ -211,9 +211,7 @@ export default function ImportPage() {
       </div>
 
       {error && (
-        <div style={{ padding: "10px 16px", marginBottom: 16, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#991b1b", fontSize: 13 }}>
-          {error}
-        </div>
+        <div className="conflict-error mb-12">{error}</div>
       )}
 
       {/* ── Upload step ── */}
@@ -283,7 +281,7 @@ export default function ImportPage() {
       {step === "preview" && preview && (
         <>
           {/* Summary cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
+          <div className="stat-grid mb-16">
             <SummaryCard label="Total items" value={preview.summary.totalItems} />
             <SummaryCard label="With errors" value={preview.summary.withErrors} warn={preview.summary.withErrors > 0} />
             <SummaryCard label="With warnings" value={preview.summary.withWarnings} warn={preview.summary.withWarnings > 0} />
@@ -375,7 +373,7 @@ export default function ImportPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+          <div className="form-actions mt-16 gap-8">
             <button className="btn" onClick={resetWizard}>Cancel</button>
             <button
               className="btn btn-primary"
@@ -406,11 +404,11 @@ export default function ImportPage() {
       {/* ── Summary step ── */}
       {step === "summary" && result && (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 16 }}>
-            <SummaryCard label="Created" value={result.created} color="#22c55e" />
-            <SummaryCard label="Updated" value={result.updated} color="#3b82f6" />
+          <div className="stat-grid mb-16">
+            <SummaryCard label="Created" value={result.created} color="var(--green)" />
+            <SummaryCard label="Updated" value={result.updated} color="var(--blue)" />
             <SummaryCard label="Skipped" value={result.skipped} warn={result.skipped > 0} />
-            <SummaryCard label="Kits created" value={result.kitsCreated} color="#8b5cf6" />
+            <SummaryCard label="Kits created" value={result.kitsCreated} color="var(--purple-light)" />
           </div>
 
           {result.errors.length > 0 && (
@@ -435,7 +433,7 @@ export default function ImportPage() {
                       <tr key={i}>
                         <td>{e.line}</td>
                         <td style={{ fontWeight: 600 }}>{e.assetTag}</td>
-                        <td style={{ fontSize: 12, color: "#991b1b" }}>{e.error}</td>
+                        <td className="text-xs text-red">{e.error}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -476,17 +474,11 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="card" style={{ padding: 16, textAlign: "center" }}>
-      <div style={{
-        fontSize: 28,
-        fontWeight: 700,
-        color: warn ? "var(--red)" : color || "var(--text-primary)"
-      }}>
+    <div className="card stat-card">
+      <div className="stat-card-value" style={warn ? { color: "var(--red)" } : color ? { color } : undefined}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-        {label}
-      </div>
+      <div className="stat-card-label">{label}</div>
     </div>
   );
 }

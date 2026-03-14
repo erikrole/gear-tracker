@@ -133,23 +133,23 @@ export default function ProfilePage() {
         <h1>Profile & Settings</h1>
       </div>
 
-      {message && <div className="card" style={{ marginBottom: 12, color: "var(--green)" }}>{message}</div>}
-      {error && <div className="card" style={{ marginBottom: 12, color: "var(--red)" }}>{error}</div>}
+      {message && <div className="card form-message form-message-success">{message}</div>}
+      {error && <div className="card form-message form-message-error">{error}</div>}
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card mb-12">
         <div className="card-header"><h2>My profile</h2></div>
-        <form onSubmit={saveProfile} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
+        <form onSubmit={saveProfile} className="form-grid form-grid-narrow">
           <label>
             Name
-            <input name="name" defaultValue={profile.name} required style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="name" defaultValue={profile.name} required className="form-input" />
           </label>
           <label>
             Email
-            <input value={profile.email} disabled style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "#f5f5f5" }} />
+            <input value={profile.email} disabled className="form-input" />
           </label>
           <label>
             Default location
-            <select name="locationId" defaultValue={profile.location?.id || ""} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+            <select name="locationId" defaultValue={profile.location?.id || ""} className="form-select">
               <option value="">None</option>
               {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
             </select>
@@ -158,16 +158,16 @@ export default function ProfilePage() {
         </form>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card mb-12">
         <div className="card-header"><h2>Change password</h2></div>
-        <form onSubmit={changePassword} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
+        <form onSubmit={changePassword} className="form-grid form-grid-narrow">
           <label>
             Current password
-            <input name="currentPassword" type="password" required minLength={8} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="currentPassword" type="password" required minLength={8} className="form-input" />
           </label>
           <label>
             New password
-            <input name="newPassword" type="password" required minLength={8} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="newPassword" type="password" required minLength={8} className="form-input" />
           </label>
           <button className="btn btn-primary" type="submit">Update password</button>
         </form>
@@ -196,7 +196,7 @@ export default function ProfilePage() {
                       value={user.role}
                       onChange={(e) => updateRole(user.id, e.target.value as ManagedUser["role"])}
                       disabled={updatingRoleId === user.id}
-                      style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "white", opacity: updatingRoleId === user.id ? 0.6 : 1 }}
+                      className="form-select"
                     >
                       <option value="ADMIN">Admin</option>
                       <option value="STAFF">Staff</option>

@@ -102,24 +102,24 @@ export default function BulkInventoryPage() {
       </div>
 
       {showCreate && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card mb-12">
           <div className="card-header"><h2>Add bulk SKU</h2></div>
-          <form onSubmit={handleCreate} style={{ padding: 16, display: "grid", gap: 10, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-            <input name="name" placeholder="Name" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="category" placeholder="Category" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="unit" placeholder="Unit (e.g. each, pair)" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <select name="locationId" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+          <form onSubmit={handleCreate} className="form-grid form-grid-3">
+            <input name="name" placeholder="Name" required className="form-input" />
+            <input name="category" placeholder="Category" required className="form-input" />
+            <input name="unit" placeholder="Unit (e.g. each, pair)" required className="form-input" />
+            <select name="locationId" required className="form-select">
               <option value="">Location</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <input name="binQrCodeValue" placeholder="Bin QR code value" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="minThreshold" type="number" min={0} defaultValue={0} placeholder="Min threshold" style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="binQrCodeValue" placeholder="Bin QR code value" required className="form-input" />
+            <input name="minThreshold" type="number" min={0} defaultValue={0} placeholder="Min threshold" className="form-input" />
+            <input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" className="form-input" />
             <div />
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="form-actions">
               <button className="btn btn-primary" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create SKU"}</button>
             </div>
-            {error && <div style={{ gridColumn: "1 / -1", color: "var(--red)" }}>{error}</div>}
+            {error && <div className="form-error">{error}</div>}
           </form>
         </div>
       )}
@@ -148,11 +148,11 @@ export default function BulkInventoryPage() {
                   const isLow = onHand <= sku.minThreshold && sku.minThreshold > 0;
                   return (
                     <tr key={sku.id}>
-                      <td style={{ fontWeight: 500 }}>{sku.name}</td>
+                      <td className="font-semibold">{sku.name}</td>
                       <td>{sku.category}</td>
                       <td>{sku.unit}</td>
                       <td>
-                        <span style={{ fontWeight: 600, color: isLow ? "var(--red)" : "inherit" }}>
+                        <span className={`font-semibold${isLow ? " text-red" : ""}`}>
                           {onHand}
                         </span>
                       </td>

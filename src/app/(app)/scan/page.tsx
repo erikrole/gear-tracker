@@ -179,53 +179,23 @@ export default function ScanPage() {
       </div>
 
       {/* Mode toggle */}
-      <div style={{
-        display: "flex",
-        gap: 4,
-        padding: 4,
-        background: "var(--bg-secondary, #f3f4f6)",
-        borderRadius: 12,
-        marginBottom: 16,
-        maxWidth: 320
-      }}>
+      <div className="seg-toggle mb-12">
         <button
+          className={`seg-toggle-btn${mode === "checkout" ? " active" : ""}`}
           onClick={() => { setMode("checkout"); setFoundCheckout(null); setCheckinMessage(""); }}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            background: mode === "checkout" ? "white" : "transparent",
-            color: mode === "checkout" ? "var(--text)" : "var(--text-secondary)",
-            boxShadow: mode === "checkout" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
-          }}
         >
           Quick Checkout
         </button>
         <button
+          className={`seg-toggle-btn${mode === "checkin" ? " active" : ""}`}
           onClick={() => { setMode("checkin"); clearCart(); }}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            borderRadius: 10,
-            border: "none",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            background: mode === "checkin" ? "white" : "transparent",
-            color: mode === "checkin" ? "var(--text)" : "var(--text-secondary)",
-            boxShadow: mode === "checkin" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
-          }}
         >
           Quick Check in
         </button>
       </div>
 
       {/* Scanner */}
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card mb-12">
         <div className="card-header">
           <h2>{scanning ? "Scanning..." : "Camera"}</h2>
           <button
@@ -237,7 +207,7 @@ export default function ScanPage() {
         </div>
 
         {scanning && (
-          <div style={{ padding: 16 }}>
+          <div className="p-16">
             <QrScanner
               onScan={handleScan}
               onError={setCameraError}
@@ -247,32 +217,23 @@ export default function ScanPage() {
         )}
 
         {cameraError && (
-          <div style={{ padding: "12px 16px", color: "var(--red)", fontSize: 13 }}>
-            Camera error: {cameraError}
-          </div>
+          <div className="form-error px-16 mb-12">Camera error: {cameraError}</div>
         )}
 
         {/* Manual entry fallback */}
-        <div style={{ padding: 16, display: "flex", gap: 8 }}>
+        <div className="flex gap-8 p-16">
           <input
             type="text"
             placeholder="Or enter code manually..."
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleManualEntry()}
-            style={{
-              flex: 1,
-              padding: "10px 14px",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              fontSize: 15
-            }}
+            className="form-input"
           />
           <button
             className="btn btn-primary"
             onClick={handleManualEntry}
             disabled={!manualCode.trim()}
-            style={{ minWidth: 80, minHeight: 44 }}
           >
             Add
           </button>
@@ -283,69 +244,41 @@ export default function ScanPage() {
       {mode === "checkout" && (
         <>
           {cart.length > 0 && (
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card mb-12">
               <div className="card-header">
                 <h2>Cart ({validItems.length} items)</h2>
                 <button className="btn btn-sm" onClick={clearCart}>Clear all</button>
               </div>
 
-              <div style={{ maxHeight: 400, overflowY: "auto" }}>
+              <div className="cart-scroll">
                 {cart.map((item, i) => (
                   <div
                     key={`${item.scanValue}-${i}`}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 16px",
-                      borderBottom: "1px solid var(--border)",
-                      background: item.status === "not_found" ? "#fef2f2" :
-                                  item.status === "already_scanned" ? "#fffbeb" : "white"
-                    }}
+                    className={`cart-item${item.status === "not_found" ? " cart-item-error" : item.status === "already_scanned" ? " cart-item-warn" : ""}`}
                   >
-                    {/* Status dot */}
-                    <div style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                      background: item.status === "found" ? "#22c55e" :
-                                  item.status === "already_scanned" ? "#f59e0b" : "#ef4444"
-                    }} />
+                    <div className={`status-dot ${item.status === "found" ? "status-dot-green" : item.status === "already_scanned" ? "status-dot-orange" : "status-dot-red"}`} />
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="cart-item-content">
                       {item.status === "found" ? (
                         <>
-                          <div style={{ fontWeight: 600 }}>{item.assetTag}</div>
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                          <div className="cart-item-title">{item.assetTag}</div>
+                          <div className="cart-item-meta">
                             {item.brand} {item.model} — {item.type}
                           </div>
                         </>
                       ) : (
                         <>
-                          <div style={{ fontWeight: 600, fontFamily: "monospace", fontSize: 13 }}>
+                          <div className="cart-item-title" style={{ fontFamily: "monospace", fontSize: 13 }}>
                             {item.scanValue}
                           </div>
-                          <div style={{ fontSize: 12, color: item.status === "not_found" ? "#991b1b" : "#92400e" }}>
+                          <div className={`cart-item-meta ${item.status === "not_found" ? "text-red" : "text-orange"}`}>
                             {item.message}
                           </div>
                         </>
                       )}
                     </div>
 
-                    <button
-                      onClick={() => removeFromCart(item.scanValue)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 4,
-                        color: "var(--text-secondary)",
-                        fontSize: 18,
-                        lineHeight: 1
-                      }}
-                      aria-label="Remove"
-                    >
+                    <button className="remove-btn" onClick={() => removeFromCart(item.scanValue)} aria-label="Remove">
                       &times;
                     </button>
                   </div>
@@ -356,35 +289,14 @@ export default function ScanPage() {
 
           {/* Checkout action */}
           {validItems.length > 0 && (
-            <div style={{
-              position: "sticky",
-              bottom: 16,
-              padding: 16,
-              background: "white",
-              borderRadius: 16,
-              boxShadow: "0 -4px 24px rgba(0,0,0,0.12)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12
-            }}>
+            <div className="sticky-action-bar">
               <div>
-                <div style={{ fontWeight: 700, fontSize: 18 }}>{validItems.length} items ready</div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  Continue to create checkout
-                </div>
+                <div className="sticky-action-title">{validItems.length} items ready</div>
+                <div className="sticky-action-sub">Continue to create checkout</div>
               </div>
               <a
                 href={`/checkouts?prefill=${validItems.map((i) => i.assetId).join(",")}`}
                 className="btn btn-primary"
-                style={{
-                  textDecoration: "none",
-                  padding: "14px 24px",
-                  fontSize: 16,
-                  minHeight: 48,
-                  display: "flex",
-                  alignItems: "center"
-                }}
               >
                 Checkout
               </a>
@@ -397,44 +309,31 @@ export default function ScanPage() {
       {mode === "checkin" && (
         <>
           {checkinMessage && (
-            <div
-              className="card"
-              style={{
-                padding: 16,
-                marginBottom: 16,
-                background: foundCheckout ? "#f0fdf4" : "#fef2f2"
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>{checkinMessage}</div>
+            <div className={`card form-message ${foundCheckout ? "form-message-success" : "form-message-error"}`}>
+              <strong>{checkinMessage}</strong>
             </div>
           )}
 
           {foundCheckout && (
             <div className="card">
               <div className="card-header"><h2>Open Checkout</h2></div>
-              <div style={{ padding: 16 }}>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontWeight: 700, fontSize: 18 }}>{foundCheckout.title}</div>
-                  <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+              <div className="p-16">
+                <div className="mb-12">
+                  <div className="sticky-action-title">{foundCheckout.title}</div>
+                  <div className="cart-item-meta">
                     {foundCheckout.requester.name} — Due {new Date(foundCheckout.endsAt).toLocaleDateString()}
                   </div>
                 </div>
 
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>
+                <div className="mb-12">
+                  <div className="cart-item-title mb-8">
                     Items ({foundCheckout.serializedItems.length})
                   </div>
                   {foundCheckout.serializedItems.map((si) => (
-                    <div key={si.asset.id} style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 0",
-                      borderBottom: "1px solid var(--border)"
-                    }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
-                      <span style={{ fontWeight: 600 }}>{si.asset.assetTag}</span>
-                      <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                    <div key={si.asset.id} className="cart-item">
+                      <div className="status-dot status-dot-green" />
+                      <span className="cart-item-title">{si.asset.assetTag}</span>
+                      <span className="cart-item-meta">
                         {si.asset.brand} {si.asset.model}
                       </span>
                     </div>
@@ -444,16 +343,7 @@ export default function ScanPage() {
                 <a
                   href={`/checkouts/${foundCheckout.id}`}
                   className="btn btn-primary"
-                  style={{
-                    width: "100%",
-                    textAlign: "center",
-                    textDecoration: "none",
-                    padding: "14px 24px",
-                    fontSize: 16,
-                    display: "block",
-                    minHeight: 48,
-                    lineHeight: "20px"
-                  }}
+                  style={{ width: "100%", textAlign: "center" }}
                 >
                   Go to check in
                 </a>
