@@ -3137,8 +3137,35 @@ tr.status-overdue .status-label,
   border-radius: var(--radius);
 }
 .alert-error {
-  color: var(--red);
+  color: #991b1b;
   font-size: 13px;
+  padding: 10px 16px;
+  background: var(--red-bg, #fef2f2);
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+
+.alert-success {
+  color: var(--green);
+  font-size: 13px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.btn-danger-text {
+  color: var(--red);
+}
+.btn-danger-text:hover {
+  background: var(--red-bg, #fef2f2);
+}
+
+/* Form body layout (used in settings/profile forms) */
+.form-body {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
 }
 
 /* Toggle link (unstyled button that looks like a link) */
