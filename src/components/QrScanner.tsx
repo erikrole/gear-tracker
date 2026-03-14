@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 type QrScannerProps = {
   onScan: (value: string) => void;
@@ -18,24 +18,20 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
   const lastScanRef = useRef<string>("");
   const lastScanTimeRef = useRef<number>(0);
 
-  const handleScan = useCallback(
-    (decodedText: string) => {
-      const now = Date.now();
-      // Debounce: ignore duplicate scans within 2 seconds
-      if (decodedText === lastScanRef.current && now - lastScanTimeRef.current < 2000) {
-        return;
-      }
-      lastScanRef.current = decodedText;
-      lastScanTimeRef.current = now;
-      onScan(decodedText);
-    },
-    [onScan]
-  );
+  // Stable refs for callbacks — prevents effect from re-running on every render
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
+  // Use a unique ID per mount to avoid html5-qrcode ID conflicts
+  const idRef = useRef(`qr-scanner-${Math.random().toString(36).slice(2, 8)}`);
 
   useEffect(() => {
     if (!active || !containerRef.current) return;
 
     let mounted = true;
+    let scannerInstance: { stop?: () => Promise<void>; clear?: () => void } | null = null;
 
     async function startScanner() {
       try {
@@ -43,7 +39,8 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
 
         if (!mounted || !containerRef.current) return;
 
-        const scanner = new Html5Qrcode(containerRef.current.id);
+        const scanner = new Html5Qrcode(idRef.current);
+        scannerInstance = scanner as typeof scannerInstance;
         scannerRef.current = scanner;
 
         await scanner.start(
@@ -51,10 +48,17 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0
+            aspectRatio: 1.0,
           },
           (decodedText) => {
-            handleScan(decodedText);
+            const now = Date.now();
+            // Debounce: ignore duplicate scans within 2 seconds
+            if (decodedText === lastScanRef.current && now - lastScanTimeRef.current < 2000) {
+              return;
+            }
+            lastScanRef.current = decodedText;
+            lastScanTimeRef.current = now;
+            onScanRef.current(decodedText);
           },
           () => {
             // Ignore scan failures (noise)
@@ -62,7 +66,7 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
         );
       } catch (err) {
         if (mounted) {
-          onError?.(err instanceof Error ? err.message : "Camera not available");
+          onErrorRef.current?.(err instanceof Error ? err.message : "Camera not available");
         }
       }
     }
@@ -71,16 +75,15 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
 
     return () => {
       mounted = false;
-      const scanner = scannerRef.current as { stop?: () => Promise<void>; clear?: () => void } | null;
-      if (scanner?.stop) {
-        scanner.stop().catch(() => {}).then(() => scanner.clear?.());
+      if (scannerInstance?.stop) {
+        scannerInstance.stop().catch(() => {}).then(() => scannerInstance?.clear?.());
       }
     };
-  }, [active, handleScan, onError]);
+  }, [active]); // Only re-run when active changes
 
   return (
     <div
-      id="qr-scanner-container"
+      id={idRef.current}
       ref={containerRef}
       style={{
         width: "100%",
@@ -88,7 +91,7 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
         margin: "0 auto",
         borderRadius: 12,
         overflow: "hidden",
-        background: "#000"
+        background: "#000",
       }}
     />
   );

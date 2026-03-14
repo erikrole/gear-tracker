@@ -68,8 +68,8 @@ export default function ScanPage() {
     checkoutId && phaseParam === "CHECKIN" ? "checkin" :
     "lookup";
 
-  // Auto-start camera in booking modes (user came here to scan)
-  const [scanning, setScanning] = useState(mode !== "lookup");
+  // Auto-start camera — user navigated here to scan
+  const [scanning, setScanning] = useState(true);
   const [cameraError, setCameraError] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [processing, setProcessing] = useState(false);
