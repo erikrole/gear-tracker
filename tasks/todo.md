@@ -8,11 +8,11 @@ Last updated: 2026-03-11
 
 ### Polish Items & Reservations Pages
 
-- [ ] Items list: wrap reload in useCallback, add debounced search, consolidate filter styles, error states, Unicode entities
-- [ ] Items detail: useCallback for loaders, try/catch + feedback for actions, loading states, Unicode entities
-- [ ] Reservations list: error feedback on convert/cancel failures
-- [ ] Reservations detail: Unicode entities, try/catch on cancel, loading during refetch, error reset
-- [ ] Build & verify, commit & push
+- [x] Items list: wrap reload in useCallback, add debounced search, consolidate filter styles, error states, Unicode entities
+- [x] Items detail: useCallback for loaders, try/catch + feedback for actions, loading states, Unicode entities
+- [x] Reservations list: error feedback on convert/cancel failures
+- [x] Reservations detail: Unicode entities, try/catch on cancel, loading during refetch, error reset
+- [x] Build & verify, commit & push
 
 ### Phase A Remaining
 

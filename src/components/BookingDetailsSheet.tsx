@@ -192,16 +192,23 @@ export default function BookingDetailsSheet({
 
   const isAdmin = currentUserRole === "ADMIN";
 
+  const [fetchError, setFetchError] = useState(false);
+
   const fetchBooking = useCallback(async () => {
     if (!bookingId) return;
     setLoading(true);
+    setFetchError(false);
     try {
       const res = await fetch(`/api/bookings/${bookingId}`);
       if (res.ok) {
         const json = await res.json();
         if (json?.data) setBooking(json.data);
+      } else {
+        setFetchError(true);
       }
-    } catch { /* network */ }
+    } catch {
+      setFetchError(true);
+    }
     setLoading(false);
   }, [bookingId]);
 
@@ -669,6 +676,8 @@ export default function BookingDetailsSheet({
         <div className="sheet-body">
           {loading ? (
             <div className="loading-spinner"><div className="spinner" /></div>
+          ) : fetchError ? (
+            <div className="empty-state">Failed to load booking details.</div>
           ) : !booking ? (
             <div className="empty-state">Booking not found</div>
           ) : (

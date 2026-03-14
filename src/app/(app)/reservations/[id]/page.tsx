@@ -181,10 +181,10 @@ export default function ReservationDetailsPage() {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Cancel failed", "error");
       } else {
-        reload();
+        await reload();
       }
     } catch {
-      toast("Network error — please try again.", "error");
+      toast("Network error \u2014 please try again.", "error");
     }
     setActionLoading(null);
   }
@@ -299,7 +299,6 @@ export default function ReservationDetailsPage() {
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Conversion failed", "error");
-        setActionLoading(null);
       } else {
         const json = await res.json().catch(() => ({}));
         const checkoutId = (json as { data?: { id?: string } })?.data?.id;
@@ -308,11 +307,12 @@ export default function ReservationDetailsPage() {
         } else {
           router.push("/checkouts");
         }
+        return; // navigating away — don't clear loading
       }
     } catch {
       toast("Network error during conversion", "error");
-      setActionLoading(null);
     }
+    setActionLoading(null);
   }
 
   /* ── Render ── */
