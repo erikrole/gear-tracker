@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createBulkSkuSchema } from "@/lib/validation";
 
 export async function GET(req: Request) {
@@ -30,6 +31,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const actor = await requireAuth();
+    requirePermission(actor.role, "bulk_sku", "create");
     const body = createBulkSkuSchema.parse(await req.json());
 
     const result = await db.$transaction(async (tx) => {

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { roleSchema } from "@/lib/validation";
-import { Prisma } from "@prisma/client";
+import { createAuditEntry } from "@/lib/audit";
 import { z } from "zod";
 
 const createUserSchema = z.object({
@@ -72,14 +72,13 @@ export async function POST(req: Request) {
       }
     });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: actor.id,
-        entityType: "user",
-        entityId: user.id,
-        action: "created",
-        afterJson: { name: user.name, email: user.email, role: user.role, locationId: user.locationId } as Prisma.InputJsonValue,
-      },
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "user",
+      entityId: user.id,
+      action: "created",
+      after: { name: user.name, email: user.email, role: user.role, locationId: user.locationId },
     });
 
     return ok(

@@ -2,12 +2,14 @@ export const runtime = "edge";
 import { ScanType } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { recordScan } from "@/lib/services/scans";
 import { scanSchema } from "@/lib/validation";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireAuth();
+    requirePermission(actor.role, "checkout", "scan");
     const params = await ctx.params;
     const body = scanSchema.parse(await req.json());
 

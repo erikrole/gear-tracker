@@ -3,11 +3,13 @@ import { BulkMovementKind } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { adjustBulkSchema } from "@/lib/validation";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireAuth();
+    requirePermission(actor.role, "bulk_sku", "adjust");
     const params = await ctx.params;
     const body = adjustBulkSchema.parse(await req.json());
 

@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 // ── CSV parsing ──────────────────────────────────────────
 
@@ -399,20 +400,19 @@ export async function POST(req: Request) {
     }
 
     // 5. Audit log
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "import",
-        entityId: "cheqroom",
-        action: "csv_import",
-        afterJson: {
-          created: createdCount,
-          updated: updatedCount,
-          skipped: skippedCount,
-          kitsCreated,
-          errorCount: importErrors.length
-        }
-      }
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "import",
+      entityId: "cheqroom",
+      action: "csv_import",
+      after: {
+        created: createdCount,
+        updated: updatedCount,
+        skipped: skippedCount,
+        kitsCreated,
+        errorCount: importErrors.length,
+      },
     });
 
     return ok({

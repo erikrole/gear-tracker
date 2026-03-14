@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
-import { Prisma } from "@prisma/client";
+import { createAuditEntry } from "@/lib/audit";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
@@ -66,15 +66,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       afterDiff[key] = (user as Record<string, unknown>)[key] ?? null;
     }
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: actor.id,
-        entityType: "user",
-        entityId: id,
-        action: "updated",
-        beforeJson: beforeDiff as Prisma.InputJsonValue,
-        afterJson: afterDiff as Prisma.InputJsonValue,
-      },
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "user",
+      entityId: id,
+      action: "updated",
+      before: beforeDiff,
+      after: afterDiff,
     });
 
     return ok({

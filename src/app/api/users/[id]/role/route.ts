@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { updateUserRoleSchema } from "@/lib/validation";
-import { Prisma } from "@prisma/client";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -29,15 +29,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       data: { role: body.role }
     });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: actor.id,
-        entityType: "user",
-        entityId: id,
-        action: "role_changed",
-        beforeJson: { role: previousRole } as Prisma.InputJsonValue,
-        afterJson: { role: user.role } as Prisma.InputJsonValue,
-      },
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "user",
+      entityId: id,
+      action: "role_changed",
+      before: { role: previousRole },
+      after: { role: user.role },
     });
 
     return ok({

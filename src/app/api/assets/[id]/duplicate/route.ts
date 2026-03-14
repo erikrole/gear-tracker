@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 function randomHex(bytes: number): string {
   const array = new Uint8Array(bytes);
@@ -53,14 +54,13 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       include: { location: true, category: true },
     });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "asset",
-        entityId: duplicate.id,
-        action: "duplicated",
-        afterJson: { sourceId: id, assetTag: newTag },
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "asset",
+      entityId: duplicate.id,
+      action: "duplicated",
+      after: { sourceId: id, assetTag: newTag },
     });
 
     return ok({ data: duplicate }, 201);

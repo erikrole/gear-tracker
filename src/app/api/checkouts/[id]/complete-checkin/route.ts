@@ -11,7 +11,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
     await requireCheckoutAction(params.id, actor, "checkin");
 
-    const result = await completeCheckinScan(params.id, actor.id);
+    const result = await completeCheckinScan(params.id, actor.id, actor.role);
     return ok(result);
   } catch (error) {
     return fail(error);

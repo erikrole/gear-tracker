@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, parsePagination } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { enrichAssetsWithStatus } from "@/lib/services/status";
 import { BookingStatus } from "@prisma/client";
 
@@ -152,7 +153,8 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
 
 export async function POST(req: Request) {
   try {
-    await requireAuth();
+    const actor = await requireAuth();
+    requirePermission(actor.role, "asset", "create");
     const body = createAssetSchema.parse(await req.json());
 
     const asset = await db.asset.create({

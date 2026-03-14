@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 
 const createMappingSchema = z.object({
   pattern: z.string().min(1),
@@ -25,7 +26,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireAuth();
+    const actor = await requireAuth();
+    requirePermission(actor.role, "location_mapping", "create");
     const body = createMappingSchema.parse(await req.json());
 
     const mapping = await db.locationMapping.create({

@@ -3,8 +3,9 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
-import { Prisma, BookingStatus } from "@prisma/client";
+import { BookingStatus } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
+import { createAuditEntry } from "@/lib/audit";
 
 const patchAssetSchema = z
   .object({
@@ -223,15 +224,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       afterDiff[key] = afterVal ?? null;
     }
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "asset",
-        entityId: params.id,
-        action: "updated",
-        beforeJson: beforeDiff as Prisma.InputJsonValue,
-        afterJson: afterDiff as Prisma.InputJsonValue,
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "asset",
+      entityId: params.id,
+      action: "updated",
+      before: beforeDiff,
+      after: afterDiff,
     });
 
     return ok({ data: asset });
@@ -266,14 +266,13 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 
     await db.asset.delete({ where: { id } });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "asset",
-        entityId: id,
-        action: "deleted",
-        beforeJson: { assetTag: asset.assetTag, type: asset.type },
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "asset",
+      entityId: id,
+      action: "deleted",
+      before: { assetTag: asset.assetTag, type: asset.type },
     });
 
     return ok({ success: true });

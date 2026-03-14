@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, HttpError } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -74,14 +75,13 @@ export async function POST(req: Request) {
       },
     });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "category",
-        entityId: category.id,
-        action: "created",
-        afterJson: { name: category.name, parentId: category.parentId },
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "category",
+      entityId: category.id,
+      action: "created",
+      after: { name: category.name, parentId: category.parentId },
     });
 
     return ok({ data: category }, 201);

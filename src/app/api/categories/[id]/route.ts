@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -37,15 +38,14 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       },
     });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "category",
-        entityId: id,
-        action: "updated",
-        beforeJson: { name: existing.name, parentId: existing.parentId },
-        afterJson: { name: category.name, parentId: category.parentId },
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "category",
+      entityId: id,
+      action: "updated",
+      before: { name: existing.name, parentId: existing.parentId },
+      after: { name: category.name, parentId: category.parentId },
     });
 
     return ok({ data: category });
@@ -85,14 +85,13 @@ export async function DELETE(req: Request, ctx: RouteCtx) {
 
     await db.category.delete({ where: { id } });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "category",
-        entityId: id,
-        action: "deleted",
-        beforeJson: { name: existing.name, parentId: existing.parentId },
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "category",
+      entityId: id,
+      action: "deleted",
+      before: { name: existing.name, parentId: existing.parentId },
     });
 
     return ok({ success: true });

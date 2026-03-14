@@ -112,3 +112,4 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-03-01: Finalized delete policy, role management scope, and location exception policy.
 - 2026-03-02: Added explicit mobile action-sheet alignment for role-based visibility.
 - 2026-03-14: Shipped enhanced Users page — API access widened per spec (GET: all roles, POST/PATCH: ADMIN+STAFF), inline role/location editing, user detail editing, search/filter, audit logging for all user mutations, role-aware UI gating. Acceptance criteria 1-5 now met.
+- 2026-03-14: RBAC hardening — centralized permission policy map (src/lib/permissions.ts), requirePermission added to all mutation endpoints app-wide, audit logs now include actor role via createAuditEntry helper. Acceptance criterion 6 now met.

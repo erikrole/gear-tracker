@@ -1,12 +1,14 @@
 export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { startScanSession } from "@/lib/services/scans";
 import { startScanSessionSchema } from "@/lib/validation";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireAuth();
+    requirePermission(actor.role, "checkout", "scan");
     const params = await ctx.params;
     const body = startScanSessionSchema.parse(await req.json());
 
