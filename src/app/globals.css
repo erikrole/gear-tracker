@@ -493,6 +493,37 @@ textarea:focus-visible {
   gap: 20px;
 }
 
+/* Dashboard fade-in animations */
+.stat-strip-item {
+  animation: dash-fade-up 0.35s ease both;
+}
+.stat-strip-item:nth-child(1) { animation-delay: 0s; }
+.stat-strip-item:nth-child(2) { animation-delay: 0.05s; }
+.stat-strip-item:nth-child(3) { animation-delay: 0.1s; }
+.stat-strip-item:nth-child(4) { animation-delay: 0.15s; }
+
+.dashboard-col > .card {
+  animation: dash-fade-up 0.4s ease both;
+}
+.dashboard-col > .card:nth-child(2) { animation-delay: 0.08s; }
+.dashboard-col > .card:nth-child(3) { animation-delay: 0.16s; }
+.dashboard-col > .card:nth-child(4) { animation-delay: 0.24s; }
+
+.overdue-banner {
+  animation: dash-fade-up 0.4s ease both;
+}
+
+@keyframes dash-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .dashboard-col-label {
   font-size: 11px;
   font-weight: 700;
@@ -539,6 +570,17 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-strip-clickable {
+  cursor: pointer;
+}
+
+.stat-strip-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
 }
 
 .stat-strip-value {
@@ -712,11 +754,12 @@ textarea:focus-visible {
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, padding-left 0.15s ease;
 }
 
 .ops-row:hover {
   background: rgba(59, 130, 246, 0.04);
+  padding-left: 22px;
 }
 
 .ops-row-static {
