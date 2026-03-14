@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useToast } from "@/components/Toast";
 
 type Location = { id: string; name: string };
 type UserProfile = {
@@ -20,11 +21,10 @@ type ManagedUser = {
 };
 
 export default function ProfilePage() {
+  const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [users, setUsers] = useState<ManagedUser[]>([]);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
@@ -48,8 +48,6 @@ export default function ProfilePage() {
 
   async function saveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setMessage("");
-    setError("");
     setSavingProfile(true);
 
     try {
@@ -67,21 +65,19 @@ export default function ProfilePage() {
 
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Failed to update profile");
+        toast(json.error || "Failed to update profile", "error");
       } else {
         setProfile(json.data);
-        setMessage("Profile saved");
+        toast("Profile saved", "success");
       }
     } catch {
-      setError("Network error");
+      toast("Network error", "error");
     }
     setSavingProfile(false);
   }
 
   async function changePassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setMessage("");
-    setError("");
     setSavingPassword(true);
 
     try {
@@ -97,13 +93,13 @@ export default function ProfilePage() {
 
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Failed to update password");
+        toast(json.error || "Failed to update password", "error");
       } else {
         e.currentTarget.reset();
-        setMessage("Password updated");
+        toast("Password updated", "success");
       }
     } catch {
-      setError("Network error");
+      toast("Network error", "error");
     }
     setSavingPassword(false);
   }
@@ -111,8 +107,6 @@ export default function ProfilePage() {
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
 
   async function updateRole(userId: string, role: ManagedUser["role"]) {
-    setMessage("");
-    setError("");
     setUpdatingRoleId(userId);
 
     try {
@@ -124,12 +118,12 @@ export default function ProfilePage() {
 
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Failed to update role");
+        toast(json.error || "Failed to update role", "error");
         return;
       }
 
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
-      setMessage("Role updated");
+      toast("Role updated", "success");
     } finally {
       setUpdatingRoleId(null);
     }
@@ -145,23 +139,20 @@ export default function ProfilePage() {
         <h1>Profile & Settings</h1>
       </div>
 
-      {message && <div className="card" style={{ marginBottom: 12, color: "var(--green)" }}>{message}</div>}
-      {error && <div className="card" style={{ marginBottom: 12, color: "var(--red)" }}>{error}</div>}
-
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header"><h2>My profile</h2></div>
         <form onSubmit={saveProfile} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
           <label>
             Name
-            <input name="name" defaultValue={profile.name} required style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input className="form-input" name="name" defaultValue={profile.name} required style={{ width: "100%" }} />
           </label>
           <label>
             Email
-            <input value={profile.email} disabled style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "#f5f5f5" }} />
+            <input className="form-input" value={profile.email} disabled style={{ width: "100%", background: "var(--bg-secondary)" }} />
           </label>
           <label>
             Default location
-            <select name="locationId" defaultValue={profile.location?.id || ""} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+            <select className="form-select" name="locationId" defaultValue={profile.location?.id || ""} style={{ width: "100%" }}>
               <option value="">None</option>
               {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
             </select>
@@ -177,11 +168,11 @@ export default function ProfilePage() {
         <form onSubmit={changePassword} style={{ padding: 16, display: "grid", gap: 12, maxWidth: 520 }}>
           <label>
             Current password
-            <input name="currentPassword" type="password" required minLength={8} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input className="form-input" name="currentPassword" type="password" required minLength={8} style={{ width: "100%" }} />
           </label>
           <label>
             New password
-            <input name="newPassword" type="password" required minLength={8} style={{ width: "100%", padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input className="form-input" name="newPassword" type="password" required minLength={8} style={{ width: "100%" }} />
           </label>
           <button className="btn btn-primary" type="submit" disabled={savingPassword}>
             {savingPassword ? "Updating..." : "Update password"}
@@ -209,10 +200,11 @@ export default function ProfilePage() {
                   <td>{user.location || "-"}</td>
                   <td>
                     <select
+                      className="form-select"
                       value={user.role}
                       onChange={(e) => updateRole(user.id, e.target.value as ManagedUser["role"])}
                       disabled={updatingRoleId === user.id}
-                      style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "white", opacity: updatingRoleId === user.id ? 0.6 : 1 }}
+                      style={{ opacity: updatingRoleId === user.id ? 0.6 : 1 }}
                     >
                       <option value="ADMIN">Admin</option>
                       <option value="STAFF">Staff</option>

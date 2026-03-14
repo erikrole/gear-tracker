@@ -124,22 +124,22 @@ export default function DashboardPage() {
 
       {/* ══════ Stat Strip ══════ */}
       <div className="stat-strip">
-        <div className="stat-strip-item">
-          <span className="stat-strip-value">{data.stats.checkedOut}</span>
-          <span className="stat-strip-label">Checked out</span>
-        </div>
-        <div className={`stat-strip-item ${data.stats.overdue > 0 ? "stat-strip-danger" : ""}`}>
+        <a href="/checkouts?filter=overdue" className={`stat-strip-item stat-strip-clickable ${data.stats.overdue > 0 ? "stat-strip-danger" : ""}`}>
           <span className="stat-strip-value">{data.stats.overdue}</span>
           <span className="stat-strip-label">Overdue</span>
-        </div>
-        <div className="stat-strip-item">
-          <span className="stat-strip-value">{data.stats.reserved}</span>
-          <span className="stat-strip-label">Reserved</span>
-        </div>
-        <div className={`stat-strip-item ${data.stats.dueToday > 0 ? "stat-strip-warning" : ""}`}>
+        </a>
+        <a href="/checkouts?filter=due-today" className={`stat-strip-item stat-strip-clickable ${data.stats.dueToday > 0 ? "stat-strip-warning" : ""}`}>
           <span className="stat-strip-value">{data.stats.dueToday}</span>
           <span className="stat-strip-label">Due today</span>
-        </div>
+        </a>
+        <a href="/checkouts" className="stat-strip-item stat-strip-clickable">
+          <span className="stat-strip-value">{data.stats.checkedOut}</span>
+          <span className="stat-strip-label">Checked out</span>
+        </a>
+        <a href="/reservations" className="stat-strip-item stat-strip-clickable">
+          <span className="stat-strip-value">{data.stats.reserved}</span>
+          <span className="stat-strip-label">Reserved</span>
+        </a>
       </div>
 
       {/* ══════ Overdue Banner ══════ */}

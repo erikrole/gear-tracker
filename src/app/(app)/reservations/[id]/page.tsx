@@ -422,8 +422,7 @@ export default function ReservationDetailsPage() {
           )}
           {canCancel && (
             <button
-              className="btn btn-sm"
-              style={{ color: "var(--red)" }}
+              className="btn btn-sm btn-danger"
               onClick={handleCancel}
               disabled={!!actionLoading}
             >
@@ -435,17 +434,7 @@ export default function ReservationDetailsPage() {
 
       {/* Error banner */}
       {actionError && (
-        <div
-          className="card"
-          style={{
-            padding: "10px 16px",
-            marginBottom: 12,
-            color: "var(--red)",
-            border: "1px solid var(--red)",
-          }}
-        >
-          {actionError}
-        </div>
+        <div className="alert-error">{actionError}</div>
       )}
 
       {/* Extend panel */}

@@ -191,7 +191,7 @@ export default function CheckoutDetailsPage() {
             </button>
           )}
           {canCancel && (
-            <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={handleCancel} disabled={!!actionLoading}>
+            <button className="btn btn-sm btn-danger" onClick={handleCancel} disabled={!!actionLoading}>
               {actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
             </button>
           )}
@@ -199,9 +199,7 @@ export default function CheckoutDetailsPage() {
       </div>
 
       {actionError && (
-        <div className="card" style={{ padding: "10px 16px", marginBottom: 12, color: "var(--red)", border: "1px solid var(--red)" }}>
-          {actionError}
-        </div>
+        <div className="alert-error">{actionError}</div>
       )}
 
       {/* Scan action buttons */}
@@ -243,8 +241,8 @@ export default function CheckoutDetailsPage() {
                 alignItems: "center",
                 gap: 8,
                 minHeight: 48,
-                background: "#dcfce7",
-                color: "#166534",
+                background: "var(--green-bg)",
+                color: "var(--green)",
               }}
             >
               Scan Items In
@@ -312,7 +310,7 @@ export default function CheckoutDetailsPage() {
                       gap: 12,
                       padding: "12px 16px",
                       borderBottom: "1px solid var(--border)",
-                      background: returned ? "#f0fdf4" : "white",
+                      background: returned ? "var(--green-bg)" : "white",
                       minHeight: 52,
                     }}
                   >
@@ -334,7 +332,7 @@ export default function CheckoutDetailsPage() {
                     {returned && (
                       <div style={{
                         width: 20, height: 20, borderRadius: "50%",
-                        background: "#22c55e", color: "white",
+                        background: "var(--green)", color: "white",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 12, fontWeight: 700, flexShrink: 0,
                       }}>
@@ -350,7 +348,7 @@ export default function CheckoutDetailsPage() {
                       </div>
                     </div>
                     {returned ? (
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#22c55e", flexShrink: 0 }}>Returned</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--green)", flexShrink: 0 }}>Returned</span>
                     ) : (
                       <span style={{ fontSize: 12, color: "var(--text-secondary)", fontFamily: "monospace", flexShrink: 0 }}>
                         {item.asset.serialNumber}
