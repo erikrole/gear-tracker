@@ -329,6 +329,43 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - Integrity rules from `DECISIONS.md` (D-001, D-006, D-007).
 - Mobile operations contract from `AREA_MOBILE.md`.
 
+## Numbered Bulk Item Tracking
+
+### Overview
+Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered units (e.g., Battery #1–#40) under a single QR code. This supports loss tracking by unit number without requiring individual QR codes per item.
+
+### Creation
+1. User toggles "Track by number" during bulk SKU creation.
+2. Initial quantity creates numbered units #1–N via `createMany`.
+3. Physical labels on items must match assigned numbers (user responsibility).
+
+### Unit Lifecycle
+- **Statuses:** AVAILABLE, CHECKED_OUT, LOST, RETIRED
+- **Status transitions:** click-to-cycle in UI (Available → Lost → Retired → Available); checked-out units are locked
+- **Adding units:** POST to units endpoint appends from max+1
+- **Conversion:** existing quantity-only SKUs can be converted to numbered tracking
+
+### Checkout/Check-in Flow
+1. Staff scans the single bin QR code.
+2. Unit picker bottom sheet opens with multi-select grid of available units.
+3. Staff selects specific unit numbers (or "Select all") and confirms.
+4. Selected units are allocated to the booking via `BookingBulkUnitAllocation`.
+5. Check-in flow pre-selects checked-out units; staff deselects any missing.
+6. Missing units are flagged with specific unit numbers.
+
+### Data Model
+- `BulkSkuUnit`: numbered unit with status, linked to BulkSku (cascade delete)
+- `BookingBulkUnitAllocation`: links specific units to bookings with checkout/checkin timestamps
+- `trackByNumber` boolean on BulkSku determines behavior branching
+
+### Inventory Display
+- Numbered SKUs show available/total count and status summary in table
+- Expandable unit grid with color-coded status dots
+- Unit status changes adjust on-hand balance automatically
+
+### Decision Reference
+- D-022: Numbered Bulk Items (see DECISIONS.md)
+
 ## Out of Scope (V1)
 1. Procurement workflow and purchase-order lifecycle.
 2. Depreciation accounting model.
@@ -351,3 +388,4 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - 2026-03-09: Items page V1 implementation complete (slices 1–4): list columns/filters/pagination, status dot with booking popover, clickable rows, detail tabs (Check-outs/Reservations/Info/History), inline edit for ADMIN/STAFF, item-kind-aware create form.
 - 2026-03-09: Expanded item detail spec with status-line states, working `Actions` menu requirements, dashboard-style `Info` tab, `Calendar` and `Settings` tabs, QR generation/manual entry rules, inline missing-value prompts, and fiscal-year dropdown guidance.
 - 2026-03-11: Docs hardening — resolved "Customize overview" ambiguity: deferred, not in V1. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md.
+- 2026-03-14: Added Numbered Bulk Item Tracking section — trackByNumber flag, unit picker scan flow, conversion endpoint, D-022 reference.

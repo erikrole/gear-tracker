@@ -70,16 +70,16 @@ A `BulkSku` with `trackByNumber: true` gets a set of numbered units (1–N). One
 - [x] **Scan status API** — returns `trackByNumber` flag and `allocatedUnits` per bulk item
 - [x] Validate with `npm run build`
 
-### Slice 5: Hardening & Docs
-- [ ] Edge cases:
-  - Checkout conflicts: unit already checked out on another booking → clear error
-  - Retiring a checked-out unit → require check-in first
-  - Deleting a numbered BulkSku → cascade delete units
-  - Converting existing quantity-only BulkSku to numbered → generate units from current quantity
-- [ ] Update `docs/AREA_ITEMS.md` with numbered bulk tracking docs
-- [ ] Update `docs/DECISIONS.md` with D-0XX: Numbered Bulk Items decision
-- [ ] Update `docs/GAPS_AND_RISKS.md` to close this gap
-- [ ] Move plan to `tasks/archive/`
+### Slice 5: Hardening & Docs ✅
+- [x] Edge cases:
+  - Checkout conflicts: unit already checked out on another booking → 409 error with unit details
+  - Retiring a checked-out unit → 409 "Check it in first"
+  - Deleting a numbered BulkSku → cascade delete units (schema constraint)
+  - Converting existing quantity-only BulkSku to numbered → POST /convert-to-numbered endpoint
+- [x] Update `docs/AREA_ITEMS.md` with numbered bulk tracking section
+- [x] Update `docs/DECISIONS.md` with D-022: Numbered Bulk Items
+- [x] Update `docs/GAPS_AND_RISKS.md` — closed GAP-E
+- [x] Move plan to `tasks/archive/`
 
 ---
 

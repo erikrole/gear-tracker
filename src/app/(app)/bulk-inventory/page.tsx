@@ -120,6 +120,14 @@ export default function BulkInventoryPage() {
     setSubmitting(false);
   }
 
+  async function handleConvertToNumbered(skuId: string) {
+    if (!confirm("Convert this SKU to numbered tracking? This will create individual unit records from the current on-hand quantity.")) return;
+    setSubmitting(true);
+    const res = await fetch(`/api/bulk-skus/${skuId}/convert-to-numbered`, { method: "POST" });
+    if (res.ok) reload();
+    setSubmitting(false);
+  }
+
   async function handleUnitStatusChange(skuId: string, unitNumber: number, status: string) {
     await fetch(`/api/bulk-skus/${skuId}/units/${unitNumber}`, {
       method: "PATCH",
@@ -277,6 +285,16 @@ export default function BulkInventoryPage() {
                           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
                             {unitSummary(units)}
                           </div>
+                        )}
+                        {!sku.trackByNumber && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ fontSize: 11, padding: "2px 8px", marginTop: 4 }}
+                            onClick={(e) => { e.stopPropagation(); handleConvertToNumbered(sku.id); }}
+                            disabled={submitting}
+                          >
+                            Convert to numbered
+                          </button>
                         )}
                       </td>
                       <td>{sku.category}</td>
