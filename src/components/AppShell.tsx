@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 
@@ -104,10 +104,71 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchMobileRef = useRef<HTMLInputElement>(null);
+
+  const handleSearch = useCallback((q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setSearchOpen(false);
+    setSearchQuery("");
+    router.push(`/items?q=${encodeURIComponent(trimmed)}`);
+  }, [router]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        // On mobile: open overlay. On desktop: focus topbar input.
+        if (window.innerWidth <= 768) {
+          setSearchOpen(true);
+        } else {
+          searchInputRef.current?.focus();
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen) {
+      requestAnimationFrame(() => searchMobileRef.current?.focus());
+    }
+  }, [searchOpen]);
+
   if (!user) return null;
 
   return (
     <div className="app-shell">
+      {/* Mobile search overlay */}
+      {searchOpen && (
+        <div className="search-overlay" onClick={() => setSearchOpen(false)}>
+          <div className="search-overlay-content" onClick={(e) => e.stopPropagation()}>
+            <form onSubmit={(e) => { e.preventDefault(); handleSearch(searchQuery); }}>
+              <div className="search-overlay-bar">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="search-overlay-icon">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+                <input
+                  ref={searchMobileRef}
+                  type="text"
+                  className="search-overlay-input"
+                  placeholder="Search items..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button type="button" className="search-overlay-close" onClick={() => setSearchOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Mobile overlay */}
       <div
         className={`sidebar-overlay${sidebarOpen ? " visible" : ""}`}
@@ -125,12 +186,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <path d="M3 12h18M3 6h18M3 18h18" />
             </svg>
           </button>
-          <div className="topbar-search">
+          {/* Desktop search */}
+          <form className="topbar-search topbar-search-desktop" onSubmit={(e) => {
+            e.preventDefault();
+            const input = searchInputRef.current;
+            if (input) { handleSearch(input.value); input.value = ""; input.blur(); }
+          }}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
             </svg>
-            <input type="text" placeholder="Search items, reservations..." />
-          </div>
+            <input ref={searchInputRef} type="text" placeholder="Search items... (⌘K)" />
+          </form>
+          {/* Mobile search icon */}
+          <button
+            className="topbar-search-mobile btn topbar-icon-btn"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+            </svg>
+          </button>
           <div className="topbar-actions">
             <Link href="/notifications" className="btn topbar-icon-btn" aria-label="Notifications">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
