@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { roleSchema } from "@/lib/validation";
+import { createAuditEntry } from "@/lib/audit";
 import { z } from "zod";
 
 const createUserSchema = z.object({
@@ -17,13 +18,13 @@ const createUserSchema = z.object({
 export async function GET() {
   try {
     const actor = await requireAuth();
-    requireRole(actor.role, ["ADMIN"]);
+    requireRole(actor.role, ["ADMIN", "STAFF", "STUDENT"]);
 
     const users = await db.user.findMany({
       orderBy: { name: "asc" },
       include: {
         location: {
-          select: { name: true }
+          select: { id: true, name: true }
         }
       }
     });
@@ -34,6 +35,7 @@ export async function GET() {
         name: user.name,
         email: user.email,
         role: user.role,
+        locationId: user.locationId,
         location: user.location?.name ?? null
       }))
     });
@@ -45,7 +47,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const actor = await requireAuth();
-    requireRole(actor.role, ["ADMIN"]);
+    requireRole(actor.role, ["ADMIN", "STAFF"]);
 
     const body = createUserSchema.parse(await req.json());
     const email = body.email.toLowerCase();
@@ -70,6 +72,15 @@ export async function POST(req: Request) {
       }
     });
 
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "user",
+      entityId: user.id,
+      action: "created",
+      after: { name: user.name, email: user.email, role: user.role, locationId: user.locationId },
+    });
+
     return ok(
       {
         data: {
@@ -77,6 +88,7 @@ export async function POST(req: Request) {
           name: user.name,
           email: user.email,
           role: user.role,
+          locationId: user.locationId,
           location: user.location?.name ?? null
         }
       },

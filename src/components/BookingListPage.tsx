@@ -212,6 +212,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -260,6 +261,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
   const reload = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       params.set("limit", String(limit));
@@ -274,8 +276,12 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         const json: ListResponse = await res.json();
         setItems(json.data ?? []);
         setTotal(json.total ?? 0);
+      } else {
+        setLoadError(true);
       }
-    } catch { /* network — list stays at previous state */ }
+    } catch {
+      setLoadError(true);
+    }
     setLoading(false);
   }, [page, search, sort, statusFilter, sportFilter, locationFilter, config.apiBase, config.hasSportFilter]);
 
@@ -1030,6 +1036,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         {/* ════════ Booking list ════════ */}
         {loading ? (
           <SkeletonTable rows={6} cols={5} />
+        ) : loadError ? (
+          <EmptyState icon="clipboard" title={`Failed to load ${config.labelPlural.toLowerCase()}`} description="Check your connection and try again." actionLabel="Retry" onAction={reload} />
         ) : items.length === 0 ? (
           <EmptyState icon="clipboard" title={`No ${config.labelPlural.toLowerCase()} found`} description="Try adjusting your search or filters." />
         ) : (

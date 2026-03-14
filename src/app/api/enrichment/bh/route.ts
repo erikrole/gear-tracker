@@ -1,11 +1,13 @@
 export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { HttpError, fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { isValidBHUrl, parseBHProduct } from "@/lib/services/bh-parser";
 
 export async function POST(req: Request) {
   try {
-    await requireAuth();
+    const actor = await requireAuth();
+    requirePermission(actor.role, "enrichment", "use");
 
     const body = await req.json();
     const url = typeof body.url === "string" ? body.url.trim() : "";

@@ -5,6 +5,7 @@ import { fail, ok } from "@/lib/http";
 import { extendBooking } from "@/lib/services/bookings";
 import { requireCheckoutAction, requireReservationAction } from "@/lib/services/booking-rules";
 import { extendBookingSchema } from "@/lib/validation";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function POST(
   req: Request,
@@ -23,6 +24,14 @@ export async function POST(
     }
 
     const updated = await extendBooking(id, actor.id, new Date(body.endsAt));
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: id,
+      action: "extend",
+      after: { endsAt: body.endsAt },
+    });
     return ok({ data: updated });
   } catch (error) {
     return fail(error);

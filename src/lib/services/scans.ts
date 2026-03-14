@@ -2,6 +2,7 @@ import { BookingKind, BookingStatus, Role, ScanPhase, ScanSessionStatus, ScanTyp
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function startScanSession(args: {
   bookingId: string;
@@ -207,7 +208,7 @@ async function buildScanCompletionState(bookingId: string, phase: ScanPhase) {
   };
 }
 
-export async function completeCheckoutScan(bookingId: string, actorUserId: string) {
+export async function completeCheckoutScan(bookingId: string, actorUserId: string, actorRole: Role) {
   const state = await buildScanCompletionState(bookingId, ScanPhase.CHECKOUT);
 
   if (state.booking.status !== BookingStatus.OPEN) {
@@ -235,13 +236,12 @@ export async function completeCheckoutScan(bookingId: string, actorUserId: strin
     }
   });
 
-  await db.auditLog.create({
-    data: {
-      actorUserId,
-      entityType: "booking",
-      entityId: bookingId,
-      action: "checkout_scan_completed"
-    }
+  await createAuditEntry({
+    actorId: actorUserId,
+    actorRole,
+    entityType: "booking",
+    entityId: bookingId,
+    action: "checkout_scan_completed",
   });
 
   return {
@@ -252,7 +252,7 @@ export async function completeCheckoutScan(bookingId: string, actorUserId: strin
   };
 }
 
-export async function completeCheckinScan(bookingId: string, actorUserId: string) {
+export async function completeCheckinScan(bookingId: string, actorUserId: string, actorRole: Role) {
   const state = await buildScanCompletionState(bookingId, ScanPhase.CHECKIN);
   const override = await hasAdminOverride(bookingId);
 
@@ -310,17 +310,16 @@ export async function createAdminOverride(args: {
     }
   });
 
-  await db.auditLog.create({
-    data: {
-      actorUserId: args.actorUserId,
-      entityType: "booking",
-      entityId: args.bookingId,
-      action: "admin_override",
-      afterJson: {
-        reason: args.reason,
-        details: args.details ?? null
-      } as never
-    }
+  await createAuditEntry({
+    actorId: args.actorUserId,
+    actorRole: args.actorRole,
+    entityType: "booking",
+    entityId: args.bookingId,
+    action: "admin_override",
+    after: {
+      reason: args.reason,
+      details: args.details ?? null,
+    },
   });
 
   return event;

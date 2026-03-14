@@ -374,7 +374,9 @@ export default function ItemsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const limit = 25;
+  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -408,6 +410,10 @@ export default function ItemsPage() {
   useEffect(() => { reload(); }, [reload]);
 
   useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); })
+      .catch(() => {});
     fetch("/api/form-options")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json) setLocations(json.data?.locations || []); })
@@ -426,12 +432,14 @@ export default function ItemsPage() {
     <>
       <div className="page-header">
         <h1>Items</h1>
-        <div className="flex gap-8">
-          <Link href="/import" className="btn">Import</Link>
-          <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
-            {showCreate ? "Close" : "New item"}
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex gap-8">
+            <Link href="/import" className="btn">Import</Link>
+            <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+              {showCreate ? "Close" : "New item"}
+            </button>
+          </div>
+        )}
       </div>
 
       {showCreate && (

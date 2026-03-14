@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -23,15 +24,14 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       include: { location: true, category: true },
     });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "asset",
-        entityId: id,
-        action: newStatus === "MAINTENANCE" ? "marked_maintenance" : "cleared_maintenance",
-        beforeJson: { status: before.status },
-        afterJson: { status: newStatus },
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "asset",
+      entityId: id,
+      action: newStatus === "MAINTENANCE" ? "marked_maintenance" : "cleared_maintenance",
+      before: { status: before.status },
+      after: { status: newStatus },
     });
 
     return ok({ data: asset });

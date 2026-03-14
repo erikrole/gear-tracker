@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
+import { createAuditEntry } from "@/lib/audit";
 
 const createMappingSchema = z.object({
   pattern: z.string().min(1),
@@ -25,12 +27,22 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    await requireAuth();
+    const actor = await requireAuth();
+    requirePermission(actor.role, "location_mapping", "create");
     const body = createMappingSchema.parse(await req.json());
 
     const mapping = await db.locationMapping.create({
       data: body,
       include: { location: { select: { id: true, name: true } } }
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "location_mapping",
+      entityId: mapping.id,
+      action: "create",
+      after: { pattern: body.pattern, locationId: body.locationId },
     });
 
     return ok({ data: mapping }, 201);

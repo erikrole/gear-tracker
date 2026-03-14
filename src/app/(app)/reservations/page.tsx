@@ -60,6 +60,24 @@ export default function ReservationsPage() {
         },
       },
       {
+        action: "duplicate",
+        label: "Duplicate",
+        handler: async (bookingId) => {
+          try {
+            const res = await fetch(`/api/reservations/${bookingId}/duplicate`, { method: "POST" });
+            if (res.ok) {
+              const json = await res.json();
+              window.location.href = `/reservations/${json.data.id}`;
+            } else {
+              const json = await res.json().catch(() => ({}));
+              toast((json as Record<string, string>).error || "Duplicate failed", "error");
+            }
+          } catch {
+            toast("Network error — please try again.", "error");
+          }
+        },
+      },
+      {
         action: "cancel",
         label: "Cancel reservation",
         danger: true,

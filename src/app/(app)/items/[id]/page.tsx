@@ -231,9 +231,14 @@ function EditableField({
     const trimmed = draft.trim();
     if (trimmed === value) { setEditing(false); return; }
     setSaving(true);
-    await onSave(trimmed);
+    try {
+      await onSave(trimmed);
+      setEditing(false);
+    } catch {
+      setDraft(value);
+      setEditing(false);
+    }
     setSaving(false);
-    setEditing(false);
   }
 
   const isEmpty = !value;
@@ -314,15 +319,19 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
   async function handleCreateCategory() {
     if (!newCatName.trim()) { setCreating(false); return; }
     setSaving(true);
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newCatName.trim() }),
-    });
-    if (res.ok) {
-      const json = await res.json();
-      onCategoriesChanged();
-      if (json.data?.id) await onSave(json.data.id);
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCatName.trim() }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        onCategoriesChanged();
+        if (json.data?.id) await onSave(json.data.id);
+      }
+    } catch {
+      // network error — category not created
     }
     setSaving(false);
     setCreating(false);
@@ -1040,15 +1049,21 @@ function describeFieldChange(key: string, before: unknown, after: unknown): stri
 function ActivityFeed({ assetId }: { assetId: string }) {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     fetch(`/api/assets/${assetId}/activity`)
-      .then((res) => res.ok ? res.json() : null)
+      .then((res) => { if (!res.ok) { setFetchError(true); return null; } return res.json(); })
       .then((json) => { if (json?.data) setEntries(json.data); })
+      .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }, [assetId]);
 
   if (loading) return <div className="loading-spinner"><div className="spinner" /></div>;
+
+  if (fetchError) {
+    return <div className="empty-state">Failed to load activity history.</div>;
+  }
 
   if (entries.length === 0) {
     return <div className="empty-state">No activity recorded yet.</div>;

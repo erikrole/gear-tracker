@@ -8,6 +8,7 @@ import {
 } from "@/lib/services/bookings";
 import { requireCheckoutAction, getAllowedActions, getAllowedReservationActions, requireReservationAction } from "@/lib/services/booking-rules";
 import { updateBookingSchema } from "@/lib/validation";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function GET(
   _req: Request,
@@ -70,6 +71,14 @@ export async function PATCH(
       });
     }
 
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: id,
+      action: "edit",
+      after: body,
+    });
     return ok({ data: updated });
   } catch (error) {
     return fail(error);

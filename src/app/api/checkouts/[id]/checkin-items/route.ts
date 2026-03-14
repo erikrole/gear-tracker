@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth";
 import { fail, ok } from "@/lib/http";
 import { checkinItems } from "@/lib/services/bookings";
 import { requireCheckoutAction } from "@/lib/services/booking-rules";
+import { createAuditEntry } from "@/lib/audit";
 
 const checkinItemsSchema = z.object({
   assetIds: z.array(z.string().cuid()).min(1),
@@ -18,6 +19,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     await requireCheckoutAction(params.id, actor, "checkin");
 
     const result = await checkinItems(params.id, actor.id, body.assetIds);
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: params.id,
+      action: "checkin_items",
+      after: { assetIds: body.assetIds },
+    });
+
     return ok({ data: result });
   } catch (error) {
     return fail(error);

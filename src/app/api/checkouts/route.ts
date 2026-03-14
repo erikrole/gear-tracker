@@ -7,6 +7,7 @@ import { createBooking } from "@/lib/services/bookings";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
 import { createCheckoutSchema } from "@/lib/validation";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function GET(req: Request) {
   try {
@@ -105,6 +106,15 @@ export async function POST(req: Request) {
       sourceReservationId: body.sourceReservationId,
       eventId,
       sportCode
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: checkout.id,
+      action: "create",
+      after: { title: checkout.title ?? body.title, kind: "CHECKOUT" },
     });
 
     return ok({ data: checkout }, 201);

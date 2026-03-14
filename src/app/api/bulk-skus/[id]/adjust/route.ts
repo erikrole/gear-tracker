@@ -3,11 +3,14 @@ import { BulkMovementKind } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { adjustBulkSchema } from "@/lib/validation";
+import { createAuditEntry } from "@/lib/audit";
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireAuth();
+    requirePermission(actor.role, "bulk_sku", "adjust");
     const params = await ctx.params;
     const body = adjustBulkSchema.parse(await req.json());
 
@@ -61,6 +64,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       });
 
       return { current, next };
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "bulk_sku",
+      entityId: params.id,
+      action: "adjust",
+      after: { quantityDelta: body.quantityDelta, reason: body.reason, ...result },
     });
 
     return ok({ data: result });

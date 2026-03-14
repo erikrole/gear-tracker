@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
 import { createBooking } from "@/lib/services/bookings";
+import { createAuditEntry } from "@/lib/audit";
 import { requireReservationAction } from "@/lib/services/booking-rules";
 
 /**
@@ -51,6 +52,15 @@ export async function POST(
       sourceReservationId: id,
       eventId: full.eventId ?? undefined,
       sportCode: full.sportCode ?? undefined,
+    });
+
+    await createAuditEntry({
+      actorId: actor.id,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: id,
+      action: "convert",
+      after: { checkoutId: checkout.id, sourceReservationId: id },
     });
 
     return ok({ data: checkout });

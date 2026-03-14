@@ -1,67 +1,41 @@
 # Polish Items & Reservations Pages — Plan
 
-## Goal
-Simplify, polish, and harden the items and reservations pages. Focus on: eliminating React warnings, adding proper error handling, improving UX feedback, and fixing known patterns from lessons.md.
+## Status: Active (2026-03-14)
 
-## Slice 1: Items List Page (`src/app/(app)/items/page.tsx`)
+## Findings Summary
 
-### Simplify
-- Consolidate repeated inline filter `style` objects into a single `filterStyle` const (used 4 times with identical values)
-- Replace HTML entities (`&middot;`, `&rarr;`, `&rsaquo;`) with Unicode escapes per lesson #6
+Both pages are functional but have inconsistent error handling, missing loading feedback, and some role-gating gaps. Prior plan partially completed (useCallback, debounced search done). This picks up the remaining work.
 
-### Polish
-- Add debounced search (300ms delay) to avoid API call on every keystroke — use a `useDeferredValue` or manual timeout pattern
-- Show an error banner when the items fetch fails (currently silently swallowed)
+## Slice 1: Items List — role gating + error feedback
+- [ ] Fetch `/api/me` for current user role
+- [ ] Hide "New item" and "Import" buttons for STUDENT
+- [ ] Add error feedback on form-options/categories fetch failure
 
-### Harden
-- Wrap `reload` in `useCallback` with proper dependency array to fix React exhaustive-deps warning
-- Add `try/catch` around form-options and categories fetches with graceful fallback
-- Reset page to 0 when filters change (already done, just verify)
+## Slice 2: Items Detail — try/catch hardening
+- [ ] EditableField `commit()` — wrap `onSave()` in try/catch to prevent stuck saving state
+- [ ] CategoryField `handleCreateCategory` — add try/catch with error feedback
+- [ ] Activity feed — add error state to distinguish network failure from empty
+- [ ] Standardize Unicode: replace mixed HTML entities with actual characters
 
-## Slice 2: Items Detail Page (`src/app/(app)/items/[id]/page.tsx`)
+## Slice 3: Reservations — await reload, loading states, error consistency
+- [ ] Await all `reload()` calls in convert/cancel handlers (page.tsx + BookingListPage)
+- [ ] Add loading indicators during convert/cancel in context menu actions
+- [ ] Replace silent catches with user-visible error feedback (BookingListPage reload, BookingDetailsSheet fetch)
+- [ ] Fix asymmetric actionLoading cleanup in convert handler ([id]/page.tsx)
+- [ ] Replace Unicode escapes with actual characters ([id]/page.tsx, BookingDetailsSheet)
 
-### Simplify
-- Replace HTML entities with Unicode throughout
-
-### Polish
-- Add actionLoading state to `handleAction` to prevent double-clicks and show feedback
-- Show error feedback (not just `alert()`) when actions fail — use inline error banner
-
-### Harden
-- Wrap `loadAsset` and `loadCategories` in `useCallback` (React dependency warnings)
-- Add `try/catch` to all `handleAction` branches (currently `duplicate` and `maintenance` have none)
-- Handle response errors in retire/maintenance/duplicate paths
-
-## Slice 3: Reservations List Page (`src/app/(app)/reservations/page.tsx`)
-
-### Harden
-- Replace empty `catch { /* network */ }` blocks with `alert()` or `reload()` fallback so the user knows something went wrong
-
-## Slice 4: Reservations Detail Page (`src/app/(app)/reservations/[id]/page.tsx`)
-
-### Simplify
-- Replace `&middot;`, `&rsaquo;` with Unicode
-
-### Polish
-- Add `actionError` reset at the start of each action handler (currently only some do it)
-- Show a brief loading overlay during data refetch after successful action
-
-### Harden
-- Wrap `handleCancel` body in try/catch (currently no try/catch — a network throw would leave actionLoading stuck)
-- Ensure `setActionLoading(null)` is called in all code paths (currently `handleConvert` success path doesn't reset it)
-
-## Slice 5: Build & Verify
-- Run `npm run build` — must pass cleanly
-- Commit with message: `feat: polish and harden items and reservations pages`
-- Push to `claude/polish-items-reservations-VWYMP`
+## Slice 4: Verify
+- [ ] TypeScript compiles cleanly
+- [ ] Update tasks/todo.md to mark items complete
 
 ## Files Changed
 1. `src/app/(app)/items/page.tsx`
 2. `src/app/(app)/items/[id]/page.tsx`
 3. `src/app/(app)/reservations/page.tsx`
 4. `src/app/(app)/reservations/[id]/page.tsx`
+5. `src/components/BookingListPage.tsx`
+6. `src/components/BookingDetailsSheet.tsx`
 
 ## Risk Assessment
 - **Low risk**: All changes are UI-layer polish — no schema, API, or business logic changes
-- **No new dependencies**: Using only existing React patterns
 - **Edge runtime safe**: No Node.js APIs introduced

@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 function randomHex(bytes: number): string {
   const array = new Uint8Array(bytes);
@@ -40,15 +41,14 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
       include: { location: true, category: true },
     });
 
-    await db.auditLog.create({
-      data: {
-        actorUserId: user.id,
-        entityType: "asset",
-        entityId: id,
-        action: "qr_generated",
-        beforeJson: { qrCodeValue: before.qrCodeValue },
-        afterJson: { qrCodeValue: qrCode },
-      },
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "asset",
+      entityId: id,
+      action: "qr_generated",
+      before: { qrCodeValue: before.qrCodeValue },
+      after: { qrCodeValue: qrCode },
     });
 
     return ok({ data: asset });

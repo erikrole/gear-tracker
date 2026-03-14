@@ -181,10 +181,10 @@ export default function ReservationDetailsPage() {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Cancel failed", "error");
       } else {
-        reload();
+        await reload();
       }
     } catch {
-      toast("Network error — please try again.", "error");
+      toast("Network error \u2014 please try again.", "error");
     }
     setActionLoading(null);
   }
@@ -233,6 +233,7 @@ export default function ReservationDetailsPage() {
   const canExtend = actions.includes("extend");
   const canCancel = actions.includes("cancel");
   const canConvert = actions.includes("convert");
+  const canDuplicate = actions.includes("duplicate");
   const isOverdue =
     reservation?.status === "BOOKED" && reservation?.endsAt
       ? new Date(reservation.endsAt) < new Date()
@@ -299,7 +300,6 @@ export default function ReservationDetailsPage() {
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Conversion failed", "error");
-        setActionLoading(null);
       } else {
         const json = await res.json().catch(() => ({}));
         const checkoutId = (json as { data?: { id?: string } })?.data?.id;
@@ -308,11 +308,38 @@ export default function ReservationDetailsPage() {
         } else {
           router.push("/checkouts");
         }
+        return; // navigating away — don't clear loading
       }
     } catch {
       toast("Network error during conversion", "error");
-      setActionLoading(null);
     }
+    setActionLoading(null);
+  }
+
+  async function handleDuplicate() {
+    setActionLoading("duplicate");
+    setActionError("");
+    try {
+      const res = await fetch(`/api/reservations/${id}/duplicate`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Duplicate failed", "error");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        const newId = (json as { data?: { id?: string } })?.data?.id;
+        if (newId) {
+          router.push(`/reservations/${newId}`);
+        } else {
+          router.push("/reservations");
+        }
+        return;
+      }
+    } catch {
+      toast("Network error \u2014 please try again.", "error");
+    }
+    setActionLoading(null);
   }
 
   /* ── Render ── */
@@ -382,6 +409,15 @@ export default function ReservationDetailsPage() {
               disabled={!!actionLoading}
             >
               Extend
+            </button>
+          )}
+          {canDuplicate && (
+            <button
+              className="btn btn-sm"
+              onClick={handleDuplicate}
+              disabled={!!actionLoading}
+            >
+              {actionLoading === "duplicate" ? "Duplicating..." : "Duplicate"}
             </button>
           )}
           {canCancel && (
