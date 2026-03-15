@@ -5,29 +5,13 @@ import { useSearchParams } from "next/navigation";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
 import { getAllowedBookingActions, type BookingKind } from "@/lib/booking-actions";
-import {
-  EQUIPMENT_SECTIONS,
-  classifyAssetType,
-  groupAssetsBySection,
-  groupBulkBySection,
-  isSectionReachable,
-  sectionIndex,
-  type EquipmentSectionKey,
-} from "@/lib/equipment-sections";
 import { formatDateShort } from "@/lib/format";
-import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 import { useToast } from "@/components/Toast";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
-
-const STATUS_DOT_COLORS: Record<string, string> = {
-  AVAILABLE: "var(--green)",
-  CHECKED_OUT: "var(--red)",
-  RESERVED: "#a855f7",
-  MAINTENANCE: "var(--orange)",
-  RETIRED: "var(--text-muted)",
-};
+import EquipmentPicker from "@/components/EquipmentPicker";
+import type { PickerAsset, PickerBulkSku, BulkSelection } from "@/components/EquipmentPicker";
 
 /* ───── Types ───── */
 
@@ -59,18 +43,8 @@ type CalendarEvent = {
   rawLocationText: string | null;
   location: { id: string; name: string } | null;
 };
-type AvailableAsset = {
-  id: string;
-  assetTag: string;
-  name: string;
-  brand: string;
-  model: string;
-  serialNumber: string;
-  type: string;
-  computedStatus: string;
-  location: { id: string; name: string } | null;
-};
-type BulkSkuOption = { id: string; name: string; unit: string; category: string; currentQuantity: number };
+type AvailableAsset = PickerAsset;
+type BulkSkuOption = PickerBulkSku;
 type ListResponse = { data: BookingItem[]; total: number; limit: number; offset: number };
 
 /* ───── Config ───── */
@@ -256,11 +230,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(true);
-  const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
-  const [highestReached, setHighestReached] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
-  const [equipSearch, setEquipSearch] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
-  const [selectedBulkItems, setSelectedBulkItems] = useState<{ bulkSkuId: string; quantity: number }[]>([]);
+  const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
 
   // ── Sheet + context menu ──
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -448,9 +419,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setSelectedAssetIds([]);
       setSelectedBulkItems([]);
       setShowEquipPicker(true);
-      setActiveSection(EQUIPMENT_SECTIONS[0].key);
-      setHighestReached(EQUIPMENT_SECTIONS[0].key);
-      setEquipSearch("");
       setSubmitting(false);
 
       setSelectedBookingId(json.data.id);
@@ -534,75 +502,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     return Array.from(codes).sort();
   }, [items, config.hasSportFilter]);
 
-  // Equipment section grouping
-  const assetsBySection = useMemo(() => groupAssetsBySection(availableAssets), [availableAssets]);
-  const bulkBySection = useMemo(() => groupBulkBySection(bulkSkus), [bulkSkus]);
-
-  const sectionAssets = useMemo(() => {
-    if (!activeSection) return [];
-    const q = equipSearch.toLowerCase();
-    return (assetsBySection[activeSection] || []).filter((a) => {
-      if (selectedAssetIds.includes(a.id)) return false;
-      if (!q) return true;
-      return (
-        a.assetTag.toLowerCase().includes(q) ||
-        a.brand.toLowerCase().includes(q) ||
-        a.model.toLowerCase().includes(q) ||
-        a.serialNumber.toLowerCase().includes(q) ||
-        a.type.toLowerCase().includes(q)
-      );
-    });
-  }, [assetsBySection, activeSection, selectedAssetIds, equipSearch]);
-
-  const sectionBulk = useMemo(() => {
-    if (!activeSection) return [];
-    const q = equipSearch.toLowerCase();
-    const existingSkuIds = new Set(selectedBulkItems.map((i) => i.bulkSkuId));
-    return (bulkBySection[activeSection] || []).filter((s) => {
-      if (existingSkuIds.has(s.id)) return false;
-      if (!q) return true;
-      return s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
-    });
-  }, [bulkBySection, activeSection, selectedBulkItems, equipSearch]);
-
-  const sectionCounts = useMemo(() => {
-    const counts: Record<EquipmentSectionKey, number> = {
-      cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
-    };
-    for (const key of Object.keys(counts) as EquipmentSectionKey[]) {
-      counts[key] = (assetsBySection[key]?.length || 0) + (bulkBySection[key]?.length || 0);
-    }
-    return counts;
-  }, [assetsBySection, bulkBySection]);
-
   const equipmentCount = selectedAssetIds.length + selectedBulkItems.length;
-
-  const selectedSectionKeys = useMemo(() => {
-    const keys = new Set<EquipmentSectionKey>();
-    for (const id of selectedAssetIds) {
-      const asset = availableAssets.find((a) => a.id === id);
-      if (asset) keys.add(classifyAssetType(asset.type, (asset as Record<string, unknown>).categoryName as string | null | undefined));
-    }
-    for (const item of selectedBulkItems) {
-      const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
-      if (sku) keys.add(classifyAssetType(sku.category, (sku as Record<string, unknown>).categoryName as string | null | undefined));
-    }
-    return Array.from(keys);
-  }, [selectedAssetIds, selectedBulkItems, availableAssets, bulkSkus]);
-
-  const activeGuidance = useMemo(() => {
-    if (!activeSection) return [];
-    const ctx: GuidanceContext = { selectedSectionKeys, activeSection };
-    return getActiveGuidance(ctx);
-  }, [selectedSectionKeys, activeSection]);
-
-  function advanceToSection(key: EquipmentSectionKey) {
-    setActiveSection(key);
-    setEquipSearch("");
-    if (sectionIndex(key) > sectionIndex(highestReached)) {
-      setHighestReached(key);
-    }
-  }
 
   return (
     <>
@@ -762,231 +662,21 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
               </div>
             </div>
 
-            {/* Equipment picker — sectioned flow */}
-            <div className="equip-picker-wrap">
-              <div className="equip-picker-header">
-                <label className="equip-picker-label">
-                  Equipment{equipmentCount > 0 ? ` (${equipmentCount} selected)` : ""}
-                </label>
-                {showEquipPicker && (
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    onClick={() => { setShowEquipPicker(false); setEquipSearch(""); }}
-                  >
-                    Done adding
-                  </button>
-                )}
-              </div>
-
-              {/* Persistent selected items summary */}
-              {equipmentCount > 0 && (
-                <div className="equip-selected-box">
-                  {selectedAssetIds.map((assetId) => {
-                    const asset = availableAssets.find((a) => a.id === assetId);
-                    if (!asset) return null;
-                    return (
-                      <div key={assetId} className="equip-selected-row">
-                        <div className="flex-truncate">
-                          <span className="equip-selected-tag">{asset.assetTag}</span>
-                          <span className="equip-selected-detail">{asset.name || `${asset.brand} ${asset.model}`}</span>
-                        </div>
-                        <button type="button" className="remove-btn"
-                          onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
-                      </div>
-                    );
-                  })}
-                  {selectedBulkItems.map((item) => {
-                    const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
-                    return (
-                      <div key={item.bulkSkuId} className="equip-selected-row">
-                        <div className="flex-truncate">
-                          <span className="equip-selected-tag">{sku?.name || item.bulkSkuId}</span>
-                          <span className="equip-selected-detail">&times;{item.quantity}</span>
-                        </div>
-                        <div className="bulk-actions">
-                          <div className="qty-stepper">
-                            <button type="button" onClick={() => {
-                              if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
-                              else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
-                            }}>&minus;</button>
-                            <input type="number" min={1} value={item.quantity} onChange={(e) => {
-                              const qty = parseInt(e.target.value) || 1;
-                              if (qty <= 0) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
-                              else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: qty } : i));
-                            }} />
-                            <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}>+</button>
-                          </div>
-                          <button type="button" className="remove-btn"
-                            onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}>&times;</button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Sectioned picker */}
-              {showEquipPicker && (
-                <div className="section-picker">
-                  {/* Section tabs */}
-                  <div className="section-tabs">
-                    {EQUIPMENT_SECTIONS.map((sec) => {
-                      const reachable = isSectionReachable(sec.key, highestReached);
-                      const isActive = activeSection === sec.key;
-                      return (
-                        <button
-                          key={sec.key}
-                          type="button"
-                          disabled={!reachable}
-                          className={`section-tab${isActive ? " active" : ""}`}
-                          onClick={() => { if (reachable) { setActiveSection(sec.key); setEquipSearch(""); } }}
-                        >
-                          {sec.label}
-                          {sectionCounts[sec.key] > 0 && (
-                            <span className="section-tab-count">({sectionCounts[sec.key]})</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Active section content */}
-                  {activeSection && (
-                    <div className="section-content">
-                      <input
-                        className="picker-search"
-                        placeholder="Search this section..."
-                        value={equipSearch}
-                        onChange={(e) => setEquipSearch(e.target.value)}
-                      />
-
-                      <div className="picker-scroll">
-                        {/* Serialized assets */}
-                        {sectionAssets.length > 0 && (
-                          <>
-                            {sectionBulk.length > 0 && (
-                              <div className="section-subheading">Assets</div>
-                            )}
-                            {sectionAssets.slice(0, 50).map((asset) => {
-                              const isAvailable = asset.computedStatus === "AVAILABLE";
-                              const dotColor = STATUS_DOT_COLORS[asset.computedStatus] || "var(--text-muted)";
-                              const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
-                              return (
-                                <div
-                                  key={asset.id}
-                                  className="equip-picker-item"
-                                  data-unavailable={!isAvailable || undefined}
-                                  onClick={() => {
-                                    if (!isAvailable) return;
-                                    setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id]);
-                                  }}
-                                >
-                                  <span className="equip-picker-dot" style={{ backgroundColor: dotColor }} title={statusLabel} />
-                                  <div className="flex-truncate">
-                                    <div className="asset-tag-label">
-                                      {asset.assetTag}
-                                    </div>
-                                    <div className="equip-picker-meta">
-                                      {asset.name || `${asset.brand} ${asset.model}`}
-                                      {asset.serialNumber ? ` · SN: ${asset.serialNumber}` : ""}
-                                      {asset.location ? ` · ${asset.location.name}` : ""}
-                                      {!isAvailable && ` · ${statusLabel}`}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </>
-                        )}
-
-                        {/* Bulk items */}
-                        {sectionBulk.length > 0 && (
-                          <>
-                            {sectionAssets.length > 0 && (
-                              <div className="section-subheading">Bulk Items</div>
-                            )}
-                            {sectionBulk.slice(0, 50).map((sku) => (
-                              <div
-                                key={sku.id}
-                                className="equip-picker-item"
-                                onClick={() => setSelectedBulkItems((prev) =>
-                                  prev.some((i) => i.bulkSkuId === sku.id) ? prev : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
-                                )}
-                              >
-                                <div>
-                                  <div className="bulk-sku-name">{sku.name}</div>
-                                  <div className="equip-picker-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        )}
-
-                        {sectionAssets.length === 0 && sectionBulk.length === 0 && (
-                          <div className="empty-message">
-                            {equipSearch ? "No matching items in this section" : "No available items in this section"}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Equipment guidance hints */}
-                      {activeGuidance.length > 0 && activeGuidance.map((rule) => (
-                        <div
-                          key={rule.id}
-                          data-guidance={rule.id}
-                          className={`guidance-hint ${rule.level === "warning" ? "guidance-warning" : "guidance-info"}`}
-                        >
-                          {rule.message}
-                        </div>
-                      ))}
-
-                      {/* Section navigation */}
-                      <div className="section-nav">
-                        {(() => {
-                          const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
-                          const prev = idx > 0 ? EQUIPMENT_SECTIONS[idx - 1] : null;
-                          const next = idx < EQUIPMENT_SECTIONS.length - 1 ? EQUIPMENT_SECTIONS[idx + 1] : null;
-                          return (
-                            <>
-                              {prev ? (
-                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(prev.key)}>
-                                  {"\u2190"} {prev.label}
-                                </button>
-                              ) : <span />}
-                              {next ? (
-                                <button type="button" className="btn btn-sm" onClick={() => advanceToSection(next.key)}>
-                                  {next.label} {"\u2192"}
-                                </button>
-                              ) : (
-                                <button type="button" className="btn btn-sm" onClick={() => { setShowEquipPicker(false); setEquipSearch(""); }}>
-                                  Done
-                                </button>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {equipmentCount === 0 && !showEquipPicker && (
-                <div className="equip-empty-hint">
-                  <div className="equip-empty-text">
-                    No equipment selected. You can also add equipment after creating.
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    onClick={() => { setShowEquipPicker(true); setActiveSection(EQUIPMENT_SECTIONS[0].key); }}
-                  >
-                    + Add equipment
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Equipment picker */}
+            <EquipmentPicker
+              assets={availableAssets}
+              bulkSkus={bulkSkus}
+              selectedAssetIds={selectedAssetIds}
+              setSelectedAssetIds={setSelectedAssetIds}
+              selectedBulkItems={selectedBulkItems}
+              setSelectedBulkItems={setSelectedBulkItems}
+              visible={showEquipPicker}
+              onDone={() => setShowEquipPicker(false)}
+              onReopen={() => setShowEquipPicker(true)}
+              startsAt={createStartsAt}
+              endsAt={createEndsAt}
+              locationId={createLocationId}
+            />
 
             {createError && (
               <div className="alert-error">{createError}</div>

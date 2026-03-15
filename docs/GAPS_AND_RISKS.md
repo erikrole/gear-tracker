@@ -44,7 +44,7 @@
 | Dashboard filter chips (Sport, Location) | AREA_DASHBOARD | — | Deferred from V1 |
 | Notification center polish (pagination, mark-as-read) | AREA_NOTIFICATIONS | — | After D-009 acceptance |
 | Multi-recipient escalation | AREA_NOTIFICATIONS | D-009 | Pending recipient model decision |
-| Picker improvements (multi-select, scan-to-add) | AREA_CHECKOUTS | — | Phase B roadmap |
+| ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
 | Calendar source health UI | AREA_EVENTS | — | Enable/disable + sync status display |
 
 ---
@@ -92,3 +92,4 @@
 ## Change Log
 - 2026-03-11: Initial registry created from docs hardening pass. Consolidated from NORTH_STAR.md gaps, DECISIONS.md pending items, and scattered AREA file TODOs.
 - 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.
+- 2026-03-15: Picker improvements shipped — multi-select, per-section search, availability preview, scan-to-add.
