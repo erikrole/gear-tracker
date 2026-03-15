@@ -32,6 +32,7 @@ export async function GET(req: Request) {
     const statusParam = searchParams.get("status");
     const locationId = searchParams.get("location_id");
     const categoryId = searchParams.get("category_id");
+    const brand = searchParams.get("brand")?.trim();
 
     // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
     // post-enrichment filtering. Stored statuses filter at the DB level.
@@ -42,6 +43,7 @@ export async function GET(req: Request) {
     const where = {
       ...(locationId ? { locationId } : {}),
       ...(categoryId ? { categoryId } : {}),
+      ...(brand ? { brand: { equals: brand, mode: "insensitive" as const } } : {}),
       // For derived status filters, only look at AVAILABLE assets (those are
       // the only ones that can be CHECKED_OUT or RESERVED after enrichment).
       ...(isStoredFilter ? { status: statusParam as never } : {}),

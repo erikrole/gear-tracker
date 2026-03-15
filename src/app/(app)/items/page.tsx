@@ -305,11 +305,88 @@ function CreateItemCard({
 }
 
 
+const STATUS_OPTIONS = [
+  { value: "AVAILABLE", label: "Available" },
+  { value: "CHECKED_OUT", label: "Checked out" },
+  { value: "RESERVED", label: "Reserved" },
+  { value: "MAINTENANCE", label: "Maintenance" },
+  { value: "RETIRED", label: "Retired" },
+];
+
+function FilterChip({
+  label,
+  value,
+  displayValue,
+  options,
+  onSelect,
+  onClear,
+}: {
+  label: string;
+  value: string;
+  displayValue?: string;
+  options: { value: string; label: string; group?: string }[];
+  onSelect: (v: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const active = value !== "";
+
+  return (
+    <div ref={ref} className="filter-chip-wrap">
+      <button
+        type="button"
+        className={`filter-chip ${active ? "filter-chip-active" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="filter-chip-label">{label}{active && ":"}</span>
+        {active && <span className="filter-chip-value">{displayValue || value}</span>}
+        {active ? (
+          <span
+            className="filter-chip-clear"
+            onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
+          >&times;</span>
+        ) : (
+          <span className="filter-chip-chevron">{"\u25BE"}</span>
+        )}
+      </button>
+      {open && (
+        <div className="filter-chip-dropdown">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`filter-chip-option ${opt.value === value ? "filter-chip-option-active" : ""}`}
+              onClick={() => { onSelect(opt.value); setOpen(false); }}
+            >
+              {opt.label}
+            </button>
+          ))}
+          {options.length === 0 && (
+            <div className="filter-chip-empty">No options</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems] = useState<Asset[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -317,12 +394,15 @@ export default function ItemsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const limit = 25;
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+
+  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -340,6 +420,7 @@ export default function ItemsPage() {
     if (statusFilter) params.set("status", statusFilter);
     if (locationFilter) params.set("location_id", locationFilter);
     if (categoryFilter) params.set("category_id", categoryFilter);
+    if (brandFilter) params.set("brand", brandFilter);
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -351,7 +432,7 @@ export default function ItemsPage() {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter]);
+  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -368,11 +449,43 @@ export default function ItemsPage() {
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json) setCategories(json.data || []); })
       .catch(() => {});
+    // Fetch distinct brands
+    fetch("/api/assets?limit=9999&offset=0")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => {
+        if (json?.data) {
+          const unique = [...new Set(json.data.map((a: Asset) => a.brand).filter(Boolean))] as string[];
+          unique.sort((a, b) => a.localeCompare(b));
+          setBrands(unique);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const totalPages = Math.ceil(total / limit);
   const rangeStart = total === 0 ? 0 : page * limit + 1;
   const rangeEnd = Math.min((page + 1) * limit, total);
+
+  // Build flat category options for the chip dropdown
+  const categoryOptions = categories
+    .filter((c) => !c.parentId)
+    .flatMap((parent) => {
+      const children = categories.filter((c) => c.parentId === parent.id);
+      if (children.length === 0) return [{ value: parent.id, label: parent.name }];
+      return children.map((child) => ({ value: child.id, label: `${parent.name} / ${child.name}` }));
+    });
+
+  function clearAllFilters() {
+    setStatusFilter("");
+    setLocationFilter("");
+    setCategoryFilter("");
+    setBrandFilter("");
+    setPage(0);
+  }
+
+  // Resolve display values for active filters
+  const locationName = locations.find((l) => l.id === locationFilter)?.name;
+  const categoryName = categoryOptions.find((c) => c.value === categoryFilter)?.label;
 
   return (
     <>
@@ -398,51 +511,53 @@ export default function ItemsPage() {
       )}
 
       <div className="card">
-        <div className="card-header filter-bar">
+        <div className="card-header" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             className="form-input"
+            style={{ width: "100%" }}
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            className="form-select"
-          >
-            <option value="">All statuses</option>
-            <option value="AVAILABLE">Available</option>
-            <option value="CHECKED_OUT">Checked out</option>
-            <option value="RESERVED">Reserved</option>
-            <option value="MAINTENANCE">Maintenance</option>
-            <option value="RETIRED">Retired</option>
-          </select>
-          <select
-            value={locationFilter}
-            onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
-            className="form-select"
-          >
-            <option value="">All locations</option>
-            {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-          </select>
-          <select
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
-            className="form-select"
-          >
-            <option value="">All categories</option>
-            {categories.filter((c) => !c.parentId).map((parent) => (
-              <optgroup key={parent.id} label={parent.name}>
-                {categories.filter((c) => c.parentId === parent.id).length === 0
-                  ? <option value={parent.id}>{parent.name}</option>
-                  : categories.filter((c) => c.parentId === parent.id).map((child) => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))
-                }
-              </optgroup>
-            ))}
-          </select>
+          <div className="filter-chips">
+            <FilterChip
+              label="Status"
+              value={statusFilter}
+              displayValue={STATUS_OPTIONS.find((s) => s.value === statusFilter)?.label}
+              options={STATUS_OPTIONS}
+              onSelect={(v) => { setStatusFilter(v); setPage(0); }}
+              onClear={() => { setStatusFilter(""); setPage(0); }}
+            />
+            <FilterChip
+              label="Location"
+              value={locationFilter}
+              displayValue={locationName}
+              options={locations.map((l) => ({ value: l.id, label: l.name }))}
+              onSelect={(v) => { setLocationFilter(v); setPage(0); }}
+              onClear={() => { setLocationFilter(""); setPage(0); }}
+            />
+            <FilterChip
+              label="Category"
+              value={categoryFilter}
+              displayValue={categoryName}
+              options={categoryOptions}
+              onSelect={(v) => { setCategoryFilter(v); setPage(0); }}
+              onClear={() => { setCategoryFilter(""); setPage(0); }}
+            />
+            <FilterChip
+              label="Brand"
+              value={brandFilter}
+              options={brands.map((b) => ({ value: b, label: b }))}
+              onSelect={(v) => { setBrandFilter(v); setPage(0); }}
+              onClear={() => { setBrandFilter(""); setPage(0); }}
+            />
+            {hasActiveFilters && (
+              <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
