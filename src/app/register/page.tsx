@@ -82,7 +82,7 @@ export default function RegisterPage() {
           />
         </div>
 
-        {error && <div className="form-error">{error}</div>}
+        {error && <div className="form-error" role="alert">{error}</div>}
 
         <button type="submit" className="login-btn" disabled={loading}>
           {loading ? "Creating account..." : "Create account"}

@@ -207,10 +207,10 @@ export default function ReservationDetailsPage() {
       } else {
         setShowExtend(false);
         setExtendDate("");
-        reload();
+        await reload();
       }
     } catch {
-      setActionError("Network error \u2014 please try again.");
+      setActionError("Network error — please try again.");
     }
     setActionLoading(null);
   }

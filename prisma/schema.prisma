@@ -559,3 +559,26 @@ model Notification {
   @@index([type, createdAt])
   @@map("notifications")
 }
+
+model EscalationRule {
+  id               String   @id @default(cuid())
+  hoursFromDue     Int      @map("hours_from_due")
+  type             String   @unique
+  title            String
+  notifyRequester  Boolean  @default(true) @map("notify_requester")
+  notifyAdmins     Boolean  @default(false) @map("notify_admins")
+  enabled          Boolean  @default(true)
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("escalation_rules")
+}
+
+model SystemConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}

@@ -204,15 +204,15 @@ export default function UsersPage() {
             className="form-grid form-grid-5"
             style={{ padding: 16 }}
           >
-            <input className="form-input" name="name" placeholder="Full name" required />
-            <input className="form-input" name="email" type="email" placeholder="Email" required />
-            <input className="form-input" name="password" type="password" minLength={8} placeholder="Temporary password" required />
-            <select className="form-select" name="role" defaultValue="STAFF">
+            <input className="form-input" name="name" placeholder="Full name" required aria-label="Full name" />
+            <input className="form-input" name="email" type="email" placeholder="Email" required aria-label="Email" />
+            <input className="form-input" name="password" type="password" minLength={8} placeholder="Temporary password" required aria-label="Temporary password" />
+            <select className="form-select" name="role" defaultValue="STAFF" aria-label="Role">
               <option value="ADMIN">Admin</option>
               <option value="STAFF">Staff</option>
               <option value="STUDENT">Student</option>
             </select>
-            <select className="form-select" name="locationId" defaultValue="">
+            <select className="form-select" name="locationId" defaultValue="" aria-label="Location">
               <option value="">No location</option>
               {locations.map((location) => (
                 <option key={location.id} value={location.id}>
@@ -248,6 +248,7 @@ export default function UsersPage() {
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search users"
           />
           <div className="filter-chips">
             <FilterChip

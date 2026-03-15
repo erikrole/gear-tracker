@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Gear Tracker",
   },
+  icons: {
+    apple: "/icon-192.svg",
+  },
 };
 
 export const viewport: Viewport = {

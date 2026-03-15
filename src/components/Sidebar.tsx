@@ -102,8 +102,11 @@ const navItems = [
   },
 ];
 
+/** Nav items hidden from STUDENT role */
+const STUDENT_HIDDEN_HREFS = new Set(["/users", "/kits", "/settings"]);
+
 type SidebarProps = {
-  user: { name: string; email: string } | null;
+  user: { name: string; email: string; role?: string } | null;
   open?: boolean;
   onClose?: () => void;
   onSignOut?: () => void;
@@ -168,7 +171,7 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !(user?.role === "STUDENT" && STUDENT_HIDDEN_HREFS.has(item.href))).map((item) => {
           const isActive =
             item.href === "/"
               ? pathname === "/"

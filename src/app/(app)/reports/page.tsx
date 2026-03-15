@@ -107,7 +107,7 @@ export default function ReportsPage() {
         <h1>Reports</h1>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div className="flex gap-8 mb-16">
         {(["utilization", "checkouts", "audit"] as ReportTab[]).map((t) => (
           <button
             key={t}
@@ -136,24 +136,24 @@ function UtilizationReport({ data }: { data: UtilizationData }) {
   return (
     <>
       {/* Status summary cards */}
-      <div className="summary-grid" style={{ marginBottom: 16 }}>
+      <div className="summary-grid mb-16">
         {Object.entries(data.statusCounts).map(([status, count]) => (
-          <div key={status} className="card" style={{ padding: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 700 }}>{count}</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <div key={status} className="card p-16 text-center">
+            <div className="metric-value">{count}</div>
+            <div className="text-sm text-muted">
               <span className={`badge ${statusBadge[status] || "badge-gray"}`}>
                 {statusLabel[status] || status}
               </span>
             </div>
           </div>
         ))}
-        <div className="card" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 700 }}>{data.totalAssets}</div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Total assets</div>
+        <div className="card p-16 text-center">
+          <div className="metric-value">{data.totalAssets}</div>
+          <div className="text-sm text-muted">Total assets</div>
         </div>
       </div>
 
-      <div className="grid-2col" style={{ gap: 16 }}>
+      <div className="grid-2col gap-16">
         {/* By location */}
         <div className="card">
           <div className="card-header"><h2>By location</h2></div>
@@ -161,10 +161,10 @@ function UtilizationReport({ data }: { data: UtilizationData }) {
             <div className="empty-state">No data</div>
           ) : (
             <table className="data-table">
-              <thead><tr><th>Location</th><th style={{ textAlign: "right" }}>Count</th></tr></thead>
+              <thead><tr><th>Location</th><th className="text-right">Count</th></tr></thead>
               <tbody>
                 {data.byLocation.map((r) => (
-                  <tr key={r.location}><td>{r.location}</td><td style={{ textAlign: "right" }}>{r.count}</td></tr>
+                  <tr key={r.location}><td>{r.location}</td><td className="text-right">{r.count}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -178,10 +178,10 @@ function UtilizationReport({ data }: { data: UtilizationData }) {
             <div className="empty-state">No data</div>
           ) : (
             <table className="data-table">
-              <thead><tr><th>Type</th><th style={{ textAlign: "right" }}>Count</th></tr></thead>
+              <thead><tr><th>Type</th><th className="text-right">Count</th></tr></thead>
               <tbody>
                 {data.byType.map((r) => (
-                  <tr key={r.type}><td>{r.type}</td><td style={{ textAlign: "right" }}>{r.count}</td></tr>
+                  <tr key={r.type}><td>{r.type}</td><td className="text-right">{r.count}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -190,13 +190,13 @@ function UtilizationReport({ data }: { data: UtilizationData }) {
 
         {/* By department */}
         {data.byDepartment.length > 0 && (
-          <div className="card" style={{ gridColumn: "1 / -1" }}>
+          <div className="card col-span-full">
             <div className="card-header"><h2>By department</h2></div>
             <table className="data-table">
-              <thead><tr><th>Department</th><th style={{ textAlign: "right" }}>Count</th></tr></thead>
+              <thead><tr><th>Department</th><th className="text-right">Count</th></tr></thead>
               <tbody>
                 {data.byDepartment.map((r) => (
-                  <tr key={r.department}><td>{r.department}</td><td style={{ textAlign: "right" }}>{r.count}</td></tr>
+                  <tr key={r.department}><td>{r.department}</td><td className="text-right">{r.count}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -211,8 +211,8 @@ function CheckoutReport({ data, days, onDaysChange }: { data: CheckoutData; days
   return (
     <>
       {/* Period selector + summary */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center" }}>
-        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Period:</span>
+      <div className="flex-center gap-12 mb-16">
+        <span className="text-sm text-muted">Period:</span>
         {[7, 30, 90].map((d) => (
           <button
             key={d}
@@ -224,20 +224,20 @@ function CheckoutReport({ data, days, onDaysChange }: { data: CheckoutData; days
         ))}
       </div>
 
-      <div className="summary-grid" style={{ marginBottom: 16 }}>
-        <div className="card" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 700 }}>{data.totalCheckouts}</div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Checkouts ({days}d)</div>
+      <div className="summary-grid mb-16">
+        <div className="card p-16 text-center">
+          <div className="metric-value">{data.totalCheckouts}</div>
+          <div className="text-sm text-muted">Checkouts ({days}d)</div>
         </div>
-        <div className="card" style={{ padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: data.overdueCheckouts > 0 ? "var(--red, #ef4444)" : undefined }}>
+        <div className="card p-16 text-center">
+          <div className="metric-value" style={{ color: data.overdueCheckouts > 0 ? "var(--red)" : undefined }}>
             {data.overdueCheckouts}
           </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Currently overdue</div>
+          <div className="text-sm text-muted">Currently overdue</div>
         </div>
       </div>
 
-      <div className="grid-2col" style={{ gap: 16 }}>
+      <div className="grid-2col gap-16">
         {/* Recent checkouts */}
         <div className="card">
           <div className="card-header"><h2>Recent checkouts</h2></div>
@@ -284,10 +284,10 @@ function CheckoutReport({ data, days, onDaysChange }: { data: CheckoutData; days
             <div className="empty-state">No data</div>
           ) : (
             <table className="data-table">
-              <thead><tr><th>Name</th><th style={{ textAlign: "right" }}>Checkouts</th></tr></thead>
+              <thead><tr><th>Name</th><th className="text-right">Checkouts</th></tr></thead>
               <tbody>
                 {data.topRequesters.map((r) => (
-                  <tr key={r.name}><td>{r.name}</td><td style={{ textAlign: "right" }}>{r.count}</td></tr>
+                  <tr key={r.name}><td>{r.name}</td><td className="text-right">{r.count}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -305,7 +305,7 @@ function AuditReport({ data, page, limit, onPageChange }: { data: AuditData; pag
     <div className="card">
       <div className="card-header">
         <h2>Audit trail</h2>
-        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{data.total} entries</span>
+        <span className="text-sm text-muted">{data.total} entries</span>
       </div>
       {data.data.length === 0 ? (
         <div className="empty-state">No audit log entries</div>
@@ -323,12 +323,12 @@ function AuditReport({ data, page, limit, onPageChange }: { data: AuditData; pag
             <tbody>
               {data.data.map((entry) => (
                 <tr key={entry.id}>
-                  <td style={{ whiteSpace: "nowrap", fontSize: 12 }}>{formatDateTime(entry.createdAt)}</td>
+                  <td className="nowrap text-sm">{formatDateTime(entry.createdAt)}</td>
                   <td>{entry.actor}</td>
                   <td>
                     <span className="badge badge-gray">{entry.action}</span>
                   </td>
-                  <td style={{ fontSize: 12, fontFamily: "monospace" }}>
+                  <td className="text-sm font-mono">
                     {entry.entityType}:{entry.entityId.slice(0, 8)}
                   </td>
                 </tr>

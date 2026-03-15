@@ -183,7 +183,7 @@ export default function ProfilePage() {
       {profile.role === "ADMIN" && (
         <div className="card">
           <div className="card-header"><h2>User roles</h2></div>
-          <table className="data-table">
+          <table className="data-table roles-table">
             <thead>
               <tr>
                 <th>Name</th>

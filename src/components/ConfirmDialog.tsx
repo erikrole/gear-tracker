@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 type ConfirmOptions = {
   title: string;
@@ -25,6 +25,8 @@ export function useConfirm() {
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<ConfirmOptions | null>(null);
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
     setState(options);
@@ -39,11 +41,49 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     resolveRef.current = null;
   }
 
+  // Focus trap + Escape key + focus restoration
+  useEffect(() => {
+    if (!state) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { handleClose(false); return; }
+
+      if (e.key === "Tab") {
+        const panel = overlayRef.current?.querySelector(".confirm-panel");
+        if (!panel) return;
+        const focusable = panel.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKey);
+
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      previousFocusRef.current?.focus();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
   return (
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
       {state && (
         <div
+          ref={overlayRef}
           className="modal-overlay"
           role="alertdialog"
           aria-modal="true"

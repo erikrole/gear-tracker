@@ -80,7 +80,6 @@ export default function DashboardPage() {
   const [fetchError, setFetchError] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-
   const loadData = useCallback(() => {
     fetch("/api/dashboard")
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
@@ -229,7 +228,7 @@ export default function DashboardPage() {
                 {data.myCheckouts.items.map((c) => (
                   <button
                     key={c.id}
-                    className={`ops-row ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : ""}`}
+                    className={`ops-row ops-row-owned ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : ""}`}
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
@@ -267,7 +266,7 @@ export default function DashboardPage() {
                 {data.myReservations.map((r) => (
                   <button
                     key={r.id}
-                    className="ops-row"
+                    className="ops-row ops-row-owned"
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">

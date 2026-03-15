@@ -125,7 +125,7 @@
 
 ## D-009: Overdue Escalation Policy
 - Date: 2026-03-01
-- Status: Partially Implemented — schedule and dedup shipped; recipient model pending acceptance
+- Status: Accepted (2026-03-15)
 - Context:
   - Overdue notifications exist, but multi-recipient escalation is not formalized.
 - Decision (Implemented):
@@ -133,18 +133,17 @@
   - Dedup key: `"{bookingId}:{type}"` — prevents re-fire per booking per window
   - Current behavior: all 4 triggers notify the checkout requester only
   - Implementation: `src/lib/services/notifications.ts`
-- Decision (Pending Acceptance — Phase B):
-  - Define admin/manager escalation recipients for the +24h trigger
-  - Define alert fatigue controls (per-booking cap, opt-out)
+- Decision (Accepted — Phase B):
+  - +24h escalation recipients: the requester AND all admins
+  - Alert fatigue controls: admin-configurable escalation intervals and per-booking caps (settings page)
   - Email channel is Phase B; V1 acceptance = in-app escalation only
 - Reference: `AREA_NOTIFICATIONS.md` is the full spec for escalation behavior
 - Consequences:
   - Faster recovery of missing gear once full escalation is wired.
-  - Needs policy controls to avoid alert fatigue.
-- Exit Criteria to Formally Accept:
-  - Escalation recipient model approved and documented.
-  - Multi-recipient escalation implemented and tested.
-  - Alert fatigue controls defined and implemented.
+  - Admin-configurable controls prevent alert fatigue.
+- Guardrails:
+  - Default: single escalation at +24h, then stop (admins can add more intervals)
+  - Per-booking cap enforced server-side to prevent runaway notifications
 
 ## D-010: Sequencing Priorities
 - Date: 2026-03-01

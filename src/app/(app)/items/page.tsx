@@ -156,12 +156,14 @@ function CreateItemCard({
           }),
         });
       } else {
+        const bulkCategoryId = String(form.get("categoryId") || "");
         res = await fetch("/api/bulk-skus", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: String(form.get("name") || ""),
-            category: String(form.get("category") || ""),
+            category: String(form.get("category") || "general"),
+            ...(bulkCategoryId ? { categoryId: bulkCategoryId } : {}),
             unit: String(form.get("unit") || ""),
             locationId: String(form.get("locationId") || ""),
             binQrCodeValue: String(form.get("binQrCodeValue") || ""),

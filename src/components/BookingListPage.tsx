@@ -831,7 +831,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                         <td className="hide-mobile">{item.requester?.name ?? "Unknown"}</td>
                         <td className="hide-mobile">{(item.serializedItems?.length ?? 0) + (item.bulkItems?.length ?? 0)}</td>
                         <td onClick={(e) => e.stopPropagation()}>
-                          <button className="overflow-btn" onClick={(e) => handleOverflow(e, item)}>
+                          <button className="overflow-btn" aria-label="More actions" onClick={(e) => handleOverflow(e, item)}>
                             {"\u2026"}
                           </button>
                         </td>
@@ -862,7 +862,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                         </span>
                       </div>
                       <button
-                        className="overflow-btn"
+                        className="overflow-btn" aria-label="More actions"
                         onClick={(e) => { e.stopPropagation(); handleOverflow(e, item); }}
                       >
                         {"\u2026"}
@@ -931,14 +931,16 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                 <button
                   className="ctx-menu-item"
                   onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.item.id, 1))}
+                  disabled={extendingId === ctxMenu.item.id}
                 >
-                  Extend +1 day
+                  {extendingId === ctxMenu.item.id ? "Extending..." : "Extend +1 day"}
                 </button>
                 <button
                   className="ctx-menu-item"
                   onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.item.id, 7))}
+                  disabled={extendingId === ctxMenu.item.id}
                 >
-                  Extend +1 week
+                  {extendingId === ctxMenu.item.id ? "Extending..." : "Extend +1 week"}
                 </button>
               </>
             )}

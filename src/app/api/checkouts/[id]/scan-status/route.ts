@@ -12,7 +12,7 @@ import { fail, HttpError, ok } from "@/lib/http";
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    await requireAuth();
+    const actor = await requireAuth();
     const { id } = await ctx.params;
     const { searchParams } = new URL(req.url);
     const phase = searchParams.get("phase") as ScanPhase | null;
@@ -57,6 +57,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
     if (!booking || booking.kind !== "CHECKOUT") {
       throw new HttpError(404, "Checkout not found");
+    }
+
+    // Students can only view scan status for their own checkouts
+    if (actor.role === "STUDENT" && booking.requester.id !== actor.id) {
+      throw new HttpError(403, "You can only view scan status for your own checkouts");
     }
 
     // Get successful scan events for this phase

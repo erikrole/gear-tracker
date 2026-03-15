@@ -23,9 +23,11 @@ type BulkSku = {
   location?: { name: string };
   balances?: Array<{ onHandQuantity: number }>;
   units?: BulkSkuUnit[];
+  categoryRel?: { id: string; name: string } | null;
 };
 
 type Location = { id: string; name: string };
+type CategoryOption = { id: string; name: string; parentId: string | null };
 
 type Response = { data: BulkSku[]; total: number; limit: number; offset: number };
 
@@ -49,6 +51,7 @@ export default function BulkInventoryPage() {
   const [trackByNumber, setTrackByNumber] = useState(false);
   const [addingUnits, setAddingUnits] = useState<string | null>(null);
   const [addCount, setAddCount] = useState(10);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [search, setSearch] = useState("");
   const limit = 20;
 
@@ -69,6 +72,9 @@ export default function BulkInventoryPage() {
     fetch("/api/form-options")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json?.data?.locations) setLocations(json.data.locations); });
+    fetch("/api/categories")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setCategories(json.data); });
   }, []);
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -76,9 +82,11 @@ export default function BulkInventoryPage() {
     setSubmitting(true);
     setError("");
     const form = new FormData(e.currentTarget);
+    const selectedCategoryId = String(form.get("categoryId") || "");
     const payload = {
       name: String(form.get("name") || ""),
-      category: String(form.get("category") || ""),
+      category: String(form.get("category") || "general"),
+      ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
       unit: String(form.get("unit") || ""),
       locationId: String(form.get("locationId") || ""),
       binQrCodeValue: String(form.get("binQrCodeValue") || ""),
@@ -143,7 +151,8 @@ export default function BulkInventoryPage() {
   const filteredItems = items.filter((sku) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return sku.name.toLowerCase().includes(q) || sku.category.toLowerCase().includes(q);
+    const catName = sku.categoryRel?.name || sku.category;
+    return sku.name.toLowerCase().includes(q) || catName.toLowerCase().includes(q);
   });
 
   const totalPages = Math.ceil(total / limit);
@@ -178,11 +187,24 @@ export default function BulkInventoryPage() {
       </div>
 
       {showCreate && (
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card mb-16">
           <div className="card-header"><h2>Add bulk SKU</h2></div>
-          <form onSubmit={handleCreate} className="form-grid form-grid-3" style={{ padding: 16 }}>
+          <form onSubmit={handleCreate} className="form-grid form-grid-3 p-16">
             <input name="name" placeholder="Name" required className="form-input" />
-            <input name="category" placeholder="Category" required className="form-input" />
+            <select name="categoryId" className="form-input">
+              <option value="">Category</option>
+              {categories.filter((c) => !c.parentId).map((parent) => (
+                <optgroup key={parent.id} label={parent.name}>
+                  {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                    <option key={child.id} value={child.id}>{child.name}</option>
+                  ))}
+                  {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                    <option value={parent.id}>{parent.name}</option>
+                  )}
+                </optgroup>
+              ))}
+            </select>
+            <input name="category" type="hidden" defaultValue="general" />
             <input name="unit" placeholder="Unit (e.g. each, pair)" required className="form-input" />
             <select name="locationId" required className="form-input">
               <option value="">Location</option>
@@ -193,15 +215,7 @@ export default function BulkInventoryPage() {
             <input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" className="form-input" />
 
             {/* Track by number toggle */}
-            <label style={{
-              gridColumn: "1 / -1",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 0",
-              cursor: "pointer",
-              userSelect: "none",
-            }}>
+            <label className="col-span-full flex-center gap-10 cursor-pointer" style={{ padding: "8px 0", userSelect: "none" }}>
               <div
                 role="switch"
                 aria-checked={trackByNumber}
@@ -223,30 +237,28 @@ export default function BulkInventoryPage() {
                 }} />
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>Track by number</div>
-                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                <div className="font-semibold text-base">Track by number</div>
+                <div className="text-sm text-secondary">
                   Number each unit individually for loss tracking
                 </div>
               </div>
             </label>
 
             {trackByNumber && (
-              <div style={{
-                gridColumn: "1 / -1",
+              <div className="col-span-full text-sm" style={{
                 padding: "10px 14px",
                 background: "#eff6ff",
                 borderRadius: 8,
-                fontSize: 13,
                 color: "#1e40af",
               }}>
                 This will create individually numbered units. Make sure to physically label each item with its number.
               </div>
             )}
 
-            <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+            <div className="col-span-full flex-end">
               <button className="btn btn-primary" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create SKU"}</button>
             </div>
-            {error && <div style={{ gridColumn: "1 / -1", color: "var(--red)" }}>{error}</div>}
+            {error && <div className="col-span-full text-red">{error}</div>}
           </form>
         </div>
       )}
@@ -289,8 +301,8 @@ export default function BulkInventoryPage() {
                     <tr key={sku.id} style={{ cursor: sku.trackByNumber ? "pointer" : undefined }}
                       onClick={() => sku.trackByNumber && setExpandedSku(isExpanded ? null : sku.id)}
                     >
-                      <td style={{ fontWeight: 500 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <td className="font-medium">
+                        <div className="flex-center gap-6">
                           {sku.name}
                           {sku.trackByNumber && (
                             <span style={{
@@ -300,14 +312,14 @@ export default function BulkInventoryPage() {
                           )}
                         </div>
                         {sku.trackByNumber && units.length > 0 && (
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
+                          <div className="text-sm text-secondary mt-2">
                             {unitSummary(units)}
                           </div>
                         )}
                         {!sku.trackByNumber && (
                           <button
-                            className="btn btn-sm"
-                            style={{ fontSize: 11, padding: "2px 8px", marginTop: 4 }}
+                            className="btn btn-sm mt-4"
+                            style={{ fontSize: 11, padding: "2px 8px" }}
                             onClick={(e) => { e.stopPropagation(); handleConvertToNumbered(sku.id); }}
                             disabled={submitting}
                           >
@@ -315,10 +327,10 @@ export default function BulkInventoryPage() {
                           </button>
                         )}
                       </td>
-                      <td>{sku.category}</td>
+                      <td>{sku.categoryRel?.name || sku.category}</td>
                       <td>{sku.unit}</td>
                       <td>
-                        <span style={{ fontWeight: 600, color: isLow ? "var(--red)" : "inherit" }}>
+                        <span className="font-semibold" style={{ color: isLow ? "var(--red)" : "inherit" }}>
                           {sku.trackByNumber ? `${units.filter((u) => u.status === "AVAILABLE").length}/${units.length}` : onHand}
                         </span>
                       </td>
@@ -331,7 +343,7 @@ export default function BulkInventoryPage() {
                         )}
                         {sku.trackByNumber && (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                            style={{ marginLeft: 8, color: "var(--text-secondary)", transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                            className="ml-8 text-secondary" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                             <path d="M6 9l6 6 6-6" />
                           </svg>
                         )}
@@ -349,11 +361,11 @@ export default function BulkInventoryPage() {
               const units = sku.units ?? [];
 
               return (
-                <div style={{ padding: 16, borderTop: "1px solid var(--border)", background: "#fafbfc" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h3 style={{ margin: 0, fontSize: 15 }}>{sku.name} — Units</h3>
+                <div className="p-16" style={{ borderTop: "1px solid var(--border)", background: "#fafbfc" }}>
+                  <div className="flex-between mb-12">
+                    <h3 className="m-0" style={{ fontSize: 15 }}>{sku.name} — Units</h3>
                     {addingUnits === sku.id ? (
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <div className="flex-center gap-8">
                         <input
                           type="number" min={1} max={500} value={addCount}
                           onChange={(e) => setAddCount(Number(e.target.value))}
@@ -378,7 +390,7 @@ export default function BulkInventoryPage() {
                   </div>
 
                   {units.length === 0 ? (
-                    <div style={{ color: "var(--text-secondary)", fontSize: 14 }}>No units created yet.</div>
+                    <div className="text-secondary text-base">No units created yet.</div>
                   ) : (
                     <div style={{
                       display: "grid",
@@ -419,7 +431,7 @@ export default function BulkInventoryPage() {
                     </div>
                   )}
 
-                  <div style={{ marginTop: 10, fontSize: 12, color: "var(--text-secondary)" }}>
+                  <div className="mt-10 text-sm text-secondary">
                     Click a unit to cycle status: Available &rarr; Lost &rarr; Retired &rarr; Available
                   </div>
                 </div>

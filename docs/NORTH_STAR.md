@@ -176,8 +176,8 @@ Use these questions before adding any feature:
 ### Phase B — Next
 1. Dashboard expansion: draft recovery UX, lane tuning, overdue banner polish
 2. Notifications escalation: D-009 acceptance — recipient model, alert fatigue controls, formal spec
-3. Picker improvements: multi-select, availability preview, scan-to-add during checkout
-4. Calendar source health UI: enable/disable per source, sync status and last-error display
+3. ~~Picker improvements: multi-select, availability preview, scan-to-add during checkout~~ — **Shipped** 2026-03-15 (Equipment Picker V2)
+4. ~~Calendar source health UI: enable/disable per source, sync status and last-error display~~ — **Shipped** 2026-03-15 (Events page)
 
 ### Phase C — Later
 1. Kiosk mode (self-serve scan station)
@@ -202,7 +202,7 @@ Use these questions before adding any feature:
 
 ---
 
-## 11. Gaps in Current Planning (as of 2026-03-11)
+## 11. Gaps in Current Planning (as of 2026-03-15)
 
 These are open items that must be resolved before implementing related features:
 
@@ -210,12 +210,12 @@ These are open items that must be resolved before implementing related features:
 2. Student mobile KPI definitions not yet defined (pending in DECISIONS.md)
 3. Venue mapping governance owner not assigned
 4. Event sync refresh cadence and staleness thresholds not formalized
-5. B&H metadata cache TTL target not defined
+5. ~~B&H metadata cache TTL target not defined~~ — **N/A**: D-005 withdrawn (scraping blocked by source)
 6. Phase C features (kiosk, templates, analytics) unscoped and unbriefed
 7. Draft persistence model underspecified — referenced in AREA_DASHBOARD.md but no owning spec
 8. ~~DRAFT booking state not formally specced~~ — **Closed**: D-017 accepted, documented in AREA_CHECKOUTS.md
 9. Equipment guidance rules hardcoded with only 1 rule; no admin-configuration path defined (D-016 defers to Phase C)
-10. Calendar source enable/disable not specced — only delete is implemented
+10. ~~Calendar source enable/disable not specced~~ — **Closed**: enable/disable toggle shipped 2026-03-15 on Events page
 
 ---
 
@@ -253,3 +253,4 @@ These are tracked here as candidates for future planning cycles:
 ## Change Log
 - 2026-03-09: Initial north star document created. Synthesized from all AREA_*.md, DECISIONS.md, prompts/, and codebase review as of PR #32.
 - 2026-03-11: Docs hardening — closed gaps #1 (AREA_NOTIFICATIONS exists) and #8 (DRAFT specced in D-017 + AREA_CHECKOUTS). Added Reservations V1 and Items V1 to Phase A shipped. Updated B&H enrichment status. Refreshed planning doc priorities.
+- 2026-03-15: Docs sync — closed gap #5 (B&H withdrawn, N/A), closed gap #10 (calendar enable/disable shipped). Marked Picker V2 and Calendar Health UI as shipped in Phase B. Updated AREA_CHECKOUTS and AREA_RESERVATIONS timestamps.

@@ -309,6 +309,7 @@ function FiscalYearField({ value, canEdit, onSave }: { value: string; canEdit: b
 /* ── Category Select Field ──────────────────────────────── */
 
 function CategoryField({ value, currentId, canEdit, categories, onSave, onCategoriesChanged }: { value: string; currentId: string; canEdit: boolean; categories: CategoryOption[]; onSave: (id: string) => Promise<void>; onCategoriesChanged: () => void }) {
+  const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -330,9 +331,12 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
         const json = await res.json();
         onCategoriesChanged();
         if (json.data?.id) await onSave(json.data.id);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to create category", "error");
       }
     } catch {
-      // network error — category not created
+      toast("Failed to create category — check your connection", "error");
     }
     setSaving(false);
     setCreating(false);
@@ -865,7 +869,7 @@ function BookingKindTab({
             filtered.map((group) => (
               <div key={group.month} className="mb-16">
                 <h3 className="text-xl mb-8 m-0">{group.month}</h3>
-                <table className="data-table">
+                <table className="data-table item-history-table">
                   <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
                   <tbody>
                     {group.items.map((entry) => (
