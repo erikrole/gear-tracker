@@ -121,50 +121,6 @@ function CreateItemCard({
   const [submitting, setSubmitting] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
 
-  // B&H enrichment state
-  const [bhUrl, setBhUrl] = useState("");
-  const [bhLoading, setBhLoading] = useState(false);
-  const [bhError, setBhError] = useState("");
-  const brandRef = useRef<HTMLInputElement>(null);
-  const modelRef = useRef<HTMLInputElement>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
-
-  async function enrichFromBH() {
-    const url = bhUrl.trim();
-    if (!url) return;
-    setBhLoading(true);
-    setBhError("");
-    try {
-      const res = await fetch("/api/enrichment/bh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setBhError(json.error || "Failed to fetch product info");
-        setBhLoading(false);
-        return;
-      }
-      const d = json.data;
-      if (d.brand && brandRef.current && !brandRef.current.value) {
-        brandRef.current.value = d.brand;
-      }
-      if (d.model && modelRef.current && !modelRef.current.value) {
-        modelRef.current.value = d.model;
-      }
-      if (d.name && nameRef.current && !nameRef.current.value) {
-        nameRef.current.value = d.name;
-      }
-      if (!d.brand && !d.model && !d.name) {
-        setBhError(d.warning || "Could not extract product info from this page");
-      }
-    } catch {
-      setBhError("Network error");
-    }
-    setBhLoading(false);
-  }
-
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
@@ -182,7 +138,6 @@ function CreateItemCard({
 
         const categoryId = String(form.get("categoryId") || "");
         const itemName = String(form.get("itemName") || "").trim();
-        const linkUrl = bhUrl.trim();
         res = await fetch("/api/assets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -196,7 +151,6 @@ function CreateItemCard({
             locationId: String(form.get("locationId") || ""),
             ...(categoryId ? { categoryId } : {}),
             ...(itemName ? { name: itemName } : {}),
-            ...(linkUrl ? { linkUrl } : {}),
             ...(Object.keys(notes).length ? { notes: JSON.stringify(notes) } : {}),
           }),
         });
@@ -253,32 +207,9 @@ function CreateItemCard({
       <form onSubmit={handleSubmit} className="p-16">
         {kind === "serialized" ? (
           <>
-            {/* B&H product URL enrichment */}
-            <div className="flex gap-8 mb-8">
-              <input
-                placeholder="B&H product URL (optional — auto-fills brand, model, name)"
-                value={bhUrl}
-                onChange={(e) => setBhUrl(e.target.value)}
-                className="form-input flex-1"
-              />
-              <button
-                type="button"
-                className="btn btn-sm nowrap"
-                disabled={bhLoading || !bhUrl.trim()}
-                onClick={enrichFromBH}
-              >
-                {bhLoading ? "Fetching..." : "Fetch info"}
-              </button>
-            </div>
-            {bhError && (
-              <div className="alert-warning mb-8">
-                {bhError} — you can still fill in the fields manually.
-              </div>
-            )}
-
             <div className="grid-3col">
               <input name="assetTag" placeholder="Tag name *" required className="form-input" />
-              <input name="itemName" ref={nameRef} placeholder="Product name" className="form-input" />
+              <input name="itemName" placeholder="Product name" className="form-input" />
               <select name="categoryId" className="form-input">
                 <option value="">Category</option>
                 {categories.filter((c) => !c.parentId).map((parent) => (
@@ -297,8 +228,8 @@ function CreateItemCard({
                 <option value="">Location *</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              <input name="brand" ref={brandRef} placeholder="Brand *" required className="form-input" />
-              <input name="model" ref={modelRef} placeholder="Model *" required className="form-input" />
+              <input name="brand" placeholder="Brand *" required className="form-input" />
+              <input name="model" placeholder="Model *" required className="form-input" />
               <input name="serialNumber" placeholder="Serial number *" required className="form-input" />
               <input name="qrCodeValue" placeholder="QR code value *" required className="form-input" />
             </div>
@@ -320,7 +251,10 @@ function CreateItemCard({
           </>
         ) : (
           <div className="grid-3col">
-            <input name="name" placeholder="Product name *" required className="form-input" />
+            <div>
+              <input name="name" placeholder="Product name *" required className="form-input" />
+              <div className="form-hint">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</div>
+            </div>
             <select name="categoryId" className="form-input">
               <option value="">Category</option>
               {categories.filter((c) => !c.parentId).map((parent) => (
@@ -335,14 +269,26 @@ function CreateItemCard({
               ))}
             </select>
             <input name="category" type="hidden" defaultValue="general" />
-            <input name="unit" placeholder="Unit (e.g. ea, box) *" required className="form-input" />
+            <div>
+              <input name="unit" placeholder="Unit (e.g. ea, box) *" required className="form-input" />
+              <div className="form-hint">How you count them: ea, box, pack, pair, roll</div>
+            </div>
             <select name="locationId" required className="form-input">
               <option value="">Location *</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <input name="binQrCodeValue" placeholder="Bin QR code *" required className="form-input" />
-            <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" className="form-input" />
-            <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" className="form-input" />
+            <div>
+              <input name="binQrCodeValue" placeholder="Bin QR code *" required className="form-input" />
+              <div className="form-hint">Scan or type the QR code on the storage bin</div>
+            </div>
+            <div>
+              <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" className="form-input" />
+              <div className="form-hint">How many are on hand right now</div>
+            </div>
+            <div>
+              <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" className="form-input" />
+              <div className="form-hint">Alert when stock falls below this</div>
+            </div>
           </div>
         )}
 

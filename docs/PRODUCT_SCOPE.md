@@ -36,14 +36,14 @@ Read `NORTH_STAR.md` first in any Claude session. It is the authoritative produc
    - ✅ Events foundation + ICS sync hardening (complete, PRs 26–30)
    - ✅ Reservations V1 (complete, PRs 33–38)
    - ✅ Items V1 (complete, PRs 31–32)
-   - ⬜ B&H metadata enrichment (next — brief ready)
+   - ~~B&H metadata enrichment~~ (withdrawn — scraping blocked)
    - ⬜ Student mobile hardening
 2. Phase B (Next): Dashboard expansion + Notifications escalation (D-009) + Picker improvements + Calendar source health UI.
 3. Phase C (Later): Templates, kiosk, board, analytics, and integrations.
 
 ## Immediate Brief Queue
 1. ✅ Checkout UX v2 — Complete.
-2. B&H metadata enrichment — Next. Write `BRIEF_BH_ENRICHMENT_V1.md` before implementing.
+2. ~~B&H metadata enrichment~~ — Withdrawn (scraping blocked by source).
 3. ✅ Event sync phase 1 — Complete.
 4. Student-first mobile operations hardening — Write `BRIEF_STUDENT_MOBILE_V1.md` before implementing.
 

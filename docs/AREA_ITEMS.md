@@ -20,8 +20,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 5. Role behavior follows `AREA_USERS.md`:
    - `ADMIN` and `STAFF` can create and edit items.
    - `STUDENT` can view all items, no item edit rights.
-6. B&H import can auto-prefill metadata, but all prefilled fields remain user-editable.
-7. B&H import must never overwrite `tagName`.
+6. Metadata enrichment from external product URLs is not supported in V1.
 
 ## V1 Workflow
 
@@ -35,9 +34,8 @@ Treat physical gear identity as primary, make list and detail views action-orien
 2. User selects item kind:
    - Serialized: one physical unit per record with unique identity.
    - Bulk: quantity-based stock record.
-3. User optionally pastes B&H product URL for metadata prefill.
-4. User enters required fields and optional advanced metadata.
-5. User attaches image from upload, URL, or metadata prefill source.
+3. User enters required fields and optional advanced metadata.
+4. User attaches image from upload or URL.
 6. User saves item and returns to list or adds another.
 
 ### Item Detail
@@ -120,36 +118,17 @@ Treat physical gear identity as primary, make list and detail views action-orien
 10. Fiscal year purchased
 11. Notes/description
 
-### B&H Product Import (V1)
-1. User pastes B&H product URL into `Product URL`.
-2. Server validates supported domain and fetches product page.
-3. Parser extracts best-effort metadata:
-   - Title
-   - Brand
-   - Model/MFR reference
-   - Image URL
-4. Client prefills:
-   - `productName`
-   - `brand`
-   - `model`
-   - image preview
-5. User may edit any prefilled field before save.
-6. User may remove or replace URL and re-run import.
-7. Import failure must not block manual item creation.
-
 ### Image Options
 1. Upload image
 2. Use image from web URL
-3. B&H URL metadata prefill when source matches policy
-4. Remove/replace image after prefill
-5. Preserve manual override behavior and image source tracking
+3. Remove/replace image
+4. Preserve manual override behavior and image source tracking
 
 ### Validation and Save Behavior
 1. Save is blocked on missing required fields.
 2. Save is blocked on duplicate serialized identity collisions (for example duplicate `tagName` policy if required).
 3. Save returns user to list or allows `Add another` continuation.
 4. Draft recovery is supported if user leaves before save.
-5. B&H parsing errors show clear warning and fall back to manual entry.
 
 ## Item Detail Surface (V1)
 
@@ -270,17 +249,6 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - Mitigation:
   - Never overwrite `tagName`.
   - Let user explicitly accept or override image and metadata values.
-
-### Trap: B&H parser breaks after source markup changes
-- Mitigation:
-  - Use fallback extraction order with partial-result tolerance.
-  - Allow manual completion path when parsing is incomplete.
-
-### Trap: B&H import blocks form completion on fetch failure
-- Mitigation:
-  - Keep import asynchronous and non-blocking.
-  - Show retry action and preserve entered form values.
-
 ### Trap: Detail toggles interpreted as status controls
 - Mitigation:
   - Label toggles as policy eligibility.
@@ -296,9 +264,6 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - Item has linked reservations/checkouts while category/location edits are attempted.
 - Mixed-location history on item with `locationMode = MIXED`.
 - Imported item missing `productName`, requiring fallback to `tagName`.
-- B&H page provides partial metadata only.
-- B&H URL is invalid, unsupported, or temporarily unreachable.
-- B&H page returns image but missing brand/model fields.
 - Tracking code removal requested on asset with active allocations.
 - Item has no QR code and needs first-time generation.
 - Item has no purchase metadata and should show inline `Add ...` prompts.
@@ -318,14 +283,11 @@ Treat physical gear identity as primary, make list and detail views action-orien
 11. Empty optional fields show inline `Add ...` prompts instead of blank values.
 12. Export and import visibility follow role rules.
 13. Image and metadata prefill never overwrite `tagName`.
-14. B&H URL import auto-prefills supported fields and allows manual overrides.
-15. B&H import failures do not block item creation.
-16. All item mutations are auditable.
+14. All item mutations are auditable.
 
 ## Dependencies
 - User role and ownership model from `AREA_USERS.md`.
 - Reservation and checkout linkage from `AREA_RESERVATIONS.md` and `AREA_CHECKOUTS.md`.
-- Metadata enrichment behavior from B&H workflow.
 - Integrity rules from `DECISIONS.md` (D-001, D-006, D-007).
 - Mobile operations contract from `AREA_MOBILE.md`.
 
@@ -377,8 +339,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 2. Implement create flow split by serialized vs bulk item kind, with strict validation.
 3. Implement detail layout with linked status header, workflow tabs, dashboard-style `Info` view, and `Settings` tab policy controls.
 4. Enforce role-based edit visibility and server-side authorization checks.
-5. Implement B&H import boundary with non-blocking prefill and editable overrides.
-6. Preserve metadata enrichment safety and audit coverage for every mutation.
+5. Preserve audit coverage for every mutation.
 
 ## Change Log
 - 2026-03-01: Initial standalone area scope created.
@@ -389,3 +350,4 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-03-09: Expanded item detail spec with status-line states, working `Actions` menu requirements, dashboard-style `Info` tab, `Calendar` and `Settings` tabs, QR generation/manual entry rules, inline missing-value prompts, and fiscal-year dropdown guidance.
 - 2026-03-11: Docs hardening — resolved "Customize overview" ambiguity: deferred, not in V1. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md.
 - 2026-03-14: Added Numbered Bulk Item Tracking section — trackByNumber flag, unit picker scan flow, conversion endpoint, D-022 reference.
+- 2026-03-15: Removed B&H enrichment — scraping blocked by source. Removed all B&H references from rules, workflow, traps, and acceptance criteria.

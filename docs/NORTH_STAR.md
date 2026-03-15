@@ -169,7 +169,7 @@ Use these questions before adding any feature:
 | Events page improvements (upcoming default, source deletion) | ✅ Complete |
 | Reservations V1 (lifecycle, detail sheet, list page, action gating) | ✅ Complete |
 | Items V1 (list, create, detail, inline edit, item-kind form) | ✅ Complete |
-| B&H metadata enrichment (isolated prefill, non-destructive, non-blocking) | ⬜ Brief ready |
+| ~~B&H metadata enrichment~~ | ❌ Withdrawn (scraping blocked) |
 | Student mobile hardening (brief + implementation) | ⬜ Not started |
 | Equipment guidance rules expansion (lens+body, audio, drone) | ⬜ Not started |
 

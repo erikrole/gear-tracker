@@ -80,19 +80,14 @@
   - Faster physical lookup.
   - Import and enrichment logic must not overwrite tag identity.
 
-## D-005: B&H Enrichment Is Isolated and Non-Destructive
+## D-005: B&H Enrichment — Withdrawn
 - Date: 2026-03-01
-- Status: Accepted
+- Status: Withdrawn (2026-03-15)
 - Context:
-  - Metadata quality is inconsistent, manual entry is slow.
+  - B&H blocks scraping; enrichment is non-functional.
 - Decision:
-  - Implement enrichment as isolated service boundary with strict domain validation and parser fallbacks.
-  - Never mutate `tagName` through enrichment.
-  - Auto-prefill product metadata and image when available, while allowing user edits before save.
-  - Import failures must degrade gracefully to manual entry.
-- Consequences:
-  - Better data quality with controlled blast radius.
-  - Parser maintenance required as source markup changes.
+  - Feature removed. All code, API route, and UI deleted.
+  - If metadata enrichment is revisited, use a different source or API with explicit access.
 
 ## D-006: Integrity via SERIALIZABLE Transactions + Exclusion Constraints
 - Date: 2026-03-01
@@ -370,15 +365,13 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 ## Active Risks and Mitigations
 - Risk: Event data staleness or malformed ICS input.
   - Mitigation: idempotent imports, observability, fallback ad hoc booking path.
-- Risk: Parser breakage from B&H markup changes.
-  - Mitigation: precedence-based parser strategy, graceful partial returns.
 - Risk: Alert fatigue from escalation.
   - Mitigation: threshold controls + dedup keys + policy review.
 
 ## Pending Decisions
 1. Event sync refresh cadence and staleness thresholds.
 2. Venue mapping governance owner.
-3. Metadata enrichment cache TTL target.
+3. ~~Metadata enrichment cache TTL target~~ — withdrawn with D-005.
 4. Student mobile KPI definitions (task completion time, taps to action, scan success rate).
 
 ## Change Log
@@ -387,3 +380,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).
 - 2026-03-11: Docs hardening — moved D-017 to Accepted. Clarified D-009 email as Phase B. Added AREA_NOTIFICATIONS.md cross-reference to D-009. Folded AREA_PLATFORM_INTEGRITY.md into Platform Invariants section. Added D-018 (asset financial fields → Phase B), D-019 (department → Phase B), D-020 (kit management → Phase B), D-021 (UW asset tag → optional import field).
 - 2026-03-14: Added D-022 (numbered bulk items — trackByNumber flag, unit picker, conversion endpoint).
+- 2026-03-15: Withdrew D-005 (B&H enrichment) — scraping blocked by source, feature removed.
