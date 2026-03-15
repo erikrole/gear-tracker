@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
 const updateSchema = z.object({
@@ -15,9 +16,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 export async function PATCH(req: Request, ctx: RouteCtx) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      return ok({ error: "Forbidden" }, 403);
-    }
+    requirePermission(user.role, "category", "edit");
 
     const { id } = await ctx.params;
     const existing = await db.category.findUnique({ where: { id } });
@@ -57,9 +56,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
 export async function DELETE(req: Request, ctx: RouteCtx) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN") {
-      return ok({ error: "Forbidden" }, 403);
-    }
+    requirePermission(user.role, "category", "delete");
 
     const { id } = await ctx.params;
     const existing = await db.category.findUnique({ where: { id } });

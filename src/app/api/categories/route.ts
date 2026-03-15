@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, HttpError } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
 const createSchema = z.object({
@@ -57,9 +58,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      throw new HttpError(403, "Forbidden");
-    }
+    requirePermission(user.role, "category", "create");
 
     const body = createSchema.parse(await req.json());
 

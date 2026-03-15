@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { BookingStatus } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 import { createAuditEntry } from "@/lib/audit";
@@ -186,9 +187,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      throw new HttpError(403, "Forbidden");
-    }
+    requirePermission(user.role, "asset", "edit");
 
     const params = await ctx.params;
     const body = patchAssetSchema.parse(await req.json());
@@ -243,9 +242,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN") {
-      throw new HttpError(403, "Only admins can delete assets");
-    }
+    requirePermission(user.role, "asset", "delete");
 
     const { id } = await ctx.params;
     const asset = await db.asset.findUnique({ where: { id } });

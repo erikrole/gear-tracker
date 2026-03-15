@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
 
 type BulkSkuUnit = {
   id: string;
@@ -47,6 +49,7 @@ export default function BulkInventoryPage() {
   const [trackByNumber, setTrackByNumber] = useState(false);
   const [addingUnits, setAddingUnits] = useState<string | null>(null);
   const [addCount, setAddCount] = useState(10);
+  const [search, setSearch] = useState("");
   const limit = 20;
 
   function reload() {
@@ -137,6 +140,12 @@ export default function BulkInventoryPage() {
     reload();
   }
 
+  const filteredItems = items.filter((sku) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return sku.name.toLowerCase().includes(q) || sku.category.toLowerCase().includes(q);
+  });
+
   const totalPages = Math.ceil(total / limit);
 
   function unitSummary(units: BulkSkuUnit[]) {
@@ -172,16 +181,16 @@ export default function BulkInventoryPage() {
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-header"><h2>Add bulk SKU</h2></div>
           <form onSubmit={handleCreate} className="form-grid form-grid-3" style={{ padding: 16 }}>
-            <input name="name" placeholder="Name" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="category" placeholder="Category" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="unit" placeholder="Unit (e.g. each, pair)" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <select name="locationId" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }}>
+            <input name="name" placeholder="Name" required className="form-input" />
+            <input name="category" placeholder="Category" required className="form-input" />
+            <input name="unit" placeholder="Unit (e.g. each, pair)" required className="form-input" />
+            <select name="locationId" required className="form-input">
               <option value="">Location</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <input name="binQrCodeValue" placeholder="Bin QR code value" required style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="minThreshold" type="number" min={0} defaultValue={0} placeholder="Min threshold" style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
-            <input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" style={{ padding: 8, border: "1px solid var(--border)", borderRadius: 8 }} />
+            <input name="binQrCodeValue" placeholder="Bin QR code value" required className="form-input" />
+            <input name="minThreshold" type="number" min={0} defaultValue={0} placeholder="Min threshold" className="form-input" />
+            <input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" className="form-input" />
 
             {/* Track by number toggle */}
             <label style={{
@@ -243,10 +252,19 @@ export default function BulkInventoryPage() {
       )}
 
       <div className="card">
+        <div className="card-header filter-chip-bar">
+          <input
+            className="form-input filter-chip-search"
+            type="text"
+            placeholder="Search by name or category..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
         {loading ? (
-          <div className="loading-spinner"><div className="spinner" /></div>
-        ) : items.length === 0 ? (
-          <div className="empty-state">No bulk SKUs found</div>
+          <SkeletonTable rows={6} cols={6} />
+        ) : filteredItems.length === 0 ? (
+          <EmptyState icon="box" title="No bulk SKUs found" description={search ? "Try adjusting your search." : "Add your first bulk SKU above."} />
         ) : (
           <>
             <table className="data-table">
@@ -261,7 +279,7 @@ export default function BulkInventoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((sku) => {
+                {filteredItems.map((sku) => {
                   const onHand = sku.balances?.[0]?.onHandQuantity ?? 0;
                   const isLow = onHand <= sku.minThreshold && sku.minThreshold > 0;
                   const isExpanded = expandedSku === sku.id;

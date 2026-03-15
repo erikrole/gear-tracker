@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok, HttpError } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
 const patchSourceSchema = z.object({
@@ -14,9 +15,7 @@ const patchSourceSchema = z.object({
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      throw new HttpError(403, "Forbidden");
-    }
+    requirePermission(user.role, "calendar_source", "edit");
     const { id } = await ctx.params;
 
     const source = await db.calendarSource.findUnique({ where: { id } });
@@ -47,9 +46,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      throw new HttpError(403, "Forbidden");
-    }
+    requirePermission(user.role, "calendar_source", "delete");
     const { id } = await ctx.params;
 
     const source = await db.calendarSource.findUnique({ where: { id } });

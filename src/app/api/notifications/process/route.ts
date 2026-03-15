@@ -1,6 +1,7 @@
 export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
-import { fail, HttpError, ok } from "@/lib/http";
+import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { processOverdueNotifications } from "@/lib/services/notifications";
 
 /**
@@ -10,10 +11,7 @@ import { processOverdueNotifications } from "@/lib/services/notifications";
 export async function POST() {
   try {
     const user = await requireAuth();
-
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      throw new HttpError(403, "Only admins and staff can trigger notification processing");
-    }
+    requirePermission(user.role, "notification", "process");
 
     const result = await processOverdueNotifications();
     return ok(result);

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { FilterChip } from "@/components/FilterChip";
 import { useToast } from "@/components/Toast";
 
 type UserRow = {
@@ -238,30 +239,35 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Search & Filter */}
-      <div className="card filter-bar" style={{ marginBottom: 16, padding: 12 }}>
-        <input
-          className="form-input"
-          type="text"
-          placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <select
-          className="form-select"
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value as Role | "")}
-        >
-          <option value="">All roles</option>
-          <option value="ADMIN">Admin</option>
-          <option value="STAFF">Staff</option>
-          <option value="STUDENT">Student</option>
-        </select>
-      </div>
-
       {/* Users Table */}
       <div className="card">
+        <div className="card-header filter-chip-bar">
+          <input
+            className="form-input filter-chip-search"
+            type="text"
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="filter-chips">
+            <FilterChip
+              label="Role"
+              value={roleFilter}
+              options={[
+                { value: "ADMIN", label: "Admin" },
+                { value: "STAFF", label: "Staff" },
+                { value: "STUDENT", label: "Student" },
+              ]}
+              onSelect={(v) => setRoleFilter(v as Role)}
+              onClear={() => setRoleFilter("")}
+            />
+            {roleFilter && (
+              <button type="button" className="filter-chip-clear-all" onClick={() => setRoleFilter("")}>
+                Clear all
+              </button>
+            )}
+          </div>
+        </div>
         {loading ? (
           <SkeletonTable rows={5} cols={canEdit ? 5 : 4} />
         ) : filtered.length === 0 ? (
