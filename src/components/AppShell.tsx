@@ -124,6 +124,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [searchOpen]);
 
+  // Offline detection
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const goOnline = () => setOnline(true);
+    const goOffline = () => setOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => { window.removeEventListener("online", goOnline); window.removeEventListener("offline", goOffline); };
+  }, []);
+
   async function handleLogout() {
     setLoggingOut(true);
     await fetch("/api/auth/logout", { method: "POST" });
@@ -176,6 +187,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onClick={() => setSidebarOpen(false)}
       />
       <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onSignOut={handleLogout} />
+      {!online && (
+        <div className="offline-banner" role="status">
+          You're offline. Changes will sync when connected.
+        </div>
+      )}
       <main className="app-main">
         <header className="topbar">
           <button
