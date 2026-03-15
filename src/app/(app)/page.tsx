@@ -8,6 +8,7 @@ import { SkeletonCard } from "@/components/Skeleton";
 import {
   formatDateShort,
   formatDateRange,
+  formatEventDateTime,
   formatOverdueElapsed,
   isDueToday,
 } from "@/lib/format";
@@ -40,6 +41,7 @@ type EventSummary = {
   sportCode: string | null;
   startsAt: string;
   endsAt: string;
+  allDay: boolean;
   location: string | null;
   locationId: string | null;
   opponent: string | null;
@@ -380,7 +382,7 @@ export default function DashboardPage() {
                             {e.opponent ? `vs ${e.opponent}` : e.title}
                           </span>
                           <span className="ops-row-meta">
-                            {formatDateShort(e.startsAt)}
+                            {formatEventDateTime(e.startsAt, e.endsAt, e.allDay)}
                             {e.location && ` \u00B7 ${e.location}`}
                           </span>
                         </div>

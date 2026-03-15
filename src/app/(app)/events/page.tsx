@@ -647,6 +647,8 @@ export default function EventsPage() {
                     <td>
                       {event.location ? (
                         <span className="badge badge-blue">{event.location.name}</span>
+                      ) : event.rawLocationText ? (
+                        <span className="text-secondary text-xs">{event.rawLocationText}</span>
                       ) : (
                         <span className="badge badge-orange">needs mapping</span>
                       )}

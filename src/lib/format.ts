@@ -49,6 +49,21 @@ export function formatDateShort(iso: string) {
   });
 }
 
+/** "3:00 PM" */
+export function formatTimeShort(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** "Mar 11, 3:00 – 5:00 PM" — compact date + time range */
+export function formatEventDateTime(startsAt: string, endsAt: string, allDay?: boolean) {
+  const date = formatDateShort(startsAt);
+  if (allDay) return date;
+  return `${date}, ${formatTimeShort(startsAt)} – ${formatTimeShort(endsAt)}`;
+}
+
 /** "Mar 11, 2026" */
 export function formatDateFull(iso: string | null) {
   if (!iso) return "—";
