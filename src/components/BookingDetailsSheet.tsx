@@ -231,7 +231,7 @@ export default function BookingDetailsSheet({
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       }
-    } catch { /* network */ }
+    } catch { toast("Failed to load equipment options", "error"); }
   }, []);
 
   // Action loading states (must be before early return to satisfy Rules of Hooks)
