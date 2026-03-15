@@ -45,14 +45,15 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {state && (
         <div
           className="modal-overlay"
-          role="dialog"
+          role="alertdialog"
           aria-modal="true"
+          aria-labelledby="confirm-dialog-title"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleClose(false);
           }}
         >
           <div className="confirm-panel">
-            <h3 className="confirm-title">{state.title}</h3>
+            <h3 id="confirm-dialog-title" className="confirm-title">{state.title}</h3>
             <p className="confirm-message">{state.message}</p>
             <div className="confirm-actions">
               <button className="btn" onClick={() => handleClose(false)}>
