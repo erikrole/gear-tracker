@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
 import { getAllowedBookingActions, type BookingKind } from "@/lib/booking-actions";
@@ -208,6 +209,8 @@ function toLocalDateTimeValue(date: Date) {
 
 export default function BookingListPage({ config }: { config: BookingListConfig }) {
   const { toast } = useToast();
+  const urlParams = useSearchParams();
+
   // ── List state ──
   const [items, setItems] = useState<BookingItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -216,9 +219,10 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(urlParams.get("status") || "");
   const [sportFilter, setSportFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
 
   // ── Form options ──
   const [users, setUsers] = useState<FormUser[]>([]);
@@ -272,6 +276,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       if (statusFilter) params.set("status", statusFilter);
       if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
       if (locationFilter) params.set("location_id", locationFilter);
+      if (userFilter) params.set("requester_id", userFilter);
       const res = await fetch(`${config.apiBase}?${params}`);
       if (res.ok) {
         const json: ListResponse = await res.json();
@@ -284,7 +289,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, search, sort, statusFilter, sportFilter, locationFilter, config.apiBase, config.hasSportFilter]);
+  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, config.apiBase, config.hasSportFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -308,6 +313,10 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           setCurrentUserRole(json.user.role || "");
           if (!createRequester && json.user.id) {
             setCreateRequester(json.user.id);
+          }
+          // Initialize "mine" filter from URL
+          if (urlParams.get("mine") === "true" && json.user.id) {
+            setUserFilter(json.user.id);
           }
         }
       })
@@ -1025,11 +1034,21 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                 onClear={() => { setLocationFilter(""); setPage(0); }}
               />
             )}
-            {(statusFilter || sportFilter || locationFilter) && (
+            {users.length > 0 && (
+              <FilterChip
+                label="User"
+                value={userFilter}
+                displayValue={users.find((u) => u.id === userFilter)?.name}
+                options={users.map((u) => ({ value: u.id, label: u.name }))}
+                onSelect={(v) => { setUserFilter(v); setPage(0); }}
+                onClear={() => { setUserFilter(""); setPage(0); }}
+              />
+            )}
+            {(statusFilter || sportFilter || locationFilter || userFilter) && (
               <button
                 type="button"
                 className="filter-chip-clear-all"
-                onClick={() => { setStatusFilter(""); setSportFilter(""); setLocationFilter(""); setPage(0); }}
+                onClick={() => { setStatusFilter(""); setSportFilter(""); setLocationFilter(""); setUserFilter(""); setPage(0); }}
               >
                 Clear all
               </button>

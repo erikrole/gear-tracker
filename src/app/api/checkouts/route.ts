@@ -22,6 +22,7 @@ export async function GET(req: Request) {
       ...(searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
       ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
       ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
+      ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),
       ...(q ? {
         OR: [
           { title: { contains: q, mode: "insensitive" as const } },
