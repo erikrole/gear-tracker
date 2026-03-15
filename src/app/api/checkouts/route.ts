@@ -16,10 +16,24 @@ export async function GET(req: Request) {
 
     const q = searchParams.get("q")?.trim();
     const sortParam = searchParams.get("sort");
+    const filterParam = searchParams.get("filter");
+
+    // Derived filters: overdue = OPEN + past due, due-today = OPEN + due today
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const filterWhere: Prisma.BookingWhereInput =
+      filterParam === "overdue"
+        ? { status: "OPEN" as never, endsAt: { lt: now } }
+        : filterParam === "due-today"
+          ? { status: "OPEN" as never, endsAt: { gte: todayStart, lt: todayEnd } }
+          : {};
 
     const where: Prisma.BookingWhereInput = {
       kind: BookingKind.CHECKOUT,
-      ...(searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
+      ...filterWhere,
+      ...(!filterParam && searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
       ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
       ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
       ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),

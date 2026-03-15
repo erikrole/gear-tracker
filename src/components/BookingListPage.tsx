@@ -223,23 +223,32 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [sportFilter, setSportFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
+  const [specialFilter, setSpecialFilter] = useState(urlParams.get("filter") || "");
 
   // ── Form options ──
   const [users, setUsers] = useState<FormUser[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
 
   // ── Create form state ──
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(
+    urlParams.get("create") === "true" || !!urlParams.get("title")
+  );
   const [tieToEvent, setTieToEvent] = useState(config.defaultTieToEvent);
   const [createSport, setCreateSport] = useState("");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [createTitle, setCreateTitle] = useState("");
+  const [createTitle, setCreateTitle] = useState(urlParams.get("title") || "");
   const [createLocationId, setCreateLocationId] = useState("");
   const [createRequester, setCreateRequester] = useState("");
-  const [createStartsAt, setCreateStartsAt] = useState(() => toLocalDateTimeValue(roundTo15Min(new Date())));
-  const [createEndsAt, setCreateEndsAt] = useState(() => toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))));
+  const [createStartsAt, setCreateStartsAt] = useState(() => {
+    const p = urlParams.get("startsAt");
+    return p ? toLocalDateTimeValue(new Date(p)) : toLocalDateTimeValue(roundTo15Min(new Date()));
+  });
+  const [createEndsAt, setCreateEndsAt] = useState(() => {
+    const p = urlParams.get("endsAt");
+    return p ? toLocalDateTimeValue(new Date(p)) : toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+  });
   const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -273,7 +282,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       params.set("offset", String(page * limit));
       if (search) params.set("q", search);
       if (sort) params.set("sort", sort);
-      if (statusFilter) params.set("status", statusFilter);
+      if (specialFilter) params.set("filter", specialFilter);
+      if (!specialFilter && statusFilter) params.set("status", statusFilter);
       if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
       if (locationFilter) params.set("location_id", locationFilter);
       if (userFilter) params.set("requester_id", userFilter);
@@ -289,7 +299,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, config.apiBase, config.hasSportFilter]);
+  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.hasSportFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -300,7 +310,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         if (!json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
-        setCreateLocationId(json.data.locations?.[0]?.id || "");
+        const urlLocId = urlParams.get("locationId");
+        setCreateLocationId(urlLocId || json.data.locations?.[0]?.id || "");
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       })
@@ -1007,14 +1018,26 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           />
           <div className="filter-chips">
-            <FilterChip
-              label="Status"
-              value={statusFilter}
-              displayValue={config.statusOptions.find((s) => s.value === statusFilter)?.label}
-              options={config.statusOptions}
-              onSelect={(v) => { setStatusFilter(v); setPage(0); }}
-              onClear={() => { setStatusFilter(""); setPage(0); }}
-            />
+            {specialFilter ? (
+              <button
+                type="button"
+                className="filter-chip filter-chip-active"
+                onClick={() => { setSpecialFilter(""); setPage(0); }}
+              >
+                <span className="filter-chip-label">Showing:</span>
+                <span className="filter-chip-value">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>
+                <span className="filter-chip-clear">&times;</span>
+              </button>
+            ) : (
+              <FilterChip
+                label="Status"
+                value={statusFilter}
+                displayValue={config.statusOptions.find((s) => s.value === statusFilter)?.label}
+                options={config.statusOptions}
+                onSelect={(v) => { setStatusFilter(v); setPage(0); }}
+                onClear={() => { setStatusFilter(""); setPage(0); }}
+              />
+            )}
             {config.hasSportFilter && sportCodesInUse.length > 0 && (
               <FilterChip
                 label="Sport"
@@ -1044,11 +1067,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                 onClear={() => { setUserFilter(""); setPage(0); }}
               />
             )}
-            {(statusFilter || sportFilter || locationFilter || userFilter) && (
+            {(statusFilter || sportFilter || locationFilter || userFilter || specialFilter) && (
               <button
                 type="button"
                 className="filter-chip-clear-all"
-                onClick={() => { setStatusFilter(""); setSportFilter(""); setLocationFilter(""); setUserFilter(""); setPage(0); }}
+                onClick={() => { setStatusFilter(""); setSportFilter(""); setLocationFilter(""); setUserFilter(""); setSpecialFilter(""); setPage(0); }}
               >
                 Clear all
               </button>
