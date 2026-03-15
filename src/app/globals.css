@@ -4434,11 +4434,54 @@ tr.status-overdue .status-label,
 .text-orange { color: var(--orange); }
 .text-purple { color: var(--purple); }
 
+/* Text alignment */
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+
+/* Additional spacing */
+.p-24 { padding: 24px; }
+.p-48 { padding: 48px; }
+.mb-24 { margin-bottom: 24px; }
+.mt-10 { margin-top: 10px; }
+.gap-24 { gap: 24px; }
+.mr-4 { margin-right: 4px; }
+.ml-4 { margin-left: 4px; }
+.ml-8 { margin-left: 8px; }
+
+/* Width */
+.w-full { width: 100%; }
+
+/* Overflow */
+.overflow-x-auto { overflow-x: auto; }
+
+/* Grid span */
+.col-span-full { grid-column: 1 / -1; }
+
+/* Metric display (summary cards) */
+.metric-value { font-size: 28px; font-weight: 700; }
+.metric-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
 /* Misc */
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shrink-0 { flex-shrink: 0; }
 .nowrap { white-space: nowrap; }
 .no-underline { text-decoration: none; }
+.hidden { display: none; }
+
+/* Diagnostic table (settings/database) */
+.diag-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+.diag-table thead tr { border-bottom: 1px solid var(--border-light); }
+.diag-table th {
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.diag-table td { padding: 8px 16px; }
+.diag-table tbody tr { border-bottom: 1px solid var(--border-light); }
 
 /* ===== Form Controls ===== */
 

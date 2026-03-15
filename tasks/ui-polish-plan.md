@@ -18,10 +18,10 @@
 - [x] bulk-inventory/page.tsx — convert, add units (already had loading states)
 
 ## Slice 4: CSS class extraction (top files)
-- [ ] Define utility classes for common patterns
-- [ ] Extract status color classes
-- [ ] Extract layout/spacing utilities
-- [ ] Refactor top inline-style files
+- [x] Define utility classes for common patterns (text-right, w-full, overflow-x-auto, metric-value/label, col-span-full, diag-table, etc.)
+- [x] Extract status color classes (already existed as badge-* system)
+- [x] Extract layout/spacing utilities (p-24, p-48, mb-24, mt-10, gap-24, mr-4, ml-4, ml-8)
+- [x] Refactor top inline-style files (import 47→11, events 41→18, database 32→8, reports 31→1, bulk-inventory 28→15 = 70% reduction)
 
 ## Approach
 - Build components first → wire up → extract styles

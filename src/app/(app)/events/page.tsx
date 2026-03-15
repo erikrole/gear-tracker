@@ -310,20 +310,20 @@ export default function EventsPage() {
 
       {/* Sync result message */}
       {syncMessage && (
-        <div style={{ marginBottom: 12, padding: "8px 12px", borderRadius: 8, fontSize: 13, background: syncMessage.includes("failed") ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)", color: syncMessage.includes("failed") ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)" }}>
+        <div className="mb-12 text-sm rounded" style={{ padding: "8px 12px", background: syncMessage.includes("failed") ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)", color: syncMessage.includes("failed") ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)" }}>
           {syncMessage}
-          <button type="button" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>&times;</button>
+          <button type="button" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }} className="ml-8" style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>&times;</button>
         </div>
       )}
 
       {/* Sync diagnostics panel */}
       {syncDiagnostics && (
-        <details style={{ marginBottom: 12, border: "1px solid var(--border-light)", borderRadius: 8, fontSize: 12 }}>
-          <summary style={{ padding: "8px 12px", cursor: "pointer", fontWeight: 600 }}>
+        <details className="mb-12 rounded text-sm" style={{ border: "1px solid var(--border-light)", fontSize: 12 }}>
+          <summary className="p-12 cursor-pointer font-semibold">
             Sync Diagnostics — {syncDiagnostics.parsedEventCount} events parsed, {(syncDiagnostics.responseSizeBytes / 1024).toFixed(1)} KB fetched
           </summary>
-          <div style={{ padding: "8px 12px", display: "grid", gap: 8 }}>
-            <div><strong>Fetch URL:</strong> <code style={{ fontSize: 11, wordBreak: "break-all" }}>{syncDiagnostics.fetchUrl}</code></div>
+          <div className="p-12" style={{ display: "grid", gap: 8 }}>
+            <div><strong>Fetch URL:</strong> <code className="text-xs" style={{ wordBreak: "break-all" }}>{syncDiagnostics.fetchUrl}</code></div>
             <div><strong>HTTP Status:</strong> {syncDiagnostics.httpStatus}</div>
             <div><strong>Response Size:</strong> {(syncDiagnostics.responseSizeBytes / 1024).toFixed(1)} KB</div>
             <div><strong>Parsed VEVENTs:</strong> {syncDiagnostics.parsedEventCount}</div>
@@ -332,11 +332,11 @@ export default function EventsPage() {
             {syncDiagnostics.firstEvents?.length > 0 && (
               <div>
                 <strong>First {syncDiagnostics.firstEvents.length} events (by DTSTART):</strong>
-                <table style={{ width: "100%", marginTop: 4, fontSize: 11 }}>
-                  <thead><tr><th style={{ textAlign: "left" }}>UID</th><th style={{ textAlign: "left" }}>Summary</th><th style={{ textAlign: "left" }}>DTSTART</th></tr></thead>
+                <table className="w-full mt-4 text-xs">
+                  <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.firstEvents.map((e: { uid: string; summary: string; dtstart: string }) => (
-                      <tr key={e.uid}><td style={{ fontFamily: "monospace" }}>{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td style={{ fontFamily: "monospace" }}>{e.dtstart}</td></tr>
+                      <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono">{e.dtstart}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -346,11 +346,11 @@ export default function EventsPage() {
             {syncDiagnostics.lastEvents?.length > 0 && (
               <div>
                 <strong>Last {syncDiagnostics.lastEvents.length} events (by DTSTART):</strong>
-                <table style={{ width: "100%", marginTop: 4, fontSize: 11 }}>
-                  <thead><tr><th style={{ textAlign: "left" }}>UID</th><th style={{ textAlign: "left" }}>Summary</th><th style={{ textAlign: "left" }}>DTSTART</th></tr></thead>
+                <table className="w-full mt-4 text-xs">
+                  <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.lastEvents.map((e: { uid: string; summary: string; dtstart: string }) => (
-                      <tr key={e.uid}><td style={{ fontFamily: "monospace" }}>{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td style={{ fontFamily: "monospace" }}>{e.dtstart}</td></tr>
+                      <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono">{e.dtstart}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -359,16 +359,16 @@ export default function EventsPage() {
 
             {syncDiagnostics.errors?.length > 0 && (
               <div>
-                <strong style={{ color: "var(--red, #dc2626)" }}>Persistence Errors ({syncDiagnostics.errors.length} shown):</strong>
-                <table style={{ width: "100%", marginTop: 4, fontSize: 11 }}>
-                  <thead><tr><th style={{ textAlign: "left" }}>Op</th><th style={{ textAlign: "left" }}>UID</th><th style={{ textAlign: "left" }}>Summary</th><th style={{ textAlign: "left" }}>Error</th></tr></thead>
+                <strong className="text-red">Persistence Errors ({syncDiagnostics.errors.length} shown):</strong>
+                <table className="w-full mt-4 text-xs">
+                  <thead><tr><th className="text-left">Op</th><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">Error</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.errors.map((e: { uid: string; summary: string; operation: string; reason: string }, i: number) => (
                       <tr key={`${e.uid}-${i}`}>
                         <td><span className={`badge ${e.operation === "create" ? "badge-blue" : e.operation === "update" ? "badge-orange" : "badge-gray"}`}>{e.operation}</span></td>
-                        <td style={{ fontFamily: "monospace", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{e.uid.slice(0, 30)}</td>
+                        <td className="font-mono" style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{e.uid.slice(0, 30)}</td>
                         <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{e.summary}</td>
-                        <td style={{ color: "var(--red, #dc2626)", wordBreak: "break-word" }}>{e.reason}</td>
+                        <td className="text-red" style={{ wordBreak: "break-word" }}>{e.reason}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -488,10 +488,10 @@ export default function EventsPage() {
                     </td>
                     <td>
                       {source.lastError ? (
-                        <span className="badge badge-red" title={source.lastError} style={{ cursor: "help" }}>error</span>
+                        <span className="badge badge-red cursor-pointer" title={source.lastError}>error</span>
                       ) : source.enabled ? (
                         source.lastFetchedAt && (Date.now() - new Date(source.lastFetchedAt).getTime()) > 24 * 60 * 60 * 1000 ? (
-                          <span className="badge badge-orange" title={`Last synced ${formatDate(source.lastFetchedAt)}`} style={{ cursor: "help" }}>stale</span>
+                          <span className="badge badge-orange cursor-pointer" title={`Last synced ${formatDate(source.lastFetchedAt)}`}>stale</span>
                         ) : (
                           <span className="badge badge-green">active</span>
                         )
@@ -499,7 +499,7 @@ export default function EventsPage() {
                         <span className="badge badge-gray">disabled</span>
                       )}
                       {source.lastError && (
-                        <div style={{ fontSize: 11, color: "var(--red, #dc2626)", marginTop: 2, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={source.lastError}>
+                        <div className="text-xs text-red mt-2 truncate" style={{ maxWidth: 200 }} title={source.lastError}>
                           {source.lastError}
                         </div>
                       )}
@@ -540,7 +540,7 @@ export default function EventsPage() {
       )}
 
       {/* Filters and view toggle */}
-      <div className="filter-chip-bar" style={{ marginBottom: 16 }}>
+      <div className="filter-chip-bar mb-16">
         <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <button
             className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : ""}`}
@@ -590,7 +590,7 @@ export default function EventsPage() {
           <div className="card-header flex-between">
             <div className="flex-center gap-8">
               <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
-              <h2 style={{ minWidth: 160, textAlign: "center" }}>
+              <h2 className="text-center" style={{ minWidth: 160 }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
               </h2>
               <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
@@ -598,7 +598,7 @@ export default function EventsPage() {
             <button className="btn btn-sm" onClick={goCalToday}>Today</button>
           </div>
           <div className="p-16">
-            <div className="cal-mobile-notice" style={{ display: "none" }}>
+            <div className="cal-mobile-notice hidden">
               Switch to List view for the best mobile experience.
             </div>
             <div className="cal-grid">

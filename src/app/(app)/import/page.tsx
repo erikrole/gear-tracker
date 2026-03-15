@@ -184,9 +184,9 @@ export default function ImportPage() {
       </div>
 
       {/* Step indicator */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+      <div className="flex gap-8 mb-24">
         {(["upload", "preview", "importing", "summary"] as Step[]).map((s, i) => (
-          <div key={s} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div key={s} className="flex-center gap-8">
             {i > 0 && <div style={{ width: 24, height: 1, background: "var(--border)" }} />}
             <div
               style={{
@@ -218,7 +218,7 @@ export default function ImportPage() {
       {step === "upload" && (
         <div className="card">
           <div className="card-header"><h2>Upload CSV file</h2></div>
-          <div style={{ padding: 24 }}>
+          <div className="p-24">
             <div
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
@@ -238,33 +238,33 @@ export default function ImportPage() {
                 type="file"
                 accept=".csv,.CSV"
                 onChange={handleFileSelect}
-                style={{ display: "none" }}
+                className="hidden"
               />
               {file ? (
                 <>
-                  <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>{file.name}</div>
-                  <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                  <div className="text-xl font-semibold mb-4">{file.name}</div>
+                  <div className="text-secondary text-sm">
                     {(file.size / 1024).toFixed(1)} KB — Click or drop to replace
                   </div>
                 </>
               ) : (
                 <>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-secondary)" }}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-secondary">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                   </div>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Drop your Cheqroom CSV here</div>
-                  <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                  <div className="font-semibold mb-4">Drop your Cheqroom CSV here</div>
+                  <div className="text-secondary text-sm">
                     or click to browse — supports semicolon and comma delimited CSV
                   </div>
                 </>
               )}
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+            <div className="flex-end mt-16">
               <button
                 className="btn btn-primary"
                 disabled={!file || loading}
@@ -281,7 +281,7 @@ export default function ImportPage() {
       {step === "preview" && preview && (
         <>
           {/* Summary cards */}
-          <div className="summary-grid" style={{ marginBottom: 16 }}>
+          <div className="summary-grid mb-16">
             <SummaryCard label="Total items" value={preview.summary.totalItems} />
             <SummaryCard label="With errors" value={preview.summary.withErrors} warn={preview.summary.withErrors > 0} />
             <SummaryCard label="With warnings" value={preview.summary.withWarnings} warn={preview.summary.withWarnings > 0} />
@@ -292,30 +292,30 @@ export default function ImportPage() {
 
           {/* New entities to create */}
           {(preview.summary.newLocations.length > 0 || preview.summary.newDepartments.length > 0 || preview.summary.kits.length > 0) && (
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card mb-16">
               <div className="card-header"><h2>Will be auto-created</h2></div>
-              <div style={{ padding: 16, display: "flex", flexWrap: "wrap", gap: 16 }}>
+              <div className="p-16 flex flex-wrap gap-16">
                 {preview.summary.newLocations.length > 0 && (
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>New Locations</div>
+                    <div className="font-semibold text-sm mb-4">New Locations</div>
                     {preview.summary.newLocations.map((l) => (
-                      <span key={l} className="badge badge-blue" style={{ marginRight: 4, marginBottom: 4 }}>{l}</span>
+                      <span key={l} className="badge badge-blue mr-4 mb-4">{l}</span>
                     ))}
                   </div>
                 )}
                 {preview.summary.newDepartments.length > 0 && (
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>New Departments</div>
+                    <div className="font-semibold text-sm mb-4">New Departments</div>
                     {preview.summary.newDepartments.map((d) => (
-                      <span key={d} className="badge badge-purple" style={{ marginRight: 4, marginBottom: 4 }}>{d}</span>
+                      <span key={d} className="badge badge-purple mr-4 mb-4">{d}</span>
                     ))}
                   </div>
                 )}
                 {preview.summary.kits.length > 0 && (
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Kits</div>
+                    <div className="font-semibold text-sm mb-4">Kits</div>
                     {preview.summary.kits.map((k) => (
-                      <span key={k} className="badge badge-orange" style={{ marginRight: 4, marginBottom: 4 }}>{k}</span>
+                      <span key={k} className="badge badge-orange mr-4 mb-4">{k}</span>
                     ))}
                   </div>
                 )}
@@ -328,7 +328,7 @@ export default function ImportPage() {
             <div className="card-header">
               <h2>Preview ({preview.rows.length}{preview.totalRows > 200 ? ` of ${preview.totalRows}` : ""} rows)</h2>
             </div>
-            <div style={{ overflowX: "auto" }}>
+            <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -346,15 +346,15 @@ export default function ImportPage() {
                 <tbody>
                   {preview.rows.map((row) => (
                     <tr key={row.line} style={row.errors.length > 0 ? { background: "var(--red-bg)" } : row.warnings.length > 0 ? { background: "#fffbeb" } : {}}>
-                      <td style={{ fontSize: 11, color: "var(--text-secondary)" }}>{row.line}</td>
-                      <td style={{ fontWeight: 600 }}>
+                      <td className="text-xs text-secondary">{row.line}</td>
+                      <td className="font-semibold">
                         {row.assetTag}
-                        {row.assetTagDeduped && <span className="badge badge-orange" style={{ marginLeft: 4, fontSize: 10 }}>renamed</span>}
+                        {row.assetTagDeduped && <span className="badge badge-orange ml-4" style={{ fontSize: 10 }}>renamed</span>}
                       </td>
                       <td>{row.brand}</td>
                       <td>{row.model}</td>
                       <td>{row.type}</td>
-                      <td style={{ fontFamily: "monospace", fontSize: 11 }}>{row.serialNumber}</td>
+                      <td className="font-mono text-xs">{row.serialNumber}</td>
                       <td>{row.locationName}</td>
                       <td>{row.departmentName}</td>
                       <td>
@@ -373,7 +373,7 @@ export default function ImportPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+          <div className="flex-end gap-8 mt-16">
             <button className="btn" onClick={resetWizard}>Cancel</button>
             <button
               className="btn btn-primary"
@@ -389,12 +389,12 @@ export default function ImportPage() {
       {/* ── Importing step ── */}
       {step === "importing" && (
         <div className="card">
-          <div style={{ padding: 48, textAlign: "center" }}>
+          <div className="p-48 text-center">
             <div className="loading-spinner" style={{ position: "static" }}>
               <div className="spinner" />
             </div>
-            <div style={{ marginTop: 16, fontWeight: 600 }}>Importing items...</div>
-            <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+            <div className="mt-16 font-semibold">Importing items...</div>
+            <div className="text-secondary text-sm">
               Creating locations, departments, kits, and assets
             </div>
           </div>
@@ -404,7 +404,7 @@ export default function ImportPage() {
       {/* ── Summary step ── */}
       {step === "summary" && result && (
         <>
-          <div className="summary-grid" style={{ marginBottom: 16 }}>
+          <div className="summary-grid mb-16">
             <SummaryCard label="Created" value={result.created} color="var(--green)" />
             <SummaryCard label="Updated" value={result.updated} color="var(--blue)" />
             <SummaryCard label="Skipped" value={result.skipped} warn={result.skipped > 0} />
@@ -412,14 +412,14 @@ export default function ImportPage() {
           </div>
 
           {result.errors.length > 0 && (
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card mb-16">
               <div className="card-header">
                 <h2>Errors ({result.errors.length})</h2>
                 <button className="btn btn-sm" onClick={handleDownloadErrors}>
                   Download error CSV
                 </button>
               </div>
-              <div style={{ overflowX: "auto", maxHeight: 300 }}>
+              <div className="overflow-x-auto" style={{ maxHeight: 300 }}>
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -432,8 +432,8 @@ export default function ImportPage() {
                     {result.errors.slice(0, 50).map((e, i) => (
                       <tr key={i}>
                         <td>{e.line}</td>
-                        <td style={{ fontWeight: 600 }}>{e.assetTag}</td>
-                        <td style={{ fontSize: 12, color: "var(--red)" }}>{e.error}</td>
+                        <td className="font-semibold">{e.assetTag}</td>
+                        <td className="text-sm text-red">{e.error}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -443,16 +443,16 @@ export default function ImportPage() {
           )}
 
           <div className="card">
-            <div style={{ padding: 24, textAlign: "center" }}>
+            <div className="p-24 text-center">
               <div style={{ fontSize: 32, marginBottom: 8 }}>
                 {result.created + result.updated > 0 ? "Import complete" : "No items imported"}
               </div>
-              <div style={{ color: "var(--text-secondary)", marginBottom: 16 }}>
+              <div className="text-secondary mb-16">
                 {result.created} created, {result.updated} updated, {result.skipped} skipped
               </div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <div className="flex gap-8" style={{ justifyContent: "center" }}>
                 <button className="btn" onClick={resetWizard}>Import another file</button>
-                <a href="/items" className="btn btn-primary" style={{ textDecoration: "none" }}>View items</a>
+                <a href="/items" className="btn btn-primary no-underline">View items</a>
               </div>
             </div>
           </div>
@@ -474,15 +474,11 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="card" style={{ padding: 16, textAlign: "center" }}>
-      <div style={{
-        fontSize: 28,
-        fontWeight: 700,
-        color: warn ? "var(--red)" : color || "var(--text-primary)"
-      }}>
+    <div className="card p-16 text-center">
+      <div className="metric-value" style={{ color: warn ? "var(--red)" : color || "var(--text-primary)" }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+      <div className="metric-label">
         {label}
       </div>
     </div>

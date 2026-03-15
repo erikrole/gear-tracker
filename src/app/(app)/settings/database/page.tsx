@@ -59,8 +59,8 @@ export default function DatabasePage() {
         </div>
 
         {error && (
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div className="card-body" style={{ color: "var(--danger, #ef4444)" }}>
+          <div className="card mb-16">
+            <div className="card-body text-red">
               {error}
             </div>
           </div>
@@ -69,19 +69,19 @@ export default function DatabasePage() {
         {result && (
           <>
             {/* Overall status */}
-            <div className="card" style={{ marginBottom: 16 }}>
-              <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="card mb-16">
+              <div className="card-body flex-center gap-12">
                 <span
+                  className="shrink-0"
                   style={{
                     display: "inline-block",
                     width: 12,
                     height: 12,
                     borderRadius: "50%",
                     background: result.ok ? "#22c55e" : "#ef4444",
-                    flexShrink: 0,
                   }}
                 />
-                <span style={{ fontWeight: 600, fontSize: 15 }}>
+                <span className="font-semibold" style={{ fontSize: 15 }}>
                   {result.ok ? "Schema is healthy" : "Issues detected"}
                 </span>
               </div>
@@ -89,21 +89,20 @@ export default function DatabasePage() {
 
             {/* Remediation steps */}
             {result.remediation.length > 0 && (
-              <div className="card" style={{ marginBottom: 16 }}>
+              <div className="card mb-16">
                 <div className="card-header">
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>Remediation</span>
+                  <span className="font-semibold text-sm">Remediation</span>
                 </div>
-                <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="card-body flex-col gap-8">
                   {result.remediation.map((step, i) => (
                     <div
                       key={i}
+                      className="text-sm font-mono"
                       style={{
                         padding: "8px 12px",
                         background: "rgba(239, 68, 68, 0.06)",
                         borderRadius: 8,
-                        fontSize: 13,
                         lineHeight: 1.5,
-                        fontFamily: "var(--font-mono, monospace)",
                       }}
                     >
                       {step}
@@ -114,25 +113,25 @@ export default function DatabasePage() {
             )}
 
             {/* Migration table */}
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card mb-16">
               <div className="card-header">
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Migrations</span>
+                <span className="font-semibold text-sm">Migrations</span>
                 <StatusBadge ok={result.checks.migrationTable.exists} label={result.checks.migrationTable.exists ? "Table exists" : "Table missing"} />
               </div>
               {result.checks.migrationTable.migrations.length > 0 && (
                 <div className="card-body" style={{ padding: 0 }}>
-                  <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                  <table className="diag-table">
                     <thead>
-                      <tr style={{ borderBottom: "1px solid var(--border-light)" }}>
-                        <th style={thStyle}>Migration</th>
-                        <th style={thStyle}>Applied</th>
+                      <tr>
+                        <th>Migration</th>
+                        <th>Applied</th>
                       </tr>
                     </thead>
                     <tbody>
                       {result.checks.migrationTable.migrations.map((m) => (
-                        <tr key={m.name} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                          <td style={tdStyle}>{m.name}</td>
-                          <td style={tdStyle}>
+                        <tr key={m.name}>
+                          <td>{m.name}</td>
+                          <td>
                             {m.appliedAt ? new Date(m.appliedAt).toLocaleDateString() : "\u2014"}
                           </td>
                         </tr>
@@ -144,9 +143,9 @@ export default function DatabasePage() {
             </div>
 
             {/* Tables */}
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card mb-16">
               <div className="card-header">
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Tables</span>
+                <span className="font-semibold text-sm">Tables</span>
                 <StatusBadge
                   ok={result.checks.tables.missing.length === 0}
                   label={result.checks.tables.missing.length === 0
@@ -162,9 +161,9 @@ export default function DatabasePage() {
             </div>
 
             {/* Enums */}
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card mb-16">
               <div className="card-header">
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Enums</span>
+                <span className="font-semibold text-sm">Enums</span>
                 <StatusBadge
                   ok={result.checks.enums.missing.length === 0}
                   label={result.checks.enums.missing.length === 0
@@ -180,9 +179,9 @@ export default function DatabasePage() {
             </div>
 
             {/* Extensions */}
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card mb-16">
               <div className="card-header">
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Extensions</span>
+                <span className="font-semibold text-sm">Extensions</span>
                 <StatusBadge
                   ok={result.checks.extensions.missing.length === 0}
                   label={result.checks.extensions.missing.length === 0
@@ -199,26 +198,26 @@ export default function DatabasePage() {
 
             {/* Column drift */}
             {result.checks.columns.drift.length > 0 && (
-              <div className="card" style={{ marginBottom: 16 }}>
+              <div className="card mb-16">
                 <div className="card-header">
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>Column Drift</span>
+                  <span className="font-semibold text-sm">Column Drift</span>
                   <StatusBadge ok={false} label={`${result.checks.columns.drift.length} missing`} />
                 </div>
                 <div className="card-body" style={{ padding: 0 }}>
-                  <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+                  <table className="diag-table">
                     <thead>
-                      <tr style={{ borderBottom: "1px solid var(--border-light)" }}>
-                        <th style={thStyle}>Table</th>
-                        <th style={thStyle}>Column</th>
-                        <th style={thStyle}>Status</th>
+                      <tr>
+                        <th>Table</th>
+                        <th>Column</th>
+                        <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {result.checks.columns.drift.map((d, i) => (
-                        <tr key={i} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                          <td style={tdStyle}><code>{d.table}</code></td>
-                          <td style={tdStyle}><code>{d.column}</code></td>
-                          <td style={tdStyle}>
+                        <tr key={i}>
+                          <td><code>{d.table}</code></td>
+                          <td><code>{d.column}</code></td>
+                          <td>
                             <span className="badge badge-red" style={{ fontSize: 11 }}>{d.status}</span>
                           </td>
                         </tr>
@@ -245,20 +244,6 @@ export default function DatabasePage() {
 
 /* ── Helpers ──────────────────────────────────────────── */
 
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "8px 16px",
-  fontSize: 12,
-  fontWeight: 600,
-  color: "var(--text-secondary)",
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "8px 16px",
-};
-
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
@@ -273,7 +258,7 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
 function TagList({ items, variant }: { items: string[]; variant: "danger" | "info" }) {
   const cls = variant === "danger" ? "badge-red" : "badge-blue";
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+    <div className="flex flex-wrap gap-6">
       {items.map((item) => (
         <span key={item} className={`badge ${cls}`} style={{ fontSize: 12, padding: "3px 10px" }}>
           {item}
