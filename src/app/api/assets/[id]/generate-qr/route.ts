@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
 function randomHex(bytes: number): string {
@@ -13,9 +14,7 @@ function randomHex(bytes: number): string {
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      throw new HttpError(403, "Forbidden");
-    }
+    requirePermission(user.role, "asset", "generate_qr");
 
     const { id } = await ctx.params;
     const before = await db.asset.findUnique({ where: { id } });

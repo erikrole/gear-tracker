@@ -129,8 +129,8 @@ export default function DashboardPage() {
       <div className="page-header">
         <h1>Dashboard</h1>
         <div className="quick-actions">
-          <a href="/checkouts/new" className="btn">New checkout</a>
-          <a href="/reservations/new" className="btn">New reservation</a>
+          <a href="/checkouts?create=true" className="btn">New checkout</a>
+          <a href="/reservations?create=true" className="btn">New reservation</a>
         </div>
       </div>
 

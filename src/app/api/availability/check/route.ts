@@ -1,4 +1,5 @@
 export const runtime = "edge";
+import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
 import { checkAvailability } from "@/lib/services/availability";
@@ -7,6 +8,7 @@ import { availabilitySchema } from "@/lib/validation";
 
 export async function POST(req: Request) {
   try {
+    await requireAuth();
     const body = availabilitySchema.parse(await req.json());
     const { start, end } = parseDateRange(body.startsAt, body.endsAt);
 

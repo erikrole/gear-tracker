@@ -335,6 +335,7 @@ model BulkStockMovement {
 
   @@index([bulkSkuId, createdAt])
   @@index([bookingId])
+  @@index([actorUserId])
   @@map("bulk_stock_movements")
 }
 
@@ -391,6 +392,7 @@ model ScanEvent {
 
   @@index([bookingId, phase])
   @@index([scanValue])
+  @@index([actorUserId])
   @@map("scan_events")
 }
 
@@ -420,6 +422,7 @@ model OverrideEvent {
   actor             User      @relation(fields: [actorUserId], references: [id])
 
   @@index([bookingId, createdAt])
+  @@index([actorUserId])
   @@map("override_events")
 }
 
@@ -435,6 +438,7 @@ model AuditLog {
   actor             User?     @relation("AuditActor", fields: [actorUserId], references: [id])
 
   @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
   @@map("audit_logs")
 }
 
@@ -551,6 +555,7 @@ model Notification {
   createdAt  DateTime            @default(now()) @map("created_at")
 
   @@index([userId, readAt])
+  @@index([userId, createdAt])
   @@index([type, createdAt])
   @@map("notifications")
 }

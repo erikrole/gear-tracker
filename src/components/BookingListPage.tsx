@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
 import { getAllowedBookingActions, type BookingKind } from "@/lib/booking-actions";
@@ -18,6 +19,7 @@ import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidanc
 import { useToast } from "@/components/Toast";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { FilterChip } from "@/components/FilterChip";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   AVAILABLE: "var(--green)",
@@ -207,6 +209,8 @@ function toLocalDateTimeValue(date: Date) {
 
 export default function BookingListPage({ config }: { config: BookingListConfig }) {
   const { toast } = useToast();
+  const urlParams = useSearchParams();
+
   // ── List state ──
   const [items, setItems] = useState<BookingItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -215,27 +219,36 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(urlParams.get("status") || "");
   const [sportFilter, setSportFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [userFilter, setUserFilter] = useState("");
+  const [specialFilter, setSpecialFilter] = useState(urlParams.get("filter") || "");
 
   // ── Form options ──
   const [users, setUsers] = useState<FormUser[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
 
   // ── Create form state ──
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(
+    urlParams.get("create") === "true" || !!urlParams.get("title")
+  );
   const [tieToEvent, setTieToEvent] = useState(config.defaultTieToEvent);
   const [createSport, setCreateSport] = useState("");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [createTitle, setCreateTitle] = useState("");
+  const [createTitle, setCreateTitle] = useState(urlParams.get("title") || "");
   const [createLocationId, setCreateLocationId] = useState("");
   const [createRequester, setCreateRequester] = useState("");
-  const [createStartsAt, setCreateStartsAt] = useState(() => toLocalDateTimeValue(roundTo15Min(new Date())));
-  const [createEndsAt, setCreateEndsAt] = useState(() => toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))));
+  const [createStartsAt, setCreateStartsAt] = useState(() => {
+    const p = urlParams.get("startsAt");
+    return p ? toLocalDateTimeValue(new Date(p)) : toLocalDateTimeValue(roundTo15Min(new Date()));
+  });
+  const [createEndsAt, setCreateEndsAt] = useState(() => {
+    const p = urlParams.get("endsAt");
+    return p ? toLocalDateTimeValue(new Date(p)) : toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+  });
   const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -269,9 +282,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       params.set("offset", String(page * limit));
       if (search) params.set("q", search);
       if (sort) params.set("sort", sort);
-      if (statusFilter) params.set("status", statusFilter);
+      if (specialFilter) params.set("filter", specialFilter);
+      if (!specialFilter && statusFilter) params.set("status", statusFilter);
       if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
       if (locationFilter) params.set("location_id", locationFilter);
+      if (userFilter) params.set("requester_id", userFilter);
       const res = await fetch(`${config.apiBase}?${params}`);
       if (res.ok) {
         const json: ListResponse = await res.json();
@@ -284,7 +299,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, search, sort, statusFilter, sportFilter, locationFilter, config.apiBase, config.hasSportFilter]);
+  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.hasSportFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -295,7 +310,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         if (!json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
-        setCreateLocationId(json.data.locations?.[0]?.id || "");
+        const urlLocId = urlParams.get("locationId");
+        setCreateLocationId(urlLocId || json.data.locations?.[0]?.id || "");
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       })
@@ -308,6 +324,10 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           setCurrentUserRole(json.user.role || "");
           if (!createRequester && json.user.id) {
             setCreateRequester(json.user.id);
+          }
+          // Initialize "mine" filter from URL
+          if (urlParams.get("mine") === "true" && json.user.id) {
+            setUserFilter(json.user.id);
           }
         }
       })
@@ -988,64 +1008,74 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
       {/* ════════ Filter bar ════════ */}
       <div className="card">
-        <div className="card-header card-header-wrap">
-          <h2>All {config.labelPlural.toLowerCase()}</h2>
-          <button
-            className="filter-toggle-btn"
-            onClick={() => setFiltersOpen((prev) => !prev)}
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-            </svg>
-            Filters
-            {(statusFilter || sportFilter || locationFilter) && (
-              <span className="filter-active-dot" />
+        <div className="card-header filter-chip-bar">
+          <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</h2>
+          <input
+            type="text"
+            className="form-input filter-chip-search"
+            placeholder="Search by title or requester..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+          />
+          <div className="filter-chips">
+            {specialFilter ? (
+              <button
+                type="button"
+                className="filter-chip filter-chip-active"
+                onClick={() => { setSpecialFilter(""); setPage(0); }}
+              >
+                <span className="filter-chip-label">Showing:</span>
+                <span className="filter-chip-value">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>
+                <span className="filter-chip-clear">&times;</span>
+              </button>
+            ) : (
+              <FilterChip
+                label="Status"
+                value={statusFilter}
+                displayValue={config.statusOptions.find((s) => s.value === statusFilter)?.label}
+                options={config.statusOptions}
+                onSelect={(v) => { setStatusFilter(v); setPage(0); }}
+                onClear={() => { setStatusFilter(""); setPage(0); }}
+              />
             )}
-          </button>
-          <div className={`booking-filters ${filtersOpen ? "booking-filters-open" : ""}`}>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Search by title or requester..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            />
-
-            <select
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            >
-              <option value="">All statuses</option>
-              {config.statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
             {config.hasSportFilter && sportCodesInUse.length > 0 && (
-              <select
-                className="form-select"
+              <FilterChip
+                label="Sport"
                 value={sportFilter}
-                onChange={(e) => { setSportFilter(e.target.value); setPage(0); }}
-              >
-                <option value="">All sports</option>
-                {SPORT_CODES.map((s) => (
-                  <option key={s.code} value={s.code}>{s.code}</option>
-                ))}
-              </select>
+                options={SPORT_CODES.map((s) => ({ value: s.code, label: s.code }))}
+                onSelect={(v) => { setSportFilter(v); setPage(0); }}
+                onClear={() => { setSportFilter(""); setPage(0); }}
+              />
             )}
-
             {locations.length > 1 && (
-              <select
-                className="form-select"
+              <FilterChip
+                label="Location"
                 value={locationFilter}
-                onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
-              >
-                <option value="">All locations</option>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+                displayValue={locations.find((l) => l.id === locationFilter)?.name}
+                options={locations.map((l) => ({ value: l.id, label: l.name }))}
+                onSelect={(v) => { setLocationFilter(v); setPage(0); }}
+                onClear={() => { setLocationFilter(""); setPage(0); }}
+              />
             )}
-
+            {users.length > 0 && (
+              <FilterChip
+                label="User"
+                value={userFilter}
+                displayValue={users.find((u) => u.id === userFilter)?.name}
+                options={users.map((u) => ({ value: u.id, label: u.name }))}
+                onSelect={(v) => { setUserFilter(v); setPage(0); }}
+                onClear={() => { setUserFilter(""); setPage(0); }}
+              />
+            )}
+            {(statusFilter || sportFilter || locationFilter || userFilter || specialFilter) && (
+              <button
+                type="button"
+                className="filter-chip-clear-all"
+                onClick={() => { setStatusFilter(""); setSportFilter(""); setLocationFilter(""); setUserFilter(""); setSpecialFilter(""); setPage(0); }}
+              >
+                Clear all
+              </button>
+            )}
           </div>
         </div>
 
