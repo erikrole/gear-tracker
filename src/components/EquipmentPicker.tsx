@@ -99,6 +99,7 @@ export default function EquipmentPicker({
   const [searchBySection, setSearchBySection] = useState<Record<EquipmentSectionKey, string>>({
     cameras: "", lenses: "", batteries: "", accessories: "", others: "",
   });
+  const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const scanFeedbackTimer = useRef<ReturnType<typeof setTimeout>>(null);
@@ -118,6 +119,7 @@ export default function EquipmentPicker({
     if (!activeSection) return [];
     const q = equipSearch.toLowerCase();
     return (assetsBySection[activeSection] || []).filter((a) => {
+      if (onlyAvailable && a.computedStatus !== "AVAILABLE") return false;
       if (!q) return true;
       return (
         a.assetTag.toLowerCase().includes(q) ||
@@ -128,7 +130,7 @@ export default function EquipmentPicker({
         (a.name && a.name.toLowerCase().includes(q))
       );
     });
-  }, [assetsBySection, activeSection, equipSearch]);
+  }, [assetsBySection, activeSection, equipSearch, onlyAvailable]);
 
   const sectionBulk = useMemo(() => {
     if (!activeSection) return [];
@@ -191,6 +193,17 @@ export default function EquipmentPicker({
     const ctx: GuidanceContext = { selectedSectionKeys, activeSection };
     return getActiveGuidance(ctx);
   }, [selectedSectionKeys, activeSection]);
+
+  // ── Header checkbox state ──
+  const allSectionAvailableIds = useMemo(() => {
+    return sectionAssets
+      .filter((a) => a.computedStatus === "AVAILABLE" && !conflicts.has(a.id))
+      .map((a) => a.id);
+  }, [sectionAssets, conflicts]);
+
+  const allSectionSelected = allSectionAvailableIds.length > 0 &&
+    allSectionAvailableIds.every((id) => selectedAssetIds.includes(id));
+  const someSectionSelected = allSectionAvailableIds.some((id) => selectedAssetIds.includes(id));
 
   // ── Availability preview ──
 
@@ -264,21 +277,24 @@ export default function EquipmentPicker({
     );
   }
 
-  function selectAllAvailable() {
-    const availableIds = sectionAssets
-      .filter((a) => a.computedStatus === "AVAILABLE" && !conflicts.has(a.id))
-      .map((a) => a.id);
-    setSelectedAssetIds((prev) => {
-      const existing = new Set(prev);
-      const toAdd = availableIds.filter((id) => !existing.has(id));
-      return [...prev, ...toAdd];
-    });
+  function toggleAllInSection() {
+    if (allSectionSelected) {
+      // Deselect all in this section
+      const sectionIds = new Set(allSectionAvailableIds);
+      setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
+    } else {
+      // Select all available in this section
+      setSelectedAssetIds((prev) => {
+        const existing = new Set(prev);
+        const toAdd = allSectionAvailableIds.filter((id) => !existing.has(id));
+        return [...prev, ...toAdd];
+      });
+    }
   }
 
   function deselectAllInSection() {
     const sectionIds = new Set((assetsBySection[activeSection] || []).map((a) => a.id));
     setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
-    // Also remove bulk items in this section
     const sectionBulkIds = new Set((bulkBySection[activeSection] || []).map((s) => s.id));
     setSelectedBulkItems((prev) => prev.filter((i) => !sectionBulkIds.has(i.bulkSkuId)));
   }
@@ -286,11 +302,9 @@ export default function EquipmentPicker({
   // ── Scan-to-add ──
 
   function handleScanToAdd(value: string) {
-    // Parse bg://item/<uuid> or bg://case/<uuid> format
     const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
     const searchValue = bgMatch ? bgMatch[2] : value;
 
-    // Find matching asset
     const asset = assets.find((a) =>
       a.qrCodeValue === value ||
       a.id === searchValue ||
@@ -299,21 +313,17 @@ export default function EquipmentPicker({
     );
 
     if (asset) {
-      // Add asset if not already selected
       setSelectedAssetIds((prev) => {
         if (prev.includes(asset.id)) return prev;
         return [...prev, asset.id];
       });
-      // Navigate to the asset's section
       const section = classifyAssetType(asset.type, asset.categoryName);
       setActiveSection(section);
-      showScanFeedback(`Added ${asset.assetTag}`, "success");
-      // Haptic feedback
+      showScanFeedbackMsg(`Added ${asset.assetTag}`, "success");
       if (navigator.vibrate) navigator.vibrate(100);
       return;
     }
 
-    // Check bulk SKUs
     const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
     if (sku) {
       setSelectedBulkItems((prev) => {
@@ -322,16 +332,16 @@ export default function EquipmentPicker({
       });
       const section = classifyAssetType(sku.category, sku.categoryName);
       setActiveSection(section);
-      showScanFeedback(`Added ${sku.name}`, "success");
+      showScanFeedbackMsg(`Added ${sku.name}`, "success");
       if (navigator.vibrate) navigator.vibrate(100);
       return;
     }
 
-    showScanFeedback("Item not found", "error");
+    showScanFeedbackMsg("Item not found", "error");
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
   }
 
-  function showScanFeedback(message: string, type: "success" | "error") {
+  function showScanFeedbackMsg(message: string, type: "success" | "error") {
     setScanFeedback({ message, type });
     if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current);
     scanFeedbackTimer.current = setTimeout(() => setScanFeedback(null), 2500);
@@ -341,14 +351,13 @@ export default function EquipmentPicker({
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 
-  // ── Section counts for display ──
   const currentSectionSelected = selectedCountBySection[activeSection] || 0;
 
   return (
     <div className="equip-picker-wrap">
       <div className="equip-picker-header">
         <label className="equip-picker-label">
-          Equipment{equipmentCount > 0 ? ` (${equipmentCount} selected)` : ""}
+          Equipment
         </label>
         <div className="equip-picker-header-actions">
           {visible && (
@@ -380,59 +389,6 @@ export default function EquipmentPicker({
         </div>
       </div>
 
-      {/* Selected items summary strip */}
-      {equipmentCount > 0 && (
-        <div className="equip-selected-box">
-          {selectedAssetIds.map((assetId) => {
-            const asset = assets.find((a) => a.id === assetId);
-            if (!asset) return null;
-            const conflict = conflicts.get(assetId);
-            return (
-              <div key={assetId} className={`equip-selected-row${conflict ? " equip-selected-conflict" : ""}`}>
-                <div className="flex-truncate">
-                  <span className="equip-selected-tag">{asset.assetTag}</span>
-                  <span className="equip-selected-detail">{asset.name || `${asset.brand} ${asset.model}`}</span>
-                  {conflict && (
-                    <span className="equip-conflict-badge-sm" title={`Conflicts with "${conflict.conflictingBookingTitle}"`}>
-                      {"\u26a0"}
-                    </span>
-                  )}
-                </div>
-                <button type="button" className="remove-btn"
-                  onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
-              </div>
-            );
-          })}
-          {selectedBulkItems.map((item) => {
-            const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
-            return (
-              <div key={item.bulkSkuId} className="equip-selected-row">
-                <div className="flex-truncate">
-                  <span className="equip-selected-tag">{sku?.name || item.bulkSkuId}</span>
-                  <span className="equip-selected-detail">&times;{item.quantity}</span>
-                </div>
-                <div className="bulk-actions">
-                  <div className="qty-stepper">
-                    <button type="button" onClick={() => {
-                      if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
-                      else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
-                    }}>&minus;</button>
-                    <input type="number" min={1} value={item.quantity} onChange={(e) => {
-                      const qty = parseInt(e.target.value) || 1;
-                      if (qty <= 0) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
-                      else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: qty } : i));
-                    }} />
-                    <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}>+</button>
-                  </div>
-                  <button type="button" className="remove-btn"
-                    onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}>&times;</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* Sectioned picker */}
       {visible && (
         <div className="section-picker">
@@ -445,7 +401,7 @@ export default function EquipmentPicker({
                 <button
                   key={sec.key}
                   type="button"
-                  className={`section-tab${isActive ? " active" : ""}`}
+                  className={`section-tab${isActive ? " active" : ""}${selCount > 0 ? " section-tab-has-selected" : ""}`}
                   onClick={() => setActiveSection(sec.key)}
                 >
                   {sec.label}
@@ -462,55 +418,66 @@ export default function EquipmentPicker({
           {/* Active section content */}
           {activeSection && (
             <div className="section-content">
-              {/* Search + section actions */}
+              {/* Search + "Only available" filter */}
               <div className="picker-toolbar">
-                <input
-                  className="picker-search"
-                  placeholder={`Search ${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label.toLowerCase() || "items"}...`}
-                  value={equipSearch}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {equipSearch && (
-                  <button type="button" className="picker-search-clear" onClick={() => setSearch("")}>&times;</button>
-                )}
-              </div>
-
-              {/* Section bulk actions */}
-              <div className="picker-section-actions">
+                <div className="picker-search-wrap">
+                  <svg className="picker-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="7" cy="7" r="5" />
+                    <path d="M11 11l3.5 3.5" />
+                  </svg>
+                  <input
+                    className="picker-search"
+                    placeholder={`Search ${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label.toLowerCase() || "items"}...`}
+                    value={equipSearch}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {equipSearch && (
+                    <button type="button" className="picker-search-clear" onClick={() => setSearch("")}>&times;</button>
+                  )}
+                </div>
                 <button
                   type="button"
-                  className="btn btn-xs"
-                  onClick={selectAllAvailable}
-                  title="Select all available items in this section"
+                  className={`picker-filter-chip${onlyAvailable ? " picker-filter-chip-active" : ""}`}
+                  onClick={() => setOnlyAvailable((v) => !v)}
+                  title={onlyAvailable ? "Showing only available items. Click to show all." : "Showing all items. Click to filter to available only."}
                 >
-                  Select all available
+                  Only available
                 </button>
-                {currentSectionSelected > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-xs"
-                    onClick={deselectAllInSection}
-                  >
-                    Deselect section ({currentSectionSelected})
-                  </button>
-                )}
-                {equipSearch && (
-                  <span className="picker-match-count">
-                    {sectionAssets.length + sectionBulk.length} of {(assetsBySection[activeSection]?.length || 0) + (bulkBySection[activeSection]?.length || 0)} items
-                  </span>
-                )}
-                {conflictsLoading && (
-                  <span className="picker-avail-loading">Checking availability...</span>
-                )}
               </div>
+
+              {/* Column header with select-all checkbox */}
+              {sectionAssets.length > 0 && (
+                <div className="picker-col-header">
+                  <label className="picker-col-header-check">
+                    <input
+                      type="checkbox"
+                      className="equip-checkbox"
+                      checked={allSectionSelected}
+                      ref={(el) => { if (el) el.indeterminate = someSectionSelected && !allSectionSelected; }}
+                      onChange={toggleAllInSection}
+                    />
+                  </label>
+                  <span className="picker-col-header-label">Item</span>
+                  {currentSectionSelected > 0 && (
+                    <button type="button" className="picker-col-header-deselect" onClick={deselectAllInSection}>
+                      Deselect ({currentSectionSelected})
+                    </button>
+                  )}
+                  {equipSearch && (
+                    <span className="picker-match-count">
+                      {sectionAssets.length + sectionBulk.length} results
+                    </span>
+                  )}
+                  {conflictsLoading && (
+                    <span className="picker-avail-loading">Checking availability...</span>
+                  )}
+                </div>
+              )}
 
               <div className="picker-scroll">
                 {/* Serialized assets */}
                 {sectionAssets.length > 0 && (
                   <>
-                    {sectionBulk.length > 0 && (
-                      <div className="section-subheading">Assets</div>
-                    )}
                     {sectionAssets.map((asset) => {
                       const isSelected = selectedAssetIds.includes(asset.id);
                       const isAvailable = asset.computedStatus === "AVAILABLE";
@@ -522,7 +489,7 @@ export default function EquipmentPicker({
                       return (
                         <label
                           key={asset.id}
-                          className={`equip-picker-item equip-picker-checkbox-row${isSelected ? " equip-picker-item-selected" : ""}${conflict ? " equip-picker-item-conflict" : ""}`}
+                          className={`picker-row${isSelected ? " picker-row-selected" : ""}${conflict ? " picker-row-conflict" : ""}`}
                           data-unavailable={!isAvailable && !conflict ? true : undefined}
                         >
                           <input
@@ -532,20 +499,20 @@ export default function EquipmentPicker({
                             onChange={() => toggleAsset(asset.id)}
                             disabled={!isAvailable && !conflict}
                           />
-                          <span className="equip-picker-dot" style={{ backgroundColor: dotColor }} title={conflict ? "scheduling conflict" : statusLabel} />
-                          <div className="flex-truncate">
-                            <div className="asset-tag-label">
+                          <span className="picker-row-dot" style={{ backgroundColor: dotColor }} title={conflict ? "scheduling conflict" : statusLabel} />
+                          <div className="picker-row-info">
+                            <div className="picker-row-name">
                               {asset.assetTag}
                             </div>
-                            <div className="equip-picker-meta">
+                            <div className="picker-row-meta">
                               {asset.name || `${asset.brand} ${asset.model}`}
-                              {asset.serialNumber ? ` \u00b7 SN: ${asset.serialNumber}` : ""}
+                              {asset.serialNumber ? ` \u00b7 ${asset.serialNumber}` : ""}
                               {asset.location ? ` \u00b7 ${asset.location.name}` : ""}
                               {!isAvailable && !conflict && ` \u00b7 ${statusLabel}`}
                             </div>
                             {conflict && (
-                              <div className="equip-conflict-badge">
-                                {"\u26a0"} Reserved: {conflict.conflictingBookingTitle || "another booking"} ({formatConflictDate(conflict.startsAt)}{"\u2013"}{formatConflictDate(conflict.endsAt)})
+                              <div className="picker-row-conflict-detail">
+                                {"\u26a0"} {conflict.conflictingBookingTitle || "another booking"} ({formatConflictDate(conflict.startsAt)}{"\u2013"}{formatConflictDate(conflict.endsAt)})
                               </div>
                             )}
                           </div>
@@ -566,7 +533,7 @@ export default function EquipmentPicker({
                       return (
                         <div
                           key={sku.id}
-                          className={`equip-picker-item${isSelected ? " equip-picker-item-selected" : ""}`}
+                          className={`picker-row picker-row-bulk${isSelected ? " picker-row-selected" : ""}`}
                           onClick={() => {
                             if (isSelected) return;
                             setSelectedBulkItems((prev) =>
@@ -574,12 +541,12 @@ export default function EquipmentPicker({
                             );
                           }}
                         >
-                          <div>
-                            <div className="bulk-sku-name">{sku.name}</div>
-                            <div className="equip-picker-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
+                          <div className="picker-row-info">
+                            <div className="picker-row-name">{sku.name}</div>
+                            <div className="picker-row-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
                           </div>
                           {isSelected && (
-                            <span className="equip-picker-added-badge">Added</span>
+                            <span className="picker-row-added">Added</span>
                           )}
                         </div>
                       );
@@ -588,8 +555,12 @@ export default function EquipmentPicker({
                 )}
 
                 {sectionAssets.length === 0 && sectionBulk.length === 0 && (
-                  <div className="empty-message">
-                    {equipSearch ? "No matching items in this section" : "No available items in this section"}
+                  <div className="picker-empty">
+                    {equipSearch
+                      ? "No matching items"
+                      : onlyAvailable
+                        ? "No available items in this section"
+                        : "No items in this section"}
                   </div>
                 )}
               </div>
@@ -633,6 +604,46 @@ export default function EquipmentPicker({
               </div>
             </div>
           )}
+
+          {/* Sticky selection footer — Cheqroom-inspired */}
+          {equipmentCount > 0 && (
+            <div className="picker-footer">
+              <div className="picker-footer-count">
+                <span className="picker-footer-badge">{equipmentCount}</span>
+                item{equipmentCount !== 1 ? "s" : ""} selected
+              </div>
+              <div className="picker-footer-items">
+                {selectedAssetIds.map((assetId) => {
+                  const asset = assets.find((a) => a.id === assetId);
+                  if (!asset) return null;
+                  const conflict = conflicts.get(assetId);
+                  return (
+                    <span key={assetId} className={`picker-footer-tag${conflict ? " picker-footer-tag-conflict" : ""}`}>
+                      {asset.assetTag}
+                      <button type="button" onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
+                    </span>
+                  );
+                })}
+                {selectedBulkItems.map((item) => {
+                  const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+                  return (
+                    <span key={item.bulkSkuId} className="picker-footer-tag">
+                      {sku?.name || item.bulkSkuId}
+                      <span className="picker-footer-tag-qty">
+                        <button type="button" onClick={() => {
+                          if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
+                          else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
+                        }}>&minus;</button>
+                        <span>{item.quantity}</span>
+                        <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}>+</button>
+                      </span>
+                      <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}>&times;</button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -651,6 +662,28 @@ export default function EquipmentPicker({
         </div>
       )}
 
+      {/* When picker is closed but items are selected, show compact summary */}
+      {equipmentCount > 0 && !visible && (
+        <div className="picker-closed-summary">
+          <div className="picker-closed-summary-count">
+            <span className="picker-footer-badge">{equipmentCount}</span>
+            item{equipmentCount !== 1 ? "s" : ""} selected
+          </div>
+          <div className="picker-closed-summary-tags">
+            {selectedAssetIds.map((assetId) => {
+              const asset = assets.find((a) => a.id === assetId);
+              if (!asset) return null;
+              return <span key={assetId} className="picker-footer-tag picker-footer-tag-compact">{asset.assetTag}</span>;
+            })}
+            {selectedBulkItems.map((item) => {
+              const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+              return <span key={item.bulkSkuId} className="picker-footer-tag picker-footer-tag-compact">{sku?.name || item.bulkSkuId} &times;{item.quantity}</span>;
+            })}
+          </div>
+          <button type="button" className="btn btn-sm" onClick={onReopen}>Edit</button>
+        </div>
+      )}
+
       {/* Scan-to-add overlay */}
       {showScanner && (
         <div className="scan-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowScanner(false); }}>
@@ -661,7 +694,7 @@ export default function EquipmentPicker({
             </div>
             <QrScanner
               onScan={handleScanToAdd}
-              onError={() => showScanFeedback("Camera not available", "error")}
+              onError={() => showScanFeedbackMsg("Camera not available", "error")}
               active={showScanner}
             />
             {scanFeedback && (
