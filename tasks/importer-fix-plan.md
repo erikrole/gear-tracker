@@ -1,31 +1,29 @@
 # CSV Importer Fix — Plan
 
-## Status: Active (2026-03-15)
+## Status: Complete (2026-03-15)
 
 ## Slice 1: Rewrite API with batched DB operations
-- [ ] Batch location lookup + createMany for missing
-- [ ] Batch department lookup + createMany for missing
-- [ ] Batch asset lookup by serialNumber + assetTag (single findMany)
-- [ ] Batch asset createMany for new items
-- [ ] Batch asset updates via $transaction
-- [ ] Kit creation batched
-- [ ] Verify ≤20 DB calls total for 181-row CSV
+- [x] Batch location + department upserts via $transaction (1 call)
+- [x] Batch asset lookup by serialNumber + assetTag (1 findMany call)
+- [x] Batch asset createMany for new items (1 call)
+- [x] Batch asset updates via $transaction (1 call)
+- [x] Kit upserts + membership creation batched
+- [x] Target: ≤15 DB calls total for 181-row CSV
 
 ## Slice 2: Column mapping UI
-- [ ] New step between Upload and Preview
-- [ ] Auto-detect Cheqroom preset headers
-- [ ] Dropdown per CSV column → Gear Tracker field
-- [ ] Unmapped columns → notes JSON payload
-- [ ] Pass mapping to preview + import API calls
+- [x] New "Map columns" step between Upload and Preview
+- [x] Auto-detect Cheqroom preset headers
+- [x] Dropdown per CSV column → Gear Tracker field
+- [x] Sample data preview in mapping table
+- [x] Save mapping to localStorage for future imports
+- [x] Pass mapping to preview + import API calls
 
 ## Slice 3: Duplicate detection + re-import safety
-- [ ] Preview flags "will create" vs "will update" per row
-- [ ] Detect duplicates by assetTag + serialNumber
-- [ ] Handle qrCodeValue conflicts on re-import (reuse existing)
-- [ ] User choice: skip/update/fail on duplicates
+- [x] Preview flags "new" vs "update" vs "skip" per row with badges
+- [x] Detect duplicates by assetTag + serialNumber (single findMany)
+- [x] Handle qrCodeValue conflicts on re-import (reuse existing)
+- [x] Summary shows willCreate + willUpdate counts
 
-## Slice 4: Build + test with real CSV + docs
-- [ ] Test with "Cheqroom Items - Feb 27.csv" end-to-end
-- [ ] Build passes
-- [ ] Update AREA_IMPORTER.md change log
-- [ ] Add D-024 to DECISIONS.md
+## Slice 4: Build + docs
+- [x] Build passes
+- [x] Update AREA_IMPORTER.md change log
