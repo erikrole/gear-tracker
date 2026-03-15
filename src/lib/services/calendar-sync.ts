@@ -137,9 +137,52 @@ export type SyncResult = {
   error?: string;
 };
 
+// ── Summary cleaning ──
+
+/** Known team-name prefixes to strip from ICS summaries (case-insensitive). */
+const TEAM_PREFIXES = ["Wisconsin Badgers"];
+
+/**
+ * Strip redundant team-name prefix from an event summary.
+ * "Wisconsin Badgers Women's Tennis at Purdue" → "Women's Tennis at Purdue"
+ */
+export function cleanSummary(raw: string): string {
+  let cleaned = raw.trim();
+  for (const prefix of TEAM_PREFIXES) {
+    if (cleaned.toLowerCase().startsWith(prefix.toLowerCase())) {
+      cleaned = cleaned.slice(prefix.length).trim();
+      // Remove a leading dash/colon separator if present after stripping prefix
+      cleaned = cleaned.replace(/^[-–—:]\s*/, "");
+      break;
+    }
+  }
+  return cleaned || raw.trim();
+}
+
 // ── Sport code extraction from ICS summaries ──
 
 const SPORT_CODE_SET = new Set<string>(SPORT_CODES.map((s) => s.code));
+
+/** Build a map from lowercase sport label → code for label-based matching */
+const LABEL_TO_CODE = new Map<string, string>(
+  SPORT_CODES.map((s) => [s.label.toLowerCase(), s.code]),
+);
+
+/**
+ * Try to match a sport label at the start of a summary string.
+ * Returns the code and the remainder after the label, or null.
+ */
+function matchSportLabel(summary: string): { code: string; rest: string } | null {
+  const lower = summary.toLowerCase();
+  // Sort labels longest-first so "Women's Swimming & Diving" matches before "Women's Swimming"
+  const sorted = [...LABEL_TO_CODE.entries()].sort((a, b) => b[0].length - a[0].length);
+  for (const [label, code] of sorted) {
+    if (lower.startsWith(label)) {
+      return { code, rest: summary.slice(label.length).trim() };
+    }
+  }
+  return null;
+}
 
 /**
  * Extracts sport code, opponent, and home/away from an event summary.
@@ -148,7 +191,7 @@ const SPORT_CODE_SET = new Set<string>(SPORT_CODES.map((s) => s.code));
  *   "{SPORT_CODE} at {opponent}"  → isHome = false
  *   "{SPORT_CODE} vs {opponent} (Neutral)" → isHome = null
  *   "{SPORT_CODE} - {description}" → sport only, no opponent
- *   Summaries starting with sport label ("Men's Basketball vs ...") also matched
+ *   "{Sport Label} vs/at {opponent}" → matched by label (e.g. "Women's Tennis at Purdue")
  */
 export function extractSportInfo(summary: string): {
   sportCode: string | null;
@@ -189,6 +232,25 @@ export function extractSportInfo(summary: string): {
     if (SPORT_CODE_SET.has(code)) {
       return { sportCode: code, opponent: null, isHome: null };
     }
+  }
+
+  // Try matching by sport label (e.g., "Women's Tennis at Purdue")
+  const labelMatch = matchSportLabel(trimmed);
+  if (labelMatch) {
+    const rest = labelMatch.rest;
+    const vsAtMatch = rest.match(/^(vs\.?|at)\s+(.+?)(?:\s*\(Neutral\))?$/i);
+    if (vsAtMatch) {
+      const prep = vsAtMatch[1].toLowerCase().replace(".", "");
+      const opponent = vsAtMatch[2].trim();
+      const isNeutral = /\(Neutral\)/i.test(rest);
+      return {
+        sportCode: labelMatch.code,
+        opponent: opponent || null,
+        isHome: isNeutral ? null : prep === "vs" ? true : false,
+      };
+    }
+    // Label matched but no vs/at — just a sport event
+    return { sportCode: labelMatch.code, opponent: null, isHome: null };
   }
 
   return { sportCode: null, opponent: null, isHome: null };
@@ -275,11 +337,12 @@ export function splitEventsForSync(
         }
       }
 
-      const { sportCode, opponent, isHome } = extractSportInfo(event.summary);
+      const cleaned = cleanSummary(event.summary);
+      const { sportCode, opponent, isHome } = extractSportInfo(cleaned);
 
       const data: ValidatedEventData = {
         externalId: event.uid,
-        summary: event.summary,
+        summary: cleaned,
         description: event.description || null,
         rawSummary: event.summary,
         rawLocationText: event.location || null,
