@@ -65,7 +65,10 @@ export async function GET(req: Request) {
       // then paginate in-memory. This is acceptable for typical inventory sizes.
       const rawAll = await db.asset.findMany({
         where,
-        include: { location: true, category: true },
+        include: {
+          location: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true } },
+        },
         orderBy: { assetTag: "asc" }
       });
 
@@ -87,7 +90,10 @@ export async function GET(req: Request) {
     const [rawData, total] = await Promise.all([
       db.asset.findMany({
         where,
-        include: { location: true, category: true },
+        include: {
+          location: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true } },
+        },
         orderBy: { assetTag: "asc" },
         take: limit,
         skip: offset
@@ -175,8 +181,8 @@ export async function POST(req: Request) {
         notes: body.notes
       },
       include: {
-        location: true,
-        category: true
+        location: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
       }
     });
 

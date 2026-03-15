@@ -15,11 +15,21 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     const reservation = await db.booking.findUnique({
       where: { id },
       include: {
-        location: true,
+        location: { select: { id: true, name: true } },
         requester: { select: { id: true, name: true, email: true } },
         creator: { select: { id: true, name: true, email: true } },
-        serializedItems: { include: { asset: true } },
-        bulkItems: { include: { bulkSku: true } }
+        serializedItems: {
+          select: {
+            id: true, assetId: true, allocationStatus: true,
+            asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true } },
+          },
+        },
+        bulkItems: {
+          select: {
+            id: true, plannedQuantity: true, checkedOutQuantity: true, checkedInQuantity: true,
+            bulkSku: { select: { id: true, name: true, unit: true } },
+          },
+        },
       }
     });
 

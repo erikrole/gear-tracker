@@ -36,20 +36,20 @@ export async function GET(req: Request) {
     const data = await db.booking.findMany({
       where,
       include: {
-        location: true,
-        requester: {
-          select: { id: true, name: true, email: true }
-        },
+        location: { select: { id: true, name: true } },
+        requester: { select: { id: true, name: true, email: true } },
         serializedItems: {
-          include: {
-            asset: true
-          }
+          select: {
+            id: true, assetId: true, allocationStatus: true,
+            asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true } },
+          },
         },
         bulkItems: {
-          include: {
-            bulkSku: true
-          }
-        }
+          select: {
+            id: true, plannedQuantity: true, checkedOutQuantity: true, checkedInQuantity: true,
+            bulkSku: { select: { id: true, name: true, unit: true } },
+          },
+        },
       },
       orderBy: { startsAt: "asc" }
     });

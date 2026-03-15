@@ -46,11 +46,21 @@ export async function GET(req: Request) {
         where,
         orderBy,
         include: {
-          location: true,
+          location: { select: { id: true, name: true } },
           requester: { select: { id: true, name: true, email: true } },
-          serializedItems: { include: { asset: true } },
-          bulkItems: { include: { bulkSku: true } },
-          event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } }
+          serializedItems: {
+            select: {
+              id: true, assetId: true, allocationStatus: true,
+              asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true } },
+            },
+          },
+          bulkItems: {
+            select: {
+              id: true, plannedQuantity: true, checkedOutQuantity: true, checkedInQuantity: true,
+              bulkSku: { select: { id: true, name: true, unit: true } },
+            },
+          },
+          event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
         },
         take: limit,
         skip: offset

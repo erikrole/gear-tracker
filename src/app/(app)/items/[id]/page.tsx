@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+import dynamic from "next/dynamic";
+const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 import {
   getUrgency,
   formatCountdown,
@@ -250,7 +251,7 @@ function EditableField({
   return (
     <div className="data-list-row">
       <dt className="data-list-label">{label}</dt>
-      <dd className="data-list-value" style={mono ? { fontFamily: "monospace" } : undefined}>
+      <dd className={`data-list-value${mono ? " font-mono" : ""}`}>
         {editing && type !== "select" ? (
           <input
             ref={inputRef}
@@ -259,7 +260,7 @@ function EditableField({
             onBlur={commit}
             onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
             disabled={saving}
-            style={{ width: "100%", padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, fontFamily: mono ? "monospace" : "inherit", textAlign: "right", outline: "none" }}
+            className={`inline-edit-input${mono ? " font-mono" : ""}`}
           />
         ) : (
           <span onClick={() => canEdit && setEditing(true)} style={displayStyle} title={canEdit ? "Click to edit" : undefined}>
@@ -287,7 +288,7 @@ function FiscalYearField({ value, canEdit, onSave }: { value: string; canEdit: b
             onChange={async (e) => { await onSave(e.target.value); setEditing(false); }}
             onBlur={() => setEditing(false)}
             autoFocus
-            style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, textAlign: "right", outline: "none" }}
+            className="inline-edit-select"
           >
             <option value="">—</option>
             {options.map((fy) => <option key={fy} value={fy}>{fy}</option>)}
@@ -343,7 +344,7 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
       <dt className="data-list-label">Category</dt>
       <dd className="data-list-value">
         {creating ? (
-          <div style={{ display: "flex", gap: 4 }}>
+          <div className="flex gap-4">
             <input
               ref={inputRef}
               value={newCatName}
@@ -355,7 +356,7 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
                 if (e.key === "Enter") handleCreateCategory();
                 if (e.key === "Escape") { setCreating(false); setNewCatName(""); }
               }}
-              style={{ width: 140, padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, outline: "none" }}
+              className="inline-edit-narrow"
             />
           </div>
         ) : editing ? (
@@ -367,7 +368,7 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
             }}
             onBlur={() => setEditing(false)}
             autoFocus
-            style={{ padding: "2px 6px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, textAlign: "right", outline: "none" }}
+            className="inline-edit-select"
           >
             <option value="">—</option>
             {categories.filter((c) => !c.parentId).map((parent) => (
@@ -416,7 +417,8 @@ function QRCodeCanvas({ value, size, margin = 2 }: { value: string; size: number
   return (
     <canvas
       ref={canvasRef}
-      style={{ display: "block", borderRadius: 6, border: "1px solid var(--border-light)", opacity: loaded ? 1 : 0 }}
+      className="qr-canvas"
+      style={{ opacity: loaded ? 1 : 0 }}
     />
   );
 }
@@ -471,18 +473,18 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
     >
       <div className="qr-modal">
         <div className="flex-between mb-16">
-          <h2 style={{ margin: 0 }}>QR Code</h2>
+          <h2 className="m-0">QR Code</h2>
           <button className="btn btn-sm" onClick={onClose}>Close</button>
         </div>
-        <div className="flex-center mb-16" style={{ justifyContent: "center" }}>
+        <div className="flex-center mb-16 justify-center">
           <QRCodeCanvas value={asset.qrCodeValue} size={240} />
         </div>
-        <div className="font-semibold font-mono mb-16" style={{ textAlign: "center", fontSize: 16 }}>
+        <div className="font-semibold font-mono mb-16 text-center text-base">
           {asset.qrCodeValue}
         </div>
         {canEdit && (
           <>
-            <div className="flex gap-8 mb-8" style={{ justifyContent: "center" }}>
+            <div className="flex gap-8 mb-8 justify-center">
               <button className="btn" onClick={generateQR} disabled={saving}>
                 {saving ? "..." : "Generate new QR"}
               </button>
@@ -504,7 +506,7 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
                 <button className="btn" onClick={() => setManualEntry(false)}>Cancel</button>
               </div>
             )}
-            {error && <div className="alert-error mt-8" style={{ textAlign: "center" }}>{error}</div>}
+            {error && <div className="alert-error mt-8 text-center">{error}</div>}
           </>
         )}
       </div>
@@ -522,8 +524,8 @@ function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetai
   return (
     <>
       <div className="p-16 border-t">
-        <div className="text-xs font-semibold text-secondary mb-8" style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>TRACKING CODES</div>
-        <div className="flex gap-12" style={{ alignItems: "flex-start" }}>
+        <div className="text-xs font-semibold text-secondary mb-8 section-label">TRACKING CODES</div>
+        <div className="flex gap-12 items-start">
           {/* Asset tag label replaces standalone QR image */}
           <button
             className="asset-tag-label"
@@ -662,7 +664,7 @@ function ItemInfoCard({
   function renderFieldGroup(title: string, fields: FieldDef[], extra?: React.ReactNode) {
     return (
       <>
-        <div style={{ gridColumn: "1 / -1", fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "var(--text-muted)", padding: "10px 16px 2px", borderTop: "1px solid var(--border-light)" }}>
+        <div className="field-group-header">
           {title}
         </div>
         {fields.map((f) => (
@@ -818,7 +820,7 @@ function BookingKindTab({
         <div className="card">
           <div className="card-header"><h2>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</h2></div>
           <div className="p-16">
-            <div className="flex-between mb-8" style={{ alignItems: "baseline" }}>
+            <div className="flex-between mb-8 items-baseline">
               <strong>{activeBooking.title}</strong>
               <span className="badge badge-orange text-xs">{formatCountdown(activeBooking.endsAt, now)}</span>
             </div>
@@ -862,7 +864,7 @@ function BookingKindTab({
           ) : (
             filtered.map((group) => (
               <div key={group.month} className="mb-16">
-                <h3 className="text-xl mb-8" style={{ margin: 0 }}>{group.month}</h3>
+                <h3 className="text-xl mb-8 m-0">{group.month}</h3>
                 <table className="data-table">
                   <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
                   <tbody>
@@ -988,8 +990,8 @@ function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; onSelectB
 
       {/* Legend */}
       <div className="cal-legend">
-        <span><span className="cal-legend-dot" style={{ background: "#3b82f6" }} />Checkout</span>
-        <span><span className="cal-legend-dot" style={{ background: "#8b5cf6" }} />Reservation</span>
+        <span><span className="cal-legend-dot cal-legend-dot-checkout" />Checkout</span>
+        <span><span className="cal-legend-dot cal-legend-dot-reservation" />Reservation</span>
       </div>
     </div>
   );
@@ -1086,7 +1088,7 @@ function ActivityFeed({ assetId }: { assetId: string }) {
 
         return (
           <div className="history-row" key={entry.id}>
-            <div className="history-dot" style={entry.entityType === "booking" ? { background: "var(--blue, #3b82f6)", color: "#fff" } : undefined}>
+            <div className={`history-dot${entry.entityType === "booking" ? " history-dot-booking" : ""}`}>
               {initial}
             </div>
             <div>
@@ -1106,7 +1108,7 @@ function ActivityFeed({ assetId }: { assetId: string }) {
               {isUpdate && changes.length > 0 && (
                 <div className="text-xs text-secondary mt-4">
                   {changes.map((key) => (
-                    <div key={key} style={{ padding: "1px 0" }}>
+                    <div key={key} className="py-1">
                       {describeFieldChange(
                         key,
                         (entry.beforeJson as Record<string, unknown>)?.[key],
@@ -1116,7 +1118,7 @@ function ActivityFeed({ assetId }: { assetId: string }) {
                   ))}
                 </div>
               )}
-              <div className="muted" style={{ marginTop: 2 }}>{formatDateTime(entry.createdAt)}</div>
+              <div className="muted mt-2">{formatDateTime(entry.createdAt)}</div>
             </div>
           </div>
         );
@@ -1151,7 +1153,7 @@ function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdi
     <div className="card mt-14">
       <div className="card-header"><h2>Policy Settings</h2></div>
       <div className="p-16">
-        <p className="text-sm text-secondary mb-16" style={{ marginTop: 0 }}>
+        <p className="text-sm text-secondary mb-16 m-0">
           These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
         </p>
         {toggles.map((t) => (
@@ -1163,7 +1165,7 @@ function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdi
             />
             <div>
               <div className="toggle-label">{t.label}</div>
-              <div className="text-xs text-secondary" style={{ marginTop: 2 }}>{t.help}</div>
+              <div className="text-xs text-secondary mt-2">{t.help}</div>
             </div>
           </div>
         ))}
@@ -1304,10 +1306,10 @@ export default function ItemDetailsPage() {
   return (
     <>
       <div className="breadcrumb"><Link href="/items">Items</Link> <span>{"\u203a"}</span> {asset.assetTag}</div>
-      <div className="page-header" style={{ marginBottom: 0 }}>
+      <div className="page-header mb-0">
         <div>
-          <div className="flex gap-12" style={{ alignItems: "baseline" }}>
-            <h1 style={{ marginBottom: 0 }}>{asset.assetTag}</h1>
+          <div className="flex gap-12 items-baseline">
+            <h1 className="mb-0">{asset.assetTag}</h1>
             {asset.metadata?.uwAssetTag && (
               <span className="text-base text-secondary font-medium">
                 UW {asset.metadata.uwAssetTag}
@@ -1315,7 +1317,7 @@ export default function ItemDetailsPage() {
             )}
           </div>
           {asset.name && (
-            <div className="text-base text-secondary" style={{ marginTop: 2 }}>{asset.name}</div>
+            <div className="text-base text-secondary mt-2">{asset.name}</div>
           )}
         </div>
         <div className="header-actions">
