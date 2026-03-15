@@ -2331,6 +2331,75 @@ textarea:focus-visible {
   margin: 0;
 }
 
+/* ===== Item Detail Inline Edit ===== */
+
+.inline-edit-input {
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: right;
+  outline: none;
+}
+
+.inline-edit-select {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: right;
+  outline: none;
+}
+
+.inline-edit-narrow {
+  width: 140px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
+.field-group-header {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 10px 16px 2px;
+  border-top: 1px solid var(--border-light);
+}
+
+.section-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.text-center { text-align: center; }
+.justify-center { justify-content: center; }
+.items-baseline { align-items: baseline; }
+.items-start { align-items: flex-start; }
+.m-0 { margin: 0; }
+.mb-0 { margin-bottom: 0; }
+.mt-2 { margin-top: 2px; }
+.py-1 { padding-top: 1px; padding-bottom: 1px; }
+
+.qr-canvas {
+  display: block;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.cal-legend-dot-checkout { background: #3b82f6; }
+.cal-legend-dot-reservation { background: #8b5cf6; }
+
+.history-dot-booking {
+  background: var(--blue, #3b82f6);
+  color: #fff;
+}
+
 /* ===== Booking Details Sheet ===== */
 .sheet-overlay {
   position: fixed;

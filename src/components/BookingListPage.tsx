@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+import dynamic from "next/dynamic";
+const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
 import { getAllowedBookingActions, type BookingKind } from "@/lib/booking-actions";
 import { formatDateShort } from "@/lib/format";
