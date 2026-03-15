@@ -64,9 +64,6 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     create: ["ADMIN", "STAFF"],
     delete: ["ADMIN", "STAFF"],
   },
-  enrichment: {
-    use: ["ADMIN", "STAFF"],
-  },
   report: {
     view: ["ADMIN", "STAFF", "STUDENT"],
   },

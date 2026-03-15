@@ -15,7 +15,7 @@
 | PD-1 | D-009: Escalation recipient model — who receives +24h overdue notifications? | AREA_NOTIFICATIONS | High | Blocks Phase B notification polish |
 | PD-2 | Venue mapping governance — who owns regex-to-location mapping table? | AREA_EVENTS | Medium | No |
 | PD-3 | Event sync refresh cadence — Cloudflare Cron schedule and staleness thresholds | AREA_EVENTS | Medium | No |
-| PD-4 | B&H metadata cache TTL target | AREA_ITEMS | Low | No |
+| ~~PD-4~~ | ~~B&H metadata cache TTL target~~ | ~~AREA_ITEMS~~ | ~~N/A~~ | ~~No — D-005 withdrawn~~ |
 | PD-5 | Student mobile KPI definitions — taps-to-action, task-completion time, scan success rate | AREA_MOBILE | High | Blocks BRIEF_STUDENT_MOBILE_V1.md |
 
 ---

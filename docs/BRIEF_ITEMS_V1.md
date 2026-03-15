@@ -23,7 +23,6 @@
 - Create item flow with serialized vs bulk mode.
 - Item detail page structure with dashboard-style `Info` tab, linked status line, actions menu, calendar/history/settings tabs, and item information card.
 - Safe metadata/image prefill behavior.
-- B&H URL import with server-side metadata extraction and editable prefills.
 
 ### Out of scope
 - Procurement lifecycle.
@@ -47,7 +46,6 @@
 - Data model impact: no major model rewrite required; enforce item-kind-specific validation and identity constraints.
 - Read-path impact: list rows and detail header must display derived status, deep-linked booking context, and tag-first identity.
 - Write-path impact: create/edit/import/export paths require role and validation guards, including QR uniqueness and policy-safe delete rules.
-- External integration impact: B&H metadata and image enrichment for supported URLs with partial-result tolerance.
 
 ## 8) UX Flow
 1. Find item via list filters/search/table.
@@ -70,17 +68,12 @@
 11. Status displays are derived and cannot be directly edited.
 12. Export/import visibility is role-correct.
 13. Prefill behavior never overwrites `tagName`.
-14. B&H import auto-prefills supported metadata fields from product URL.
-15. Users can override B&H-prefilled fields before save.
-16. B&H import failure does not block manual creation.
-17. Mutations are auditable.
+14. Mutations are auditable.
 18. Mobile items list behavior follows `AREA_MOBILE.md` (search-first, action-sheet parity).
 
 ## 10) Edge Cases
 - Missing row thumbnails.
 - Duplicate serialized identifiers.
-- B&H metadata returns partial fields.
-- B&H URL is unsupported or unreachable.
 - Student attempts item edit via deep link/API.
 - Asset with active allocations receives metadata edit request.
 - Item has no QR code and needs generation or manual entry.
@@ -101,13 +94,12 @@
 2. Implement item-kind-aware create flow and validation.
 3. Implement item detail information architecture, linked status line, and action mapping.
 4. Enforce derived status display, QR uniqueness, delete gating, and mutation authorization policy.
-5. Implement B&H import flow with non-blocking fetch and editable prefills.
-6. Add regression tests for identity collisions, permission bypass, QR uniqueness, delete gating, and prefill safety.
+5. Add regression tests for identity collisions, permission bypass, QR uniqueness, delete gating, and prefill safety.
 
 ## 13) Test Plan (High-Level)
 - Unit: item-kind validation and role-action matrix.
 - Integration: list filtering, create flows, detail actions, and metadata edits.
-- Regression: duplicate tag collisions, unauthorized edits, stale status display, and B&H fetch/parser failures.
+- Regression: duplicate tag collisions, unauthorized edits, stale status display.
 - Manual validation: table usability, detail navigation, image handling.
 
 ## 14) Risks and Mitigations
