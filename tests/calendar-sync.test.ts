@@ -1,5 +1,79 @@
 import { describe, it, expect } from "vitest";
-import { parseIcsDate, splitEventsForSync, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+
+// ── cleanSummary unit tests ──
+
+describe("cleanSummary", () => {
+  it("strips 'Wisconsin Badgers' prefix", () => {
+    expect(cleanSummary("Wisconsin Badgers Women's Tennis at Purdue")).toBe("Women's Tennis at Purdue");
+  });
+
+  it("strips prefix case-insensitively", () => {
+    expect(cleanSummary("wisconsin badgers Men's Hockey vs Minnesota")).toBe("Men's Hockey vs Minnesota");
+  });
+
+  it("strips prefix followed by a dash separator", () => {
+    expect(cleanSummary("Wisconsin Badgers - Special Event")).toBe("Special Event");
+  });
+
+  it("returns original if no prefix match", () => {
+    expect(cleanSummary("Michigan Wolverines vs Ohio State")).toBe("Michigan Wolverines vs Ohio State");
+  });
+
+  it("handles empty string gracefully", () => {
+    expect(cleanSummary("")).toBe("");
+  });
+
+  it("handles exact prefix with no remainder", () => {
+    expect(cleanSummary("Wisconsin Badgers")).toBe("Wisconsin Badgers");
+  });
+});
+
+// ── extractSportInfo with sport labels ──
+
+describe("extractSportInfo label matching", () => {
+  it("matches 'Women's Tennis at Purdue' → WTEN, away", () => {
+    const result = extractSportInfo("Women's Tennis at Purdue");
+    expect(result.sportCode).toBe("WTEN");
+    expect(result.opponent).toBe("Purdue");
+    expect(result.isHome).toBe(false);
+  });
+
+  it("matches 'Men's Tennis vs #9 Illinois' → MTEN, home", () => {
+    const result = extractSportInfo("Men's Tennis vs #9 Illinois");
+    expect(result.sportCode).toBe("MTEN");
+    expect(result.opponent).toBe("#9 Illinois");
+    expect(result.isHome).toBe(true);
+  });
+
+  it("matches 'Women's Swimming & Diving vs NCAA Championships' → WSWIM", () => {
+    const result = extractSportInfo("Women's Swimming & Diving vs NCAA Championships");
+    expect(result.sportCode).toBe("WSWIM");
+    expect(result.opponent).toBe("NCAA Championships");
+    expect(result.isHome).toBe(true);
+  });
+
+  it("matches 'Wrestling vs 2026 NCAA Championships' → WRES", () => {
+    const result = extractSportInfo("Wrestling vs 2026 NCAA Championships");
+    expect(result.sportCode).toBe("WRES");
+    expect(result.opponent).toBe("2026 NCAA Championships");
+    expect(result.isHome).toBe(true);
+  });
+
+  it("matches sport label with no vs/at as sport-only", () => {
+    const result = extractSportInfo("Football Senior Day");
+    expect(result.sportCode).toBe("FB");
+    expect(result.opponent).toBeNull();
+    expect(result.isHome).toBeNull();
+  });
+
+  it("still matches sport codes at start (MBB vs Iowa)", () => {
+    const result = extractSportInfo("MBB vs Iowa");
+    expect(result.sportCode).toBe("MBB");
+    expect(result.opponent).toBe("Iowa");
+    expect(result.isHome).toBe(true);
+  });
+});
 
 // ── parseIcsDate unit tests ──
 
@@ -497,6 +571,17 @@ describe("splitEventsForSync", () => {
     expect(result.toCreate).toHaveLength(300);
     expect(result.toUpdate).toHaveLength(0);
     expect(result.skippedErrors).toHaveLength(0);
+  });
+
+  it("cleans team prefix from summary while preserving rawSummary", () => {
+    const parsed = [makeParsedEvent({ uid: "wb-1", summary: "Wisconsin Badgers Women's Tennis at Purdue" })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate).toHaveLength(1);
+    expect(result.toCreate[0].summary).toBe("Women's Tennis at Purdue");
+    expect(result.toCreate[0].rawSummary).toBe("Wisconsin Badgers Women's Tennis at Purdue");
+    expect(result.toCreate[0].sportCode).toBe("WTEN");
+    expect(result.toCreate[0].opponent).toBe("Purdue");
+    expect(result.toCreate[0].isHome).toBe(false);
   });
 
   it("WRITE_CHUNK_SIZE is exported and equals 50", () => {

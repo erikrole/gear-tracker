@@ -181,6 +181,7 @@ export async function GET() {
       sportCode: e.sportCode ?? null,
       startsAt: e.startsAt.toISOString(),
       endsAt: e.endsAt.toISOString(),
+      allDay: e.allDay,
       location: e.location?.name ?? null,
       locationId: e.location?.id ?? null,
       opponent: e.opponent ?? null,

@@ -29,6 +29,7 @@
 - D-019: Department model is Phase B
 - D-020: Kit management is Phase B
 - D-021: UW asset tag is an optional import field
+- D-022: Numbered bulk items — one QR, individually numbered units for loss tracking
 
 ---
 
@@ -79,19 +80,14 @@
   - Faster physical lookup.
   - Import and enrichment logic must not overwrite tag identity.
 
-## D-005: B&H Enrichment Is Isolated and Non-Destructive
+## D-005: B&H Enrichment — Withdrawn
 - Date: 2026-03-01
-- Status: Accepted
+- Status: Withdrawn (2026-03-15)
 - Context:
-  - Metadata quality is inconsistent, manual entry is slow.
+  - B&H blocks scraping; enrichment is non-functional.
 - Decision:
-  - Implement enrichment as isolated service boundary with strict domain validation and parser fallbacks.
-  - Never mutate `tagName` through enrichment.
-  - Auto-prefill product metadata and image when available, while allowing user edits before save.
-  - Import failures must degrade gracefully to manual entry.
-- Consequences:
-  - Better data quality with controlled blast radius.
-  - Parser maintenance required as source markup changes.
+  - Feature removed. All code, API route, and UI deleted.
+  - If metadata enrichment is revisited, use a different source or API with explicit access.
 
 ## D-006: Integrity via SERIALIZABLE Transactions + Exclusion Constraints
 - Date: 2026-03-01
@@ -325,6 +321,29 @@
 - Consequences:
   - Supports institutional tracking without polluting the tag-first identity model.
 
+## D-022: Numbered Bulk Items
+- Date: 2026-03-14
+- Status: Accepted
+- Context:
+  - Items like batteries (40+) and chargers don't warrant individual QR codes but need individual identity for loss tracking ("Battery #7 is missing").
+  - Serialized tracking is overkill (40 QR codes). Plain bulk tracking is too anonymous (just a count).
+- Decision:
+  - Extend `BulkSku` with `trackByNumber: boolean` rather than creating a third item type.
+  - When enabled, numbered `BulkSkuUnit` records (1..N) are created under the single bin QR.
+  - Unit status (AVAILABLE, CHECKED_OUT, LOST, RETIRED) is stored directly on the unit, not derived.
+  - During checkout scan, staff selects specific unit numbers via a picker; during check-in, missing units are flagged by number.
+  - `BookingBulkUnitAllocation` links specific units to bookings with checkout/checkin timestamps.
+  - Existing quantity-only SKUs can be converted to numbered tracking via a dedicated endpoint.
+- Consequences:
+  - One QR code serves 40+ items — faster than individual scanning.
+  - Loss tracking works at the individual unit level.
+  - Physical labels must match unit numbers (user responsibility).
+  - All unit operations use `createMany`/`updateMany` to stay within Cloudflare Worker subrequest budget.
+- Guardrails:
+  - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
+  - Checked-out units cannot be marked lost/retired — must be checked in first.
+  - Unit numbers are permanent; retiring #7 does not renumber #8–40.
+
 ---
 
 ## Platform Invariants
@@ -346,15 +365,13 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 ## Active Risks and Mitigations
 - Risk: Event data staleness or malformed ICS input.
   - Mitigation: idempotent imports, observability, fallback ad hoc booking path.
-- Risk: Parser breakage from B&H markup changes.
-  - Mitigation: precedence-based parser strategy, graceful partial returns.
 - Risk: Alert fatigue from escalation.
   - Mitigation: threshold controls + dedup keys + policy review.
 
 ## Pending Decisions
 1. Event sync refresh cadence and staleness thresholds.
 2. Venue mapping governance owner.
-3. Metadata enrichment cache TTL target.
+3. ~~Metadata enrichment cache TTL target~~ — withdrawn with D-005.
 4. Student mobile KPI definitions (task completion time, taps to action, scan success rate).
 
 ## Change Log
@@ -362,3 +379,5 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-02: Added student-first mobile operations contract decision.
 - 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).
 - 2026-03-11: Docs hardening — moved D-017 to Accepted. Clarified D-009 email as Phase B. Added AREA_NOTIFICATIONS.md cross-reference to D-009. Folded AREA_PLATFORM_INTEGRITY.md into Platform Invariants section. Added D-018 (asset financial fields → Phase B), D-019 (department → Phase B), D-020 (kit management → Phase B), D-021 (UW asset tag → optional import field).
+- 2026-03-14: Added D-022 (numbered bulk items — trackByNumber flag, unit picker, conversion endpoint).
+- 2026-03-15: Withdrew D-005 (B&H enrichment) — scraping blocked by source, feature removed.

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+import { FilterChip } from "@/components/FilterChip";
+import { SkeletonTable } from "@/components/Skeleton";
 
 type CalendarEvent = {
   id: string;
@@ -518,7 +520,7 @@ export default function EventsPage() {
       )}
 
       {/* Filters and view toggle */}
-      <div className="flex-center flex-wrap gap-16 mb-16">
+      <div className="filter-chip-bar" style={{ marginBottom: 16 }}>
         <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <button
             className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : ""}`}
@@ -536,16 +538,29 @@ export default function EventsPage() {
           </button>
         </div>
         {viewMode === "list" && (
-          <>
-            <label className="flex-center gap-6 text-sm cursor-pointer">
-              <input type="checkbox" checked={unmappedOnly} onChange={(e) => setUnmappedOnly(e.target.checked)} />
-              Unmapped only
-            </label>
-            <label className="flex-center gap-6 text-sm cursor-pointer">
-              <input type="checkbox" checked={includePast} onChange={(e) => setIncludePast(e.target.checked)} />
-              Include past events
-            </label>
-          </>
+          <div className="filter-chips">
+            <FilterChip
+              label="Mapping"
+              value={unmappedOnly ? "unmapped" : ""}
+              displayValue="Unmapped only"
+              options={[{ value: "unmapped", label: "Unmapped only" }]}
+              onSelect={() => setUnmappedOnly(true)}
+              onClear={() => setUnmappedOnly(false)}
+            />
+            <FilterChip
+              label="Time"
+              value={includePast ? "all" : ""}
+              displayValue="All events"
+              options={[{ value: "all", label: "Include past events" }]}
+              onSelect={() => setIncludePast(true)}
+              onClear={() => setIncludePast(false)}
+            />
+            {(unmappedOnly || includePast) && (
+              <button type="button" className="filter-chip-clear-all" onClick={() => { setUnmappedOnly(false); setIncludePast(false); }}>
+                Clear all
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -605,7 +620,7 @@ export default function EventsPage() {
           </div>
 
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /></div>
+            <SkeletonTable rows={6} cols={5} />
           ) : events.length === 0 ? (
             <div className="empty-state">No events found. Add a calendar source and sync.</div>
           ) : (
@@ -632,6 +647,8 @@ export default function EventsPage() {
                     <td>
                       {event.location ? (
                         <span className="badge badge-blue">{event.location.name}</span>
+                      ) : event.rawLocationText ? (
+                        <span className="text-secondary text-xs">{event.rawLocationText}</span>
                       ) : (
                         <span className="badge badge-orange">needs mapping</span>
                       )}

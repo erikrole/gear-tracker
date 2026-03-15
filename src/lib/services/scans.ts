@@ -1,4 +1,4 @@
-import { BookingKind, BookingStatus, Role, ScanPhase, ScanSessionStatus, ScanType } from "@prisma/client";
+import { BookingKind, BookingStatus, BulkUnitStatus, Role, ScanPhase, ScanSessionStatus, ScanType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
@@ -44,6 +44,7 @@ export async function recordScan(args: {
   scanType: ScanType;
   scanValue: string;
   quantity?: number;
+  unitNumbers?: number[];
   deviceContext?: string;
 }) {
   const booking = await db.booking.findUnique({
@@ -93,13 +94,9 @@ export async function recordScan(args: {
     return { success: true, event };
   }
 
-  if (!args.quantity || args.quantity <= 0) {
-    throw new HttpError(400, "Bulk scans require a positive quantity");
-  }
+  const bulkItem = booking.bulkItems.find((item) => item.bulkSku.binQrCodeValue === args.scanValue);
 
-  const bulkSku = booking.bulkItems.find((item) => item.bulkSku.binQrCodeValue === args.scanValue)?.bulkSku;
-
-  if (!bulkSku) {
+  if (!bulkItem) {
     await db.scanEvent.create({
       data: {
         bookingId: args.bookingId,
@@ -108,12 +105,115 @@ export async function recordScan(args: {
         scanValue: args.scanValue,
         phase: args.phase,
         success: false,
-        quantity: args.quantity,
+        quantity: args.quantity ?? args.unitNumbers?.length,
         deviceContext: args.deviceContext
       }
     });
 
     throw new HttpError(400, "Scanned bulk bin QR does not belong to this checkout");
+  }
+
+  const bulkSku = bulkItem.bulkSku;
+
+  // Numbered bulk: requires unitNumbers instead of quantity
+  if (bulkSku.trackByNumber) {
+    if (!args.unitNumbers || args.unitNumbers.length === 0) {
+      throw new HttpError(400, "Numbered bulk items require unitNumbers");
+    }
+
+    const { event } = await db.$transaction(async (tx) => {
+      const units = await tx.bulkSkuUnit.findMany({
+        where: {
+          bulkSkuId: bulkSku.id,
+          unitNumber: { in: args.unitNumbers! }
+        }
+      });
+
+      if (units.length !== args.unitNumbers!.length) {
+        const found = new Set(units.map((u) => u.unitNumber));
+        const missing = args.unitNumbers!.filter((n) => !found.has(n));
+        throw new HttpError(400, `Unit numbers not found: ${missing.join(", ")}`);
+      }
+
+      if (args.phase === ScanPhase.CHECKOUT) {
+        const unavailable = units.filter((u) => u.status !== BulkUnitStatus.AVAILABLE);
+        if (unavailable.length > 0) {
+          throw new HttpError(409, `Units not available: ${unavailable.map((u) => `#${u.unitNumber} (${u.status})`).join(", ")}`);
+        }
+      } else {
+        const notCheckedOut = units.filter((u) => u.status !== BulkUnitStatus.CHECKED_OUT);
+        if (notCheckedOut.length > 0) {
+          throw new HttpError(409, `Units not checked out: ${notCheckedOut.map((u) => `#${u.unitNumber} (${u.status})`).join(", ")}`);
+        }
+      }
+
+      const event = await tx.scanEvent.create({
+        data: {
+          bookingId: args.bookingId,
+          actorUserId: args.actorUserId,
+          scanType: ScanType.BULK_BIN,
+          scanValue: args.scanValue,
+          bulkSkuId: bulkSku.id,
+          phase: args.phase,
+          success: true,
+          quantity: args.unitNumbers!.length,
+          deviceContext: args.deviceContext
+        }
+      });
+
+      const newStatus = args.phase === ScanPhase.CHECKOUT
+        ? BulkUnitStatus.CHECKED_OUT
+        : BulkUnitStatus.AVAILABLE;
+
+      await tx.bulkSkuUnit.updateMany({
+        where: {
+          bulkSkuId: bulkSku.id,
+          unitNumber: { in: args.unitNumbers! }
+        },
+        data: { status: newStatus }
+      });
+
+      const now = new Date();
+      const allocationData = units.map((unit) => ({
+        bookingBulkItemId: bulkItem.id,
+        bulkSkuUnitId: unit.id,
+        ...(args.phase === ScanPhase.CHECKOUT
+          ? { checkedOutAt: now }
+          : { checkedInAt: now })
+      }));
+
+      if (args.phase === ScanPhase.CHECKOUT) {
+        await tx.bookingBulkUnitAllocation.createMany({ data: allocationData });
+      } else {
+        // On check-in, update existing allocation records
+        for (const unit of units) {
+          await tx.bookingBulkUnitAllocation.updateMany({
+            where: {
+              bookingBulkItemId: bulkItem.id,
+              bulkSkuUnitId: unit.id
+            },
+            data: { checkedInAt: now }
+          });
+        }
+      }
+
+      const quantityField =
+        args.phase === ScanPhase.CHECKOUT ? "checkedOutQuantity" : "checkedInQuantity";
+
+      await tx.bookingBulkItem.update({
+        where: { id: bulkItem.id },
+        data: { [quantityField]: { increment: args.unitNumbers!.length } }
+      });
+
+      return { event };
+    });
+
+    return { success: true, event };
+  }
+
+  // Standard (non-numbered) bulk flow
+  if (!args.quantity || args.quantity <= 0) {
+    throw new HttpError(400, "Bulk scans require a positive quantity");
   }
 
   const { event } = await db.$transaction(async (tx) => {
@@ -160,7 +260,14 @@ async function buildScanCompletionState(bookingId: string, phase: ScanPhase) {
     where: { id: bookingId },
     include: {
       serializedItems: true,
-      bulkItems: true,
+      bulkItems: {
+        include: {
+          bulkSku: true,
+          unitAllocations: {
+            include: { bulkSkuUnit: true }
+          }
+        }
+      },
       scanEvents: {
         where: {
           phase,
@@ -201,10 +308,32 @@ async function buildScanCompletionState(bookingId: string, phase: ScanPhase) {
       scanned: scannedBulk.get(skuId) ?? 0
     }));
 
+  // For numbered bulk items during check-in, report which specific units are outstanding
+  const missingUnits: Array<{ bulkSkuId: string; unitNumbers: number[] }> = [];
+
+  if (phase === ScanPhase.CHECKIN) {
+    for (const bulkItem of booking.bulkItems) {
+      if (!bulkItem.bulkSku.trackByNumber) continue;
+
+      const outstanding = bulkItem.unitAllocations
+        .filter((a) => a.checkedOutAt && !a.checkedInAt)
+        .map((a) => a.bulkSkuUnit.unitNumber)
+        .sort((a, b) => a - b);
+
+      if (outstanding.length > 0) {
+        missingUnits.push({
+          bulkSkuId: bulkItem.bulkSkuId,
+          unitNumbers: outstanding
+        });
+      }
+    }
+  }
+
   return {
     booking,
     missingSerialized,
-    missingBulk
+    missingBulk,
+    missingUnits
   };
 }
 
@@ -248,6 +377,7 @@ export async function completeCheckoutScan(bookingId: string, actorUserId: strin
     success: true,
     missingSerialized: state.missingSerialized,
     missingBulk: state.missingBulk,
+    missingUnits: state.missingUnits,
     overrideUsed: override
   };
 }
@@ -281,6 +411,7 @@ export async function completeCheckinScan(bookingId: string, actorUserId: string
     success: true,
     missingSerialized: state.missingSerialized,
     missingBulk: state.missingBulk,
+    missingUnits: state.missingUnits,
     overrideUsed: override
   };
 }

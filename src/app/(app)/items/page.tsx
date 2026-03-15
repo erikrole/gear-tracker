@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { FilterChip } from "@/components/FilterChip";
 
 type ActiveBooking = {
   id: string;
@@ -121,50 +122,6 @@ function CreateItemCard({
   const [submitting, setSubmitting] = useState(false);
   const [showMeta, setShowMeta] = useState(false);
 
-  // B&H enrichment state
-  const [bhUrl, setBhUrl] = useState("");
-  const [bhLoading, setBhLoading] = useState(false);
-  const [bhError, setBhError] = useState("");
-  const brandRef = useRef<HTMLInputElement>(null);
-  const modelRef = useRef<HTMLInputElement>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
-
-  async function enrichFromBH() {
-    const url = bhUrl.trim();
-    if (!url) return;
-    setBhLoading(true);
-    setBhError("");
-    try {
-      const res = await fetch("/api/enrichment/bh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setBhError(json.error || "Failed to fetch product info");
-        setBhLoading(false);
-        return;
-      }
-      const d = json.data;
-      if (d.brand && brandRef.current && !brandRef.current.value) {
-        brandRef.current.value = d.brand;
-      }
-      if (d.model && modelRef.current && !modelRef.current.value) {
-        modelRef.current.value = d.model;
-      }
-      if (d.name && nameRef.current && !nameRef.current.value) {
-        nameRef.current.value = d.name;
-      }
-      if (!d.brand && !d.model && !d.name) {
-        setBhError(d.warning || "Could not extract product info from this page");
-      }
-    } catch {
-      setBhError("Network error");
-    }
-    setBhLoading(false);
-  }
-
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
@@ -182,7 +139,6 @@ function CreateItemCard({
 
         const categoryId = String(form.get("categoryId") || "");
         const itemName = String(form.get("itemName") || "").trim();
-        const linkUrl = bhUrl.trim();
         res = await fetch("/api/assets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -196,7 +152,6 @@ function CreateItemCard({
             locationId: String(form.get("locationId") || ""),
             ...(categoryId ? { categoryId } : {}),
             ...(itemName ? { name: itemName } : {}),
-            ...(linkUrl ? { linkUrl } : {}),
             ...(Object.keys(notes).length ? { notes: JSON.stringify(notes) } : {}),
           }),
         });
@@ -253,32 +208,9 @@ function CreateItemCard({
       <form onSubmit={handleSubmit} className="p-16">
         {kind === "serialized" ? (
           <>
-            {/* B&H product URL enrichment */}
-            <div className="flex gap-8 mb-8">
-              <input
-                placeholder="B&H product URL (optional — auto-fills brand, model, name)"
-                value={bhUrl}
-                onChange={(e) => setBhUrl(e.target.value)}
-                className="form-input flex-1"
-              />
-              <button
-                type="button"
-                className="btn btn-sm nowrap"
-                disabled={bhLoading || !bhUrl.trim()}
-                onClick={enrichFromBH}
-              >
-                {bhLoading ? "Fetching..." : "Fetch info"}
-              </button>
-            </div>
-            {bhError && (
-              <div className="alert-warning mb-8">
-                {bhError} — you can still fill in the fields manually.
-              </div>
-            )}
-
             <div className="grid-3col">
               <input name="assetTag" placeholder="Tag name *" required className="form-input" />
-              <input name="itemName" ref={nameRef} placeholder="Product name" className="form-input" />
+              <input name="itemName" placeholder="Product name" className="form-input" />
               <select name="categoryId" className="form-input">
                 <option value="">Category</option>
                 {categories.filter((c) => !c.parentId).map((parent) => (
@@ -297,8 +229,8 @@ function CreateItemCard({
                 <option value="">Location *</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              <input name="brand" ref={brandRef} placeholder="Brand *" required className="form-input" />
-              <input name="model" ref={modelRef} placeholder="Model *" required className="form-input" />
+              <input name="brand" placeholder="Brand *" required className="form-input" />
+              <input name="model" placeholder="Model *" required className="form-input" />
               <input name="serialNumber" placeholder="Serial number *" required className="form-input" />
               <input name="qrCodeValue" placeholder="QR code value *" required className="form-input" />
             </div>
@@ -320,7 +252,10 @@ function CreateItemCard({
           </>
         ) : (
           <div className="grid-3col">
-            <input name="name" placeholder="Product name *" required className="form-input" />
+            <div>
+              <input name="name" placeholder="Product name *" required className="form-input" />
+              <div className="form-hint">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</div>
+            </div>
             <select name="categoryId" className="form-input">
               <option value="">Category</option>
               {categories.filter((c) => !c.parentId).map((parent) => (
@@ -335,14 +270,26 @@ function CreateItemCard({
               ))}
             </select>
             <input name="category" type="hidden" defaultValue="general" />
-            <input name="unit" placeholder="Unit (e.g. ea, box) *" required className="form-input" />
+            <div>
+              <input name="unit" placeholder="Unit (e.g. ea, box) *" required className="form-input" />
+              <div className="form-hint">How you count them: ea, box, pack, pair, roll</div>
+            </div>
             <select name="locationId" required className="form-input">
               <option value="">Location *</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <input name="binQrCodeValue" placeholder="Bin QR code *" required className="form-input" />
-            <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" className="form-input" />
-            <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" className="form-input" />
+            <div>
+              <input name="binQrCodeValue" placeholder="Bin QR code *" required className="form-input" />
+              <div className="form-hint">Scan or type the QR code on the storage bin</div>
+            </div>
+            <div>
+              <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" className="form-input" />
+              <div className="form-hint">How many are on hand right now</div>
+            </div>
+            <div>
+              <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" className="form-input" />
+              <div className="form-hint">Alert when stock falls below this</div>
+            </div>
           </div>
         )}
 
@@ -359,11 +306,20 @@ function CreateItemCard({
 }
 
 
+const STATUS_OPTIONS = [
+  { value: "AVAILABLE", label: "Available" },
+  { value: "CHECKED_OUT", label: "Checked out" },
+  { value: "RESERVED", label: "Reserved" },
+  { value: "MAINTENANCE", label: "Maintenance" },
+  { value: "RETIRED", label: "Retired" },
+];
+
 export default function ItemsPage() {
   const router = useRouter();
   const [items, setItems] = useState<Asset[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -371,12 +327,15 @@ export default function ItemsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const limit = 25;
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+
+  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -394,6 +353,7 @@ export default function ItemsPage() {
     if (statusFilter) params.set("status", statusFilter);
     if (locationFilter) params.set("location_id", locationFilter);
     if (categoryFilter) params.set("category_id", categoryFilter);
+    if (brandFilter) params.set("brand", brandFilter);
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -405,7 +365,7 @@ export default function ItemsPage() {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter]);
+  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -422,11 +382,43 @@ export default function ItemsPage() {
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json) setCategories(json.data || []); })
       .catch(() => {});
+    // Fetch distinct brands
+    fetch("/api/assets?limit=9999&offset=0")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => {
+        if (json?.data) {
+          const unique = [...new Set(json.data.map((a: Asset) => a.brand).filter(Boolean))] as string[];
+          unique.sort((a, b) => a.localeCompare(b));
+          setBrands(unique);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const totalPages = Math.ceil(total / limit);
   const rangeStart = total === 0 ? 0 : page * limit + 1;
   const rangeEnd = Math.min((page + 1) * limit, total);
+
+  // Build flat category options for the chip dropdown
+  const categoryOptions = categories
+    .filter((c) => !c.parentId)
+    .flatMap((parent) => {
+      const children = categories.filter((c) => c.parentId === parent.id);
+      if (children.length === 0) return [{ value: parent.id, label: parent.name }];
+      return children.map((child) => ({ value: child.id, label: `${parent.name} / ${child.name}` }));
+    });
+
+  function clearAllFilters() {
+    setStatusFilter("");
+    setLocationFilter("");
+    setCategoryFilter("");
+    setBrandFilter("");
+    setPage(0);
+  }
+
+  // Resolve display values for active filters
+  const locationName = locations.find((l) => l.id === locationFilter)?.name;
+  const categoryName = categoryOptions.find((c) => c.value === categoryFilter)?.label;
 
   return (
     <>
@@ -452,51 +444,52 @@ export default function ItemsPage() {
       )}
 
       <div className="card">
-        <div className="card-header filter-bar">
+        <div className="card-header filter-chip-bar">
           <input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="form-input"
+            className="form-input filter-chip-search"
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            className="form-select"
-          >
-            <option value="">All statuses</option>
-            <option value="AVAILABLE">Available</option>
-            <option value="CHECKED_OUT">Checked out</option>
-            <option value="RESERVED">Reserved</option>
-            <option value="MAINTENANCE">Maintenance</option>
-            <option value="RETIRED">Retired</option>
-          </select>
-          <select
-            value={locationFilter}
-            onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
-            className="form-select"
-          >
-            <option value="">All locations</option>
-            {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-          </select>
-          <select
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(0); }}
-            className="form-select"
-          >
-            <option value="">All categories</option>
-            {categories.filter((c) => !c.parentId).map((parent) => (
-              <optgroup key={parent.id} label={parent.name}>
-                {categories.filter((c) => c.parentId === parent.id).length === 0
-                  ? <option value={parent.id}>{parent.name}</option>
-                  : categories.filter((c) => c.parentId === parent.id).map((child) => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))
-                }
-              </optgroup>
-            ))}
-          </select>
+          <div className="filter-chips">
+            <FilterChip
+              label="Status"
+              value={statusFilter}
+              displayValue={STATUS_OPTIONS.find((s) => s.value === statusFilter)?.label}
+              options={STATUS_OPTIONS}
+              onSelect={(v) => { setStatusFilter(v); setPage(0); }}
+              onClear={() => { setStatusFilter(""); setPage(0); }}
+            />
+            <FilterChip
+              label="Location"
+              value={locationFilter}
+              displayValue={locationName}
+              options={locations.map((l) => ({ value: l.id, label: l.name }))}
+              onSelect={(v) => { setLocationFilter(v); setPage(0); }}
+              onClear={() => { setLocationFilter(""); setPage(0); }}
+            />
+            <FilterChip
+              label="Category"
+              value={categoryFilter}
+              displayValue={categoryName}
+              options={categoryOptions}
+              onSelect={(v) => { setCategoryFilter(v); setPage(0); }}
+              onClear={() => { setCategoryFilter(""); setPage(0); }}
+            />
+            <FilterChip
+              label="Brand"
+              value={brandFilter}
+              options={brands.map((b) => ({ value: b, label: b }))}
+              onSelect={(v) => { setBrandFilter(v); setPage(0); }}
+              onClear={() => { setBrandFilter(""); setPage(0); }}
+            />
+            {hasActiveFilters && (
+              <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (

@@ -15,7 +15,7 @@
 | PD-1 | D-009: Escalation recipient model — who receives +24h overdue notifications? | AREA_NOTIFICATIONS | High | Blocks Phase B notification polish |
 | PD-2 | Venue mapping governance — who owns regex-to-location mapping table? | AREA_EVENTS | Medium | No |
 | PD-3 | Event sync refresh cadence — Cloudflare Cron schedule and staleness thresholds | AREA_EVENTS | Medium | No |
-| PD-4 | B&H metadata cache TTL target | AREA_ITEMS | Low | No |
+| ~~PD-4~~ | ~~B&H metadata cache TTL target~~ | ~~AREA_ITEMS~~ | ~~N/A~~ | ~~No — D-005 withdrawn~~ |
 | PD-5 | Student mobile KPI definitions — taps-to-action, task-completion time, scan success rate | AREA_MOBILE | High | Blocks BRIEF_STUDENT_MOBILE_V1.md |
 
 ---
@@ -44,7 +44,7 @@
 | Dashboard filter chips (Sport, Location) | AREA_DASHBOARD | — | Deferred from V1 |
 | Notification center polish (pagination, mark-as-read) | AREA_NOTIFICATIONS | — | After D-009 acceptance |
 | Multi-recipient escalation | AREA_NOTIFICATIONS | D-009 | Pending recipient model decision |
-| Picker improvements (multi-select, scan-to-add) | AREA_CHECKOUTS | — | Phase B roadmap |
+| ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
 | Calendar source health UI | AREA_EVENTS | — | Enable/disable + sync status display |
 
 ---
@@ -85,8 +85,11 @@
 | ~~GAP-B~~ | DRAFT booking state not formally specced | 2026-03-11 | D-017 accepted, documented in AREA_CHECKOUTS.md |
 | ~~GAP-C~~ | Calendar source enable/disable not specced | 2026-03-11 | Implemented: enabled toggle + sync health UI shipped |
 | ~~GAP-D~~ | Sync health dashboard no admin UI | 2026-03-11 | Implemented: source table shows event count, last synced, error badge |
+| ~~GAP-E~~ | Bulk items lack individual loss tracking | 2026-03-14 | D-022: numbered bulk units with trackByNumber flag, unit picker, and per-unit status |
 
 ---
 
 ## Change Log
 - 2026-03-11: Initial registry created from docs hardening pass. Consolidated from NORTH_STAR.md gaps, DECISIONS.md pending items, and scattered AREA file TODOs.
+- 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.
+- 2026-03-15: Picker improvements shipped — multi-select, per-section search, availability preview, scan-to-add.

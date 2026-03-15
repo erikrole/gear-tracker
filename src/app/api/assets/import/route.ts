@@ -2,6 +2,7 @@ export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
 // ── CSV parsing ──────────────────────────────────────────
@@ -186,9 +187,7 @@ function normalizeRows(content: string): { headers: string[]; rows: NormalizedRo
 export async function POST(req: Request) {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "STAFF") {
-      throw new HttpError(403, "Only admins and staff can import assets");
-    }
+    requirePermission(user.role, "asset", "import");
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get("mode") || "import";
 
