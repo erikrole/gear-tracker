@@ -1243,13 +1243,6 @@ textarea:focus-visible {
   padding-left: 9px;
 }
 
-/* ── Student: hide team activity on mobile ── */
-@media (max-width: 768px) {
-  .student-hide-mobile {
-    display: none;
-  }
-}
-
 /* ── Mobile: stack columns vertically ── */
 @media (max-width: 768px) {
   .dashboard-split {

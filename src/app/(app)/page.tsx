@@ -80,20 +80,11 @@ export default function DashboardPage() {
   const [fetchError, setFetchError] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-
   const loadData = useCallback(() => {
     fetch("/api/dashboard")
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
       .then((json) => { if (json?.data) setData(json.data); else setFetchError(true); })
       .catch(() => setFetchError(true));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.user?.role) setUserRole(json.user.role); })
-      .catch(() => {});
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -294,7 +285,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ────── Right Column: Team Activity ────── */}
-        <div className={`dashboard-col dashboard-col-right${userRole === "STUDENT" ? " student-hide-mobile" : ""}`}>
+        <div className="dashboard-col dashboard-col-right">
           <span className="dashboard-col-label">Team Activity</span>
 
           {/* Team Checkouts */}
