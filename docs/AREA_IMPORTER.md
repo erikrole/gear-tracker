@@ -204,3 +204,4 @@ No column is discarded.
 ## Change Log
 - 2026-03-01: Initial importer area scope created for Cheqroom CSV migration.
 - 2026-03-11: Docs hardening — reframed as generic CSV mapper with Cheqroom preset. Removed Cheqroom-specific framing from title, direction, and pipeline. Added preset architecture section. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md.
+- 2026-03-15: Import API rewritten with batched DB operations (≤15 calls for 181 rows). Added column mapping UI step with Cheqroom auto-detect + manual override. Duplicate detection by assetTag + serialNumber with create/update/skip preview. Re-import safe (reuses existing qrCodeValue).
