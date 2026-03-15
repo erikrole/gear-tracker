@@ -60,7 +60,12 @@ export async function recordScan(args: {
   }
 
   if (args.scanType === ScanType.SERIALIZED) {
-    const asset = booking.serializedItems.find((item) => item.asset.qrCodeValue === args.scanValue)?.asset;
+    const asset = booking.serializedItems.find((item) => {
+      const a = item.asset;
+      return a.qrCodeValue === args.scanValue
+        || a.primaryScanCode === args.scanValue
+        || a.assetTag === args.scanValue;
+    })?.asset;
 
     if (!asset) {
       await db.scanEvent.create({
@@ -75,7 +80,9 @@ export async function recordScan(args: {
         }
       });
 
-      throw new HttpError(400, "Scanned serialized QR does not belong to this checkout");
+      throw new HttpError(400, "Scanned item does not belong to this checkout", {
+        code: "SCAN_NOT_IN_CHECKOUT",
+      });
     }
 
     const event = await db.scanEvent.create({
@@ -110,7 +117,9 @@ export async function recordScan(args: {
       }
     });
 
-    throw new HttpError(400, "Scanned bulk bin QR does not belong to this checkout");
+    throw new HttpError(400, "Scanned bulk bin QR does not belong to this checkout", {
+      code: "SCAN_NOT_IN_CHECKOUT",
+    });
   }
 
   const bulkSku = bulkItem.bulkSku;

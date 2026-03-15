@@ -150,9 +150,17 @@ export default function ScanPage() {
 
   useEffect(() => {
     if (mode !== "lookup") {
+      // Start (or resume) a scan session for audit tracking, then load status
+      if (checkoutId && phaseParam) {
+        fetch(`/api/checkouts/${checkoutId}/start-scan-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phase: phaseParam }),
+        }).catch(() => {/* non-blocking */});
+      }
       loadScanStatus();
     }
-  }, [mode, loadScanStatus]);
+  }, [mode, loadScanStatus, checkoutId, phaseParam]);
 
   // ── Vibrate on scan (mobile haptic feedback) ──
   function vibrate(ms = 100) {
@@ -284,15 +292,17 @@ export default function ScanPage() {
         return;
       }
 
-      const errJson = await res.json().catch(() => ({}));
-      const errMsg = (errJson as Record<string, string>).error || "";
+      const errJson = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
+      const errCode = errJson.data?.code;
+      const errMsg = errJson.error || "";
 
-      // If serialized scan failed, check if it matches a numbered bulk bin
+      // If serialized scan failed because item isn't in this checkout,
+      // check if the scan matches a numbered bulk bin instead
       const matchingBulk = scanStatus.bulkItems.find(
         (item) => item.trackByNumber
       );
 
-      if (matchingBulk && errMsg.includes("does not belong")) {
+      if (matchingBulk && errCode === "SCAN_NOT_IN_CHECKOUT") {
         // Fetch available units to show picker
         const unitsRes = await fetch(`/api/bulk-skus/${matchingBulk.bulkSkuId}/units`);
         if (unitsRes.ok) {
