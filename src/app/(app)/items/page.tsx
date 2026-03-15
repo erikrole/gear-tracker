@@ -444,14 +444,13 @@ export default function ItemsPage() {
       )}
 
       <div className="card">
-        <div className="card-header" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="card-header filter-chip-bar">
           <input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="form-input"
-            style={{ width: "100%" }}
+            className="form-input filter-chip-search"
           />
           <div className="filter-chips">
             <FilterChip

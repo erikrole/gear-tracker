@@ -988,18 +988,15 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
       {/* ════════ Filter bar ════════ */}
       <div className="card">
-        <div className="card-header" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
-            <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</h2>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Search by title or requester..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              style={{ flex: 1, minWidth: 0 }}
-            />
-          </div>
+        <div className="card-header filter-chip-bar">
+          <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</h2>
+          <input
+            type="text"
+            className="form-input filter-chip-search"
+            placeholder="Search by title or requester..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+          />
           <div className="filter-chips">
             <FilterChip
               label="Status"

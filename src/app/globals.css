@@ -4398,12 +4398,41 @@ tr.status-overdue .status-label,
   line-height: 1.3;
 }
 
-/* Filter chips */
+/* Filter chip bar — single row: search flexes, pills anchored right */
+.filter-chip-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.filter-chip-search {
+  flex: 1 1 0;
+  min-width: 120px;
+  max-width: 100%;
+}
+
 .filter-chips {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .filter-chip-bar {
+    flex-wrap: wrap;
+  }
+  .filter-chip-search {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .filter-chips {
+    flex-wrap: wrap;
+    width: 100%;
+  }
 }
 
 .filter-chip-wrap {
