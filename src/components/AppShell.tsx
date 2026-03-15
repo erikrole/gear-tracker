@@ -90,20 +90,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [router, pathname]);
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
-  }
-
-  if (loading) {
-    return (
-      <div className="loading-spinner" style={{ minHeight: "100vh" }}>
-        <div className="spinner" />
-      </div>
-    );
-  }
-
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -121,7 +107,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        // On mobile: open overlay. On desktop: focus topbar input.
         if (window.innerWidth <= 768) {
           setSearchOpen(true);
         } else {
@@ -138,6 +123,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       requestAnimationFrame(() => searchMobileRef.current?.focus());
     }
   }, [searchOpen]);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+  }
+
+  if (loading) {
+    return (
+      <div className="loading-spinner" style={{ minHeight: "100vh" }}>
+        <div className="spinner" />
+      </div>
+    );
+  }
 
   if (!user) return null;
 
