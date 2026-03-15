@@ -75,6 +75,11 @@ export default function EventsPage() {
   const [mappings, setMappings] = useState<LocationMapping[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [showAddMapping, setShowAddMapping] = useState(false);
+  const [addingSource, setAddingSource] = useState(false);
+  const [addingMapping, setAddingMapping] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
+  const [deletingMappingId, setDeletingMappingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
@@ -194,6 +199,7 @@ export default function EventsPage() {
   }
 
   async function handleToggleEnabled(sourceId: string, enabled: boolean) {
+    setTogglingId(sourceId);
     try {
       const res = await fetch(`/api/calendar-sources/${sourceId}`, {
         method: "PATCH",
@@ -202,6 +208,7 @@ export default function EventsPage() {
       });
       if (res.ok) await loadSources();
     } catch { /* network error */ }
+    setTogglingId(null);
   }
 
   async function handleDeleteSource(sourceId: string) {
@@ -212,6 +219,7 @@ export default function EventsPage() {
       variant: "danger",
     });
     if (!ok) return;
+    setDeletingSourceId(sourceId);
     try {
       const res = await fetch(`/api/calendar-sources/${sourceId}`, { method: "DELETE" });
       if (res.ok) {
@@ -219,10 +227,12 @@ export default function EventsPage() {
         await loadEvents();
       }
     } catch { /* network error */ }
+    setDeletingSourceId(null);
   }
 
   async function handleAddMapping(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setAddingMapping(true);
     const form = new FormData(e.currentTarget);
     try {
       const res = await fetch("/api/location-mappings", {
@@ -243,6 +253,7 @@ export default function EventsPage() {
         toast((json as Record<string, string>).error || "Failed to create mapping", "error");
       }
     } catch { toast("Network error — please try again.", "error"); }
+    setAddingMapping(false);
   }
 
   async function handleDeleteMapping(id: string) {
@@ -253,28 +264,34 @@ export default function EventsPage() {
       variant: "danger",
     });
     if (!ok) return;
+    setDeletingMappingId(id);
     try {
       const res = await fetch(`/api/location-mappings/${id}`, { method: "DELETE" });
       if (res.ok) await loadMappings();
     } catch { toast("Network error — please try again.", "error"); }
+    setDeletingMappingId(null);
   }
 
   async function handleAddSource(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setAddingSource(true);
     const form = new FormData(e.currentTarget);
-    const res = await fetch("/api/calendar-sources", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.get("name"),
-        url: form.get("url")
-      })
-    });
-    if (res.ok) {
-      setShowAddSource(false);
-      await loadSources();
-      e.currentTarget.reset();
-    }
+    try {
+      const res = await fetch("/api/calendar-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.get("name"),
+          url: form.get("url")
+        })
+      });
+      if (res.ok) {
+        setShowAddSource(false);
+        await loadSources();
+        e.currentTarget.reset();
+      }
+    } catch { toast("Network error — please try again.", "error"); }
+    setAddingSource(false);
   }
 
   return (
@@ -386,7 +403,7 @@ export default function EventsPage() {
                 ))}
               </select>
               <input name="priority" type="number" defaultValue="0" placeholder="Priority" className="form-input" style={{ width: 80 }} title="Higher priority mappings are checked first" />
-              <button type="submit" className="btn btn-primary">Add</button>
+              <button type="submit" className="btn btn-primary" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</button>
             </form>
           )}
 
@@ -412,8 +429,9 @@ export default function EventsPage() {
                       <button
                         className="btn btn-sm text-red"
                         onClick={() => handleDeleteMapping(m.id)}
+                        disabled={deletingMappingId === m.id}
                       >
-                        Delete
+                        {deletingMappingId === m.id ? "..." : "Delete"}
                       </button>
                     </td>
                   </tr>
@@ -438,7 +456,7 @@ export default function EventsPage() {
             <form onSubmit={handleAddSource} className="flex gap-8 p-16">
               <input name="name" placeholder="Source name" required className="form-input flex-1" />
               <input name="url" placeholder="webcal:// or https:// URL" required className="form-input" style={{ flex: 2 }} />
-              <button type="submit" className="btn btn-primary">Add</button>
+              <button type="submit" className="btn btn-primary" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</button>
             </form>
           )}
 
@@ -490,9 +508,10 @@ export default function EventsPage() {
                       <button
                         className={`btn btn-sm ${source.enabled ? "" : "btn-primary"}`}
                         onClick={() => handleToggleEnabled(source.id, !source.enabled)}
+                        disabled={togglingId === source.id}
                         title={source.enabled ? "Disable this source (sync will skip it)" : "Enable this source"}
                       >
-                        {source.enabled ? "Disable" : "Enable"}
+                        {togglingId === source.id ? "..." : source.enabled ? "Disable" : "Enable"}
                       </button>
                     </td>
                     <td className="flex gap-4">
@@ -507,8 +526,9 @@ export default function EventsPage() {
                       <button
                         className="btn btn-sm text-red"
                         onClick={() => handleDeleteSource(source.id)}
+                        disabled={deletingSourceId === source.id}
                       >
-                        Delete
+                        {deletingSourceId === source.id ? "..." : "Delete"}
                       </button>
                     </td>
                   </tr>

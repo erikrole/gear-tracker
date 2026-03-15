@@ -7,21 +7,15 @@
 - [x] CSS for all three components in globals.css
 
 ## Slice 2: Wire ConfirmDialog + Toast across codebase (23 replacements)
-- [ ] reservations/page.tsx (4 usages)
-- [ ] BookingDetailsSheet.tsx (4 usages)
-- [ ] checkouts/page.tsx (3 usages)
-- [ ] reservations/[id]/page.tsx (2 usages)
-- [ ] checkouts/[id]/page.tsx (2 usages)
-- [ ] BookingListPage.tsx (2 usages)
-- [ ] settings/categories/page.tsx (1 usage)
-- [ ] events/page.tsx (4 usages)
-- [ ] items/[id]/page.tsx (4+ usages)
+- [x] All 16 files now use useConfirm/useToast (verified 2026-03-15, no raw confirm/alert calls remain)
 
-## Slice 3: Button loading states (~11 buttons)
-- [ ] notifications/page.tsx — mark all read, mark read
-- [ ] BookingListPage.tsx — extend from menu
-- [ ] settings/categories/page.tsx — rename, create sub, delete, create root
-- [ ] profile/page.tsx — update user role
+## Slice 3: Button loading states
+- [x] notifications/page.tsx — mark all read, mark read (already had loading states)
+- [x] BookingListPage.tsx — extend +1 day/+1 week now disabled during operation
+- [x] settings/categories/page.tsx — rename, create sub, delete, create root (already had loading states)
+- [x] profile/page.tsx — save profile, update password (already had loading states)
+- [x] events/page.tsx — enable/disable, delete source, add source, add mapping, delete mapping (added 2026-03-15)
+- [x] bulk-inventory/page.tsx — convert, add units (already had loading states)
 
 ## Slice 4: CSS class extraction (top files)
 - [ ] Define utility classes for common patterns

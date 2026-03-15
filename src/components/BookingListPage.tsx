@@ -931,14 +931,16 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                 <button
                   className="ctx-menu-item"
                   onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.item.id, 1))}
+                  disabled={extendingId === ctxMenu.item.id}
                 >
-                  Extend +1 day
+                  {extendingId === ctxMenu.item.id ? "Extending..." : "Extend +1 day"}
                 </button>
                 <button
                   className="ctx-menu-item"
                   onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.item.id, 7))}
+                  disabled={extendingId === ctxMenu.item.id}
                 >
-                  Extend +1 week
+                  {extendingId === ctxMenu.item.id ? "Extending..." : "Extend +1 week"}
                 </button>
               </>
             )}
