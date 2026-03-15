@@ -60,18 +60,18 @@ Implementation: `src/lib/services/notifications.ts`
 - Badge counts on nav items for Reservations and Check-outs can show overdue + due-today urgency
 - Overdue count in banner must remain consistent with `AREA_DASHBOARD.md` overdue banner spec
 
-## Pending: D-009 Acceptance Criteria
+## D-009 Acceptance (2026-03-15)
 
-D-009 (Overdue Escalation Policy) is status `Proposed`. To formally accept:
-1. Define escalation recipient model: who receives the 24h notification beyond the requester? (admin roles? all staff? location-aware staff?)
-2. Define alert fatigue controls: maximum notifications per booking? opt-out mechanism per user?
-3. Define dedup and retry behavior for email channel failures
-4. Write acceptance test for escalation recipient routing
+D-009 (Overdue Escalation Policy) is status `Accepted`. Decisions:
+1. **Recipient model**: +24h escalation goes to the requester AND all admins
+2. **Alert fatigue**: Admin-configurable per-booking notification cap (default: 10). Settings at `/settings/escalation`
+3. **Email channel**: Phase B. Dev mode logs to console; failures are non-fatal
+4. **Schedule**: DB-driven via `EscalationRule` model, seeded with -4h/0h/+2h/+24h defaults
 
-Until D-009 is accepted:
-- All 4 triggers create notifications for the requester only
-- Multi-recipient escalation is NOT wired
-- No changes to escalation schedule without updating D-009
+Current behavior:
+- All 4 triggers notify the requester
+- +24h trigger also notifies all admins (excluding the requester if they are an admin)
+- Admins can toggle triggers, recipients, and caps at `/settings/escalation`
 
 ## Bug Traps and Mitigations
 
@@ -104,11 +104,11 @@ Until D-009 is accepted:
 4. Dev mode shows console output instead of sending SMTP email
 5. Job endpoint is safe to call repeatedly without creating duplicates
 
-## Acceptance Criteria (D-009 Pending)
-1. Escalation recipient model is formally defined and documented
-2. 24h trigger reaches admin/manager recipients in addition to student requester
-3. Alert fatigue controls implemented (per-booking notification cap or opt-out)
-4. Email failure path logged without crashing the job runner
+## Acceptance Criteria (D-009 — Accepted 2026-03-15)
+1. ~~Escalation recipient model is formally defined and documented~~ ✅ Requester + all admins
+2. ~~24h trigger reaches admin recipients in addition to student requester~~ ✅ Implemented
+3. ~~Alert fatigue controls implemented (per-booking notification cap)~~ ✅ Admin-configurable cap
+4. ~~Email failure path logged without crashing the job runner~~ ✅ Console.log in dev; non-fatal
 
 ## Dependencies
 - `AREA_CHECKOUTS.md` — booking lifecycle, `endsAt` field, `OPEN` state contract
