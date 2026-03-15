@@ -53,6 +53,13 @@ enum ScanPhase {
   CHECKIN
 }
 
+enum BulkUnitStatus {
+  AVAILABLE
+  CHECKED_OUT
+  LOST
+  RETIRED
+}
+
 enum ScanSessionStatus {
   OPEN
   COMPLETED
@@ -237,15 +244,16 @@ model BookingSerializedItem {
 }
 
 model BookingBulkItem {
-  id                String   @id @default(cuid())
-  bookingId         String   @map("booking_id")
-  bulkSkuId         String   @map("bulk_sku_id")
-  plannedQuantity   Int      @map("planned_quantity")
-  checkedOutQuantity Int?    @map("checked_out_quantity")
-  checkedInQuantity Int?     @map("checked_in_quantity")
-  createdAt         DateTime @default(now()) @map("created_at")
-  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  bulkSku           BulkSku  @relation(fields: [bulkSkuId], references: [id])
+  id                 String                      @id @default(cuid())
+  bookingId          String                      @map("booking_id")
+  bulkSkuId          String                      @map("bulk_sku_id")
+  plannedQuantity    Int                         @map("planned_quantity")
+  checkedOutQuantity Int?                        @map("checked_out_quantity")
+  checkedInQuantity  Int?                        @map("checked_in_quantity")
+  createdAt          DateTime                    @default(now()) @map("created_at")
+  booking            Booking                     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bulkSku            BulkSku                     @relation(fields: [bulkSkuId], references: [id])
+  unitAllocations    BookingBulkUnitAllocation[]
 
   @@unique([bookingId, bulkSkuId])
   @@index([bulkSkuId])
@@ -279,6 +287,7 @@ model BulkSku {
   categoryId        String?            @map("category_id")
   binQrCodeValue    String             @map("bin_qr_code_value")
   minThreshold      Int                @default(0) @map("min_threshold")
+  trackByNumber     Boolean            @default(false) @map("track_by_number")
   active            Boolean            @default(true)
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
@@ -288,6 +297,7 @@ model BulkSku {
   movements         BulkStockMovement[]
   bookingItems      BookingBulkItem[]
   scans             ScanEvent[]
+  units             BulkSkuUnit[]
 
   @@unique([locationId, binQrCodeValue])
   @@index([locationId, active])
@@ -326,6 +336,39 @@ model BulkStockMovement {
   @@index([bulkSkuId, createdAt])
   @@index([bookingId])
   @@map("bulk_stock_movements")
+}
+
+// ── Numbered Bulk Unit Tracking ──────────────────────────
+
+model BulkSkuUnit {
+  id             String         @id @default(cuid())
+  bulkSkuId      String         @map("bulk_sku_id")
+  unitNumber     Int            @map("unit_number")
+  status         BulkUnitStatus @default(AVAILABLE)
+  notes          String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  bulkSku        BulkSku        @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)
+  allocations    BookingBulkUnitAllocation[]
+
+  @@unique([bulkSkuId, unitNumber])
+  @@index([bulkSkuId, status])
+  @@map("bulk_sku_units")
+}
+
+model BookingBulkUnitAllocation {
+  id                String         @id @default(cuid())
+  bookingBulkItemId String         @map("booking_bulk_item_id")
+  bulkSkuUnitId     String         @map("bulk_sku_unit_id")
+  checkedOutAt      DateTime?      @map("checked_out_at")
+  checkedInAt       DateTime?      @map("checked_in_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  bookingBulkItem   BookingBulkItem @relation(fields: [bookingBulkItemId], references: [id], onDelete: Cascade)
+  bulkSkuUnit       BulkSkuUnit    @relation(fields: [bulkSkuUnitId], references: [id])
+
+  @@unique([bookingBulkItemId, bulkSkuUnitId])
+  @@index([bulkSkuUnitId])
+  @@map("booking_bulk_unit_allocations")
 }
 
 model ScanEvent {

@@ -85,8 +85,10 @@
 | ~~GAP-B~~ | DRAFT booking state not formally specced | 2026-03-11 | D-017 accepted, documented in AREA_CHECKOUTS.md |
 | ~~GAP-C~~ | Calendar source enable/disable not specced | 2026-03-11 | Implemented: enabled toggle + sync health UI shipped |
 | ~~GAP-D~~ | Sync health dashboard no admin UI | 2026-03-11 | Implemented: source table shows event count, last synced, error badge |
+| ~~GAP-E~~ | Bulk items lack individual loss tracking | 2026-03-14 | D-022: numbered bulk units with trackByNumber flag, unit picker, and per-unit status |
 
 ---
 
 ## Change Log
 - 2026-03-11: Initial registry created from docs hardening pass. Consolidated from NORTH_STAR.md gaps, DECISIONS.md pending items, and scattered AREA file TODOs.
+- 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.

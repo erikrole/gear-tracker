@@ -41,7 +41,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         bulkItems: {
           include: {
             bulkSku: {
-              select: { id: true, name: true, binQrCodeValue: true },
+              select: { id: true, name: true, binQrCodeValue: true, trackByNumber: true },
+            },
+            unitAllocations: {
+              include: {
+                bulkSkuUnit: { select: { unitNumber: true, status: true } },
+              },
             },
           },
         },
@@ -87,6 +92,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       name: item.bulkSku.name,
       required: item.plannedQuantity,
       scanned: bulkScanned.get(item.bulkSku.id) ?? 0,
+      trackByNumber: item.bulkSku.trackByNumber,
+      ...(item.bulkSku.trackByNumber ? {
+        allocatedUnits: item.unitAllocations.map((a) => ({
+          unitNumber: a.bulkSkuUnit.unitNumber,
+          checkedOut: !!a.checkedOutAt,
+          checkedIn: !!a.checkedInAt,
+        })),
+      } : {}),
     }));
 
     const serializedTotal = serializedItems.length;

@@ -29,6 +29,7 @@
 - D-019: Department model is Phase B
 - D-020: Kit management is Phase B
 - D-021: UW asset tag is an optional import field
+- D-022: Numbered bulk items — one QR, individually numbered units for loss tracking
 
 ---
 
@@ -325,6 +326,29 @@
 - Consequences:
   - Supports institutional tracking without polluting the tag-first identity model.
 
+## D-022: Numbered Bulk Items
+- Date: 2026-03-14
+- Status: Accepted
+- Context:
+  - Items like batteries (40+) and chargers don't warrant individual QR codes but need individual identity for loss tracking ("Battery #7 is missing").
+  - Serialized tracking is overkill (40 QR codes). Plain bulk tracking is too anonymous (just a count).
+- Decision:
+  - Extend `BulkSku` with `trackByNumber: boolean` rather than creating a third item type.
+  - When enabled, numbered `BulkSkuUnit` records (1..N) are created under the single bin QR.
+  - Unit status (AVAILABLE, CHECKED_OUT, LOST, RETIRED) is stored directly on the unit, not derived.
+  - During checkout scan, staff selects specific unit numbers via a picker; during check-in, missing units are flagged by number.
+  - `BookingBulkUnitAllocation` links specific units to bookings with checkout/checkin timestamps.
+  - Existing quantity-only SKUs can be converted to numbered tracking via a dedicated endpoint.
+- Consequences:
+  - One QR code serves 40+ items — faster than individual scanning.
+  - Loss tracking works at the individual unit level.
+  - Physical labels must match unit numbers (user responsibility).
+  - All unit operations use `createMany`/`updateMany` to stay within Cloudflare Worker subrequest budget.
+- Guardrails:
+  - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
+  - Checked-out units cannot be marked lost/retired — must be checked in first.
+  - Unit numbers are permanent; retiring #7 does not renumber #8–40.
+
 ---
 
 ## Platform Invariants
@@ -362,3 +386,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-02: Added student-first mobile operations contract decision.
 - 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).
 - 2026-03-11: Docs hardening — moved D-017 to Accepted. Clarified D-009 email as Phase B. Added AREA_NOTIFICATIONS.md cross-reference to D-009. Folded AREA_PLATFORM_INTEGRITY.md into Platform Invariants section. Added D-018 (asset financial fields → Phase B), D-019 (department → Phase B), D-020 (kit management → Phase B), D-021 (UW asset tag → optional import field).
+- 2026-03-14: Added D-022 (numbered bulk items — trackByNumber flag, unit picker, conversion endpoint).
