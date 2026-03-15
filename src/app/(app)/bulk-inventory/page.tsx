@@ -23,9 +23,11 @@ type BulkSku = {
   location?: { name: string };
   balances?: Array<{ onHandQuantity: number }>;
   units?: BulkSkuUnit[];
+  categoryRel?: { id: string; name: string } | null;
 };
 
 type Location = { id: string; name: string };
+type CategoryOption = { id: string; name: string; parentId: string | null };
 
 type Response = { data: BulkSku[]; total: number; limit: number; offset: number };
 
@@ -49,6 +51,7 @@ export default function BulkInventoryPage() {
   const [trackByNumber, setTrackByNumber] = useState(false);
   const [addingUnits, setAddingUnits] = useState<string | null>(null);
   const [addCount, setAddCount] = useState(10);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [search, setSearch] = useState("");
   const limit = 20;
 
@@ -69,6 +72,9 @@ export default function BulkInventoryPage() {
     fetch("/api/form-options")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json?.data?.locations) setLocations(json.data.locations); });
+    fetch("/api/categories")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json?.data) setCategories(json.data); });
   }, []);
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -76,9 +82,11 @@ export default function BulkInventoryPage() {
     setSubmitting(true);
     setError("");
     const form = new FormData(e.currentTarget);
+    const selectedCategoryId = String(form.get("categoryId") || "");
     const payload = {
       name: String(form.get("name") || ""),
-      category: String(form.get("category") || ""),
+      category: String(form.get("category") || "general"),
+      ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
       unit: String(form.get("unit") || ""),
       locationId: String(form.get("locationId") || ""),
       binQrCodeValue: String(form.get("binQrCodeValue") || ""),
@@ -143,7 +151,8 @@ export default function BulkInventoryPage() {
   const filteredItems = items.filter((sku) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return sku.name.toLowerCase().includes(q) || sku.category.toLowerCase().includes(q);
+    const catName = sku.categoryRel?.name || sku.category;
+    return sku.name.toLowerCase().includes(q) || catName.toLowerCase().includes(q);
   });
 
   const totalPages = Math.ceil(total / limit);
@@ -182,7 +191,20 @@ export default function BulkInventoryPage() {
           <div className="card-header"><h2>Add bulk SKU</h2></div>
           <form onSubmit={handleCreate} className="form-grid form-grid-3" style={{ padding: 16 }}>
             <input name="name" placeholder="Name" required className="form-input" />
-            <input name="category" placeholder="Category" required className="form-input" />
+            <select name="categoryId" className="form-input">
+              <option value="">Category</option>
+              {categories.filter((c) => !c.parentId).map((parent) => (
+                <optgroup key={parent.id} label={parent.name}>
+                  {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                    <option key={child.id} value={child.id}>{child.name}</option>
+                  ))}
+                  {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                    <option value={parent.id}>{parent.name}</option>
+                  )}
+                </optgroup>
+              ))}
+            </select>
+            <input name="category" type="hidden" defaultValue="general" />
             <input name="unit" placeholder="Unit (e.g. each, pair)" required className="form-input" />
             <select name="locationId" required className="form-input">
               <option value="">Location</option>
@@ -315,7 +337,7 @@ export default function BulkInventoryPage() {
                           </button>
                         )}
                       </td>
-                      <td>{sku.category}</td>
+                      <td>{sku.categoryRel?.name || sku.category}</td>
                       <td>{sku.unit}</td>
                       <td>
                         <span style={{ fontWeight: 600, color: isLow ? "var(--red)" : "inherit" }}>

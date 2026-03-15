@@ -19,7 +19,8 @@ export async function GET(req: Request) {
       include: {
         location: true,
         balances: true,
-        units: true
+        units: true,
+        categoryRel: { select: { id: true, name: true } }
       },
       orderBy: [{ locationId: "asc" }, { name: "asc" }]
     });
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
         data: {
           name: body.name,
           category: body.category,
+          categoryId: body.categoryId ?? null,
           unit: body.unit,
           locationId: body.locationId,
           binQrCodeValue: body.binQrCodeValue,

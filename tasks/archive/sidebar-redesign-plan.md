@@ -47,7 +47,7 @@ Scan, Labels, Import, Notifications, Reports, Profile (pages still exist, just n
 - [x] Create minimal stub page at `src/app/(app)/kits/page.tsx`
 
 ### 5. Verify
-- [ ] `npm run build` passes
-- [ ] Desktop sidebar matches Cheqroom layout
-- [ ] Mobile bottom nav works
-- [ ] Log out works from sidebar
+- [x] `npm run build` passes (verified 2026-03-15)
+- [x] Desktop sidebar matches Cheqroom layout (9 items — added Scan as core workflow)
+- [x] Mobile bottom nav works (5 items: Home, Items, Reservations, Checkouts, Scan)
+- [x] Log out works from sidebar (wired via onSignOut → handleLogout)

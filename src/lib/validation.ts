@@ -68,6 +68,7 @@ export const overrideSchema = z.object({
 export const createBulkSkuSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
+  categoryId: z.string().cuid().nullable().optional(),
   unit: z.string().min(1),
   locationId: z.string().cuid(),
   binQrCodeValue: z.string().min(1),
