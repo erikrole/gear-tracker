@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-11
+- Last Updated: 2026-03-15
 - Status: Active — V1 Shipped
 - Version: V1
 
