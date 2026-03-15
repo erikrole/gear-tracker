@@ -43,7 +43,7 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
   checkout: {
     view: ["ADMIN", "STAFF", "STUDENT"],
     create: ["ADMIN", "STAFF", "STUDENT"],
-    scan: ["ADMIN", "STAFF"],
+    scan: ["ADMIN", "STAFF", "STUDENT"],
     complete: ["ADMIN", "STAFF"],
     admin_override: ["ADMIN", "STAFF"],
   },

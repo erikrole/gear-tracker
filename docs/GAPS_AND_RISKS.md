@@ -24,7 +24,7 @@
 
 | ID | Description | Owner Area | Status | Notes |
 |---|---|---|---|---|
-| GAP-1 | `BRIEF_STUDENT_MOBILE_V1.md` not written | AREA_MOBILE | Open | D-015 accepted, brief needed before implementation |
+| ~~GAP-1~~ | ~~`BRIEF_STUDENT_MOBILE_V1.md` not written~~ | ~~AREA_MOBILE~~ | ~~Closed~~ | ~~Brief written, V1 hardening shipped 2026-03-15~~ |
 | GAP-2 | Draft persistence model underspecified | AREA_DASHBOARD | Open | D-017 covers DRAFT state; recovery UX is Phase B |
 | GAP-3 | Equipment guidance: only 1 rule in production | AREA_CHECKOUTS | Low priority | D-016 defers admin-config to Phase C |
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
@@ -94,3 +94,4 @@
 - 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.
 - 2026-03-15: Picker improvements shipped — multi-select, per-section search, availability preview, scan-to-add.
 - 2026-03-15: Closed PD-1 (escalation recipients: requester + all admins), PD-5 (student KPIs defined), GAP-5 (fatigue controls: admin-configurable). D-009 formally accepted.
+- 2026-03-15: Closed GAP-1 (student mobile brief written, V1 hardening shipped).
