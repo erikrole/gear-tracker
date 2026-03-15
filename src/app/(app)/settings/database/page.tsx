@@ -247,8 +247,7 @@ export default function DatabasePage() {
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
-      className={`badge ${ok ? "badge-green" : "badge-red"}`}
-      style={{ fontSize: 11, padding: "2px 8px" }}
+      className={`badge badge-sm ${ok ? "badge-green" : "badge-red"}`}
     >
       {label}
     </span>
@@ -260,7 +259,7 @@ function TagList({ items, variant }: { items: string[]; variant: "danger" | "inf
   return (
     <div className="flex flex-wrap gap-6">
       {items.map((item) => (
-        <span key={item} className={`badge ${cls}`} style={{ fontSize: 12, padding: "3px 10px" }}>
+        <span key={item} className={`badge badge-sm ${cls}`}>
           {item}
         </span>
       ))}

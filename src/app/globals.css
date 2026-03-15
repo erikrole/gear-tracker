@@ -1445,6 +1445,11 @@ textarea:focus-visible {
   letter-spacing: 0.01em;
 }
 
+.badge-sm {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
 .badge-green {
   background: var(--green-bg);
   color: #16a34a;
@@ -3888,6 +3893,44 @@ textarea:focus-visible {
   .form-select {
     min-height: 44px;
     font-size: 16px;
+  }
+
+  /* Diagnostic table: tighter padding on mobile */
+  .diag-table th,
+  .diag-table td {
+    padding: 6px 10px;
+  }
+
+  /* Badge-sm: bump up for touch targets on mobile */
+  .badge-sm {
+    font-size: 13px;
+    padding: 4px 10px;
+  }
+
+  /* User roles table → stacked cards on mobile */
+  .roles-table thead {
+    display: none;
+  }
+  .roles-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .roles-table tbody tr:last-child {
+    border-bottom: none;
+  }
+  .roles-table td {
+    padding: 0;
+  }
+  .roles-table td:first-child {
+    font-weight: 600;
+  }
+  .roles-table td:nth-child(2),
+  .roles-table td:nth-child(3) {
+    font-size: 13px;
+    color: var(--text-secondary);
   }
 }
 
