@@ -6,7 +6,7 @@
 - Date: 2026-03-15
 - Priority: `High`
 - Target phase: `Phase B`
-- Status: **Planning**
+- Status: **Shipped** (2026-03-15)
 
 ## 2) Problem
 - Current pain: The equipment picker requires one click per item with no batch selection, no date-range conflict visibility during selection, no search within sections, and no way to scan a QR code to add items. Staff building a 10-item checkout must click 10 individual rows, then discover conflicts only at submission.

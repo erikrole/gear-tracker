@@ -52,18 +52,31 @@ Optimize handoff and return execution so daily operators can move fast without d
 2. Canceled records remain auditable.
 3. No hard delete.
 
-## Equipment Picker (V1 Implemented)
+## Equipment Picker (V2 — Multi-Select, Search, Availability Preview, Scan-to-Add)
 
-The checkout equipment picker uses a kit-first sectioned flow with locked forward progression. Implementation: `src/lib/equipment-sections.ts`, `src/lib/equipment-guidance.ts`.
+The equipment picker is a standalone component (`src/components/EquipmentPicker.tsx`) extracted from BookingListPage. It uses a sectioned flow with free tab navigation. Supporting libraries: `src/lib/equipment-sections.ts`, `src/lib/equipment-guidance.ts`.
 
-### Section Order (Locked Forward Progression)
-1. **Bodies** — camera bodies, camcorders, cinema cameras, DSLRs, mirrorless
+### Section Order
+1. **Cameras** — camera bodies, camcorders, cinema cameras, DSLRs, mirrorless
 2. **Lenses** — lenses
 3. **Batteries** — batteries, chargers, power supplies, V-mount, gold mount
 4. **Accessories** — monitors, recorders, rigs, cages, gimbals, transmitters
 5. **Others** — cables, audio, tripods, and catch-all items
 
-Users advance through sections in order. They may always return to a previously reached section but cannot skip ahead. This ensures essential items (bodies, then lenses, then power) are reviewed before accessories.
+All section tabs are freely navigable (no forward-lock). Section tabs show selected item count.
+
+### Checkbox Multi-Select
+- Each serialized asset row has a checkbox for toggle selection (replaces one-click-to-add).
+- "Select all available" button selects all items without conflicts or status issues in the visible section.
+- "Deselect section" button clears all selections in the current section.
+- Selected items summary strip shows all selections with remove buttons.
+- Bulk items retain their quantity stepper pattern.
+
+### Per-Section Search
+- Each section has a persistent search input (switching tabs preserves each section's search term).
+- Client-side filter on tagName, productName, brand, model, serialNumber.
+- Match count displayed when search is active.
+- No 50-item cap — search makes the full list manageable.
 
 ### Section Classification
 Assets are classified into sections by keyword matching against the asset's `type` field (from Cheqroom category import). Classification is case-insensitive substring matching. Implementation: `classifyAssetType()` in `src/lib/equipment-sections.ts`.
@@ -72,17 +85,27 @@ Assets are classified into sections by keyword matching against the asset's `typ
 Context-aware hints appear per section based on what has already been selected in other sections. All matching rules for the active section are shown simultaneously. Implementation: `getActiveGuidance()` in `src/lib/equipment-guidance.ts`.
 
 Current rules:
-- `body-needs-batteries` (warning): "You selected a camera body — don't forget batteries and chargers." — shown in Batteries section when camera_body has selections
+- `body-needs-batteries` (warning): "You selected a camera body — don't forget batteries and chargers."
+- `lens-needs-body` (warning): "You've added lenses but no camera body."
+- `audio-with-video` (info): "Don't forget audio gear."
 
 Adding new rules: add entries to `EQUIPMENT_GUIDANCE_RULES` array in `src/lib/equipment-guidance.ts`. No schema changes required.
 
-Planned rules (not yet implemented, tracked in NORTH_STAR.md):
-- `lens-needs-body`: warn if lenses selected without a body
-- `audio-with-video`: hint about audio gear when video camera selected
-- `drone-battery-check`: warn about spare batteries and prop guards for drone items
+### Availability Preview Badges
+When a booking date window is set (startsAt/endsAt), the picker calls `POST /api/availability/check` with all asset IDs to detect scheduling conflicts. Results are shown as:
+- Amber conflict badge on each conflicting item row with booking title and date range.
+- Conflicting items remain selectable (staff may need to override) but show warning styling.
+- Badges update automatically when the date range changes (debounced 500ms).
+- When no dates are set, falls back to current derived-status dots only.
 
-### Conflict Feedback During Picker
-Items that are unavailable for the selected booking window show an inline conflict badge. Badge includes reason (e.g., "Already reserved by [booking title]") and the conflicting window. Implementation via availability check at picker load time.
+### Scan-to-Add
+- "Scan" button in the picker header opens a camera overlay (modal, not full-page navigation).
+- Scanning a QR code (`bg://item/<uuid>`, `bg://case/<uuid>`, or raw asset tag) matches against loaded assets.
+- Matching asset is auto-selected and the picker navigates to the correct section tab.
+- Bulk bin QR codes are also supported — adds the bulk SKU with quantity 1.
+- Camera stays open for continuous scanning (2s debounce). Close button dismisses overlay.
+- Success/error feedback shown inline below the camera. Haptic vibration on success.
+- Camera permission denied handled with error feedback.
 
 ### DRAFT Booking State
 - `DRAFT` is a pre-BOOKED state for interrupted checkout creation flows
@@ -203,3 +226,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 - 2026-03-02: Added explicit mobile contract dependency and list-action alignment.
 - 2026-03-09: Added Equipment Picker section (kit-first sectioned flow, locked progression, guidance rules, conflict feedback). Added DRAFT booking state. Reflected shipped implementation from PRs 22–25.
 - 2026-03-11: Docs hardening — added `booking-rules.ts` as action matrix source of truth. Added cancel-on-OPEN staff-only rule. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md. Marked V1 as shipped.
+- 2026-03-15: Equipment Picker V2 — extracted into standalone component. Added checkbox multi-select, per-section search, availability preview badges, and scan-to-add QR overlay.

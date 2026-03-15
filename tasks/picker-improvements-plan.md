@@ -2,6 +2,7 @@
 
 Brief: `docs/BRIEF_PICKER_IMPROVEMENTS_V1.md`
 Branch: `claude/v3-development-AxnBo`
+Status: **All slices shipped** (2026-03-15)
 
 ---
 

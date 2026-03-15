@@ -1,6 +1,6 @@
 # Current Task Queue
 
-Last updated: 2026-03-14
+Last updated: 2026-03-15
 
 ---
 
@@ -35,6 +35,7 @@ Last updated: 2026-03-14
 
 ## Recently Shipped
 
+- [x] **Equipment Picker V2** — Multi-select, per-section search, availability preview, scan-to-add (2026-03-15)
 - [x] **Dashboard V2** — Ops-first split layout with live countdown timers (2026-03-11)
 - [x] **Item Detail: UW Asset Tag Mirror** — uwAssetTag shown in page header (2026-03-11)
 - [x] **Item Detail: Calendar Grid** — Month-view calendar with booking blocks (2026-03-11)

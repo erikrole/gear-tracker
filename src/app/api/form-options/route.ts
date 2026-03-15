@@ -24,6 +24,7 @@ export async function GET() {
         select: {
           id: true, assetTag: true, name: true, brand: true, model: true,
           serialNumber: true, type: true, status: true, locationId: true,
+          qrCodeValue: true, primaryScanCode: true,
           location: { select: { id: true, name: true } },
           category: { select: { name: true } }
         }
@@ -31,7 +32,7 @@ export async function GET() {
       db.bulkSku.findMany({
         where: { active: true },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, category: true, unit: true, locationId: true, categoryRel: { select: { name: true } } }
+        select: { id: true, name: true, category: true, unit: true, locationId: true, binQrCodeValue: true, categoryRel: { select: { name: true } } }
       })
     ]);
 
