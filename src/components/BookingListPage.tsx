@@ -18,6 +18,7 @@ import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidanc
 import { useToast } from "@/components/Toast";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { FilterChip } from "@/components/FilterChip";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   AVAILABLE: "var(--green)",
@@ -218,7 +219,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [statusFilter, setStatusFilter] = useState("");
   const [sportFilter, setSportFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // ── Form options ──
   const [users, setUsers] = useState<FormUser[]>([]);
@@ -988,64 +988,55 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
       {/* ════════ Filter bar ════════ */}
       <div className="card">
-        <div className="card-header card-header-wrap">
-          <h2>All {config.labelPlural.toLowerCase()}</h2>
-          <button
-            className="filter-toggle-btn"
-            onClick={() => setFiltersOpen((prev) => !prev)}
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-            </svg>
-            Filters
-            {(statusFilter || sportFilter || locationFilter) && (
-              <span className="filter-active-dot" />
-            )}
-          </button>
-          <div className={`booking-filters ${filtersOpen ? "booking-filters-open" : ""}`}>
+        <div className="card-header" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
+            <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</h2>
             <input
               type="text"
               className="form-input"
               placeholder="Search by title or requester..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              style={{ flex: 1, minWidth: 0 }}
             />
-
-            <select
-              className="form-select"
+          </div>
+          <div className="filter-chips">
+            <FilterChip
+              label="Status"
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            >
-              <option value="">All statuses</option>
-              {config.statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-
+              displayValue={config.statusOptions.find((s) => s.value === statusFilter)?.label}
+              options={config.statusOptions}
+              onSelect={(v) => { setStatusFilter(v); setPage(0); }}
+              onClear={() => { setStatusFilter(""); setPage(0); }}
+            />
             {config.hasSportFilter && sportCodesInUse.length > 0 && (
-              <select
-                className="form-select"
+              <FilterChip
+                label="Sport"
                 value={sportFilter}
-                onChange={(e) => { setSportFilter(e.target.value); setPage(0); }}
-              >
-                <option value="">All sports</option>
-                {SPORT_CODES.map((s) => (
-                  <option key={s.code} value={s.code}>{s.code}</option>
-                ))}
-              </select>
+                options={SPORT_CODES.map((s) => ({ value: s.code, label: s.code }))}
+                onSelect={(v) => { setSportFilter(v); setPage(0); }}
+                onClear={() => { setSportFilter(""); setPage(0); }}
+              />
             )}
-
             {locations.length > 1 && (
-              <select
-                className="form-select"
+              <FilterChip
+                label="Location"
                 value={locationFilter}
-                onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }}
-              >
-                <option value="">All locations</option>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+                displayValue={locations.find((l) => l.id === locationFilter)?.name}
+                options={locations.map((l) => ({ value: l.id, label: l.name }))}
+                onSelect={(v) => { setLocationFilter(v); setPage(0); }}
+                onClear={() => { setLocationFilter(""); setPage(0); }}
+              />
             )}
-
+            {(statusFilter || sportFilter || locationFilter) && (
+              <button
+                type="button"
+                className="filter-chip-clear-all"
+                onClick={() => { setStatusFilter(""); setSportFilter(""); setLocationFilter(""); setPage(0); }}
+              >
+                Clear all
+              </button>
+            )}
           </div>
         </div>
 
