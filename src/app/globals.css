@@ -5978,6 +5978,31 @@ tr.returned-row { opacity: 0.55; }
     flex-wrap: wrap;
     gap: 6px;
   }
+
+  /* Item history table → stacked cards on mobile */
+  .item-history-table thead {
+    display: none;
+  }
+  .item-history-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .item-history-table tbody tr:last-child {
+    border-bottom: none;
+  }
+  .item-history-table td {
+    padding: 0;
+  }
+  .item-history-table td:first-child {
+    font-weight: 600;
+  }
+  .item-history-table td:not(:first-child) {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
 }
 
 /* ===== Notifications Page Mobile Fixes ===== */

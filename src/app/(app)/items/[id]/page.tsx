@@ -869,7 +869,7 @@ function BookingKindTab({
             filtered.map((group) => (
               <div key={group.month} className="mb-16">
                 <h3 className="text-xl mb-8 m-0">{group.month}</h3>
-                <table className="data-table">
+                <table className="data-table item-history-table">
                   <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
                   <tbody>
                     {group.items.map((entry) => (
