@@ -401,6 +401,21 @@ textarea:focus-visible {
   padding: 8px 0;
 }
 
+/* Search results page */
+.search-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.search-result-row:hover {
+  background: rgba(59, 130, 246, 0.04);
+}
+
 .topbar-actions {
   display: flex;
   align-items: center;

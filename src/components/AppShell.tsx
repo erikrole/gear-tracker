@@ -100,7 +100,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (!trimmed) return;
     setSearchOpen(false);
     setSearchQuery("");
-    router.push(`/items?q=${encodeURIComponent(trimmed)}`);
+    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
   }, [router]);
 
   useEffect(() => {
