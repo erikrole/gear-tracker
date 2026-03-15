@@ -29,6 +29,8 @@ const EXPECTED_TABLES = [
   "calendar_events",
   "location_mappings",
   "notifications",
+  "bulk_sku_units",
+  "booking_bulk_unit_allocations",
 ];
 
 const EXPECTED_ENUMS = [
@@ -43,6 +45,7 @@ const EXPECTED_ENUMS = [
   "ScanSessionStatus",
   "CalendarEventStatus",
   "NotificationChannel",
+  "BulkUnitStatus",
 ];
 
 const EXPECTED_EXTENSIONS = ["btree_gist"];
@@ -66,7 +69,8 @@ const KEY_COLUMNS: Record<string, string[]> = {
   ],
   bookings: ["source_reservation_id", "event_id", "sport_code"],
   calendar_events: ["sport_code", "is_home", "opponent"],
-  bulk_skus: ["category_id"],
+  bulk_skus: ["category_id", "track_by_number"],
+  bulk_sku_units: ["bulk_sku_id", "unit_number", "status"],
 };
 
 const EXPECTED_MIGRATIONS = [
@@ -142,7 +146,7 @@ async function checkExtensions() {
 async function checkColumns() {
   const rows: { table_name: string; column_name: string }[] =
     await db.$queryRawUnsafe(
-      `SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('assets', 'bookings', 'calendar_events', 'bulk_skus') ORDER BY table_name, ordinal_position`,
+      `SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('assets', 'bookings', 'calendar_events', 'bulk_skus', 'bulk_sku_units') ORDER BY table_name, ordinal_position`,
     );
 
   const byTable = new Map<string, Set<string>>();
