@@ -12,11 +12,11 @@
 
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
-| PD-1 | D-009: Escalation recipient model — who receives +24h overdue notifications? | AREA_NOTIFICATIONS | High | Blocks Phase B notification polish |
+| ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
 | PD-2 | Venue mapping governance — who owns regex-to-location mapping table? | AREA_EVENTS | Medium | No |
 | PD-3 | Event sync refresh cadence — Cloudflare Cron schedule and staleness thresholds | AREA_EVENTS | Medium | No |
 | ~~PD-4~~ | ~~B&H metadata cache TTL target~~ | ~~AREA_ITEMS~~ | ~~N/A~~ | ~~No — D-005 withdrawn~~ |
-| PD-5 | Student mobile KPI definitions — taps-to-action, task-completion time, scan success rate | AREA_MOBILE | High | Blocks BRIEF_STUDENT_MOBILE_V1.md |
+| ~~PD-5~~ | ~~Student mobile KPI definitions~~ | ~~AREA_MOBILE~~ | ~~Resolved~~ | ~~Taps-to-checkout ≤3, scan success ≥95%, task completion <30s~~ |
 
 ---
 
@@ -28,7 +28,7 @@
 | GAP-2 | Draft persistence model underspecified | AREA_DASHBOARD | Open | D-017 covers DRAFT state; recovery UX is Phase B |
 | GAP-3 | Equipment guidance: only 1 rule in production | AREA_CHECKOUTS | Low priority | D-016 defers admin-config to Phase C |
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
-| GAP-5 | D-009 alert fatigue controls undefined | AREA_NOTIFICATIONS | Open | Required for D-009 formal acceptance |
+| ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
 | GAP-6 | Email notification channel not wired | AREA_NOTIFICATIONS | Phase B | V1 = in-app only per D-009 |
 
 ---
@@ -93,3 +93,4 @@
 - 2026-03-11: Initial registry created from docs hardening pass. Consolidated from NORTH_STAR.md gaps, DECISIONS.md pending items, and scattered AREA file TODOs.
 - 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.
 - 2026-03-15: Picker improvements shipped — multi-select, per-section search, availability preview, scan-to-add.
+- 2026-03-15: Closed PD-1 (escalation recipients: requester + all admins), PD-5 (student KPIs defined), GAP-5 (fatigue controls: admin-configurable). D-009 formally accepted.
