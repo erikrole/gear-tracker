@@ -105,6 +105,31 @@ export function isDueToday(endsAt: string, now: Date): boolean {
     end.getDate() === now.getDate();
 }
 
+/** Check if startsAt falls on today (mirrors isDueToday for reservations) */
+export function isStartingToday(startsAt: string, now: Date): boolean {
+  const start = new Date(startsAt);
+  return start.getFullYear() === now.getFullYear() &&
+    start.getMonth() === now.getMonth() &&
+    start.getDate() === now.getDate();
+}
+
+/** Compact relative start time: "Started 2h ago" / "Starts in 3h" / "Starts in 30m" */
+export function formatStartsIn(startsAt: string, now: Date): string {
+  const diff = new Date(startsAt).getTime() - now.getTime();
+  const absDiff = Math.abs(diff);
+  const days = Math.floor(absDiff / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((absDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  const minutes = Math.floor((absDiff % (60 * 60 * 1000)) / (60 * 1000));
+
+  let timeStr: string;
+  if (days > 0) timeStr = `${days}d`;
+  else if (hours > 0) timeStr = `${hours}h`;
+  else timeStr = `${minutes}m`;
+
+  if (diff <= 0) return `Started ${timeStr} ago`;
+  return `Starts in ${timeStr}`;
+}
+
 /** "Mar 11 – Mar 14" or "Mar 11" if same day */
 export function formatDateRange(startsAt: string, endsAt: string) {
   const s = new Date(startsAt);
