@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { ScanType } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { fail, HttpError, ok } from "@/lib/http";

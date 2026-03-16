@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { ShiftArea } from "@prisma/client";
 import { db } from "@/lib/db";

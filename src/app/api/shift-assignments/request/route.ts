@@ -1,5 +1,3 @@
-export const runtime = "edge";
-
 import { requireAuth } from "@/lib/auth";
 import { ok, fail } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";

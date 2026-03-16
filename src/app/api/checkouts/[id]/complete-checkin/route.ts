@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { completeCheckinScan } from "@/lib/services/scans";
 import { fail, ok } from "@/lib/http";
