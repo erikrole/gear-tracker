@@ -1,11 +1,13 @@
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
 export async function GET(req: Request) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
+    requirePermission(user.role, "report", "view");
     const { searchParams } = new URL(req.url);
     const report = searchParams.get("type") || "utilization";
 
@@ -22,6 +24,16 @@ export async function GET(req: Request) {
       const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
       const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
       return ok(await getAuditReport(limit, offset));
+    }
+
+    if (report === "overdue") {
+      return ok(await getOverdueReport());
+    }
+
+    if (report === "scans") {
+      const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
+      const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+      return ok(await getScanHistoryReport(limit, offset));
     }
 
     return ok({ error: "Unknown report type" });
@@ -145,6 +157,134 @@ async function getCheckoutReport(days: number) {
       name: userMap[r.requesterUserId] || "Unknown",
       count: r._count
     }))
+  };
+}
+
+async function getOverdueReport() {
+  const now = new Date();
+
+  const overdueBookings = await db.booking.findMany({
+    where: {
+      kind: "CHECKOUT",
+      status: "OPEN",
+      endsAt: { lt: now },
+    },
+    include: {
+      requester: { select: { id: true, name: true } },
+      location: { select: { id: true, name: true } },
+      serializedItems: {
+        include: { asset: { select: { id: true, assetTag: true, name: true } } },
+      },
+      bulkItems: {
+        include: { bulkSku: { select: { id: true, name: true } } },
+      },
+    },
+    orderBy: { endsAt: "asc" },
+  });
+
+  // Group by requester
+  const byRequester = new Map<
+    string,
+    {
+      userId: string;
+      name: string;
+      overdueCount: number;
+      totalOverdueHours: number;
+      bookings: {
+        id: string;
+        title: string;
+        endsAt: string;
+        overdueHours: number;
+        location: string;
+        itemCount: number;
+        items: string[];
+      }[];
+    }
+  >();
+
+  for (const b of overdueBookings) {
+    const hours = Math.round((now.getTime() - new Date(b.endsAt).getTime()) / 3_600_000);
+    const items: string[] = [];
+    for (const si of b.serializedItems) {
+      items.push(si.asset.assetTag ?? si.asset.name);
+    }
+    for (const bi of b.bulkItems) {
+      items.push(`${bi.bulkSku.name} x${(bi.checkedOutQuantity ?? 0) - (bi.checkedInQuantity ?? 0)}`);
+    }
+    const itemCount = b.serializedItems.length + b.bulkItems.length;
+
+    const existing = byRequester.get(b.requester.id);
+    const booking = {
+      id: b.id,
+      title: b.title,
+      endsAt: b.endsAt.toISOString(),
+      overdueHours: hours,
+      location: b.location.name,
+      itemCount,
+      items: items.slice(0, 5),
+    };
+
+    if (existing) {
+      existing.overdueCount++;
+      existing.totalOverdueHours += hours;
+      existing.bookings.push(booking);
+    } else {
+      byRequester.set(b.requester.id, {
+        userId: b.requester.id,
+        name: b.requester.name,
+        overdueCount: 1,
+        totalOverdueHours: hours,
+        bookings: [booking],
+      });
+    }
+  }
+
+  const leaderboard = Array.from(byRequester.values()).sort(
+    (a, b) => b.totalOverdueHours - a.totalOverdueHours
+  );
+
+  return {
+    totalOverdueBookings: overdueBookings.length,
+    leaderboard,
+  };
+}
+
+async function getScanHistoryReport(limit: number, offset: number) {
+  const [data, total] = await Promise.all([
+    db.scanEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+      include: {
+        actor: { select: { id: true, name: true } },
+        asset: { select: { id: true, assetTag: true, name: true } },
+        bulkSku: { select: { id: true, name: true } },
+        booking: { select: { id: true, title: true } },
+      },
+    }),
+    db.scanEvent.count(),
+  ]);
+
+  return {
+    data: data.map((s) => ({
+      id: s.id,
+      actor: s.actor.name,
+      scanType: s.scanType,
+      scanValue: s.scanValue,
+      success: s.success,
+      phase: s.phase,
+      item: s.asset
+        ? s.asset.assetTag || s.asset.name
+        : s.bulkSku
+          ? s.bulkSku.name
+          : s.scanValue,
+      bookingId: s.booking.id,
+      bookingTitle: s.booking.title,
+      createdAt: s.createdAt,
+    })),
+    total,
+    limit,
+    offset,
   };
 }
 

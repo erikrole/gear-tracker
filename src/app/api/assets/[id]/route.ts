@@ -43,10 +43,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     await requireAuth();
     const params = await ctx.params;
 
-    const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations] = await Promise.all([
+    const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations, accessories] = await Promise.all([
       db.asset.findUnique({
         where: { id: params.id },
-        include: { location: true, category: true }
+        include: { location: true, category: true, parent: { select: { id: true, assetTag: true, name: true, brand: true, model: true } } }
       }),
       deriveAssetStatus(params.id).catch(() => null),
       db.bookingSerializedItem.findMany({
@@ -102,6 +102,21 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         orderBy: { booking: { startsAt: "asc" } },
         take: 10,
       }),
+      db.asset.findMany({
+        where: { parentAssetId: params.id },
+        select: {
+          id: true,
+          assetTag: true,
+          name: true,
+          brand: true,
+          model: true,
+          serialNumber: true,
+          status: true,
+          type: true,
+          imageUrl: true,
+        },
+        orderBy: { assetTag: "asc" },
+      }),
     ]);
 
     if (!asset) {
@@ -135,6 +150,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         metadata: parseNotes(asset.notes),
         activeBooking,
         hasBookingHistory,
+        parentAsset: asset.parent ?? null,
+        accessories,
         upcomingReservations: (() => {
           const seen = new Set<string>();
           if (activeBooking) seen.add(activeBooking.id);

@@ -65,7 +65,7 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     delete: ["ADMIN", "STAFF"],
   },
   report: {
-    view: ["ADMIN", "STAFF", "STUDENT"],
+    view: ["ADMIN", "STAFF"],
   },
   notification: {
     view: ["ADMIN", "STAFF", "STUDENT"],

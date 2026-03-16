@@ -25,13 +25,15 @@ const createAssetSchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim();
     const statusParam = searchParams.get("status");
     const locationId = searchParams.get("location_id");
     const categoryId = searchParams.get("category_id");
     const brand = searchParams.get("brand")?.trim();
+    const showAccessories = searchParams.get("show_accessories") === "true";
+    const favoritesOnly = searchParams.get("favorite") === "true";
 
     // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
     // post-enrichment filtering. Stored statuses filter at the DB level.
@@ -39,7 +41,28 @@ export async function GET(req: Request) {
     const isDerivedFilter = statusParam && derivedStatuses.includes(statusParam);
     const isStoredFilter = statusParam && !isDerivedFilter;
 
+    // Fetch user's favorite asset IDs (single query, used for filtering + response)
+    let favoriteAssetIds: string[] = [];
+    if (favoritesOnly) {
+      try {
+        const favs = await db.favoriteItem.findMany({
+          where: { userId: user.id },
+          select: { assetId: true },
+        });
+        favoriteAssetIds = favs.map((f) => f.assetId);
+        if (favoriteAssetIds.length === 0) {
+          return ok({ data: [], total: 0, limit: 0, offset: 0, favoriteIds: [] });
+        }
+      } catch {
+        // favorite_items table may not exist yet — skip favorites filtering
+        return ok({ data: [], total: 0, limit: 0, offset: 0, favoriteIds: [] });
+      }
+    }
+
     const where = {
+      // By default, hide accessories (child items) from the main list
+      ...(!showAccessories ? { parentAssetId: null } : {}),
+      ...(favoritesOnly ? { id: { in: favoriteAssetIds } } : {}),
       ...(locationId ? { locationId } : {}),
       ...(categoryId ? { categoryId } : {}),
       ...(brand ? { brand: { equals: brand, mode: "insensitive" as const } } : {}),
@@ -69,6 +92,7 @@ export async function GET(req: Request) {
         include: {
           location: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
+          _count: { select: { accessories: true } },
         },
         orderBy: { assetTag: "asc" }
       });
@@ -84,8 +108,19 @@ export async function GET(req: Request) {
       const total = filtered.length;
       const data = filtered.slice(offset, offset + limit);
       const dataWithBookings = await attachActiveBookings(data);
+      const pageIds = dataWithBookings.map((a) => a.id);
+      let favoriteIds: string[] = [];
+      try {
+        const pageFavs = await db.favoriteItem.findMany({
+          where: { userId: user.id, assetId: { in: pageIds } },
+          select: { assetId: true },
+        });
+        favoriteIds = pageFavs.map((f) => f.assetId);
+      } catch {
+        // favorite_items table may not exist yet if migration hasn't run
+      }
 
-      return ok({ data: dataWithBookings, total, limit, offset });
+      return ok({ data: dataWithBookings, total, limit, offset, favoriteIds });
     }
 
     const [rawData, total] = await Promise.all([
@@ -94,6 +129,7 @@ export async function GET(req: Request) {
         include: {
           location: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
+          _count: { select: { accessories: true } },
         },
         orderBy: { assetTag: "asc" },
         take: limit,
@@ -111,7 +147,18 @@ export async function GET(req: Request) {
     }
 
     const enrichedWithBookings = await attachActiveBookings(data);
-    return ok({ data: enrichedWithBookings, total, limit, offset });
+    const pageIds = enrichedWithBookings.map((a) => a.id);
+    let favoriteIds: string[] = [];
+    try {
+      const pageFavs = await db.favoriteItem.findMany({
+        where: { userId: user.id, assetId: { in: pageIds } },
+        select: { assetId: true },
+      });
+      favoriteIds = pageFavs.map((f) => f.assetId);
+    } catch {
+      // favorite_items table may not exist yet if migration hasn't run
+    }
+    return ok({ data: enrichedWithBookings, total, limit, offset, favoriteIds });
   } catch (error) {
     return fail(error);
   }

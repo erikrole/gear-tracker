@@ -39,7 +39,7 @@
 |---|---|---|---|
 | Asset financial fields UI (purchasePrice, warrantyDate, residualValue) | AREA_ITEMS | D-018 | Schema ready, expose in Settings tab for admins |
 | Department filter/display | AREA_ITEMS | D-019 | Schema ready, optional grouping |
-| Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI |
+| Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI. Simple parent-child accessories shipped via D-023. |
 | Dashboard saved filters | AREA_DASHBOARD | — | Deferred from V1 |
 | Dashboard filter chips (Sport, Location) | AREA_DASHBOARD | — | Deferred from V1 |
 | Notification center polish (pagination, mark-as-read) | AREA_NOTIFICATIONS | — | After D-009 acceptance |
