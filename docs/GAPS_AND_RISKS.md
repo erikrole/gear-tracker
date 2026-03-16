@@ -100,3 +100,4 @@
 - 2026-03-15: Closed GAP-1 (student mobile brief written, V1 hardening shipped).
 - 2026-03-16: Closed GAP-6 (email notification channel wired via Resend + Vercel Cron every 15min).
 - 2026-03-16: Sentry error tracking wired (optional DSN, source maps, global error boundary). Vercel Blob image upload wired (POST/DELETE /api/assets/:id/image).
+- 2026-03-16: UI overhaul — modern minimal design system. Removed liquid glass, warm neutrals, #202020 dark sidebar, Wisconsin red for brand moments only, neutral dark primary buttons.
