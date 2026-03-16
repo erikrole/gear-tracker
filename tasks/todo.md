@@ -1,40 +1,64 @@
 # Current Task Queue
 
-Last updated: 2026-03-15
+Last updated: 2026-03-16
 
 ---
 
 ## Active Work
 
-### Polish Items & Reservations Pages
+### Feature 1: Dashboard Drafts (D-017 / GAP-2)
 
-- [x] Items list: wrap reload in useCallback, add debounced search, consolidate filter styles, error states, Unicode entities
-- [x] Items detail: useCallback for loaders, try/catch + feedback for actions, loading states, Unicode entities
-- [x] Reservations list: error feedback on convert/cancel failures
-- [x] Reservations detail: Unicode entities, try/catch on cancel, loading during refetch, error reset
-- [x] Build & verify, commit & push
+**Context**: DRAFT is in the BookingStatus enum, action matrix supports edit+cancel, status rendering exists. But nothing creates DRAFTs, dashboard doesn't query them, and there's no persistence or recovery UI.
 
-### Phase A Remaining
+**Approach**: When a user starts a checkout or reservation creation flow and navigates away (or closes the modal), auto-save as DRAFT. Dashboard shows a Drafts section with Resume/Discard. Resume pre-fills the create form.
 
-- [ ] **Student Mobile Hardening** — D-015 accepted, brief missing
-  - Write `docs/BRIEF_STUDENT_MOBILE_V1.md` first
-  - Define student KPIs: taps-to-action, task-completion time, scan success rate
-  - Scope: student dashboard actions, scan parity, owned-work list UX
-  - Ref: AREA_MOBILE.md, AREA_DASHBOARD.md, DECISIONS.md D-015
-  - Blocked by: PD-5 (KPI definitions)
+#### Slice 1: API + Dashboard query (backend wiring)
+- [ ] Add `myDrafts` query to `/api/dashboard/route.ts` — fetch DRAFT bookings for current user (both kinds), ordered by `updatedAt desc`, take 5
+- [ ] Add draft count to dashboard stats
+- [ ] Add `POST /api/bookings/draft` endpoint — creates a DRAFT booking with partial data (title, kind, startsAt, endsAt, eventId, locationId, notes)
+- [ ] Add `PATCH /api/bookings/[id]/draft` endpoint — updates existing DRAFT (same fields)
+- [ ] Add `DELETE /api/bookings/[id]/draft` endpoint — deletes (not cancels) a DRAFT
+- [ ] Ensure existing create endpoints can "promote" a DRAFT to BOOKED/OPEN (accept optional `draftId` param → update instead of create)
 
-### Phase B Prep
+#### Slice 2: Dashboard Drafts UI section
+- [ ] Add Drafts section to dashboard page below My Gear column
+- [ ] Show draft type (Checkout/Reservation), title, last edited, item count
+- [ ] Resume button → navigates to create page with `?draftId=xxx` pre-fill
+- [ ] Discard button → DELETE call + refresh
+- [ ] Empty state when no drafts
 
-- [ ] **D-009 Recipient Model Acceptance**
-  - Define escalation recipient model (who gets +24h escalation?)
-  - Define alert fatigue controls (per-booking cap, opt-out)
-  - Update D-009 from Partially Implemented to Accepted once resolved
-  - Ref: docs/AREA_NOTIFICATIONS.md, docs/DECISIONS.md D-009, docs/GAPS_AND_RISKS.md PD-1
+#### Slice 3: Create flow draft persistence
+- [ ] Checkout create: auto-save as DRAFT when form has data and user navigates away (beforeunload + route change)
+- [ ] Reservation create: same auto-save behavior
+- [ ] Create pages: detect `?draftId=xxx` query param → load and pre-fill form from DRAFT data
+- [ ] On successful booking creation with draftId → promote draft (update status, don't create new)
+
+#### Slice 4: Build + verify + docs
+- [ ] Build passes
+- [ ] Update AREA_DASHBOARD.md — mark Drafts section as shipped
+- [ ] Update GAPS_AND_RISKS.md — close GAP-2
+- [ ] Update DECISIONS.md D-017 — mark as fully implemented
+
+### Feature 2: Equipment Guidance Expansion (D-016)
+
+- [ ] Add `drone-battery-check` rule — warn when drone items selected without batteries
+- [ ] Add `drone-prop-check` rule — info reminder about prop inspection before flight
+- [ ] Verify rules render in checkout picker
+- [ ] Build + commit
+
+### Feature 3: Asset Financial Fields (D-018) — Doc Update Only
+
+**Finding**: Already implemented! Procurement section (purchasePrice, purchaseDate, residualValue, warrantyDate) exists in item detail Info tab, gated to non-STUDENT. API supports all fields. Only docs need updating.
+
+- [ ] Update DECISIONS.md D-018 status from "Phase B" to "Shipped"
+- [ ] Update GAPS_AND_RISKS.md Phase B deferred table
+- [ ] Update NORTH_STAR.md if needed
 
 ---
 
 ## Recently Shipped
 
+- [x] **Dark mode contrast sweep** — 14 elements fixed across 2 commits (2026-03-16)
 - [x] **Equipment Picker V2** — Multi-select, per-section search, availability preview, scan-to-add (2026-03-15)
 - [x] **Dashboard V2** — Ops-first split layout with live countdown timers (2026-03-11)
 - [x] **Item Detail: UW Asset Tag Mirror** — uwAssetTag shown in page header (2026-03-11)
@@ -44,18 +68,12 @@ Last updated: 2026-03-15
 
 ---
 
-## Next Up (Unstarted)
-
-(empty)
-
----
-
 ## Pending Decisions
 
-See `docs/GAPS_AND_RISKS.md` for the full registry. Key blockers:
+See `docs/GAPS_AND_RISKS.md` for the full registry. Key items:
 
-1. **PD-1**: D-009 escalation recipients — blocks Phase B notification polish
-2. **PD-5**: Student mobile KPIs — blocks BRIEF_STUDENT_MOBILE_V1.md
+1. **PD-2**: Venue mapping governance — who owns regex-to-location mapping table?
+2. **PD-3**: Event sync refresh cadence — Vercel Cron schedule and staleness thresholds
 
 ---
 
