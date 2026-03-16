@@ -306,7 +306,7 @@ export default function BulkInventoryPage() {
                           {sku.name}
                           {sku.trackByNumber && (
                             <span style={{
-                              fontSize: 10, fontWeight: 600, padding: "2px 6px",
+                              fontSize: "var(--text-2xs)", fontWeight: 600, padding: "2px 6px",
                               borderRadius: 4, background: "#eff6ff", color: "#3b82f6",
                             }}>#</span>
                           )}
@@ -319,7 +319,7 @@ export default function BulkInventoryPage() {
                         {!sku.trackByNumber && (
                           <button
                             className="btn btn-sm mt-4"
-                            style={{ fontSize: 11, padding: "2px 8px" }}
+                            style={{ fontSize: "var(--text-3xs)", padding: "2px 8px" }}
                             onClick={(e) => { e.stopPropagation(); handleConvertToNumbered(sku.id); }}
                             disabled={submitting}
                           >
@@ -363,14 +363,14 @@ export default function BulkInventoryPage() {
               return (
                 <div className="p-16" style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
                   <div className="flex-between mb-12">
-                    <h3 className="m-0" style={{ fontSize: 15 }}>{sku.name} — Units</h3>
+                    <h3 className="m-0" style={{ fontSize: "var(--text-md)" }}>{sku.name} — Units</h3>
                     {addingUnits === sku.id ? (
                       <div className="flex-center gap-8">
                         <input
                           type="number" min={1} max={500} value={addCount}
                           onChange={(e) => setAddCount(Number(e.target.value))}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ width: 70, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 14 }}
+                          style={{ width: 70, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: "var(--text-base)" }}
                         />
                         <button className="btn btn-sm btn-primary" disabled={submitting}
                           onClick={(e) => { e.stopPropagation(); handleAddUnits(sku.id); }}>
@@ -407,7 +407,7 @@ export default function BulkInventoryPage() {
                               display: "flex", alignItems: "center", justifyContent: "center",
                               gap: 4, padding: "6px 4px",
                               background: colors.bg, borderRadius: 6,
-                              fontSize: 13, fontWeight: 600,
+                              fontSize: "var(--text-sm)", fontWeight: 600,
                               cursor: u.status !== "CHECKED_OUT" ? "pointer" : "default",
                               position: "relative",
                             }}

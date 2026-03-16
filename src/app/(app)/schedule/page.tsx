@@ -379,7 +379,7 @@ export default function SchedulePage() {
                           {g.event.summary}
                         </span>
                         {g.isPremier && (
-                          <span className="badge badge-blue ml-4" style={{ fontSize: 10 }}>Premier</span>
+                          <span className="badge badge-blue ml-4" style={{ fontSize: "var(--text-2xs)" }}>Premier</span>
                         )}
                       </td>
                       <td className="text-nowrap">
@@ -433,7 +433,7 @@ export default function SchedulePage() {
                         if (ac.total === 0) return null;
                         return (
                           <span key={area} className="text-xs">
-                            {AREA_LABELS[area]}: <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`} style={{ fontSize: 10 }}>{ac.filled}/{ac.total}</span>
+                            {AREA_LABELS[area]}: <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`} style={{ fontSize: "var(--text-2xs)" }}>{ac.filled}/{ac.total}</span>
                           </span>
                         );
                       })}

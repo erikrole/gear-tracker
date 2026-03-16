@@ -328,7 +328,7 @@ export default function EventsPage() {
 
       {/* Sync diagnostics panel */}
       {syncDiagnostics && (
-        <details className="mb-12 rounded text-sm" style={{ border: "1px solid var(--border-light)", fontSize: 12 }}>
+        <details className="mb-12 rounded text-sm" style={{ border: "1px solid var(--border-light)", fontSize: "var(--text-xs)" }}>
           <summary className="p-12 cursor-pointer font-semibold">
             Sync Diagnostics — {syncDiagnostics.parsedEventCount ?? 0} events parsed, {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB fetched
           </summary>

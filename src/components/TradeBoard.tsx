@@ -268,7 +268,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                               className="btn btn-sm btn-primary"
                               onClick={() => handleClaim(t.id)}
                               disabled={acting === t.id}
-                              style={{ fontSize: 11 }}
+                              style={{ fontSize: "var(--text-3xs)" }}
                             >
                               {acting === t.id ? "..." : "Claim"}
                             </button>
@@ -280,7 +280,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                               className="btn btn-sm text-red"
                               onClick={() => handleCancel(t.id)}
                               disabled={acting === t.id}
-                              style={{ fontSize: 11 }}
+                              style={{ fontSize: "var(--text-3xs)" }}
                             >
                               Cancel
                             </button>
@@ -293,7 +293,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                                 className="btn btn-sm btn-primary"
                                 onClick={() => handleApprove(t.id)}
                                 disabled={acting === t.id}
-                                style={{ fontSize: 11 }}
+                                style={{ fontSize: "var(--text-3xs)" }}
                               >
                                 {acting === t.id ? "..." : "Approve"}
                               </button>
@@ -301,7 +301,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                                 className="btn btn-sm text-red"
                                 onClick={() => handleDecline(t.id)}
                                 disabled={acting === t.id}
-                                style={{ fontSize: 11 }}
+                                style={{ fontSize: "var(--text-3xs)" }}
                               >
                                 Decline
                               </button>

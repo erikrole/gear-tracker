@@ -81,7 +81,7 @@ export default function DatabasePage() {
                     background: result.ok ? "#22c55e" : "#ef4444",
                   }}
                 />
-                <span className="font-semibold" style={{ fontSize: 15 }}>
+                <span className="font-semibold" style={{ fontSize: "var(--text-md)" }}>
                   {result.ok ? "Schema is healthy" : "Issues detected"}
                 </span>
               </div>
@@ -218,7 +218,7 @@ export default function DatabasePage() {
                           <td><code>{d.table}</code></td>
                           <td><code>{d.column}</code></td>
                           <td>
-                            <span className="badge badge-red" style={{ fontSize: 11 }}>{d.status}</span>
+                            <span className="badge badge-red" style={{ fontSize: "var(--text-3xs)" }}>{d.status}</span>
                           </td>
                         </tr>
                       ))}

@@ -18,7 +18,7 @@ export default function GlobalError({
     <html lang="en">
       <body>
         <div style={{ padding: 40, textAlign: "center", maxWidth: 480, margin: "80px auto", fontFamily: "system-ui, sans-serif" }}>
-          <h1 style={{ fontSize: 24, marginBottom: 12 }}>Something went wrong</h1>
+          <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: 12 }}>Something went wrong</h1>
           <p style={{ color: "var(--text-secondary, #6b7280)", marginBottom: 24 }}>
             Try refreshing the page, or sign in again if the issue persists.
           </p>

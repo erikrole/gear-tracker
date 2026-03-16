@@ -88,7 +88,7 @@ export default function RegisterPage() {
           {loading ? "Creating account..." : "Create account"}
         </button>
 
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "var(--text-secondary)" }}>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
           Already have an account?{" "}
           <Link href="/login">Sign in</Link>
         </p>

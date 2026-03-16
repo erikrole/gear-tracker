@@ -627,7 +627,7 @@ export default function ScanPage() {
                         {item.name}
                         {item.trackByNumber && (
                           <span style={{
-                            fontSize: 10, fontWeight: 600, padding: "1px 5px",
+                            fontSize: "var(--text-2xs)", fontWeight: 600, padding: "1px 5px",
                             borderRadius: 4, background: "#eff6ff", color: "#3b82f6",
                             marginLeft: 6,
                           }}>#</span>
@@ -644,7 +644,7 @@ export default function ScanPage() {
                       }}>
                         {allocated.map((u) => (
                           <span key={u.unitNumber} style={{
-                            fontSize: 11, fontWeight: 600,
+                            fontSize: "var(--text-3xs)", fontWeight: 600,
                             padding: "2px 6px", borderRadius: 4,
                             background: u.checkedIn ? "#dcfce7" : u.checkedOut ? "#dbeafe" : "#f3f4f6",
                             color: u.checkedIn ? "#166534" : u.checkedOut ? "#1e40af" : "#6b7280",
@@ -673,14 +673,14 @@ export default function ScanPage() {
 
             <div className="sheet-header">
               <h2 style={{ margin: 0 }}>Select {unitPicker.name} units</h2>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
+              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
                 {mode === "checkout" ? "Which units are going out?" : "Which units came back?"}
               </div>
             </div>
 
             <div style={{ padding: "0 16px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>
+                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
                   {selectedUnits.size} of {unitPicker.availableUnits.length} selected
                 </span>
                 <button
@@ -720,7 +720,7 @@ export default function ScanPage() {
                         borderRadius: 8,
                         border: selected ? "2px solid #3b82f6" : "2px solid #e5e7eb",
                         background: selected ? "#dbeafe" : "white",
-                        fontSize: 14, fontWeight: 600,
+                        fontSize: "var(--text-base)", fontWeight: 600,
                         cursor: "pointer",
                         color: selected ? "#1e40af" : "var(--text)",
                         transition: "all 0.1s",

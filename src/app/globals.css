@@ -94,6 +94,8 @@
   --space-8: 48px;
 
   /* Typography scale */
+  --text-2xs: 10px;
+  --text-3xs: 11px;
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
@@ -102,6 +104,19 @@
   --text-xl: 18px;
   --text-2xl: 24px;
   --text-3xl: 30px;
+  --text-4xl: 32px;
+
+  /* Z-index scale */
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-popover: 50;
+  --z-toast: 60;
+  --z-sidebar: 200;
+  --z-scan-feedback: 1000;
+  --z-offline: 9999;
 
   /* Focus ring */
   --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
@@ -309,7 +324,7 @@ textarea:focus-visible {
   position: absolute;
   top: -100px;
   left: 16px;
-  z-index: 200;
+  z-index: var(--z-sidebar);
   padding: 8px 16px;
   background: var(--accent);
   color: #fff;
@@ -339,7 +354,7 @@ textarea:focus-visible {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 9999;
+  z-index: var(--z-offline);
   background: var(--orange);
   color: #000;
   text-align: center;
@@ -372,7 +387,7 @@ textarea:focus-visible {
   gap: 16px;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-dropdown);
 }
 
 .topbar-search {
@@ -412,7 +427,7 @@ textarea:focus-visible {
 .search-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-overlay);
   background: rgba(0, 0, 0, 0.4);
 }
 
@@ -522,7 +537,7 @@ textarea:focus-visible {
   top: 0;
   left: 0;
   bottom: 0;
-  z-index: 20;
+  z-index: var(--z-sticky);
   overflow-y: auto;
 }
 
@@ -1857,7 +1872,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: var(--z-popover);
   padding: 20px;
   animation: fade-in 0.15s ease;
 }
@@ -2302,7 +2317,7 @@ textarea:focus-visible {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.4);
-    z-index: 19;
+    z-index: calc(var(--z-sticky) - 1); /* below sidebar sticky */
   }
 
   .sidebar-overlay.visible {
@@ -2364,7 +2379,7 @@ textarea:focus-visible {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 30;
+    z-index: var(--z-overlay);
     background: var(--panel-solid);
     border-top: 1px solid var(--border);
     box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
@@ -2412,7 +2427,7 @@ textarea:focus-visible {
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 100;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2557,7 +2572,7 @@ textarea:focus-visible {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 50;
+  z-index: var(--z-popover);
   animation: sheet-overlay-in 0.2s ease;
 }
 
@@ -2575,7 +2590,7 @@ textarea:focus-visible {
   max-width: 100vw;
   background: var(--panel-solid);
   box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
-  z-index: 51;
+  z-index: calc(var(--z-popover) + 1); /* above sheet-overlay */
   display: flex;
   flex-direction: column;
   animation: sheet-slide-in 0.25s ease;
@@ -3000,7 +3015,7 @@ textarea:focus-visible {
 /* ===== Context Menu ===== */
 .ctx-menu {
   position: fixed;
-  z-index: 100;
+  z-index: var(--z-popover);
   min-width: 180px;
   background: var(--panel-solid);
   border: 1px solid var(--border);
@@ -3205,7 +3220,7 @@ textarea:focus-visible {
   padding: 8px 0;
   position: sticky;
   top: 56px; /* Below topbar */
-  z-index: 5;
+  z-index: var(--z-base);
   background: var(--bg);
   margin: -16px -16px 0;
   padding: 10px 16px;
@@ -3391,7 +3406,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 2;
+  z-index: var(--z-base);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -3624,7 +3639,7 @@ textarea:focus-visible {
   background: var(--panel);
   border-top: 1px solid var(--border);
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
-  z-index: 25;
+  z-index: calc(var(--z-sticky) + 5); /* between sticky and overlay */
 }
 
 .scan-complete-btn {
@@ -3649,7 +3664,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 100;
+  z-index: var(--z-modal);
   animation: fadeIn 0.2s ease;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
@@ -4327,7 +4342,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: var(--z-sidebar);
 }
 
 .qr-modal {
@@ -4815,7 +4830,7 @@ tr.status-overdue .status-label,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
-  z-index: 40;
+  z-index: var(--z-modal);
   padding: 4px;
 }
 
@@ -4953,7 +4968,7 @@ tr.status-overdue .status-label,
   box-shadow: 0 4px 12px rgba(0,0,0,.1);
   padding: 8px 12px;
   white-space: nowrap;
-  z-index: 50;
+  z-index: var(--z-popover);
   font-size: 12px;
   max-width: calc(100vw - 32px);
 }
@@ -4964,7 +4979,7 @@ tr.status-overdue .status-label,
   right: 0;
   top: 100%;
   margin-top: 4px;
-  z-index: 60;
+  z-index: var(--z-toast);
 }
 
 /* ===== Touch Target Audit ===== */
@@ -5499,7 +5514,7 @@ textarea {
 .scan-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--z-scan-feedback);
   background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;

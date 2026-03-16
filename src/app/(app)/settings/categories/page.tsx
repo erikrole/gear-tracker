@@ -69,7 +69,7 @@ function KebabMenu({
         &#8942;
       </button>
       {open && (
-        <div className="ctx-menu" style={{ position: "absolute", right: 0, top: "100%", zIndex: 60 }}>
+        <div className="ctx-menu" style={{ position: "absolute", right: 0, top: "100%", zIndex: "var(--z-toast)" }}>
           <button className="ctx-menu-item" onClick={() => { setOpen(false); onRename(); }}>
             Rename
           </button>
@@ -216,7 +216,7 @@ function CategoryRow({
         </div>
         <div className="cat-row-actions">
           {displayCount > 0 && (
-            <span className="badge badge-purple" style={{ fontSize: 11, padding: "2px 8px" }}>
+            <span className="badge badge-purple" style={{ fontSize: "var(--text-3xs)", padding: "2px 8px" }}>
               {displayCount} item{displayCount !== 1 ? "s" : ""}
             </span>
           )}

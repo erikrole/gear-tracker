@@ -217,7 +217,7 @@ export default function CheckoutDetailsPage() {
               style={{
                 textDecoration: "none",
                 padding: "12px 20px",
-                fontSize: 15,
+                fontSize: "var(--text-md)",
                 fontWeight: 600,
                 display: "inline-flex",
                 alignItems: "center",
@@ -235,7 +235,7 @@ export default function CheckoutDetailsPage() {
               style={{
                 textDecoration: "none",
                 padding: "12px 20px",
-                fontSize: 15,
+                fontSize: "var(--text-md)",
                 fontWeight: 600,
                 display: "inline-flex",
                 alignItems: "center",
@@ -254,7 +254,7 @@ export default function CheckoutDetailsPage() {
       {showExtend && (
         <div className="card" style={{ padding: 16, marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <label style={{ fontSize: 13, fontWeight: 600 }}>New end date:</label>
+            <label style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>New end date:</label>
             <input
               type="datetime-local"
               value={extendDate}
@@ -334,7 +334,7 @@ export default function CheckoutDetailsPage() {
                         width: 20, height: 20, borderRadius: "50%",
                         background: "var(--green)", color: "white",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        fontSize: "var(--text-xs)", fontWeight: 700, flexShrink: 0,
                       }}>
                         {"\u2713"}
                       </div>
@@ -343,14 +343,14 @@ export default function CheckoutDetailsPage() {
                       <Link href={`/items/${item.asset.id}`} style={{ fontWeight: 600, color: "var(--blue)", textDecoration: "none" }}>
                         {item.asset.assetTag}
                       </Link>
-                      <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                      <div style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
                         {item.asset.brand} {item.asset.model}
                       </div>
                     </div>
                     {returned ? (
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--green)", flexShrink: 0 }}>Returned</span>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--green)", flexShrink: 0 }}>Returned</span>
                     ) : (
-                      <span style={{ fontSize: 12, color: "var(--text-secondary)", fontFamily: "monospace", flexShrink: 0 }}>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "monospace", flexShrink: 0 }}>
                         {item.asset.serialNumber}
                       </span>
                     )}
@@ -372,7 +372,7 @@ export default function CheckoutDetailsPage() {
                   {canCheckin && <div style={{ width: 20 }} />}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{item.bulkSku?.name ?? "Unknown"}</div>
-                    <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                    <div style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
                       Qty: {item.checkedOutQuantity ?? item.plannedQuantity}
                       {(item.checkedInQuantity ?? 0) > 0 && ` \u2014 ${item.checkedInQuantity} returned`}
                     </div>

@@ -448,7 +448,7 @@ export default function ReservationDetailsPage() {
               flexWrap: "wrap",
             }}
           >
-            <label style={{ fontSize: 13, fontWeight: 600 }}>
+            <label style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
               New end date:
             </label>
             <input
@@ -489,7 +489,7 @@ export default function ReservationDetailsPage() {
                 key={days}
                 className="btn btn-sm"
                 onClick={() => handleQuickExtend(days)}
-                style={{ fontSize: 12 }}
+                style={{ fontSize: "var(--text-xs)" }}
               >
                 {label}
               </button>
@@ -565,7 +565,7 @@ export default function ReservationDetailsPage() {
                     padding: "8px 12px",
                     background: "var(--surface-alt, #f8f9fa)",
                     borderRadius: 6,
-                    fontSize: 13,
+                    fontSize: "var(--text-sm)",
                   }}
                 >
                   Equipment spans multiple locations:{" "}
@@ -592,7 +592,7 @@ export default function ReservationDetailsPage() {
                   padding: "8px 12px",
                   border: "1px solid var(--border)",
                   borderRadius: 6,
-                  fontSize: 14,
+                  fontSize: "var(--text-base)",
                 }}
               />
             </div>

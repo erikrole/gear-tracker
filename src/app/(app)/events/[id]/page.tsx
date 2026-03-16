@@ -142,7 +142,7 @@ export default function EventDetailPage() {
           <span className="badge badge-orange">needs location mapping</span>
         )}
         {event.source && (
-          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>
             via {event.source.name}
           </span>
         )}
@@ -205,7 +205,7 @@ export default function EventDetailPage() {
                 <span className="text-xs text-secondary ml-4">Students can request shifts</span>
               </div>
             )}
-            <table className="data-table" style={{ fontSize: 13 }}>
+            <table className="data-table" style={{ fontSize: "var(--text-sm)" }}>
               <thead>
                 <tr>
                   <th>Area</th>
@@ -255,7 +255,7 @@ export default function EventDetailPage() {
       )}
 
       {/* Debug info for admins */}
-      <details style={{ marginTop: 16, fontSize: 12, color: "var(--text-secondary)" }}>
+      <details style={{ marginTop: 16, fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>
         <summary style={{ cursor: "pointer" }}>Raw ICS data</summary>
         <pre style={{ background: "var(--bg-secondary, #f3f4f6)", padding: 12, borderRadius: 8, marginTop: 8, overflow: "auto" }}>
           {JSON.stringify({ rawSummary: event.rawSummary, rawLocationText: event.rawLocationText, rawDescription: event.rawDescription }, null, 2)}
