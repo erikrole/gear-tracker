@@ -204,9 +204,13 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [users, setUsers] = useState<FormUser[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
 
+  // ── Draft state ──
+  const [draftId, setDraftId] = useState<string | null>(urlParams.get("draftId"));
+  const draftLoadedRef = useRef(false);
+
   // ── Create form state ──
   const [showCreate, setShowCreate] = useState(
-    urlParams.get("create") === "true" || !!urlParams.get("title")
+    urlParams.get("create") === "true" || !!urlParams.get("title") || !!urlParams.get("draftId")
   );
   const [tieToEvent, setTieToEvent] = useState(config.defaultTieToEvent);
   const [createSport, setCreateSport] = useState("");
@@ -306,6 +310,32 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       .catch(() => { /* auth unavailable */ });
   }, []);
 
+  // Load draft data when draftId is present
+  useEffect(() => {
+    if (!draftId || draftLoadedRef.current) return;
+    draftLoadedRef.current = true;
+    fetch(`/api/drafts/${draftId}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => {
+        if (!json?.data) return;
+        const d = json.data;
+        if (d.title && d.title !== "Untitled draft") setCreateTitle(d.title);
+        if (d.requesterUserId) setCreateRequester(d.requesterUserId);
+        if (d.locationId) setCreateLocationId(d.locationId);
+        if (d.startsAt) setCreateStartsAt(toLocalDateTimeValue(new Date(d.startsAt)));
+        if (d.endsAt) setCreateEndsAt(toLocalDateTimeValue(new Date(d.endsAt)));
+        if (d.sportCode) setCreateSport(d.sportCode);
+        if (d.serializedAssetIds?.length) setSelectedAssetIds(d.serializedAssetIds);
+        if (d.bulkItems?.length) {
+          setSelectedBulkItems(d.bulkItems.map((bi: { bulkSkuId: string; quantity: number }) => ({
+            bulkSkuId: bi.bulkSkuId,
+            quantity: bi.quantity,
+          })));
+        }
+      })
+      .catch(() => { /* draft load failed — continue with empty form */ });
+  }, [draftId]);
+
   // Fetch events when sport selected
   useEffect(() => {
     if (!createSport || !tieToEvent) {
@@ -343,6 +373,65 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     if (ev.location) {
       setCreateLocationId(ev.location.id);
     }
+  }
+
+  // ── Draft save / discard ──
+
+  /** Save current form state as a DRAFT booking */
+  async function saveDraft() {
+    // Only save if there's meaningful data
+    const hasData = createTitle.trim() || selectedAssetIds.length > 0 || selectedBulkItems.length > 0;
+    if (!hasData) return;
+
+    try {
+      const payload: Record<string, unknown> = {
+        kind: config.kind,
+        title: createTitle.trim(),
+        startsAt: new Date(createStartsAt).toISOString(),
+        endsAt: new Date(createEndsAt).toISOString(),
+        serializedAssetIds: selectedAssetIds,
+        bulkItems: selectedBulkItems,
+      };
+      if (draftId) payload.id = draftId;
+      if (createRequester) payload.requesterUserId = createRequester;
+      if (createLocationId) payload.locationId = createLocationId;
+      if (selectedEvent) {
+        payload.eventId = selectedEvent.id;
+        payload.sportCode = selectedEvent.sportCode || createSport || undefined;
+      } else if (createSport) {
+        payload.sportCode = createSport;
+      }
+
+      const res = await fetch("/api/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setDraftId(json.data.id);
+        toast("Draft saved", "info");
+      }
+    } catch {
+      /* draft save is best-effort */
+    }
+  }
+
+  /** Delete the current draft (after successful creation) */
+  async function deleteDraft() {
+    if (!draftId) return;
+    try {
+      await fetch(`/api/drafts/${draftId}`, { method: "DELETE" });
+    } catch {
+      /* best-effort */
+    }
+    setDraftId(null);
+  }
+
+  /** Close the create modal — save as draft if there's data */
+  function handleCloseCreate() {
+    saveDraft();
+    setShowCreate(false);
   }
 
   // ── Create booking ──
@@ -410,6 +499,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         return;
       }
 
+      // Delete draft if this was a resumed draft
+      await deleteDraft();
+
       // Reset form
       setShowCreate(false);
       setCreateTitle("");
@@ -421,6 +513,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setSelectedBulkItems([]);
       setShowEquipPicker(true);
       setSubmitting(false);
+      setDraftId(null);
 
       setSelectedBookingId(json.data.id);
       await reload();
@@ -685,7 +778,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           </div>
 
           <div className="create-card-footer">
-            <button className="btn" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button className="btn" onClick={handleCloseCreate}>Cancel</button>
             <button
               className="btn btn-primary"
               disabled={submitting}

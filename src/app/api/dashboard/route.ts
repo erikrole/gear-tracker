@@ -69,6 +69,8 @@ export async function GET() {
       myReservations,
       // Overdue: top items for banner
       topOverdue,
+      // Drafts: current user's in-progress work
+      myDrafts,
     ] = await Promise.all([
       // Team checkouts (excl. me)
       db.booking.findMany({
@@ -161,6 +163,15 @@ export async function GET() {
           },
         },
       }),
+      // Drafts: current user's in-progress work
+      db.booking.findMany({
+        where: { status: "DRAFT", createdBy: user.id },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        include: {
+          _count: { select: { serializedItems: true, bulkItems: true } },
+        },
+      }),
     ]);
 
     // Format team checkouts
@@ -227,6 +238,13 @@ export async function GET() {
         })),
         overdueCount: totalOverdue,
         overdueItems,
+        drafts: myDrafts.map((d) => ({
+          id: d.id,
+          kind: d.kind,
+          title: d.title,
+          itemCount: d._count.serializedItems + d._count.bulkItems,
+          updatedAt: d.updatedAt.toISOString(),
+        })),
       },
     });
   } catch (error) {

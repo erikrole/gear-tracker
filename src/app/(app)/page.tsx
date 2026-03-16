@@ -57,6 +57,14 @@ type OverdueItem = {
   endsAt: string;
 };
 
+type DraftSummary = {
+  id: string;
+  kind: string;
+  title: string;
+  itemCount: number;
+  updatedAt: string;
+};
+
 type DashboardData = {
   stats: {
     checkedOut: number;
@@ -71,6 +79,7 @@ type DashboardData = {
   myReservations: MyReservation[];
   overdueCount: number;
   overdueItems: OverdueItem[];
+  drafts: DraftSummary[];
 };
 
 /* ───── Component ───── */
@@ -282,6 +291,49 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Drafts */}
+          {data.drafts.length > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <h2>Drafts</h2>
+                <span className="section-count">{data.drafts.length}</span>
+              </div>
+              <div className="card-body card-body-compact">
+                {data.drafts.map((d) => (
+                  <div key={d.id} className="ops-row draft-row">
+                    <div className="ops-row-main">
+                      <span className="ops-row-title">
+                        <span className="draft-kind-badge">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</span>
+                        {d.title || "Untitled"}
+                      </span>
+                      <span className="ops-row-meta">
+                        {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
+                        Edited {formatDateShort(d.updatedAt)}
+                      </span>
+                    </div>
+                    <div className="draft-actions">
+                      <a
+                        href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}
+                        className="btn btn-sm"
+                      >
+                        Resume
+                      </a>
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        onClick={async () => {
+                          await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
+                          loadData();
+                        }}
+                      >
+                        Discard
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ────── Right Column: Team Activity ────── */}

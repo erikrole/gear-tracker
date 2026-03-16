@@ -25,7 +25,7 @@
 | ID | Description | Owner Area | Status | Notes |
 |---|---|---|---|---|
 | ~~GAP-1~~ | ~~`BRIEF_STUDENT_MOBILE_V1.md` not written~~ | ~~AREA_MOBILE~~ | ~~Closed~~ | ~~Brief written, V1 hardening shipped 2026-03-15~~ |
-| GAP-2 | Draft persistence model underspecified | AREA_DASHBOARD | Open | D-017 covers DRAFT state; recovery UX is Phase B |
+| ~~GAP-2~~ | ~~Draft persistence model underspecified~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Shipped 2026-03-16: DRAFT booking CRUD + dashboard section + auto-save on cancel~~ |
 | GAP-3 | Equipment guidance: only 1 rule in production | AREA_CHECKOUTS | Low priority | D-016 defers admin-config to Phase C |
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
 | ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
@@ -37,7 +37,7 @@
 
 | Feature | Owner Area | Decision Ref | Notes |
 |---|---|---|---|
-| Asset financial fields UI (purchasePrice, warrantyDate, residualValue) | AREA_ITEMS | D-018 | Schema ready, expose in Settings tab for admins |
+| ~~Asset financial fields UI~~ | ~~AREA_ITEMS~~ | ~~D-018~~ | ~~Shipped 2026-03-16: Procurement section in item detail Info tab~~ |
 | Department filter/display | AREA_ITEMS | D-019 | Schema ready, optional grouping |
 | Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI. Simple parent-child accessories shipped via D-023. |
 | Dashboard saved filters | AREA_DASHBOARD | — | Deferred from V1 |
@@ -101,3 +101,4 @@
 - 2026-03-16: Closed GAP-6 (email notification channel wired via Resend + Vercel Cron every 15min).
 - 2026-03-16: Sentry error tracking wired (optional DSN, source maps, global error boundary). Vercel Blob image upload wired (POST/DELETE /api/assets/:id/image).
 - 2026-03-16: UI overhaul — modern minimal design system. Removed liquid glass, warm neutrals, #202020 dark sidebar, Wisconsin red for brand moments only, neutral dark primary buttons.
+- 2026-03-16: Closed GAP-2 (draft persistence). D-017 shipped: DRAFT CRUD API, dashboard Drafts section, auto-save on cancel, resume pre-fill. D-018 marked shipped (financial fields already in UI).
