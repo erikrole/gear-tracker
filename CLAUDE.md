@@ -97,10 +97,13 @@ After merging Codex or any parallel branch:
 - Run `npm run build` to confirm clean compilation before declaring done
 
 ### 12. Doc Sync on Ship (NON-NEGOTIABLE)
-When shipping a feature, the PR must:
+Every commit that ships functionality MUST include doc updates in the same commit:
 - Update the relevant `AREA_*.md` file's change log and mark acceptance criteria as met
 - Update `docs/GAPS_AND_RISKS.md` if the feature closes a gap or pending decision
+- Update `tasks/lessons.md` if you learned something worth capturing
+- Move completed plan files to `tasks/archive/` when all slices ship
 - No feature is "done" until its area doc reflects shipped reality
+- This applies to ALL work — not just PRs. Every push must leave docs in sync with code.
 
 ### 13. Plan File Lifecycle
 Plan files in `tasks/` follow this lifecycle:

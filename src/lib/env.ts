@@ -18,5 +18,25 @@ export const env = {
   },
   get appTimezone() {
     return process.env.APP_TIMEZONE || "America/Chicago";
-  }
+  },
+  /** Optional — enables Vercel Cron auth for /api/cron/* routes */
+  get cronSecret() {
+    return process.env.CRON_SECRET || "";
+  },
+  /** Optional — enables email delivery via Resend. Falls back to console.log */
+  get resendApiKey() {
+    return process.env.RESEND_API_KEY || "";
+  },
+  /** From address for transactional email */
+  get emailFrom() {
+    return process.env.EMAIL_FROM || "Gear Tracker <noreply@gear-tracker.app>";
+  },
+  /** Optional — enables Sentry error tracking */
+  get sentryDsn() {
+    return process.env.SENTRY_DSN || "";
+  },
+  /** Optional — enables Vercel Blob image uploads */
+  get blobReadWriteToken() {
+    return process.env.BLOB_READ_WRITE_TOKEN || "";
+  },
 };

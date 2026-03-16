@@ -16,8 +16,8 @@ import QrScanner from "@/components/QrScanner";
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   AVAILABLE: "var(--green)",
-  CHECKED_OUT: "var(--red)",
-  RESERVED: "#a855f7",
+  CHECKED_OUT: "var(--blue)",
+  RESERVED: "var(--purple)",
   MAINTENANCE: "var(--orange)",
   RETIRED: "var(--text-muted)",
 };

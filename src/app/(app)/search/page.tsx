@@ -210,7 +210,9 @@ function statusColor(status: string): string {
   switch (status) {
     case "AVAILABLE": return "green";
     case "OPEN": case "BOOKED": return "blue";
-    case "CHECKED_OUT": return "orange";
+    case "CHECKED_OUT": return "blue";
+    case "RESERVED": return "purple";
+    case "MAINTENANCE": return "orange";
     case "COMPLETED": return "gray";
     case "CANCELLED": return "gray";
     case "OVERDUE": return "red";
