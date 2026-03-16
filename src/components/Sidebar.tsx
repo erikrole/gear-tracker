@@ -91,6 +91,15 @@ const navItems = [
     ),
   },
   {
+    label: "Reports",
+    href: "/reports",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 20V10M12 20V4M6 20v-6" />
+      </svg>
+    ),
+  },
+  {
     label: "Settings",
     href: "/settings",
     icon: (
@@ -103,7 +112,7 @@ const navItems = [
 ];
 
 /** Nav items hidden from STUDENT role */
-const STUDENT_HIDDEN_HREFS = new Set(["/users", "/kits", "/settings"]);
+const STUDENT_HIDDEN_HREFS = new Set(["/users", "/kits", "/reports", "/settings"]);
 
 type SidebarProps = {
   user: { name: string; email: string; role?: string } | null;
