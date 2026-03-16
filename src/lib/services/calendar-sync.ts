@@ -394,8 +394,6 @@ export function splitEventsForSync(
 
 /**
  * Sync a single CalendarSource — fetches ICS, parses, upserts events.
- *
- * Sync a single CalendarSource — fetches ICS, parses, upserts events.
  */
 export async function syncCalendarSource(sourceId: string): Promise<SyncResult> {
   const source = await db.calendarSource.findUnique({ where: { id: sourceId } });

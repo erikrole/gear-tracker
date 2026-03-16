@@ -22,7 +22,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 5. Events API defaults to `startsAt >= now()` when no `startDate` param supplied — avoids stale-looking event list.
 6. Calendar source deletion: `DELETE /api/calendar-sources/[id]` — nullifies `eventId` on linked bookings (SET NULL before cascade), then deletes source and its events.
 7. Calendar sync hardening: per-event error isolation so one malformed ICS event cannot crash the entire source sync.
-8. Batch DB operations in sync pipeline to stay within Cloudflare Worker subrequest limits.
+8. Batch DB operations in sync pipeline for performance (avoid N+1 query patterns).
 9. Production sync diagnostics: structured logging for missing event counts and sync failure details.
 
 ## Next

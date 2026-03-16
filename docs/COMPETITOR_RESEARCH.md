@@ -33,7 +33,7 @@ Gear Tracker replaces Cheqroom for a game-day media production team managing cam
 
 **Effort:** S-M | **Impact:** 5/5
 
-**Implementation notes:** Add "Flag Issue" button in scan confirmation UI. New `ConditionReport` model or `conditionNote` + `conditionPhotoUrl` fields on `BookingSerializedItem`. Photo upload via Cloudflare R2. Dashboard badge for items needing attention.
+**Implementation notes:** Add "Flag Issue" button in scan confirmation UI. New `ConditionReport` model or `conditionNote` + `conditionPhotoUrl` fields on `BookingSerializedItem`. Photo upload via Vercel Blob. Dashboard badge for items needing attention.
 
 ---
 
@@ -163,7 +163,7 @@ Gear Tracker replaces Cheqroom for a game-day media production team managing cam
 
 **Effort:** M | **Impact:** 3/5
 
-**Implementation notes:** Requires Cloudflare R2 object storage, image upload component, photos relation on Asset. The `imageUrl` field exists on Asset but is singular and currently unused.
+**Implementation notes:** Requires Vercel Blob storage, image upload component, photos relation on Asset. The `imageUrl` field exists on Asset but is singular and currently unused.
 
 ---
 

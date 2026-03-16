@@ -338,7 +338,7 @@
   - One QR code serves 40+ items — faster than individual scanning.
   - Loss tracking works at the individual unit level.
   - Physical labels must match unit numbers (user responsibility).
-  - All unit operations use `createMany`/`updateMany` to stay within Cloudflare Worker subrequest budget.
+  - All unit operations use `createMany`/`updateMany` to batch DB calls efficiently.
 - Guardrails:
   - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
   - Checked-out units cannot be marked lost/retired — must be checked in first.
