@@ -17,7 +17,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       distinct: ["bookingId"],
     });
 
-    const bookingIdList = bookingIds.map((b) => b.bookingId);
+    const bookingIdList = bookingIds.map((b: { bookingId: string }) => b.bookingId);
 
     const logs = await db.auditLog.findMany({
       where: {
