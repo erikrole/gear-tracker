@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -24,6 +25,7 @@ export function fail(error: unknown) {
   }
 
   console.error(error);
+  Sentry.captureException(error);
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 

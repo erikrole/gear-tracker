@@ -37,17 +37,17 @@
 
 ---
 
-## Slice 2: Sentry Error Tracking (15 min)
+## Slice 2: Sentry Error Tracking (15 min) ✅ SHIPPED 2026-03-16
 
 ### Files
-- [ ] **EDIT** `package.json` — add `@sentry/nextjs`
-- [ ] **EDIT** `next.config.ts` — wrap with `withSentryConfig`
-- [ ] **NEW** `sentry.client.config.ts` — client-side Sentry init
-- [ ] **NEW** `sentry.server.config.ts` — server-side Sentry init
-- [ ] **NEW** `sentry.edge.config.ts` — edge Sentry init (minimal, we don't use edge but Next.js requires it)
-- [ ] **NEW** `src/app/global-error.tsx` — React error boundary for Sentry
-- [ ] **EDIT** `src/lib/env.ts` — add optional `SENTRY_DSN`
-- [ ] **EDIT** `src/lib/http.ts` — capture exceptions in `fail()` for non-HttpError cases
+- [x] **EDIT** `package.json` — add `@sentry/nextjs`
+- [x] **EDIT** `next.config.ts` — wrap with `withSentryConfig`
+- [x] **NEW** `sentry.client.config.ts` — client-side Sentry init
+- [x] **NEW** `sentry.server.config.ts` — server-side Sentry init
+- [x] **NEW** `sentry.edge.config.ts` — edge Sentry init (minimal, we don't use edge but Next.js requires it)
+- [x] **NEW** `src/app/global-error.tsx` — React error boundary for Sentry
+- [x] **EDIT** `src/lib/env.ts` — add optional `SENTRY_DSN`
+- [x] **EDIT** `src/lib/http.ts` — capture exceptions in `fail()` for non-HttpError cases
 
 ### Design
 - Sentry DSN is optional — app works fine without it (dev/local)
@@ -82,13 +82,13 @@ New: in-app notification created → `sendEmail()` for each notification (if RES
 
 ---
 
-## Slice 4: Vercel Blob Image Storage (30 min)
+## Slice 4: Vercel Blob Image Storage (30 min) ✅ SHIPPED 2026-03-16
 
 ### Files
-- [ ] **EDIT** `package.json` — add `@vercel/blob`
-- [ ] **NEW** `src/app/api/assets/upload/route.ts` — blob upload endpoint
-- [ ] **EDIT** `src/lib/env.ts` — add optional `BLOB_READ_WRITE_TOKEN`
-- [ ] **NEW** `src/lib/blob.ts` — thin wrapper around `@vercel/blob`
+- [x] **EDIT** `package.json` — add `@vercel/blob`
+- [x] **NEW** `src/app/api/assets/[id]/image/route.ts` — blob upload + delete endpoint
+- [x] **EDIT** `src/lib/env.ts` — add optional `BLOB_READ_WRITE_TOKEN`
+- [x] **NEW** `src/lib/blob.ts` — thin wrapper around `@vercel/blob`
 
 ### Design
 - `POST /api/assets/upload` accepts `multipart/form-data` with image file
@@ -115,8 +115,8 @@ New: in-app notification created → `sendEmail()` for each notification (if RES
 ---
 
 ## Doc Updates on Ship
-- [ ] Update `docs/GAPS_AND_RISKS.md` — close GAP-6 (email channel wired)
-- [ ] Update `docs/AREA_NOTIFICATIONS.md` — document Resend integration, cron schedule
+- [x] Update `docs/GAPS_AND_RISKS.md` — close GAP-6 (email channel wired)
+- [x] Update `docs/AREA_NOTIFICATIONS.md` — document Resend integration, cron schedule
 - [ ] Create `.env.example` with all env vars documented
 
 ---

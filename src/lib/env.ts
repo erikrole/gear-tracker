@@ -31,4 +31,12 @@ export const env = {
   get emailFrom() {
     return process.env.EMAIL_FROM || "Gear Tracker <noreply@gear-tracker.app>";
   },
+  /** Optional — enables Sentry error tracking */
+  get sentryDsn() {
+    return process.env.SENTRY_DSN || "";
+  },
+  /** Optional — enables Vercel Blob image uploads */
+  get blobReadWriteToken() {
+    return process.env.BLOB_READ_WRITE_TOKEN || "";
+  },
 };
