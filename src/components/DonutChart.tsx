@@ -27,7 +27,7 @@ export default function DonutChart({ segments, size = 120 }: DonutChartProps) {
               cy="50"
               r={radius}
               fill="none"
-              stroke="#e5e7eb"
+              stroke="var(--border)"
               strokeWidth="16"
             />
           ) : (
@@ -60,7 +60,7 @@ export default function DonutChart({ segments, size = 120 }: DonutChartProps) {
             dominantBaseline="central"
             fontSize="16"
             fontWeight="700"
-            fill="#1a1a2e"
+            fill="var(--text)"
           >
             {total}
           </text>

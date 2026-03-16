@@ -138,7 +138,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         title: alloc.booking.title,
         startsAt: alloc.booking.startsAt.toISOString(),
         endsAt: alloc.booking.endsAt.toISOString(),
-        requesterName: alloc.booking.requester.name,
+        requesterName: alloc.booking.requester?.name ?? "Unknown",
       };
       break;
     }
@@ -170,7 +170,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
               status: r.booking.status,
               startsAt: r.booking.startsAt,
               endsAt: r.booking.endsAt,
-              requesterName: r.booking.requester.name,
+              requesterName: r.booking.requester?.name ?? "Unknown",
             }));
         })(),
         history: bookingHistory.map((entry) => ({

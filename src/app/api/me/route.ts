@@ -14,7 +14,6 @@ export async function GET() {
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  role: z.enum(["ADMIN", "STAFF", "STUDENT"]).optional(),
   currentPassword: z.string().optional(),
   newPassword: z.string().min(8).max(128).optional(),
 }).refine(
@@ -34,10 +33,6 @@ export async function PATCH(req: Request) {
 
     if (body.name) {
       updateData.name = body.name;
-    }
-
-    if (body.role) {
-      updateData.role = body.role;
     }
 
     if (body.newPassword && body.currentPassword) {

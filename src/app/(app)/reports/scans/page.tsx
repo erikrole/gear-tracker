@@ -48,7 +48,7 @@ export default function ScanHistoryPage() {
   }, [page]);
 
   if (loading) return <div className="loading-spinner"><div className="spinner" /></div>;
-  if (!data) return <div className="empty-state">Failed to load report</div>;
+  if (!data) return <div className="empty-state">Failed to load report. Please try refreshing the page.</div>;
 
   const totalPages = Math.ceil(data.total / limit);
 

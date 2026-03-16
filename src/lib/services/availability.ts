@@ -72,6 +72,7 @@ export async function checkAssetStatuses(
   tx: Prisma.TransactionClient | PrismaClient,
   args: {
     serializedAssetIds: string[];
+    bookingKind?: "CHECKOUT" | "RESERVATION";
   }
 ): Promise<AvailabilityResult["unavailableAssets"]> {
   if (args.serializedAssetIds.length === 0) {
@@ -80,22 +81,35 @@ export async function checkAssetStatuses(
 
   const assets = await tx.asset.findMany({
     where: { id: { in: args.serializedAssetIds } },
-    select: { id: true, status: true }
+    select: {
+      id: true,
+      status: true,
+      availableForCheckout: true,
+      availableForReservation: true,
+    }
   });
 
   const foundIds = new Set(assets.map((a) => a.id));
   const missingIds = args.serializedAssetIds.filter((id) => !foundIds.has(id));
 
-  const unavailableFromStatus = assets
-    .filter((a) => a.status !== "AVAILABLE")
-    .map((a) => ({ assetId: a.id, status: a.status as string }));
+  const unavailable: AvailabilityResult["unavailableAssets"] = [];
+
+  for (const a of assets) {
+    if (a.status !== "AVAILABLE") {
+      unavailable.push({ assetId: a.id, status: a.status as string });
+    } else if (args.bookingKind === "CHECKOUT" && !a.availableForCheckout) {
+      unavailable.push({ assetId: a.id, status: "NOT_AVAILABLE_FOR_CHECKOUT" });
+    } else if (args.bookingKind === "RESERVATION" && !a.availableForReservation) {
+      unavailable.push({ assetId: a.id, status: "NOT_AVAILABLE_FOR_RESERVATION" });
+    }
+  }
 
   const unavailableFromMissing = missingIds.map((id) => ({
     assetId: id,
     status: "NOT_FOUND"
   }));
 
-  return [...unavailableFromStatus, ...unavailableFromMissing];
+  return [...unavailable, ...unavailableFromMissing];
 }
 
 export async function checkBulkShortages(
@@ -143,6 +157,7 @@ export async function checkAvailability(
     serializedAssetIds: string[];
     bulkItems: BulkRequest[];
     excludeBookingId?: string;
+    bookingKind?: "CHECKOUT" | "RESERVATION";
   }
 ): Promise<AvailabilityResult> {
   const [conflicts, shortages, unavailableAssets] = await Promise.all([
@@ -157,7 +172,8 @@ export async function checkAvailability(
       bulkItems: args.bulkItems
     }),
     checkAssetStatuses(tx, {
-      serializedAssetIds: args.serializedAssetIds
+      serializedAssetIds: args.serializedAssetIds,
+      bookingKind: args.bookingKind,
     })
   ]);
 

@@ -361,7 +361,7 @@ export default function BulkInventoryPage() {
               const units = sku.units ?? [];
 
               return (
-                <div className="p-16" style={{ borderTop: "1px solid var(--border)", background: "#fafbfc" }}>
+                <div className="p-16" style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
                   <div className="flex-between mb-12">
                     <h3 className="m-0" style={{ fontSize: 15 }}>{sku.name} — Units</h3>
                     {addingUnits === sku.id ? (

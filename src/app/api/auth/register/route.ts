@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { createSession, hashPassword } from "@/lib/auth";
 import { fail, HttpError, ok } from "@/lib/http";
@@ -15,14 +16,22 @@ export async function POST(req: Request) {
 
     const passwordHash = await hashPassword(body.password);
 
-    const user = await db.user.create({
-      data: {
-        name: body.name,
-        email,
-        passwordHash,
-        role: "STUDENT",
-      },
-    });
+    let user;
+    try {
+      user = await db.user.create({
+        data: {
+          name: body.name,
+          email,
+          passwordHash,
+          role: "STUDENT",
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new HttpError(409, "An account with this email already exists");
+      }
+      throw error;
+    }
 
     await createSession(user.id);
 

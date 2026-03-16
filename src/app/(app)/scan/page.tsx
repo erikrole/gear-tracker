@@ -668,7 +668,7 @@ export default function ScanPage() {
           <div className="sheet-overlay" onClick={() => setUnitPicker(null)} />
           <div className="sheet-panel" style={{ maxWidth: 480 }}>
             <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: "#d1d5db" }} />
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border)" }} />
             </div>
 
             <div className="sheet-header">

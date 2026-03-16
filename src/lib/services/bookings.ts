@@ -256,7 +256,8 @@ export async function createBooking(input: CreateBookingInput) {
         startsAt: input.startsAt,
         endsAt: input.endsAt,
         serializedAssetIds: resolvedSerializedAssetIds,
-        bulkItems: resolvedBulkItems
+        bulkItems: resolvedBulkItems,
+        bookingKind: input.kind as "CHECKOUT" | "RESERVATION",
       });
 
       if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
@@ -425,7 +426,8 @@ export async function updateReservation(
         endsAt: nextEndsAt,
         serializedAssetIds,
         bulkItems,
-        excludeBookingId: bookingId
+        excludeBookingId: bookingId,
+        bookingKind: "RESERVATION",
       });
 
       if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
@@ -684,7 +686,8 @@ export async function updateCheckout(
         endsAt: nextEndsAt,
         serializedAssetIds,
         bulkItems,
-        excludeBookingId: bookingId
+        excludeBookingId: bookingId,
+        bookingKind: "CHECKOUT",
       });
 
       if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
@@ -826,7 +829,8 @@ export async function extendBooking(
         endsAt: newEndsAt,
         serializedAssetIds,
         bulkItems,
-        excludeBookingId: bookingId
+        excludeBookingId: bookingId,
+        bookingKind: existing.kind as "CHECKOUT" | "RESERVATION",
       });
 
       if (availability.conflicts.length > 0) {

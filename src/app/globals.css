@@ -46,6 +46,8 @@
 
   /* Surfaces */
   --bg: #f8f8f7;
+  --bg-card: #ffffff;
+  --bg-surface: #fafaf9;
   --panel: #ffffff;
   --panel-solid: #ffffff;
   --panel-hover: #fafaf9;
@@ -121,6 +123,8 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: #191919;
+    --bg-card: #202020;
+    --bg-surface: #1e1e1e;
     --panel: #202020;
     --panel-solid: #202020;
     --panel-hover: #2a2a2a;
@@ -161,6 +165,8 @@
 [data-theme="dark"] {
   color-scheme: dark;
   --bg: #191919;
+  --bg-card: #202020;
+  --bg-surface: #1e1e1e;
   --panel: #202020;
   --panel-solid: #202020;
   --panel-hover: #2a2a2a;

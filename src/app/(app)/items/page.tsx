@@ -474,16 +474,9 @@ export default function ItemsPage() {
       .then((res) => res.ok ? res.json() : null)
       .then((json) => { if (json) setCategories(json.data || []); })
       .catch(() => {});
-    // Fetch distinct brands
-    fetch("/api/assets?limit=9999&offset=0")
+    fetch("/api/assets/brands")
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        if (json?.data) {
-          const unique = [...new Set(json.data.map((a: Asset) => a.brand).filter(Boolean))] as string[];
-          unique.sort((a, b) => a.localeCompare(b));
-          setBrands(unique);
-        }
-      })
+      .then((json) => { if (json?.data) setBrands(json.data); })
       .catch(() => {});
   }, []);
 
