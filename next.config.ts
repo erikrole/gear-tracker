@@ -6,7 +6,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true
+  reactStrictMode: true,
+  poweredByHeader: false,
+  compress: true,
 };
 
 export default withBundleAnalyzer(nextConfig);

@@ -5,8 +5,7 @@ import { fail, HttpError, ok } from "@/lib/http";
 /**
  * All DDL statements, each executed individually.
  * Neon HTTP driver requires exactly one statement per call.
- * We use an interactive $transaction so all statements share
- * one WebSocket connection (1 subrequest, not 40+).
+ * We use an interactive $transaction so all statements share one connection.
  */
 
 // Statements that may fail if already present (no IF NOT EXISTS support)
@@ -86,8 +85,7 @@ const DDL_SQL: string[] = [
  * POST /api/migrate
  * Runs all migrations (idempotent). Admin only.
  *
- * Uses an interactive Prisma $transaction so all DDL runs over a single
- * WebSocket connection, counting as 1 subrequest instead of 40+.
+ * Uses an interactive Prisma $transaction so all DDL runs in one connection.
  */
 export async function POST() {
   try {

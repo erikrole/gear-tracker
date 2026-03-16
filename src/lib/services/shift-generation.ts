@@ -1,7 +1,7 @@
 import { ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 
-const WRITE_CHUNK_SIZE = 50;
+const WRITE_CHUNK_SIZE = 500;
 
 type ShiftToCreate = {
   shiftGroupId: string;
@@ -90,14 +90,7 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
 
 /**
  * Generate shifts for all calendar events from a source that don't have shifts yet.
- * Called as a post-sync hook. Batches DB operations to stay within Cloudflare limits.
- *
- * Query budget:
- *   1 findMany (events without shift groups)
- *   1 findMany (all active sport configs)
- *   1 createMany (shift groups)
- *   ceil(shifts/50) createMany (shifts)
- *   Total: ~4-6 queries
+ * Called as a post-sync hook after ICS sync completes.
  */
 export async function generateShiftsForNewEvents(sourceId: string): Promise<{
   groupsCreated: number;
