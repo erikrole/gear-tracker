@@ -3274,19 +3274,19 @@ textarea:focus-visible {
 }
 
 .scan-mode-checkout {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--blue-bg);
+  color: #2563eb;
 }
-.scan-mode-checkout .scan-mode-dot { background: #3b82f6; animation: pulse-dot-anim 2s ease-in-out infinite; }
+.scan-mode-checkout .scan-mode-dot { background: var(--blue); animation: pulse-dot-anim 2s ease-in-out infinite; }
 
 .scan-mode-checkin {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--green-bg);
+  color: #16a34a;
 }
-.scan-mode-checkin .scan-mode-dot { background: #22c55e; animation: pulse-dot-anim 2s ease-in-out infinite; }
+.scan-mode-checkin .scan-mode-dot { background: var(--green); animation: pulse-dot-anim 2s ease-in-out infinite; }
 
 .scan-mode-lookup {
-  background: var(--bg-secondary, #f3f4f6);
+  background: var(--accent-soft);
   color: var(--text-secondary);
 }
 .scan-mode-lookup .scan-mode-dot { background: #9ca3af; }
@@ -4559,7 +4559,7 @@ tr.status-overdue .status-label,
   flex-shrink: 0;
 }
 .status-available { background: var(--green); }
-.status-checked-out { background: var(--red); }
+.status-checked-out { background: var(--blue); }
 .status-reserved { background: var(--purple); }
 .status-maintenance { background: var(--orange); }
 .status-retired { background: var(--text-muted); }
@@ -4932,7 +4932,7 @@ tr.status-overdue .status-label,
   font-size: 14px;
 }
 .status-text-available { color: var(--green); }
-.status-text-checked-out { color: var(--red); }
+.status-text-checked-out { color: var(--blue); }
 .status-text-checking-out { color: var(--blue); }
 .status-text-reserved { color: var(--purple); }
 .status-text-maintenance { color: var(--orange); }

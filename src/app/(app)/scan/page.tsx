@@ -423,12 +423,12 @@ export default function ScanPage() {
   }
   function statusColor(s: string) {
     switch (s) {
-      case "AVAILABLE": return { bg: "#dcfce7", text: "#166534" };
-      case "CHECKED_OUT": return { bg: "#dbeafe", text: "#1e40af" };
-      case "RESERVED": return { bg: "#fef9c3", text: "#854d0e" };
-      case "MAINTENANCE": return { bg: "#fed7aa", text: "#9a3412" };
-      case "RETIRED": return { bg: "#f3f4f6", text: "#6b7280" };
-      default: return { bg: "#f3f4f6", text: "#6b7280" };
+      case "AVAILABLE": return { bg: "var(--green-bg)", text: "#16a34a" };
+      case "CHECKED_OUT": return { bg: "var(--blue-bg)", text: "#2563eb" };
+      case "RESERVED": return { bg: "var(--purple-bg)", text: "#7c3aed" };
+      case "MAINTENANCE": return { bg: "var(--orange-bg)", text: "#d97706" };
+      case "RETIRED": return { bg: "var(--accent-soft)", text: "var(--text-secondary)" };
+      default: return { bg: "var(--accent-soft)", text: "var(--text-secondary)" };
     }
   }
 
