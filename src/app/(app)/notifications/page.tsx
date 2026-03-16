@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
 
@@ -24,6 +24,64 @@ type NotificationsResponse = {
   offset: number;
   unreadCount: number;
 };
+
+function notifIcon(type: string) {
+  switch (type) {
+    case "OVERDUE_CHECKOUT":
+    case "OVERDUE_RESERVATION":
+      return "⚠";
+    case "BOOKING_APPROVED":
+    case "BOOKING_CONFIRMED":
+      return "✓";
+    case "BOOKING_CANCELLED":
+    case "BOOKING_REJECTED":
+      return "✕";
+    default:
+      return "●";
+  }
+}
+
+function notifIconClass(type: string) {
+  switch (type) {
+    case "OVERDUE_CHECKOUT":
+    case "OVERDUE_RESERVATION":
+      return "notif-icon-overdue";
+    case "BOOKING_APPROVED":
+    case "BOOKING_CONFIRMED":
+      return "notif-icon-success";
+    case "BOOKING_CANCELLED":
+    case "BOOKING_REJECTED":
+      return "notif-icon-cancelled";
+    default:
+      return "notif-icon-default";
+  }
+}
+
+function formatTime(dateStr: string) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
+}
+
+function dayLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const notifDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.floor((today.getTime() - notifDay.getTime()) / 86_400_000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return "This week";
+  return notifDay.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+}
 
 export default function NotificationsPage() {
   const { toast } = useToast();
@@ -59,6 +117,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, unreadOnly]);
 
   async function markAllRead() {
@@ -108,17 +167,21 @@ export default function NotificationsPage() {
     }
   }
 
-  function formatTime(dateStr: string) {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const hours = Math.floor(diffMs / 3600_000);
-    if (hours < 1) return "just now";
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
-    return d.toLocaleDateString();
-  }
+  // Group notifications by day
+  const grouped = useMemo(() => {
+    const groups: { label: string; items: Notification[] }[] = [];
+    let currentLabel = "";
+    for (const n of notifications) {
+      const label = dayLabel(n.sentAt);
+      if (label !== currentLabel) {
+        groups.push({ label, items: [n] });
+        currentLabel = label;
+      } else {
+        groups[groups.length - 1].items.push(n);
+      }
+    }
+    return groups;
+  }, [notifications]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -129,7 +192,7 @@ export default function NotificationsPage() {
           Notifications
           {unreadCount > 0 && (
             <span className="badge badge-blue notif-badge">
-              {unreadCount} unread
+              {unreadCount}
             </span>
           )}
         </h1>
@@ -180,52 +243,59 @@ export default function NotificationsPage() {
         ) : (
           <>
             <div className="notif-list">
-              {notifications.map((n) => (
-                <div key={n.id} className={`notif-card${n.readAt ? "" : " notif-unread"}`}>
-                  <div className={`notif-dot${n.readAt ? "" : " active"}`} />
-                  <div className="notif-content">
-                    <div className="notif-title-row">
-                      <span className={`notif-title${n.readAt ? "" : " unread"}`}>
-                        {n.title}
-                      </span>
-                      <span className="notif-time">
-                        {formatTime(n.sentAt)}
-                      </span>
+              {grouped.map((group) => (
+                <div key={group.label}>
+                  <div className="notif-day-header">{group.label}</div>
+                  {group.items.map((n) => (
+                    <div key={n.id} className={`notif-card${n.readAt ? "" : " notif-unread"}`}>
+                      <div className={`notif-icon ${notifIconClass(n.type)}`}>
+                        {notifIcon(n.type)}
+                      </div>
+                      <div className="notif-content">
+                        <div className="notif-title-row">
+                          <span className={`notif-title${n.readAt ? "" : " unread"}`}>
+                            {n.title}
+                          </span>
+                          <span className="notif-time">
+                            {formatTime(n.sentAt)}
+                          </span>
+                        </div>
+                        <div className="notif-body">
+                          {n.body}
+                        </div>
+                        <div className="notif-actions">
+                          {n.payload?.bookingId && (() => {
+                            const kind = n.payload?.bookingKind;
+                            const href = kind === "RESERVATION"
+                              ? `/reservations/${n.payload.bookingId}`
+                              : `/checkouts/${n.payload.bookingId}`;
+                            const label = kind === "RESERVATION" ? "View reservation" : "View checkout";
+                            return (
+                              <Link href={href} className="btn btn-sm notif-link-btn">
+                                {label} →
+                              </Link>
+                            );
+                          })()}
+                          {!n.readAt && (
+                            <button
+                              className="btn btn-sm btn-ghost notif-mark-btn"
+                              onClick={() => markRead(n.id)}
+                              disabled={markingId === n.id}
+                            >
+                              {markingId === n.id ? "..." : "Mark read"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="notif-body">
-                      {n.body}
-                    </div>
-                    <div className="notif-actions">
-                      {n.payload?.bookingId && (() => {
-                        const kind = n.payload?.bookingKind;
-                        const href = kind === "RESERVATION"
-                          ? `/reservations/${n.payload.bookingId}`
-                          : `/checkouts/${n.payload.bookingId}`;
-                        const label = kind === "RESERVATION" ? "View reservation" : "View checkout";
-                        return (
-                          <Link href={href} className="btn btn-sm notif-action-btn">
-                            {label}
-                          </Link>
-                        );
-                      })()}
-                      {!n.readAt && (
-                        <button
-                          className="btn btn-sm notif-action-btn"
-                          onClick={() => markRead(n.id)}
-                          disabled={markingId === n.id}
-                        >
-                          {markingId === n.id ? "..." : "Mark read"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               ))}
             </div>
             {totalPages > 1 && (
               <div className="pagination">
                 <span>
-                  Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of{" "}
+                  Showing {page * limit + 1}–{Math.min((page + 1) * limit, total)} of{" "}
                   {total}
                 </span>
                 <div className="pagination-btns">

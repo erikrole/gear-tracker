@@ -5977,8 +5977,10 @@ tr.returned-row { opacity: 0.55; }
 /* ===== Notifications Page ===== */
 .notif-badge {
   margin-left: 8px;
-  font-size: 13px;
+  font-size: 11px;
   vertical-align: middle;
+  min-width: 20px;
+  text-align: center;
 }
 
 .notif-header-actions {
@@ -6009,29 +6011,66 @@ tr.returned-row { opacity: 0.55; }
   flex-direction: column;
 }
 
+.notif-day-header {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
 .notif-card {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 10px;
+  transition: background 0.15s;
+}
+
+.notif-card:hover {
+  background: var(--panel-hover);
 }
 
 .notif-unread {
+  border-left-color: var(--blue);
   background: var(--accent-soft);
 }
 
-.notif-dot {
-  width: 8px;
-  height: 8px;
+.notif-icon {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: transparent;
-  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
-.notif-dot.active {
-  background: var(--blue, #3b82f6);
+.notif-icon-overdue {
+  background: var(--red-bg, #fef2f2);
+  color: var(--red, #dc2626);
+}
+
+.notif-icon-success {
+  background: var(--green-bg, #f0fdf4);
+  color: var(--green, #16a34a);
+}
+
+.notif-icon-cancelled {
+  background: var(--orange-bg, #fff7ed);
+  color: var(--orange, #d97706);
+}
+
+.notif-icon-default {
+  background: var(--accent-soft);
+  color: var(--text-muted);
 }
 
 .notif-content {
@@ -6041,7 +6080,7 @@ tr.returned-row { opacity: 0.55; }
 
 .notif-title-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
 }
 
@@ -6058,12 +6097,14 @@ tr.returned-row { opacity: 0.55; }
   font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
+  margin-left: auto;
 }
 
 .notif-body {
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 2px;
+  line-height: 1.4;
 }
 
 .notif-actions {
@@ -6072,7 +6113,12 @@ tr.returned-row { opacity: 0.55; }
   margin-top: 6px;
 }
 
-.notif-action-btn {
+.notif-link-btn {
+  font-size: 12px;
+  color: var(--blue);
+}
+
+.notif-mark-btn {
   font-size: 12px;
 }
 
