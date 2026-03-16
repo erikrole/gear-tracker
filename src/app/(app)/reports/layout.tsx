@@ -34,7 +34,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
             href={s.href}
             className={`btn btn-sm${pathname.startsWith(s.href) ? " btn-primary" : ""}`}
             style={{
-              fontSize: 13,
+              fontSize: "var(--text-sm)",
               padding: "6px 14px",
               borderRadius: 8,
               textDecoration: "none",

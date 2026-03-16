@@ -611,7 +611,7 @@ function ItemInfoCard({
       if (patchKey === "purchasePrice" || patchKey === "residualValue") {
         const num = parseFloat(value);
         if (value && isNaN(num)) { toast("Invalid number", "error"); return; }
-        body[patchKey] = value ? num : undefined;
+        body[patchKey] = value ? num : null;
       } else if (patchKey.startsWith("metadata.")) {
         const metaKey = patchKey.split(".")[1];
         const currentMeta = asset.metadata || {};
@@ -639,7 +639,7 @@ function ItemInfoCard({
         const metaKey = patchKey.split(".")[1];
         onFieldSaved({ metadata: { ...asset.metadata, [metaKey]: value } });
       } else {
-        onFieldSaved({ [patchKey]: patchKey === "purchasePrice" ? parseFloat(value) : value } as Partial<AssetDetail>);
+        onFieldSaved({ [patchKey]: (patchKey === "purchasePrice" || patchKey === "residualValue") ? parseFloat(value) : value } as Partial<AssetDetail>);
       }
     } catch {
       toast("Network error", "error");

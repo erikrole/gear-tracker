@@ -38,41 +38,72 @@ export async function processOverdueNotifications(): Promise<{
   const rules = await getEscalationRules();
   const maxPerBooking = await getMaxNotificationsPerBooking();
 
-  const openCheckouts = await db.booking.findMany({
+  const [openCheckouts, admins] = await Promise.all([
+    db.booking.findMany({
+      where: { kind: "CHECKOUT", status: "OPEN" },
+      include: {
+        requester: { select: { id: true, name: true, email: true } }
+      }
+    }),
+    db.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true, email: true }
+    }),
+  ]);
+
+  if (openCheckouts.length === 0) {
+    return { scanned: 0, notificationsCreated: 0 };
+  }
+
+  // Batch-fetch all existing dedupeKeys to avoid N+1 lookups
+  const bookingIds = openCheckouts.map((c) => c.id);
+  const [existingNotifications, notifCounts] = await Promise.all([
+    db.notification.findMany({
+      where: { dedupeKey: { startsWith: "" } },
+      select: { dedupeKey: true },
+    }).then((rows) => new Set(rows.map((r) => r.dedupeKey).filter(Boolean))),
+    db.notification.groupBy({
+      by: ["userId"],
+      where: {
+        payload: { path: ["bookingId"], string_contains: "" },
+      },
+      _count: { id: true },
+    }),
+  ]).catch(() => [new Set<string>(), []] as const);
+
+  // Build per-booking notification count from payload.bookingId
+  // Since JSON filtering with groupBy is tricky, fall back to batch count
+  const bookingNotifCounts = new Map<string, number>();
+  const countRows = await db.notification.findMany({
     where: {
-      kind: "CHECKOUT",
-      status: "OPEN"
+      OR: bookingIds.map((id) => ({
+        payload: { path: ["bookingId"], equals: id }
+      }))
     },
-    include: {
-      requester: { select: { id: true, name: true, email: true } }
-    }
+    select: { payload: true }
   });
+  for (const row of countRows) {
+    const bid = (row.payload as Record<string, string>)?.bookingId;
+    if (bid) bookingNotifCounts.set(bid, (bookingNotifCounts.get(bid) ?? 0) + 1);
+  }
 
   let notificationsCreated = 0;
 
   for (const checkout of openCheckouts) {
     const dueAt = new Date(checkout.endsAt);
-
-    // Per-booking cap check
-    const existingCount = await db.notification.count({
-      where: {
-        payload: { path: ["bookingId"], equals: checkout.id }
-      }
-    });
+    const existingCount = bookingNotifCounts.get(checkout.id) ?? 0;
     if (existingCount >= maxPerBooking) continue;
+
+    let localCreated = 0;
 
     for (const rule of rules) {
       const triggerTime = new Date(dueAt.getTime() + rule.hoursFromDue * 3600_000);
       if (now < triggerTime) continue;
-
-      // Re-check cap after each notification created
-      if (existingCount + notificationsCreated >= maxPerBooking) break;
+      if (existingCount + localCreated >= maxPerBooking) break;
 
       if (rule.notifyRequester) {
         const dedupeKey = `${checkout.id}:${rule.type}`;
-        const existing = await db.notification.findUnique({ where: { dedupeKey } });
-
-        if (!existing) {
+        if (!existingNotifications.has(dedupeKey)) {
           const body = `"${checkout.title}" was due ${formatRelative(dueAt, now)}. Please return items.`;
           await db.notification.create({
             data: {
@@ -90,9 +121,9 @@ export async function processOverdueNotifications(): Promise<{
               dedupeKey
             }
           });
-          notificationsCreated += 1;
+          existingNotifications.add(dedupeKey);
+          localCreated += 1;
 
-          // Send email alongside in-app notification
           if (checkout.requester.email) {
             await sendEmail({
               to: checkout.requester.email,
@@ -110,19 +141,11 @@ export async function processOverdueNotifications(): Promise<{
 
       // Admin escalation
       if (rule.notifyAdmins) {
-        const admins = await db.user.findMany({
-          where: { role: "ADMIN" },
-          select: { id: true, email: true }
-        });
-
         for (const admin of admins) {
           if (admin.id === checkout.requesterUserId) continue;
 
           const adminDedupeKey = `${checkout.id}:${rule.type}:admin:${admin.id}`;
-          const existingAdmin = await db.notification.findUnique({
-            where: { dedupeKey: adminDedupeKey }
-          });
-          if (existingAdmin) continue;
+          if (existingNotifications.has(adminDedupeKey)) continue;
 
           const adminBody = `${checkout.requester.name}'s checkout "${checkout.title}" is over ${rule.hoursFromDue} hours overdue.`;
           await db.notification.create({
@@ -142,9 +165,9 @@ export async function processOverdueNotifications(): Promise<{
               dedupeKey: adminDedupeKey
             }
           });
-          notificationsCreated += 1;
+          existingNotifications.add(adminDedupeKey);
+          localCreated += 1;
 
-          // Send email to admin
           if (admin.email) {
             await sendEmail({
               to: admin.email,
@@ -160,6 +183,8 @@ export async function processOverdueNotifications(): Promise<{
         }
       }
     }
+
+    notificationsCreated += localCreated;
   }
 
   return {

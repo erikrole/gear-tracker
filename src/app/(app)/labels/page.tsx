@@ -88,7 +88,7 @@ export default function LabelsPage() {
               padding: "7px 12px",
               border: "1px solid var(--border)",
               borderRadius: "var(--radius)",
-              fontSize: 13
+              fontSize: "var(--text-sm)"
             }}
           />
           <button className="btn btn-sm" onClick={selectAll}>Select all</button>
@@ -120,11 +120,11 @@ export default function LabelsPage() {
                 />
                 <div style={{ flex: 1 }}>
                   <span style={{ fontWeight: 600 }}>{asset.assetTag}</span>
-                  <span style={{ color: "var(--text-secondary)", fontSize: 12, marginLeft: 8 }}>
+                  <span style={{ color: "var(--text-secondary)", fontSize: "var(--text-xs)", marginLeft: 8 }}>
                     {asset.brand} {asset.model}
                   </span>
                 </div>
-                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{asset.location.name}</span>
+                <span style={{ fontSize: "var(--text-3xs)", color: "var(--text-secondary)" }}>{asset.location.name}</span>
               </label>
             ))}
           </div>

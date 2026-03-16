@@ -17,7 +17,9 @@ const patchAssetSchema = z
     serialNumber: z.string().min(1).optional(),
     qrCodeValue: z.string().min(1).optional(),
     purchaseDate: z.string().optional(),
-    purchasePrice: z.number().positive().optional(),
+    purchasePrice: z.number().positive().nullable().optional(),
+    warrantyDate: z.string().nullable().optional(),
+    residualValue: z.number().nonnegative().nullable().optional(),
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
@@ -136,7 +138,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         title: alloc.booking.title,
         startsAt: alloc.booking.startsAt.toISOString(),
         endsAt: alloc.booking.endsAt.toISOString(),
-        requesterName: alloc.booking.requester.name,
+        requesterName: alloc.booking.requester?.name ?? "Unknown",
       };
       break;
     }
@@ -168,7 +170,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
               status: r.booking.status,
               startsAt: r.booking.startsAt,
               endsAt: r.booking.endsAt,
-              requesterName: r.booking.requester.name,
+              requesterName: r.booking.requester?.name ?? "Unknown",
             }));
         })(),
         history: bookingHistory.map((entry) => ({
@@ -226,6 +228,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       data: {
         ...body,
         ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {}),
+        ...(body.warrantyDate !== undefined
+          ? { warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null }
+          : {}),
       },
       include: { location: true, category: true },
     });

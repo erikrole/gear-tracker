@@ -66,8 +66,17 @@ export default function EventsPage() {
   const [showSources, setShowSources] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [syncDiagnostics, setSyncDiagnostics] = useState<any>(null);
+  const [syncDiagnostics, setSyncDiagnostics] = useState<{
+    parsedEventCount?: number;
+    responseSizeBytes?: number;
+    fetchUrl?: string;
+    httpStatus?: number;
+    earliestDtstart?: string;
+    latestDtstart?: string;
+    firstEvents?: { uid: string; summary: string; dtstart: string }[];
+    lastEvents?: { uid: string; summary: string; dtstart: string }[];
+    errors?: { uid: string; summary: string; operation: string; reason: string }[];
+  } | null>(null);
   const [showAddSource, setShowAddSource] = useState(false);
   const [unmappedOnly, setUnmappedOnly] = useState(false);
   const [includePast, setIncludePast] = useState(false);
@@ -84,10 +93,30 @@ export default function EventsPage() {
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
 
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: "50" });
+      if (!includePast) params.set("startDate", new Date().toISOString());
+      if (includePast) params.set("includePast", "true");
+      if (unmappedOnly) params.set("unmapped", "true");
+      const res = await fetch(`/api/calendar-events?${params}`);
+      if (res.ok) { const json = await res.json(); setEvents(json.data ?? []); }
+    } catch { /* network error */ }
+    setLoading(false);
+  }, [unmappedOnly, includePast]);
+
+  const loadSources = useCallback(async () => {
+    try {
+      const res = await fetch("/api/calendar-sources");
+      if (res.ok) { const json = await res.json(); setSources(json.data ?? []); }
+    } catch { /* network error */ }
+  }, []);
+
   useEffect(() => {
     loadEvents();
     loadSources();
-  }, [unmappedOnly, includePast]);
+  }, [loadEvents, loadSources]);
 
   const loadMappings = useCallback(async () => {
     try {
@@ -150,25 +179,6 @@ export default function EventsPage() {
   function nextMonth() { setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1)); }
   function goCalToday() { const d = new Date(); setCalMonth(new Date(d.getFullYear(), d.getMonth(), 1)); }
 
-  async function loadEvents() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ limit: "50" });
-      if (!includePast) params.set("startDate", new Date().toISOString());
-      if (includePast) params.set("includePast", "true");
-      if (unmappedOnly) params.set("unmapped", "true");
-      const res = await fetch(`/api/calendar-events?${params}`);
-      if (res.ok) { const json = await res.json(); setEvents(json.data ?? []); }
-    } catch { /* network error */ }
-    setLoading(false);
-  }
-
-  async function loadSources() {
-    try {
-      const res = await fetch("/api/calendar-sources");
-      if (res.ok) { const json = await res.json(); setSources(json.data ?? []); }
-    } catch { /* network error */ }
-  }
 
   async function handleSync(sourceId: string) {
     setSyncing(sourceId);
@@ -318,24 +328,24 @@ export default function EventsPage() {
 
       {/* Sync diagnostics panel */}
       {syncDiagnostics && (
-        <details className="mb-12 rounded text-sm" style={{ border: "1px solid var(--border-light)", fontSize: 12 }}>
+        <details className="mb-12 rounded text-sm" style={{ border: "1px solid var(--border-light)", fontSize: "var(--text-xs)" }}>
           <summary className="p-12 cursor-pointer font-semibold">
-            Sync Diagnostics — {syncDiagnostics.parsedEventCount} events parsed, {(syncDiagnostics.responseSizeBytes / 1024).toFixed(1)} KB fetched
+            Sync Diagnostics — {syncDiagnostics.parsedEventCount ?? 0} events parsed, {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB fetched
           </summary>
           <div className="p-12" style={{ display: "grid", gap: 8 }}>
             <div><strong>Fetch URL:</strong> <code className="text-xs" style={{ wordBreak: "break-all" }}>{syncDiagnostics.fetchUrl}</code></div>
             <div><strong>HTTP Status:</strong> {syncDiagnostics.httpStatus}</div>
-            <div><strong>Response Size:</strong> {(syncDiagnostics.responseSizeBytes / 1024).toFixed(1)} KB</div>
+            <div><strong>Response Size:</strong> {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB</div>
             <div><strong>Parsed VEVENTs:</strong> {syncDiagnostics.parsedEventCount}</div>
             <div><strong>Date Range:</strong> {syncDiagnostics.earliestDtstart ?? "—"} → {syncDiagnostics.latestDtstart ?? "—"}</div>
 
-            {syncDiagnostics.firstEvents?.length > 0 && (
+            {(syncDiagnostics.firstEvents?.length ?? 0) > 0 && (
               <div>
-                <strong>First {syncDiagnostics.firstEvents.length} events (by DTSTART):</strong>
+                <strong>First {syncDiagnostics.firstEvents!.length} events (by DTSTART):</strong>
                 <table className="w-full mt-4 text-xs">
                   <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
-                    {syncDiagnostics.firstEvents.map((e: { uid: string; summary: string; dtstart: string }) => (
+                    {syncDiagnostics.firstEvents!.map((e: { uid: string; summary: string; dtstart: string }) => (
                       <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono">{e.dtstart}</td></tr>
                     ))}
                   </tbody>
@@ -343,13 +353,13 @@ export default function EventsPage() {
               </div>
             )}
 
-            {syncDiagnostics.lastEvents?.length > 0 && (
+            {(syncDiagnostics.lastEvents?.length ?? 0) > 0 && (
               <div>
-                <strong>Last {syncDiagnostics.lastEvents.length} events (by DTSTART):</strong>
+                <strong>Last {syncDiagnostics.lastEvents!.length} events (by DTSTART):</strong>
                 <table className="w-full mt-4 text-xs">
                   <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
-                    {syncDiagnostics.lastEvents.map((e: { uid: string; summary: string; dtstart: string }) => (
+                    {syncDiagnostics.lastEvents!.map((e: { uid: string; summary: string; dtstart: string }) => (
                       <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono">{e.dtstart}</td></tr>
                     ))}
                   </tbody>
@@ -357,13 +367,13 @@ export default function EventsPage() {
               </div>
             )}
 
-            {syncDiagnostics.errors?.length > 0 && (
+            {(syncDiagnostics.errors?.length ?? 0) > 0 && (
               <div>
-                <strong className="text-red">Persistence Errors ({syncDiagnostics.errors.length} shown):</strong>
+                <strong className="text-red">Persistence Errors ({syncDiagnostics.errors!.length} shown):</strong>
                 <table className="w-full mt-4 text-xs">
                   <thead><tr><th className="text-left">Op</th><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">Error</th></tr></thead>
                   <tbody>
-                    {syncDiagnostics.errors.map((e: { uid: string; summary: string; operation: string; reason: string }, i: number) => (
+                    {syncDiagnostics.errors!.map((e: { uid: string; summary: string; operation: string; reason: string }, i: number) => (
                       <tr key={`${e.uid}-${i}`}>
                         <td><span className={`badge ${e.operation === "create" ? "badge-blue" : e.operation === "update" ? "badge-orange" : "badge-gray"}`}>{e.operation}</span></td>
                         <td className="font-mono" style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{e.uid.slice(0, 30)}</td>

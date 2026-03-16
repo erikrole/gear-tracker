@@ -748,7 +748,7 @@ export default function BookingDetailsSheet({
                             className="progress-fill"
                             style={{
                               width: `${checkinProgress.percent}%`,
-                              background: checkinProgress.percent === 100 ? "#22c55e" : "#3b82f6",
+                              background: checkinProgress.percent === 100 ? "var(--green)" : "var(--blue)",
                             }}
                           />
                         </div>

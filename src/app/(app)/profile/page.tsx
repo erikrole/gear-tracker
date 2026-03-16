@@ -27,15 +27,17 @@ export default function ProfilePage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetch("/api/profile")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
-        if (!json?.data) return;
+        if (!json?.data) { setLoadError(true); return; }
         setProfile(json.data.user);
         setLocations(json.data.locations);
-      });
+      })
+      .catch(() => setLoadError(true));
   }, []);
 
   useEffect(() => {
@@ -129,6 +131,9 @@ export default function ProfilePage() {
     }
   }
 
+  if (loadError) {
+    return <div className="empty-state">Failed to load profile. Please refresh.</div>;
+  }
   if (!profile) {
     return <div className="loading-spinner"><div className="spinner" /></div>;
   }

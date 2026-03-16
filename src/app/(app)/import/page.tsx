@@ -336,7 +336,7 @@ export default function ImportPage() {
             <div
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                padding: "4px 12px", borderRadius: 16, fontSize: 13,
+                padding: "4px 12px", borderRadius: 16, fontSize: "var(--text-sm)",
                 fontWeight: step === s ? 600 : 400,
                 background: step === s ? "var(--blue)" : "var(--bg-secondary)",
                 color: step === s ? "white" : "var(--text-secondary)",
@@ -382,7 +382,7 @@ export default function ImportPage() {
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>
+                  <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-secondary">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
@@ -558,7 +558,7 @@ export default function ImportPage() {
                       </td>
                       <td className="font-semibold">
                         {row.assetTag}
-                        {row.assetTagDeduped && <span className="badge badge-orange ml-4" style={{ fontSize: 10 }}>renamed</span>}
+                        {row.assetTagDeduped && <span className="badge badge-orange ml-4" style={{ fontSize: "var(--text-2xs)" }}>renamed</span>}
                       </td>
                       <td>{row.brand}</td>
                       <td>{row.model}</td>
@@ -653,7 +653,7 @@ export default function ImportPage() {
 
           <div className="card">
             <div className="p-24 text-center">
-              <div style={{ fontSize: 32, marginBottom: 8 }}>
+              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>
                 {result.created + result.updated > 0 ? "Import complete" : "No items imported"}
               </div>
               <div className="text-secondary mb-16">

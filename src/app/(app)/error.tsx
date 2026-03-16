@@ -15,7 +15,7 @@ export default function AppError({
 
   return (
     <div style={{ padding: 40, textAlign: "center", maxWidth: 480, margin: "80px auto" }}>
-      <h1 style={{ fontSize: 24, marginBottom: 12 }}>Something went wrong</h1>
+      <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: 12 }}>Something went wrong</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
         This may be caused by an expired session or a temporary loading issue.
       </p>

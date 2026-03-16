@@ -318,7 +318,7 @@ export default function ShiftDetailPanel({
                           className="btn btn-sm"
                           onClick={handleTogglePremier}
                           disabled={acting === "premier"}
-                          style={{ fontSize: 11, padding: "2px 6px" }}
+                          style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                         >
                           {acting === "premier" ? "..." : "Toggle"}
                         </button>
@@ -378,7 +378,7 @@ export default function ShiftDetailPanel({
                         <div className="flex-between">
                           <span className="text-sm">{activeAssignment.user.name}</span>
                           <div className="flex gap-4">
-                            <span className={`badge ${STATUS_BADGES[activeAssignment.status] ?? "badge-gray"}`} style={{ fontSize: 10 }}>
+                            <span className={`badge ${STATUS_BADGES[activeAssignment.status] ?? "badge-gray"}`} style={{ fontSize: "var(--text-2xs)" }}>
                               {activeAssignment.status.replace("_", " ")}
                             </span>
                             {isStaff && (
@@ -386,7 +386,7 @@ export default function ShiftDetailPanel({
                                 className="btn btn-sm text-red"
                                 onClick={() => handleRemove(activeAssignment.id)}
                                 disabled={acting === activeAssignment.id}
-                                style={{ fontSize: 11, padding: "2px 6px" }}
+                                style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                               >
                                 {acting === activeAssignment.id ? "..." : "Remove"}
                               </button>
@@ -407,7 +407,7 @@ export default function ShiftDetailPanel({
                                     className="btn btn-sm btn-primary"
                                     onClick={() => handleApprove(req.id)}
                                     disabled={acting === req.id}
-                                    style={{ fontSize: 11, padding: "2px 6px" }}
+                                    style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                                   >
                                     {acting === req.id ? "..." : "Approve"}
                                   </button>
@@ -415,7 +415,7 @@ export default function ShiftDetailPanel({
                                     className="btn btn-sm text-red"
                                     onClick={() => handleDecline(req.id)}
                                     disabled={acting === req.id}
-                                    style={{ fontSize: 11, padding: "2px 6px" }}
+                                    style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                                   >
                                     Decline
                                   </button>
@@ -433,7 +433,7 @@ export default function ShiftDetailPanel({
                             <button
                               className="btn btn-sm btn-primary"
                               onClick={() => openAssignPicker(shift.id)}
-                              style={{ fontSize: 11 }}
+                              style={{ fontSize: "var(--text-3xs)" }}
                             >
                               Assign
                             </button>
@@ -443,7 +443,7 @@ export default function ShiftDetailPanel({
                               className="btn btn-sm"
                               onClick={() => handleRequest(shift.id)}
                               disabled={acting === shift.id}
-                              style={{ fontSize: 11 }}
+                              style={{ fontSize: "var(--text-3xs)" }}
                             >
                               {acting === shift.id ? "Requesting..." : "Request this shift"}
                             </button>
@@ -464,7 +464,7 @@ export default function ShiftDetailPanel({
                             value={userSearch}
                             onChange={(e) => setUserSearch(e.target.value)}
                             autoFocus
-                            style={{ fontSize: 12 }}
+                            style={{ fontSize: "var(--text-xs)" }}
                           />
                           {rosterLoading ? (
                             <div className="text-xs text-secondary">Loading roster...</div>
@@ -482,7 +482,7 @@ export default function ShiftDetailPanel({
                                   className="btn btn-sm w-full text-left mb-2"
                                   onClick={() => handleAssign(shift.id, u.id)}
                                   disabled={acting === shift.id}
-                                  style={{ fontSize: 12, justifyContent: "flex-start" }}
+                                  style={{ fontSize: "var(--text-xs)", justifyContent: "flex-start" }}
                                 >
                                   {u.name}
                                   <span className="text-xs text-secondary ml-4">
@@ -496,7 +496,7 @@ export default function ShiftDetailPanel({
                           <button
                             className="btn btn-sm mt-4"
                             onClick={() => setAssigningShiftId(null)}
-                            style={{ fontSize: 11 }}
+                            style={{ fontSize: "var(--text-3xs)" }}
                           >
                             Cancel
                           </button>
