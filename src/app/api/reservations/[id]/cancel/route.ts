@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { requireAuth } from "@/lib/auth";
 import { cancelReservation } from "@/lib/services/bookings";
 import { requireReservationAction } from "@/lib/services/booking-rules";

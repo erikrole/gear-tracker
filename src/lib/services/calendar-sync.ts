@@ -2,8 +2,8 @@ import { db } from "@/lib/db";
 import type { CalendarEventStatus } from "@prisma/client";
 import { SPORT_CODES } from "@/lib/sports";
 
-/** Max events per createMany / update batch — keeps Worker subrequests in check */
-export const WRITE_CHUNK_SIZE = 50;
+/** Max events per createMany / update batch */
+export const WRITE_CHUNK_SIZE = 500;
 
 /**
  * Minimal ICS parser — extracts VEVENT blocks and their key properties.
@@ -84,8 +84,7 @@ export function parseIcsDate(value: string): { date: Date; allDay: boolean } {
   const minute = parseInt(cleaned.slice(11, 13)) || 0;
   const second = parseInt(cleaned.slice(13, 15)) || 0;
 
-  // Always use Date.UTC — edge runtime has no reliable local timezone,
-  // and all events in this system are in the same locale anyway
+  // Always use Date.UTC — ICS dates are timezone-agnostic
   const date = new Date(Date.UTC(year, month, day, hour, minute, second));
 
   return { date, allDay: false };
@@ -396,10 +395,7 @@ export function splitEventsForSync(
 /**
  * Sync a single CalendarSource — fetches ICS, parses, upserts events.
  *
- * DB query budget (for ~274 events, well under Cloudflare Worker limits):
- *   1 findUnique (source) + 1 fetch + 1 findMany (mappings) + 1 findMany (existing)
- *   + ceil(creates/50) createMany + ceil(changedUpdates/50) update chunks
- *   + 1 source metadata update = ~8–12 queries total
+ * Sync a single CalendarSource — fetches ICS, parses, upserts events.
  */
 export async function syncCalendarSource(sourceId: string): Promise<SyncResult> {
   const source = await db.calendarSource.findUnique({ where: { id: sourceId } });

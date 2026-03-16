@@ -6,9 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "analyze": "ANALYZE=true next build",
-    "build:worker": "opennextjs-cloudflare build",
-    "preview": "wrangler dev",
-    "deploy": "wrangler deploy",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
@@ -20,7 +17,6 @@
     "import:cheqroom": "node scripts/import-cheqroom-items.mjs"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
     "@prisma/adapter-neon": "^6.19.2",
     "@prisma/client": "^6.19.2",
     "@tailwindcss/postcss": "^4.2.1",
@@ -36,7 +32,6 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.1.6",
-    "@opennextjs/cloudflare": "^1.17.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.13.8",
     "@types/qrcode": "^1.5.6",

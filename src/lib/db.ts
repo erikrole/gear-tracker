@@ -1,10 +1,5 @@
-import { neonConfig } from "@neondatabase/serverless";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
-
-// Enable WebSocket connections for interactive transactions
-neonConfig.webSocketConstructor = globalThis.WebSocket;
-neonConfig.poolQueryViaFetch = true;
 
 function createPrismaClient() {
   const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });

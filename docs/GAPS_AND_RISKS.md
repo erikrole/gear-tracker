@@ -46,6 +46,9 @@
 | Multi-recipient escalation | AREA_NOTIFICATIONS | D-009 | Pending recipient model decision |
 | ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
 | Calendar source health UI | AREA_EVENTS | — | Enable/disable + sync status display |
+| ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board~~ |
+| Shift notification channel (email for trade claims) | AREA_SHIFTS | — | V1 = in-app audit only; email deferred |
+| Student availability tracking | AREA_SHIFTS | — | Students declare unavailable dates; deferred to Phase B |
 
 ---
 

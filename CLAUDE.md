@@ -63,11 +63,10 @@ Before implementing any feature:
 - Check `docs/DECISIONS.md` for prior architectural choices
 - Skipping this causes missed field requirements, schema mismatches, and rework
 
-### 8. Cloudflare Worker Constraints
-This project deploys to a Cloudflare Worker via OpenNext:
-- No Node.js-only APIs (`fs`, `child_process`, `crypto` without Web Crypto, etc.)
-- Worker subrequest limit (~50/request): batch all DB operations, never loop with individual queries
-- Edge runtime compatibility: verify all imports work in `edge-runtime` before committing
+### 8. Vercel Deployment
+This project deploys to Vercel (Node.js runtime):
+- Database: Neon serverless PostgreSQL via `@prisma/adapter-neon`
+- No edge runtime — all routes run as standard Node.js serverless functions
 - Always run `npm run build` before committing — build failures are the #1 avoidable time waster
 - If build fails, fix it before pushing. Never leave a broken build on any branch.
 

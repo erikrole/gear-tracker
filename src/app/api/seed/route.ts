@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { ok, fail } from "@/lib/http";

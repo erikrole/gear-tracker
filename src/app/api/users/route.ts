@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { requireAuth, hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";

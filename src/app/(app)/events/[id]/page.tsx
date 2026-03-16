@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import DataList from "@/components/DataList";
 
 type CalendarEvent = {
@@ -18,6 +20,33 @@ type CalendarEvent = {
   rawDescription: string | null;
   location: { id: string; name: string } | null;
   source: { id: string; name: string } | null;
+};
+
+type ShiftGroupSummary = {
+  id: string;
+  isPremier: boolean;
+  shifts: Array<{
+    id: string;
+    area: string;
+    workerType: string;
+    assignments: Array<{
+      id: string;
+      status: string;
+      user: { id: string; name: string };
+    }>;
+  }>;
+};
+
+const AREA_LABELS: Record<string, string> = {
+  VIDEO: "Video",
+  PHOTO: "Photo",
+  GRAPHICS: "Graphics",
+  COMMS: "Comms",
+};
+
+const WORKER_LABELS: Record<string, string> = {
+  FT: "FT",
+  ST: "ST",
 };
 
 function formatDateTime(iso: string) {
@@ -44,6 +73,10 @@ export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [fetchError, setFetchError] = useState(false);
+  const [shiftGroup, setShiftGroup] = useState<ShiftGroupSummary | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentUserRole, setCurrentUserRole] = useState("STUDENT");
 
   useEffect(() => {
     fetch(`/api/calendar-events/${id}`)
@@ -51,6 +84,30 @@ export default function EventDetailPage() {
       .then((json) => { if (json?.data) setEvent(json.data); else setFetchError(true); })
       .catch(() => setFetchError(true));
   }, [id]);
+
+  const loadShiftGroup = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/shift-groups?startDate=2000-01-01&endDate=2100-01-01`);
+      if (res.ok) {
+        const json = await res.json();
+        const group = (json.data ?? []).find((g: { eventId: string }) => g.eventId === id);
+        if (group) setShiftGroup(group);
+      }
+    } catch { /* network error */ }
+  }, [id]);
+
+  useEffect(() => {
+    loadShiftGroup();
+    fetch("/api/me")
+      .then((r) => r.ok ? r.json() : null)
+      .then((j) => {
+        if (j?.user) {
+          setCurrentUserId(j.user.id);
+          setCurrentUserRole(j.user.role);
+        }
+      })
+      .catch(() => {});
+  }, [loadShiftGroup]);
 
   if (fetchError) {
     return <div className="empty-state">Event not found or failed to load. <Link href="/events">Back to events</Link></div>;
@@ -131,6 +188,71 @@ export default function EventDetailPage() {
           />
         </div>
       </div>
+
+      {/* Shift coverage */}
+      {shiftGroup && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="card-header flex-between">
+            <h2>Shift Coverage</h2>
+            <button className="btn btn-sm" onClick={() => setSelectedGroupId(shiftGroup.id)}>
+              Manage shifts
+            </button>
+          </div>
+          <div style={{ padding: 16 }}>
+            {shiftGroup.isPremier && (
+              <div className="mb-8">
+                <span className="badge badge-blue">Premier Event</span>
+                <span className="text-xs text-secondary ml-4">Students can request shifts</span>
+              </div>
+            )}
+            <table className="data-table" style={{ fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Type</th>
+                  <th>Assigned</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shiftGroup.shifts.map((shift) => {
+                  const activeAssignment = shift.assignments.find(
+                    (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED"
+                  );
+                  const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
+                  return (
+                    <tr key={shift.id}>
+                      <td>{AREA_LABELS[shift.area] ?? shift.area}</td>
+                      <td>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</td>
+                      <td>{activeAssignment ? activeAssignment.user.name : <span className="text-secondary">—</span>}</td>
+                      <td>
+                        {activeAssignment ? (
+                          <span className="badge badge-green">Filled</span>
+                        ) : pendingCount > 0 ? (
+                          <span className="badge badge-orange">{pendingCount} request{pendingCount > 1 ? "s" : ""}</span>
+                        ) : (
+                          <span className="badge badge-red">Open</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Shift detail panel */}
+      {selectedGroupId && (
+        <ShiftDetailPanel
+          groupId={selectedGroupId}
+          onClose={() => setSelectedGroupId(null)}
+          onUpdated={loadShiftGroup}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
+      )}
 
       {/* Debug info for admins */}
       <details style={{ marginTop: 16, fontSize: 12, color: "var(--text-secondary)" }}>
