@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fail, HttpError, ok } from "@/lib/http";
