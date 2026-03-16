@@ -26,7 +26,7 @@ const createAssetSchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim();
     const statusParam = searchParams.get("status");
@@ -34,6 +34,7 @@ export async function GET(req: Request) {
     const categoryId = searchParams.get("category_id");
     const brand = searchParams.get("brand")?.trim();
     const showAccessories = searchParams.get("show_accessories") === "true";
+    const favoritesOnly = searchParams.get("favorite") === "true";
 
     // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
     // post-enrichment filtering. Stored statuses filter at the DB level.
@@ -41,9 +42,23 @@ export async function GET(req: Request) {
     const isDerivedFilter = statusParam && derivedStatuses.includes(statusParam);
     const isStoredFilter = statusParam && !isDerivedFilter;
 
+    // Fetch user's favorite asset IDs (single query, used for filtering + response)
+    let favoriteAssetIds: string[] = [];
+    if (favoritesOnly) {
+      const favs = await db.favoriteItem.findMany({
+        where: { userId: user.id },
+        select: { assetId: true },
+      });
+      favoriteAssetIds = favs.map((f) => f.assetId);
+      if (favoriteAssetIds.length === 0) {
+        return ok({ data: [], total: 0, limit: 0, offset: 0, favoriteIds: [] });
+      }
+    }
+
     const where = {
       // By default, hide accessories (child items) from the main list
       ...(!showAccessories ? { parentAssetId: null } : {}),
+      ...(favoritesOnly ? { id: { in: favoriteAssetIds } } : {}),
       ...(locationId ? { locationId } : {}),
       ...(categoryId ? { categoryId } : {}),
       ...(brand ? { brand: { equals: brand, mode: "insensitive" as const } } : {}),
@@ -89,8 +104,13 @@ export async function GET(req: Request) {
       const total = filtered.length;
       const data = filtered.slice(offset, offset + limit);
       const dataWithBookings = await attachActiveBookings(data);
+      const pageIds = dataWithBookings.map((a) => a.id);
+      const pageFavs = await db.favoriteItem.findMany({
+        where: { userId: user.id, assetId: { in: pageIds } },
+        select: { assetId: true },
+      });
 
-      return ok({ data: dataWithBookings, total, limit, offset });
+      return ok({ data: dataWithBookings, total, limit, offset, favoriteIds: pageFavs.map((f) => f.assetId) });
     }
 
     const [rawData, total] = await Promise.all([
@@ -117,7 +137,12 @@ export async function GET(req: Request) {
     }
 
     const enrichedWithBookings = await attachActiveBookings(data);
-    return ok({ data: enrichedWithBookings, total, limit, offset });
+    const pageIds = enrichedWithBookings.map((a) => a.id);
+    const pageFavs = await db.favoriteItem.findMany({
+      where: { userId: user.id, assetId: { in: pageIds } },
+      select: { assetId: true },
+    });
+    return ok({ data: enrichedWithBookings, total, limit, offset, favoriteIds: pageFavs.map((f) => f.assetId) });
   } catch (error) {
     return fail(error);
   }

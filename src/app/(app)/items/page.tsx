@@ -39,6 +39,7 @@ type Response = {
   total: number;
   limit: number;
   offset: number;
+  favoriteIds?: string[];
 };
 
 const statusDotClass: Record<string, string> = {
@@ -309,6 +310,87 @@ function CreateItemCard({
 }
 
 
+function BulkActionBar({
+  count,
+  locations,
+  categoryOptions,
+  busy,
+  error,
+  onAction,
+  onClear,
+}: {
+  count: number;
+  locations: Location[];
+  categoryOptions: { value: string; label: string }[];
+  busy: boolean;
+  error: string;
+  onAction: (action: string, payload?: Record<string, string | null>) => void;
+  onClear: () => void;
+}) {
+  const [showLocPicker, setShowLocPicker] = useState(false);
+  const [showCatPicker, setShowCatPicker] = useState(false);
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+      background: "var(--primary-bg, rgba(59,130,246,0.08))", borderBottom: "1px solid var(--border)",
+      flexWrap: "wrap",
+    }}>
+      <span className="text-sm font-semibold">{count} selected</span>
+      <button className="btn btn-sm" onClick={onClear} disabled={busy}>Clear</button>
+      <div style={{ flex: 1 }} />
+
+      {/* Move location */}
+      <div className="relative">
+        <button className="btn btn-sm" onClick={() => { setShowLocPicker((v) => !v); setShowCatPicker(false); }} disabled={busy}>
+          Move location
+        </button>
+        {showLocPicker && (
+          <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 180, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: 10 }}>
+            {locations.map((l) => (
+              <button key={l.id} className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer" }}
+                onClick={() => { setShowLocPicker(false); onAction("move_location", { locationId: l.id }); }}>
+                {l.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Change category */}
+      <div className="relative">
+        <button className="btn btn-sm" onClick={() => { setShowCatPicker((v) => !v); setShowLocPicker(false); }} disabled={busy}>
+          Change category
+        </button>
+        {showCatPicker && (
+          <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 200, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: 10 }}>
+            <button className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer", fontStyle: "italic" }}
+              onClick={() => { setShowCatPicker(false); onAction("change_category", { categoryId: null }); }}>
+              None
+            </button>
+            {categoryOptions.map((c) => (
+              <button key={c.value} className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer" }}
+                onClick={() => { setShowCatPicker(false); onAction("change_category", { categoryId: c.value }); }}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button className="btn btn-sm" onClick={() => onAction("maintenance")} disabled={busy}>
+        Maintenance
+      </button>
+      <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={() => { if (confirm(`Retire ${count} item${count > 1 ? "s" : ""}?`)) onAction("retire"); }} disabled={busy}>
+        Retire
+      </button>
+
+      {busy && <span className="text-sm text-muted">Processing...</span>}
+      {error && <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>}
+    </div>
+  );
+}
+
 const STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "Available" },
   { value: "CHECKED_OUT", label: "Checked out" },
@@ -331,14 +413,19 @@ export default function ItemsPage() {
   const [locationFilter, setLocationFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
+  const [favoriteFilter, setFavoriteFilter] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState("");
   const limit = 25;
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
-  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter;
+  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || favoriteFilter;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -357,6 +444,7 @@ export default function ItemsPage() {
     if (locationFilter) params.set("location_id", locationFilter);
     if (categoryFilter) params.set("category_id", categoryFilter);
     if (brandFilter) params.set("brand", brandFilter);
+    if (favoriteFilter) params.set("favorite", "true");
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -364,11 +452,12 @@ export default function ItemsPage() {
       const json: Response = await res.json();
       setItems(json.data ?? []);
       setTotal(json.total ?? 0);
+      if (json.favoriteIds) setFavoriteIds(new Set(json.favoriteIds));
     } catch {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter]);
+  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, favoriteFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -416,7 +505,67 @@ export default function ItemsPage() {
     setLocationFilter("");
     setCategoryFilter("");
     setBrandFilter("");
+    setFavoriteFilter(false);
     setPage(0);
+  }
+
+  // Clear selection when page/filters change
+  useEffect(() => { setSelected(new Set()); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, favoriteFilter]);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === items.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(items.map((i) => i.id)));
+    }
+  }
+
+  async function toggleFavorite(e: React.MouseEvent, assetId: string) {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/assets/${assetId}/favorite`, { method: "POST" });
+      if (!res.ok) return;
+      const json = await res.json();
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (json.data?.favorited) next.add(assetId);
+        else next.delete(assetId);
+        return next;
+      });
+    } catch { /* ignore */ }
+  }
+
+  async function executeBulkAction(action: string, payload?: Record<string, string | null>) {
+    setBulkBusy(true);
+    setBulkError("");
+    try {
+      const res = await fetch("/api/assets/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [...selected], action, ...payload }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        setBulkError(json.error || "Bulk action failed");
+        setBulkBusy(false);
+        return;
+      }
+      setSelected(new Set());
+      setBulkBusy(false);
+      reload();
+    } catch {
+      setBulkError("Network error");
+      setBulkBusy(false);
+    }
   }
 
   // Resolve display values for active filters
@@ -487,6 +636,18 @@ export default function ItemsPage() {
               onSelect={(v) => { setBrandFilter(v); setPage(0); }}
               onClear={() => { setBrandFilter(""); setPage(0); }}
             />
+            <button
+              type="button"
+              className={`btn btn-sm${favoriteFilter ? " btn-primary" : ""}`}
+              onClick={() => { setFavoriteFilter((v) => !v); setPage(0); }}
+              title="Show favorites only"
+              style={{ fontSize: 13, padding: "4px 10px", gap: 4, display: "inline-flex", alignItems: "center" }}
+            >
+              <svg viewBox="0 0 24 24" fill={favoriteFilter ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              Favorites
+            </button>
             {hasActiveFilters && (
               <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
                 Clear all
@@ -503,9 +664,32 @@ export default function ItemsPage() {
           <EmptyState icon="search" title="No items found" description="Try adjusting your search or filters." />
         ) : (
           <>
+            {/* Bulk action bar */}
+            {canEdit && selected.size > 0 && (
+              <BulkActionBar
+                count={selected.size}
+                locations={locations}
+                categoryOptions={categoryOptions}
+                busy={bulkBusy}
+                error={bulkError}
+                onAction={executeBulkAction}
+                onClear={() => setSelected(new Set())}
+              />
+            )}
             <table className="data-table">
               <thead>
                 <tr>
+                  {canEdit && (
+                    <th style={{ width: 36, padding: "8px 4px" }}>
+                      <input
+                        type="checkbox"
+                        checked={items.length > 0 && selected.size === items.length}
+                        onChange={toggleSelectAll}
+                        title="Select all on page"
+                      />
+                    </th>
+                  )}
+                  <th style={{ width: 32, padding: "8px 2px" }}></th>
                   <th>Name</th>
                   <th>Category</th>
                   <th>Location</th>
@@ -519,7 +703,28 @@ export default function ItemsPage() {
                     key={item.id}
                     className="cursor-pointer"
                     onClick={() => router.push(`/items/${item.id}`)}
+                    style={selected.has(item.id) ? { background: "var(--primary-bg, rgba(59,130,246,0.06))" } : undefined}
                   >
+                    {canEdit && (
+                      <td style={{ width: 36, padding: "8px 4px" }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                        />
+                      </td>
+                    )}
+                    <td style={{ width: 32, padding: "8px 2px" }} onClick={(e) => toggleFavorite(e, item.id)}>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill={favoriteIds.has(item.id) ? "var(--yellow, #eab308)" : "none"}
+                        stroke={favoriteIds.has(item.id) ? "var(--yellow, #eab308)" : "var(--text-muted, #9ca3af)"}
+                        strokeWidth="2"
+                        style={{ width: 16, height: 16, cursor: "pointer", flexShrink: 0 }}
+                      >
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </td>
                     <td>
                       <div className="flex-center gap-10">
                         <StatusDot item={item} />
