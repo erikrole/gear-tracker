@@ -283,6 +283,13 @@ export async function createBooking(input: CreateBookingInput) {
         }
       });
 
+      // Generate human-readable reference number (CO-0001 / RV-0002)
+      const seqResult = await tx.$queryRaw<[{ nextval: bigint }]>`SELECT nextval('booking_ref_seq')`;
+      const seq = Number(seqResult[0].nextval);
+      const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
+      const refNumber = `${prefix}-${String(seq).padStart(4, "0")}`;
+      await tx.booking.update({ where: { id: booking.id }, data: { refNumber } });
+
       if (resolvedSerializedAssetIds.length > 0) {
         await tx.bookingSerializedItem.createMany({
           data: resolvedSerializedAssetIds.map((assetId) => ({

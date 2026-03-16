@@ -19,6 +19,7 @@ import {
 type BookingSummary = {
   id: string;
   title: string;
+  refNumber: string | null;
   requesterName: string;
   startsAt: string;
   endsAt: string;
@@ -30,6 +31,7 @@ type BookingSummary = {
 type MyReservation = {
   id: string;
   title: string;
+  refNumber: string | null;
   startsAt: string;
   endsAt: string;
   itemCount: number;
@@ -241,7 +243,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{c.title}</span>
+                      <span className="ops-row-title">{c.refNumber && <span className="ref-number">{c.refNumber}</span>}{c.title}</span>
                       <span className="ops-row-meta">
                         {c.isOverdue ? (
                           <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
@@ -279,7 +281,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{r.title}</span>
+                      <span className="ops-row-title">{r.refNumber && <span className="ref-number">{r.refNumber}</span>}{r.title}</span>
                       <span className="ops-row-meta">
                         {formatDateRange(r.startsAt, r.endsAt)}
                         {r.locationName && ` \u00B7 ${r.locationName}`}
@@ -357,7 +359,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{c.title}</span>
+                      <span className="ops-row-title">{c.refNumber && <span className="ref-number">{c.refNumber}</span>}{c.title}</span>
                       <span className="ops-row-meta">
                         {c.requesterName} &middot;{" "}
                         {c.isOverdue ? (
@@ -396,7 +398,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{r.title}</span>
+                      <span className="ops-row-title">{r.refNumber && <span className="ref-number">{r.refNumber}</span>}{r.title}</span>
                       <span className="ops-row-meta">
                         {r.requesterName} &middot; {formatDateRange(r.startsAt, r.endsAt)}
                       </span>

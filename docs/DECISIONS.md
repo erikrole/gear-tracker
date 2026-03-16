@@ -31,6 +31,7 @@
 - D-021: UW asset tag is an optional import field
 - D-022: Numbered bulk items — one QR, individually numbered units for loss tracking
 - D-023: Item Bundling via Parent-Child Accessories
+- D-024: Booking reference numbers use kind prefix (CO/RV) with global sequence
 
 ---
 
@@ -379,6 +380,30 @@
 
 ---
 
+## D-024: Booking reference numbers use kind prefix (CO/RV) with global sequence
+- Date: 2026-03-16
+- Status: Shipped
+- Context:
+  - Bookings identified only by CUID internally and user-entered title for display. Neither is speakable or unambiguous on radios.
+  - Staff need to say "grab gear for CO-0042" and have it be unambiguous.
+  - Options considered: sport prefix (variable width, mutable risk), kind prefix (fixed width, immutable per D-002), both (too long), random (ambiguous), status quo.
+- Decision:
+  - Format: `{CO|RV}-{zero-padded global sequence}` (e.g., CO-0001, RV-0002).
+  - Kind prefix chosen over sport prefix because BookingKind is architecturally immutable (D-002), while sportCode is only accidentally immutable.
+  - Global Postgres sequence `booking_ref_seq` shared across all booking kinds — no gaps in the global ordering.
+  - 4-digit zero-padding, extends naturally at 10000+.
+  - DRAFT bookings do not get refNumbers — assigned only on real creation via `createBooking()`.
+  - Searchable in checkouts and reservations list views.
+- Consequences:
+  - Every non-draft booking gets a stable, speakable, unique reference number.
+  - Displayed as monospace badge in list rows, detail sheet header, and dashboard.
+  - Sport context available via existing filters, not baked into the identifier.
+- Guardrails:
+  - Sequence value obtained inside SERIALIZABLE transaction — race-free.
+  - Unique constraint on `ref_number` column prevents duplicates.
+
+---
+
 ## Platform Invariants
 
 These are non-negotiable integrity constraints. Every feature must preserve them. Previously tracked in `AREA_PLATFORM_INTEGRITY.md` (now folded here to eliminate duplication).
@@ -415,3 +440,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-14: Added D-022 (numbered bulk items — trackByNumber flag, unit picker, conversion endpoint).
 - 2026-03-15: Withdrew D-005 (B&H enrichment) — scraping blocked by source, feature removed.
 - 2026-03-16: Shipped D-017 (DRAFT booking lifecycle). Shipped D-018 (asset financial fields — Procurement section in item detail).
+- 2026-03-16: Added D-024 (booking reference numbers — CO/RV kind prefix + global sequence).

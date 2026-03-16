@@ -11,6 +11,7 @@ const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOver
 function toBookingSummary(c: {
   id: string;
   title: string;
+  refNumber: string | null;
   requester: { name: string };
   startsAt: Date;
   endsAt: Date;
@@ -20,6 +21,7 @@ function toBookingSummary(c: {
   return {
     id: c.id,
     title: c.title,
+    refNumber: c.refNumber,
     requesterName: c.requester.name,
     startsAt: c.startsAt.toISOString(),
     endsAt: c.endsAt.toISOString(),
@@ -231,6 +233,7 @@ export async function GET() {
         myReservations: myReservations.map((r) => ({
           id: r.id,
           title: r.title,
+          refNumber: r.refNumber,
           startsAt: r.startsAt.toISOString(),
           endsAt: r.endsAt.toISOString(),
           itemCount: r._count.serializedItems + r._count.bulkItems,

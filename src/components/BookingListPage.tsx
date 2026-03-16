@@ -19,6 +19,7 @@ import type { PickerAsset, PickerBulkSku, BulkSelection } from "@/components/Equ
 export type BookingItem = {
   id: string;
   title: string;
+  refNumber?: string | null;
   startsAt: string;
   endsAt: string;
   status: string;
@@ -901,6 +902,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                       >
                         <td>
                           <div className="booking-name-cell">
+                            {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
                             <span className="row-link">{item.title}</span>
                             <span className="booking-status-line">
                               <span className="status-dot" style={{ background: sv.dot }} />
@@ -948,6 +950,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                   >
                     <div className="booking-mobile-top">
                       <div className="booking-mobile-name">
+                        {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
                         <span className="row-link">{item.title}</span>
                         <span className="booking-status-line">
                           <span className="status-dot" style={{ background: sv.dot }} />
