@@ -381,8 +381,8 @@ textarea:focus-visible {
   left: 16px;
   z-index: var(--z-sidebar);
   padding: 8px 16px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   border-radius: var(--radius);
   font-weight: var(--weight-semibold);
   font-size: var(--text-base);
@@ -1085,12 +1085,12 @@ textarea:focus-visible {
 
 /* ── Overdue Banner ── */
 .overdue-banner {
-  background: #c5050c;
+  background: var(--wi-red);
   border-radius: var(--radius-lg);
   padding: 16px 20px;
   margin-bottom: 20px;
-  color: white;
-  border-left: 4px solid #7f1d1d;
+  color: #ffffff;
+  border-left: 4px solid var(--wi-red-hover);
 }
 
 .overdue-banner-header {
@@ -2109,12 +2109,13 @@ textarea:focus-visible {
 .btn-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   display: inline-block;
   flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .btn:disabled {
@@ -2985,8 +2986,8 @@ textarea:focus-visible {
 }
 
 .qty-stepper button:active {
-  background: var(--accent);
-  color: white;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
 }
 
 .qty-stepper input {
@@ -3038,7 +3039,7 @@ textarea:focus-visible {
 }
 
 .equip-picker-item.selected {
-  background: #eff6ff;
+  background: var(--blue-bg);
 }
 
 .equip-picker-meta {
@@ -3518,7 +3519,7 @@ textarea:focus-visible {
   gap: 8px;
   width: 100%;
   padding: 32px 16px;
-  background: #f8f9fa;
+  background: var(--panel);
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
@@ -3528,7 +3529,7 @@ textarea:focus-visible {
 }
 
 .scan-camera-start:active {
-  background: #eef0f2;
+  background: var(--panel-hover);
 }
 
 .scan-camera-error {
@@ -3581,13 +3582,13 @@ textarea:focus-visible {
 }
 
 .scan-feedback-success {
-  color: #166534;
-  background: #f0fdf4;
+  color: var(--green, #16a34a);
+  background: var(--green-bg);
 }
 
 .scan-feedback-error {
-  color: #991b1b;
-  background: #fef2f2;
+  color: var(--red, #dc2626);
+  background: var(--red-bg);
 }
 
 .scan-feedback-icon {
@@ -5300,12 +5301,12 @@ textarea {
   background: var(--accent-soft);
 }
 .picker-filter-chip-active {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: var(--accent);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border-color: var(--btn-primary-bg);
 }
 .picker-filter-chip-active:hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-bg-hover);
 }
 
 /* ===== Column Header (select-all) ===== */
@@ -5678,12 +5679,12 @@ textarea {
   animation: scan-feedback-in 0.2s ease-out;
 }
 .scan-feedback-success {
-  background: #dcfce7;
-  color: #166534;
+  color: var(--green, #16a34a);
+  background: var(--green-bg);
 }
 .scan-feedback-error {
-  background: #fef2f2;
-  color: #991b1b;
+  color: var(--red, #dc2626);
+  background: var(--red-bg);
 }
 @keyframes scan-feedback-in {
   from { opacity: 0; transform: translateY(-4px); }
@@ -6088,8 +6089,8 @@ tr.returned-row { opacity: 0.55; }
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--accent);
-  color: white;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   font-weight: var(--weight-bold);
   font-size: var(--text-xs);
   display: grid;
