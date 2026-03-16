@@ -30,6 +30,7 @@
 - D-020: Kit management is Phase B
 - D-021: UW asset tag is an optional import field
 - D-022: Numbered bulk items — one QR, individually numbered units for loss tracking
+- D-023: Item Bundling via Parent-Child Accessories
 
 ---
 
@@ -342,6 +343,31 @@
   - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
   - Checked-out units cannot be marked lost/retired — must be checked in first.
   - Unit numbers are permanent; retiring #7 does not renumber #8–40.
+
+## D-023: Item Bundling via Parent-Child Accessories
+- Date: 2026-03-16
+- Status: Accepted
+- Context:
+  - Equipment like camera bodies ship with handles, cages, and other accessories that travel as a unit but need independent maintenance tracking.
+  - Full kit management (predefined templates, kit-level bookings) is overkill for V1. Users want a simple "this cage belongs to this camera" relationship.
+- Decision:
+  - Self-referential FK `parentAssetId` on Asset with `ON DELETE SET NULL`. One level only — no nesting.
+  - Accessories are hidden from the items list by default (filtered by `parentAssetId IS NULL`).
+  - Accessories always travel with their parent — no independent booking line items.
+  - Accessories can be flagged independently for maintenance.
+  - Standalone items can be converted to accessories (attach) and back (detach) at any time.
+  - Accessories can be moved between parents.
+  - On attach, `availableForCheckout` and `availableForReservation` are set to false (parent controls booking).
+  - On detach, both flags are restored to true.
+- Consequences:
+  - Items list shows accessory count badge (+N) on parent items.
+  - Item detail page shows "Accessory of [Parent]" banner for child items.
+  - Scan preview shows parent relationship when scanning an accessory QR.
+  - No schema changes to bookings — accessories ride along implicitly.
+- Guardrails:
+  - A parent item cannot itself be a child (no nesting).
+  - Self-reference is blocked (cannot attach item to itself).
+  - Staff+ permission required for attach/detach/move operations.
 
 ---
 

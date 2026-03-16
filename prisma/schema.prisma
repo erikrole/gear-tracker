@@ -84,6 +84,7 @@ model User {
   overrides      OverrideEvent[]
   bulkMovements  BulkStockMovement[]
   audits         AuditLog[]   @relation("AuditActor")
+  favoriteItems  FavoriteItem[]
 
   @@map("users")
 }
@@ -178,16 +179,21 @@ model Asset {
   location         Location                 @relation(fields: [locationId], references: [id])
   department       Department?              @relation(fields: [departmentId], references: [id])
   category         Category?                @relation(fields: [categoryId], references: [id])
+  parentAssetId    String?                  @map("parent_asset_id")
+  parent           Asset?                   @relation("AssetAccessories", fields: [parentAssetId], references: [id], onDelete: SetNull)
+  accessories      Asset[]                  @relation("AssetAccessories")
   bookingItems     BookingSerializedItem[]
   allocations      AssetAllocation[]
   scans            ScanEvent[]
   kitMemberships   KitMembership[]
+  favoritedBy      FavoriteItem[]
 
   @@index([locationId])
   @@index([departmentId])
   @@index([categoryId])
   @@index([brand, model])
   @@index([primaryScanCode])
+  @@index([parentAssetId])
   @@map("assets")
 }
 
@@ -573,6 +579,21 @@ model EscalationRule {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@map("escalation_rules")
+}
+
+// ── Favorites ───────────────────────────────────────────
+
+model FavoriteItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  assetId   String   @map("asset_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId])
+  @@index([userId])
+  @@map("favorite_items")
 }
 
 model SystemConfig {
