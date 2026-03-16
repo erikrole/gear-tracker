@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
+const TradeBoard = dynamic(() => import("@/components/TradeBoard"), { ssr: false });
 import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -85,6 +86,9 @@ export default function SchedulePage() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+
+  // Page tab
+  const [pageTab, setPageTab] = useState<"schedule" | "trades">("schedule");
 
   // Detail panel
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -194,7 +198,28 @@ export default function SchedulePage() {
     <>
       <div className="page-header">
         <h1>Schedule</h1>
+        <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+          <button
+            className={`btn btn-sm ${pageTab === "schedule" ? "btn-primary" : ""}`}
+            onClick={() => setPageTab("schedule")}
+            style={{ borderRadius: 0, border: "none" }}
+          >
+            Shifts
+          </button>
+          <button
+            className={`btn btn-sm ${pageTab === "trades" ? "btn-primary" : ""}`}
+            onClick={() => setPageTab("trades")}
+            style={{ borderRadius: 0, border: "none" }}
+          >
+            Trade Board
+          </button>
+        </div>
       </div>
+
+      {pageTab === "trades" ? (
+        <TradeBoard currentUserId={currentUserId} currentUserRole={currentUserRole} />
+      ) : (
+      <>
 
       {/* View toggle + filters */}
       <div className="filter-chip-bar mb-16">
@@ -430,6 +455,8 @@ export default function SchedulePage() {
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
         />
+      )}
+      </>
       )}
     </>
   );

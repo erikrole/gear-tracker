@@ -1,0 +1,386 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/Toast";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { FilterChip } from "@/components/FilterChip";
+import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
+import { formatDateShort, formatTimeShort } from "@/lib/format";
+
+/* ───── Types ───── */
+
+type TradeEvent = {
+  id: string;
+  summary: string;
+  startsAt: string;
+  endsAt: string;
+  sportCode: string | null;
+};
+
+type TradeShift = {
+  id: string;
+  area: string;
+  workerType: string;
+  shiftGroup: { event: TradeEvent; isPremier: boolean };
+};
+
+type TradeAssignment = {
+  id: string;
+  shift: TradeShift;
+  user: { id: string; name: string; primaryArea: string | null };
+};
+
+type Trade = {
+  id: string;
+  status: string;
+  requiresApproval: boolean;
+  notes: string | null;
+  postedAt: string;
+  claimedAt: string | null;
+  shiftAssignment: TradeAssignment;
+  postedBy: { id: string; name: string };
+  claimedBy: { id: string; name: string } | null;
+};
+
+type Props = {
+  currentUserId: string;
+  currentUserRole: string;
+};
+
+const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
+const AREA_LABELS: Record<string, string> = {
+  VIDEO: "Video",
+  PHOTO: "Photo",
+  GRAPHICS: "Graphics",
+  COMMS: "Comms",
+};
+
+const STATUS_BADGES: Record<string, string> = {
+  OPEN: "badge-green",
+  CLAIMED: "badge-orange",
+  COMPLETED: "badge-gray",
+  CANCELLED: "badge-red",
+};
+
+export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
+  const { toast } = useToast();
+  const confirm = useConfirm();
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState<string | null>(null);
+
+  // Filters
+  const [areaFilter, setAreaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+
+  const loadTrades = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (areaFilter) params.set("area", areaFilter);
+      if (statusFilter) params.set("status", statusFilter);
+      const res = await fetch(`/api/shift-trades?${params}`);
+      if (res.ok) {
+        const json = await res.json();
+        setTrades(json.data ?? []);
+      }
+    } catch { /* network error */ }
+    setLoading(false);
+  }, [areaFilter, statusFilter]);
+
+  useEffect(() => { loadTrades(); }, [loadTrades]);
+
+  const filteredTrades = useMemo(() => {
+    // Default to showing OPEN trades for students, all for staff
+    if (!statusFilter && !isStaff) {
+      return trades.filter((t) => t.status === "OPEN" || t.postedBy.id === currentUserId);
+    }
+    return trades;
+  }, [trades, statusFilter, isStaff, currentUserId]);
+
+  async function handleClaim(tradeId: string) {
+    setActing(tradeId);
+    try {
+      const res = await fetch(`/api/shift-trades/${tradeId}/claim`, { method: "POST" });
+      if (res.ok) {
+        toast("Trade claimed", "success");
+        await loadTrades();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to claim", "error");
+      }
+    } catch { toast("Network error", "error"); }
+    setActing(null);
+  }
+
+  async function handleApprove(tradeId: string) {
+    setActing(tradeId);
+    try {
+      const res = await fetch(`/api/shift-trades/${tradeId}/approve`, { method: "PATCH" });
+      if (res.ok) {
+        toast("Trade approved — swap executed", "success");
+        await loadTrades();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to approve", "error");
+      }
+    } catch { toast("Network error", "error"); }
+    setActing(null);
+  }
+
+  async function handleDecline(tradeId: string) {
+    setActing(tradeId);
+    try {
+      const res = await fetch(`/api/shift-trades/${tradeId}/decline`, { method: "PATCH" });
+      if (res.ok) {
+        toast("Trade declined — reopened", "success");
+        await loadTrades();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to decline", "error");
+      }
+    } catch { toast("Network error", "error"); }
+    setActing(null);
+  }
+
+  async function handleCancel(tradeId: string) {
+    const ok = await confirm({
+      title: "Cancel trade",
+      message: "Cancel this trade posting?",
+      confirmLabel: "Cancel trade",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setActing(tradeId);
+    try {
+      const res = await fetch(`/api/shift-trades/${tradeId}/cancel`, { method: "PATCH" });
+      if (res.ok) {
+        toast("Trade cancelled", "success");
+        await loadTrades();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to cancel", "error");
+      }
+    } catch { toast("Network error", "error"); }
+    setActing(null);
+  }
+
+  const hasFilters = !!(areaFilter || statusFilter);
+
+  return (
+    <>
+      {/* Filters */}
+      <div className="filter-chip-bar mb-16">
+        <div className="filter-chips">
+          <FilterChip
+            label="Area"
+            value={areaFilter}
+            displayValue={areaFilter ? AREA_LABELS[areaFilter] ?? areaFilter : ""}
+            options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] }))}
+            onSelect={(v) => setAreaFilter(v)}
+            onClear={() => setAreaFilter("")}
+          />
+          <FilterChip
+            label="Status"
+            value={statusFilter}
+            displayValue={statusFilter || ""}
+            options={[
+              { value: "OPEN", label: "Open" },
+              { value: "CLAIMED", label: "Claimed" },
+              { value: "COMPLETED", label: "Completed" },
+              { value: "CANCELLED", label: "Cancelled" },
+            ]}
+            onSelect={(v) => setStatusFilter(v)}
+            onClear={() => setStatusFilter("")}
+          />
+          {hasFilters && (
+            <button
+              type="button"
+              className="filter-chip-clear-all"
+              onClick={() => { setAreaFilter(""); setStatusFilter(""); }}
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h2>Trade Board ({filteredTrades.length})</h2>
+        </div>
+
+        {loading ? (
+          <SkeletonTable rows={4} cols={6} />
+        ) : filteredTrades.length === 0 ? (
+          <EmptyState
+            icon="clipboard"
+            title="No trades found"
+            description={hasFilters ? "Try adjusting your filters." : "No shifts are currently posted for trade."}
+          />
+        ) : (
+          <>
+            {/* Desktop table */}
+            <table className="data-table schedule-table-desktop">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Area</th>
+                  <th>Posted by</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTrades.map((t) => {
+                  const ev = t.shiftAssignment.shift.shiftGroup.event;
+                  const area = t.shiftAssignment.shift.area;
+                  return (
+                    <tr key={t.id}>
+                      <td className="font-semibold">{ev.summary}</td>
+                      <td className="text-nowrap">
+                        <div>{formatDateShort(ev.startsAt)}</div>
+                        <div className="text-xs text-secondary">{formatTimeShort(ev.startsAt)}</div>
+                      </td>
+                      <td>
+                        <span className="badge badge-gray">{AREA_LABELS[area] ?? area}</span>
+                      </td>
+                      <td>{t.postedBy.name}</td>
+                      <td>
+                        <span className={`badge ${STATUS_BADGES[t.status] ?? "badge-gray"}`}>
+                          {t.status}
+                        </span>
+                        {t.claimedBy && (
+                          <div className="text-xs text-secondary mt-2">
+                            Claimed by {t.claimedBy.name}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div className="flex gap-4">
+                          {/* Student can claim open trades (not their own) */}
+                          {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleClaim(t.id)}
+                              disabled={acting === t.id}
+                              style={{ fontSize: 11 }}
+                            >
+                              {acting === t.id ? "..." : "Claim"}
+                            </button>
+                          )}
+
+                          {/* Poster can cancel open/claimed trades */}
+                          {(t.status === "OPEN" || t.status === "CLAIMED") && t.postedBy.id === currentUserId && (
+                            <button
+                              className="btn btn-sm text-red"
+                              onClick={() => handleCancel(t.id)}
+                              disabled={acting === t.id}
+                              style={{ fontSize: 11 }}
+                            >
+                              Cancel
+                            </button>
+                          )}
+
+                          {/* Staff can approve/decline claimed trades */}
+                          {isStaff && t.status === "CLAIMED" && (
+                            <>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => handleApprove(t.id)}
+                                disabled={acting === t.id}
+                                style={{ fontSize: 11 }}
+                              >
+                                {acting === t.id ? "..." : "Approve"}
+                              </button>
+                              <button
+                                className="btn btn-sm text-red"
+                                onClick={() => handleDecline(t.id)}
+                                disabled={acting === t.id}
+                                style={{ fontSize: 11 }}
+                              >
+                                Decline
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Mobile cards */}
+            <div className="schedule-mobile-list">
+              {filteredTrades.map((t) => {
+                const ev = t.shiftAssignment.shift.shiftGroup.event;
+                const area = t.shiftAssignment.shift.area;
+                return (
+                  <div key={t.id} className="schedule-mobile-card">
+                    <div className="flex-between mb-4">
+                      <span className="font-semibold">{ev.summary}</span>
+                      <span className={`badge ${STATUS_BADGES[t.status] ?? "badge-gray"}`}>
+                        {t.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-secondary flex gap-8 mb-4">
+                      <span>{formatDateShort(ev.startsAt)} {formatTimeShort(ev.startsAt)}</span>
+                      <span className="badge badge-gray">{AREA_LABELS[area] ?? area}</span>
+                    </div>
+                    <div className="text-xs mb-4">Posted by {t.postedBy.name}</div>
+                    {t.claimedBy && (
+                      <div className="text-xs text-secondary mb-4">Claimed by {t.claimedBy.name}</div>
+                    )}
+                    <div className="flex gap-4">
+                      {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => handleClaim(t.id)}
+                          disabled={acting === t.id}
+                        >
+                          {acting === t.id ? "..." : "Claim"}
+                        </button>
+                      )}
+                      {(t.status === "OPEN" || t.status === "CLAIMED") && t.postedBy.id === currentUserId && (
+                        <button
+                          className="btn btn-sm text-red"
+                          onClick={() => handleCancel(t.id)}
+                          disabled={acting === t.id}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      {isStaff && t.status === "CLAIMED" && (
+                        <>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleApprove(t.id)}
+                            disabled={acting === t.id}
+                          >
+                            {acting === t.id ? "..." : "Approve"}
+                          </button>
+                          <button
+                            className="btn btn-sm text-red"
+                            onClick={() => handleDecline(t.id)}
+                            disabled={acting === t.id}
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
