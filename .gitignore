@@ -1,7 +1,6 @@
 node_modules/
 .next/
-.open-next/
-.wrangler/
+.vercel/
 .env
 .env.local
 .env.production

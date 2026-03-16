@@ -63,10 +63,14 @@ Before implementing any feature:
 - Check `docs/DECISIONS.md` for prior architectural choices
 - Skipping this causes missed field requirements, schema mismatches, and rework
 
-### 8. Vercel Deployment
+### 8. Vercel Deployment Constraints
 This project deploys to Vercel (Node.js runtime):
 - Database: Neon serverless PostgreSQL via `@prisma/adapter-neon`
 - No edge runtime — all routes run as standard Node.js serverless functions
+- Serverless function timeout: 10s on Hobby, 60s on Pro — keep API routes fast
+- Batch DB operations where possible for performance (avoid N+1 queries)
+- Vercel Blob for file storage (replaces Cloudflare R2)
+- Vercel Cron Jobs for scheduled tasks (configure in `vercel.json` or dashboard)
 - Always run `npm run build` before committing — build failures are the #1 avoidable time waster
 - If build fails, fix it before pushing. Never leave a broken build on any branch.
 

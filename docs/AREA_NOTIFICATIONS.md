@@ -45,7 +45,7 @@ Implementation: `src/lib/services/notifications.ts`
 ## Cron / Job Runner
 - Endpoint: `POST /api/notifications/process`
 - Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates notifications for matching windows
-- Trigger cadence: called by Cloudflare Cron Trigger (configure in `wrangler.jsonc`) or admin trigger
+- Trigger cadence: called by Vercel Cron Job (configure in `vercel.json` or Vercel dashboard) or admin trigger
 - Job is fully idempotent — safe to call multiple times per hour due to dedup logic
 
 ## Notification Center (V1)

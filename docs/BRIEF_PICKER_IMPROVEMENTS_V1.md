@@ -38,7 +38,7 @@
 - SERIALIZABLE transactions for booking mutations (D-006).
 - Audit logging on all mutations (D-007).
 - Tag-first identity in all picker surfaces (D-004).
-- Cloudflare Worker subrequest budget: availability check must be a single batched API call, not per-item.
+- Availability check must be a single batched API call, not per-item (avoid N+1 queries).
 - Mobile-first: all picker improvements must work on 375px+ screens with 44px+ touch targets.
 
 ## 6) Affected Areas

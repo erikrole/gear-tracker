@@ -10,11 +10,11 @@
 
 ## Problem Statement
 
-The existing Cheqroom CSV importer at `/import` has the right UI structure (4-step wizard) but fails at runtime because it makes individual DB calls per row (~400+ subrequests for 181 items), exceeding the Cloudflare Worker subrequest limit of ~50. It also lacks user-configurable column mapping and proper duplicate detection.
+The existing Cheqroom CSV importer at `/import` has the right UI structure (4-step wizard) but fails at runtime because it makes individual DB calls per row (~400+ for 181 items), creating severe N+1 query performance issues. It also lacks user-configurable column mapping and proper duplicate detection.
 
 ## Root Cause
 - Import loop does `findUnique` + `create`/`update` per row = O(n) DB calls
-- Cloudflare Worker hard limit of ~50 subrequests per request
+- N+1 query pattern causes excessive DB round-trips and slow imports
 - No batch operations used
 
 ## Solution
@@ -73,4 +73,4 @@ Rebuild the import API to batch all DB operations and add a column mapping step.
 - **Medium risk**: Rewriting the import API could introduce data integrity issues
 - **Mitigation**: Preview step validates all rows before any writes
 - **Mitigation**: Audit log captures import stats for traceability
-- **Cloudflare limit**: Must verify actual subrequest count stays under 50
+- **Performance**: Must verify batch operations keep total DB round-trips under 20

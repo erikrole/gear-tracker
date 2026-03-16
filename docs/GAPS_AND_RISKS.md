@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
 | PD-2 | Venue mapping governance — who owns regex-to-location mapping table? | AREA_EVENTS | Medium | No |
-| PD-3 | Event sync refresh cadence — Cloudflare Cron schedule and staleness thresholds | AREA_EVENTS | Medium | No |
+| PD-3 | Event sync refresh cadence — Vercel Cron schedule and staleness thresholds | AREA_EVENTS | Medium | No |
 | ~~PD-4~~ | ~~B&H metadata cache TTL target~~ | ~~AREA_ITEMS~~ | ~~N/A~~ | ~~No — D-005 withdrawn~~ |
 | ~~PD-5~~ | ~~Student mobile KPI definitions~~ | ~~AREA_MOBILE~~ | ~~Resolved~~ | ~~Taps-to-checkout ≤3, scan success ≥95%, task completion <30s~~ |
 
