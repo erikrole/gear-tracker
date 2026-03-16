@@ -92,6 +92,7 @@ model User {
   areaAssignments     StudentAreaAssignment[]
   tradesPosted        ShiftTrade[]       @relation("TradePostedBy")
   tradesClaimed       ShiftTrade[]       @relation("TradeClaimedBy")
+  favorites           FavoriteItem[]
 
   @@map("users")
 }
