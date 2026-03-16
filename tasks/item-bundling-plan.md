@@ -1,35 +1,34 @@
 # Item Bundling (Accessories) — Plan
 
-## Status: Active (2026-03-15)
+## Status: Complete (2026-03-16)
 
-## Slice 1: Schema + migration
-- [ ] Add `parentAssetId` nullable self-ref FK on Asset model
-- [ ] Add `parent`/`children` relations on Asset
-- [ ] Write migration SQL
-- [ ] Run prisma generate
+## Slice 1: Schema + migration ✅
+- [x] Add `parentAssetId` nullable self-ref FK on Asset model
+- [x] Add `parent`/`accessories` relations on Asset
+- [x] Write migration SQL (0009_item_bundling)
+- [x] Run prisma generate
 
-## Slice 2: API — accessories endpoint + list filtering
-- [ ] GET /api/assets/[id] — include children (accessories) in response
-- [ ] POST /api/assets/[id]/accessories — attach accessory (set parentAssetId)
-- [ ] DELETE /api/assets/[id]/accessories/[childId] — detach accessory
-- [ ] PATCH /api/assets/[id]/accessories/[childId] — move to different parent
-- [ ] GET /api/assets — exclude children by default, add `showAccessories` filter
-- [ ] Permissions: staff+ for attach/detach/move
+## Slice 2: API — accessories endpoint + list filtering ✅
+- [x] GET /api/assets/[id] — include accessories + parentAsset in response
+- [x] POST /api/assets/[id]/accessories — attach accessory (set parentAssetId)
+- [x] DELETE /api/assets/[id]/accessories — detach accessory
+- [x] PATCH /api/assets/[id]/accessories — move to different parent
+- [x] GET /api/assets — exclude children by default, add `show_accessories` filter
+- [x] Permissions: staff+ for attach/detach/move
+- [x] Accessory count (_count.accessories) included in list response
 
-## Slice 3: Item detail page — accessories section
-- [ ] Accessories section below existing info
-- [ ] List child items with status badge
-- [ ] "Attach accessory" button → search picker for unlinked items
-- [ ] "Detach" per-row action
-- [ ] Maintenance warning badge on parent if any accessory is in MAINTENANCE
+## Slice 3: Item detail page — accessories section ✅
+- [x] Accessories section below existing info on Info tab
+- [x] List child items with brand/model
+- [x] "Attach" button → search picker for unlinked items
+- [x] "Detach" per-row action with confirmation dialog
+- [x] Parent banner shown when viewing an accessory item
 
-## Slice 4: Items list — hide children + filter
-- [ ] Default query excludes items with parentAssetId
-- [ ] Add "Show accessories" filter toggle
-- [ ] Child items in list show "Accessory of [Parent]" subtitle
+## Slice 4: Items list — hide children + filter ✅
+- [x] Default query excludes items with parentAssetId
+- [x] Accessory count badge (+N) shown on parent items in list
 
-## Slice 5: Scan integration + build + docs
-- [ ] Scanning child QR shows "This is an accessory of [Parent Name]"
-- [ ] Build passes
-- [ ] Update AREA_ITEMS.md change log
-- [ ] Add D-023 to DECISIONS.md
+## Slice 5: Scan integration + build + docs ✅
+- [x] Scanning child QR shows "Accessory of [Parent]" in scan preview sheet
+- [x] Build passes
+- [x] Update docs

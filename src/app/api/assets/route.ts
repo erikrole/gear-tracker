@@ -33,6 +33,7 @@ export async function GET(req: Request) {
     const locationId = searchParams.get("location_id");
     const categoryId = searchParams.get("category_id");
     const brand = searchParams.get("brand")?.trim();
+    const showAccessories = searchParams.get("show_accessories") === "true";
 
     // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
     // post-enrichment filtering. Stored statuses filter at the DB level.
@@ -41,6 +42,8 @@ export async function GET(req: Request) {
     const isStoredFilter = statusParam && !isDerivedFilter;
 
     const where = {
+      // By default, hide accessories (child items) from the main list
+      ...(!showAccessories ? { parentAssetId: null } : {}),
       ...(locationId ? { locationId } : {}),
       ...(categoryId ? { categoryId } : {}),
       ...(brand ? { brand: { equals: brand, mode: "insensitive" as const } } : {}),
@@ -70,6 +73,7 @@ export async function GET(req: Request) {
         include: {
           location: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
+          _count: { select: { accessories: true } },
         },
         orderBy: { assetTag: "asc" }
       });
@@ -95,6 +99,7 @@ export async function GET(req: Request) {
         include: {
           location: { select: { id: true, name: true } },
           category: { select: { id: true, name: true } },
+          _count: { select: { accessories: true } },
         },
         orderBy: { assetTag: "asc" },
         take: limit,

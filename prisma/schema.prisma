@@ -178,6 +178,9 @@ model Asset {
   location         Location                 @relation(fields: [locationId], references: [id])
   department       Department?              @relation(fields: [departmentId], references: [id])
   category         Category?                @relation(fields: [categoryId], references: [id])
+  parentAssetId    String?                  @map("parent_asset_id")
+  parent           Asset?                   @relation("AssetAccessories", fields: [parentAssetId], references: [id], onDelete: SetNull)
+  accessories      Asset[]                  @relation("AssetAccessories")
   bookingItems     BookingSerializedItem[]
   allocations      AssetAllocation[]
   scans            ScanEvent[]
@@ -188,6 +191,7 @@ model Asset {
   @@index([categoryId])
   @@index([brand, model])
   @@index([primaryScanCode])
+  @@index([parentAssetId])
   @@map("assets")
 }
 

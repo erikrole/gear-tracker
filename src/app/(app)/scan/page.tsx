@@ -70,6 +70,7 @@ type ItemPreview = {
   computedStatus: string;
   location: { name: string } | null;
   category: { name: string } | null;
+  parentAsset: { id: string; assetTag: string; name: string | null; brand: string; model: string } | null;
   activeBooking: {
     id: string;
     kind: string;
@@ -211,6 +212,7 @@ export default function ScanPage() {
             computedStatus: "AVAILABLE",
             location: null,
             category: null,
+            parentAsset: null,
             activeBooking: null,
           });
         }
@@ -827,6 +829,19 @@ export default function ScanPage() {
                 </div>
               )}
             </div>
+
+            {/* Parent asset banner */}
+            {itemPreview.parentAsset && (
+              <div className="scan-sheet-booking" style={{ background: "var(--bg-muted)", color: "var(--text-primary)" }}>
+                <div className="scan-sheet-booking-label">Accessory of</div>
+                <Link href={`/items/${itemPreview.parentAsset.id}`} className="scan-sheet-booking-name font-medium" style={{ color: "var(--primary)" }}>
+                  {itemPreview.parentAsset.assetTag}
+                </Link>
+                <div className="scan-sheet-booking-title">
+                  {itemPreview.parentAsset.brand} {itemPreview.parentAsset.model}
+                </div>
+              </div>
+            )}
 
             {/* Current holder / active booking */}
             {itemPreview.activeBooking && (

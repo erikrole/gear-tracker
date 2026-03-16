@@ -29,6 +29,7 @@ type Asset = {
   location: { id: string; name: string };
   category: { id: string; name: string } | null;
   activeBooking: ActiveBooking | null;
+  _count?: { accessories: number };
 };
 
 type Location = { id: string; name: string };
@@ -526,6 +527,11 @@ export default function ItemsPage() {
                           <span className="row-link font-semibold">
                             {item.assetTag}
                           </span>
+                          {(item._count?.accessories ?? 0) > 0 && (
+                            <span className="badge badge-sm badge-gray ml-4" title={`${item._count!.accessories} accessories`}>
+                              +{item._count!.accessories}
+                            </span>
+                          )}
                           <div className="text-xs text-secondary">
                             {item.name || `${item.brand} ${item.model}`}
                           </div>

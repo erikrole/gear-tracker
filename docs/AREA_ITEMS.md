@@ -351,3 +351,4 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-03-11: Docs hardening — resolved "Customize overview" ambiguity: deferred, not in V1. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md.
 - 2026-03-14: Added Numbered Bulk Item Tracking section — trackByNumber flag, unit picker scan flow, conversion endpoint, D-022 reference.
 - 2026-03-15: Removed B&H enrichment — scraping blocked by source. Removed all B&H references from rules, workflow, traps, and acceptance criteria.
+- 2026-03-16: Item Bundling (Accessories) V1 shipped — parent-child self-ref FK on Asset, accessories CRUD API, detail page accessories section with attach/detach, items list hides children by default with +N badge on parents, scan preview shows "Accessory of" banner. See D-023.
