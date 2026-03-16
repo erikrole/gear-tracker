@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const SETTINGS_SECTIONS = [
   { href: "/settings/categories", label: "Categories" },
+  { href: "/settings/sports", label: "Sports" },
   { href: "/settings/escalation", label: "Escalation" },
   { href: "/settings/database", label: "Database" },
 ];
