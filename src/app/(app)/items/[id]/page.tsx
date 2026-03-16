@@ -537,38 +537,46 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
 
 function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
   const [showModal, setShowModal] = useState(false);
-  // Split asset tag into stacked lines by spaces (e.g. "FB FX3 1" → ["FB", "FX3", "1"])
-  const tagLines = asset.assetTag.split(/[\s]+/).filter(Boolean);
+  // Split asset tag into stacked lines (e.g. "FB FX3 1" → ["FB", "FX3", "1"])
+  const rawParts = asset.assetTag.split(/[\s]+/).filter(Boolean);
+  // Football tags have 3 natural parts and start with "FB"; all others get padded
+  const isFootball = rawParts.length === 3 && rawParts[0] === "FB";
+  // Always 3 lines — pad top with empty lines for non-3-part tags
+  const tagLines = rawParts.length >= 3
+    ? rawParts.slice(0, 3)
+    : [...Array(3 - rawParts.length).fill(""), ...rawParts];
 
   return (
     <>
       <div className="p-16 border-t">
         <div className="text-xs font-semibold text-secondary mb-8 section-label">TRACKING CODES</div>
-        <div className="flex gap-12 items-start">
-          {/* Asset tag label replaces standalone QR image */}
+        <div className="flex gap-12 items-center">
+          {/* Asset tag label — matches physical Brother label */}
           <button
             className="asset-tag-label"
             onClick={() => setShowModal(true)}
             title="Click to enlarge QR code"
           >
-            <div className="asset-tag-label-text">
+            <div className={`asset-tag-label-text ${isFootball ? "" : "asset-tag-label-text-left"}`}>
               {tagLines.map((line, i) => (
-                <div key={i} className="asset-tag-label-line">{line}</div>
+                <div key={i} className="asset-tag-label-line">{line || "\u00A0"}</div>
               ))}
             </div>
             <div className="asset-tag-label-qr">
               <QRCodeCanvas value={asset.qrCodeValue} size={96} margin={0} />
             </div>
           </button>
-          <div className="flex-col gap-4">
-            <div className="tracking-row">
-              <span>QR</span>
-              <strong className="font-mono">{asset.qrCodeValue}</strong>
+          <div className="flex-col gap-6">
+            <div className="tracking-pill">
+              <span className="tracking-pill-label">QR</span>
+              <span className="tracking-pill-value">{asset.qrCodeValue}</span>
             </div>
-            <div className="tracking-row">
-              <span>Serial</span>
-              <strong className="font-mono">{asset.serialNumber}</strong>
-            </div>
+            {asset.serialNumber && (
+              <div className="tracking-pill">
+                <span className="tracking-pill-label">Serial</span>
+                <span className="tracking-pill-value">{asset.serialNumber}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -595,15 +603,14 @@ function ItemInfoCard({
   onRefresh: () => void;
   onCategoriesChanged: () => void;
 }) {
-  const [feedback, setFeedback] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
+  const { toast } = useToast();
 
   async function saveField(patchKey: string, value: string) {
-    setFeedback(null);
     try {
       const body: Record<string, unknown> = {};
       if (patchKey === "purchasePrice" || patchKey === "residualValue") {
         const num = parseFloat(value);
-        if (value && isNaN(num)) { setFeedback({ type: "err", msg: "Invalid number" }); return; }
+        if (value && isNaN(num)) { toast("Invalid number", "error"); return; }
         body[patchKey] = value ? num : undefined;
       } else if (patchKey.startsWith("metadata.")) {
         const metaKey = patchKey.split(".")[1];
@@ -622,12 +629,11 @@ function ItemInfoCard({
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setFeedback({ type: "err", msg: (json as Record<string, string>).error || "Save failed" });
+        toast((json as Record<string, string>).error || "Save failed", "error");
         return;
       }
 
-      setFeedback({ type: "ok", msg: "Saved" });
-      setTimeout(() => setFeedback((f) => f?.msg === "Saved" ? null : f), 2000);
+      toast("Saved", "success");
 
       if (patchKey.startsWith("metadata.")) {
         const metaKey = patchKey.split(".")[1];
@@ -636,20 +642,18 @@ function ItemInfoCard({
         onFieldSaved({ [patchKey]: patchKey === "purchasePrice" ? parseFloat(value) : value } as Partial<AssetDetail>);
       }
     } catch {
-      setFeedback({ type: "err", msg: "Network error" });
+      toast("Network error", "error");
     }
   }
 
   async function saveCategory(categoryId: string) {
-    setFeedback(null);
     const res = await fetch(`/api/assets/${asset.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ categoryId: categoryId || null }),
     });
     if (res.ok) {
-      setFeedback({ type: "ok", msg: "Saved" });
-      setTimeout(() => setFeedback((f) => f?.msg === "Saved" ? null : f), 2000);
+      toast("Saved", "success");
       onRefresh();
     }
   }
@@ -704,13 +708,8 @@ function ItemInfoCard({
 
   return (
     <div className="card details-card">
-      <div className="card-header flex-between">
+      <div className="card-header">
         <h2>Item Information</h2>
-        {feedback && (
-          <span className={`text-xs ${feedback.type === "ok" ? "text-green" : "text-red"}`}>
-            {feedback.msg}
-          </span>
-        )}
       </div>
       <dl className="data-list data-list-2col">
         {renderFieldGroup("Identity", identityFields)}
@@ -756,17 +755,14 @@ function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDeta
               className="possession-card"
               onClick={() => onSelectBooking(b.id)}
             >
-              <div className={`countdown-bar countdown-${getUrgency(b.startsAt, b.endsAt, now)}`}>
-                {getUrgency(b.startsAt, b.endsAt, now) !== "normal"
-                  ? formatCountdown(b.endsAt, now)
-                  : `Due ${formatDateShort(b.endsAt)}`}
-              </div>
               <div className="possession-card-body">
                 <span className="possession-asset-tag">{b.title}</span>
                 <span className="possession-asset-name">
-                  {b.kind === "CHECKOUT" ? "Held" : "Reserved"} by {b.requesterName}
+                  {b.kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {b.requesterName}
                 </span>
-                <span className="ops-row-meta">{formatCountdown(b.endsAt, now)}</span>
+                <span className={`possession-countdown countdown-text-${getUrgency(b.startsAt, b.endsAt, now)}`}>
+                  {formatCountdown(b.endsAt, now)}
+                </span>
               </div>
             </button>
           </div>
@@ -844,20 +840,24 @@ function BookingKindTab({
 
   return (
     <div className="flex-col gap-16 mt-14">
-      {/* Active booking card at top of matching tab */}
+      {/* Active booking card at top of matching tab — mirrors Info tab card */}
       {showActiveCard && activeBooking && (
         <div className="card">
           <div className="card-header"><h2>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</h2></div>
-          <div className="p-16">
-            <div className="flex-between mb-8 items-baseline">
-              <strong>{activeBooking.title}</strong>
-              <span className="badge badge-orange text-xs">{formatCountdown(activeBooking.endsAt, now)}</span>
-            </div>
-            <div className="text-sm text-secondary mb-8">
-              {kind === "CHECKOUT" ? "Held" : "Reserved"} by <strong>{activeBooking.requesterName}</strong>
-            </div>
-            <button className="btn btn-sm" onClick={() => onSelectBooking(activeBooking.id)}>
-              View {kind === "CHECKOUT" ? "checkout" : "reservation"} {"\u2192"}
+          <div className="card-body card-body-compact">
+            <button
+              className="possession-card"
+              onClick={() => onSelectBooking(activeBooking.id)}
+            >
+              <div className="possession-card-body">
+                <span className="possession-asset-tag">{activeBooking.title}</span>
+                <span className="possession-asset-name">
+                  {kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {activeBooking.requesterName}
+                </span>
+                <span className={`possession-countdown countdown-text-${getUrgency(activeBooking.startsAt, activeBooking.endsAt, now)}`}>
+                  {formatCountdown(activeBooking.endsAt, now)}
+                </span>
+              </div>
             </button>
           </div>
         </div>
@@ -903,12 +903,17 @@ function BookingKindTab({
         </div>
       )}
 
-      {/* History table */}
-      <div className="card">
-        <div className="card-header"><h2>{kind === "CHECKOUT" ? "Checkout" : "Reservation"} History</h2></div>
+      {/* Past history — visually distinct from active bookings */}
+      <div className="card history-card">
+        <div className="card-header">
+          <h2>Past {kind === "CHECKOUT" ? "Checkouts" : "Reservations"}</h2>
+          {filtered.length > 0 && (
+            <span className="text-xs text-secondary">Completed &amp; cancelled</span>
+          )}
+        </div>
         <div className="p-16">
           {filtered.length === 0 ? (
-            <div className="empty-state">No {label} yet for this item.</div>
+            <div className="empty-state">No past {label} for this item.</div>
           ) : (
             filtered.map((group) => (
               <div key={group.month} className="mb-16">

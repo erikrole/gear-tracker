@@ -1237,6 +1237,24 @@ textarea:focus-visible {
   color: var(--text);
 }
 
+.possession-countdown {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+
+.countdown-text-overdue { color: #ef4444; }
+.countdown-text-critical { color: #f59e0b; }
+.countdown-text-warning { color: #f59e0b; }
+.countdown-text-normal { color: var(--text-secondary); }
+
+/* ── History card — subtle de-emphasis vs active cards ── */
+.history-card {
+  opacity: 0.85;
+}
+
 /* ── Ownership accent for My Gear rows ── */
 .ops-row-owned {
   border-left: 3px solid var(--accent, #3b82f6);
@@ -2121,6 +2139,31 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 10px;
+}
+
+.tracking-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-muted, rgba(255,255,255,0.06));
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 6px 14px 6px 10px;
+  font-size: 13px;
+}
+
+.tracking-pill-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tracking-pill-value {
+  font-family: var(--font-mono, "SF Mono", "Fira Code", monospace);
+  font-weight: 600;
+  color: var(--text);
 }
 
 .history-feed {
@@ -4178,6 +4221,11 @@ textarea:focus-visible {
   justify-content: center;
   gap: 0;
   padding: 4px 12px;
+  min-width: 64px;
+}
+
+.asset-tag-label-text-left {
+  align-items: flex-end;
 }
 
 .asset-tag-label-line {
