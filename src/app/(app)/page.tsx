@@ -19,6 +19,7 @@ import {
 type BookingSummary = {
   id: string;
   title: string;
+  refNumber: string | null;
   requesterName: string;
   startsAt: string;
   endsAt: string;
@@ -30,6 +31,7 @@ type BookingSummary = {
 type MyReservation = {
   id: string;
   title: string;
+  refNumber: string | null;
   startsAt: string;
   endsAt: string;
   itemCount: number;
@@ -57,6 +59,14 @@ type OverdueItem = {
   endsAt: string;
 };
 
+type DraftSummary = {
+  id: string;
+  kind: string;
+  title: string;
+  itemCount: number;
+  updatedAt: string;
+};
+
 type DashboardData = {
   stats: {
     checkedOut: number;
@@ -71,6 +81,7 @@ type DashboardData = {
   myReservations: MyReservation[];
   overdueCount: number;
   overdueItems: OverdueItem[];
+  drafts: DraftSummary[];
 };
 
 /* ───── Component ───── */
@@ -232,7 +243,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{c.title}</span>
+                      <span className="ops-row-title">{c.refNumber && <span className="ref-number">{c.refNumber}</span>}{c.title}</span>
                       <span className="ops-row-meta">
                         {c.isOverdue ? (
                           <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
@@ -270,7 +281,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{r.title}</span>
+                      <span className="ops-row-title">{r.refNumber && <span className="ref-number">{r.refNumber}</span>}{r.title}</span>
                       <span className="ops-row-meta">
                         {formatDateRange(r.startsAt, r.endsAt)}
                         {r.locationName && ` \u00B7 ${r.locationName}`}
@@ -282,6 +293,49 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Drafts */}
+          {data.drafts.length > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <h2>Drafts</h2>
+                <span className="section-count">{data.drafts.length}</span>
+              </div>
+              <div className="card-body card-body-compact">
+                {data.drafts.map((d) => (
+                  <div key={d.id} className="ops-row draft-row">
+                    <div className="ops-row-main">
+                      <span className="ops-row-title">
+                        <span className="draft-kind-badge">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</span>
+                        {d.title || "Untitled"}
+                      </span>
+                      <span className="ops-row-meta">
+                        {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
+                        Edited {formatDateShort(d.updatedAt)}
+                      </span>
+                    </div>
+                    <div className="draft-actions">
+                      <a
+                        href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}
+                        className="btn btn-sm"
+                      >
+                        Resume
+                      </a>
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        onClick={async () => {
+                          await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
+                          loadData();
+                        }}
+                      >
+                        Discard
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ────── Right Column: Team Activity ────── */}
@@ -305,7 +359,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{c.title}</span>
+                      <span className="ops-row-title">{c.refNumber && <span className="ref-number">{c.refNumber}</span>}{c.title}</span>
                       <span className="ops-row-meta">
                         {c.requesterName} &middot;{" "}
                         {c.isOverdue ? (
@@ -344,7 +398,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{r.title}</span>
+                      <span className="ops-row-title">{r.refNumber && <span className="ref-number">{r.refNumber}</span>}{r.title}</span>
                       <span className="ops-row-meta">
                         {r.requesterName} &middot; {formatDateRange(r.startsAt, r.endsAt)}
                       </span>

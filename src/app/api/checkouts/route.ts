@@ -40,6 +40,7 @@ export async function GET(req: Request) {
         OR: [
           { title: { contains: q, mode: "insensitive" as const } },
           { requester: { name: { contains: q, mode: "insensitive" as const } } },
+          { refNumber: { contains: q, mode: "insensitive" as const } },
         ],
       } : {}),
     };

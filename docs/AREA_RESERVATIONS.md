@@ -237,3 +237,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-03-02: Added explicit mobile row-interaction contract alignment.
 - 2026-03-11: Docs hardening — synced action matrix to shipped `booking-rules.ts`. Removed Cheqroom action mapping. Replaced "Reserve again"/"Repeat reservation" with deferred duplicate action. Added DRAFT state. Marked V1 as shipped.
 - 2026-03-14: Shipped duplicate/clone action — detail page button + list context menu entry. API endpoint at POST /api/reservations/[id]/duplicate.
+- 2026-03-16: Booking reference numbers (D-024) — RV-XXXX format, global sequence, searchable, monospace badge in list/detail.

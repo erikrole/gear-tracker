@@ -46,6 +46,7 @@ type BookingDetail = {
   id: string;
   kind: "RESERVATION" | "CHECKOUT";
   title: string;
+  refNumber: string | null;
   status: string;
   startsAt: string;
   endsAt: string;
@@ -651,6 +652,7 @@ export default function BookingDetailsSheet({
         <div className="sheet-header">
           <div>
             <h2 className="sheet-title">
+              {booking?.refNumber && <span className="ref-number">{booking.refNumber}</span>}
               {booking?.title || "Loading..."}
             </h2>
             {booking && (
