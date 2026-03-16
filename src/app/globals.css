@@ -160,7 +160,12 @@
   --wi-red: #c5050c;
   --wi-red-hover: #a00409;
   --wi-red-soft: #fef2f2;
-  --wi-dark: #37352f;
+  --wi-dark: #1a1a1a;
+
+  /* Button colors — stay high-contrast in both themes */
+  --btn-primary-bg: #1a1a1a;
+  --btn-primary-bg-hover: #000000;
+  --btn-primary-text: #ffffff;
 
   /* Aliases for components that reference --primary */
   --primary: var(--accent);
@@ -209,6 +214,10 @@
     --wi-red-soft: rgba(197, 5, 12, 0.15);
     --wi-dark: #ececec;
 
+    --btn-primary-bg: #ffffff;
+    --btn-primary-bg-hover: #e0e0e0;
+    --btn-primary-text: #111111;
+
     --primary: var(--accent);
     --primary-hover: var(--accent-hover);
     --bg-active: var(--accent-soft);
@@ -253,6 +262,10 @@
   --wi-red-hover: #c5050c;
   --wi-red-soft: rgba(197, 5, 12, 0.15);
   --wi-dark: #ececec;
+
+  --btn-primary-bg: #ffffff;
+  --btn-primary-bg-hover: #e0e0e0;
+  --btn-primary-text: #111111;
 
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
@@ -735,14 +748,14 @@ textarea:focus-visible {
 }
 
 .btn-primary {
-  background: var(--wi-dark);
-  color: #ffffff;
-  border-color: var(--wi-dark);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border-color: var(--btn-primary-bg);
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--btn-primary-bg-hover);
+  border-color: var(--btn-primary-bg-hover);
   box-shadow: var(--shadow);
 }
 
@@ -1058,14 +1071,14 @@ textarea:focus-visible {
   color: var(--text-secondary);
   text-decoration: none;
   white-space: nowrap;
-  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+  transition: all var(--duration-normal) var(--ease-out);
   box-shadow: var(--shadow-sm);
 }
 
 .event-action-btn:hover {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: var(--accent);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border-color: var(--btn-primary-bg);
   text-decoration: none;
   box-shadow: var(--shadow);
 }
@@ -1787,7 +1800,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--wi-dark) 0%, #0d0d0d 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg) 0%, #0d0d0d 100%);
 }
 
 .login-card {
@@ -2937,9 +2950,9 @@ textarea:focus-visible {
 }
 
 .filter-chip.active {
-  background: var(--wi-dark);
-  color: white;
-  border-color: var(--wi-dark);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border-color: var(--btn-primary-bg);
 }
 
 /* ===== Qty Stepper ===== */
@@ -3278,8 +3291,8 @@ textarea:focus-visible {
 
 /* Sport badge */
 .badge-sport {
-  background: var(--wi-dark);
-  color: white;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-wider);
