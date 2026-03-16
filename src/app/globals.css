@@ -6113,4 +6113,36 @@ tr.returned-row { opacity: 0.55; }
     gap: 8px;
     text-align: center;
   }
+
+  /* Schedule: hide desktop, show mobile */
+  .schedule-table-desktop {
+    display: none;
+  }
+
+  .schedule-mobile-list {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* ── Schedule page ── */
+
+.schedule-mobile-list {
+  display: none;
+}
+
+.schedule-mobile-card {
+  display: block;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  text-decoration: none;
+  color: inherit;
+}
+
+.schedule-mobile-card:last-child {
+  border-bottom: none;
+}
+
+.schedule-mobile-card:active {
+  background: rgba(59, 130, 246, 0.03);
 }
