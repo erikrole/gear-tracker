@@ -93,6 +93,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
             select: {
               id: true,
               title: true,
+              status: true,
               startsAt: true,
               endsAt: true,
               requester: { select: { name: true } },
@@ -164,6 +165,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
             .map((r) => ({
               bookingId: r.booking.id,
               title: r.booking.title,
+              status: r.booking.status,
               startsAt: r.booking.startsAt,
               endsAt: r.booking.endsAt,
               requesterName: r.booking.requester.name,
