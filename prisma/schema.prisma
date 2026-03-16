@@ -72,6 +72,8 @@ model User {
   email          String       @unique
   passwordHash   String       @map("password_hash")
   role           Role
+  phone          String?
+  primaryArea    ShiftArea?   @map("primary_area")
   locationId     String?      @map("location_id")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
@@ -84,6 +86,12 @@ model User {
   overrides      OverrideEvent[]
   bulkMovements  BulkStockMovement[]
   audits         AuditLog[]   @relation("AuditActor")
+  shiftAssignments    ShiftAssignment[]  @relation("ShiftAssignee")
+  shiftAssignedBy     ShiftAssignment[]  @relation("ShiftAssigner")
+  sportAssignments    StudentSportAssignment[]
+  areaAssignments     StudentAreaAssignment[]
+  tradesPosted        ShiftTrade[]       @relation("TradePostedBy")
+  tradesClaimed       ShiftTrade[]       @relation("TradeClaimedBy")
 
   @@map("users")
 }
@@ -515,6 +523,7 @@ model CalendarEvent {
   source            CalendarSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   location          Location?           @relation(fields: [locationId], references: [id])
   bookings          Booking[]
+  shiftGroup        ShiftGroup?
 
   @@unique([sourceId, externalId])
   @@index([startsAt, endsAt])
@@ -581,4 +590,163 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_config")
+}
+
+// ── Shift Calendar & Scheduling ─────────────────────────
+
+enum ShiftArea {
+  VIDEO
+  PHOTO
+  GRAPHICS
+  COMMS
+}
+
+enum ShiftWorkerType {
+  FT
+  ST
+}
+
+enum ShiftAssignmentStatus {
+  DIRECT_ASSIGNED
+  REQUESTED
+  APPROVED
+  DECLINED
+  SWAPPED
+}
+
+enum ShiftTradeStatus {
+  OPEN
+  CLAIMED
+  APPROVED
+  COMPLETED
+  CANCELLED
+}
+
+model SportConfig {
+  id        String             @id @default(cuid())
+  sportCode String             @unique @map("sport_code")
+  active    Boolean            @default(true)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+  shiftConfigs SportShiftConfig[]
+
+  @@map("sport_configs")
+}
+
+model SportShiftConfig {
+  id            String      @id @default(cuid())
+  sportConfigId String      @map("sport_config_id")
+  area          ShiftArea
+  homeCount     Int         @default(1) @map("home_count")
+  awayCount     Int         @default(1) @map("away_count")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  sportConfig   SportConfig @relation(fields: [sportConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([sportConfigId, area])
+  @@map("sport_shift_configs")
+}
+
+model ShiftGroup {
+  id              String        @id @default(cuid())
+  eventId         String        @unique @map("event_id")
+  isPremier       Boolean       @default(false) @map("is_premier")
+  notes           String?
+  generatedAt     DateTime?     @map("generated_at")
+  manuallyEdited  Boolean       @default(false) @map("manually_edited")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  event           CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  shifts          Shift[]
+
+  @@map("shift_groups")
+}
+
+model Shift {
+  id           String          @id @default(cuid())
+  shiftGroupId String          @map("shift_group_id")
+  area         ShiftArea
+  workerType   ShiftWorkerType @map("worker_type")
+  startsAt     DateTime        @map("starts_at")
+  endsAt       DateTime        @map("ends_at")
+  notes        String?
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  shiftGroup   ShiftGroup      @relation(fields: [shiftGroupId], references: [id], onDelete: Cascade)
+  assignments  ShiftAssignment[]
+
+  @@index([shiftGroupId])
+  @@index([area, workerType])
+  @@index([startsAt, endsAt])
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id         String                @id @default(cuid())
+  shiftId    String                @map("shift_id")
+  userId     String                @map("user_id")
+  status     ShiftAssignmentStatus
+  assignedBy String?               @map("assigned_by")
+  swapFromId String?               @map("swap_from_id")
+  notes      String?
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+  shift      Shift                 @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  user       User                  @relation("ShiftAssignee", fields: [userId], references: [id])
+  assigner   User?                 @relation("ShiftAssigner", fields: [assignedBy], references: [id])
+  swapFrom   ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id])
+  swappedTo  ShiftAssignment[]     @relation("ShiftSwap")
+  trades     ShiftTrade[]
+
+  @@index([shiftId, status])
+  @@index([userId, status])
+  @@map("shift_assignments")
+}
+
+model StudentSportAssignment {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  sportCode String   @map("sport_code")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sportCode])
+  @@index([sportCode])
+  @@map("student_sport_assignments")
+}
+
+model StudentAreaAssignment {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  area      ShiftArea
+  isPrimary Boolean   @default(false) @map("is_primary")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, area])
+  @@index([area])
+  @@map("student_area_assignments")
+}
+
+model ShiftTrade {
+  id                String             @id @default(cuid())
+  shiftAssignmentId String             @map("shift_assignment_id")
+  postedByUserId    String             @map("posted_by_user_id")
+  claimedByUserId   String?            @map("claimed_by_user_id")
+  status            ShiftTradeStatus   @default(OPEN)
+  requiresApproval  Boolean            @default(false) @map("requires_approval")
+  notes             String?
+  postedAt          DateTime           @default(now()) @map("posted_at")
+  claimedAt         DateTime?          @map("claimed_at")
+  resolvedAt        DateTime?          @map("resolved_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  shiftAssignment   ShiftAssignment    @relation(fields: [shiftAssignmentId], references: [id], onDelete: Cascade)
+  postedBy          User               @relation("TradePostedBy", fields: [postedByUserId], references: [id])
+  claimedBy         User?              @relation("TradeClaimedBy", fields: [claimedByUserId], references: [id])
+
+  @@index([status])
+  @@index([postedByUserId])
+  @@index([claimedByUserId])
+  @@map("shift_trades")
 }

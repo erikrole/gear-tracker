@@ -1,4 +1,4 @@
-import { BookingKind, BookingStatus, Role } from "@prisma/client";
+import { BookingKind, BookingStatus, Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { z } from "zod";
 
 const bulkItemSchema = z.object({
@@ -135,4 +135,88 @@ export const updateBookingSchema = z.object({
 
 export const extendBookingSchema = z.object({
   endsAt: z.string()
+});
+
+// ── Shift Calendar Schemas ──────────────────────────────
+
+export const shiftAreaSchema = z.nativeEnum(ShiftArea);
+export const shiftWorkerTypeSchema = z.nativeEnum(ShiftWorkerType);
+
+export const sportShiftConfigSchema = z.object({
+  area: z.nativeEnum(ShiftArea),
+  homeCount: z.number().int().min(0).max(20),
+  awayCount: z.number().int().min(0).max(20),
+});
+
+export const upsertSportConfigSchema = z.object({
+  sportCode: z.string().min(1).max(10),
+  active: z.boolean().optional(),
+  shiftConfigs: z.array(sportShiftConfigSchema).optional(),
+});
+
+export const updateSportConfigSchema = z.object({
+  active: z.boolean().optional(),
+  isPremierDefault: z.boolean().optional(),
+  shiftConfigs: z.array(sportShiftConfigSchema).optional(),
+});
+
+export const sportRosterSchema = z.object({
+  userId: z.string().cuid(),
+  sportCode: z.string().min(1).max(10),
+});
+
+export const sportRosterBulkSchema = z.object({
+  userIds: z.array(z.string().cuid()).min(1),
+  sportCode: z.string().min(1).max(10),
+});
+
+export const createShiftSchema = z.object({
+  shiftGroupId: z.string().cuid(),
+  area: z.nativeEnum(ShiftArea),
+  workerType: z.nativeEnum(ShiftWorkerType),
+  startsAt: z.string(),
+  endsAt: z.string(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const updateShiftSchema = z.object({
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const updateShiftGroupSchema = z.object({
+  isPremier: z.boolean().optional(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const assignShiftSchema = z.object({
+  shiftId: z.string().cuid(),
+  userId: z.string().cuid(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const requestShiftSchema = z.object({
+  shiftId: z.string().cuid(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const swapShiftSchema = z.object({
+  targetUserId: z.string().cuid(),
+});
+
+export const postTradeSchema = z.object({
+  shiftAssignmentId: z.string().cuid(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const studentAreaSchema = z.object({
+  userId: z.string().cuid(),
+  area: z.nativeEnum(ShiftArea),
+  isPrimary: z.boolean().default(false),
+});
+
+export const updateUserSchedulingSchema = z.object({
+  phone: z.string().max(20).optional().nullable(),
+  primaryArea: z.nativeEnum(ShiftArea).optional().nullable(),
 });

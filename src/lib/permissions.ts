@@ -74,6 +74,36 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
   diagnostics: {
     view: ["ADMIN"],
   },
+  shift: {
+    view: ["ADMIN", "STAFF", "STUDENT"],
+    create: ["ADMIN", "STAFF"],
+    edit: ["ADMIN", "STAFF"],
+    delete: ["ADMIN", "STAFF"],
+  },
+  shift_assignment: {
+    view: ["ADMIN", "STAFF", "STUDENT"],
+    assign: ["ADMIN", "STAFF"],
+    request: ["ADMIN", "STAFF", "STUDENT"],
+    approve: ["ADMIN", "STAFF"],
+  },
+  sport_config: {
+    view: ["ADMIN", "STAFF"],
+    manage: ["ADMIN", "STAFF"],
+  },
+  student_sport: {
+    view: ["ADMIN", "STAFF", "STUDENT"],
+    manage: ["ADMIN", "STAFF"],
+  },
+  student_area: {
+    view: ["ADMIN", "STAFF", "STUDENT"],
+    manage: ["ADMIN", "STAFF"],
+  },
+  shift_trade: {
+    view: ["ADMIN", "STAFF", "STUDENT"],
+    post: ["ADMIN", "STAFF", "STUDENT"],
+    claim: ["ADMIN", "STAFF", "STUDENT"],
+    approve: ["ADMIN", "STAFF"],
+  },
 };
 
 /**
