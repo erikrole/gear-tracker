@@ -10,12 +10,12 @@
 
 ---
 
-## Slice 1: Vercel Cron (5 min)
+## Slice 1: Vercel Cron (5 min) ✅ SHIPPED 2026-03-16
 
 ### Files
-- [ ] **NEW** `vercel.json` — cron schedule config
-- [ ] **NEW** `src/app/api/cron/notifications/route.ts` — cron handler with secret validation
-- [ ] **EDIT** `src/lib/env.ts` — add `CRON_SECRET` env var
+- [x] **NEW** `vercel.json` — cron schedule config
+- [x] **NEW** `src/app/api/cron/notifications/route.ts` — cron handler with secret validation
+- [x] **EDIT** `src/lib/env.ts` — add `CRON_SECRET` env var
 
 ### Design
 - Create `GET /api/cron/notifications` that validates `Authorization: Bearer <CRON_SECRET>` header
@@ -58,13 +58,13 @@
 
 ---
 
-## Slice 3: Resend Email (30 min)
+## Slice 3: Resend Email (30 min) ✅ SHIPPED 2026-03-16
 
 ### Files
-- [ ] **EDIT** `package.json` — add `resend`
-- [ ] **NEW** `src/lib/email.ts` — email service abstraction
-- [ ] **EDIT** `src/lib/env.ts` — add optional `RESEND_API_KEY`
-- [ ] **EDIT** `src/lib/services/notifications.ts` — replace console.log with email send
+- [x] **EDIT** `package.json` — add `resend`
+- [x] **NEW** `src/lib/email.ts` — email service abstraction
+- [x] **EDIT** `src/lib/env.ts` — add optional `RESEND_API_KEY`
+- [x] **EDIT** `src/lib/services/notifications.ts` — replace console.log with email send
 
 ### Design
 - `src/lib/email.ts` exports `sendEmail({ to, subject, html })` function

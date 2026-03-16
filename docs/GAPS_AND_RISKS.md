@@ -29,7 +29,7 @@
 | GAP-3 | Equipment guidance: only 1 rule in production | AREA_CHECKOUTS | Low priority | D-016 defers admin-config to Phase C |
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
 | ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
-| GAP-6 | Email notification channel not wired | AREA_NOTIFICATIONS | Phase B | V1 = in-app only per D-009 |
+| ~~GAP-6~~ | ~~Email notification channel not wired~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Resend email service wired; dual-channel (in-app + email) shipped 2026-03-16~~ |
 
 ---
 
@@ -98,3 +98,4 @@
 - 2026-03-15: Picker improvements shipped — multi-select, per-section search, availability preview, scan-to-add.
 - 2026-03-15: Closed PD-1 (escalation recipients: requester + all admins), PD-5 (student KPIs defined), GAP-5 (fatigue controls: admin-configurable). D-009 formally accepted.
 - 2026-03-15: Closed GAP-1 (student mobile brief written, V1 hardening shipped).
+- 2026-03-16: Closed GAP-6 (email notification channel wired via Resend + Vercel Cron every 15min).

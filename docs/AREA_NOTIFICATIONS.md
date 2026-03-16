@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-09
-- Status: Active — escalation schedule implemented; multi-recipient escalation pending D-009 acceptance
+- Last Updated: 2026-03-16
+- Status: Active — escalation schedule implemented; Vercel Cron + Resend email channel wired
 - Version: V1
 
 ## Direction
@@ -37,15 +37,17 @@ Implementation: `src/lib/services/notifications.ts`
 - Job skips re-creation if `dedupeKey` already exists
 - Result: job is idempotent and safe to run on any cadence
 
-## Channels (V1)
+## Channels (V1 + Email)
 - **In-app**: `Notification` record created for the checkout requester; visible in notification center
-- **Email**: SMTP via env vars in production; `console.log` fallback in dev (no SMTP required locally)
-- **Admin escalation**: 24h trigger should reach admin/manager recipients — pending D-009 acceptance
+- **Email**: Via Resend (`RESEND_API_KEY` env var). Falls back to `console.log` in dev. Non-fatal on failure.
+- **Admin escalation**: +24h trigger notifies requester + all admins via both in-app and email
+- **Email service**: `src/lib/email.ts` — `sendEmail()` + `buildNotificationEmail()` for HTML template
 
 ## Cron / Job Runner
-- Endpoint: `POST /api/notifications/process`
-- Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates notifications for matching windows
-- Trigger cadence: called by Vercel Cron Job (configure in `vercel.json` or Vercel dashboard) or admin trigger
+- **Cron endpoint**: `GET /api/cron/notifications` — validates `CRON_SECRET` bearer token, no user session needed
+- **Manual endpoint**: `POST /api/notifications/process` — admin/staff auth required
+- **Schedule**: Every 15 minutes via Vercel Cron (`vercel.json`)
+- Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates in-app notifications + sends email for matching windows
 - Job is fully idempotent — safe to call multiple times per hour due to dedup logic
 
 ## Notification Center (V1)
@@ -130,6 +132,15 @@ Current behavior:
 4. Add notification center UI polish (pagination, mark-as-read) in Phase B
 5. When D-009 is accepted: add recipient model, audit escalation routing events, and add test for multi-recipient delivery
 
+## Environment Variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `CRON_SECRET` | Yes (prod) | Bearer token for Vercel Cron → `/api/cron/notifications` |
+| `RESEND_API_KEY` | No (optional) | Enables email delivery via Resend. Falls back to console.log |
+| `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
+
 ## Change Log
 - 2026-03-01: Initial stub created.
 - 2026-03-09: Rewritten as V1 spec to formalize implemented escalation schedule, dedup behavior, channel model, and D-009 acceptance requirements.
+- 2026-03-16: Vercel Cron wired (`vercel.json`, `GET /api/cron/notifications`). Resend email service (`src/lib/email.ts`) replaces console.log stub. Dual-channel delivery: in-app + email for all triggers. GAP-6 closed.

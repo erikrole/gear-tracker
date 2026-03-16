@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { sendEmail, buildNotificationEmail } from "@/lib/email";
 
 /**
  * Fallback escalation schedule used when no DB rules exist.
@@ -90,6 +91,20 @@ export async function processOverdueNotifications(): Promise<{
             }
           });
           notificationsCreated += 1;
+
+          // Send email alongside in-app notification
+          if (checkout.requester.email) {
+            await sendEmail({
+              to: checkout.requester.email,
+              subject: rule.title,
+              html: buildNotificationEmail({
+                title: rule.title,
+                body,
+                bookingTitle: checkout.title,
+                dueAt: dueAt.toISOString(),
+              }),
+            });
+          }
         }
       }
 
@@ -97,7 +112,7 @@ export async function processOverdueNotifications(): Promise<{
       if (rule.notifyAdmins) {
         const admins = await db.user.findMany({
           where: { role: "ADMIN" },
-          select: { id: true }
+          select: { id: true, email: true }
         });
 
         for (const admin of admins) {
@@ -109,12 +124,13 @@ export async function processOverdueNotifications(): Promise<{
           });
           if (existingAdmin) continue;
 
+          const adminBody = `${checkout.requester.name}'s checkout "${checkout.title}" is over ${rule.hoursFromDue} hours overdue.`;
           await db.notification.create({
             data: {
               userId: admin.id,
               type: rule.type,
               title: `Overdue: ${checkout.title}`,
-              body: `${checkout.requester.name}'s checkout "${checkout.title}" is over ${rule.hoursFromDue} hours overdue.`,
+              body: adminBody,
               payload: {
                 bookingId: checkout.id,
                 bookingTitle: checkout.title,
@@ -127,12 +143,21 @@ export async function processOverdueNotifications(): Promise<{
             }
           });
           notificationsCreated += 1;
-        }
 
-        console.log(
-          `[EMAIL] Overdue ${rule.hoursFromDue}h: "${checkout.title}" by ${checkout.requester.name} ` +
-          `(${checkout.requester.email}), due ${dueAt.toISOString()}`
-        );
+          // Send email to admin
+          if (admin.email) {
+            await sendEmail({
+              to: admin.email,
+              subject: `Overdue: ${checkout.title}`,
+              html: buildNotificationEmail({
+                title: `Overdue: ${checkout.title}`,
+                body: adminBody,
+                bookingTitle: checkout.title,
+                dueAt: dueAt.toISOString(),
+              }),
+            });
+          }
+        }
       }
     }
   }
