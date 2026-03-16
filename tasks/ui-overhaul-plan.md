@@ -7,13 +7,15 @@
 
 ### Design Principles
 1. **Warm neutrals** — shift from cool gray (#6b7280) to warm gray tones
-2. **Subtle depth** — soft shadows instead of glass blur effects
+2. **Subtle depth** — soft shadows instead of glass blur effects (glass removed entirely)
 3. **Generous whitespace** — more breathing room in cards, rows, headers
-4. **Light sidebar** — Notion-style light nav instead of dark #111827
+4. **Dark sidebar (#202020)** — sleek dark nav, modern contrast against warm content area
 5. **Consistent border-radius** — 8px standard, 12px for cards/modals
-6. **Wisconsin red as accent** — #c5050c used sparingly for primary actions and brand moments
+6. **Wisconsin red for brand moments only** — #c5050c on logo, active nav, login. Primary buttons use neutral dark (#37352f). Destructive actions use red.
 7. **Typography clarity** — tighter scale, clear hierarchy, 15px body for readability
 8. **One interaction pattern** — hover states, focus rings, transitions all unified
+9. **Tabs stay pill/box style** — clean, modern pill tabs (not underline)
+10. **Red = warning/overdue** — overdue banners, danger badges keep bold red treatment
 
 ---
 
@@ -29,21 +31,25 @@ Overhaul the `:root` and `[data-theme="dark"]` variable blocks in `globals.css`:
 --text: #37352f         (Notion's body text — warm near-black)
 --text-secondary: #787774  (warm secondary)
 --text-muted: #b4b4b0   (warm muted)
---accent: #c5050c       (Wisconsin red — primary interactive)
---accent-hover: #a00409  (darker red hover)
---accent-soft: #fef2f2   (soft red background)
+--accent: #37352f       (warm near-black — primary buttons, links)
+--accent-hover: #2a2826  (darker hover)
+--accent-soft: #f3f2f0   (soft hover background)
+--wi-red: #c5050c       (brand red — logo, active nav, login, overdue)
+--wi-red-hover: #a00409  (darker red hover)
+--wi-red-soft: #fef2f2   (soft red background for active nav, badges)
 --border: #e8e7e4       (warm border, Notion-like)
 --border-light: #f1f0ed  (very subtle divider)
 ```
 
-### Sidebar (Light)
+### Sidebar (Dark #202020)
 ```
---sidebar-bg: #f7f7f5
---sidebar-hover: rgba(0, 0, 0, 0.04)
---sidebar-active: rgba(0, 0, 0, 0.06)
---sidebar-text: #37352f
---sidebar-text-active: #c5050c
---sidebar-text-secondary: #787774
+--sidebar-bg: #202020
+--sidebar-hover: rgba(255, 255, 255, 0.06)
+--sidebar-active: rgba(255, 255, 255, 0.10)
+--sidebar-text: rgba(255, 255, 255, 0.65)
+--sidebar-text-active: #ffffff
+--sidebar-accent: #c5050c    (red dot/indicator for active item)
+--sidebar-text-secondary: rgba(255, 255, 255, 0.4)
 ```
 
 ### Shadows (No blur)
@@ -81,12 +87,15 @@ Overhaul the `:root` and `[data-theme="dark"]` variable blocks in `globals.css`:
 --text: #e3e2de
 --text-secondary: #9b9a97
 --text-muted: #6b6b68
---accent: #e05258      (lighter red for dark bg)
---accent-hover: #c5050c
---accent-soft: rgba(197, 5, 12, 0.12)
+--accent: #e3e2de      (warm light — primary buttons invert in dark)
+--accent-hover: #ffffff
+--accent-soft: rgba(255, 255, 255, 0.08)
+--wi-red: #e05258      (lighter red for dark bg brand moments)
+--wi-red-hover: #c5050c
+--wi-red-soft: rgba(197, 5, 12, 0.15)
 --border: #2f2f2f
 --border-light: #262626
---sidebar-bg: #1e1e1e
+--sidebar-bg: #171717  (slightly darker than panel in dark mode)
 ```
 
 ### Remove
@@ -110,9 +119,10 @@ Overhaul the `:root` and `[data-theme="dark"]` variable blocks in `globals.css`:
 
 ### Buttons
 - `.btn` — white bg, --border border, --text color, 8px radius
-- `.btn-primary` — --accent bg (#c5050c), white text, 8px radius
-- `.btn-secondary` — transparent bg, --accent text, subtle border
-- `.btn-danger` — red bg
+- `.btn-primary` — --accent bg (#37352f warm dark), white text, 8px radius
+- `.btn-secondary` — transparent bg, --text color, subtle border
+- `.btn-danger` — --wi-red bg, white text (destructive actions)
+- `.btn-brand` — --wi-red bg, white text (login, brand CTAs)
 - `.btn-sm` — smaller padding
 - `.btn-ghost` — no border, transparent, hover bg only
 - All: 0.12s transition, no translateY on hover (too flashy)
@@ -151,12 +161,11 @@ Overhaul the `:root` and `[data-theme="dark"]` variable blocks in `globals.css`:
 ## Slice 3: Sidebar & Navigation
 
 ### Sidebar
-- Light background (#f7f7f5)
-- No bold dark theme
-- Nav items: 32px height, 8px radius, warm text
-- Active: subtle red text + light red bg
-- Hover: rgba(0,0,0,0.04) bg
-- Section labels: 11px uppercase, muted
+- Dark background (#202020) — sleek, modern, contrasts warm content area
+- Nav items: 36px height, 8px radius, muted white text
+- Active: white text + subtle white bg (rgba 0.10) + red left accent (2px --wi-red)
+- Hover: rgba(255,255,255,0.06) bg
+- Section labels: 11px uppercase, muted (rgba 0.4)
 - Profile section: avatar + name, clean divider
 - Bottom: theme toggle, settings link
 
@@ -188,7 +197,7 @@ Overhaul the `:root` and `[data-theme="dark"]` variable blocks in `globals.css`:
 ### Detail Pages
 - Breadcrumb: smaller, muted
 - Details grid: more padding in data lists
-- Tabs: underline style (Notion-like), not boxed
+- Tabs: clean pill/box style (keep current approach, just refine sizing and colors)
 
 ### List Pages
 - Filter row: more spacing between chips
@@ -211,8 +220,9 @@ Overhaul the `:root` and `[data-theme="dark"]` variable blocks in `globals.css`:
 - Reduce motion: honor prefers-reduced-motion
 
 ### Focus States
-- Consistent 2px red ring (--accent) on all interactive elements
-- Replace indigo focus ring (#6366f1) with accent
+- Consistent 2px ring using --accent (#37352f) on all interactive elements
+- Replace indigo focus ring (#6366f1) with --accent
+- Sidebar focus rings use white/light variant
 
 ### Empty States
 - More whitespace above/below
