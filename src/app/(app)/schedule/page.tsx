@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -85,10 +86,27 @@ export default function SchedulePage() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
+  // Detail panel
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserRole, setCurrentUserRole] = useState<string>("STUDENT");
+
   // Filters
   const [sportFilter, setSportFilter] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [coverageFilter, setCoverageFilter] = useState("");
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.ok ? r.json() : null)
+      .then((j) => {
+        if (j?.user) {
+          setCurrentUserId(j.user.id);
+          setCurrentUserRole(j.user.role);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const loadGroups = useCallback(async () => {
     setLoading(true);
@@ -263,12 +281,12 @@ export default function SchedulePage() {
                     <>
                       <span className="cal-day-num">{cell.day}</span>
                       {calGroupsByDay.get(cell.day)?.slice(0, 3).map((g) => (
-                        <Link
+                        <button
                           key={g.id}
-                          href={`/events/${g.eventId}`}
                           className="cal-booking cal-booking-co"
                           title={`${g.event.summary} (${g.coverage.filled}/${g.coverage.total} filled)`}
-                          style={{ display: "flex", alignItems: "center", gap: 4 }}
+                          style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left", padding: "2px 4px" }}
+                          onClick={() => setSelectedGroupId(g.id)}
                         >
                           <span
                             style={{
@@ -282,7 +300,7 @@ export default function SchedulePage() {
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {g.event.summary}
                           </span>
-                        </Link>
+                        </button>
                       ))}
                       {(calGroupsByDay.get(cell.day)?.length ?? 0) > 3 && (
                         <span className="cal-more">
@@ -330,11 +348,11 @@ export default function SchedulePage() {
                 </thead>
                 <tbody>
                   {filteredGroups.map((g) => (
-                    <tr key={g.id}>
+                    <tr key={g.id} onClick={() => setSelectedGroupId(g.id)} style={{ cursor: "pointer" }}>
                       <td className="font-semibold">
-                        <Link href={`/events/${g.eventId}`} className="row-link">
+                        <span className="row-link" onClick={(e) => { e.stopPropagation(); setSelectedGroupId(g.id); }}>
                           {g.event.summary}
-                        </Link>
+                        </span>
                         {g.isPremier && (
                           <span className="badge badge-blue ml-4" style={{ fontSize: 10 }}>Premier</span>
                         )}
@@ -372,7 +390,7 @@ export default function SchedulePage() {
               {/* Mobile cards */}
               <div className="schedule-mobile-list">
                 {filteredGroups.map((g) => (
-                  <Link key={g.id} href={`/events/${g.eventId}`} className="schedule-mobile-card">
+                  <div key={g.id} className="schedule-mobile-card" onClick={() => setSelectedGroupId(g.id)} style={{ cursor: "pointer" }}>
                     <div className="flex-between mb-4">
                       <span className="font-semibold">{g.event.summary}</span>
                       <span className={`badge ${coverageClass(g.coverage.percentage)}`}>
@@ -395,12 +413,23 @@ export default function SchedulePage() {
                         );
                       })}
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </>
           )}
         </div>
+      )}
+
+      {/* Shift detail panel */}
+      {selectedGroupId && (
+        <ShiftDetailPanel
+          groupId={selectedGroupId}
+          onClose={() => setSelectedGroupId(null)}
+          onUpdated={loadGroups}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
       )}
     </>
   );
