@@ -45,12 +45,17 @@ export async function GET(req: Request) {
     // Fetch user's favorite asset IDs (single query, used for filtering + response)
     let favoriteAssetIds: string[] = [];
     if (favoritesOnly) {
-      const favs = await db.favoriteItem.findMany({
-        where: { userId: user.id },
-        select: { assetId: true },
-      });
-      favoriteAssetIds = favs.map((f) => f.assetId);
-      if (favoriteAssetIds.length === 0) {
+      try {
+        const favs = await db.favoriteItem.findMany({
+          where: { userId: user.id },
+          select: { assetId: true },
+        });
+        favoriteAssetIds = favs.map((f) => f.assetId);
+        if (favoriteAssetIds.length === 0) {
+          return ok({ data: [], total: 0, limit: 0, offset: 0, favoriteIds: [] });
+        }
+      } catch {
+        // favorite_items table may not exist yet — skip favorites filtering
         return ok({ data: [], total: 0, limit: 0, offset: 0, favoriteIds: [] });
       }
     }
@@ -105,12 +110,18 @@ export async function GET(req: Request) {
       const data = filtered.slice(offset, offset + limit);
       const dataWithBookings = await attachActiveBookings(data);
       const pageIds = dataWithBookings.map((a) => a.id);
-      const pageFavs = await db.favoriteItem.findMany({
-        where: { userId: user.id, assetId: { in: pageIds } },
-        select: { assetId: true },
-      });
+      let favoriteIds: string[] = [];
+      try {
+        const pageFavs = await db.favoriteItem.findMany({
+          where: { userId: user.id, assetId: { in: pageIds } },
+          select: { assetId: true },
+        });
+        favoriteIds = pageFavs.map((f) => f.assetId);
+      } catch {
+        // favorite_items table may not exist yet if migration hasn't run
+      }
 
-      return ok({ data: dataWithBookings, total, limit, offset, favoriteIds: pageFavs.map((f) => f.assetId) });
+      return ok({ data: dataWithBookings, total, limit, offset, favoriteIds });
     }
 
     const [rawData, total] = await Promise.all([
@@ -138,11 +149,17 @@ export async function GET(req: Request) {
 
     const enrichedWithBookings = await attachActiveBookings(data);
     const pageIds = enrichedWithBookings.map((a) => a.id);
-    const pageFavs = await db.favoriteItem.findMany({
-      where: { userId: user.id, assetId: { in: pageIds } },
-      select: { assetId: true },
-    });
-    return ok({ data: enrichedWithBookings, total, limit, offset, favoriteIds: pageFavs.map((f) => f.assetId) });
+    let favoriteIds: string[] = [];
+    try {
+      const pageFavs = await db.favoriteItem.findMany({
+        where: { userId: user.id, assetId: { in: pageIds } },
+        select: { assetId: true },
+      });
+      favoriteIds = pageFavs.map((f) => f.assetId);
+    } catch {
+      // favorite_items table may not exist yet if migration hasn't run
+    }
+    return ok({ data: enrichedWithBookings, total, limit, offset, favoriteIds });
   } catch (error) {
     return fail(error);
   }
