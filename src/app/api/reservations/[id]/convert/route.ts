@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { createBooking } from "@/lib/services/bookings";
 import { createAuditEntry } from "@/lib/audit";
-import { requireReservationAction } from "@/lib/services/booking-rules";
+import { BookingKind } from "@prisma/client";
+import { requireBookingAction } from "@/lib/services/booking-rules";
 
 /**
  * POST /api/reservations/[id]/convert
@@ -17,7 +18,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
 
   // Enforce convert permission
-  await requireReservationAction(id, user, "convert");
+  await requireBookingAction(id, user, "convert", BookingKind.RESERVATION);
 
   // Load full reservation with items for the conversion
   const full = await db.booking.findUniqueOrThrow({

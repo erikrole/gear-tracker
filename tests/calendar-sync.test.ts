@@ -584,7 +584,7 @@ describe("splitEventsForSync", () => {
     expect(result.toCreate[0].isHome).toBe(false);
   });
 
-  it("WRITE_CHUNK_SIZE is exported and equals 50", () => {
-    expect(WRITE_CHUNK_SIZE).toBe(50);
+  it("WRITE_CHUNK_SIZE is exported and equals 500", () => {
+    expect(WRITE_CHUNK_SIZE).toBe(500);
   });
 });

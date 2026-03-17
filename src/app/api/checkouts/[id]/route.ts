@@ -1,7 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
-import { getAllowedActions } from "@/lib/services/booking-rules";
+import { getAllowedBookingActions } from "@/lib/services/booking-rules";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
@@ -30,7 +30,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
     throw new HttpError(404, "Checkout not found");
   }
 
-  const allowedActions = getAllowedActions(user, checkout);
+  const allowedActions = getAllowedBookingActions(user, checkout);
 
   return ok({ data: { ...checkout, allowedActions } });
 });

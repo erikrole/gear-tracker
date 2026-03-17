@@ -2,7 +2,8 @@ import { ScanType } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { recordScan } from "@/lib/services/scans";
-import { requireCheckoutAction } from "@/lib/services/booking-rules";
+import { BookingKind } from "@prisma/client";
+import { requireBookingAction } from "@/lib/services/booking-rules";
 import { scanSchema } from "@/lib/validation";
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -13,7 +14,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(400, "phase must be CHECKIN");
   }
 
-  await requireCheckoutAction(id, user, "checkin");
+  await requireBookingAction(id, user, "checkin", BookingKind.CHECKOUT);
 
   const result = await recordScan({
     bookingId: id,

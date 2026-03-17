@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { createBooking } from "@/lib/services/bookings";
-import { requireReservationAction } from "@/lib/services/booking-rules";
+import { BookingKind } from "@prisma/client";
+import { requireBookingAction } from "@/lib/services/booking-rules";
 
 /**
  * POST /api/reservations/[id]/duplicate
@@ -16,7 +17,7 @@ import { requireReservationAction } from "@/lib/services/booking-rules";
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
 
-  await requireReservationAction(id, user, "duplicate");
+  await requireBookingAction(id, user, "duplicate", BookingKind.RESERVATION);
 
   const source = await db.booking.findUniqueOrThrow({
     where: { id },

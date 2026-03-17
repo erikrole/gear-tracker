@@ -5,7 +5,8 @@ import {
   updateReservation,
   updateCheckout
 } from "@/lib/services/bookings";
-import { requireCheckoutAction, getAllowedActions, getAllowedReservationActions, requireReservationAction } from "@/lib/services/booking-rules";
+import { BookingKind } from "@prisma/client";
+import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
 import { updateBookingSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
@@ -13,11 +14,9 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
   const detail = await getBookingDetail(id);
 
-  const allowedActions = detail.kind === "CHECKOUT"
-    ? getAllowedActions(user, detail)
-    : detail.kind === "RESERVATION"
-      ? getAllowedReservationActions(user, detail)
-      : undefined;
+  const allowedActions = detail.kind === "CHECKOUT" || detail.kind === "RESERVATION"
+    ? getAllowedBookingActions(user, detail)
+    : undefined;
 
   return ok({ data: { ...detail, allowedActions } });
 });
@@ -29,11 +28,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   // Fetch the booking to determine kind
   const detail = await getBookingDetail(id);
 
-  if (detail.kind === "CHECKOUT") {
-    await requireCheckoutAction(id, user, "edit");
-  } else if (detail.kind === "RESERVATION") {
-    await requireReservationAction(id, user, "edit");
-  }
+  await requireBookingAction(id, user, "edit");
 
   let updated;
   if (detail.kind === "RESERVATION") {
