@@ -1,38 +1,30 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { extendBooking } from "@/lib/services/bookings";
 import { requireCheckoutAction, requireReservationAction } from "@/lib/services/booking-rules";
 import { extendBookingSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
-export async function POST(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
-  try {
-    const actor = await requireAuth();
-    const { id } = await ctx.params;
-    const body = extendBookingSchema.parse(await req.json());
+export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
+  const { id } = params;
+  const body = extendBookingSchema.parse(await req.json());
 
-    const booking = await db.booking.findUnique({ where: { id } });
-    if (booking?.kind === "CHECKOUT") {
-      await requireCheckoutAction(id, actor, "extend");
-    } else if (booking?.kind === "RESERVATION") {
-      await requireReservationAction(id, actor, "extend");
-    }
-
-    const updated = await extendBooking(id, actor.id, new Date(body.endsAt));
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "booking",
-      entityId: id,
-      action: "extend",
-      after: { endsAt: body.endsAt },
-    });
-    return ok({ data: updated });
-  } catch (error) {
-    return fail(error);
+  const booking = await db.booking.findUnique({ where: { id } });
+  if (booking?.kind === "CHECKOUT") {
+    await requireCheckoutAction(id, user, "extend");
+  } else if (booking?.kind === "RESERVATION") {
+    await requireReservationAction(id, user, "extend");
   }
-}
+
+  const updated = await extendBooking(id, user.id, new Date(body.endsAt));
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "booking",
+    entityId: id,
+    action: "extend",
+    after: { endsAt: body.endsAt },
+  });
+  return ok({ data: updated });
+});

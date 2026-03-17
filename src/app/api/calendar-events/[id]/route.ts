@@ -1,26 +1,21 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, HttpError, ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try {
-    await requireAuth();
-    const { id } = await ctx.params;
+export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
+  const { id } = params;
 
-    const event = await db.calendarEvent.findUnique({
-      where: { id },
-      include: {
-        location: { select: { id: true, name: true } },
-        source: { select: { id: true, name: true } }
-      }
-    });
-
-    if (!event) {
-      throw new HttpError(404, "Event not found");
+  const event = await db.calendarEvent.findUnique({
+    where: { id },
+    include: {
+      location: { select: { id: true, name: true } },
+      source: { select: { id: true, name: true } }
     }
+  });
 
-    return ok({ data: event });
-  } catch (error) {
-    return fail(error);
+  if (!event) {
+    throw new HttpError(404, "Event not found");
   }
-}
+
+  return ok({ data: event });
+});

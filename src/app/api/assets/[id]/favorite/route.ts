@@ -1,27 +1,22 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 
-export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try {
-    const user = await requireAuth();
-    const { id } = await ctx.params;
+export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
+  const { id } = params;
 
-    // Toggle: if exists, delete; if not, create
-    const existing = await db.favoriteItem.findUnique({
-      where: { userId_assetId: { userId: user.id, assetId: id } },
-    });
+  // Toggle: if exists, delete; if not, create
+  const existing = await db.favoriteItem.findUnique({
+    where: { userId_assetId: { userId: user.id, assetId: id } },
+  });
 
-    if (existing) {
-      await db.favoriteItem.delete({ where: { id: existing.id } });
-      return ok({ favorited: false });
-    }
-
-    await db.favoriteItem.create({
-      data: { userId: user.id, assetId: id },
-    });
-    return ok({ favorited: true });
-  } catch (error) {
-    return fail(error);
+  if (existing) {
+    await db.favoriteItem.delete({ where: { id: existing.id } });
+    return ok({ favorited: false });
   }
-}
+
+  await db.favoriteItem.create({
+    data: { userId: user.id, assetId: id },
+  });
+  return ok({ favorited: true });
+});

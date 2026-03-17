@@ -1,28 +1,23 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { completeCheckinScan } from "@/lib/services/scans";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { requireCheckoutAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
 
-export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try {
-    const actor = await requireAuth();
-    const params = await ctx.params;
+export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  const { id } = params;
 
-    await requireCheckoutAction(params.id, actor, "checkin");
+  await requireCheckoutAction(id, user, "checkin");
 
-    const result = await completeCheckinScan(params.id, actor.id, actor.role);
+  const result = await completeCheckinScan(id, user.id, user.role);
 
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "booking",
-      entityId: params.id,
-      action: "complete_checkin",
-    });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "booking",
+    entityId: id,
+    action: "complete_checkin",
+  });
 
-    return ok(result);
-  } catch (error) {
-    return fail(error);
-  }
-}
+  return ok(result);
+});

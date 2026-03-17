@@ -1,149 +1,82 @@
 import { BookingKind, Prisma } from "@prisma/client";
-import { requireAuth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { fail, ok, parsePagination } from "@/lib/http";
-import { createBooking } from "@/lib/services/bookings";
+import { withAuth } from "@/lib/api";
+import { ok } from "@/lib/http";
+import { createBooking, listBookings } from "@/lib/services/bookings";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
 import { createCheckoutSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
-export async function GET(req: Request) {
-  try {
-    await requireAuth();
-    const { searchParams } = new URL(req.url);
+export const GET = withAuth(async (req) => {
+  const { searchParams } = new URL(req.url);
+  const filterParam = searchParams.get("filter");
 
-    const q = searchParams.get("q")?.trim();
-    const sortParam = searchParams.get("sort");
-    const filterParam = searchParams.get("filter");
+  // Checkout-specific derived filters: overdue = OPEN + past due, due-today = OPEN + due today
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    // Derived filters: overdue = OPEN + past due, due-today = OPEN + due today
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const extraWhere: Prisma.BookingWhereInput | undefined =
+    filterParam === "overdue"
+      ? { status: "OPEN" as never, endsAt: { lt: now } }
+      : filterParam === "due-today"
+        ? { status: "OPEN" as never, endsAt: { gte: todayStart, lt: todayEnd } }
+        : undefined;
 
-    const filterWhere: Prisma.BookingWhereInput =
-      filterParam === "overdue"
-        ? { status: "OPEN" as never, endsAt: { lt: now } }
-        : filterParam === "due-today"
-          ? { status: "OPEN" as never, endsAt: { gte: todayStart, lt: todayEnd } }
-          : {};
+  const result = await listBookings(BookingKind.CHECKOUT, searchParams, extraWhere);
+  return ok(result);
+});
 
-    const where: Prisma.BookingWhereInput = {
-      kind: BookingKind.CHECKOUT,
-      ...filterWhere,
-      ...(!filterParam && searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
-      ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
-      ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
-      ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),
-      ...(q ? {
-        OR: [
-          { title: { contains: q, mode: "insensitive" as const } },
-          { requester: { name: { contains: q, mode: "insensitive" as const } } },
-          { refNumber: { contains: q, mode: "insensitive" as const } },
-        ],
-      } : {}),
-    };
+export const POST = withAuth(async (req, { user }) => {
+  const body = createCheckoutSchema.parse(await req.json());
+  const { start, end } = parseDateRange(body.startsAt, body.endsAt);
 
-    const SORT_MAP: Record<string, Prisma.BookingOrderByWithRelationInput[]> = {
-      oldest: [{ startsAt: "asc" }, { id: "asc" }],
-      title: [{ title: "asc" }, { id: "asc" }],
-      title_desc: [{ title: "desc" }, { id: "asc" }],
-      endsAt: [{ endsAt: "asc" }, { id: "asc" }],
-      endsAt_desc: [{ endsAt: "desc" }, { id: "asc" }],
-    };
-    const orderBy = (sortParam && SORT_MAP[sortParam]) || [{ startsAt: "desc" }, { id: "asc" }];
+  // Event-default prefill: if sportCode provided but no eventId,
+  // look up next upcoming event and use as defaults (ad hoc fallback if none found)
+  let eventId = body.eventId;
+  let title = body.title;
+  let effectiveStart = start;
+  let effectiveEnd = end;
+  let effectiveLocationId = body.locationId;
+  let sportCode = body.sportCode;
 
-    const { limit, offset } = parsePagination(searchParams);
-
-    const [data, total] = await Promise.all([
-      db.booking.findMany({
-        where,
-        orderBy,
-        include: {
-          location: { select: { id: true, name: true } },
-          requester: { select: { id: true, name: true, email: true } },
-          serializedItems: {
-            select: {
-              id: true, assetId: true, allocationStatus: true,
-              asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true } },
-            },
-          },
-          bulkItems: {
-            select: {
-              id: true, plannedQuantity: true, checkedOutQuantity: true, checkedInQuantity: true,
-              bulkSku: { select: { id: true, name: true, unit: true } },
-            },
-          },
-          event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
-        },
-        take: limit,
-        skip: offset
-      }),
-      db.booking.count({ where })
-    ]);
-
-    return ok({ data, total, limit, offset });
-  } catch (error) {
-    return fail(error);
-  }
-}
-
-export async function POST(req: Request) {
-  try {
-    const actor = await requireAuth();
-    const body = createCheckoutSchema.parse(await req.json());
-    const { start, end } = parseDateRange(body.startsAt, body.endsAt);
-
-    // Event-default prefill: if sportCode provided but no eventId,
-    // look up next upcoming event and use as defaults (ad hoc fallback if none found)
-    let eventId = body.eventId;
-    let title = body.title;
-    let effectiveStart = start;
-    let effectiveEnd = end;
-    let effectiveLocationId = body.locationId;
-    let sportCode = body.sportCode;
-
-    if (body.sportCode && !body.eventId) {
-      const defaults = await resolveEventDefaults(body.sportCode);
-      if (defaults.eventId) {
-        eventId = defaults.eventId;
-        // Use event values as defaults, but caller-supplied values take precedence
-        title = body.title || defaults.title || body.title;
-        if (defaults.startsAt) effectiveStart = defaults.startsAt;
-        if (defaults.endsAt) effectiveEnd = defaults.endsAt;
-        if (defaults.locationId) effectiveLocationId = defaults.locationId;
-        sportCode = defaults.sportCode ?? body.sportCode;
-      }
+  if (body.sportCode && !body.eventId) {
+    const defaults = await resolveEventDefaults(body.sportCode);
+    if (defaults.eventId) {
+      eventId = defaults.eventId;
+      // Use event values as defaults, but caller-supplied values take precedence
+      title = body.title || defaults.title || body.title;
+      if (defaults.startsAt) effectiveStart = defaults.startsAt;
+      if (defaults.endsAt) effectiveEnd = defaults.endsAt;
+      if (defaults.locationId) effectiveLocationId = defaults.locationId;
+      sportCode = defaults.sportCode ?? body.sportCode;
     }
-
-    const checkout = await createBooking({
-      kind: BookingKind.CHECKOUT,
-      title,
-      requesterUserId: body.requesterUserId,
-      locationId: effectiveLocationId,
-      startsAt: effectiveStart,
-      endsAt: effectiveEnd,
-      serializedAssetIds: body.serializedAssetIds,
-      bulkItems: body.bulkItems,
-      notes: body.notes,
-      createdBy: actor.id,
-      sourceReservationId: body.sourceReservationId,
-      eventId,
-      sportCode
-    });
-
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "booking",
-      entityId: checkout.id,
-      action: "create",
-      after: { title: checkout.title ?? body.title, kind: "CHECKOUT" },
-    });
-
-    return ok({ data: checkout }, 201);
-  } catch (error) {
-    return fail(error);
   }
-}
+
+  const checkout = await createBooking({
+    kind: BookingKind.CHECKOUT,
+    title,
+    requesterUserId: body.requesterUserId,
+    locationId: effectiveLocationId,
+    startsAt: effectiveStart,
+    endsAt: effectiveEnd,
+    serializedAssetIds: body.serializedAssetIds,
+    bulkItems: body.bulkItems,
+    notes: body.notes,
+    createdBy: user.id,
+    sourceReservationId: body.sourceReservationId,
+    eventId,
+    sportCode
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "booking",
+    entityId: checkout.id,
+    action: "create",
+    after: { title: checkout.title ?? body.title, kind: "CHECKOUT" },
+  });
+
+  return ok({ data: checkout }, 201);
+});

@@ -1,108 +1,98 @@
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, HttpError, ok } from "@/lib/http";
-import { hashPassword, requireAuth, verifyPassword } from "@/lib/auth";
+import { HttpError, ok } from "@/lib/http";
+import { hashPassword, verifyPassword } from "@/lib/auth";
 import { changePasswordSchema, updateProfileSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
-export async function GET() {
-  try {
-    const user = await requireAuth();
+export const GET = withAuth(async (_req, { user }) => {
+  const profile = await db.user.findUniqueOrThrow({
+    where: { id: user.id },
+    include: {
+      location: { select: { id: true, name: true } }
+    }
+  });
 
-    const profile = await db.user.findUniqueOrThrow({
-      where: { id: user.id },
-      include: {
-        location: { select: { id: true, name: true } }
-      }
-    });
+  const locations = await db.location.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true }
+  });
 
-    const locations = await db.location.findMany({
-      where: { active: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true }
-    });
+  return ok({
+    data: {
+      user: {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        location: profile.location
+      },
+      locations
+    }
+  });
+});
 
-    return ok({
-      data: {
-        user: {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          role: profile.role,
-          location: profile.location
-        },
-        locations
-      }
-    });
-  } catch (error) {
-    return fail(error);
-  }
-}
+export const PATCH = withAuth(async (req, { user }) => {
+  const body = await req.json();
 
-export async function PATCH(req: Request) {
-  try {
-    const actor = await requireAuth();
-    const body = await req.json();
+  if (body.action === "change_password") {
+    const payload = changePasswordSchema.parse(body);
+    const existing = await db.user.findUniqueOrThrow({ where: { id: user.id } });
+    const valid = await verifyPassword(existing.passwordHash, payload.currentPassword);
 
-    if (body.action === "change_password") {
-      const payload = changePasswordSchema.parse(body);
-      const existing = await db.user.findUniqueOrThrow({ where: { id: actor.id } });
-      const valid = await verifyPassword(existing.passwordHash, payload.currentPassword);
-
-      if (!valid) {
-        throw new HttpError(400, "Current password is incorrect");
-      }
-
-      const nextHash = await hashPassword(payload.newPassword);
-      await db.user.update({
-        where: { id: actor.id },
-        data: { passwordHash: nextHash }
-      });
-
-      await createAuditEntry({
-        actorId: actor.id,
-        actorRole: actor.role,
-        entityType: "user",
-        entityId: actor.id,
-        action: "password_change",
-      });
-
-      return ok({ message: "Password updated" });
+    if (!valid) {
+      throw new HttpError(400, "Current password is incorrect");
     }
 
-    const payload = updateProfileSchema.parse(body);
-
-    const updated = await db.user.update({
-      where: { id: actor.id },
-      data: {
-        ...(payload.name ? { name: payload.name } : {}),
-        ...(Object.prototype.hasOwnProperty.call(payload, "locationId")
-          ? { locationId: payload.locationId ?? null }
-          : {})
-      },
-      include: {
-        location: { select: { id: true, name: true } }
-      }
+    const nextHash = await hashPassword(payload.newPassword);
+    await db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: nextHash }
     });
 
     await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
+      actorId: user.id,
+      actorRole: user.role,
       entityType: "user",
-      entityId: actor.id,
-      action: "profile_update",
-      after: payload,
+      entityId: user.id,
+      action: "password_change",
     });
 
-    return ok({
-      data: {
-        id: updated.id,
-        name: updated.name,
-        email: updated.email,
-        role: updated.role,
-        location: updated.location
-      }
-    });
-  } catch (error) {
-    return fail(error);
+    return ok({ message: "Password updated" });
   }
-}
+
+  const payload = updateProfileSchema.parse(body);
+
+  const updated = await db.user.update({
+    where: { id: user.id },
+    data: {
+      ...(payload.name ? { name: payload.name } : {}),
+      ...(Object.prototype.hasOwnProperty.call(payload, "locationId")
+        ? { locationId: payload.locationId ?? null }
+        : {})
+    },
+    include: {
+      location: { select: { id: true, name: true } }
+    }
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "user",
+    entityId: user.id,
+    action: "profile_update",
+    after: payload,
+  });
+
+  return ok({
+    data: {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      location: updated.location
+    }
+  });
+});

@@ -4,182 +4,35 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
-import { SPORT_CODES, generateEventTitle, sportLabel } from "@/lib/sports";
-import { getAllowedBookingActions, type BookingKind } from "@/lib/booking-actions";
-import { formatDateShort } from "@/lib/format";
+import { generateEventTitle } from "@/lib/sports";
 import { useToast } from "@/components/Toast";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { FilterChip } from "@/components/FilterChip";
-import EquipmentPicker from "@/components/EquipmentPicker";
-import type { PickerAsset, PickerBulkSku, BulkSelection } from "@/components/EquipmentPicker";
+import type { BulkSelection } from "@/components/EquipmentPicker";
 
-/* ───── Types ───── */
+import {
+  SortHeader,
+  BookingFilters,
+  BookingTableRow,
+  BookingMobileCard,
+  BookingContextMenu,
+  CreateBookingCard,
+  roundTo15Min,
+  toLocalDateTimeValue,
+  type BookingItem,
+  type BookingListConfig,
+  type StatusOption,
+  type ContextMenuExtra,
+  type FormUser,
+  type Location,
+  type CalendarEvent,
+  type AvailableAsset,
+  type BulkSkuOption,
+  type ListResponse,
+} from "./booking-list";
 
-export type BookingItem = {
-  id: string;
-  title: string;
-  refNumber?: string | null;
-  startsAt: string;
-  endsAt: string;
-  status: string;
-  sportCode: string | null;
-  createdBy?: string;
-  requester: { id: string; name: string };
-  location: { id: string; name: string };
-  serializedItems: Array<{ asset: { assetTag: string; brand: string; model: string } }>;
-  bulkItems: Array<{ bulkSku: { name: string }; plannedQuantity: number }>;
-  event?: { id: string; summary: string; sportCode: string | null; opponent: string | null; isHome: boolean | null } | null;
-};
-
-type FormUser = { id: string; name: string };
-type Location = { id: string; name: string };
-type CalendarEvent = {
-  id: string;
-  summary: string;
-  startsAt: string;
-  endsAt: string;
-  sportCode: string | null;
-  isHome: boolean | null;
-  opponent: string | null;
-  rawLocationText: string | null;
-  location: { id: string; name: string } | null;
-};
-type AvailableAsset = PickerAsset;
-type BulkSkuOption = PickerBulkSku;
-type ListResponse = { data: BookingItem[]; total: number; limit: number; offset: number };
-
-/* ───── Config ───── */
-
-export type StatusOption = { value: string; label: string };
-
-export type ContextMenuExtra = {
-  action: string;
-  label: string;
-  danger?: boolean;
-  opensSheet?: boolean;
-  handler?: (bookingId: string, items: BookingItem[], reload: () => Promise<void>) => void | Promise<void>;
-};
-
-export type BookingListConfig = {
-  kind: BookingKind;
-  apiBase: string;
-  cancelApiBase?: string;
-  label: string;
-  labelPlural: string;
-  statusBadge: Record<string, string>;
-  statusOptions: StatusOption[];
-  defaultTieToEvent: boolean;
-  hasSportFilter: boolean;
-  overdueStatus: string;
-  showEventBadge: boolean;
-  contextMenuExtras: ContextMenuExtra[];
-};
-
-/* ───── Helpers ───── */
-
-function formatDateCol(iso: string) {
-  const d = new Date(iso);
-  return {
-    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    time: d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase(),
-    day: d.toLocaleDateString("en-US", { weekday: "short" }),
-  };
-}
-
-function formatDuration(startIso: string, endIso: string): string {
-  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
-  const hours = Math.round(ms / (1000 * 60 * 60));
-  if (hours < 1) return "< 1 hour";
-  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""}`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days} day${days !== 1 ? "s" : ""}`;
-  const weeks = Math.round(days / 7);
-  return `${weeks} week${weeks !== 1 ? "s" : ""}`;
-}
-
-type SortKey = "title" | "startsAt" | "endsAt";
-type SortDir = "asc" | "desc";
-
-function toSortParam(key: SortKey, dir: SortDir): string {
-  if (key === "startsAt") return dir === "asc" ? "oldest" : "";
-  if (key === "endsAt") return dir === "asc" ? "endsAt" : "endsAt_desc";
-  return dir === "asc" ? "title" : "title_desc";
-}
-
-function parseSortParam(s: string): { key: SortKey; dir: SortDir } | null {
-  if (s === "oldest") return { key: "startsAt", dir: "asc" };
-  if (s === "" || !s) return { key: "startsAt", dir: "desc" };
-  if (s === "title") return { key: "title", dir: "asc" };
-  if (s === "title_desc") return { key: "title", dir: "desc" };
-  if (s === "endsAt") return { key: "endsAt", dir: "asc" };
-  if (s === "endsAt_desc") return { key: "endsAt", dir: "desc" };
-  return null;
-}
-
-function getStatusVisual(status: string, isOverdue: boolean): { dot: string; label: string; className: string } {
-  if (isOverdue) return { dot: "var(--red)", label: "Overdue", className: "status-overdue" };
-  switch (status) {
-    case "OPEN":
-    case "DRAFT":
-    case "BOOKED":
-      return { dot: "var(--green)", label: status === "BOOKED" ? "Booked" : status === "DRAFT" ? "Draft" : "Open", className: "status-active" };
-    case "CANCELLED":
-      return { dot: "var(--text-muted)", label: "Cancelled", className: "status-cancelled" };
-    case "COMPLETED":
-      return { dot: "var(--text-muted)", label: "Completed", className: "status-completed" };
-    default:
-      return { dot: "var(--text-muted)", label: status.toLowerCase(), className: "" };
-  }
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-
-function SortHeader({ label, sortKey, currentSort, onSort }: {
-  label: string;
-  sortKey: SortKey;
-  currentSort: string;
-  onSort: (param: string) => void;
-}) {
-  const parsed = parseSortParam(currentSort);
-  const isActive = parsed?.key === sortKey;
-  const dir = isActive ? parsed.dir : null;
-
-  function handleClick() {
-    if (!isActive) {
-      // First click: sort ascending (except startsAt defaults desc)
-      onSort(toSortParam(sortKey, sortKey === "startsAt" ? "desc" : "asc"));
-    } else {
-      // Toggle direction
-      onSort(toSortParam(sortKey, dir === "asc" ? "desc" : "asc"));
-    }
-  }
-
-  return (
-    <th className="sort-header" onClick={handleClick}>
-      <span className="sort-header-inner">
-        {label}
-        {isActive && (
-          <span className="sort-arrow">{dir === "asc" ? "\u2191" : "\u2193"}</span>
-        )}
-      </span>
-    </th>
-  );
-}
-
-function roundTo15Min(date: Date): Date {
-  const ms = date.getTime();
-  const fifteen = 15 * 60 * 1000;
-  return new Date(Math.ceil(ms / fifteen) * fifteen);
-}
-
-function toLocalDateTimeValue(date: Date) {
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  const local = new Date(date.getTime() - offsetMs);
-  return local.toISOString().slice(0, 16);
-}
+/* ───── Re-exports for backward compatibility ───── */
+export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 
 /* ───── Component ───── */
 
@@ -252,7 +105,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; item: BookingItem } | null>(null);
-  const ctxRef = useRef<HTMLDivElement>(null);
+  const [extendingId, setExtendingId] = useState<string | null>(null);
 
   const limit = 20;
 
@@ -310,7 +163,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           if (!createRequester && json.user.id) {
             setCreateRequester(json.user.id);
           }
-          // Initialize "mine" filter from URL
           if (urlParams.get("mine") === "true" && json.user.id) {
             setUserFilter(json.user.id);
           }
@@ -342,7 +194,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           })));
         }
       })
-      .catch(() => { /* draft load failed — continue with empty form */ });
+      .catch(() => { /* draft load failed */ });
   }, [draftId]);
 
   // Fetch events when sport selected
@@ -369,7 +221,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       .catch(() => setEventsLoading(false));
   }, [createSport, tieToEvent]);
 
-  // ── Fetch shift context when event changes ──
+  // Fetch shift context when event changes
   useEffect(() => {
     if (!selectedEvent) {
       setMyShiftForEvent(null);
@@ -411,9 +263,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
   // ── Draft save / discard ──
 
-  /** Save current form state as a DRAFT booking */
   async function saveDraft() {
-    // Only save if there's meaningful data
     const hasData = createTitle.trim() || selectedAssetIds.length > 0 || selectedBulkItems.length > 0;
     if (!hasData) return;
 
@@ -451,7 +301,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     }
   }
 
-  /** Delete the current draft (after successful creation) */
   async function deleteDraft() {
     if (!draftId) return;
     try {
@@ -462,7 +311,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     setDraftId(null);
   }
 
-  /** Close the create modal — save as draft if there's data */
   function handleCloseCreate() {
     saveDraft();
     setShowCreate(false);
@@ -533,7 +381,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         return;
       }
 
-      // Delete draft if this was a resumed draft
       await deleteDraft();
 
       // Reset form
@@ -557,7 +404,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     }
   }
 
-  // ── Context menu ──
+  // ── Context menu handlers ──
 
   function handleContextMenu(e: React.MouseEvent, item: BookingItem) {
     e.preventDefault();
@@ -570,31 +417,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     setCtxMenu({ x: rect.right - 180, y: rect.bottom + 4, item });
   }
-
-  useEffect(() => {
-    if (!ctxMenu) return;
-    function close(e: MouseEvent) {
-      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) {
-        setCtxMenu(null);
-      }
-    }
-    function closeKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setCtxMenu(null);
-    }
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", closeKey);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", closeKey);
-    };
-  }, [ctxMenu]);
-
-  function ctxAction(fn: () => void) {
-    setCtxMenu(null);
-    fn();
-  }
-
-  const [extendingId, setExtendingId] = useState<string | null>(null);
 
   async function handleExtendFromMenu(bookingId: string, days: number) {
     const item = items.find((i) => i.id === bookingId);
@@ -612,7 +434,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       }
       await reload();
     } catch {
-      toast("Network error — please try again.", "error");
+      toast("Network error \u2014 please try again.", "error");
     }
     setExtendingId(null);
   }
@@ -630,8 +452,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     return Array.from(codes).sort();
   }, [items, config.hasSportFilter]);
 
-  const equipmentCount = selectedAssetIds.length + selectedBulkItems.length;
-
   return (
     <>
       <div className="page-header">
@@ -643,282 +463,64 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
       {/* ════════ Create booking card ════════ */}
       {showCreate && (
-        <div className="create-card">
-          <div className="create-card-header">
-            <h2>Create {config.label}</h2>
-          </div>
-
-          <div className="create-card-body">
-            {/* Tie to event toggle */}
-            <div className="toggle-row">
-              <button
-                type="button"
-                className={`toggle ${tieToEvent ? "on" : ""}`}
-                onClick={() => { setTieToEvent(!tieToEvent); setSelectedEvent(null); }}
-                aria-label="Tie to event"
-              />
-              <span className="toggle-label">Tie to event</span>
-            </div>
-
-            {/* Event selection flow */}
-            {tieToEvent && (
-              <>
-                <div className="field-compact">
-                  <label>Sport</label>
-                  <select
-                    value={createSport}
-                    onChange={(e) => { setCreateSport(e.target.value); setSelectedEvent(null); }}
-                  >
-                    <option value="">Select sport...</option>
-                    {SPORT_CODES.map((s) => (
-                      <option key={s.code} value={s.code}>{s.code} - {s.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {createSport && (
-                  <div className="event-section">
-                    <label className="event-section-label">
-                      Upcoming events (next 30 days)
-                    </label>
-                    {eventsLoading ? (
-                      <div className="empty-message">
-                        Loading events...
-                      </div>
-                    ) : events.length === 0 ? (
-                      <div className="empty-message-bordered">
-                        No upcoming events for {sportLabel(createSport)}. Toggle off {"\u201c"}Tie to event{"\u201d"} to create without an event, or add events via the Events page.
-                      </div>
-                    ) : (
-                      <div className="event-scroll">
-                        {events.map((ev) => (
-                          <div
-                            key={ev.id}
-                            className={`event-row ${selectedEvent?.id === ev.id ? "selected" : ""}`}
-                            onClick={() => selectEvent(ev)}
-                          >
-                            <div className="event-row-main">
-                              <div className="event-row-title">
-                                {ev.opponent
-                                  ? `${ev.isHome ? "vs" : "at"} ${ev.opponent}`
-                                  : ev.summary}
-                              </div>
-                              <div className="event-row-meta">
-                                {formatDate(ev.startsAt)}
-                                {ev.rawLocationText ? ` · ${ev.rawLocationText}` : ""}
-                                {ev.location ? ` · ${ev.location.name}` : ""}
-                              </div>
-                            </div>
-                            {ev.isHome !== null && (
-                              <span className="badge badge-gray badge-gray-sm">
-                                {ev.isHome ? "HOME" : "AWAY"}
-                              </span>
-                            )}
-                            {ev.sportCode && (
-                              <span className="badge-sport">{ev.sportCode}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Shift context banner */}
-            {myShiftForEvent && selectedEvent && (
-              <div className="shift-context-banner">
-                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ flexShrink: 0 }}>
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                </svg>
-                <div className="shift-context-text">
-                  <span className="shift-context-label">Your shift</span>
-                  <span className="shift-context-detail">
-                    {myShiftForEvent.area} &middot;{" "}
-                    {new Date(myShiftForEvent.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()}
-                    {" \u2013 "}
-                    {new Date(myShiftForEvent.endsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()}
-                  </span>
-                </div>
-                {myShiftForEvent.gearStatus !== "none" && (
-                  <span className={`badge ${myShiftForEvent.gearStatus === "checked_out" ? "badge-green" : myShiftForEvent.gearStatus === "reserved" ? "badge-orange" : "badge-gray"}`}>
-                    {myShiftForEvent.gearStatus === "checked_out" ? "Gear out" : myShiftForEvent.gearStatus === "reserved" ? "Gear reserved" : "Draft"}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Title */}
-            <div className="field-compact">
-              <label>Title {tieToEvent && selectedEvent ? "(auto-generated, editable)" : ""}</label>
-              <input
-                value={createTitle}
-                onChange={(e) => setCreateTitle(e.target.value)}
-                placeholder={tieToEvent ? "Select an event above..." : "e.g. Game day equipment"}
-                required
-              />
-            </div>
-
-            {/* Sport (when not tied to event) */}
-            {!tieToEvent && (
-              <div className="field-compact">
-                <label>Sport (optional)</label>
-                <select value={createSport} onChange={(e) => setCreateSport(e.target.value)}>
-                  <option value="">None</option>
-                  {SPORT_CODES.map((s) => (
-                    <option key={s.code} value={s.code}>{s.code} - {s.label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Requester + Location */}
-            <div className="field-row">
-              <div className="field-compact">
-                <label>User</label>
-                <select value={createRequester} onChange={(e) => setCreateRequester(e.target.value)} required>
-                  <option value="">Select...</option>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
-              </div>
-              <div className="field-compact">
-                <label>Location</label>
-                <select value={createLocationId} onChange={(e) => setCreateLocationId(e.target.value)} required>
-                  <option value="">Select...</option>
-                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Dates */}
-            <div className="field-row">
-              <div className="field-compact">
-                <label>From</label>
-                <input
-                  type="datetime-local"
-                  step={900}
-                  value={createStartsAt}
-                  onChange={(e) => setCreateStartsAt(e.target.value)}
-                />
-              </div>
-              <div className="field-compact">
-                <label>To</label>
-                <input
-                  type="datetime-local"
-                  step={900}
-                  value={createEndsAt}
-                  onChange={(e) => setCreateEndsAt(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Equipment picker */}
-            <EquipmentPicker
-              assets={availableAssets}
-              bulkSkus={bulkSkus}
-              selectedAssetIds={selectedAssetIds}
-              setSelectedAssetIds={setSelectedAssetIds}
-              selectedBulkItems={selectedBulkItems}
-              setSelectedBulkItems={setSelectedBulkItems}
-              visible={showEquipPicker}
-              onDone={() => setShowEquipPicker(false)}
-              onReopen={() => setShowEquipPicker(true)}
-              startsAt={createStartsAt}
-              endsAt={createEndsAt}
-              locationId={createLocationId}
-            />
-
-            {createError && (
-              <div className="alert-error">{createError}</div>
-            )}
-          </div>
-
-          <div className="create-card-footer">
-            <button className="btn" onClick={handleCloseCreate}>Cancel</button>
-            <button
-              className="btn btn-primary"
-              disabled={submitting}
-              onClick={handleCreate}
-            >
-              {submitting ? "Creating..." : `Create ${config.label}`}
-            </button>
-          </div>
-        </div>
+        <CreateBookingCard
+          config={config}
+          tieToEvent={tieToEvent}
+          onTieToEventChange={(v) => { setTieToEvent(v); setSelectedEvent(null); }}
+          createSport={createSport}
+          onCreateSportChange={(v) => { setCreateSport(v); setSelectedEvent(null); }}
+          events={events}
+          eventsLoading={eventsLoading}
+          selectedEvent={selectedEvent}
+          onSelectEvent={selectEvent}
+          myShiftForEvent={myShiftForEvent}
+          createTitle={createTitle}
+          onCreateTitleChange={setCreateTitle}
+          createRequester={createRequester}
+          onCreateRequesterChange={setCreateRequester}
+          createLocationId={createLocationId}
+          onCreateLocationIdChange={setCreateLocationId}
+          createStartsAt={createStartsAt}
+          onCreateStartsAtChange={setCreateStartsAt}
+          createEndsAt={createEndsAt}
+          onCreateEndsAtChange={setCreateEndsAt}
+          users={users}
+          locations={locations}
+          availableAssets={availableAssets}
+          bulkSkus={bulkSkus}
+          showEquipPicker={showEquipPicker}
+          onShowEquipPickerChange={setShowEquipPicker}
+          selectedAssetIds={selectedAssetIds}
+          onSelectedAssetIdsChange={setSelectedAssetIds}
+          selectedBulkItems={selectedBulkItems}
+          onSelectedBulkItemsChange={setSelectedBulkItems}
+          createError={createError}
+          submitting={submitting}
+          onCreate={handleCreate}
+          onClose={handleCloseCreate}
+        />
       )}
 
-      {/* ════════ Filter bar ════════ */}
+      {/* ════════ Filter bar + list ════════ */}
       <div className="card">
-        <div className="card-header filter-chip-bar">
-          <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</h2>
-          <input
-            type="text"
-            className="form-input filter-chip-search"
-            placeholder="Search by title or requester..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-          />
-          <div className="filter-chips">
-            {specialFilter ? (
-              <button
-                type="button"
-                className="filter-chip filter-chip-active"
-                onClick={() => { setSpecialFilter(""); setPage(0); }}
-              >
-                <span className="filter-chip-label">Showing:</span>
-                <span className="filter-chip-value">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>
-                <span className="filter-chip-clear">&times;</span>
-              </button>
-            ) : (
-              <FilterChip
-                label="Status"
-                value={statusFilter}
-                displayValue={config.statusOptions.find((s) => s.value === statusFilter)?.label}
-                options={config.statusOptions}
-                onSelect={(v) => { setStatusFilter(v); setPage(0); }}
-                onClear={() => { setStatusFilter(""); setPage(0); }}
-              />
-            )}
-            {config.hasSportFilter && sportCodesInUse.length > 0 && (
-              <FilterChip
-                label="Sport"
-                value={sportFilter}
-                options={SPORT_CODES.map((s) => ({ value: s.code, label: s.code }))}
-                onSelect={(v) => { setSportFilter(v); setPage(0); }}
-                onClear={() => { setSportFilter(""); setPage(0); }}
-              />
-            )}
-            {locations.length > 1 && (
-              <FilterChip
-                label="Location"
-                value={locationFilter}
-                displayValue={locations.find((l) => l.id === locationFilter)?.name}
-                options={locations.map((l) => ({ value: l.id, label: l.name }))}
-                onSelect={(v) => { setLocationFilter(v); setPage(0); }}
-                onClear={() => { setLocationFilter(""); setPage(0); }}
-              />
-            )}
-            {users.length > 0 && (
-              <FilterChip
-                label="User"
-                value={userFilter}
-                displayValue={users.find((u) => u.id === userFilter)?.name}
-                options={users.map((u) => ({ value: u.id, label: u.name }))}
-                onSelect={(v) => { setUserFilter(v); setPage(0); }}
-                onClear={() => { setUserFilter(""); setPage(0); }}
-              />
-            )}
-            {(statusFilter || sportFilter || locationFilter || userFilter || specialFilter) && (
-              <button
-                type="button"
-                className="filter-chip-clear-all"
-                onClick={() => { setStatusFilter(""); setSportFilter(""); setLocationFilter(""); setUserFilter(""); setSpecialFilter(""); setPage(0); }}
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-        </div>
+        <BookingFilters
+          config={config}
+          search={search}
+          onSearchChange={(v) => { setSearch(v); setPage(0); }}
+          statusFilter={statusFilter}
+          onStatusFilterChange={(v) => { setStatusFilter(v); setPage(0); }}
+          specialFilter={specialFilter}
+          onSpecialFilterChange={(v) => { setSpecialFilter(v); setPage(0); }}
+          sportFilter={sportFilter}
+          onSportFilterChange={(v) => { setSportFilter(v); setPage(0); }}
+          sportCodesInUse={sportCodesInUse}
+          locationFilter={locationFilter}
+          onLocationFilterChange={(v) => { setLocationFilter(v); setPage(0); }}
+          locations={locations}
+          userFilter={userFilter}
+          onUserFilterChange={(v) => { setUserFilter(v); setPage(0); }}
+          users={users}
+        />
 
         {/* ════════ Booking list ════════ */}
         {loading ? (
@@ -944,92 +546,31 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => {
-                    const isOverdue = item.status === config.overdueStatus && new Date(item.endsAt) < new Date();
-                    const sv = getStatusVisual(item.status, isOverdue);
-                    const from = formatDateCol(item.startsAt);
-                    const to = formatDateCol(item.endsAt);
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`${sv.className} cursor-pointer`}
-                        onClick={() => setSelectedBookingId(item.id)}
-                        onContextMenu={(e) => handleContextMenu(e, item)}
-                      >
-                        <td>
-                          <div className="booking-name-cell">
-                            {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
-                            <span className="row-link">{item.title}</span>
-                            <span className="booking-status-line">
-                              <span className="status-dot" style={{ background: sv.dot }} />
-                              <span className="status-label">{sv.label}</span>
-                            </span>
-                          </div>
-                        </td>
-                        <td className="hide-mobile">
-                          <div className="date-cell">
-                            <span className="date-main">{from.date}</span>
-                            <span className="date-sub">{from.day} {from.time}</span>
-                          </div>
-                        </td>
-                        <td className="hide-mobile">
-                          <div className="date-cell">
-                            <span className="date-main">{to.date}</span>
-                            <span className="date-sub">{to.day} {to.time}</span>
-                          </div>
-                        </td>
-                        <td className="hide-mobile">{formatDuration(item.startsAt, item.endsAt)}</td>
-                        <td className="hide-mobile">{item.requester?.name ?? "Unknown"}</td>
-                        <td className="hide-mobile">{(item.serializedItems?.length ?? 0) + (item.bulkItems?.length ?? 0)}</td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <button className="overflow-btn" aria-label="More actions" onClick={(e) => handleOverflow(e, item)}>
-                            {"\u2026"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {items.map((item) => (
+                    <BookingTableRow
+                      key={item.id}
+                      item={item}
+                      overdueStatus={config.overdueStatus}
+                      onClick={() => setSelectedBookingId(item.id)}
+                      onContextMenu={(e) => handleContextMenu(e, item)}
+                      onOverflow={(e) => handleOverflow(e, item)}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile card list */}
             <div className="booking-mobile-list">
-              {items.map((item) => {
-                const isOverdue = item.status === config.overdueStatus && new Date(item.endsAt) < new Date();
-                const sv = getStatusVisual(item.status, isOverdue);
-                return (
-                  <div
-                    key={item.id}
-                    className={`booking-mobile-card ${sv.className}`}
-                    onClick={() => setSelectedBookingId(item.id)}
-                  >
-                    <div className="booking-mobile-top">
-                      <div className="booking-mobile-name">
-                        {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
-                        <span className="row-link">{item.title}</span>
-                        <span className="booking-status-line">
-                          <span className="status-dot" style={{ background: sv.dot }} />
-                          <span className="status-label">{sv.label}</span>
-                        </span>
-                      </div>
-                      <button
-                        className="overflow-btn" aria-label="More actions"
-                        onClick={(e) => { e.stopPropagation(); handleOverflow(e, item); }}
-                      >
-                        {"\u2026"}
-                      </button>
-                    </div>
-                    <div className="booking-mobile-meta">
-                      <span>{formatDateShort(item.startsAt)} {"\u2013"} {formatDateShort(item.endsAt)}</span>
-                      <span>{"\u00b7"}</span>
-                      <span>{item.requester?.name ?? "Unknown"}</span>
-                      <span>{"\u00b7"}</span>
-                      <span>{formatDuration(item.startsAt, item.endsAt)}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {items.map((item) => (
+                <BookingMobileCard
+                  key={item.id}
+                  item={item}
+                  overdueStatus={config.overdueStatus}
+                  onClick={() => setSelectedBookingId(item.id)}
+                  onOverflow={(e) => handleOverflow(e, item)}
+                />
+              ))}
             </div>
 
             {totalPages > 1 && (
@@ -1046,76 +587,18 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       </div>
 
       {/* ════════ Context menu ════════ */}
-      {ctxMenu && (() => {
-        const actor = { id: currentUserId, role: currentUserRole };
-        const ctxAllowed = new Set(
-          getAllowedBookingActions(actor, {
-            status: ctxMenu.item.status,
-            requester: ctxMenu.item.requester,
-            createdBy: ctxMenu.item.createdBy,
-          }, config.kind)
-        );
-        return (
-          <div
-            ref={ctxRef}
-            className="ctx-menu"
-            style={{ top: ctxMenu.y, left: ctxMenu.x }}
-          >
-            <button
-              className="ctx-menu-item"
-              onClick={() => ctxAction(() => setSelectedBookingId(ctxMenu.item.id))}
-            >
-              View details
-            </button>
-
-            {ctxAllowed.has("edit") && (
-              <button
-                className="ctx-menu-item"
-                onClick={() => ctxAction(() => setSelectedBookingId(ctxMenu.item.id))}
-              >
-                Edit
-              </button>
-            )}
-
-            {ctxAllowed.has("extend") && (
-              <>
-                <div className="ctx-menu-sep" />
-                <button
-                  className="ctx-menu-item"
-                  onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.item.id, 1))}
-                  disabled={extendingId === ctxMenu.item.id}
-                >
-                  {extendingId === ctxMenu.item.id ? "Extending..." : "Extend +1 day"}
-                </button>
-                <button
-                  className="ctx-menu-item"
-                  onClick={() => ctxAction(() => handleExtendFromMenu(ctxMenu.item.id, 7))}
-                  disabled={extendingId === ctxMenu.item.id}
-                >
-                  {extendingId === ctxMenu.item.id ? "Extending..." : "Extend +1 week"}
-                </button>
-              </>
-            )}
-
-            {config.contextMenuExtras.map((extra) =>
-              ctxAllowed.has(extra.action) ? (
-                <span key={extra.action}>
-                  <div className="ctx-menu-sep" />
-                  <button
-                    className={`ctx-menu-item${extra.danger ? " danger" : ""}`}
-                    onClick={() => ctxAction(() => {
-                      if (extra.opensSheet) setSelectedBookingId(ctxMenu.item.id);
-                      else extra.handler?.(ctxMenu.item.id, items, reload);
-                    })}
-                  >
-                    {extra.label}
-                  </button>
-                </span>
-              ) : null
-            )}
-          </div>
-        );
-      })()}
+      <BookingContextMenu
+        ctxMenu={ctxMenu}
+        onClose={() => setCtxMenu(null)}
+        onViewDetails={(id) => setSelectedBookingId(id)}
+        onExtend={handleExtendFromMenu}
+        extendingId={extendingId}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        config={config}
+        items={items}
+        reload={reload}
+      />
 
       {/* ════════ Booking details sheet ════════ */}
       <BookingDetailsSheet
