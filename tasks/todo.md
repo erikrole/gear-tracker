@@ -6,7 +6,28 @@ Last updated: 2026-03-16
 
 ## Active Work
 
-(empty)
+### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
+
+**Persona priority**: Student-first | **Gear suggestion**: Event pre-fill only
+
+- [x] Research: competitive analysis + integration strategy (2026-03-17)
+- [x] **Slice 1**: Shift context banner on checkout creation form (2026-03-17)
+  - When event selected, show "Your shift: VIDEO 1:30–5:00 PM" banner
+  - Fetches from `GET /api/my-shifts?eventId=...`
+  - Files: `BookingListPage.tsx`, new API: `GET /api/my-shifts`
+- [x] **Slice 2**: "My Shifts" dashboard widget with gear status (2026-03-17)
+  - New widget below Drafts in left column
+  - Shows upcoming shifts + gear checkout status (none/reserved/checked out)
+  - "Reserve Gear" link → checkout creation pre-filled with event
+  - Files: `page.tsx` (dashboard), `GET /api/dashboard` enrichment
+- [x] **Slice 3**: "Gear Up" notification on shift assignment approval (2026-03-17)
+  - On approve/direct-assign, create in-app notification for student
+  - Type: `shift_gear_up` with event + area context
+  - Non-blocking, deduped per assignment
+  - Files: `shift-assignments.ts`, `notifications.ts`
+- [ ] **Slice 4** (future): Event Command Center — unified staff view
+- [ ] **Slice 5** (future): Game-Day Readiness Score
+- [ ] **Slice 6** (future): Shift-Checkout linking (shiftAssignmentId FK)
 
 ---
 

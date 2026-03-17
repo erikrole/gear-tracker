@@ -232,6 +232,14 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // ── Shift context (integration) ──
+  const [myShiftForEvent, setMyShiftForEvent] = useState<{
+    area: string;
+    startsAt: string;
+    endsAt: string;
+    gearStatus: string;
+  } | null>(null);
+
   // ── Equipment picker state ──
   const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
@@ -360,6 +368,31 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       })
       .catch(() => setEventsLoading(false));
   }, [createSport, tieToEvent]);
+
+  // ── Fetch shift context when event changes ──
+  useEffect(() => {
+    if (!selectedEvent) {
+      setMyShiftForEvent(null);
+      return;
+    }
+    fetch(`/api/my-shifts?eventId=${selectedEvent.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => {
+        const shifts = json?.data;
+        if (shifts?.length > 0) {
+          const s = shifts[0];
+          setMyShiftForEvent({
+            area: s.area,
+            startsAt: s.startsAt,
+            endsAt: s.endsAt,
+            gearStatus: s.gear.status,
+          });
+        } else {
+          setMyShiftForEvent(null);
+        }
+      })
+      .catch(() => setMyShiftForEvent(null));
+  }, [selectedEvent]);
 
   // ── Event selection auto-populate ──
 
@@ -691,6 +724,29 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                   </div>
                 )}
               </>
+            )}
+
+            {/* Shift context banner */}
+            {myShiftForEvent && selectedEvent && (
+              <div className="shift-context-banner">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ flexShrink: 0 }}>
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+                <div className="shift-context-text">
+                  <span className="shift-context-label">Your shift</span>
+                  <span className="shift-context-detail">
+                    {myShiftForEvent.area} &middot;{" "}
+                    {new Date(myShiftForEvent.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()}
+                    {" \u2013 "}
+                    {new Date(myShiftForEvent.endsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase()}
+                  </span>
+                </div>
+                {myShiftForEvent.gearStatus !== "none" && (
+                  <span className={`badge ${myShiftForEvent.gearStatus === "checked_out" ? "badge-green" : myShiftForEvent.gearStatus === "reserved" ? "badge-orange" : "badge-gray"}`}>
+                    {myShiftForEvent.gearStatus === "checked_out" ? "Gear out" : myShiftForEvent.gearStatus === "reserved" ? "Gear reserved" : "Draft"}
+                  </span>
+                )}
+              </div>
             )}
 
             {/* Title */}

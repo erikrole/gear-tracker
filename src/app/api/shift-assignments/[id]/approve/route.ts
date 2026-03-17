@@ -3,6 +3,7 @@ import { ok, fail } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { approveRequest } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
+import { createShiftGearUpNotification } from "@/lib/services/notifications";
 
 export async function PATCH(
   _req: Request,
@@ -23,6 +24,9 @@ export async function PATCH(
       action: "shift_request_approved",
       after: { userId: assignment.userId, shiftId: assignment.shiftId },
     });
+
+    // Notify student to reserve gear (non-blocking)
+    createShiftGearUpNotification(assignment.id).catch(() => {});
 
     return ok({ data: assignment });
   } catch (error) {

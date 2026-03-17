@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/rbac";
 import { assignShiftSchema } from "@/lib/validation";
 import { directAssignShift } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
+import { createShiftGearUpNotification } from "@/lib/services/notifications";
 
 export async function POST(req: Request) {
   try {
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
       action: "shift_assigned",
       after: { shiftId: body.shiftId, userId: body.userId },
     });
+
+    // Notify assigned user to reserve gear (non-blocking)
+    createShiftGearUpNotification(assignment.id).catch(() => {});
 
     return ok({ data: assignment }, 201);
   } catch (error) {

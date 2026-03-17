@@ -73,6 +73,8 @@ export async function GET() {
       topOverdue,
       // Drafts: current user's in-progress work
       myDrafts,
+      // My shift assignments
+      myShiftsRaw,
     ] = await Promise.all([
       // Team checkouts (excl. me)
       db.booking.findMany({
@@ -174,6 +176,43 @@ export async function GET() {
           _count: { select: { serializedItems: true, bulkItems: true } },
         },
       }),
+      // My upcoming shift assignments
+      db.shiftAssignment.findMany({
+        where: {
+          userId: user.id,
+          status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+          shift: {
+            shiftGroup: {
+              event: { startsAt: { gte: now }, status: "CONFIRMED" },
+            },
+          },
+        },
+        orderBy: { shift: { startsAt: "asc" } },
+        take: 5,
+        include: {
+          shift: {
+            include: {
+              shiftGroup: {
+                include: {
+                  event: {
+                    select: {
+                      id: true,
+                      summary: true,
+                      startsAt: true,
+                      endsAt: true,
+                      sportCode: true,
+                      opponent: true,
+                      isHome: true,
+                      locationId: true,
+                      location: { select: { id: true, name: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
     ]);
 
     // Format team checkouts
@@ -207,6 +246,51 @@ export async function GET() {
       assetTags: b.serializedItems.map((si) => si.asset.assetTag),
       endsAt: b.endsAt.toISOString(),
     }));
+
+    // Build my shifts with gear status
+    const shiftEventIds = [...new Set(myShiftsRaw.map((a) => a.shift.shiftGroup.event.id))];
+    const shiftGearBookings = shiftEventIds.length > 0
+      ? await db.booking.findMany({
+          where: {
+            requesterUserId: user.id,
+            eventId: { in: shiftEventIds },
+            status: { in: ["DRAFT", "BOOKED", "OPEN"] },
+          },
+          select: { eventId: true, status: true },
+        })
+      : [];
+    const gearByEvent = new Map<string, string>();
+    for (const b of shiftGearBookings) {
+      if (!b.eventId) continue;
+      const current = gearByEvent.get(b.eventId);
+      // Prioritize: checked_out > reserved > draft
+      if (b.status === "OPEN") gearByEvent.set(b.eventId, "checked_out");
+      else if (b.status === "BOOKED" && current !== "checked_out") gearByEvent.set(b.eventId, "reserved");
+      else if (b.status === "DRAFT" && !current) gearByEvent.set(b.eventId, "draft");
+    }
+
+    const myShifts = myShiftsRaw.map((a) => {
+      const ev = a.shift.shiftGroup.event;
+      return {
+        id: a.id,
+        area: a.shift.area,
+        workerType: a.shift.workerType,
+        startsAt: a.shift.startsAt.toISOString(),
+        endsAt: a.shift.endsAt.toISOString(),
+        event: {
+          id: ev.id,
+          summary: ev.summary,
+          startsAt: ev.startsAt.toISOString(),
+          endsAt: ev.endsAt.toISOString(),
+          sportCode: ev.sportCode,
+          opponent: ev.opponent,
+          isHome: ev.isHome,
+          locationId: ev.locationId,
+          locationName: ev.location?.name ?? null,
+        },
+        gearStatus: gearByEvent.get(ev.id) ?? "none",
+      };
+    });
 
     return ok({
       data: {
@@ -248,6 +332,7 @@ export async function GET() {
           itemCount: d._count.serializedItems + d._count.bulkItems,
           updatedAt: d.updatedAt.toISOString(),
         })),
+        myShifts,
       },
     });
   } catch (error) {

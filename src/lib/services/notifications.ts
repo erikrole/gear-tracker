@@ -193,6 +193,79 @@ export async function processOverdueNotifications(): Promise<{
   };
 }
 
+/**
+ * Creates a "Gear Up" notification for a student when they are assigned/approved for a shift.
+ * Skips if a notification for this assignment already exists (deduped).
+ */
+export async function createShiftGearUpNotification(assignmentId: string): Promise<void> {
+  const assignment = await db.shiftAssignment.findUnique({
+    where: { id: assignmentId },
+    include: {
+      shift: {
+        include: {
+          shiftGroup: {
+            include: {
+              event: {
+                select: {
+                  id: true,
+                  summary: true,
+                  startsAt: true,
+                  sportCode: true,
+                  opponent: true,
+                  isHome: true,
+                  locationId: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!assignment) return;
+
+  const event = assignment.shift.shiftGroup.event;
+  const dedupeKey = `shift:${assignmentId}:gear_up`;
+
+  // Check for existing notification
+  const existing = await db.notification.findUnique({ where: { dedupeKey } });
+  if (existing) return;
+
+  const eventTitle = event.opponent
+    ? `${event.isHome ? "vs" : "at"} ${event.opponent}`
+    : event.summary;
+
+  const shiftTime = new Date(assignment.shift.startsAt).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  await db.notification.create({
+    data: {
+      userId: assignment.userId,
+      type: "shift_gear_up",
+      title: "Gear up for your shift",
+      body: `You're assigned to ${assignment.shift.area} for ${eventTitle} at ${shiftTime}. Reserve your gear now.`,
+      payload: {
+        assignmentId: assignment.id,
+        shiftId: assignment.shiftId,
+        eventId: event.id,
+        eventSummary: event.summary,
+        area: assignment.shift.area,
+        startsAt: assignment.shift.startsAt.toISOString(),
+        sportCode: event.sportCode,
+        locationId: event.locationId,
+      },
+      channel: "IN_APP",
+      sentAt: new Date(),
+      dedupeKey,
+    },
+  });
+}
+
 function formatRelative(dueAt: Date, now: Date): string {
   const diffMs = now.getTime() - dueAt.getTime();
   if (diffMs < 0) {

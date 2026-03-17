@@ -52,3 +52,4 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-03-16 | Trade board UI with area filters, claim/approve/cancel workflows | 10 |
 | 2026-03-16 | Event detail: shift coverage table, manage shifts button | 11 |
 | 2026-03-16 | Hardening: doc sync, permissions verified, audit logging complete | 12 |
+| 2026-03-17 | Gear integration: "Gear Up" notification on shift assign/approve; shift context banner in checkout form | — |
