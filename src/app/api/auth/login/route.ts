@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       throw new HttpError(401, "Invalid credentials");
     }
 
-    await createSession(user.id);
+    await createSession(user.id, body.rememberMe ?? false);
 
     return ok({
       user: {
