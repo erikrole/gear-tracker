@@ -6570,3 +6570,96 @@ tr.returned-row { opacity: 0.55; }
 .gear-status-draft { background: var(--text-muted); }
 .gear-status-reserved { background: var(--badge-orange-bg, #f59e0b); }
 .gear-status-checked_out { background: var(--badge-green-bg, #22c55e); }
+
+/* ===== Users Page ===== */
+
+/* Responsive toggle utilities */
+.show-mobile-only { display: none; }
+.hide-mobile-only { display: block; }
+
+@media (max-width: 768px) {
+  .show-mobile-only { display: block; }
+  .hide-mobile-only { display: none; }
+}
+
+/* User mobile card */
+.user-mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  color: inherit;
+}
+
+.user-mobile-card:last-child {
+  border-bottom: none;
+}
+
+.user-mobile-card:active {
+  background: var(--panel-hover);
+}
+
+.user-mobile-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-mobile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.user-mobile-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.user-mobile-name .row-link {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-mobile-meta {
+  display: flex;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  padding-left: 46px;
+}
+
+/* User detail page avatar */
+.user-detail-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xl);
+  flex-shrink: 0;
+}
+
+/* Assignment chips */
+.assignment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
