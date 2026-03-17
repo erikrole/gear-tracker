@@ -6511,3 +6511,62 @@ tr.returned-row { opacity: 0.55; }
 .schedule-mobile-card:active {
   background: var(--panel-hover);
 }
+
+/* ── Shift Context Banner (checkout/reservation create form) ── */
+
+.shift-context-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--panel-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.shift-context-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.shift-context-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.shift-context-detail {
+  font-size: 0.875rem;
+}
+
+/* ── My Shifts Dashboard Widget ── */
+
+.shift-widget-area {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--panel-hover);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.shift-gear-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gear-status-none { background: var(--text-muted); opacity: 0.3; }
+.gear-status-draft { background: var(--text-muted); }
+.gear-status-reserved { background: var(--badge-orange-bg, #f59e0b); }
+.gear-status-checked_out { background: var(--badge-green-bg, #22c55e); }

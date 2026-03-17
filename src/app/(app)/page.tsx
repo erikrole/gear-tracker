@@ -67,6 +67,26 @@ type DraftSummary = {
   updatedAt: string;
 };
 
+type MyShift = {
+  id: string;
+  area: string;
+  workerType: string;
+  startsAt: string;
+  endsAt: string;
+  event: {
+    id: string;
+    summary: string;
+    startsAt: string;
+    endsAt: string;
+    sportCode: string | null;
+    opponent: string | null;
+    isHome: boolean | null;
+    locationId: string | null;
+    locationName: string | null;
+  };
+  gearStatus: string;
+};
+
 type DashboardData = {
   stats: {
     checkedOut: number;
@@ -82,6 +102,7 @@ type DashboardData = {
   overdueCount: number;
   overdueItems: OverdueItem[];
   drafts: DraftSummary[];
+  myShifts: MyShift[];
 };
 
 /* ───── Component ───── */
@@ -333,6 +354,53 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+          {/* My Shifts */}
+          {data.myShifts.length > 0 && (
+            <div className="card">
+              <a href="/schedule" className="card-header card-header-link">
+                <h2>My shifts</h2>
+                <span className="section-count">{data.myShifts.length}</span>
+              </a>
+              <div className="card-body card-body-compact">
+                {data.myShifts.map((s) => {
+                  const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
+                  const eventTitle = s.event.opponent
+                    ? `${s.event.isHome ? "vs" : "at"} ${s.event.opponent}`
+                    : s.event.summary;
+                  return (
+                    <div key={s.id} className="ops-row">
+                      <div className="ops-row-main">
+                        <span className="ops-row-title">
+                          {s.event.sportCode && <span className="event-sport">{s.event.sportCode}</span>}
+                          {eventTitle}
+                        </span>
+                        <span className="ops-row-meta">
+                          <span className="shift-widget-area">{s.area}</span>
+                          {" "}
+                          {new Date(s.startsAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toLowerCase()}
+                          {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                        {gearLabel ? (
+                          <span className={`badge ${s.gearStatus === "checked_out" ? "badge-green" : s.gearStatus === "reserved" ? "badge-orange" : "badge-gray"}`}>
+                            {gearLabel}
+                          </span>
+                        ) : (
+                          <a
+                            href={`/checkouts?create=true&title=${encodeURIComponent(eventTitle)}&startsAt=${encodeURIComponent(s.event.startsAt)}&endsAt=${encodeURIComponent(s.event.endsAt)}${s.event.locationId ? `&locationId=${s.event.locationId}` : ""}`}
+                            className="btn btn-sm"
+                          >
+                            Reserve gear
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

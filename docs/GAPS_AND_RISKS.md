@@ -49,6 +49,7 @@
 | ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board~~ |
 | Shift notification channel (email for trade claims) | AREA_SHIFTS | — | V1 = in-app audit only; email deferred |
 | Student availability tracking | AREA_SHIFTS | — | Students declare unavailable dates; deferred to Phase B |
+| Scheduling + gear deep linking (shiftAssignmentId FK on Booking) | AREA_SHIFTS / AREA_CHECKOUTS | — | Phase 3 of integration; see `tasks/scheduling-gear-integration-research.md` |
 
 ---
 
