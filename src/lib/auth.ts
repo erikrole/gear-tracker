@@ -12,7 +12,8 @@ export type AuthUser = {
   role: Role;
 };
 
-const sessionDurationMs = 1000 * 60 * 60 * 12;
+const SESSION_12H_MS = 1000 * 60 * 60 * 12;
+const SESSION_30D_MS = 1000 * 60 * 60 * 24 * 30;
 
 function toHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
@@ -20,7 +21,7 @@ function toHex(buffer: ArrayBuffer): string {
     .join("");
 }
 
-async function tokenHash(token: string): Promise<string> {
+export async function tokenHash(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
@@ -33,7 +34,7 @@ async function tokenHash(token: string): Promise<string> {
   return toHex(signature);
 }
 
-function randomHex(bytes: number): string {
+export function randomHex(bytes: number): string {
   const array = new Uint8Array(bytes);
   crypto.getRandomValues(array);
   return toHex(array.buffer);
@@ -47,10 +48,10 @@ export async function verifyPassword(hash: string, password: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, rememberMe = false) {
   const raw = randomHex(32);
   const hashed = await tokenHash(raw);
-  const expiresAt = new Date(Date.now() + sessionDurationMs);
+  const expiresAt = new Date(Date.now() + (rememberMe ? SESSION_30D_MS : SESSION_12H_MS));
 
   await db.session.create({
     data: {
