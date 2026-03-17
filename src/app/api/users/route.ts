@@ -1,10 +1,11 @@
 import { withAuth } from "@/lib/api";
 import { hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { HttpError, ok } from "@/lib/http";
+import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { roleSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const createUserSchema = z.object({
@@ -15,27 +16,89 @@ const createUserSchema = z.object({
   locationId: z.string().cuid().nullable().optional()
 });
 
-export const GET = withAuth(async (_req, { user }) => {
+export const GET = withAuth(async (req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
 
-  const users = await db.user.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      location: {
-        select: { id: true, name: true }
-      }
+  const { searchParams } = new URL(req.url);
+  const { limit, offset } = parsePagination(searchParams);
+
+  const q = searchParams.get("q")?.trim();
+  const roleParam = searchParams.get("role");
+  const locationId = searchParams.get("locationId");
+  const sort = searchParams.get("sort") || "name";
+
+  // Build where clause
+  const conditions: Prisma.UserWhereInput[] = [];
+
+  if (q) {
+    conditions.push({
+      OR: [
+        { name: { contains: q, mode: "insensitive" as const } },
+        { email: { contains: q, mode: "insensitive" as const } },
+      ],
+    });
+  }
+
+  if (roleParam && ["ADMIN", "STAFF", "STUDENT"].includes(roleParam)) {
+    conditions.push({ role: roleParam as Prisma.EnumRoleFilter });
+  }
+
+  if (locationId) {
+    conditions.push({ locationId });
+  }
+
+  const where: Prisma.UserWhereInput =
+    conditions.length > 0 ? { AND: conditions } : {};
+
+  // Build orderBy
+  const orderBy: Prisma.UserOrderByWithRelationInput = (() => {
+    switch (sort) {
+      case "name_desc":
+        return { name: "desc" as const };
+      case "role":
+        return { role: "asc" as const };
+      case "role_desc":
+        return { role: "desc" as const };
+      case "email":
+        return { email: "asc" as const };
+      case "email_desc":
+        return { email: "desc" as const };
+      case "created":
+        return { createdAt: "asc" as const };
+      case "created_desc":
+        return { createdAt: "desc" as const };
+      default:
+        return { name: "asc" as const };
     }
-  });
+  })();
+
+  const [data, total] = await Promise.all([
+    db.user.findMany({
+      where,
+      orderBy,
+      take: limit,
+      skip: offset,
+      include: {
+        location: { select: { id: true, name: true } },
+      },
+    }),
+    db.user.count({ where }),
+  ]);
 
   return ok({
-    data: users.map((u) => ({
+    data: data.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
       role: u.role,
+      phone: u.phone,
+      primaryArea: u.primaryArea,
       locationId: u.locationId,
-      location: u.location?.name ?? null
-    }))
+      location: u.location?.name ?? null,
+    })),
+    total,
+    limit,
+    offset,
   });
 });
 
