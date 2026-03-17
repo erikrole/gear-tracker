@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getAllowedActionsClient, type CheckoutAction } from "@/lib/booking-actions";
+import { getAllowedBookingActions, type CheckoutAction } from "@/lib/booking-actions";
 
 /* ───── Test helpers ───── */
 
@@ -16,6 +16,10 @@ function booking(status: string, requesterId = "student-1", creatorId = "staff-1
   };
 }
 
+function getActions(actor: { id: string; role: string }, ctx: { status: string; requester?: { id: string }; createdBy?: string }) {
+  return getAllowedBookingActions(actor, ctx, "CHECKOUT") as CheckoutAction[];
+}
+
 function has(actions: CheckoutAction[], action: CheckoutAction): boolean {
   return actions.includes(action);
 }
@@ -27,7 +31,7 @@ describe("getAllowedActionsClient", () => {
     const ctx = booking("BOOKED");
 
     it("staff can edit, extend, cancel, open", () => {
-      const actions = getAllowedActionsClient(staff, ctx);
+      const actions = getActions(staff, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "extend")).toBe(true);
       expect(has(actions, "cancel")).toBe(true);
@@ -36,21 +40,21 @@ describe("getAllowedActionsClient", () => {
     });
 
     it("admin can edit, extend, cancel, open", () => {
-      const actions = getAllowedActionsClient(admin, ctx);
+      const actions = getActions(admin, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "cancel")).toBe(true);
       expect(has(actions, "open")).toBe(true);
     });
 
     it("owner (student) can edit, extend, cancel, open", () => {
-      const actions = getAllowedActionsClient(owner, ctx);
+      const actions = getActions(owner, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "cancel")).toBe(true);
       expect(has(actions, "open")).toBe(true);
     });
 
     it("non-owner student gets no actions", () => {
-      const actions = getAllowedActionsClient(nonOwner, ctx);
+      const actions = getActions(nonOwner, ctx);
       expect(actions).toEqual([]);
     });
   });
@@ -59,7 +63,7 @@ describe("getAllowedActionsClient", () => {
     const ctx = booking("OPEN");
 
     it("staff can edit, extend, cancel, checkin", () => {
-      const actions = getAllowedActionsClient(staff, ctx);
+      const actions = getActions(staff, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "extend")).toBe(true);
       expect(has(actions, "cancel")).toBe(true);
@@ -68,7 +72,7 @@ describe("getAllowedActionsClient", () => {
     });
 
     it("owner can edit, extend, checkin but NOT cancel", () => {
-      const actions = getAllowedActionsClient(owner, ctx);
+      const actions = getActions(owner, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "extend")).toBe(true);
       expect(has(actions, "checkin")).toBe(true);
@@ -76,7 +80,7 @@ describe("getAllowedActionsClient", () => {
     });
 
     it("non-owner student gets no actions", () => {
-      const actions = getAllowedActionsClient(nonOwner, ctx);
+      const actions = getActions(nonOwner, ctx);
       expect(actions).toEqual([]);
     });
   });
@@ -84,18 +88,18 @@ describe("getAllowedActionsClient", () => {
   describe("COMPLETED state", () => {
     it("returns empty for all roles", () => {
       const ctx = booking("COMPLETED");
-      expect(getAllowedActionsClient(staff, ctx)).toEqual([]);
-      expect(getAllowedActionsClient(admin, ctx)).toEqual([]);
-      expect(getAllowedActionsClient(owner, ctx)).toEqual([]);
+      expect(getActions(staff, ctx)).toEqual([]);
+      expect(getActions(admin, ctx)).toEqual([]);
+      expect(getActions(owner, ctx)).toEqual([]);
     });
   });
 
   describe("CANCELLED state", () => {
     it("returns empty for all roles", () => {
       const ctx = booking("CANCELLED");
-      expect(getAllowedActionsClient(staff, ctx)).toEqual([]);
-      expect(getAllowedActionsClient(admin, ctx)).toEqual([]);
-      expect(getAllowedActionsClient(owner, ctx)).toEqual([]);
+      expect(getActions(staff, ctx)).toEqual([]);
+      expect(getActions(admin, ctx)).toEqual([]);
+      expect(getActions(owner, ctx)).toEqual([]);
     });
   });
 
@@ -103,7 +107,7 @@ describe("getAllowedActionsClient", () => {
     const ctx = booking("DRAFT");
 
     it("staff can edit and cancel", () => {
-      const actions = getAllowedActionsClient(staff, ctx);
+      const actions = getActions(staff, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "cancel")).toBe(true);
       expect(has(actions, "extend")).toBe(false);
@@ -115,7 +119,7 @@ describe("getAllowedActionsClient", () => {
   describe("ownership via createdBy", () => {
     it("student who is creator but not requester has access", () => {
       const ctx = booking("OPEN", "other-student", "student-1");
-      const actions = getAllowedActionsClient(owner, ctx);
+      const actions = getActions(owner, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "checkin")).toBe(true);
     });
@@ -124,9 +128,9 @@ describe("getAllowedActionsClient", () => {
   describe("mirrors server-side checkout-rules", () => {
     it("cancel on OPEN requires staff+ (student owner cannot cancel)", () => {
       const ctx = booking("OPEN");
-      expect(has(getAllowedActionsClient(owner, ctx), "cancel")).toBe(false);
-      expect(has(getAllowedActionsClient(staff, ctx), "cancel")).toBe(true);
-      expect(has(getAllowedActionsClient(admin, ctx), "cancel")).toBe(true);
+      expect(has(getActions(owner, ctx), "cancel")).toBe(false);
+      expect(has(getActions(staff, ctx), "cancel")).toBe(true);
+      expect(has(getActions(admin, ctx), "cancel")).toBe(true);
     });
   });
 });

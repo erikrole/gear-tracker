@@ -470,7 +470,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   let added = 0;
   const updated = toUpdate.length + unchanged.length;
-  const cancelled = 0; // TODO: count cancelled from status if needed
+  const cancelled = [...toCreate, ...toUpdate.map((u) => u.data)].filter((e) => e.status === "CANCELLED").length;
   let skipped = skippedErrors.length;
   const errors: SyncEventError[] = [...skippedErrors];
   const MAX_STORED_ERRORS = 10;

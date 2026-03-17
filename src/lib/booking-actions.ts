@@ -101,18 +101,3 @@ export function getAllowedBookingActions(
   });
 }
 
-// ── Convenience wrappers for backwards compatibility ──
-
-export function getAllowedActionsClient(
-  actor: ActorContext,
-  booking: BookingContext
-): CheckoutAction[] {
-  return getAllowedBookingActions(actor, booking, "CHECKOUT") as CheckoutAction[];
-}
-
-export function getAllowedReservationActionsClient(
-  actor: ActorContext,
-  booking: BookingContext
-): ReservationAction[] {
-  return getAllowedBookingActions(actor, booking, "RESERVATION") as ReservationAction[];
-}

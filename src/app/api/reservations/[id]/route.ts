@@ -2,7 +2,8 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { updateReservation } from "@/lib/services/bookings";
-import { getAllowedReservationActions, requireReservationAction } from "@/lib/services/booking-rules";
+import { BookingKind } from "@prisma/client";
+import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
 import { updateReservationSchema } from "@/lib/validation";
 
@@ -34,7 +35,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
     throw new HttpError(404, "Reservation not found");
   }
 
-  const allowedActions = getAllowedReservationActions(user, reservation);
+  const allowedActions = getAllowedBookingActions(user, reservation);
 
   return ok({ data: { ...reservation, allowedActions } });
 });
@@ -42,7 +43,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
 
-  await requireReservationAction(id, user, "edit");
+  await requireBookingAction(id, user, "edit", BookingKind.RESERVATION);
 
   const body = updateReservationSchema.parse(await req.json());
 
