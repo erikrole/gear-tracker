@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok, HttpError } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
@@ -10,80 +10,69 @@ const createSchema = z.object({
   parentId: z.string().cuid().nullable().optional(),
 });
 
-export async function GET() {
-  try {
-    await requireAuth();
+export const GET = withAuth(async () => {
+  const [categories, assetCounts, bulkCounts] = await Promise.all([
+    db.category.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, parentId: true },
+    }),
+    db.asset.groupBy({
+      by: ["categoryId"],
+      where: { categoryId: { not: null } },
+      _count: { id: true },
+    }),
+    db.bulkSku.groupBy({
+      by: ["categoryId"],
+      where: { categoryId: { not: null } },
+      _count: { id: true },
+    }),
+  ]);
 
-    const [categories, assetCounts, bulkCounts] = await Promise.all([
-      db.category.findMany({
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, parentId: true },
-      }),
-      db.asset.groupBy({
-        by: ["categoryId"],
-        where: { categoryId: { not: null } },
-        _count: { id: true },
-      }),
-      db.bulkSku.groupBy({
-        by: ["categoryId"],
-        where: { categoryId: { not: null } },
-        _count: { id: true },
-      }),
-    ]);
-
-    const countMap = new Map<string, number>();
-    for (const row of assetCounts) {
-      if (row.categoryId) {
-        countMap.set(row.categoryId, (countMap.get(row.categoryId) ?? 0) + row._count.id);
-      }
+  const countMap = new Map<string, number>();
+  for (const row of assetCounts) {
+    if (row.categoryId) {
+      countMap.set(row.categoryId, (countMap.get(row.categoryId) ?? 0) + row._count.id);
     }
-    for (const row of bulkCounts) {
-      if (row.categoryId) {
-        countMap.set(row.categoryId, (countMap.get(row.categoryId) ?? 0) + row._count.id);
-      }
-    }
-
-    const data = categories.map((c) => ({
-      ...c,
-      itemCount: countMap.get(c.id) ?? 0,
-    }));
-
-    return ok({ data });
-  } catch (error) {
-    return fail(error);
   }
-}
-
-export async function POST(req: Request) {
-  try {
-    const user = await requireAuth();
-    requirePermission(user.role, "category", "create");
-
-    const body = createSchema.parse(await req.json());
-
-    if (body.parentId) {
-      const parent = await db.category.findUnique({ where: { id: body.parentId } });
-      if (!parent) throw new HttpError(404, "Parent category not found");
+  for (const row of bulkCounts) {
+    if (row.categoryId) {
+      countMap.set(row.categoryId, (countMap.get(row.categoryId) ?? 0) + row._count.id);
     }
-
-    const category = await db.category.create({
-      data: {
-        name: body.name,
-        parentId: body.parentId ?? null,
-      },
-    });
-
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
-      entityType: "category",
-      entityId: category.id,
-      action: "created",
-      after: { name: category.name, parentId: category.parentId },
-    });
-
-    return ok({ data: category }, 201);
-  } catch (error) {
-    return fail(error);
   }
-}
+
+  const data = categories.map((c) => ({
+    ...c,
+    itemCount: countMap.get(c.id) ?? 0,
+  }));
+
+  return ok({ data });
+});
+
+export const POST = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "category", "create");
+
+  const body = createSchema.parse(await req.json());
+
+  if (body.parentId) {
+    const parent = await db.category.findUnique({ where: { id: body.parentId } });
+    if (!parent) throw new HttpError(404, "Parent category not found");
+  }
+
+  const category = await db.category.create({
+    data: {
+      name: body.name,
+      parentId: body.parentId ?? null,
+    },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "category",
+    entityId: category.id,
+    action: "created",
+    after: { name: category.name, parentId: category.parentId },
+  });
+
+  return ok({ data: category }, 201);
+});

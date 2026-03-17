@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok, HttpError } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
@@ -11,67 +11,57 @@ const patchSourceSchema = z.object({
   enabled: z.boolean().optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: "No fields to update" });
 
-export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try {
-    const user = await requireAuth();
-    requirePermission(user.role, "calendar_source", "edit");
-    const { id } = await ctx.params;
+export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requirePermission(user.role, "calendar_source", "edit");
+  const { id } = params;
 
-    const source = await db.calendarSource.findUnique({ where: { id } });
-    if (!source) throw new HttpError(404, "Source not found");
+  const source = await db.calendarSource.findUnique({ where: { id } });
+  if (!source) throw new HttpError(404, "Source not found");
 
-    const body = patchSourceSchema.parse(await req.json());
-    const updated = await db.calendarSource.update({
-      where: { id },
-      data: body,
-      include: { _count: { select: { events: true } } },
-    });
+  const body = patchSourceSchema.parse(await req.json());
+  const updated = await db.calendarSource.update({
+    where: { id },
+    data: body,
+    include: { _count: { select: { events: true } } },
+  });
 
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
-      entityType: "calendar_source",
-      entityId: id,
-      action: "edit",
-      after: body,
-    });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "calendar_source",
+    entityId: id,
+    action: "edit",
+    after: body,
+  });
 
-    return ok({ data: updated });
-  } catch (error) {
-    return fail(error);
-  }
-}
+  return ok({ data: updated });
+});
 
-export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try {
-    const user = await requireAuth();
-    requirePermission(user.role, "calendar_source", "delete");
-    const { id } = await ctx.params;
+export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  requirePermission(user.role, "calendar_source", "delete");
+  const { id } = params;
 
-    const source = await db.calendarSource.findUnique({ where: { id } });
-    if (!source) throw new HttpError(404, "Source not found");
+  const source = await db.calendarSource.findUnique({ where: { id } });
+  if (!source) throw new HttpError(404, "Source not found");
 
-    // Nullify eventId on any bookings linked to this source's events
-    // so the cascade delete of events doesn't violate FK constraints
-    await db.booking.updateMany({
-      where: { event: { sourceId: id } },
-      data: { eventId: null },
-    });
+  // Nullify eventId on any bookings linked to this source's events
+  // so the cascade delete of events doesn't violate FK constraints
+  await db.booking.updateMany({
+    where: { event: { sourceId: id } },
+    data: { eventId: null },
+  });
 
-    // Cascade deletes associated CalendarEvent rows (schema onDelete: Cascade)
-    await db.calendarSource.delete({ where: { id } });
+  // Cascade deletes associated CalendarEvent rows (schema onDelete: Cascade)
+  await db.calendarSource.delete({ where: { id } });
 
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
-      entityType: "calendar_source",
-      entityId: id,
-      action: "delete",
-      before: { name: source.name },
-    });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "calendar_source",
+    entityId: id,
+    action: "delete",
+    before: { name: source.name },
+  });
 
-    return ok({ deleted: true });
-  } catch (error) {
-    return fail(error);
-  }
-}
+  return ok({ deleted: true });
+});

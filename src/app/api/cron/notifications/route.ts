@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { withHandler } from "@/lib/api";
 import { processOverdueNotifications } from "@/lib/services/notifications";
 
 /**
@@ -6,7 +7,7 @@ import { processOverdueNotifications } from "@/lib/services/notifications";
  * Called by Vercel Cron every 15 minutes. Validates CRON_SECRET bearer token.
  * No user session required — runs as a system job.
  */
-export async function GET(req: NextRequest) {
+export const GET = withHandler(async (req) => {
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
@@ -21,14 +22,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await processOverdueNotifications();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("[CRON] Notification processing failed:", error);
-    return NextResponse.json(
-      { error: "Processing failed" },
-      { status: 500 }
-    );
-  }
-}
+  const result = await processOverdueNotifications();
+  return NextResponse.json({ ok: true, ...result });
+});

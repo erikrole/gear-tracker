@@ -1,29 +1,21 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const actor = await requireAuth();
-    requirePermission(actor.role, "location_mapping", "delete");
-    const { id } = await params;
-    await db.locationMapping.delete({ where: { id } });
+export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  requirePermission(user.role, "location_mapping", "delete");
+  const { id } = params;
+  await db.locationMapping.delete({ where: { id } });
 
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "location_mapping",
-      entityId: id,
-      action: "delete",
-    });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "location_mapping",
+    entityId: id,
+    action: "delete",
+  });
 
-    return ok({ deleted: true });
-  } catch (error) {
-    return fail(error);
-  }
-}
+  return ok({ deleted: true });
+});

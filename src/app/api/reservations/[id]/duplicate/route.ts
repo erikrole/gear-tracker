@@ -1,6 +1,6 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { createBooking } from "@/lib/services/bookings";
 import { requireReservationAction } from "@/lib/services/booking-rules";
@@ -13,53 +13,45 @@ import { requireReservationAction } from "@/lib/services/booking-rules";
  *
  * Permission: staff+ or owner (enforced via "duplicate" action).
  */
-export async function POST(
-  _req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
-  try {
-    const actor = await requireAuth();
-    const { id } = await ctx.params;
+export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  const { id } = params;
 
-    await requireReservationAction(id, actor, "duplicate");
+  await requireReservationAction(id, user, "duplicate");
 
-    const source = await db.booking.findUniqueOrThrow({
-      where: { id },
-      include: {
-        serializedItems: true,
-        bulkItems: true,
-      },
-    });
+  const source = await db.booking.findUniqueOrThrow({
+    where: { id },
+    include: {
+      serializedItems: true,
+      bulkItems: true,
+    },
+  });
 
-    const duplicate = await createBooking({
-      kind: "RESERVATION",
-      title: `Copy of ${source.title}`,
-      requesterUserId: source.requesterUserId,
-      locationId: source.locationId,
-      startsAt: source.startsAt,
-      endsAt: source.endsAt,
-      serializedAssetIds: source.serializedItems.map((i) => i.assetId),
-      bulkItems: source.bulkItems.map((i) => ({
-        bulkSkuId: i.bulkSkuId,
-        quantity: i.plannedQuantity,
-      })),
-      notes: source.notes ?? undefined,
-      createdBy: actor.id,
-      eventId: source.eventId ?? undefined,
-      sportCode: source.sportCode ?? undefined,
-    });
+  const duplicate = await createBooking({
+    kind: "RESERVATION",
+    title: `Copy of ${source.title}`,
+    requesterUserId: source.requesterUserId,
+    locationId: source.locationId,
+    startsAt: source.startsAt,
+    endsAt: source.endsAt,
+    serializedAssetIds: source.serializedItems.map((i) => i.assetId),
+    bulkItems: source.bulkItems.map((i) => ({
+      bulkSkuId: i.bulkSkuId,
+      quantity: i.plannedQuantity,
+    })),
+    notes: source.notes ?? undefined,
+    createdBy: user.id,
+    eventId: source.eventId ?? undefined,
+    sportCode: source.sportCode ?? undefined,
+  });
 
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "booking",
-      entityId: duplicate.id,
-      action: "duplicate",
-      after: { sourceReservationId: id, title: duplicate.title },
-    });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "booking",
+    entityId: duplicate.id,
+    action: "duplicate",
+    after: { sourceReservationId: id, title: duplicate.title },
+  });
 
-    return ok({ data: duplicate }, 201);
-  } catch (error) {
-    return fail(error);
-  }
-}
+  return ok({ data: duplicate }, 201);
+});

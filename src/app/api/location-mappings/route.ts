@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
@@ -11,41 +11,31 @@ const createMappingSchema = z.object({
   priority: z.number().int().min(0).default(0)
 });
 
-export async function GET() {
-  try {
-    await requireAuth();
-    const mappings = await db.locationMapping.findMany({
-      include: { location: { select: { id: true, name: true } } },
-      orderBy: { priority: "desc" }
-    });
-    return ok({ data: mappings });
-  } catch (error) {
-    return fail(error);
-  }
-}
+export const GET = withAuth(async () => {
+  const mappings = await db.locationMapping.findMany({
+    include: { location: { select: { id: true, name: true } } },
+    orderBy: { priority: "desc" }
+  });
+  return ok({ data: mappings });
+});
 
-export async function POST(req: Request) {
-  try {
-    const actor = await requireAuth();
-    requirePermission(actor.role, "location_mapping", "create");
-    const body = createMappingSchema.parse(await req.json());
+export const POST = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "location_mapping", "create");
+  const body = createMappingSchema.parse(await req.json());
 
-    const mapping = await db.locationMapping.create({
-      data: body,
-      include: { location: { select: { id: true, name: true } } }
-    });
+  const mapping = await db.locationMapping.create({
+    data: body,
+    include: { location: { select: { id: true, name: true } } }
+  });
 
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "location_mapping",
-      entityId: mapping.id,
-      action: "create",
-      after: { pattern: body.pattern, locationId: body.locationId },
-    });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "location_mapping",
+    entityId: mapping.id,
+    action: "create",
+    after: { pattern: body.pattern, locationId: body.locationId },
+  });
 
-    return ok({ data: mapping }, 201);
-  } catch (error) {
-    return fail(error);
-  }
-}
+  return ok({ data: mapping }, 201);
+});

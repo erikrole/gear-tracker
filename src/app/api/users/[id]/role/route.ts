@@ -1,50 +1,45 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, HttpError, ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { updateUserRoleSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
-export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  try {
-    const actor = await requireAuth();
-    requireRole(actor.role, ["ADMIN", "STAFF"]);
+export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requireRole(user.role, ["ADMIN", "STAFF"]);
 
-    const { id } = await ctx.params;
-    const body = updateUserRoleSchema.parse(await req.json());
+  const { id } = params;
+  const body = updateUserRoleSchema.parse(await req.json());
 
-    const target = await db.user.findUnique({ where: { id } });
-    if (!target) {
-      throw new HttpError(404, "User not found");
-    }
-
-    if (target.id === actor.id && body.role !== actor.role) {
-      throw new HttpError(400, "You cannot change your own role");
-    }
-
-    const previousRole = target.role;
-    const user = await db.user.update({
-      where: { id },
-      data: { role: body.role }
-    });
-
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "user",
-      entityId: id,
-      action: "role_changed",
-      before: { role: previousRole },
-      after: { role: user.role },
-    });
-
-    return ok({
-      data: {
-        id: user.id,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    return fail(error);
+  const target = await db.user.findUnique({ where: { id } });
+  if (!target) {
+    throw new HttpError(404, "User not found");
   }
-}
+
+  if (target.id === user.id && body.role !== user.role) {
+    throw new HttpError(400, "You cannot change your own role");
+  }
+
+  const previousRole = target.role;
+  const updated = await db.user.update({
+    where: { id },
+    data: { role: body.role }
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "user",
+    entityId: id,
+    action: "role_changed",
+    before: { role: previousRole },
+    after: { role: updated.role },
+  });
+
+  return ok({
+    data: {
+      id: updated.id,
+      role: updated.role
+    }
+  });
+});

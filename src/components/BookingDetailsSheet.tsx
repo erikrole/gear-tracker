@@ -1,151 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
-import DataList from "@/components/DataList";
-import { formatDateTime } from "@/lib/format";
+import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
+import { toLocalDateTimeValue } from "./booking-details/helpers";
+import {
+  BookingOverview,
+  BookingEditForm,
+  BookingItems,
+  BookingEquipmentEditor,
+  BookingHistory,
+  BookingActions,
+} from "./booking-details";
+import type {
+  BookingDetail,
+  AvailableAsset,
+  BulkSkuOption,
+  ConflictData,
+  TabKey,
+  HistoryFilter,
+} from "./booking-details/types";
 
-/* ───── Types ───── */
-
-type SerializedItem = {
-  id: string;
-  allocationStatus?: string;
-  asset: {
-    id: string;
-    assetTag: string;
-    brand: string;
-    model: string;
-    serialNumber: string;
-    type: string;
-    location?: { id: string; name: string };
-  };
-};
-
-type BulkItem = {
-  id: string;
-  plannedQuantity: number;
-  checkedOutQuantity: number | null;
-  checkedInQuantity: number | null;
-  bulkSku: { id: string; name: string; category: string; unit: string };
-};
-
-type AuditEntry = {
-  id: string;
-  action: string;
-  createdAt: string;
-  beforeJson: Record<string, unknown> | null;
-  afterJson: Record<string, unknown> | null;
-  actor: { id: string; name: string };
-};
-
-type LocationInfo = { id: string; name: string };
-
-type BookingDetail = {
-  id: string;
-  kind: "RESERVATION" | "CHECKOUT";
-  title: string;
-  refNumber: string | null;
-  status: string;
-  startsAt: string;
-  endsAt: string;
-  notes: string | null;
-  createdAt: string;
-  location: LocationInfo;
-  requester: { id: string; name: string; email: string };
-  creator?: { id: string; name: string; email: string };
-  serializedItems: SerializedItem[];
-  bulkItems: BulkItem[];
-  isOverdue: boolean;
-  isActive: boolean;
-  bookingType: string;
-  auditLogs: AuditEntry[];
-  itemLocations: LocationInfo[];
-  locationMode: "SINGLE" | "MIXED";
-  allowedActions?: string[];
-};
-
-type AvailableAsset = {
-  id: string;
-  assetTag: string;
-  brand: string;
-  model: string;
-  locationId: string;
-};
-
-type BulkSkuOption = {
-  id: string;
-  name: string;
-  category: string;
-  unit: string;
-  locationId: string;
-};
-
-type ConflictData = {
-  conflicts?: Array<{
-    assetId: string;
-    conflictingBookingId: string;
-    conflictingBookingTitle?: string;
-    startsAt: string;
-    endsAt: string;
-  }>;
-};
-
-type TabKey = "info" | "equipment" | "history";
-type HistoryFilter = "all" | "booking" | "equipment";
+/* ───── Props ───── */
 
 type Props = {
   bookingId: string | null;
   onClose: () => void;
   onUpdated?: () => void;
   currentUserRole?: string;
-};
-
-/* ───── Helpers ───── */
-
-function formatRelative(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const hours = Math.floor(diffMs / 3600_000);
-  if (hours < 1) return "just now";
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return d.toLocaleDateString();
-}
-
-function toLocalDateTimeValue(date: Date) {
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  const local = new Date(date.getTime() - offsetMs);
-  return local.toISOString().slice(0, 16);
-}
-
-const statusBadge: Record<string, string> = {
-  DRAFT: "badge-gray",
-  BOOKED: "badge-blue",
-  OPEN: "badge-green",
-  COMPLETED: "badge-purple",
-  CANCELLED: "badge-red",
-};
-
-const EQUIPMENT_ACTIONS = new Set([
-  "booking.items_added",
-  "booking.items_removed",
-  "booking.items_qty_changed",
-]);
-
-const actionLabels: Record<string, string> = {
-  created: "Created",
-  updated: "Updated",
-  extended: "Extended",
-  cancelled: "Cancelled",
-  checkin_completed: "Check in completed",
-  cancelled_by_checkout_conversion: "Converted to checkout",
-  "booking.items_added": "Items added",
-  "booking.items_removed": "Items removed",
-  "booking.items_qty_changed": "Item quantities changed",
 };
 
 /* ───── Component ───── */
@@ -195,6 +78,14 @@ export default function BookingDetailsSheet({
 
   const [fetchError, setFetchError] = useState(false);
 
+  // Action loading states (must be before early return to satisfy Rules of Hooks)
+  const [extending, setExtending] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [checkinLoading, setCheckinLoading] = useState(false);
+
+  /* ───── Data fetching ───── */
+
   const fetchBooking = useCallback(async () => {
     if (!bookingId) return;
     setLoading(true);
@@ -223,7 +114,6 @@ export default function BookingDetailsSheet({
     }
   }, [bookingId, fetchBooking]);
 
-  // Load available assets and bulk SKUs for equipment picker
   const loadFormOptions = useCallback(async () => {
     try {
       const res = await fetch("/api/form-options");
@@ -235,11 +125,7 @@ export default function BookingDetailsSheet({
     } catch { toast("Failed to load equipment options", "error"); }
   }, []);
 
-  // Action loading states (must be before early return to satisfy Rules of Hooks)
-  const [extending, setExtending] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [converting, setConverting] = useState(false);
-  const [checkinLoading, setCheckinLoading] = useState(false);
+  /* ───── Derived state ───── */
 
   const checkinProgress = useMemo(() => {
     if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") return null;
@@ -249,18 +135,15 @@ export default function BookingDetailsSheet({
     return { returned, total, percent: Math.round((returned / total) * 100) };
   }, [booking]);
 
-  // Filter audit entries for history tab
   const filteredAuditLogs = useMemo(() => {
     if (!booking) return [];
     if (historyFilter === "all") return booking.auditLogs;
     if (historyFilter === "equipment") {
       return booking.auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
     }
-    // "booking" = everything except equipment-only actions
     return booking.auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
   }, [booking, historyFilter]);
 
-  // Equipment picker filtering
   const pickerAssets = useMemo(() => {
     if (!booking) return [];
     const q = pickerSearch.toLowerCase();
@@ -289,7 +172,6 @@ export default function BookingDetailsSheet({
     });
   }, [bulkSkus, editBulkItems, pickerSearch, booking]);
 
-  // Build return suggestion text
   const returnSuggestion = useMemo(() => {
     if (!booking) return null;
     if (booking.locationMode === "SINGLE") {
@@ -299,7 +181,6 @@ export default function BookingDetailsSheet({
     return `Return to both: ${names.join(" + ")}`;
   }, [booking]);
 
-  // Resolve names for equipment editing display
   const resolveAssetName = useCallback(
     (assetId: string) => {
       const fromBooking = booking?.serializedItems.find(
@@ -328,6 +209,36 @@ export default function BookingDetailsSheet({
     [booking, bulkSkus]
   );
 
+  /* ───── Permission flags ───── */
+
+  const actions = booking?.allowedActions ?? [];
+  const canEdit = booking && actions.includes("edit");
+  const canCancel = booking && actions.includes("cancel");
+  const canExtend = booking && actions.includes("extend");
+  const canCheckin = booking && booking.kind === "CHECKOUT" && actions.includes("checkin");
+  const canConvert = booking && booking.kind === "RESERVATION" && actions.includes("convert");
+  const canEditEquipment = canEdit;
+
+  /* ───── Filtered equipment ───── */
+
+  const filteredSerializedItems = booking?.serializedItems.filter((item) => {
+    if (!equipSearch) return true;
+    const q = equipSearch.toLowerCase();
+    return (
+      item.asset.assetTag.toLowerCase().includes(q) ||
+      item.asset.brand.toLowerCase().includes(q) ||
+      item.asset.model.toLowerCase().includes(q) ||
+      item.asset.serialNumber.toLowerCase().includes(q)
+    );
+  }) ?? [];
+
+  const filteredBulkItems = booking?.bulkItems.filter((item) => {
+    if (!equipSearch) return true;
+    return item.bulkSku.name.toLowerCase().includes(equipSearch.toLowerCase());
+  }) ?? [];
+
+  /* ───── Handlers ───── */
+
   if (!bookingId) return null;
 
   function enterEditMode() {
@@ -354,8 +265,16 @@ export default function BookingDetailsSheet({
     loadFormOptions();
   }
 
-  function removeSerializedItem(assetId: string) {
-    setEditSerializedIds((prev) => prev.filter((id) => id !== assetId));
+  async function handleRemoveSerializedItem(assetId: string) {
+    const ok = await confirm({
+      title: "Remove item",
+      message: "Remove this item from the booking?",
+      confirmLabel: "Remove",
+      variant: "danger",
+    });
+    if (ok) {
+      setEditSerializedIds((prev) => prev.filter((id) => id !== assetId));
+    }
   }
 
   function addSerializedItem(assetId: string) {
@@ -606,32 +525,6 @@ export default function BookingDetailsSheet({
     setCheckinLoading(false);
   }
 
-  // Use server-provided allowedActions for both checkouts and reservations
-  const actions = booking?.allowedActions ?? [];
-  const canEdit = booking && actions.includes("edit");
-  const canCancel = booking && actions.includes("cancel");
-  const canExtend = booking && actions.includes("extend");
-  const canCheckin = booking && booking.kind === "CHECKOUT" && actions.includes("checkin");
-  const canOpen = booking && booking.kind === "CHECKOUT" && actions.includes("open");
-  const canConvert = booking && booking.kind === "RESERVATION" && actions.includes("convert");
-  const canEditEquipment = canEdit;
-
-  const filteredSerializedItems = booking?.serializedItems.filter((item) => {
-    if (!equipSearch) return true;
-    const q = equipSearch.toLowerCase();
-    return (
-      item.asset.assetTag.toLowerCase().includes(q) ||
-      item.asset.brand.toLowerCase().includes(q) ||
-      item.asset.model.toLowerCase().includes(q) ||
-      item.asset.serialNumber.toLowerCase().includes(q)
-    );
-  });
-
-  const filteredBulkItems = booking?.bulkItems.filter((item) => {
-    if (!equipSearch) return true;
-    return item.bulkSku.name.toLowerCase().includes(equipSearch.toLowerCase());
-  });
-
   function toggleDiff(entryId: string) {
     setExpandedDiffs((prev) => {
       const next = new Set(prev);
@@ -640,6 +533,8 @@ export default function BookingDetailsSheet({
       return next;
     });
   }
+
+  /* ───── Render ───── */
 
   return (
     <>
@@ -693,541 +588,90 @@ export default function BookingDetailsSheet({
             <div className="empty-state">Booking not found</div>
           ) : (
             <>
-              {/* ── Info Tab ── */}
+              {/* Info Tab - View Mode */}
               {tab === "info" && !editMode && (
-                <>
-                  {/* Conflict error banner */}
-                  {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
-                    <div className="sheet-section sheet-section-no-pb">
-                      <div className="conflict-error">
-                        <strong>Scheduling conflict</strong>
-                        {conflictError.conflicts.map((c, i) => (
-                          <div key={i}>
-                            {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}{" "}
-                            ({formatDateTime(c.startsAt)} {"\u2013"} {formatDateTime(c.endsAt)})
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="sheet-section">
-                    <DataList
-                      items={[
-                        { label: "Title", value: booking.title },
-                        { label: "Type", value: booking.bookingType },
-                        { label: "Status", value: (
-                          <span className={`badge ${booking.isOverdue ? "badge-red" : (statusBadge[booking.status] || "badge-gray")}`}>
-                            {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
-                          </span>
-                        )},
-                        { label: "Location", value: booking.location?.name ?? "\u2014" },
-                        { label: "Start", value: formatDateTime(booking.startsAt) },
-                        { label: "Due", value: formatDateTime(booking.endsAt) },
-                        { label: "Requester", value: `${booking.requester?.name ?? "Unknown"} (${booking.requester?.email ?? ""})` },
-                        ...(booking.notes ? [{ label: "Notes", value: booking.notes }] : []),
-                      ]}
-                    />
-                  </div>
-
-                  {/* Return suggestion (C) */}
-                  {returnSuggestion && booking.isActive && (
-                    <div className="sheet-section sheet-section-no-pt">
-                      <div className="return-suggestion">
-                        <span className="return-icon">{"\u21b5"}</span>
-                        {returnSuggestion}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Partial check in progress */}
-                  {checkinProgress && checkinProgress.returned > 0 && (
-                    <div className="sheet-section">
-                      <div className="sheet-section-title">Check in progress</div>
-                      <div className="progress-row">
-                        <div className="progress-track">
-                          <div
-                            className="progress-fill"
-                            style={{
-                              width: `${checkinProgress.percent}%`,
-                              background: checkinProgress.percent === 100 ? "var(--green)" : "var(--blue)",
-                            }}
-                          />
-                        </div>
-                        <span className="progress-label">
-                          {checkinProgress.returned}/{checkinProgress.total} returned
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Quick actions */}
-                  {canExtend && (
-                    <div className="sheet-section">
-                      <div className="sheet-section-title">Extend due date</div>
-                      <div className="extend-buttons">
-                        <button className="btn" onClick={() => handleExtend(1)} disabled={extending}>{extending ? "..." : "+1 day"}</button>
-                        <button className="btn" onClick={() => handleExtend(3)} disabled={extending}>{extending ? "..." : "+3 days"}</button>
-                        <button className="btn" onClick={() => handleExtend(7)} disabled={extending}>{extending ? "..." : "+1 week"}</button>
-                      </div>
-                    </div>
-                  )}
-                </>
+                <BookingOverview
+                  booking={booking}
+                  conflictError={conflictError}
+                  returnSuggestion={returnSuggestion}
+                  checkinProgress={checkinProgress}
+                  canExtend={!!canExtend}
+                  extending={extending}
+                  onExtend={handleExtend}
+                />
               )}
 
-              {/* ── Info Tab - Edit Mode ── */}
+              {/* Info Tab - Edit Mode */}
               {tab === "info" && editMode && (
-                <div className="sheet-section">
-                  <div className="sheet-field">
-                    <label>Title</label>
-                    <input
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="sheet-field-row">
-                    {booking.kind === "RESERVATION" && (
-                      <div className="sheet-field">
-                        <label>Start</label>
-                        <input
-                          type="datetime-local"
-                          step={900}
-                          value={editStartsAt}
-                          onChange={(e) => setEditStartsAt(e.target.value)}
-                        />
-                      </div>
-                    )}
-                    <div className="sheet-field">
-                      <label>{booking.kind === "RESERVATION" ? "End" : "Due date"}</label>
-                      <input
-                        type="datetime-local"
-                        step={900}
-                        value={editEndsAt}
-                        onChange={(e) => setEditEndsAt(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="sheet-field">
-                    <label>Notes</label>
-                    <textarea
-                      rows={3}
-                      value={editNotes}
-                      onChange={(e) => setEditNotes(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="action-row-mt">
-                    <button
-                      className="btn btn-primary"
-                      disabled={saving}
-                      onClick={handleSave}
-                    >
-                      {saving ? "Saving..." : "Save changes"}
-                    </button>
-                    <button className="btn" onClick={() => setEditMode(false)}>Cancel</button>
-                  </div>
-                </div>
+                <BookingEditForm
+                  booking={booking}
+                  editTitle={editTitle}
+                  editStartsAt={editStartsAt}
+                  editEndsAt={editEndsAt}
+                  editNotes={editNotes}
+                  saving={saving}
+                  onEditTitle={setEditTitle}
+                  onEditStartsAt={setEditStartsAt}
+                  onEditEndsAt={setEditEndsAt}
+                  onEditNotes={setEditNotes}
+                  onSave={handleSave}
+                  onCancel={() => setEditMode(false)}
+                />
               )}
 
-              {/* ── Equipment Tab - View Mode ── */}
+              {/* Equipment Tab - View Mode */}
               {tab === "equipment" && !equipEditMode && (
-                <>
-                  <div className="sheet-section sheet-equip-bar">
-                    <input
-                      className="picker-search"
-                      placeholder="Search equipment..."
-                      value={equipSearch}
-                      onChange={(e) => setEquipSearch(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    {canEditEquipment && (
-                      <button className="btn btn-sm" onClick={enterEquipEditMode}>
-                        Edit
-                      </button>
-                    )}
-                    {!canEditEquipment && booking.kind === "CHECKOUT" && (
-                      <span className="text-hint">
-                        View only
-                      </span>
-                    )}
-                  </div>
-
-                  {filteredSerializedItems && filteredSerializedItems.length > 0 && (
-                    <div className="sheet-section">
-                      <div className="sheet-section-title">Serialized Items</div>
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Item</th>
-                            <th>Brand/Model</th>
-                            <th>Serial</th>
-                            {canCheckin && <th className="col-status">Status</th>}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredSerializedItems.map((item) => (
-                            <tr key={item.id} className={item.allocationStatus === "returned" ? "returned-row" : undefined}>
-                              <td className="cell-bold">
-                                <Link href={`/items/${item.asset.id}`} className="row-link">{item.asset.assetTag}</Link>
-                              </td>
-                              <td>{item.asset.brand} {item.asset.model}</td>
-                              <td className="cell-mono">{item.asset.serialNumber}</td>
-                              {canCheckin && (
-                                <td>
-                                  {item.allocationStatus === "returned" ? (
-                                    <span className="badge badge-purple badge-purple-sm">returned</span>
-                                  ) : (
-                                    <button
-                                      className="btn btn-sm btn-return"
-                                      disabled={checkinLoading}
-                                      onClick={(e) => { e.stopPropagation(); handleCheckinItem(item.asset.id); }}
-                                    >
-                                      Return
-                                    </button>
-                                  )}
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  {filteredBulkItems && filteredBulkItems.length > 0 && (
-                    <div className="sheet-section">
-                      <div className="sheet-section-title">Bulk Items</div>
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Item</th>
-                            <th>Category</th>
-                            <th>Qty</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredBulkItems.map((item) => (
-                            <tr key={item.id}>
-                              <td className="cell-bold">{item.bulkSku.name}</td>
-                              <td>{item.bulkSku.category}</td>
-                              <td>{item.plannedQuantity} {item.bulkSku.unit}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  {(!filteredSerializedItems?.length && !filteredBulkItems?.length) && (
-                    <div className="empty-state">
-                      {equipSearch ? "No items match your search" : "No equipment in this booking"}
-                    </div>
-                  )}
-                </>
+                <BookingItems
+                  booking={booking}
+                  equipSearch={equipSearch}
+                  onEquipSearchChange={setEquipSearch}
+                  filteredSerializedItems={filteredSerializedItems}
+                  filteredBulkItems={filteredBulkItems}
+                  canEditEquipment={!!canEditEquipment}
+                  canCheckin={!!canCheckin}
+                  checkinLoading={checkinLoading}
+                  onEnterEquipEditMode={enterEquipEditMode}
+                  onCheckinItem={handleCheckinItem}
+                />
               )}
 
-              {/* ── Equipment Tab - Edit Mode ── */}
+              {/* Equipment Tab - Edit Mode */}
               {tab === "equipment" && equipEditMode && (
-                <>
-                  {/* Conflict error */}
-                  {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
-                    <div className="sheet-section sheet-section-no-pb">
-                      <div className="conflict-error">
-                        <strong>Scheduling conflict</strong>
-                        {conflictError.conflicts.map((c, i) => (
-                          <div key={i}>
-                            {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}{" "}
-                            ({formatDateTime(c.startsAt)} {"\u2013"} {formatDateTime(c.endsAt)})
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Current serialized items */}
-                  {editSerializedIds.length > 0 && (
-                    <div className="sheet-section">
-                      <div className="sheet-section-title">
-                        Serialized Items ({editSerializedIds.length})
-                      </div>
-                      {editSerializedIds.map((assetId) => (
-                        <div
-                          key={assetId}
-                          className="equip-edit-row"
-                        >
-                          <span className="equip-edit-name">
-                            {resolveAssetName(assetId)}
-                          </span>
-                          <button
-                            className="btn btn-sm btn-danger-outline"
-                            onClick={async () => {
-                              const ok = await confirm({
-                                title: "Remove item",
-                                message: "Remove this item from the booking?",
-                                confirmLabel: "Remove",
-                                variant: "danger",
-                              });
-                              if (ok) removeSerializedItem(assetId);
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Current bulk items with qty steppers */}
-                  {editBulkItems.length > 0 && (
-                    <div className="sheet-section">
-                      <div className="sheet-section-title">
-                        Bulk Items ({editBulkItems.length})
-                      </div>
-                      {editBulkItems.map((item) => (
-                        <div
-                          key={item.bulkSkuId}
-                          className="equip-edit-row"
-                        >
-                          <span className="equip-edit-name-flex">
-                            {resolveSkuName(item.bulkSkuId)}
-                          </span>
-                          <div className="qty-stepper">
-                            <button onClick={() => updateBulkQty(item.bulkSkuId, item.quantity - 1)}>
-                              &minus;
-                            </button>
-                            <input
-                              type="number"
-                              min={1}
-                              value={item.quantity}
-                              onChange={(e) => updateBulkQty(item.bulkSkuId, parseInt(e.target.value) || 1)}
-                            />
-                            <button onClick={() => updateBulkQty(item.bulkSkuId, item.quantity + 1)}>
-                              +
-                            </button>
-                          </div>
-                          <button
-                            className="btn btn-sm btn-danger-outline"
-                            onClick={() => removeBulkItem(item.bulkSkuId)}
-                          >
-                            &times;
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add items picker */}
-                  <div className="sheet-section">
-                    {!addingItems ? (
-                      <button
-                        className="btn btn-full"
-                        onClick={() => { setAddingItems(true); setPickerSearch(""); }}
-                      >
-                        + Add items
-                      </button>
-                    ) : (
-                      <div>
-                        <div className="picker-tabs">
-                          <button
-                            className={`filter-chip ${pickerTab === "serialized" ? "active" : ""}`}
-                            onClick={() => setPickerTab("serialized")}
-                          >
-                            Assets
-                          </button>
-                          <button
-                            className={`filter-chip ${pickerTab === "bulk" ? "active" : ""}`}
-                            onClick={() => setPickerTab("bulk")}
-                          >
-                            Bulk items
-                          </button>
-                        </div>
-                        <input
-                          placeholder={pickerTab === "serialized" ? "Search by tag, brand, model..." : "Search bulk items..."}
-                          value={pickerSearch}
-                          onChange={(e) => setPickerSearch(e.target.value)}
-                          className="picker-search"
-                          autoFocus
-                        />
-                        <div className="equip-picker-list">
-                          {pickerTab === "serialized" ? (
-                            pickerAssets.length === 0 ? (
-                              <div className="empty-message">
-                                {pickerSearch ? "No matching assets" : "No available assets"}
-                              </div>
-                            ) : (
-                              pickerAssets.slice(0, 50).map((asset) => (
-                                <div
-                                  key={asset.id}
-                                  className="equip-picker-item"
-                                  onClick={() => addSerializedItem(asset.id)}
-                                >
-                                  <div>
-                                    <div className="picker-item-name">{asset.assetTag}</div>
-                                    <div className="equip-picker-meta">{asset.brand} {asset.model}</div>
-                                  </div>
-                                </div>
-                              ))
-                            )
-                          ) : (
-                            pickerBulkSkus.length === 0 ? (
-                              <div className="empty-message">
-                                {pickerSearch ? "No matching bulk items" : "No available bulk items"}
-                              </div>
-                            ) : (
-                              pickerBulkSkus.slice(0, 50).map((sku) => (
-                                <div
-                                  key={sku.id}
-                                  className="equip-picker-item"
-                                  onClick={() => addBulkItem(sku.id)}
-                                >
-                                  <div>
-                                    <div className="picker-item-name">{sku.name}</div>
-                                    <div className="equip-picker-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
-                                  </div>
-                                </div>
-                              ))
-                            )
-                          )}
-                        </div>
-                        <button
-                          className="btn btn-sm btn-mt"
-                          onClick={() => setAddingItems(false)}
-                        >
-                          Done adding
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Save / Cancel equip edit */}
-                  <div className="sheet-section">
-                    <div className="action-row">
-                      <button
-                        className="btn btn-primary"
-                        disabled={equipSaving}
-                        onClick={handleEquipSave}
-                      >
-                        {equipSaving ? "Saving..." : "Save equipment"}
-                      </button>
-                      <button
-                        className="btn"
-                        onClick={() => { setEquipEditMode(false); setConflictError(null); }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </>
+                <BookingEquipmentEditor
+                  conflictError={conflictError}
+                  editSerializedIds={editSerializedIds}
+                  editBulkItems={editBulkItems}
+                  addingItems={addingItems}
+                  pickerTab={pickerTab}
+                  pickerSearch={pickerSearch}
+                  pickerAssets={pickerAssets}
+                  pickerBulkSkus={pickerBulkSkus}
+                  equipSaving={equipSaving}
+                  resolveAssetName={resolveAssetName}
+                  resolveSkuName={resolveSkuName}
+                  onRemoveSerializedItem={handleRemoveSerializedItem}
+                  onAddSerializedItem={addSerializedItem}
+                  onUpdateBulkQty={updateBulkQty}
+                  onRemoveBulkItem={removeBulkItem}
+                  onAddBulkItem={addBulkItem}
+                  onSetAddingItems={setAddingItems}
+                  onSetPickerTab={setPickerTab}
+                  onSetPickerSearch={setPickerSearch}
+                  onSave={handleEquipSave}
+                  onCancel={() => { setEquipEditMode(false); setConflictError(null); }}
+                />
               )}
 
-              {/* ── History Tab ── */}
+              {/* History Tab */}
               {tab === "history" && (
-                <div className="sheet-section">
-                  {/* Filter chips (D) */}
-                  <div className="filter-chips">
-                    {([["all", "All"], ["booking", "Booking changes"], ["equipment", "Equipment changes"]] as [HistoryFilter, string][]).map(([key, label]) => (
-                      <button
-                        key={key}
-                        className={`filter-chip ${historyFilter === key ? "active" : ""}`}
-                        onClick={() => setHistoryFilter(key)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {filteredAuditLogs.length === 0 ? (
-                    <div className="empty-state">
-                      {historyFilter === "all" ? "No history yet" : "No matching history entries"}
-                    </div>
-                  ) : (
-                    filteredAuditLogs.map((entry) => (
-                      <div className="timeline-item" key={entry.id}>
-                        <div className={`timeline-dot action-${entry.action}`} />
-                        <div className="timeline-content">
-                          <div className="timeline-action">
-                            {actionLabels[entry.action] || entry.action}
-                          </div>
-                          <div className="timeline-meta">
-                            {entry.actor.name} {"\u00b7"} {formatRelative(entry.createdAt)}
-                          </div>
-
-                          {/* Extended detail */}
-                          {entry.action === "extended" && entry.afterJson && typeof entry.afterJson.endsAt === "string" && (
-                            <div className="timeline-detail">
-                              Extended to {formatDateTime(entry.afterJson.endsAt as string)}
-                            </div>
-                          )}
-
-                          {/* Updated fields */}
-                          {entry.action === "updated" && entry.afterJson && (
-                            <div className="timeline-detail">
-                              {Object.keys(entry.afterJson).filter((k) => k !== "serializedAssetIds" && k !== "bulkItems").map((k) => (
-                                <span key={k} className="field-tag">{k}</span>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Equipment change details */}
-                          {EQUIPMENT_ACTIONS.has(entry.action) && (
-                            <div className="timeline-detail">
-                              {entry.action === "booking.items_added" && entry.afterJson && (
-                                <span>
-                                  {Array.isArray(entry.afterJson.serializedAssetIds)
-                                    ? `${(entry.afterJson.serializedAssetIds as string[]).length} serialized item(s) `
-                                    : ""}
-                                  {Array.isArray(entry.afterJson.bulkItems)
-                                    ? `${(entry.afterJson.bulkItems as unknown[]).length} bulk item(s)`
-                                    : ""}
-                                </span>
-                              )}
-                              {entry.action === "booking.items_removed" && entry.beforeJson && (
-                                <span>
-                                  {Array.isArray(entry.beforeJson.serializedAssetIds)
-                                    ? `${(entry.beforeJson.serializedAssetIds as string[]).length} serialized item(s) `
-                                    : ""}
-                                  {Array.isArray(entry.beforeJson.bulkItems)
-                                    ? `${(entry.beforeJson.bulkItems as unknown[]).length} bulk item(s)`
-                                    : ""}
-                                </span>
-                              )}
-                              {entry.action === "booking.items_qty_changed" && (
-                                <span>Quantities updated</span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Admin-only diff toggle (D) */}
-                          {isAdmin && (entry.beforeJson || entry.afterJson) && (
-                            <>
-                              <button className="diff-toggle" onClick={() => toggleDiff(entry.id)}>
-                                {expandedDiffs.has(entry.id) ? "Hide diff" : "View diff"}
-                              </button>
-                              {expandedDiffs.has(entry.id) && (
-                                <div className="diff-snapshot">
-                                  {entry.beforeJson && (
-                                    <div>
-                                      <strong>Before:</strong>{"\n"}
-                                      {JSON.stringify(entry.beforeJson, null, 2)}
-                                    </div>
-                                  )}
-                                  {entry.afterJson && (
-                                    <div className={entry.beforeJson ? "diff-after-section" : undefined}>
-                                      <strong>After:</strong>{"\n"}
-                                      {JSON.stringify(entry.afterJson, null, 2)}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <BookingHistory
+                  filteredAuditLogs={filteredAuditLogs}
+                  historyFilter={historyFilter}
+                  onSetHistoryFilter={setHistoryFilter}
+                  isAdmin={isAdmin}
+                  expandedDiffs={expandedDiffs}
+                  onToggleDiff={toggleDiff}
+                />
               )}
             </>
           )}
@@ -1235,36 +679,20 @@ export default function BookingDetailsSheet({
 
         {/* Footer actions */}
         {booking && !editMode && !equipEditMode && (
-          <div className="sheet-actions">
-            {canEdit && (
-              <button className="btn btn-primary" onClick={enterEditMode}>Edit</button>
-            )}
-            {canCheckin && (
-              <button
-                className="btn btn-checkin"
-                disabled={checkinLoading}
-                onClick={handleCheckinAll}
-              >
-                {checkinLoading ? "Checking in..." : "Check in all"}
-              </button>
-            )}
-            {canConvert && (
-              <button className="btn btn-primary" onClick={handleConvert} disabled={converting}>
-                {converting ? "Converting..." : "Start checkout"}
-              </button>
-            )}
-            {canCancel && (
-              <button className="btn btn-danger" onClick={handleCancel} disabled={cancelling}>
-                {cancelling ? "Cancelling..." : booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
-              </button>
-            )}
-            <Link
-              href={booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`}
-              className="btn btn-full-page"
-            >
-              Full page
-            </Link>
-          </div>
+          <BookingActions
+            booking={booking}
+            canEdit={!!canEdit}
+            canCheckin={!!canCheckin}
+            canConvert={!!canConvert}
+            canCancel={!!canCancel}
+            checkinLoading={checkinLoading}
+            converting={converting}
+            cancelling={cancelling}
+            onEdit={enterEditMode}
+            onCheckinAll={handleCheckinAll}
+            onConvert={handleConvert}
+            onCancel={handleCancel}
+          />
         )}
       </div>
     </>

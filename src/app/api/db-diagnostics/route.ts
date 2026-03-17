@@ -1,6 +1,6 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, HttpError, ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 
 // ── Expected schema derived from prisma/schema.prisma ──────────────
 
@@ -235,35 +235,30 @@ function buildRemediation(checks: {
  * GET /api/db-diagnostics
  * Returns a comprehensive schema health report. Admin only.
  */
-export async function GET() {
-  try {
-    const user = await requireAuth();
-    if (user.role !== "ADMIN") {
-      throw new HttpError(403, "Only admins can view diagnostics");
-    }
-
-    const [migrationTable, tables, enums, extensions, columns] =
-      await Promise.all([
-        checkMigrationTable(),
-        checkTables(),
-        checkEnums(),
-        checkExtensions(),
-        checkColumns(),
-      ]);
-
-    const checks = { migrationTable, tables, enums, extensions, columns };
-    const remediation = buildRemediation(checks);
-
-    const healthy =
-      migrationTable.exists &&
-      tables.missing.length === 0 &&
-      enums.missing.length === 0 &&
-      extensions.missing.length === 0 &&
-      columns.drift.length === 0 &&
-      remediation.length === 0;
-
-    return ok({ ok: healthy, checks, remediation });
-  } catch (error) {
-    return fail(error);
+export const GET = withAuth(async (_req, { user }) => {
+  if (user.role !== "ADMIN") {
+    throw new HttpError(403, "Only admins can view diagnostics");
   }
-}
+
+  const [migrationTable, tables, enums, extensions, columns] =
+    await Promise.all([
+      checkMigrationTable(),
+      checkTables(),
+      checkEnums(),
+      checkExtensions(),
+      checkColumns(),
+    ]);
+
+  const checks = { migrationTable, tables, enums, extensions, columns };
+  const remediation = buildRemediation(checks);
+
+  const healthy =
+    migrationTable.exists &&
+    tables.missing.length === 0 &&
+    enums.missing.length === 0 &&
+    extensions.missing.length === 0 &&
+    columns.drift.length === 0 &&
+    remediation.length === 0;
+
+  return ok({ ok: healthy, checks, remediation });
+});

@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok, HttpError } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
@@ -10,40 +10,30 @@ const createSourceSchema = z.object({
   url: z.string().url()
 });
 
-export async function GET() {
-  try {
-    await requireAuth();
-    const sources = await db.calendarSource.findMany({
-      orderBy: { name: "asc" },
-      include: { _count: { select: { events: true } } }
-    });
-    return ok({ data: sources });
-  } catch (error) {
-    return fail(error);
-  }
-}
+export const GET = withAuth(async () => {
+  const sources = await db.calendarSource.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { events: true } } }
+  });
+  return ok({ data: sources });
+});
 
-export async function POST(req: Request) {
-  try {
-    const user = await requireAuth();
-    requirePermission(user.role, "calendar_source", "create");
-    const body = createSourceSchema.parse(await req.json());
+export const POST = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "calendar_source", "create");
+  const body = createSourceSchema.parse(await req.json());
 
-    const source = await db.calendarSource.create({
-      data: { name: body.name, url: body.url }
-    });
+  const source = await db.calendarSource.create({
+    data: { name: body.name, url: body.url }
+  });
 
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
-      entityType: "calendar_source",
-      entityId: source.id,
-      action: "create",
-      after: { name: body.name },
-    });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "calendar_source",
+    entityId: source.id,
+    action: "create",
+    after: { name: body.name },
+  });
 
-    return ok({ data: source }, 201);
-  } catch (error) {
-    return fail(error);
-  }
-}
+  return ok({ data: source }, 201);
+});

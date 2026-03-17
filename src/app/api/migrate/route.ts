@@ -1,6 +1,6 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, HttpError, ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 
 /**
  * All DDL statements, each executed individually.
@@ -87,42 +87,37 @@ const DDL_SQL: string[] = [
  *
  * Uses an interactive Prisma $transaction so all DDL runs in one connection.
  */
-export async function POST() {
-  try {
-    const user = await requireAuth();
-    if (user.role !== "ADMIN") {
-      throw new HttpError(403, "Only admins can run migrations");
-    }
+export const POST = withAuth(async (_req, { user }) => {
+  if (user.role !== "ADMIN") {
+    throw new HttpError(403, "Only admins can run migrations");
+  }
 
-    const results: { label: string; status: "ok" | "skipped" | "error"; error?: string }[] = [];
+  const results: { label: string; status: "ok" | "skipped" | "error"; error?: string }[] = [];
 
-    // Phase 1: enums + constraints (outside transaction — each may fail independently)
-    for (const step of ENUM_AND_CONSTRAINT_SQL) {
-      try {
-        await db.$executeRawUnsafe(step.sql);
-        results.push({ label: step.label, status: "ok" });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        results.push({ label: step.label, status: "skipped", error: msg });
-      }
-    }
-
-    // Phase 2: all DDL inside one interactive transaction (single WS connection)
+  // Phase 1: enums + constraints (outside transaction — each may fail independently)
+  for (const step of ENUM_AND_CONSTRAINT_SQL) {
     try {
-      await db.$transaction(async (tx) => {
-        for (const sql of DDL_SQL) {
-          await tx.$executeRawUnsafe(sql);
-        }
-      }, { timeout: 30000 });
-      results.push({ label: `DDL transaction (${DDL_SQL.length} statements)`, status: "ok" });
+      await db.$executeRawUnsafe(step.sql);
+      results.push({ label: step.label, status: "ok" });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      results.push({ label: `DDL transaction (${DDL_SQL.length} statements)`, status: "error", error: msg });
-      return ok({ message: "Migration failed at DDL transaction", results });
+      results.push({ label: step.label, status: "skipped", error: msg });
     }
-
-    return ok({ message: "Migration completed successfully", results });
-  } catch (error) {
-    return fail(error);
   }
-}
+
+  // Phase 2: all DDL inside one interactive transaction (single WS connection)
+  try {
+    await db.$transaction(async (tx) => {
+      for (const sql of DDL_SQL) {
+        await tx.$executeRawUnsafe(sql);
+      }
+    }, { timeout: 30000 });
+    results.push({ label: `DDL transaction (${DDL_SQL.length} statements)`, status: "ok" });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    results.push({ label: `DDL transaction (${DDL_SQL.length} statements)`, status: "error", error: msg });
+    return ok({ message: "Migration failed at DDL transaction", results });
+  }
+
+  return ok({ message: "Migration completed successfully", results });
+});

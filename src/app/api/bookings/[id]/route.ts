@@ -1,5 +1,5 @@
-import { requireAuth } from "@/lib/auth";
-import { fail, ok } from "@/lib/http";
+import { withAuth } from "@/lib/api";
+import { ok } from "@/lib/http";
 import {
   getBookingDetail,
   updateReservation,
@@ -9,77 +9,61 @@ import { requireCheckoutAction, getAllowedActions, getAllowedReservationActions,
 import { updateBookingSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
-export async function GET(
-  _req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
-  try {
-    const actor = await requireAuth();
-    const { id } = await ctx.params;
-    const detail = await getBookingDetail(id);
+export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+  const { id } = params;
+  const detail = await getBookingDetail(id);
 
-    const allowedActions = detail.kind === "CHECKOUT"
-      ? getAllowedActions(actor, detail)
-      : detail.kind === "RESERVATION"
-        ? getAllowedReservationActions(actor, detail)
-        : undefined;
+  const allowedActions = detail.kind === "CHECKOUT"
+    ? getAllowedActions(user, detail)
+    : detail.kind === "RESERVATION"
+      ? getAllowedReservationActions(user, detail)
+      : undefined;
 
-    return ok({ data: { ...detail, allowedActions } });
-  } catch (error) {
-    return fail(error);
+  return ok({ data: { ...detail, allowedActions } });
+});
+
+export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
+  const { id } = params;
+  const body = updateBookingSchema.parse(await req.json());
+
+  // Fetch the booking to determine kind
+  const detail = await getBookingDetail(id);
+
+  if (detail.kind === "CHECKOUT") {
+    await requireCheckoutAction(id, user, "edit");
+  } else if (detail.kind === "RESERVATION") {
+    await requireReservationAction(id, user, "edit");
   }
-}
 
-export async function PATCH(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
-  try {
-    const actor = await requireAuth();
-    const { id } = await ctx.params;
-    const body = updateBookingSchema.parse(await req.json());
-
-    // Fetch the booking to determine kind
-    const detail = await getBookingDetail(id);
-
-    if (detail.kind === "CHECKOUT") {
-      await requireCheckoutAction(id, actor, "edit");
-    } else if (detail.kind === "RESERVATION") {
-      await requireReservationAction(id, actor, "edit");
-    }
-
-    let updated;
-    if (detail.kind === "RESERVATION") {
-      updated = await updateReservation(id, actor.id, {
-        title: body.title,
-        requesterUserId: body.requesterUserId,
-        locationId: body.locationId,
-        startsAt: body.startsAt ? new Date(body.startsAt) : undefined,
-        endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-        serializedAssetIds: body.serializedAssetIds,
-        bulkItems: body.bulkItems,
-        notes: body.notes
-      });
-    } else {
-      updated = await updateCheckout(id, actor.id, {
-        title: body.title,
-        endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
-        serializedAssetIds: body.serializedAssetIds,
-        bulkItems: body.bulkItems,
-        notes: body.notes
-      });
-    }
-
-    await createAuditEntry({
-      actorId: actor.id,
-      actorRole: actor.role,
-      entityType: "booking",
-      entityId: id,
-      action: "edit",
-      after: body,
+  let updated;
+  if (detail.kind === "RESERVATION") {
+    updated = await updateReservation(id, user.id, {
+      title: body.title,
+      requesterUserId: body.requesterUserId,
+      locationId: body.locationId,
+      startsAt: body.startsAt ? new Date(body.startsAt) : undefined,
+      endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
+      serializedAssetIds: body.serializedAssetIds,
+      bulkItems: body.bulkItems,
+      notes: body.notes
     });
-    return ok({ data: updated });
-  } catch (error) {
-    return fail(error);
+  } else {
+    updated = await updateCheckout(id, user.id, {
+      title: body.title,
+      endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
+      serializedAssetIds: body.serializedAssetIds,
+      bulkItems: body.bulkItems,
+      notes: body.notes
+    });
   }
-}
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "booking",
+    entityId: id,
+    action: "edit",
+    after: body,
+  });
+  return ok({ data: updated });
+});

@@ -1,46 +1,41 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
-export async function GET(req: Request) {
-  try {
-    const user = await requireAuth();
-    requirePermission(user.role, "report", "view");
-    const { searchParams } = new URL(req.url);
-    const report = searchParams.get("type") || "utilization";
+export const GET = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "report", "view");
+  const { searchParams } = new URL(req.url);
+  const report = searchParams.get("type") || "utilization";
 
-    if (report === "utilization") {
-      return ok(await getUtilizationReport());
-    }
-
-    if (report === "checkouts") {
-      const days = parseInt(searchParams.get("days") || "30", 10);
-      return ok(await getCheckoutReport(days));
-    }
-
-    if (report === "audit") {
-      const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
-      const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-      return ok(await getAuditReport(limit, offset));
-    }
-
-    if (report === "overdue") {
-      return ok(await getOverdueReport());
-    }
-
-    if (report === "scans") {
-      const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
-      const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-      return ok(await getScanHistoryReport(limit, offset));
-    }
-
-    return ok({ error: "Unknown report type" });
-  } catch (error) {
-    return fail(error);
+  if (report === "utilization") {
+    return ok(await getUtilizationReport());
   }
-}
+
+  if (report === "checkouts") {
+    const days = parseInt(searchParams.get("days") || "30", 10);
+    return ok(await getCheckoutReport(days));
+  }
+
+  if (report === "audit") {
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
+    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+    return ok(await getAuditReport(limit, offset));
+  }
+
+  if (report === "overdue") {
+    return ok(await getOverdueReport());
+  }
+
+  if (report === "scans") {
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
+    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+    return ok(await getScanHistoryReport(limit, offset));
+  }
+
+  return ok({ error: "Unknown report type" });
+});
 
 async function getUtilizationReport() {
   const [statusCounts, totalAssets, byLocation, byType, byDepartment] =

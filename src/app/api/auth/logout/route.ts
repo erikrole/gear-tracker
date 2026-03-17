@@ -1,11 +1,8 @@
 import { destroySession } from "@/lib/auth";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
+import { withAuth } from "@/lib/api";
 
-export async function POST() {
-  try {
-    await destroySession();
-    return ok({ success: true });
-  } catch (error) {
-    return fail(error);
-  }
-}
+export const POST = withAuth(async () => {
+  await destroySession();
+  return ok({ success: true });
+});

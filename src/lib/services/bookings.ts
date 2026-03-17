@@ -8,7 +8,7 @@ import {
   ScanSessionStatus
 } from "@prisma/client";
 import { db } from "@/lib/db";
-import { HttpError } from "@/lib/http";
+import { HttpError, parsePagination } from "@/lib/http";
 import { checkAvailability, type BulkRequest } from "@/lib/services/availability";
 
 type CreateBookingInput = {
@@ -59,6 +59,81 @@ const bookingInclude = {
     }
   }
 } satisfies Prisma.BookingInclude;
+
+const bookingListInclude = {
+  location: { select: { id: true, name: true } },
+  requester: { select: { id: true, name: true, email: true } },
+  serializedItems: {
+    select: {
+      id: true, assetId: true, allocationStatus: true,
+      asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true } },
+    },
+  },
+  bulkItems: {
+    select: {
+      id: true, plannedQuantity: true, checkedOutQuantity: true, checkedInQuantity: true,
+      bulkSku: { select: { id: true, name: true, unit: true } },
+    },
+  },
+  event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
+} satisfies Prisma.BookingInclude;
+
+const BOOKING_SORT_MAP: Record<string, Prisma.BookingOrderByWithRelationInput[]> = {
+  oldest: [{ startsAt: "asc" }, { id: "asc" }],
+  title: [{ title: "asc" }, { id: "asc" }],
+  title_desc: [{ title: "desc" }, { id: "asc" }],
+  endsAt: [{ endsAt: "asc" }, { id: "asc" }],
+  endsAt_desc: [{ endsAt: "desc" }, { id: "asc" }],
+};
+
+export async function listBookings(
+  kind: BookingKind,
+  searchParams: URLSearchParams,
+  extraWhere?: Prisma.BookingWhereInput
+) {
+  const q = searchParams.get("q")?.trim();
+  const sortParam = searchParams.get("sort");
+
+  const where: Prisma.BookingWhereInput = {
+    kind,
+    ...extraWhere,
+    ...(!extraWhere && searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
+    ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
+    ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
+    ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),
+    ...(searchParams.get("from") || searchParams.get("to")
+      ? {
+          startsAt: {
+            ...(searchParams.get("from") ? { gte: new Date(searchParams.get("from")!) } : {}),
+            ...(searchParams.get("to") ? { lte: new Date(searchParams.get("to")!) } : {})
+          }
+        }
+      : {}),
+    ...(q ? {
+      OR: [
+        { title: { contains: q, mode: "insensitive" as const } },
+        { requester: { name: { contains: q, mode: "insensitive" as const } } },
+        { refNumber: { contains: q, mode: "insensitive" as const } },
+      ],
+    } : {}),
+  };
+
+  const orderBy = (sortParam && BOOKING_SORT_MAP[sortParam]) || [{ startsAt: "desc" }, { id: "asc" }];
+  const { limit, offset } = parsePagination(searchParams);
+
+  const [data, total] = await Promise.all([
+    db.booking.findMany({
+      where,
+      orderBy,
+      include: bookingListInclude,
+      take: limit,
+      skip: offset
+    }),
+    db.booking.count({ where })
+  ]);
+
+  return { data, total, limit, offset };
+}
 
 function dedupeIds(ids: string[]) {
   return [...new Set(ids)];

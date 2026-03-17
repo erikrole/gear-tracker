@@ -1,16 +1,11 @@
-import { requireAuth } from "@/lib/auth";
+import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { fail, ok } from "@/lib/http";
+import { ok } from "@/lib/http";
 
-export async function GET() {
-  try {
-    await requireAuth();
-    const locations = await db.location.findMany({
-      where: { active: true },
-      orderBy: { name: "asc" },
-    });
-    return ok({ data: locations });
-  } catch (error) {
-    return fail(error);
-  }
-}
+export const GET = withAuth(async () => {
+  const locations = await db.location.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+  });
+  return ok({ data: locations });
+});
