@@ -93,7 +93,7 @@ export default function EscalationSettingsPage() {
     return (
       <div className="settings-split">
         <div className="settings-sidebar">
-          <h1 className="settings-title">Escalation</h1>
+          <h2 className="settings-title">Escalation</h2>
         </div>
         <div className="settings-main">
           <div className="loading-spinner"><div className="spinner" /></div>
@@ -105,7 +105,7 @@ export default function EscalationSettingsPage() {
   return (
     <div className="settings-split">
       <div className="settings-sidebar">
-        <h1 className="settings-title">Escalation</h1>
+        <h2 className="settings-title">Escalation</h2>
         <p className="settings-desc">
           Configure when and how overdue checkout notifications are sent.
           Notifications are deduped per booking — each trigger fires at most once.
@@ -116,6 +116,7 @@ export default function EscalationSettingsPage() {
         {/* Rules table */}
         <div className="card mb-16">
           <div className="card-header"><h2>Notification Triggers</h2></div>
+          <div className="data-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -156,6 +157,7 @@ export default function EscalationSettingsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Fatigue controls */}

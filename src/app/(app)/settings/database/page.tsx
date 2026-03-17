@@ -45,7 +45,7 @@ export default function DatabasePage() {
   return (
     <div className="settings-split">
       <div className="settings-sidebar">
-        <h1 className="settings-title">Database Health</h1>
+        <h2 className="settings-title">Database Health</h2>
         <p className="settings-desc">
           Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift.
         </p>
