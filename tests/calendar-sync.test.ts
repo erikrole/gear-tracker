@@ -1,5 +1,41 @@
 import { describe, it, expect } from "vitest";
-import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+
+// ── unescapeIcsText unit tests ──
+
+describe("unescapeIcsText", () => {
+  it("unescapes \\n to newline", () => {
+    expect(unescapeIcsText("Line 1\\nLine 2")).toBe("Line 1\nLine 2");
+  });
+
+  it("unescapes \\N (uppercase) to newline", () => {
+    expect(unescapeIcsText("Line 1\\NLine 2")).toBe("Line 1\nLine 2");
+  });
+
+  it("unescapes \\, to comma", () => {
+    expect(unescapeIcsText("Portland\\, OR")).toBe("Portland, OR");
+  });
+
+  it("unescapes \\; to semicolon", () => {
+    expect(unescapeIcsText("A\\;B")).toBe("A;B");
+  });
+
+  it("unescapes \\\\ to backslash", () => {
+    expect(unescapeIcsText("path\\\\file")).toBe("path\\file");
+  });
+
+  it("handles multiple escapes in one string", () => {
+    expect(unescapeIcsText("Portland\\, OR\\nUSA")).toBe("Portland, OR\nUSA");
+  });
+
+  it("returns empty string unchanged", () => {
+    expect(unescapeIcsText("")).toBe("");
+  });
+
+  it("returns plain text unchanged", () => {
+    expect(unescapeIcsText("No escapes here")).toBe("No escapes here");
+  });
+});
 
 // ── cleanSummary unit tests ──
 

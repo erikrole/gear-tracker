@@ -6,6 +6,18 @@ import { SPORT_CODES } from "@/lib/sports";
 export const WRITE_CHUNK_SIZE = 500;
 
 /**
+ * Unescape ICS text values per RFC 5545 §3.3.11.
+ * Handles: \n → newline, \, → comma, \; → semicolon, \\ → backslash
+ */
+export function unescapeIcsText(value: string): string {
+  return value
+    .replace(/\\n/gi, "\n")
+    .replace(/\\,/g, ",")
+    .replace(/\\;/g, ";")
+    .replace(/\\\\/g, "\\");
+}
+
+/**
  * Minimal ICS parser — extracts VEVENT blocks and their key properties.
  * Does not depend on any external library.
  */
@@ -39,9 +51,9 @@ function parseIcs(icsText: string) {
       if (current.UID) {
         events.push({
           uid: current.UID,
-          summary: current.SUMMARY ?? "",
-          description: current.DESCRIPTION ?? "",
-          location: current.LOCATION ?? "",
+          summary: unescapeIcsText(current.SUMMARY ?? ""),
+          description: unescapeIcsText(current.DESCRIPTION ?? ""),
+          location: unescapeIcsText(current.LOCATION ?? ""),
           dtstart: current.DTSTART ?? "",
           dtend: current.DTEND ?? current.DTSTART ?? "",
           status: current.STATUS ?? "CONFIRMED"
