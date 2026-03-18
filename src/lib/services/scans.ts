@@ -9,31 +9,33 @@ export async function startScanSession(args: {
   actorUserId: string;
   phase: ScanPhase;
 }) {
-  const booking = await db.booking.findUnique({ where: { id: args.bookingId } });
+  return db.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({ where: { id: args.bookingId } });
 
-  if (!booking || booking.kind !== BookingKind.CHECKOUT) {
-    throw new HttpError(404, "Checkout not found");
-  }
-
-  const existing = await db.scanSession.findFirst({
-    where: {
-      bookingId: args.bookingId,
-      phase: args.phase,
-      status: ScanSessionStatus.OPEN
+    if (!booking || booking.kind !== BookingKind.CHECKOUT) {
+      throw new HttpError(404, "Checkout not found");
     }
-  });
 
-  if (existing) {
-    return existing;
-  }
+    const existing = await tx.scanSession.findFirst({
+      where: {
+        bookingId: args.bookingId,
+        phase: args.phase,
+        status: ScanSessionStatus.OPEN
+      }
+    });
 
-  return db.scanSession.create({
-    data: {
-      bookingId: args.bookingId,
-      actorUserId: args.actorUserId,
-      phase: args.phase,
-      status: ScanSessionStatus.OPEN
+    if (existing) {
+      return existing;
     }
+
+    return tx.scanSession.create({
+      data: {
+        bookingId: args.bookingId,
+        actorUserId: args.actorUserId,
+        phase: args.phase,
+        status: ScanSessionStatus.OPEN
+      }
+    });
   });
 }
 
@@ -223,6 +225,17 @@ export async function recordScan(args: {
   // Standard (non-numbered) bulk flow
   if (!args.quantity || args.quantity <= 0) {
     throw new HttpError(400, "Bulk scans require a positive quantity");
+  }
+
+  // Guard against exceeding planned quantity
+  const currentQty = args.phase === ScanPhase.CHECKOUT
+    ? (bulkItem.checkedOutQuantity ?? 0)
+    : (bulkItem.checkedInQuantity ?? 0);
+  const maxQty = args.phase === ScanPhase.CHECKOUT
+    ? bulkItem.plannedQuantity
+    : (bulkItem.checkedOutQuantity ?? bulkItem.plannedQuantity);
+  if (currentQty + args.quantity > maxQty) {
+    throw new HttpError(400, `Scan would exceed ${args.phase === ScanPhase.CHECKOUT ? "planned" : "checked-out"} quantity. Current: ${currentQty}, scanning: ${args.quantity}, max: ${maxQty}`);
   }
 
   const { event } = await db.$transaction(async (tx) => {

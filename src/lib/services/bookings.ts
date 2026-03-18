@@ -672,6 +672,10 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       throw new HttpError(404, "Checkout not found");
     }
 
+    if (booking.status !== BookingStatus.OPEN) {
+      throw new HttpError(400, `Checkout is not open (current status: ${booking.status})`);
+    }
+
     await tx.booking.update({
       where: { id: bookingId },
       data: {

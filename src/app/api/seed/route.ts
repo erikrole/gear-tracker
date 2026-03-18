@@ -1,10 +1,25 @@
 import bcrypt from "bcryptjs";
-import { withHandler } from "@/lib/api";
+import { withAuth, withHandler } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import { DEFAULT_LOCATIONS } from "@/lib/default-locations";
 
-export const POST = withHandler(async () => {
+/**
+ * POST /api/seed
+ * Bootstraps default locations and admin account.
+ * In production, requires ADMIN auth. In development, allows unauthenticated access
+ * for initial setup (before any users exist).
+ */
+export const POST = process.env.NODE_ENV === "production"
+  ? withAuth(async (_req, { user }) => {
+      if (user.role !== "ADMIN") throw new HttpError(403, "Admin only");
+      return runSeed();
+    })
+  : withHandler(async () => {
+      return runSeed();
+    });
+
+async function runSeed() {
   for (const locationName of DEFAULT_LOCATIONS) {
     await db.location.upsert({
       where: { name: locationName },
@@ -40,4 +55,4 @@ export const POST = withHandler(async () => {
     user: { email: user.email, name: user.name, role: user.role },
     hint: "Login with admin@creative.local / ChangeMeNow123!",
   });
-});
+}

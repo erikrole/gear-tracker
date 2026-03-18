@@ -1,13 +1,15 @@
 import { BookingKind, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
 import { createCheckoutSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "checkout", "view");
   const { searchParams } = new URL(req.url);
   const filterParam = searchParams.get("filter");
 
@@ -28,6 +30,7 @@ export const GET = withAuth(async (req) => {
 });
 
 export const POST = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "checkout", "create");
   const body = createCheckoutSchema.parse(await req.json());
   const { start, end } = parseDateRange(body.startsAt, body.endsAt);
 

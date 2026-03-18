@@ -106,6 +106,12 @@ export const POST = withAuth(async (req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF"]);
 
   const body = createUserSchema.parse(await req.json());
+
+  // Only ADMIN can create users with the ADMIN role
+  if (user.role !== "ADMIN" && body.role === "ADMIN") {
+    throw new HttpError(403, "Only admins can create admin users");
+  }
+
   const email = body.email.toLowerCase();
 
   const existing = await db.user.findUnique({ where: { email } });
