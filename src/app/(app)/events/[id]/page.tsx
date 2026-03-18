@@ -44,7 +44,7 @@ type CommandCenterData = {
     workerType: string;
     startsAt: string;
     endsAt: string;
-    assignment: { id: string; userId: string; userName: string; status: string } | null;
+    assignment: { id: string; userId: string; userName: string; status: string; linkedBookingId: string | null; linkedBookingStatus: string | null } | null;
     pendingRequests: number;
   }>;
   gearSummary: {
@@ -340,8 +340,10 @@ export default function EventDetailPage() {
                           <span className="text-secondary">&mdash;</span>
                         ) : hasMissingGear ? (
                           <span className="badge badge-red">None</span>
+                        ) : shift.assignment.linkedBookingId ? (
+                          <span className="badge badge-green">Linked</span>
                         ) : (
-                          <span className="badge badge-green">Ready</span>
+                          <span className="badge badge-orange">Unlinked</span>
                         )}
                       </td>
                     </tr>

@@ -19,6 +19,11 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
             assignments: {
               include: {
                 user: { select: { id: true, name: true } },
+                bookings: {
+                  where: { eventId, status: { not: "CANCELLED" } },
+                  select: { id: true, status: true },
+                  take: 1,
+                },
               },
             },
           },
@@ -34,6 +39,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
         id: true,
         status: true,
         requesterUserId: true,
+        shiftAssignmentId: true,
         requester: { select: { id: true, name: true } },
       },
     }),
@@ -78,6 +84,9 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       (a) => a.status === "REQUESTED"
     ).length;
 
+    // Check for directly linked booking via FK
+    const linkedBooking = activeAssignment?.bookings?.[0] ?? null;
+
     if (activeAssignment && !usersWithGear.has(activeAssignment.userId)) {
       missingGear.push({
         userId: activeAssignment.userId,
@@ -100,6 +109,8 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
             userId: activeAssignment.userId,
             userName: activeAssignment.user.name,
             status: activeAssignment.status,
+            linkedBookingId: linkedBooking?.id ?? null,
+            linkedBookingStatus: linkedBooking?.status ?? null,
           }
         : null,
       pendingRequests,

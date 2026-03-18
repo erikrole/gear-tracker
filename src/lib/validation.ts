@@ -25,7 +25,8 @@ export const createReservationSchema = z.object({
   bulkItems: z.array(bulkItemSchema).default([]),
   eventId: z.string().cuid().optional(),
   sportCode: z.string().max(10).optional(),
-  notes: z.string().max(10000).optional()
+  notes: z.string().max(10000).optional(),
+  shiftAssignmentId: z.string().cuid().optional()
 });
 
 export const updateReservationSchema = createReservationSchema
@@ -43,7 +44,8 @@ export const createCheckoutSchema = z.object({
   sourceReservationId: z.string().cuid().optional(),
   eventId: z.string().cuid().optional(),
   sportCode: z.string().max(10).optional(),
-  notes: z.string().max(10000).optional()
+  notes: z.string().max(10000).optional(),
+  shiftAssignmentId: z.string().cuid().optional()
 });
 
 export const startScanSessionSchema = z.object({

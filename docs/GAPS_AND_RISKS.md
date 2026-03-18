@@ -49,7 +49,7 @@
 | ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board~~ |
 | Shift notification channel (email for trade claims) | AREA_SHIFTS | — | V1 = in-app audit only; email deferred |
 | Student availability tracking | AREA_SHIFTS | — | Students declare unavailable dates; deferred to Phase B |
-| Scheduling + gear deep linking (shiftAssignmentId FK on Booking) | AREA_SHIFTS / AREA_CHECKOUTS | — | Phase 3 of integration; see `tasks/scheduling-gear-integration-research.md` |
+| ~~Scheduling + gear deep linking (shiftAssignmentId FK on Booking)~~ | ~~AREA_SHIFTS / AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-18: shiftAssignmentId FK on Booking, wired through creation APIs~~ |
 
 ---
 
@@ -103,3 +103,4 @@
 - 2026-03-16: Sentry error tracking wired (optional DSN, source maps, global error boundary). Vercel Blob image upload wired (POST/DELETE /api/assets/:id/image).
 - 2026-03-16: UI overhaul — modern minimal design system. Removed liquid glass, warm neutrals, #202020 dark sidebar, Wisconsin red for brand moments only, neutral dark primary buttons.
 - 2026-03-16: Closed GAP-2 (draft persistence). D-017 shipped: DRAFT CRUD API, dashboard Drafts section, auto-save on cancel, resume pre-fill. D-018 marked shipped (financial fields already in UI).
+- 2026-03-18: Closed scheduling + gear deep linking. shiftAssignmentId FK on Booking shipped, Event Command Center with missing gear detection.

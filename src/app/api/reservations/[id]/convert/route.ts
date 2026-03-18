@@ -47,6 +47,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     sourceReservationId: id,
     eventId: full.eventId ?? undefined,
     sportCode: full.sportCode ?? undefined,
+    shiftAssignmentId: full.shiftAssignmentId ?? undefined,
   });
 
   await createAuditEntry({
