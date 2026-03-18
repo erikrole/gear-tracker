@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import DataList from "@/components/DataList";
+import { sportLabel } from "@/lib/sports";
 
 type CalendarEvent = {
   id: string;
@@ -18,6 +19,9 @@ type CalendarEvent = {
   rawSummary: string | null;
   rawLocationText: string | null;
   rawDescription: string | null;
+  sportCode: string | null;
+  opponent: string | null;
+  isHome: boolean | null;
   location: { id: string; name: string } | null;
   source: { id: string; name: string } | null;
 };
@@ -175,6 +179,14 @@ export default function EventDetailPage() {
         <span className={`badge ${event.status === "CANCELLED" ? "badge-red" : "badge-green"}`}>
           {event.status.toLowerCase()}
         </span>
+        {event.sportCode && (
+          <span className="badge badge-purple">{sportLabel(event.sportCode)}</span>
+        )}
+        {event.isHome !== null && (
+          <span className={`badge ${event.isHome ? "badge-green" : "badge-orange"}`}>
+            {event.isHome ? "Home" : "Away"}
+          </span>
+        )}
         {event.location ? (
           <span className="badge badge-blue">{event.location.name}</span>
         ) : (
@@ -211,6 +223,15 @@ export default function EventDetailPage() {
         <div style={{ padding: 16 }}>
           <DataList
             items={[
+              ...(event.sportCode
+                ? [{ label: "Sport", value: sportLabel(event.sportCode) }]
+                : []),
+              ...(event.opponent
+                ? [{ label: "Opponent", value: event.opponent }]
+                : []),
+              ...(event.isHome !== null
+                ? [{ label: "Home/Away", value: event.isHome ? "Home" : "Away" }]
+                : []),
               {
                 label: "When",
                 value: event.allDay

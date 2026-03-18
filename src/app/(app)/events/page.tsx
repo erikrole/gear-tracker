@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
+import { SPORT_CODES, sportLabel } from "@/lib/sports";
 
 type CalendarEvent = {
   id: string;
@@ -15,6 +16,9 @@ type CalendarEvent = {
   allDay: boolean;
   status: string;
   rawLocationText: string | null;
+  sportCode: string | null;
+  opponent: string | null;
+  isHome: boolean | null;
   location: { id: string; name: string } | null;
   source: { name: string } | null;
 };
@@ -57,6 +61,19 @@ function formatTime(iso: string) {
   });
 }
 
+/** Format raw ICS DTSTART (e.g. "20260301T120000Z") into a readable date. */
+function formatIcsDtstart(raw: string): string {
+  const cleaned = raw.replace(/[^0-9TZ]/g, "");
+  if (cleaned.length < 8) return raw;
+  const month = cleaned.slice(4, 6);
+  const day = cleaned.slice(6, 8);
+  const year = cleaned.slice(0, 4);
+  if (cleaned.length === 8) return `${month}/${day}/${year}`;
+  const hour = cleaned.slice(9, 11) || "00";
+  const min = cleaned.slice(11, 13) || "00";
+  return `${month}/${day}/${year} ${hour}:${min}`;
+}
+
 export default function EventsPage() {
   const confirmDialog = useConfirm();
   const { toast } = useToast();
@@ -89,6 +106,7 @@ export default function EventsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
   const [deletingMappingId, setDeletingMappingId] = useState<string | null>(null);
+  const [sportFilter, setSportFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
@@ -100,11 +118,12 @@ export default function EventsPage() {
       if (!includePast) params.set("startDate", new Date().toISOString());
       if (includePast) params.set("includePast", "true");
       if (unmappedOnly) params.set("unmapped", "true");
+      if (sportFilter) params.set("sportCode", sportFilter);
       const res = await fetch(`/api/calendar-events?${params}`);
       if (res.ok) { const json = await res.json(); setEvents(json.data ?? []); }
     } catch { /* network error */ }
     setLoading(false);
-  }, [unmappedOnly, includePast]);
+  }, [unmappedOnly, includePast, sportFilter]);
 
   const loadSources = useCallback(async () => {
     try {
@@ -173,6 +192,12 @@ export default function EventsPage() {
   function isToday(day: number) {
     const now = new Date();
     return calMonth.getFullYear() === now.getFullYear() && calMonth.getMonth() === now.getMonth() && day === now.getDate();
+  }
+
+  function calBookingClass(ev: CalendarEvent): string {
+    if (ev.isHome === true) return "cal-booking cal-booking-home";
+    if (ev.isHome === false) return "cal-booking cal-booking-away";
+    return "cal-booking cal-booking-neutral";
   }
 
   function prevMonth() { setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1)); }
@@ -337,7 +362,7 @@ export default function EventsPage() {
             <div><strong>HTTP Status:</strong> {syncDiagnostics.httpStatus}</div>
             <div><strong>Response Size:</strong> {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB</div>
             <div><strong>Parsed VEVENTs:</strong> {syncDiagnostics.parsedEventCount}</div>
-            <div><strong>Date Range:</strong> {syncDiagnostics.earliestDtstart ?? "—"} → {syncDiagnostics.latestDtstart ?? "—"}</div>
+            <div><strong>Date Range:</strong> {syncDiagnostics.earliestDtstart ? formatIcsDtstart(syncDiagnostics.earliestDtstart) : "—"} → {syncDiagnostics.latestDtstart ? formatIcsDtstart(syncDiagnostics.latestDtstart) : "—"}</div>
 
             {(syncDiagnostics.firstEvents?.length ?? 0) > 0 && (
               <div>
@@ -346,7 +371,7 @@ export default function EventsPage() {
                   <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.firstEvents!.map((e: { uid: string; summary: string; dtstart: string }) => (
-                      <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono">{e.dtstart}</td></tr>
+                      <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono" title={e.dtstart}>{formatIcsDtstart(e.dtstart)}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -360,7 +385,7 @@ export default function EventsPage() {
                   <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.lastEvents!.map((e: { uid: string; summary: string; dtstart: string }) => (
-                      <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono">{e.dtstart}</td></tr>
+                      <tr key={e.uid}><td className="font-mono">{e.uid.slice(0, 30)}</td><td>{e.summary}</td><td className="font-mono" title={e.dtstart}>{formatIcsDtstart(e.dtstart)}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -585,8 +610,16 @@ export default function EventsPage() {
               onSelect={() => setIncludePast(true)}
               onClear={() => setIncludePast(false)}
             />
-            {(unmappedOnly || includePast) && (
-              <button type="button" className="filter-chip-clear-all" onClick={() => { setUnmappedOnly(false); setIncludePast(false); }}>
+            <FilterChip
+              label="Sport"
+              value={sportFilter}
+              displayValue={sportFilter ? sportLabel(sportFilter) : ""}
+              options={SPORT_CODES.map((s) => ({ value: s.code, label: s.label }))}
+              onSelect={(v) => setSportFilter(v)}
+              onClear={() => setSportFilter("")}
+            />
+            {(unmappedOnly || includePast || sportFilter) && (
+              <button type="button" className="filter-chip-clear-all" onClick={() => { setUnmappedOnly(false); setIncludePast(false); setSportFilter(""); }}>
                 Clear all
               </button>
             )}
@@ -624,10 +657,12 @@ export default function EventsPage() {
                         <Link
                           key={ev.id}
                           href={`/events/${ev.id}`}
-                          className="cal-booking cal-booking-co"
+                          className={calBookingClass(ev)}
                           title={ev.summary}
                         >
-                          {ev.summary}
+                          {ev.sportCode && ev.opponent
+                            ? `${ev.sportCode} ${ev.isHome === true ? "vs" : ev.isHome === false ? "at" : "vs"} ${ev.opponent}`
+                            : ev.summary}
                         </Link>
                       ))}
                       {(calEventsByDay.get(cell.day)?.length ?? 0) > 3 && (
@@ -657,6 +692,7 @@ export default function EventsPage() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Sport</th>
                   <th>Event</th>
                   <th>Date</th>
                   <th>Time</th>
@@ -667,9 +703,21 @@ export default function EventsPage() {
               <tbody>
                 {events.map((event) => (
                   <tr key={event.id}>
+                    <td>
+                      {event.sportCode ? (
+                        <span className="badge badge-sm badge-purple" title={sportLabel(event.sportCode)}>{event.sportCode}</span>
+                      ) : null}
+                    </td>
                     <td className="font-semibold">
                       <Link href={`/events/${event.id}`} className="row-link">
-                        {event.summary}
+                        {event.opponent ? (
+                          <>
+                            {event.isHome === true ? "vs " : event.isHome === false ? "at " : ""}
+                            {event.opponent}
+                          </>
+                        ) : (
+                          event.summary
+                        )}
                       </Link>
                     </td>
                     <td>{formatDate(event.startsAt)}</td>
