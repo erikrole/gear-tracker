@@ -28,6 +28,7 @@ type Asset = {
   computedStatus: string;
   location: { id: string; name: string };
   category: { id: string; name: string } | null;
+  imageUrl: string | null;
   activeBooking: ActiveBooking | null;
   _count?: { accessories: number };
 };
@@ -683,6 +684,7 @@ export default function ItemsPage() {
                     </th>
                   )}
                   <th style={{ width: 32, padding: "8px 2px" }}></th>
+                  <th style={{ width: 44, padding: "8px 4px" }}></th>
                   <th>Name</th>
                   <th>Category</th>
                   <th>Location</th>
@@ -717,6 +719,19 @@ export default function ItemsPage() {
                       >
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
+                    </td>
+                    <td style={{ width: 44, padding: "8px 4px" }}>
+                      <div className="item-thumb">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt="" loading="lazy" />
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)" }}>
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                          </svg>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div className="flex-center gap-10">

@@ -9,6 +9,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 
 import type { AssetDetail, CategoryOption } from "./types";
+import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
 import { OperationalOverview, BookingKindTab, CalendarTab } from "./ItemBookingsTab";
 import ActivityFeed from "./ItemHistoryTab";
@@ -132,6 +133,7 @@ export default function ItemDetailsPage() {
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [fetchError, setFetchError] = useState(false);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   const loadAsset = useCallback(() => {
@@ -252,18 +254,44 @@ export default function ItemDetailsPage() {
     <>
       <div className="breadcrumb"><Link href="/items">Items</Link> <span>{"\u203a"}</span> {asset.assetTag}</div>
       <div className="page-header mb-0">
-        <div>
-          <div className="flex gap-12 items-baseline">
-            <h1 className="mb-0">{asset.assetTag}</h1>
-            {asset.metadata?.uwAssetTag && (
-              <span className="text-base text-secondary font-medium">
-                UW {asset.metadata.uwAssetTag}
-              </span>
+        <div className="flex gap-16 items-center">
+          {/* Hero image */}
+          {asset.imageUrl ? (
+            <button
+              className="asset-hero-image"
+              onClick={() => canEdit && setImageModalOpen(true)}
+              title={canEdit ? "Change image" : undefined}
+              style={{ cursor: canEdit ? "pointer" : "default" }}
+            >
+              <img src={asset.imageUrl} alt={asset.assetTag} />
+              {canEdit && (
+                <div className="asset-hero-image-overlay">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                </div>
+              )}
+            </button>
+          ) : canEdit ? (
+            <button className="asset-hero-image asset-hero-image-empty" onClick={() => setImageModalOpen(true)} title="Add image">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)" }}>
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+            </button>
+          ) : null}
+          <div>
+            <div className="flex gap-12 items-baseline">
+              <h1 className="mb-0">{asset.assetTag}</h1>
+              {asset.metadata?.uwAssetTag && (
+                <span className="text-base text-secondary font-medium">
+                  UW {asset.metadata.uwAssetTag}
+                </span>
+              )}
+            </div>
+            {asset.name && (
+              <div className="text-base text-secondary mt-2">{asset.name}</div>
             )}
           </div>
-          {asset.name && (
-            <div className="text-base text-secondary mt-2">{asset.name}</div>
-          )}
         </div>
         <div className="header-actions">
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
@@ -356,6 +384,14 @@ export default function ItemDetailsPage() {
         onClose={() => setSelectedBookingId(null)}
         onUpdated={loadAsset}
         currentUserRole={currentUserRole}
+      />
+
+      <ChooseImageModal
+        open={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        assetId={asset.id}
+        currentImageUrl={asset.imageUrl}
+        onImageChanged={(newUrl) => setAsset((prev) => prev ? { ...prev, imageUrl: newUrl } : prev)}
       />
     </>
   );
