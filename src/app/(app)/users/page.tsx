@@ -36,11 +36,18 @@ function SortTh({
   }
 
   return (
-    <th className={`sort-header ${className || ""}`} onClick={handleClick}>
-      <span className="sort-header-inner">
-        {label}
-        {isActive && <span className="sort-arrow">{isAsc ? "\u2191" : "\u2193"}</span>}
-      </span>
+    <th className={className || ""}>
+      <button
+        type="button"
+        className="sort-header-btn"
+        onClick={handleClick}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : undefined}
+      >
+        <span className="sort-header-inner">
+          {label}
+          {isActive && <span className="sort-arrow">{isAsc ? "\u2191" : "\u2193"}</span>}
+        </span>
+      </button>
     </th>
   );
 }
@@ -115,7 +122,7 @@ export default function UsersPage() {
         const j = await meRes.json();
         if (j?.user?.role) setCurrentUserRole(j.user.role);
       }
-    }).catch(() => { /* silent */ });
+    }).catch(() => { setLoadError(true); });
   }, []);
 
   // Reset page when filters change

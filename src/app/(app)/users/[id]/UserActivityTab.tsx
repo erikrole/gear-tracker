@@ -93,8 +93,8 @@ export default function UserActivityTab({ userId }: { userId: string }) {
         const changes = isUpdate
           ? Object.keys(entry.afterJson!).filter((k) => {
               if (k.startsWith("_")) return false; // skip internal fields like _actorRole
-              const b = (entry.beforeJson as Record<string, unknown>)?.[k];
-              const a = (entry.afterJson as Record<string, unknown>)?.[k];
+              const b = entry.beforeJson?.[k];
+              const a = entry.afterJson?.[k];
               return String(b ?? "") !== String(a ?? "");
             })
           : [];
@@ -127,8 +127,8 @@ export default function UserActivityTab({ userId }: { userId: string }) {
                     <div key={key} className="py-1">
                       {describeFieldChange(
                         key,
-                        (entry.beforeJson as Record<string, unknown>)?.[key],
-                        (entry.afterJson as Record<string, unknown>)?.[key],
+                        entry.beforeJson?.[key],
+                        entry.afterJson?.[key],
                       )}
                     </div>
                   ))}

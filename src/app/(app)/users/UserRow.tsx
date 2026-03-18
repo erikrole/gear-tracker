@@ -1,10 +1,11 @@
+import { memo } from "react";
 import Link from "next/link";
 import type { UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
 
 /* ── Desktop Table Row ─────────────────────────────────── */
 
-export function UserTableRow({ user }: { user: UserRowType }) {
+export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRowType }) {
   return (
     <tr>
       <td>
@@ -20,15 +21,15 @@ export function UserTableRow({ user }: { user: UserRowType }) {
       <td className="hide-mobile">{user.primaryArea || "\u2014"}</td>
     </tr>
   );
-}
+});
 
 /* ── Mobile Card ───────────────────────────────────────── */
 
-export function UserMobileCard({ user }: { user: UserRowType }) {
+export const UserMobileCard = memo(function UserMobileCard({ user }: { user: UserRowType }) {
   return (
     <Link href={`/users/${user.id}`} className="user-mobile-card no-underline">
       <div className="user-mobile-top">
-        <div className="user-mobile-avatar">
+        <div className="user-mobile-avatar" aria-hidden="true">
           {user.name.charAt(0).toUpperCase()}
         </div>
         <div className="user-mobile-name">
@@ -46,4 +47,4 @@ export function UserMobileCard({ user }: { user: UserRowType }) {
       )}
     </Link>
   );
-}
+});
