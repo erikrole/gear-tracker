@@ -26,26 +26,21 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+      <div className="page-header mb-0">
+        <h1>Settings</h1>
+      </div>
+
+      <nav className="item-tabs" style={{ marginBottom: 20 }}>
         {SETTINGS_SECTIONS.map((s) => (
           <Link
             key={s.href}
             href={s.href}
-            className={`btn btn-sm${pathname.startsWith(s.href) ? " btn-primary" : ""}`}
-            style={{
-              fontSize: "var(--text-sm)",
-              padding: "6px 14px",
-              borderRadius: 8,
-              textDecoration: "none",
-              ...(!pathname.startsWith(s.href)
-                ? { background: "var(--panel)", border: "1px solid var(--border)", color: "var(--text)" }
-                : {}),
-            }}
+            className={`item-tab no-underline${pathname.startsWith(s.href) ? " active" : ""}`}
           >
             {s.label}
           </Link>
         ))}
-      </div>
+      </nav>
 
       {children}
     </>
