@@ -36,6 +36,7 @@ export type AssetDetail = {
   computedStatus: string;
   notes: string | null;
   linkUrl: string | null;
+  imageUrl: string | null;
   location: { name: string };
   department: { name: string } | null;
   category: { id: string; name: string } | null;

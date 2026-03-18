@@ -2597,6 +2597,113 @@ textarea:focus-visible {
   }
 }
 
+/* ===== Asset Images ===== */
+.asset-hero-image {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: var(--radius-lg, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.asset-hero-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+}
+
+.asset-hero-image-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: white;
+}
+
+.asset-hero-image:hover .asset-hero-image-overlay {
+  opacity: 1;
+}
+
+.asset-hero-image-empty {
+  cursor: pointer;
+  border-style: dashed;
+}
+
+.asset-hero-image-empty:hover {
+  border-color: var(--accent);
+  background: var(--primary-bg, rgba(59, 130, 246, 0.06));
+}
+
+.item-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+}
+
+.image-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg, 8px);
+  padding: 40px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-height: 200px;
+}
+
+.image-drop-zone:hover,
+.image-drop-zone.dragging {
+  border-color: var(--accent);
+  background: var(--primary-bg, rgba(59, 130, 246, 0.06));
+}
+
+.image-drop-zone-preview {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+}
+
+.image-preview-container {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 8px);
+  background: var(--bg-muted);
+}
+
+.image-preview-container img {
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+
 /* ===== Toast ===== */
 .toast-container {
   position: fixed;

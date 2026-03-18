@@ -61,6 +61,53 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 });
 
 /**
+ * PUT /api/assets/:id/image — set image from an external URL
+ */
+export const PUT = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requirePermission(user.role, "asset", "edit");
+
+  const { id } = params;
+  const body = await req.json();
+  const url = typeof body?.url === "string" ? body.url.trim() : "";
+
+  if (!url || !url.startsWith("https://")) {
+    throw new HttpError(400, "A valid HTTPS image URL is required");
+  }
+  if (url.length > 2048) {
+    throw new HttpError(400, "URL is too long");
+  }
+
+  const asset = await db.asset.findUnique({
+    where: { id },
+    select: { id: true, imageUrl: true },
+  });
+  if (!asset) throw new HttpError(404, "Asset not found");
+
+  // Delete previous blob image if applicable
+  if (asset.imageUrl?.includes(".public.blob.vercel-storage.com")) {
+    await deleteImage(asset.imageUrl).catch(() => {});
+  }
+
+  const updated = await db.asset.update({
+    where: { id },
+    data: { imageUrl: url },
+    select: { id: true, imageUrl: true },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "asset",
+    entityId: id,
+    action: "asset_image_set",
+    before: { imageUrl: asset.imageUrl },
+    after: { imageUrl: url },
+  });
+
+  return ok(updated);
+});
+
+/**
  * DELETE /api/assets/:id/image — remove an asset image
  */
 export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {
