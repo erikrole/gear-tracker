@@ -44,15 +44,17 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
   const source = await db.calendarSource.findUnique({ where: { id } });
   if (!source) throw new HttpError(404, "Source not found");
 
-  // Nullify eventId on any bookings linked to this source's events
-  // so the cascade delete of events doesn't violate FK constraints
-  await db.booking.updateMany({
-    where: { event: { sourceId: id } },
-    data: { eventId: null },
-  });
+  await db.$transaction(async (tx) => {
+    // Nullify eventId on any bookings linked to this source's events
+    // so the cascade delete of events doesn't violate FK constraints
+    await tx.booking.updateMany({
+      where: { event: { sourceId: id } },
+      data: { eventId: null },
+    });
 
-  // Cascade deletes associated CalendarEvent rows (schema onDelete: Cascade)
-  await db.calendarSource.delete({ where: { id } });
+    // Cascade deletes associated CalendarEvent rows (schema onDelete: Cascade)
+    await tx.calendarSource.delete({ where: { id } });
+  });
 
   await createAuditEntry({
     actorId: user.id,

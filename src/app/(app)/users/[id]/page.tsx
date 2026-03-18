@@ -59,7 +59,7 @@ export default function UserDetailPage() {
         const j = await optionsRes.json();
         setLocations(j.data?.locations || []);
       }
-    }).catch(() => {});
+    }).catch(() => { setFetchError(true); });
   }, [loadUser]);
 
   if (fetchError) {
@@ -86,7 +86,7 @@ export default function UserDetailPage() {
       <div className="page-header mb-0">
         <div>
           <div className="flex gap-12 items-center">
-            <div className="user-detail-avatar">
+            <div className="user-detail-avatar" aria-hidden="true">
               {user.name.charAt(0).toUpperCase()}
             </div>
             <div>

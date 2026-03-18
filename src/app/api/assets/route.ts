@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
+import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
@@ -225,6 +226,15 @@ export const POST = withAuth(async (req, { user }) => {
       location: { select: { id: true, name: true } },
       category: { select: { id: true, name: true } },
     }
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "asset",
+    entityId: asset.id,
+    action: "asset_created",
+    after: { assetTag: asset.assetTag, brand: asset.brand, model: asset.model, locationId: asset.locationId },
   });
 
   return ok({ data: asset }, 201);

@@ -10,11 +10,15 @@ export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift_trade", "view");
 
   const url = new URL(req.url);
-  const status = url.searchParams.get("status") as ShiftTradeStatus | null;
+  const statusParam = url.searchParams.get("status");
+  const validStatuses: ShiftTradeStatus[] = ["OPEN", "CLAIMED", "COMPLETED", "CANCELLED"];
+  const status = statusParam && validStatuses.includes(statusParam as ShiftTradeStatus)
+    ? (statusParam as ShiftTradeStatus)
+    : undefined;
   const area = url.searchParams.get("area");
 
   const trades = await listTrades({
-    status: status ?? undefined,
+    status,
     area: area ?? undefined,
   });
 

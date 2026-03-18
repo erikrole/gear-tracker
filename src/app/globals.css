@@ -4558,14 +4558,26 @@ textarea:focus-visible {
 }
 
 /* Sortable column headers */
-.sort-header {
+.sort-header-btn {
+  all: unset;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
+  width: 100%;
+  font: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+  color: inherit;
 }
 
-.sort-header:hover {
+.sort-header-btn:hover {
   color: var(--text);
+}
+
+.sort-header-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .sort-header-inner {

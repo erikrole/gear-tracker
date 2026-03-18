@@ -20,6 +20,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(400, "You cannot change your own role");
   }
 
+  // Only ADMIN can grant the ADMIN role
+  if (user.role !== "ADMIN" && body.role === "ADMIN") {
+    throw new HttpError(403, "Only admins can grant the admin role");
+  }
+
   const previousRole = target.role;
   const updated = await db.user.update({
     where: { id },

@@ -1,18 +1,21 @@
 import { BookingKind } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { parseDateRange } from "@/lib/time";
 import { createAuditEntry } from "@/lib/audit";
 import { createReservationSchema } from "@/lib/validation";
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "booking", "view");
   const { searchParams } = new URL(req.url);
   const result = await listBookings(BookingKind.RESERVATION, searchParams);
   return ok(result);
 });
 
 export const POST = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "booking", "create");
   const body = createReservationSchema.parse(await req.json());
   const { start, end } = parseDateRange(body.startsAt, body.endsAt);
 
@@ -29,6 +32,7 @@ export const POST = withAuth(async (req, { user }) => {
     createdBy: user.id,
     eventId: body.eventId,
     sportCode: body.sportCode,
+    shiftAssignmentId: body.shiftAssignmentId,
   });
 
   await createAuditEntry({

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
+import { createAuditEntry } from "@/lib/audit";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
@@ -53,6 +54,18 @@ export const PATCH = withAuth(async (req, { user }) => {
     where: { id: user.id },
     data: updateData,
     select: { id: true, name: true, email: true, role: true },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "user",
+    entityId: user.id,
+    action: "profile_updated",
+    after: {
+      ...(body.name ? { name: body.name } : {}),
+      ...(body.newPassword ? { passwordChanged: true } : {}),
+    },
   });
 
   return ok({ user: updated });

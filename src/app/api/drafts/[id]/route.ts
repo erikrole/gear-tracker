@@ -1,4 +1,5 @@
 import { withAuth } from "@/lib/api";
+import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 
@@ -67,6 +68,15 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
 
   // Cascade deletes BookingSerializedItem + BookingBulkItem automatically
   await db.booking.delete({ where: { id } });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "booking",
+    entityId: id,
+    action: "draft_discarded",
+    before: { title: draft.title, kind: draft.kind },
+  });
 
   return ok({ success: true });
 });

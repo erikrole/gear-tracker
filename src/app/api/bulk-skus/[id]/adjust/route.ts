@@ -1,4 +1,4 @@
-import { BulkMovementKind } from "@prisma/client";
+import { BulkMovementKind, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
@@ -60,7 +60,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     });
 
     return { current, next };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

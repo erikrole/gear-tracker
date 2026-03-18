@@ -1,6 +1,23 @@
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
+import { createAuditEntry } from "@/lib/audit";
 import { HttpError, ok } from "@/lib/http";
 import { db } from "@/lib/db";
+
+const patchEscalationSchema = z.union([
+  z.object({
+    maxNotificationsPerBooking: z.number().int().min(1).max(100),
+  }),
+  z.object({
+    ruleId: z.string().cuid(),
+    enabled: z.boolean().optional(),
+    notifyAdmins: z.boolean().optional(),
+    notifyRequester: z.boolean().optional(),
+  }).refine(
+    (d) => d.enabled !== undefined || d.notifyAdmins !== undefined || d.notifyRequester !== undefined,
+    { message: "Provide at least one field to update" }
+  ),
+]);
 
 /**
  * GET /api/settings/escalation
@@ -29,36 +46,51 @@ export const GET = withAuth(async (_req, { user }) => {
 export const PATCH = withAuth(async (req, { user }) => {
   if (user.role !== "ADMIN") throw new HttpError(403, "Admin only");
 
-  const body = await req.json();
+  const body = patchEscalationSchema.parse(await req.json());
 
   // Update system config
-  if (body.maxNotificationsPerBooking !== undefined) {
-    const cap = Number(body.maxNotificationsPerBooking);
-    if (!Number.isInteger(cap) || cap < 1 || cap > 100) {
-      throw new HttpError(400, "Cap must be between 1 and 100");
-    }
+  if ("maxNotificationsPerBooking" in body) {
+    const cap = body.maxNotificationsPerBooking;
+    const existing = await db.systemConfig.findUnique({ where: { key: "escalation" } });
+    const before = existing?.value as Record<string, unknown> | null;
     await db.systemConfig.upsert({
       where: { key: "escalation" },
       update: { value: { maxNotificationsPerBooking: cap } },
       create: { key: "escalation", value: { maxNotificationsPerBooking: cap } },
     });
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "system_config",
+      entityId: "escalation",
+      action: "escalation_config_updated",
+      before: before ?? undefined,
+      after: { maxNotificationsPerBooking: cap },
+    });
     return ok({ maxNotificationsPerBooking: cap });
   }
 
   // Update a rule
-  if (body.ruleId) {
-    const data: Record<string, unknown> = {};
-    if (body.enabled !== undefined) data.enabled = Boolean(body.enabled);
-    if (body.notifyAdmins !== undefined) data.notifyAdmins = Boolean(body.notifyAdmins);
-    if (body.notifyRequester !== undefined) data.notifyRequester = Boolean(body.notifyRequester);
+  if ("ruleId" in body) {
+    const data: Record<string, boolean> = {};
+    if (body.enabled !== undefined) data.enabled = body.enabled;
+    if (body.notifyAdmins !== undefined) data.notifyAdmins = body.notifyAdmins;
+    if (body.notifyRequester !== undefined) data.notifyRequester = body.notifyRequester;
 
-    if (Object.keys(data).length === 0) {
-      throw new HttpError(400, "No fields to update");
-    }
-
+    const beforeRule = await db.escalationRule.findUnique({ where: { id: body.ruleId } });
+    if (!beforeRule) throw new HttpError(404, "Escalation rule not found");
     const rule = await db.escalationRule.update({
       where: { id: body.ruleId },
       data,
+    });
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "escalation_rule",
+      entityId: body.ruleId,
+      action: "escalation_rule_updated",
+      before: beforeRule ? { enabled: beforeRule.enabled, notifyAdmins: beforeRule.notifyAdmins, notifyRequester: beforeRule.notifyRequester } : undefined,
+      after: data,
     });
     return ok(rule);
   }

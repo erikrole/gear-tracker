@@ -53,3 +53,5 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-03-16 | Event detail: shift coverage table, manage shifts button | 11 |
 | 2026-03-16 | Hardening: doc sync, permissions verified, audit logging complete | 12 |
 | 2026-03-17 | Gear integration: "Gear Up" notification on shift assign/approve; shift context banner in checkout form | — |
+| 2026-03-18 | Event Command Center: staff view with shift + gear status, missing gear list, nudge notifications | Slice 4 |
+| 2026-03-18 | Shift-checkout linking: shiftAssignmentId FK on Booking, wired through checkout/reservation creation, command center shows linked status | Slice 6 |

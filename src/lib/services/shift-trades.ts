@@ -1,4 +1,4 @@
-import { ShiftTradeStatus } from "@prisma/client";
+import { Prisma, ShiftTradeStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 
@@ -172,19 +172,21 @@ export async function approveTrade(tradeId: string) {
  * Staff declines a claimed trade → back to OPEN.
  */
 export async function declineTrade(tradeId: string) {
-  const trade = await db.shiftTrade.findUnique({ where: { id: tradeId } });
-  if (!trade) throw new HttpError(404, "Trade not found");
-  if (trade.status !== "CLAIMED") {
-    throw new HttpError(400, "Only claimed trades can be declined");
-  }
+  return db.$transaction(async (tx) => {
+    const trade = await tx.shiftTrade.findUnique({ where: { id: tradeId } });
+    if (!trade) throw new HttpError(404, "Trade not found");
+    if (trade.status !== "CLAIMED") {
+      throw new HttpError(400, "Only claimed trades can be declined");
+    }
 
-  return db.shiftTrade.update({
-    where: { id: tradeId },
-    data: {
-      claimedByUserId: null,
-      claimedAt: null,
-      status: "OPEN",
-    },
+    return tx.shiftTrade.update({
+      where: { id: tradeId },
+      data: {
+        claimedByUserId: null,
+        claimedAt: null,
+        status: "OPEN",
+      },
+    });
   });
 }
 
@@ -192,21 +194,23 @@ export async function declineTrade(tradeId: string) {
  * Poster cancels their own trade.
  */
 export async function cancelTrade(tradeId: string, userId: string) {
-  const trade = await db.shiftTrade.findUnique({ where: { id: tradeId } });
-  if (!trade) throw new HttpError(404, "Trade not found");
-  if (trade.postedByUserId !== userId) {
-    throw new HttpError(403, "You can only cancel your own trades");
-  }
-  if (trade.status !== "OPEN" && trade.status !== "CLAIMED") {
-    throw new HttpError(400, "Trade cannot be cancelled in its current state");
-  }
+  return db.$transaction(async (tx) => {
+    const trade = await tx.shiftTrade.findUnique({ where: { id: tradeId } });
+    if (!trade) throw new HttpError(404, "Trade not found");
+    if (trade.postedByUserId !== userId) {
+      throw new HttpError(403, "You can only cancel your own trades");
+    }
+    if (trade.status !== "OPEN" && trade.status !== "CLAIMED") {
+      throw new HttpError(400, "Trade cannot be cancelled in its current state");
+    }
 
-  return db.shiftTrade.update({
-    where: { id: tradeId },
-    data: {
-      resolvedAt: new Date(),
-      status: "CANCELLED",
-    },
+    return tx.shiftTrade.update({
+      where: { id: tradeId },
+      data: {
+        resolvedAt: new Date(),
+        status: "CANCELLED",
+      },
+    });
   });
 }
 
@@ -260,17 +264,11 @@ export async function listTrades(filters: {
 
 /* ── Internal helpers ── */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function executeSwap(tx: any, assignmentId: string, targetUserId: string, actorId: string) {
-  // Mark old assignment as SWAPPED
-  await tx.shiftAssignment.update({
+async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, targetUserId: string, actorId: string) {
+  // Mark old assignment as SWAPPED and get it in one step
+  const assignment = await tx.shiftAssignment.update({
     where: { id: assignmentId },
     data: { status: "SWAPPED" },
-  });
-
-  // Get the assignment to find shiftId
-  const assignment = await tx.shiftAssignment.findUnique({
-    where: { id: assignmentId },
   });
 
   // Create new assignment for claimer

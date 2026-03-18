@@ -25,6 +25,7 @@ type CreateBookingInput = {
   sourceReservationId?: string;
   eventId?: string;
   sportCode?: string;
+  shiftAssignmentId?: string;
 };
 
 type UpdateBookingInput = {
@@ -354,7 +355,8 @@ export async function createBooking(input: CreateBookingInput) {
           notes: input.notes,
           sourceReservationId: input.sourceReservationId ?? null,
           eventId: input.eventId ?? null,
-          sportCode: input.sportCode ?? null
+          sportCode: input.sportCode ?? null,
+          shiftAssignmentId: input.shiftAssignmentId ?? null
         }
       });
 
@@ -668,6 +670,10 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
 
     if (!booking || booking.kind !== BookingKind.CHECKOUT) {
       throw new HttpError(404, "Checkout not found");
+    }
+
+    if (booking.status !== BookingStatus.OPEN) {
+      throw new HttpError(400, `Checkout is not open (current status: ${booking.status})`);
     }
 
     await tx.booking.update({

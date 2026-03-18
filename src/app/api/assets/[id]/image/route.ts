@@ -1,4 +1,5 @@
 import { withAuth } from "@/lib/api";
+import { createAuditEntry } from "@/lib/audit";
 import { requirePermission } from "@/lib/rbac";
 import { HttpError, ok } from "@/lib/http";
 import { validateImage, uploadImage, deleteImage } from "@/lib/blob";
@@ -46,6 +47,16 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     select: { id: true, imageUrl: true },
   });
 
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "asset",
+    entityId: id,
+    action: "asset_image_uploaded",
+    before: { imageUrl: asset.imageUrl },
+    after: { imageUrl },
+  });
+
   return ok(updated);
 });
 
@@ -73,6 +84,16 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
     where: { id },
     data: { imageUrl: null },
     select: { id: true, imageUrl: true },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "asset",
+    entityId: id,
+    action: "asset_image_removed",
+    before: { imageUrl: asset.imageUrl },
+    after: { imageUrl: null },
   });
 
   return ok(updated);

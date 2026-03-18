@@ -94,6 +94,7 @@ model User {
   tradesClaimed       ShiftTrade[]       @relation("TradeClaimedBy")
   favorites           FavoriteItem[]
   passwordResetTokens PasswordResetToken[]
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -231,29 +232,33 @@ model Booking {
   notes             String?
   sourceReservationId String?               @map("source_reservation_id")
   eventId           String?                 @map("event_id")
-  sportCode         String?                 @map("sport_code")
-  refNumber         String?                 @unique @map("ref_number")
-  createdAt         DateTime                @default(now()) @map("created_at")
-  updatedAt         DateTime                @updatedAt @map("updated_at")
-  requester         User                    @relation("BookingRequester", fields: [requesterUserId], references: [id])
-  creator           User                    @relation("BookingCreator", fields: [createdBy], references: [id])
-  location          Location                @relation(fields: [locationId], references: [id])
-  sourceReservation Booking?                @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id])
-  derivedCheckouts  Booking[]               @relation("CheckoutFromReservation")
-  event             CalendarEvent?          @relation(fields: [eventId], references: [id])
-  serializedItems   BookingSerializedItem[]
-  bulkItems         BookingBulkItem[]
-  allocations       AssetAllocation[]
-  scanEvents        ScanEvent[]
-  scanSessions      ScanSession[]
-  overrides         OverrideEvent[]
-  bulkMovements     BulkStockMovement[]
+  sportCode           String?                 @map("sport_code")
+  refNumber           String?                 @unique @map("ref_number")
+  shiftAssignmentId   String?                 @map("shift_assignment_id")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+  requester           User                    @relation("BookingRequester", fields: [requesterUserId], references: [id])
+  creator             User                    @relation("BookingCreator", fields: [createdBy], references: [id])
+  location            Location                @relation(fields: [locationId], references: [id])
+  sourceReservation   Booking?                @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id])
+  derivedCheckouts    Booking[]               @relation("CheckoutFromReservation")
+  event               CalendarEvent?          @relation(fields: [eventId], references: [id])
+  shiftAssignment     ShiftAssignment?        @relation(fields: [shiftAssignmentId], references: [id])
+  serializedItems     BookingSerializedItem[]
+  bulkItems           BookingBulkItem[]
+  allocations         AssetAllocation[]
+  scanEvents          ScanEvent[]
+  scanSessions        ScanSession[]
+  overrides           OverrideEvent[]
+  bulkMovements       BulkStockMovement[]
 
   @@index([locationId, startsAt, endsAt])
   @@index([status, kind])
   @@index([sourceReservationId])
   @@index([eventId])
   @@index([sportCode])
+  @@index([shiftAssignmentId])
+  @@index([requesterUserId])
   @@map("bookings")
 }
 
@@ -582,6 +587,7 @@ model Notification {
   readAt     DateTime?           @map("read_at")
   dedupeKey  String?             @unique @map("dedupe_key")
   createdAt  DateTime            @default(now()) @map("created_at")
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -732,6 +738,7 @@ model ShiftAssignment {
   swapFrom   ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id])
   swappedTo  ShiftAssignment[]     @relation("ShiftSwap")
   trades     ShiftTrade[]
+  bookings   Booking[]
 
   @@index([shiftId, status])
   @@index([userId, status])

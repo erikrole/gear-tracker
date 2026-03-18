@@ -25,9 +25,9 @@ Last updated: 2026-03-16
   - Type: `shift_gear_up` with event + area context
   - Non-blocking, deduped per assignment
   - Files: `shift-assignments.ts`, `notifications.ts`
-- [ ] **Slice 4** (future): Event Command Center — unified staff view
+- [x] **Slice 4**: Event Command Center — unified staff view (2026-03-18)
 - [ ] **Slice 5** (future): Game-Day Readiness Score
-- [ ] **Slice 6** (future): Shift-Checkout linking (shiftAssignmentId FK)
+- [x] **Slice 6**: Shift-Checkout linking (shiftAssignmentId FK) (2026-03-18)
 
 ---
 

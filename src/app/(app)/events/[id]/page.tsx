@@ -37,6 +37,29 @@ type ShiftGroupSummary = {
   }>;
 };
 
+type CommandCenterData = {
+  shifts: Array<{
+    id: string;
+    area: string;
+    workerType: string;
+    startsAt: string;
+    endsAt: string;
+    assignment: { id: string; userId: string; userName: string; status: string; linkedBookingId: string | null; linkedBookingStatus: string | null } | null;
+    pendingRequests: number;
+  }>;
+  gearSummary: {
+    total: number;
+    byStatus: { draft: number; reserved: number; checkedOut: number; completed: number };
+  };
+  missingGear: Array<{
+    userId: string;
+    userName: string;
+    area: string;
+    shiftId: string;
+    assignmentId: string;
+  }>;
+};
+
 const AREA_LABELS: Record<string, string> = {
   VIDEO: "Video",
   PHOTO: "Photo",
@@ -77,6 +100,8 @@ export default function EventDetailPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserRole, setCurrentUserRole] = useState("STUDENT");
+  const [commandCenter, setCommandCenter] = useState<CommandCenterData | null>(null);
+  const [nudgingId, setNudgingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/calendar-events/${id}`)
@@ -96,6 +121,16 @@ export default function EventDetailPage() {
     } catch { /* network error */ }
   }, [id]);
 
+  const loadCommandCenter = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/calendar-events/${id}/command-center`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data) setCommandCenter(json.data);
+      }
+    } catch { /* network error */ }
+  }, [id]);
+
   useEffect(() => {
     loadShiftGroup();
     fetch("/api/me")
@@ -104,10 +139,14 @@ export default function EventDetailPage() {
         if (j?.user) {
           setCurrentUserId(j.user.id);
           setCurrentUserRole(j.user.role);
+          // Load command center for staff/admin
+          if (j.user.role === "STAFF" || j.user.role === "ADMIN") {
+            loadCommandCenter();
+          }
         }
       })
       .catch(() => {});
-  }, [loadShiftGroup]);
+  }, [loadShiftGroup, loadCommandCenter]);
 
   if (fetchError) {
     return <div className="empty-state">Event not found or failed to load. <Link href="/events">Back to events</Link></div>;
@@ -239,6 +278,139 @@ export default function EventDetailPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Command Center (staff/admin only) */}
+      {commandCenter && commandCenter.shifts.length > 0 && (currentUserRole === "STAFF" || currentUserRole === "ADMIN") && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="card-header">
+            <h2>Command Center</h2>
+          </div>
+          <div style={{ padding: 16 }}>
+            {/* Gear status pills */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+              <span className="badge badge-gray">
+                {commandCenter.gearSummary.byStatus.draft} Draft
+              </span>
+              <span className="badge badge-orange">
+                {commandCenter.gearSummary.byStatus.reserved} Reserved
+              </span>
+              <span className="badge badge-green">
+                {commandCenter.gearSummary.byStatus.checkedOut} Checked out
+              </span>
+              <span className="badge badge-blue">
+                {commandCenter.gearSummary.byStatus.completed} Returned
+              </span>
+            </div>
+
+            {/* Shift + gear grid */}
+            <table className="data-table" style={{ fontSize: "var(--text-sm)" }}>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Type</th>
+                  <th>Assigned</th>
+                  <th>Shift</th>
+                  <th>Gear</th>
+                </tr>
+              </thead>
+              <tbody>
+                {commandCenter.shifts.map((shift) => {
+                  const hasMissingGear = shift.assignment && commandCenter.missingGear.some(
+                    (m) => m.shiftId === shift.id
+                  );
+                  return (
+                    <tr key={shift.id}>
+                      <td>{AREA_LABELS[shift.area] ?? shift.area}</td>
+                      <td>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</td>
+                      <td>{shift.assignment ? shift.assignment.userName : <span className="text-secondary">&mdash;</span>}</td>
+                      <td>
+                        {shift.assignment ? (
+                          <span className="badge badge-green">Filled</span>
+                        ) : shift.pendingRequests > 0 ? (
+                          <span className="badge badge-orange">{shift.pendingRequests} req</span>
+                        ) : (
+                          <span className="badge badge-red">Open</span>
+                        )}
+                      </td>
+                      <td>
+                        {!shift.assignment ? (
+                          <span className="text-secondary">&mdash;</span>
+                        ) : hasMissingGear ? (
+                          <span className="badge badge-red">None</span>
+                        ) : shift.assignment.linkedBookingId ? (
+                          <span className="badge badge-green">Linked</span>
+                        ) : (
+                          <span className="badge badge-orange">Unlinked</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Missing gear list */}
+            {commandCenter.missingGear.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: 8 }}>
+                  Missing Gear ({commandCenter.missingGear.length})
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {commandCenter.missingGear.map((m) => (
+                    <div
+                      key={`${m.shiftId}-${m.userId}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "8px 12px",
+                        background: "var(--bg-secondary, #f3f4f6)",
+                        borderRadius: 8,
+                        fontSize: "var(--text-sm)",
+                      }}
+                    >
+                      <div>
+                        <strong>{m.userName}</strong>
+                        <span className="text-secondary" style={{ marginLeft: 8 }}>
+                          {AREA_LABELS[m.area] ?? m.area}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="btn btn-sm"
+                          disabled={nudgingId === m.assignmentId}
+                          onClick={async () => {
+                            setNudgingId(m.assignmentId);
+                            try {
+                              await fetch("/api/notifications/nudge", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ assignmentId: m.assignmentId }),
+                              });
+                            } catch { /* ignore */ }
+                            setNudgingId(null);
+                          }}
+                        >
+                          {nudgingId === m.assignmentId ? "Sending..." : "Nudge"}
+                        </button>
+                        {event && (
+                          <a
+                            href={`/checkouts?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}&requesterUserId=${m.userId}`}
+                            className="btn btn-sm btn-primary"
+                            style={{ textDecoration: "none" }}
+                          >
+                            Create checkout
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

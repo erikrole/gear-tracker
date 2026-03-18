@@ -73,8 +73,11 @@ function EditableField({
         ) : (
           <span
             onClick={() => canEdit && setEditing(true)}
+            onKeyDown={(e) => { if (canEdit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setEditing(true); } }}
             style={displayStyle}
             title={canEdit ? "Click to edit" : undefined}
+            role={canEdit ? "button" : undefined}
+            tabIndex={canEdit ? 0 : undefined}
           >
             {displayText}
           </span>
@@ -114,7 +117,7 @@ function SelectField({
         {editing ? (
           <select
             value={value}
-            onChange={async (e) => { await onSave(e.target.value); setEditing(false); }}
+            onChange={async (e) => { try { await onSave(e.target.value); } finally { setEditing(false); } }}
             onBlur={() => setEditing(false)}
             autoFocus
             className="form-select"
@@ -128,12 +131,15 @@ function SelectField({
         ) : (
           <span
             onClick={() => canEdit && setEditing(true)}
+            onKeyDown={(e) => { if (canEdit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setEditing(true); } }}
             style={{
               cursor: canEdit ? "pointer" : "default",
               borderBottom: canEdit ? "1px dashed var(--border)" : "none",
               padding: "0 2px",
             }}
             title={canEdit ? "Click to edit" : undefined}
+            role={canEdit ? "button" : undefined}
+            tabIndex={canEdit ? 0 : undefined}
           >
             {displayValue || value || "\u2014"}
           </span>

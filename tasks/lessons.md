@@ -39,3 +39,13 @@
 - Non-blocking notification triggers (`createNotification(...).catch(() => {})`) are the right pattern for "nice to have" side effects in API routes. Failure shouldn't block the primary action.
 - Competitive research before building features prevents building what already exists elsewhere. No competitor does both equipment checkout + shift scheduling for athletics — that's a real moat worth documenting.
 - Dashboard widgets should include actionable links (e.g., "Reserve gear") not just information display. The goal is zero-tap-to-action from the widget.
+
+## Session 2026-03-18
+
+### Patterns
+- Initial audit scans can be inaccurate — the first pass flagged escalation routes as missing auth and shift routes as missing audit, but deeper reads showed both were already covered. Always verify with full file reads before planning fixes.
+- When auditing for missing patterns (like audit logging), check every route systematically rather than sampling — the real gaps are often in less-obvious routes (accessories, image upload, profile update) not the main CRUD routes.
+- TOCTOU bugs hide in plain sight: any read-then-write across separate DB calls without a transaction is a race condition. The pattern to check: `findUnique` → status check → `update` as two calls. Fix: wrap in `$transaction`.
+- Privilege escalation often has two vectors: role change AND user creation. Both must enforce the same guard (e.g., only ADMIN can grant ADMIN).
+- Seed/bootstrap endpoints are account takeover vectors in production. Gate them behind auth or disable entirely when `NODE_ENV=production`.
+- Bulk quantity updates (stock balances) require Serializable isolation or atomic increment operators. Default transaction isolation does NOT prevent lost-update races.
