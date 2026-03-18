@@ -1,46 +1,72 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateTime } from "@/lib/format";
+import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
+
+type AuditEntry = {
+  id: string;
+  actor: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  createdAt: string;
+};
 
 type AuditData = {
-  data: {
-    id: string;
-    actor: string;
-    entityType: string;
-    entityId: string;
-    action: string;
-    createdAt: string;
-  }[];
+  data: AuditEntry[];
   total: number;
   limit: number;
   offset: number;
 };
 
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+function AuditMobileCard({ entry }: { entry: AuditEntry }) {
+  return (
+    <div className="report-mobile-card" style={{ flexDirection: "column", gap: 4 }}>
+      <div className="report-mobile-top">
+        <span className="badge badge-gray">{entry.action}</span>
+        <span className="text-xs text-muted">{formatDateTime(entry.createdAt)}</span>
+      </div>
+      <div className="text-sm">
+        <span>{entry.actor}</span>
+        <span className="text-muted"> &middot; </span>
+        <span className="font-mono text-xs">{entry.entityType}:{entry.entityId.slice(0, 8)}</span>
+      </div>
+    </div>
+  );
 }
 
 export default function AuditReportPage() {
   const [data, setData] = useState<AuditData | null>(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const limit = 25;
 
   useEffect(() => {
     setLoading(true);
+    setError(false);
     fetch(`/api/reports?type=audit&limit=${limit}&offset=${page * limit}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((json) => setData(json?.data ?? null))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [page]);
 
-  if (loading) return <div className="loading-spinner"><div className="spinner" /></div>;
-  if (!data) return <div className="empty-state">Failed to load report. Please try refreshing the page.</div>;
+  if (loading) {
+    return <div className="card"><SkeletonTable rows={6} cols={4} /></div>;
+  }
+
+  if (error || !data) {
+    return (
+      <EmptyState
+        icon="chart"
+        title="Failed to load report"
+        description="Something went wrong. Please try refreshing the page."
+      />
+    );
+  }
 
   const totalPages = Math.ceil(data.total / limit);
 
@@ -50,34 +76,42 @@ export default function AuditReportPage() {
         <h2>Audit trail</h2>
         <span className="text-sm text-muted">{data.total} entries</span>
       </div>
+
       {data.data.length === 0 ? (
-        <div className="empty-state">No audit log entries</div>
+        <EmptyState icon="clipboard" title="No audit log entries" />
       ) : (
         <>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Actor</th>
-                <th>Action</th>
-                <th>Entity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.data.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="nowrap text-sm">{formatDateTime(entry.createdAt)}</td>
-                  <td>{entry.actor}</td>
-                  <td>
-                    <span className="badge badge-gray">{entry.action}</span>
-                  </td>
-                  <td className="text-sm font-mono">
-                    {entry.entityType}:{entry.entityId.slice(0, 8)}
-                  </td>
+          {/* Desktop table */}
+          <div className="hide-mobile-only">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Entity</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.data.map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="nowrap text-sm">{formatDateTime(entry.createdAt)}</td>
+                    <td>{entry.actor}</td>
+                    <td><span className="badge badge-gray">{entry.action}</span></td>
+                    <td className="text-sm font-mono">{entry.entityType}:{entry.entityId.slice(0, 8)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="show-mobile-only">
+            {data.data.map((entry) => (
+              <AuditMobileCard key={entry.id} entry={entry} />
+            ))}
+          </div>
+
           {totalPages > 1 && (
             <div className="pagination">
               <span>Page {page + 1} of {totalPages}</span>
