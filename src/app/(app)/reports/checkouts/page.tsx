@@ -3,44 +3,100 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatDateFull } from "@/lib/format";
+import { SkeletonTable } from "@/components/Skeleton";
+import EmptyState from "@/components/EmptyState";
+import MetricCard from "../MetricCard";
+
+type CheckoutRow = {
+  id: string;
+  title: string;
+  status: string;
+  startsAt: string;
+  endsAt: string;
+  createdAt: string;
+  requester: string;
+  location: string;
+  itemCount: number;
+  isOverdue: boolean;
+};
 
 type CheckoutData = {
   days: number;
   totalCheckouts: number;
   overdueCheckouts: number;
-  recentCheckouts: {
-    id: string;
-    title: string;
-    status: string;
-    startsAt: string;
-    endsAt: string;
-    createdAt: string;
-    requester: string;
-    location: string;
-    itemCount: number;
-    isOverdue: boolean;
-  }[];
+  recentCheckouts: CheckoutRow[];
   topRequesters: { name: string; count: number }[];
 };
+
+function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
+  const cls = isOverdue ? "badge-red" : status === "OPEN" ? "badge-green" : "badge-gray";
+  return <span className={`badge ${cls}`}>{isOverdue ? "overdue" : status.toLowerCase()}</span>;
+}
+
+function CheckoutMobileCard({ c }: { c: CheckoutRow }) {
+  return (
+    <Link href={`/checkouts/${c.id}`} className="report-mobile-card no-underline">
+      <div className="report-mobile-top">
+        <span className="row-link">{c.title}</span>
+        <StatusBadge status={c.status} isOverdue={c.isOverdue} />
+      </div>
+      <div className="text-sm text-muted">
+        {c.requester} &middot; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""} &middot; Due {formatDateFull(c.endsAt)}
+      </div>
+    </Link>
+  );
+}
 
 export default function CheckoutsReportPage() {
   const [data, setData] = useState<CheckoutData | null>(null);
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     setLoading(true);
+    setError(false);
     fetch(`/api/reports?type=checkouts&days=${days}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((json) => setData(json?.data ?? null))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [days]);
 
-  if (loading) return <div className="loading-spinner"><div className="spinner" /></div>;
-  if (!data) return <div className="empty-state">Failed to load report. Please try refreshing the page.</div>;
+  if (loading) {
+    return (
+      <>
+        <div className="summary-grid mb-16">
+          <div className="card p-16 text-center">
+            <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
+            <div className="skeleton skeleton-text-sm" style={{ width: 80, margin: "0 auto" }} />
+          </div>
+          <div className="card p-16 text-center">
+            <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
+            <div className="skeleton skeleton-text-sm" style={{ width: 80, margin: "0 auto" }} />
+          </div>
+        </div>
+        <div className="grid-2col gap-16">
+          <div className="card"><SkeletonTable rows={5} cols={5} /></div>
+          <div className="card"><SkeletonTable rows={5} cols={2} /></div>
+        </div>
+      </>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <EmptyState
+        icon="chart"
+        title="Failed to load report"
+        description="Something went wrong. Please try refreshing the page."
+      />
+    );
+  }
 
   return (
     <>
+      {/* Period selector */}
       <div className="flex-center gap-12 mb-16">
         <span className="text-sm text-muted">Period:</span>
         {[7, 30, 90].map((d) => (
@@ -54,71 +110,91 @@ export default function CheckoutsReportPage() {
         ))}
       </div>
 
+      {/* Summary metrics */}
       <div className="summary-grid mb-16">
-        <div className="card p-16 text-center">
-          <div className="metric-value">{data.totalCheckouts}</div>
-          <div className="text-sm text-muted">Checkouts ({days}d)</div>
-        </div>
-        <div className="card p-16 text-center">
-          <div className="metric-value" style={{ color: data.overdueCheckouts > 0 ? "var(--red)" : undefined }}>
-            {data.overdueCheckouts}
-          </div>
-          <div className="text-sm text-muted">Currently overdue</div>
-        </div>
+        <MetricCard value={data.totalCheckouts} label={`Checkouts (${days}d)`} />
+        <MetricCard
+          value={data.overdueCheckouts}
+          label="Currently overdue"
+          color={data.overdueCheckouts > 0 ? "var(--red)" : undefined}
+        />
       </div>
 
       <div className="grid-2col gap-16">
+        {/* Recent checkouts */}
         <div className="card">
           <div className="card-header"><h2>Recent checkouts</h2></div>
           {data.recentCheckouts.length === 0 ? (
-            <div className="empty-state">No checkouts in this period</div>
+            <EmptyState icon="clipboard" title="No checkouts in this period" />
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Requester</th>
-                  <th>Due</th>
-                  <th>Items</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              {/* Desktop table */}
+              <div className="hide-mobile-only">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Requester</th>
+                      <th className="hide-mobile">Due</th>
+                      <th className="hide-mobile">Items</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.recentCheckouts.map((c) => (
+                      <tr key={c.id}>
+                        <td>
+                          <Link href={`/checkouts/${c.id}`} className="row-link">{c.title}</Link>
+                        </td>
+                        <td>{c.requester}</td>
+                        <td className="hide-mobile">{formatDateFull(c.endsAt)}</td>
+                        <td className="hide-mobile">{c.itemCount}</td>
+                        <td><StatusBadge status={c.status} isOverdue={c.isOverdue} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="show-mobile-only">
                 {data.recentCheckouts.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <Link href={`/checkouts/${c.id}`} className="row-link">
-                        {c.title}
-                      </Link>
-                    </td>
-                    <td>{c.requester}</td>
-                    <td>{formatDateFull(c.endsAt)}</td>
-                    <td>{c.itemCount}</td>
-                    <td>
-                      <span className={`badge ${c.isOverdue ? "badge-red" : c.status === "OPEN" ? "badge-green" : "badge-gray"}`}>
-                        {c.isOverdue ? "overdue" : c.status.toLowerCase()}
-                      </span>
-                    </td>
-                  </tr>
+                  <CheckoutMobileCard key={c.id} c={c} />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
 
+        {/* Top requesters */}
         <div className="card">
           <div className="card-header"><h2>Top requesters</h2></div>
           {data.topRequesters.length === 0 ? (
-            <div className="empty-state">No data</div>
+            <EmptyState icon="users" title="No data" />
           ) : (
-            <table className="data-table">
-              <thead><tr><th>Name</th><th className="text-right">Checkouts</th></tr></thead>
-              <tbody>
+            <>
+              <div className="hide-mobile-only">
+                <table className="data-table">
+                  <thead><tr><th>Name</th><th className="text-right">Checkouts</th></tr></thead>
+                  <tbody>
+                    {data.topRequesters.map((r) => (
+                      <tr key={r.name}>
+                        <td>{r.name}</td>
+                        <td className="text-right">{r.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="show-mobile-only">
                 {data.topRequesters.map((r) => (
-                  <tr key={r.name}><td>{r.name}</td><td className="text-right">{r.count}</td></tr>
+                  <div key={r.name} className="report-mobile-card">
+                    <span>{r.name}</span>
+                    <span className="text-muted">{r.count}</span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </div>
