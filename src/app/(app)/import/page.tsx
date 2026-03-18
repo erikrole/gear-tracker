@@ -245,7 +245,7 @@ export default function ImportPage() {
         return;
       }
 
-      setPreview(json.data);
+      setPreview(json);
       setStep("preview");
     } catch {
       setError("Failed to upload file");
@@ -277,9 +277,9 @@ export default function ImportPage() {
         return;
       }
 
-      setResult(json.data);
+      setResult(json);
       setStep("summary");
-      toast(`Imported ${json.data.created} items successfully`, "success");
+      toast(`Imported ${json.created} items successfully`, "success");
     } catch {
       setError("Import failed unexpectedly");
       toast("Import failed unexpectedly", "error");
