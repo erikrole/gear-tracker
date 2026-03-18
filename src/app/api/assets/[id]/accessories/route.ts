@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
+import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
@@ -73,6 +74,15 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     },
   });
 
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "asset",
+    entityId: body.childAssetId,
+    action: "accessory_attached",
+    after: { parentAssetId: id, childAssetId: body.childAssetId },
+  });
+
   return ok({ success: true });
 });
 
@@ -104,6 +114,16 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     data: { parentAssetId: body.newParentAssetId },
   });
 
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "asset",
+    entityId: id,
+    action: "accessory_moved",
+    before: { parentAssetId: child.parentAssetId },
+    after: { parentAssetId: body.newParentAssetId },
+  });
+
   return ok({ success: true });
 });
 
@@ -126,6 +146,16 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
       availableForCheckout: true,
       availableForReservation: true,
     },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "asset",
+    entityId: id,
+    action: "accessory_detached",
+    before: { parentAssetId: child.parentAssetId },
+    after: { parentAssetId: null },
   });
 
   return ok({ success: true });
