@@ -2,7 +2,7 @@ import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { requirePermission } from "@/lib/rbac";
 import { HttpError, ok } from "@/lib/http";
-import { validateImage, uploadImage, deleteImage } from "@/lib/blob";
+import { validateImage, uploadImage, deleteImage, downloadImageToBlob, isBlobUrl } from "@/lib/blob";
 import { db } from "@/lib/db";
 
 /**
@@ -34,7 +34,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const imageUrl = await uploadImage(file, id);
 
   // Delete previous image if it was a blob URL
-  if (asset.imageUrl?.includes(".public.blob.vercel-storage.com")) {
+  if (asset.imageUrl && isBlobUrl(asset.imageUrl)) {
     await deleteImage(asset.imageUrl).catch(() => {
       // Non-fatal — old blob will be cleaned up eventually
     });
@@ -83,14 +83,20 @@ export const PUT = withAuth<{ id: string }>(async (req, { user, params }) => {
   });
   if (!asset) throw new HttpError(404, "Asset not found");
 
+  // Download external image to Vercel Blob so we control hosting
+  const blobUrl = await downloadImageToBlob(url, id);
+  if (!blobUrl) {
+    throw new HttpError(400, "Could not download image from that URL");
+  }
+
   // Delete previous blob image if applicable
-  if (asset.imageUrl?.includes(".public.blob.vercel-storage.com")) {
+  if (asset.imageUrl && isBlobUrl(asset.imageUrl)) {
     await deleteImage(asset.imageUrl).catch(() => {});
   }
 
   const updated = await db.asset.update({
     where: { id },
-    data: { imageUrl: url },
+    data: { imageUrl: blobUrl },
     select: { id: true, imageUrl: true },
   });
 
@@ -101,7 +107,7 @@ export const PUT = withAuth<{ id: string }>(async (req, { user, params }) => {
     entityId: id,
     action: "asset_image_set",
     before: { imageUrl: asset.imageUrl },
-    after: { imageUrl: url },
+    after: { imageUrl: blobUrl },
   });
 
   return ok(updated);
