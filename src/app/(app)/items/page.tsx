@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
@@ -723,7 +724,7 @@ export default function ItemsPage() {
                     <td style={{ width: 44, padding: "8px 4px" }}>
                       <div className="item-thumb">
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} alt="" loading="lazy" />
+                          <Image src={item.imageUrl} alt="" width={72} height={72} sizes="36px" loading="lazy" />
                         ) : (
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)" }}>
                             <rect x="3" y="3" width="18" height="18" rx="2" />

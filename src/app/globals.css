@@ -2665,6 +2665,18 @@ textarea:focus-visible {
   padding: 2px;
 }
 
+/* Dark mode: soften bright product images with white backgrounds */
+[data-theme="dark"] .item-thumb img,
+[data-theme="dark"] .asset-hero-image img {
+  filter: brightness(0.9);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .item-thumb img,
+  :root:not([data-theme="light"]) .asset-hero-image img {
+    filter: brightness(0.9);
+  }
+}
+
 .image-drop-zone {
   border: 2px dashed var(--border);
   border-radius: var(--radius-lg, 8px);

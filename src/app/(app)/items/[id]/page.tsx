@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -263,7 +264,7 @@ export default function ItemDetailsPage() {
               title={canEdit ? "Change image" : undefined}
               style={{ cursor: canEdit ? "pointer" : "default" }}
             >
-              <img src={asset.imageUrl} alt={asset.assetTag} />
+              <Image src={asset.imageUrl} alt={asset.assetTag} width={200} height={200} sizes="100px" />
               {canEdit && (
                 <div className="asset-hero-image-overlay">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
