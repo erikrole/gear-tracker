@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { downloadImageToBlob, isBlobUrl } from "@/lib/blob";
 
 // ── CSV parsing ──────────────────────────────────────────
 
@@ -536,7 +537,49 @@ export const POST = withAuth(async (req, { user }) => {
     }
   }
 
-  // 7. Audit log (1 call)
+  // 7. Best-effort: download external images to Vercel Blob
+  const rowsWithExternalImages = validRows.filter(
+    (r) => r.imageUrl && !isBlobUrl(r.imageUrl)
+  );
+  let imagesHosted = 0;
+
+  if (rowsWithExternalImages.length > 0) {
+    // Look up asset IDs for rows that have external images
+    const imageTags = rowsWithExternalImages.map((r) => r.assetTag);
+    const imageAssets = await db.asset.findMany({
+      where: { assetTag: { in: imageTags } },
+      select: { id: true, assetTag: true, imageUrl: true },
+    });
+    const assetByTag = new Map(imageAssets.map((a) => [a.assetTag, a]));
+
+    // Download in batches of 5 with a short per-image timeout
+    const CONCURRENCY = 5;
+    for (let i = 0; i < rowsWithExternalImages.length; i += CONCURRENCY) {
+      const batch = rowsWithExternalImages.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (row) => {
+          const asset = assetByTag.get(row.assetTag);
+          if (!asset) return;
+          const blobUrl = await downloadImageToBlob(row.imageUrl, asset.id, 5000);
+          if (blobUrl && blobUrl !== row.imageUrl) {
+            await db.asset.update({
+              where: { id: asset.id },
+              data: { imageUrl: blobUrl },
+            });
+            imagesHosted++;
+          }
+        })
+      );
+      // Log failures as warnings but don't block the import
+      for (const r of results) {
+        if (r.status === "rejected") {
+          // Non-fatal — external URL stays as-is
+        }
+      }
+    }
+  }
+
+  // 8. Audit log (1 call)
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
@@ -548,6 +591,7 @@ export const POST = withAuth(async (req, { user }) => {
       updated: updatedCount,
       skipped: skippedCount,
       kitsCreated,
+      imagesHosted,
       errorCount: importErrors.length,
     },
   });
@@ -557,6 +601,7 @@ export const POST = withAuth(async (req, { user }) => {
     updated: updatedCount,
     skipped: skippedCount,
     kitsCreated,
+    imagesHosted,
     errors: importErrors,
   });
 });
