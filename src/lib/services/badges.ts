@@ -802,6 +802,20 @@ export async function evaluateBadges(
         data: { userId, badgeId: badge.id },
       });
 
+      // Create in-app notification
+      await db.notification.create({
+        data: {
+          userId,
+          type: "badge_earned",
+          title: `Badge Unlocked: ${badge.name}`,
+          body: badge.description,
+          payload: { badgeSlug: badge.slug, badgeCategory: badge.category },
+          channel: "IN_APP",
+          sentAt: new Date(),
+          dedupeKey: `badge-${userId}-${badge.slug}`,
+        },
+      });
+
       newlyEarned.push(rule.slug);
       earnedSlugs.add(rule.slug);
     } catch (error) {
