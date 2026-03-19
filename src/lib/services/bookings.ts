@@ -1134,6 +1134,123 @@ export async function checkinItems(
   );
 }
 
+/**
+ * Check in a partial quantity of a bulk item on an open checkout.
+ * Updates checkedInQuantity and returns bulk stock to the location balance.
+ * Auto-completes the checkout if all items (serialized + bulk) are now returned.
+ */
+export async function checkinBulkItem(
+  bookingId: string,
+  actorUserId: string,
+  bulkItemId: string,
+  quantity: number
+) {
+  return db.$transaction(
+    async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+        include: { serializedItems: true, bulkItems: true }
+      });
+
+      if (!booking || booking.kind !== BookingKind.CHECKOUT) {
+        throw new HttpError(404, "Checkout not found");
+      }
+
+      if (booking.status !== BookingStatus.OPEN) {
+        throw new HttpError(400, "Can only check in items from an open checkout");
+      }
+
+      const bulkItem = booking.bulkItems.find((i) => i.id === bulkItemId);
+      if (!bulkItem) {
+        throw new HttpError(400, "Bulk item not in this checkout");
+      }
+
+      const outQty = bulkItem.checkedOutQuantity ?? bulkItem.plannedQuantity;
+      const alreadyIn = bulkItem.checkedInQuantity ?? 0;
+      const remaining = outQty - alreadyIn;
+
+      if (quantity <= 0 || quantity > remaining) {
+        throw new HttpError(400, `Invalid quantity: ${remaining} remaining to return`);
+      }
+
+      const newCheckedIn = alreadyIn + quantity;
+
+      await tx.bookingBulkItem.update({
+        where: { id: bulkItemId },
+        data: { checkedInQuantity: newCheckedIn }
+      });
+
+      // Return stock to location balance
+      await upsertBulkBalancesAndMovements(tx, {
+        bookingId,
+        locationId: booking.locationId,
+        actorUserId,
+        kind: BulkMovementKind.CHECKIN,
+        items: [{ bulkSkuId: bulkItem.bulkSkuId, quantity }]
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          entityType: "booking",
+          entityId: bookingId,
+          action: "partial_bulk_checkin",
+          afterJson: { bulkItemId, quantity, newCheckedIn, outQty }
+        }
+      });
+
+      // Check auto-complete: all serialized returned + all bulk returned
+      const remainingActive = await tx.bookingSerializedItem.count({
+        where: { bookingId, allocationStatus: "active" }
+      });
+
+      const currentBulkItems = await tx.bookingBulkItem.findMany({
+        where: { bookingId }
+      });
+      const bulkRemaining = currentBulkItems.some(
+        (item) => (item.checkedInQuantity ?? 0) < (item.checkedOutQuantity ?? item.plannedQuantity)
+      );
+
+      const allReturned = remainingActive === 0 && !bulkRemaining;
+
+      if (allReturned) {
+        await tx.assetAllocation.updateMany({
+          where: { bookingId, active: true },
+          data: { active: false }
+        });
+
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.COMPLETED }
+        });
+
+        await tx.scanSession.updateMany({
+          where: { bookingId, phase: ScanPhase.CHECKIN, status: ScanSessionStatus.OPEN },
+          data: { status: ScanSessionStatus.COMPLETED, completedAt: new Date() }
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actorUserId,
+            entityType: "booking",
+            entityId: bookingId,
+            action: "auto_completed_by_bulk_checkin"
+          }
+        });
+      }
+
+      return {
+        success: true,
+        bulkItemId,
+        checkedInQuantity: newCheckedIn,
+        totalQuantity: outQty,
+        autoCompleted: allReturned
+      };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+  );
+}
+
 export async function getBookingDetail(bookingId: string) {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },

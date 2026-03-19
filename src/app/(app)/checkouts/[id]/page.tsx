@@ -42,6 +42,7 @@ export default function CheckoutDetailsPage() {
   const [showExtend, setShowExtend] = useState(false);
   const [extendDate, setExtendDate] = useState("");
   const [checkinIds, setCheckinIds] = useState<Set<string>>(new Set());
+  const [bulkReturnQty, setBulkReturnQty] = useState<Record<string, number>>({});
 
   const reload = useCallback(() => {
     setActionError("");
@@ -88,8 +89,16 @@ export default function CheckoutDetailsPage() {
         body: JSON.stringify({ endsAt: new Date(extendDate).toISOString() }),
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setActionError((json as Record<string, string>).error || "Extend failed");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        let msg = (json as Record<string, string>).error || "Extend failed";
+        // Show conflict details if available
+        const conflicts = (json as Record<string, unknown>).data as { conflicts?: Array<{ assetTag?: string; title?: string }> } | undefined;
+        if (conflicts?.conflicts?.length) {
+          const names = conflicts.conflicts.slice(0, 3).map((c) => c.assetTag || c.title || "item").join(", ");
+          msg += ` — conflicts with: ${names}`;
+          if (conflicts.conflicts.length > 3) msg += ` and ${conflicts.conflicts.length - 3} more`;
+        }
+        setActionError(msg);
       } else {
         setShowExtend(false);
         setExtendDate("");
@@ -139,6 +148,30 @@ export default function CheckoutDetailsPage() {
         const json = await res.json().catch(() => ({}));
         setActionError((json as Record<string, string>).error || "Complete check in failed");
       } else {
+        reload();
+      }
+    } catch {
+      setActionError("Network error \u2014 please try again.");
+    }
+    setActionLoading(null);
+  }
+
+  async function handleBulkReturn(bulkItemId: string) {
+    const qty = bulkReturnQty[bulkItemId];
+    if (!qty || qty <= 0) return;
+    setActionLoading(`bulk-${bulkItemId}`);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/checkouts/${id}/checkin-bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bulkItemId, quantity: qty }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setActionError((json as Record<string, string>).error || "Bulk return failed");
+      } else {
+        setBulkReturnQty((prev) => ({ ...prev, [bulkItemId]: 0 }));
         reload();
       }
     } catch {
@@ -395,9 +428,29 @@ export default function CheckoutDetailsPage() {
                         }
                       </div>
                     </div>
-                    {allReturned && (
+                    {allReturned ? (
                       <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--green)", flexShrink: 0 }}>Returned</span>
-                    )}
+                    ) : canCheckin ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                        <input
+                          type="number"
+                          min={1}
+                          max={outQty - inQty}
+                          value={bulkReturnQty[item.id] || ""}
+                          onChange={(e) => setBulkReturnQty((prev) => ({ ...prev, [item.id]: parseInt(e.target.value) || 0 }))}
+                          placeholder={String(outQty - inQty)}
+                          style={{ width: 60, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 4, textAlign: "center" }}
+                        />
+                        <button
+                          className="btn btn-sm"
+                          disabled={!bulkReturnQty[item.id] || actionLoading === `bulk-${item.id}`}
+                          onClick={() => handleBulkReturn(item.id)}
+                          style={{ whiteSpace: "nowrap" }}
+                        >
+                          {actionLoading === `bulk-${item.id}` ? "..." : "Return"}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}

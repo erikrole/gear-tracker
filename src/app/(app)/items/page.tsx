@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -403,19 +403,23 @@ const STATUS_OPTIONS = [
 
 export default function ItemsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<Asset[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [brandFilter, setBrandFilter] = useState("");
-  const [favoriteFilter, setFavoriteFilter] = useState(false);
+  const [page, setPage] = useState(() => {
+    const p = parseInt(searchParams.get("page") ?? "", 10);
+    return Number.isFinite(p) && p > 0 ? p : 0;
+  });
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") ?? "");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") ?? "");
+  const [locationFilter, setLocationFilter] = useState(() => searchParams.get("location") ?? "");
+  const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get("category") ?? "");
+  const [brandFilter, setBrandFilter] = useState(() => searchParams.get("brand") ?? "");
+  const [favoriteFilter, setFavoriteFilter] = useState(() => searchParams.get("favorite") === "true");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -434,6 +438,21 @@ export default function ItemsPage() {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Sync filters to URL search params
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (statusFilter) params.set("status", statusFilter);
+    if (locationFilter) params.set("location", locationFilter);
+    if (categoryFilter) params.set("category", categoryFilter);
+    if (brandFilter) params.set("brand", brandFilter);
+    if (favoriteFilter) params.set("favorite", "true");
+    if (page > 0) params.set("page", String(page));
+    const qs = params.toString();
+    const newUrl = qs ? `?${qs}` : window.location.pathname;
+    window.history.replaceState(null, "", newUrl);
+  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, favoriteFilter, page]);
 
   const reload = useCallback(async () => {
     setLoading(true);
