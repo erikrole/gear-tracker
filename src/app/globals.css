@@ -6719,6 +6719,15 @@ tr.returned-row { opacity: 0.55; }
   border-bottom: none;
 }
 
+/* ── Badge Profile Stats ────────────────────────────── */
+
+.stat-card {
+  padding: 12px 16px;
+  background: var(--panel);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
 .schedule-mobile-card:active {
   background: var(--panel-hover);
 }
