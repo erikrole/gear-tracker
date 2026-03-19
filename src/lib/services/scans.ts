@@ -16,6 +16,10 @@ export async function startScanSession(args: {
       throw new HttpError(404, "Checkout not found");
     }
 
+    if (booking.status !== BookingStatus.OPEN) {
+      throw new HttpError(400, "Cannot scan — this checkout is no longer open");
+    }
+
     const existing = await tx.scanSession.findFirst({
       where: {
         bookingId: args.bookingId,
@@ -48,7 +52,26 @@ export async function recordScan(args: {
   quantity?: number;
   unitNumbers?: number[];
   deviceContext?: string;
+  idempotencyKey?: string;
 }) {
+  // Dedup: reject if an identical successful scan was recorded in the last 5 seconds
+  const dedupeWindow = new Date(Date.now() - 5000);
+  const recentDupe = await db.scanEvent.findFirst({
+    where: {
+      bookingId: args.bookingId,
+      scanValue: args.scanValue,
+      phase: args.phase,
+      success: true,
+      createdAt: { gte: dedupeWindow },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (recentDupe) {
+    throw new HttpError(409, "Duplicate scan detected — this item was just scanned", {
+      code: "DUPLICATE_SCAN",
+    });
+  }
+
   const booking = await db.booking.findUnique({
     where: { id: args.bookingId },
     include: {
@@ -59,6 +82,11 @@ export async function recordScan(args: {
 
   if (!booking || booking.kind !== BookingKind.CHECKOUT) {
     throw new HttpError(404, "Checkout not found");
+  }
+
+  // Prevent scans on completed/cancelled bookings
+  if (booking.status !== BookingStatus.OPEN) {
+    throw new HttpError(400, "Cannot scan — this checkout is no longer open");
   }
 
   if (args.scanType === ScanType.SERIALIZED) {
