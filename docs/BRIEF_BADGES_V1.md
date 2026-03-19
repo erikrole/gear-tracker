@@ -1,6 +1,6 @@
 # Student Badge System — Design Spec (V1)
 
-> **Status**: Design approved, pending implementation
+> **Status**: Slices 1-5 shipped. Slice 6 (Equipment Issue Reporting) pending.
 > **Author**: Claude + Erik
 > **Date**: 2026-03-19
 
@@ -313,13 +313,14 @@ Staff/admins manage reward redemption offline — the system tracks milestone el
 
 ---
 
-## Open Questions (Resolve Before Slice 1)
+## Open Questions (Resolved or Deferred)
 
-1. **Rivalry list**: Which opponents count? Suggest: Minnesota, Iowa, Ohio State, Michigan, Nebraska
-2. **March Madness detection**: Use date range (mid-March to early April) + basketball sport code, or add a `postseason` flag to CalendarEvent?
-3. **Semester boundaries**: How to define "semester" for Ghost badge? Academic calendar dates or rolling 4-month window?
-4. **Badge artwork**: Custom illustrations or emoji-style icons for V1?
-5. **Overdue threshold**: Is any amount of lateness "overdue", or is there a grace period (e.g., 1 hour)?
+1. **Rivalry list**: Hardcoded to Minnesota, Iowa, Ohio State, Michigan, Nebraska for V1
+2. **March Madness detection**: Using March/April date range + basketball sport code
+3. **Semester boundaries**: Using academic year Sept-May, derived from current date
+4. **Badge artwork**: Emoji icons for V1, custom illustrations deferred
+5. **Overdue threshold**: Any lateness counts (updatedAt > endsAt), no grace period
+6. **Snow Day badge**: Deferred — requires weather API integration
 
 ---
 
@@ -332,3 +333,4 @@ Staff/admins manage reward redemption offline — the system tracks milestone el
 | 2026-03-19 | Schema validation pass — corrected field names (`eventId` not `calendarEventId`, `isHome` not `home`), removed Kit Collector (no schema support), fixed timestamp sources to use `ScanSession` |
 | 2026-03-19 | Added schema change requirements, trigger mapping, open questions |
 | 2026-03-19 | Added 10 fun badges: Lens Hog, Battery Pack, Swiss Army Knife, Bucky's Favorite, Hat Trick, Back-to-Back, Snow Day, Jump Around, Freshman Year, The Vault. Total now 42 badges |
+| 2026-03-19 | Slices 1-5 shipped: Schema, badge engine (40/42 rules), profile UI, staff dashboard, notifications |
