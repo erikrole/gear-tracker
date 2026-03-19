@@ -43,7 +43,9 @@ export async function processOverdueNotifications(): Promise<{
       where: { kind: "CHECKOUT", status: "OPEN" },
       include: {
         requester: { select: { id: true, name: true, email: true } }
-      }
+      },
+      take: 500, // Process in bounded batches to prevent memory issues
+      orderBy: { endsAt: "asc" }, // Most overdue first
     }),
     db.user.findMany({
       where: { role: "ADMIN" },
@@ -105,36 +107,40 @@ export async function processOverdueNotifications(): Promise<{
         const dedupeKey = `${checkout.id}:${rule.type}`;
         if (!existingNotifications.has(dedupeKey)) {
           const body = `"${checkout.title}" was due ${formatRelative(dueAt, now)}. Please return items.`;
-          await db.notification.create({
-            data: {
-              userId: checkout.requesterUserId,
-              type: rule.type,
-              title: rule.title,
-              body,
-              payload: {
-                bookingId: checkout.id,
-                bookingTitle: checkout.title,
-                dueAt: dueAt.toISOString()
-              },
-              channel: "IN_APP",
-              sentAt: now,
-              dedupeKey
-            }
-          });
-          existingNotifications.add(dedupeKey);
-          localCreated += 1;
-
-          if (checkout.requester.email) {
-            await sendEmail({
-              to: checkout.requester.email,
-              subject: rule.title,
-              html: buildNotificationEmail({
+          try {
+            await db.notification.create({
+              data: {
+                userId: checkout.requesterUserId,
+                type: rule.type,
                 title: rule.title,
                 body,
-                bookingTitle: checkout.title,
-                dueAt: dueAt.toISOString(),
-              }),
+                payload: {
+                  bookingId: checkout.id,
+                  bookingTitle: checkout.title,
+                  dueAt: dueAt.toISOString()
+                },
+                channel: "IN_APP",
+                sentAt: now,
+                dedupeKey
+              }
             });
+            existingNotifications.add(dedupeKey);
+            localCreated += 1;
+
+            if (checkout.requester.email) {
+              await sendEmail({
+                to: checkout.requester.email,
+                subject: rule.title,
+                html: buildNotificationEmail({
+                  title: rule.title,
+                  body,
+                  bookingTitle: checkout.title,
+                  dueAt: dueAt.toISOString(),
+                }),
+              });
+            }
+          } catch (err) {
+            console.error(`[NOTIFY] Failed to create notification for checkout ${checkout.id}, rule ${rule.type}:`, err);
           }
         }
       }
@@ -148,37 +154,41 @@ export async function processOverdueNotifications(): Promise<{
           if (existingNotifications.has(adminDedupeKey)) continue;
 
           const adminBody = `${checkout.requester.name}'s checkout "${checkout.title}" is over ${rule.hoursFromDue} hours overdue.`;
-          await db.notification.create({
-            data: {
-              userId: admin.id,
-              type: rule.type,
-              title: `Overdue: ${checkout.title}`,
-              body: adminBody,
-              payload: {
-                bookingId: checkout.id,
-                bookingTitle: checkout.title,
-                requesterName: checkout.requester.name,
-                dueAt: dueAt.toISOString()
-              },
-              channel: "IN_APP",
-              sentAt: now,
-              dedupeKey: adminDedupeKey
-            }
-          });
-          existingNotifications.add(adminDedupeKey);
-          localCreated += 1;
-
-          if (admin.email) {
-            await sendEmail({
-              to: admin.email,
-              subject: `Overdue: ${checkout.title}`,
-              html: buildNotificationEmail({
+          try {
+            await db.notification.create({
+              data: {
+                userId: admin.id,
+                type: rule.type,
                 title: `Overdue: ${checkout.title}`,
                 body: adminBody,
-                bookingTitle: checkout.title,
-                dueAt: dueAt.toISOString(),
-              }),
+                payload: {
+                  bookingId: checkout.id,
+                  bookingTitle: checkout.title,
+                  requesterName: checkout.requester.name,
+                  dueAt: dueAt.toISOString()
+                },
+                channel: "IN_APP",
+                sentAt: now,
+                dedupeKey: adminDedupeKey
+              }
             });
+            existingNotifications.add(adminDedupeKey);
+            localCreated += 1;
+
+            if (admin.email) {
+              await sendEmail({
+                to: admin.email,
+                subject: `Overdue: ${checkout.title}`,
+                html: buildNotificationEmail({
+                  title: `Overdue: ${checkout.title}`,
+                  body: adminBody,
+                  bookingTitle: checkout.title,
+                  dueAt: dueAt.toISOString(),
+                }),
+              });
+            }
+          } catch (err) {
+            console.error(`[NOTIFY] Failed to create admin notification for checkout ${checkout.id}, admin ${admin.id}:`, err);
           }
         }
       }
@@ -201,6 +211,7 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
   const assignment = await db.shiftAssignment.findUnique({
     where: { id: assignmentId },
     include: {
+      user: { select: { id: true, email: true } },
       shift: {
         include: {
           shiftGroup: {
@@ -243,27 +254,48 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
     minute: "2-digit",
   });
 
-  await db.notification.create({
-    data: {
-      userId: assignment.userId,
-      type: "shift_gear_up",
-      title: "Gear up for your shift",
-      body: `You're assigned to ${assignment.shift.area} for ${eventTitle} at ${shiftTime}. Reserve your gear now.`,
-      payload: {
-        assignmentId: assignment.id,
-        shiftId: assignment.shiftId,
-        eventId: event.id,
-        eventSummary: event.summary,
-        area: assignment.shift.area,
-        startsAt: assignment.shift.startsAt.toISOString(),
-        sportCode: event.sportCode,
-        locationId: event.locationId,
+  const title = "Gear up for your shift";
+  const body = `You're assigned to ${assignment.shift.area} for ${eventTitle} at ${shiftTime}. Reserve your gear now.`;
+
+  try {
+    await db.notification.create({
+      data: {
+        userId: assignment.userId,
+        type: "shift_gear_up",
+        title,
+        body,
+        payload: {
+          assignmentId: assignment.id,
+          shiftId: assignment.shiftId,
+          eventId: event.id,
+          eventSummary: event.summary,
+          area: assignment.shift.area,
+          startsAt: assignment.shift.startsAt.toISOString(),
+          sportCode: event.sportCode,
+          locationId: event.locationId,
+        },
+        channel: "IN_APP",
+        sentAt: new Date(),
+        dedupeKey,
       },
-      channel: "IN_APP",
-      sentAt: new Date(),
-      dedupeKey,
-    },
-  });
+    });
+
+    // Also send email notification
+    if (assignment.user.email) {
+      await sendEmail({
+        to: assignment.user.email,
+        subject: title,
+        html: buildNotificationEmail({
+          title,
+          body,
+          bookingTitle: event.summary,
+          dueAt: assignment.shift.startsAt.toISOString(),
+        }),
+      });
+    }
+  } catch (err) {
+    console.error(`[NOTIFY] Failed to create shift gear-up notification for assignment ${assignmentId}:`, err);
+  }
 }
 
 function formatRelative(dueAt: Date, now: Date): string {

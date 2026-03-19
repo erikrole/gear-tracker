@@ -101,6 +101,7 @@ export default function ShiftDetailPanel({
   const confirm = useConfirm();
   const [group, setGroup] = useState<ShiftGroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
 
   // User picker for assignments
@@ -119,8 +120,13 @@ export default function ShiftDetailPanel({
       if (res.ok) {
         const json = await res.json();
         setGroup(json.data ?? null);
+        setLoadError(false);
+      } else {
+        setLoadError(true);
       }
-    } catch { /* network error */ }
+    } catch {
+      setLoadError(true);
+    }
     setLoading(false);
   }, [groupId]);
 
@@ -132,16 +138,23 @@ export default function ShiftDetailPanel({
     }
   }, [groupId, fetchGroup]);
 
+  const [rosterError, setRosterError] = useState(false);
+
   // Load roster users for assignment picker
   const loadRoster = useCallback(async (sportCode: string) => {
     setRosterLoading(true);
+    setRosterError(false);
     try {
       const res = await fetch(`/api/sport-configs/${sportCode}/roster`);
       if (res.ok) {
         const json = await res.json();
         setRosterUsers(json.data ?? []);
+      } else {
+        setRosterError(true);
       }
-    } catch { /* network error */ }
+    } catch {
+      setRosterError(true);
+    }
     setRosterLoading(false);
   }, []);
 
@@ -295,6 +308,11 @@ export default function ShiftDetailPanel({
 
         {loading ? (
           <div className="p-16 text-secondary">Loading shift details...</div>
+        ) : loadError ? (
+          <div className="p-16 text-center">
+            <p className="text-secondary mb-8">Failed to load shift details.</p>
+            <button className="btn btn-sm" onClick={fetchGroup}>Retry</button>
+          </div>
         ) : !group ? (
           <div className="p-16 text-secondary">Shift group not found.</div>
         ) : (
@@ -468,6 +486,11 @@ export default function ShiftDetailPanel({
                           />
                           {rosterLoading ? (
                             <div className="text-xs text-secondary">Loading roster...</div>
+                          ) : rosterError ? (
+                            <div className="text-xs text-secondary">
+                              Failed to load roster.{" "}
+                              <button className="btn btn-sm" onClick={() => group?.event.sportCode && loadRoster(group.event.sportCode)} style={{ fontSize: "var(--text-3xs)" }}>Retry</button>
+                            </div>
                           ) : filteredRoster.length === 0 ? (
                             <div className="text-xs text-secondary">
                               {rosterUsers.length === 0

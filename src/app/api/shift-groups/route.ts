@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift", "view");
@@ -43,7 +44,7 @@ export const GET = withAuth(async (req, { user }) => {
         include: {
           assignments: {
             where: {
-              status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+              status: { in: ACTIVE_ASSIGNMENT_STATUSES },
             },
             include: {
               user: { select: { id: true, name: true, primaryArea: true } },

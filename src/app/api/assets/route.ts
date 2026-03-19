@@ -31,6 +31,7 @@ export const GET = withAuth(async (req, { user }) => {
   const locationId = searchParams.get("location_id");
   const categoryId = searchParams.get("category_id");
   const brand = searchParams.get("brand")?.trim();
+  const departmentId = searchParams.get("department_id");
   const showAccessories = searchParams.get("show_accessories") === "true";
   const favoritesOnly = searchParams.get("favorite") === "true";
 
@@ -64,6 +65,7 @@ export const GET = withAuth(async (req, { user }) => {
     ...(favoritesOnly ? { id: { in: favoriteAssetIds } } : {}),
     ...(locationId ? { locationId } : {}),
     ...(categoryId ? { categoryId } : {}),
+    ...(departmentId ? { departmentId } : {}),
     ...(brand ? { brand: { equals: brand, mode: "insensitive" as const } } : {}),
     // For derived status filters, only look at AVAILABLE assets (those are
     // the only ones that can be CHECKED_OUT or RESERVED after enrichment).
@@ -84,16 +86,18 @@ export const GET = withAuth(async (req, { user }) => {
   const { limit, offset } = parsePagination(searchParams);
 
   if (isDerivedFilter) {
-    // For derived status filters, fetch all matching assets, enrich, filter,
-    // then paginate in-memory. This is acceptable for typical inventory sizes.
+    // For derived status filters, fetch matching assets, enrich, filter,
+    // then paginate in-memory. Capped at 2000 to prevent memory issues on large inventories.
     const rawAll = await db.asset.findMany({
       where,
       include: {
         location: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
         _count: { select: { accessories: true } },
       },
-      orderBy: { assetTag: "asc" }
+      orderBy: { assetTag: "asc" },
+      take: 2000,
     });
 
     let enriched;
@@ -128,6 +132,7 @@ export const GET = withAuth(async (req, { user }) => {
       include: {
         location: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true } },
         _count: { select: { accessories: true } },
       },
       orderBy: { assetTag: "asc" },

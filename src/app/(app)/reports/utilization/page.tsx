@@ -69,18 +69,44 @@ function BreakdownCard({
   );
 }
 
+function downloadCsv(data: UtilizationData) {
+  let csv = "Status,Count\n";
+  for (const [status, count] of Object.entries(data.statusCounts)) {
+    csv += `"${status}",${count}\n`;
+  }
+  csv += `\nLocation,Count\n`;
+  for (const r of data.byLocation) csv += `"${r.location}",${r.count}\n`;
+  csv += `\nType,Count\n`;
+  for (const r of data.byType) csv += `"${r.type}",${r.count}\n`;
+  if (data.byDepartment.length > 0) {
+    csv += `\nDepartment,Count\n`;
+    for (const r of data.byDepartment) csv += `"${r.department}",${r.count}\n`;
+  }
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `utilization-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function UtilizationPage() {
   const [data, setData] = useState<UtilizationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function loadData() {
+    setLoading(true);
+    setError(false);
     fetch("/api/reports?type=utilization")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((json) => setData(json?.data ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { loadData(); }, []);
 
   if (loading) {
     return (
@@ -103,16 +129,20 @@ export default function UtilizationPage() {
 
   if (error || !data) {
     return (
-      <EmptyState
-        icon="chart"
-        title="Failed to load report"
-        description="Something went wrong. Please try refreshing the page."
-      />
+      <div className="card p-16 text-center">
+        <p className="text-secondary mb-8">Failed to load utilization report.</p>
+        <button className="btn btn-sm" onClick={loadData}>Retry</button>
+      </div>
     );
   }
 
   return (
     <>
+      <div className="flex-center mb-16" style={{ justifyContent: "flex-end" }}>
+        <button className="btn btn-sm" onClick={() => downloadCsv(data)}>
+          Export CSV
+        </button>
+      </div>
       <div className="summary-grid mb-16">
         {Object.entries(data.statusCounts).map(([status, count]) => {
           const meta = STATUS_META[status];

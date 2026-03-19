@@ -468,74 +468,73 @@ export const POST = withAuth(async (req, { user }) => {
     }
   }
 
-  // 4. Batch: create new assets (1 call)
-  if (toCreate.length > 0) {
-    await db.asset.createMany({ data: toCreate, skipDuplicates: true });
-  }
-
-  // 5. Batch: update existing assets via $transaction (1 call)
-  if (toUpdate.length > 0) {
-    const updateOps = toUpdate.map(({ id, data }) =>
-      db.asset.update({ where: { id }, data })
-    );
-    await db.$transaction(updateOps);
-  }
-
-  // 6. Batch: kit creation + membership (1-2 calls)
+  // 4-6. Atomic: create assets, update existing, create kits + memberships
   const kitNames = [...new Set(validRows.filter((r) => r.kitName).map((r) => r.kitName))];
   let kitsCreated = 0;
 
-  if (kitNames.length > 0) {
-    // Upsert all kits in one transaction
-    const kitUpserts = kitNames.map((kitName) => {
-      const firstRow = validRows.find((r) => r.kitName === kitName && r.locationName);
-      const kitLocationId = firstRow ? locationMap.get(firstRow.locationName) : null;
-      if (!kitLocationId) return null;
-      return db.kit.upsert({
-        where: { name_locationId: { name: kitName, locationId: kitLocationId } },
-        create: { name: kitName, locationId: kitLocationId },
-        update: {},
-      });
-    }).filter(Boolean) as ReturnType<typeof db.kit.upsert>[];
+  await db.$transaction(async (tx) => {
+    // 4. Create new assets
+    if (toCreate.length > 0) {
+      await tx.asset.createMany({ data: toCreate, skipDuplicates: true });
+    }
 
-    if (kitUpserts.length > 0) {
-      const kits = await db.$transaction(kitUpserts);
-      kitsCreated = kitUpserts.length;
+    // 5. Update existing assets
+    for (const { id, data } of toUpdate) {
+      await tx.asset.update({ where: { id }, data });
+    }
 
-      // Look up all assets that belong to kits (1 call)
-      const kitRowSerials = validRows.filter((r) => r.kitName).map((r) => r.serialNumber);
-      const kitAssets = await db.asset.findMany({
-        where: { serialNumber: { in: kitRowSerials } },
-        select: { id: true, serialNumber: true },
-      });
-      const assetBySerial = new Map(kitAssets.map((a) => [a.serialNumber, a.id]));
+    // 6. Kit creation + membership
+    if (kitNames.length > 0) {
+      const kitUpsertResults: Array<{ id: string }> = [];
+      const validKitEntries: string[] = [];
 
-      // Build kit name → kit id map
-      const kitMap = new Map<string, string>();
-      const validKitNames = kitNames.filter((_, i) => {
-        const firstRow = validRows.find((r) => r.kitName === kitNames[i] && r.locationName);
-        return firstRow && locationMap.get(firstRow.locationName);
-      });
-      for (let i = 0; i < validKitNames.length; i++) {
-        kitMap.set(validKitNames[i], kits[i].id);
+      for (const kitName of kitNames) {
+        const firstRow = validRows.find((r) => r.kitName === kitName && r.locationName);
+        const kitLocationId = firstRow ? locationMap.get(firstRow.locationName) : null;
+        if (!kitLocationId) continue;
+        const kit = await tx.kit.upsert({
+          where: { name_locationId: { name: kitName, locationId: kitLocationId } },
+          create: { name: kitName, locationId: kitLocationId },
+          update: {},
+        });
+        kitUpsertResults.push(kit);
+        validKitEntries.push(kitName);
       }
 
-      // Batch: create all kit memberships (1 call)
-      const memberships: Array<{ kitId: string; assetId: string }> = [];
-      for (const row of validRows) {
-        if (!row.kitName) continue;
-        const kitId = kitMap.get(row.kitName);
-        const assetId = assetBySerial.get(row.serialNumber);
-        if (kitId && assetId) {
-          memberships.push({ kitId, assetId });
+      kitsCreated = kitUpsertResults.length;
+
+      if (kitUpsertResults.length > 0) {
+        // Look up all assets that belong to kits
+        const kitRowSerials = validRows.filter((r) => r.kitName).map((r) => r.serialNumber);
+        const kitAssets = await tx.asset.findMany({
+          where: { serialNumber: { in: kitRowSerials } },
+          select: { id: true, serialNumber: true },
+        });
+        const assetBySerial = new Map(kitAssets.map((a) => [a.serialNumber, a.id]));
+
+        // Build kit name → kit id map
+        const kitMap = new Map<string, string>();
+        for (let i = 0; i < validKitEntries.length; i++) {
+          kitMap.set(validKitEntries[i], kitUpsertResults[i].id);
+        }
+
+        // Create all kit memberships
+        const memberships: Array<{ kitId: string; assetId: string }> = [];
+        for (const row of validRows) {
+          if (!row.kitName) continue;
+          const kitId = kitMap.get(row.kitName);
+          const assetId = assetBySerial.get(row.serialNumber);
+          if (kitId && assetId) {
+            memberships.push({ kitId, assetId });
+          }
+        }
+
+        if (memberships.length > 0) {
+          await tx.kitMembership.createMany({ data: memberships, skipDuplicates: true });
         }
       }
-
-      if (memberships.length > 0) {
-        await db.kitMembership.createMany({ data: memberships, skipDuplicates: true });
-      }
     }
-  }
+  });
 
   // 7. Best-effort: download external images to Vercel Blob
   const rowsWithExternalImages = validRows.filter(

@@ -65,6 +65,15 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
   }
 
   const group = await db.$transaction(async (tx) => {
+    // Re-check inside transaction to prevent race condition (two concurrent requests)
+    const recheck = await tx.calendarEvent.findUnique({
+      where: { id: eventId },
+      include: { shiftGroup: true },
+    });
+    if (recheck?.shiftGroup) {
+      return { sg: recheck.shiftGroup, alreadyExisted: true };
+    }
+
     const sg = await tx.shiftGroup.create({
       data: {
         eventId: event.id,
@@ -82,10 +91,13 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
       })),
     });
 
-    return sg;
+    return { sg, alreadyExisted: false };
   });
 
-  return { created: true, shiftGroupId: group.id, shiftCount: shiftsData.length };
+  if (group.alreadyExisted) {
+    return { created: false, shiftGroupId: group.sg.id, shiftCount: 0 };
+  }
+  return { created: true, shiftGroupId: group.sg.id, shiftCount: shiftsData.length };
 }
 
 /**

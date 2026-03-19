@@ -90,19 +90,37 @@ function LeaderboardMobileCard({
   );
 }
 
+function downloadCsv(leaderboard: LeaderboardEntry[]) {
+  const header = "Person,Overdue Checkouts,Total Overdue Hours,Bookings\n";
+  const rows = leaderboard.map((e) =>
+    `"${e.name}",${e.overdueCount},${e.totalOverdueHours},"${e.bookings.map((b) => b.title).join("; ")}"`
+  ).join("\n");
+  const blob = new Blob([header + rows], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `overdue-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function OverdueLeaderboardPage() {
   const [data, setData] = useState<OverdueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
+  function loadData() {
+    setLoading(true);
+    setError(false);
     fetch("/api/reports?type=overdue")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((json) => setData(json?.data ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { loadData(); }, []);
 
   function toggleExpand(userId: string) {
     setExpanded((prev) => {
@@ -139,16 +157,22 @@ export default function OverdueLeaderboardPage() {
 
   if (error || !data) {
     return (
-      <EmptyState
-        icon="chart"
-        title="Failed to load report"
-        description="Something went wrong. Please try refreshing the page."
-      />
+      <div className="card p-16 text-center">
+        <p className="text-secondary mb-8">Failed to load overdue report.</p>
+        <button className="btn btn-sm" onClick={loadData}>Retry</button>
+      </div>
     );
   }
 
   return (
     <>
+      {data.leaderboard.length > 0 && (
+        <div className="flex-center mb-16" style={{ justifyContent: "flex-end" }}>
+          <button className="btn btn-sm" onClick={() => downloadCsv(data.leaderboard)}>
+            Export CSV
+          </button>
+        </div>
+      )}
       <div className="summary-grid mb-16">
         <MetricCard
           value={data.totalOverdueBookings}

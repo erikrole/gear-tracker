@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => {
   const mockTx = {
     booking: { findUnique: vi.fn(), update: vi.fn() },
     bookingSerializedItem: { updateMany: vi.fn(), count: vi.fn() },
+    bookingBulkItem: { findMany: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
     bulkStockBalance: { findUnique: vi.fn(), upsert: vi.fn() },
     bulkStockMovement: { create: vi.fn() },
@@ -28,6 +29,8 @@ const mockTx = (db as any)._mockTx;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no bulk items in checkout
+  mockTx.bookingBulkItem.findMany.mockResolvedValue([]);
 });
 
 function makeOpenCheckout(serializedItems: { assetId: string; allocationStatus: string }[]) {

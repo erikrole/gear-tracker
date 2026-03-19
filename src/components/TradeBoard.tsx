@@ -68,6 +68,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   const confirm = useConfirm();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
 
   // Filters
@@ -86,8 +87,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (res.ok) {
         const json = await res.json();
         setTrades(json.data ?? []);
+        setLoadError(false);
+      } else {
+        setLoadError(true);
       }
-    } catch { /* network error */ }
+    } catch {
+      setLoadError(true);
+    }
     setLoading(false);
   }, [areaFilter, statusFilter]);
 
@@ -215,6 +221,11 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
 
         {loading ? (
           <SkeletonTable rows={4} cols={6} />
+        ) : loadError ? (
+          <div className="p-16 text-center">
+            <p className="text-secondary mb-8">Failed to load trades.</p>
+            <button className="btn btn-sm" onClick={loadTrades}>Retry</button>
+          </div>
         ) : filteredTrades.length === 0 ? (
           <EmptyState
             icon="clipboard"
