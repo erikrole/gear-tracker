@@ -43,7 +43,9 @@ export async function processOverdueNotifications(): Promise<{
       where: { kind: "CHECKOUT", status: "OPEN" },
       include: {
         requester: { select: { id: true, name: true, email: true } }
-      }
+      },
+      take: 500, // Process in bounded batches to prevent memory issues
+      orderBy: { endsAt: "asc" }, // Most overdue first
     }),
     db.user.findMany({
       where: { role: "ADMIN" },

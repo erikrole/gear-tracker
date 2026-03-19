@@ -84,8 +84,8 @@ export const GET = withAuth(async (req, { user }) => {
   const { limit, offset } = parsePagination(searchParams);
 
   if (isDerivedFilter) {
-    // For derived status filters, fetch all matching assets, enrich, filter,
-    // then paginate in-memory. This is acceptable for typical inventory sizes.
+    // For derived status filters, fetch matching assets, enrich, filter,
+    // then paginate in-memory. Capped at 2000 to prevent memory issues on large inventories.
     const rawAll = await db.asset.findMany({
       where,
       include: {
@@ -93,7 +93,8 @@ export const GET = withAuth(async (req, { user }) => {
         category: { select: { id: true, name: true } },
         _count: { select: { accessories: true } },
       },
-      orderBy: { assetTag: "asc" }
+      orderBy: { assetTag: "asc" },
+      take: 2000,
     });
 
     let enriched;

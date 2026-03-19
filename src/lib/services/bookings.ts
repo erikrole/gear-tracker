@@ -1071,8 +1071,11 @@ export async function checkinItems(
         where: { bookingId, allocationStatus: "active" }
       });
 
-      // Check if all bulk items are fully checked in
-      const bulkRemaining = booking.bulkItems.some(
+      // Re-fetch bulk items to get current checkedInQuantity (may have been updated by scan flow)
+      const currentBulkItems = await tx.bookingBulkItem.findMany({
+        where: { bookingId }
+      });
+      const bulkRemaining = currentBulkItems.some(
         (item) => (item.checkedInQuantity ?? 0) < (item.checkedOutQuantity ?? item.plannedQuantity)
       );
 

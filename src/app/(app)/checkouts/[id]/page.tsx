@@ -44,6 +44,7 @@ export default function CheckoutDetailsPage() {
   const [checkinIds, setCheckinIds] = useState<Set<string>>(new Set());
 
   const reload = useCallback(() => {
+    setActionError("");
     fetch(`/api/checkouts/${id}`)
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
       .then((json) => { if (json?.data) setCheckout(json.data); else setFetchError(true); })
@@ -357,28 +358,49 @@ export default function CheckoutDetailsPage() {
                   </div>
                 );
               })}
-              {checkout.bulkItems.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 16px",
-                    borderBottom: "1px solid var(--border)",
-                    minHeight: 52,
-                  }}
-                >
-                  {canCheckin && <div style={{ width: 20 }} />}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{item.bulkSku?.name ?? "Unknown"}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
-                      Qty: {item.checkedOutQuantity ?? item.plannedQuantity}
-                      {(item.checkedInQuantity ?? 0) > 0 && ` \u2014 ${item.checkedInQuantity} returned`}
+              {checkout.bulkItems.map((item) => {
+                const outQty = item.checkedOutQuantity ?? item.plannedQuantity;
+                const inQty = item.checkedInQuantity ?? 0;
+                const allReturned = inQty >= outQty;
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 16px",
+                      borderBottom: "1px solid var(--border)",
+                      background: allReturned ? "var(--green-bg)" : "white",
+                      minHeight: 52,
+                    }}
+                  >
+                    {canCheckin && !allReturned && <div style={{ width: 20 }} />}
+                    {allReturned && (
+                      <div style={{
+                        width: 20, height: 20, borderRadius: "50%",
+                        background: "var(--green)", color: "white",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "var(--text-xs)", fontWeight: 700, flexShrink: 0,
+                      }}>
+                        {"\u2713"}
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{item.bulkSku?.name ?? "Unknown"}</div>
+                      <div style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
+                        {inQty > 0
+                          ? `${inQty} / ${outQty} returned`
+                          : `Qty: ${outQty}`
+                        }
+                      </div>
                     </div>
+                    {allReturned && (
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--green)", flexShrink: 0 }}>Returned</span>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
