@@ -21,7 +21,10 @@ export const GET = withAuth(async (req, { user }) => {
   if (report === "audit") {
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
     const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-    return ok(await getAuditReport(limit, offset));
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const action = searchParams.get("action");
+    return ok(await getAuditReport(limit, offset, startDate, endDate, action));
   }
 
   if (report === "overdue") {
@@ -31,7 +34,10 @@ export const GET = withAuth(async (req, { user }) => {
   if (report === "scans") {
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
     const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-    return ok(await getScanHistoryReport(limit, offset));
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const phase = searchParams.get("phase");
+    return ok(await getScanHistoryReport(limit, offset, startDate, endDate, phase));
   }
 
   return ok({ error: "Unknown report type" });
@@ -244,9 +250,23 @@ async function getOverdueReport() {
   };
 }
 
-async function getScanHistoryReport(limit: number, offset: number) {
-  const [data, total] = await Promise.all([
+async function getScanHistoryReport(
+  limit: number,
+  offset: number,
+  startDate?: string | null,
+  endDate?: string | null,
+  phase?: string | null
+) {
+  const where: Record<string, unknown> = {};
+  const dateFilter: Record<string, Date> = {};
+  if (startDate) dateFilter.gte = new Date(startDate);
+  if (endDate) dateFilter.lte = new Date(endDate);
+  if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
+  if (phase && (phase === "CHECKOUT" || phase === "CHECKIN")) where.phase = phase;
+
+  const [data, total, successCount] = await Promise.all([
     db.scanEvent.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
@@ -257,7 +277,8 @@ async function getScanHistoryReport(limit: number, offset: number) {
         booking: { select: { id: true, title: true } },
       },
     }),
-    db.scanEvent.count(),
+    db.scanEvent.count({ where }),
+    db.scanEvent.count({ where: { ...where, success: true } }),
   ]);
 
   return {
@@ -278,14 +299,30 @@ async function getScanHistoryReport(limit: number, offset: number) {
       createdAt: s.createdAt,
     })),
     total,
+    successCount,
+    successRate: total > 0 ? Math.round((successCount / total) * 100) : 100,
     limit,
     offset,
   };
 }
 
-async function getAuditReport(limit: number, offset: number) {
+async function getAuditReport(
+  limit: number,
+  offset: number,
+  startDate?: string | null,
+  endDate?: string | null,
+  action?: string | null
+) {
+  const where: Record<string, unknown> = {};
+  const dateFilter: Record<string, Date> = {};
+  if (startDate) dateFilter.gte = new Date(startDate);
+  if (endDate) dateFilter.lte = new Date(endDate);
+  if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
+  if (action) where.action = action;
+
   const [data, total] = await Promise.all([
     db.auditLog.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
@@ -293,7 +330,7 @@ async function getAuditReport(limit: number, offset: number) {
         actor: { select: { id: true, name: true } }
       }
     }),
-    db.auditLog.count()
+    db.auditLog.count({ where })
   ]);
 
   return {

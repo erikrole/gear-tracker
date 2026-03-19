@@ -47,6 +47,20 @@ function CheckoutMobileCard({ c }: { c: CheckoutRow }) {
   );
 }
 
+function downloadCsv(rows: CheckoutRow[]) {
+  const header = "Title,Requester,Status,Due,Items,Overdue\n";
+  const csv = rows.map((c) =>
+    `"${c.title}","${c.requester}","${c.status}","${c.endsAt}",${c.itemCount},${c.isOverdue}`
+  ).join("\n");
+  const blob = new Blob([header + csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `checkouts-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function CheckoutsReportPage() {
   const [data, setData] = useState<CheckoutData | null>(null);
   const [days, setDays] = useState(30);
@@ -86,18 +100,17 @@ export default function CheckoutsReportPage() {
 
   if (error || !data) {
     return (
-      <EmptyState
-        icon="chart"
-        title="Failed to load report"
-        description="Something went wrong. Please try refreshing the page."
-      />
+      <div className="card p-16 text-center">
+        <p className="text-secondary mb-8">Failed to load checkout report.</p>
+        <button className="btn btn-sm" onClick={() => { setError(false); setLoading(true); }}>Retry</button>
+      </div>
     );
   }
 
   return (
     <>
       {/* Period selector */}
-      <div className="flex-center gap-12 mb-16">
+      <div className="flex-center gap-12 mb-16" style={{ flexWrap: "wrap" }}>
         <span className="text-sm text-muted">Period:</span>
         {[7, 30, 90].map((d) => (
           <button
@@ -108,6 +121,11 @@ export default function CheckoutsReportPage() {
             {d}d
           </button>
         ))}
+        {data.recentCheckouts.length > 0 && (
+          <button className="btn btn-sm" onClick={() => downloadCsv(data.recentCheckouts)} style={{ marginLeft: "auto" }}>
+            Export CSV
+          </button>
+        )}
       </div>
 
       {/* Summary metrics */}

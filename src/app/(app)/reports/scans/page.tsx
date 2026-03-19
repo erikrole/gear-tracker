@@ -23,6 +23,8 @@ type ScanEntry = {
 type ScanData = {
   data: ScanEntry[];
   total: number;
+  successCount: number;
+  successRate: number;
   limit: number;
   offset: number;
 };
@@ -51,22 +53,47 @@ function ScanMobileCard({ s }: { s: ScanEntry }) {
   );
 }
 
+function downloadCsv(entries: ScanEntry[]) {
+  const header = "Timestamp,Actor,Item,Phase,Booking,Result\n";
+  const rows = entries.map((s) =>
+    `"${s.createdAt}","${s.actor}","${s.item}","${s.phase}","${s.bookingTitle}","${s.success ? "ok" : "fail"}"`
+  ).join("\n");
+  const blob = new Blob([header + rows], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `scan-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function ScanHistoryPage() {
   const [data, setData] = useState<ScanData | null>(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [phaseFilter, setPhaseFilter] = useState("");
+  const [periodDays, setPeriodDays] = useState(0); // 0 = all time
   const limit = 50;
 
   useEffect(() => {
     setLoading(true);
     setError(false);
-    fetch(`/api/reports?type=scans&limit=${limit}&offset=${page * limit}`)
+    const params = new URLSearchParams({
+      type: "scans",
+      limit: String(limit),
+      offset: String(page * limit),
+    });
+    if (phaseFilter) params.set("phase", phaseFilter);
+    if (periodDays > 0) {
+      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
+    }
+    fetch(`/api/reports?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((json) => setData(json?.data ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, phaseFilter, periodDays]);
 
   if (loading) {
     return (
@@ -82,13 +109,32 @@ export default function ScanHistoryPage() {
     );
   }
 
+  function reload() {
+    setPage(0);
+    setError(false);
+    setLoading(true);
+    const params = new URLSearchParams({
+      type: "scans",
+      limit: String(limit),
+      offset: "0",
+    });
+    if (phaseFilter) params.set("phase", phaseFilter);
+    if (periodDays > 0) {
+      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
+    }
+    fetch(`/api/reports?${params}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((json) => setData(json?.data ?? null))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }
+
   if (error || !data) {
     return (
-      <EmptyState
-        icon="chart"
-        title="Failed to load report"
-        description="Something went wrong. Please try refreshing the page."
-      />
+      <div className="card p-16 text-center">
+        <p className="text-secondary mb-8">Failed to load scan report.</p>
+        <button className="btn btn-sm" onClick={reload}>Retry</button>
+      </div>
     );
   }
 
@@ -96,8 +142,42 @@ export default function ScanHistoryPage() {
 
   return (
     <>
+      {/* Filters */}
+      <div className="flex-center gap-12 mb-16" style={{ flexWrap: "wrap" }}>
+        <span className="text-sm text-muted">Period:</span>
+        {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
+          <button
+            key={d}
+            className={`btn btn-sm${periodDays === d ? " btn-primary" : ""}`}
+            onClick={() => { setPeriodDays(d); setPage(0); }}
+          >
+            {label}
+          </button>
+        ))}
+        <span className="text-sm text-muted" style={{ marginLeft: 8 }}>Phase:</span>
+        {[{ v: "", label: "All" }, { v: "CHECKOUT", label: "Checkout" }, { v: "CHECKIN", label: "Check-in" }].map(({ v, label }) => (
+          <button
+            key={v}
+            className={`btn btn-sm${phaseFilter === v ? " btn-primary" : ""}`}
+            onClick={() => { setPhaseFilter(v); setPage(0); }}
+          >
+            {label}
+          </button>
+        ))}
+        {data.data.length > 0 && (
+          <button className="btn btn-sm" onClick={() => downloadCsv(data.data)} style={{ marginLeft: "auto" }}>
+            Export CSV
+          </button>
+        )}
+      </div>
+
       <div className="summary-grid mb-16">
         <MetricCard value={data.total} label="Total scans" />
+        <MetricCard
+          value={`${data.successRate}%`}
+          label="Success rate"
+          color={data.successRate < 95 ? "var(--red)" : undefined}
+        />
       </div>
 
       <div className="card">

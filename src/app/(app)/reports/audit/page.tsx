@@ -37,22 +37,45 @@ function AuditMobileCard({ entry }: { entry: AuditEntry }) {
   );
 }
 
+function downloadCsv(entries: AuditEntry[]) {
+  const header = "Timestamp,Actor,Action,Entity Type,Entity ID\n";
+  const rows = entries.map((e) =>
+    `"${e.createdAt}","${e.actor}","${e.action}","${e.entityType}","${e.entityId}"`
+  ).join("\n");
+  const blob = new Blob([header + rows], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `audit-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function AuditReportPage() {
   const [data, setData] = useState<AuditData | null>(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [periodDays, setPeriodDays] = useState(0); // 0 = all time
   const limit = 25;
 
   useEffect(() => {
     setLoading(true);
     setError(false);
-    fetch(`/api/reports?type=audit&limit=${limit}&offset=${page * limit}`)
+    const params = new URLSearchParams({
+      type: "audit",
+      limit: String(limit),
+      offset: String(page * limit),
+    });
+    if (periodDays > 0) {
+      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
+    }
+    fetch(`/api/reports?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((json) => setData(json?.data ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, periodDays]);
 
   if (loading) {
     return <div className="card"><SkeletonTable rows={6} cols={4} /></div>;
@@ -60,17 +83,36 @@ export default function AuditReportPage() {
 
   if (error || !data) {
     return (
-      <EmptyState
-        icon="chart"
-        title="Failed to load report"
-        description="Something went wrong. Please try refreshing the page."
-      />
+      <div className="card p-16 text-center">
+        <p className="text-secondary mb-8">Failed to load audit report.</p>
+        <button className="btn btn-sm" onClick={() => { setError(false); setLoading(true); setPage(0); }}>Retry</button>
+      </div>
     );
   }
 
   const totalPages = Math.ceil(data.total / limit);
 
   return (
+    <>
+      {/* Filters */}
+      <div className="flex-center gap-12 mb-16" style={{ flexWrap: "wrap" }}>
+        <span className="text-sm text-muted">Period:</span>
+        {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
+          <button
+            key={d}
+            className={`btn btn-sm${periodDays === d ? " btn-primary" : ""}`}
+            onClick={() => { setPeriodDays(d); setPage(0); }}
+          >
+            {label}
+          </button>
+        ))}
+        {data.data.length > 0 && (
+          <button className="btn btn-sm" onClick={() => downloadCsv(data.data)} style={{ marginLeft: "auto" }}>
+            Export CSV
+          </button>
+        )}
+      </div>
+
     <div className="card">
       <div className="card-header">
         <h2>Audit trail</h2>
@@ -124,5 +166,6 @@ export default function AuditReportPage() {
         </>
       )}
     </div>
+    </>
   );
 }
