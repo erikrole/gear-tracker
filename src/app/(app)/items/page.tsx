@@ -29,6 +29,7 @@ type Asset = {
   computedStatus: string;
   location: { id: string; name: string };
   category: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
   imageUrl: string | null;
   activeBooking: ActiveBooking | null;
   _count?: { accessories: number };
@@ -419,6 +420,7 @@ export default function ItemsPage() {
   const [locationFilter, setLocationFilter] = useState(() => searchParams.get("location") ?? "");
   const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get("category") ?? "");
   const [brandFilter, setBrandFilter] = useState(() => searchParams.get("brand") ?? "");
+  const [departmentFilter, setDepartmentFilter] = useState(() => searchParams.get("department") ?? "");
   const [favoriteFilter, setFavoriteFilter] = useState(() => searchParams.get("favorite") === "true");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -431,7 +433,9 @@ export default function ItemsPage() {
   const limit = 25;
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
-  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || favoriteFilter;
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+
+  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter || favoriteFilter;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -447,12 +451,13 @@ export default function ItemsPage() {
     if (locationFilter) params.set("location", locationFilter);
     if (categoryFilter) params.set("category", categoryFilter);
     if (brandFilter) params.set("brand", brandFilter);
+    if (departmentFilter) params.set("department", departmentFilter);
     if (favoriteFilter) params.set("favorite", "true");
     if (page > 0) params.set("page", String(page));
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, favoriteFilter, page]);
+  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter, page]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -465,6 +470,7 @@ export default function ItemsPage() {
     if (locationFilter) params.set("location_id", locationFilter);
     if (categoryFilter) params.set("category_id", categoryFilter);
     if (brandFilter) params.set("brand", brandFilter);
+    if (departmentFilter) params.set("department_id", departmentFilter);
     if (favoriteFilter) params.set("favorite", "true");
 
     try {
@@ -478,7 +484,7 @@ export default function ItemsPage() {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, favoriteFilter]);
+  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -489,7 +495,12 @@ export default function ItemsPage() {
       .catch(() => {});
     fetch("/api/form-options")
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setLocations(json.data?.locations || []); })
+      .then((json) => {
+        if (json) {
+          setLocations(json.data?.locations || []);
+          setDepartments(json.data?.departments || []);
+        }
+      })
       .catch(() => {});
     fetch("/api/categories")
       .then((res) => res.ok ? res.json() : null)
@@ -519,12 +530,13 @@ export default function ItemsPage() {
     setLocationFilter("");
     setCategoryFilter("");
     setBrandFilter("");
+    setDepartmentFilter("");
     setFavoriteFilter(false);
     setPage(0);
   }
 
   // Clear selection when page/filters change
-  useEffect(() => { setSelected(new Set()); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, favoriteFilter]);
+  useEffect(() => { setSelected(new Set()); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -650,6 +662,15 @@ export default function ItemsPage() {
               onSelect={(v) => { setBrandFilter(v); setPage(0); }}
               onClear={() => { setBrandFilter(""); setPage(0); }}
             />
+            {departments.length > 0 && (
+              <FilterChip
+                label="Department"
+                value={departmentFilter}
+                options={departments.map((d) => ({ value: d.id, label: d.name }))}
+                onSelect={(v) => { setDepartmentFilter(v); setPage(0); }}
+                onClear={() => { setDepartmentFilter(""); setPage(0); }}
+              />
+            )}
             <button
               type="button"
               className={`btn btn-sm${favoriteFilter ? " btn-primary" : ""}`}
@@ -708,6 +729,7 @@ export default function ItemsPage() {
                   <th>Name</th>
                   <th>Category</th>
                   <th>Location</th>
+                  <th className="hide-mobile">Department</th>
                   <th className="hide-mobile">Brand</th>
                   <th className="hide-mobile">Model</th>
                 </tr>
@@ -773,6 +795,7 @@ export default function ItemsPage() {
                     </td>
                     <td>{item.category?.name || item.type}</td>
                     <td>{item.location.name}</td>
+                    <td className="hide-mobile">{item.department?.name ?? "\u2014"}</td>
                     <td className="hide-mobile">{item.brand}</td>
                     <td className="hide-mobile">{item.model}</td>
                   </tr>

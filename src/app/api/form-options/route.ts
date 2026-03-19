@@ -11,8 +11,9 @@ export const GET = withAuth(async () => {
     )
   );
 
-  const [locations, users, availableAssets, bulkSkus] = await Promise.all([
+  const [locations, departments, users, availableAssets, bulkSkus] = await Promise.all([
     db.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.department.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, email: true } }),
     db.asset.findMany({
       where: { status: { not: "RETIRED" } },
@@ -48,5 +49,5 @@ export const GET = withAuth(async () => {
     categoryRel: undefined,
   }));
 
-  return ok({ data: { locations, users, availableAssets: assetsWithCategory, bulkSkus: bulkSkusFlat } });
+  return ok({ data: { locations, departments, users, availableAssets: assetsWithCategory, bulkSkus: bulkSkusFlat } });
 });

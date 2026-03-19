@@ -42,10 +42,10 @@
 | Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI. Simple parent-child accessories shipped via D-023. |
 | Dashboard saved filters | AREA_DASHBOARD | — | Deferred from V1 |
 | Dashboard filter chips (Sport, Location) | AREA_DASHBOARD | — | Deferred from V1 |
-| Notification center polish (pagination, mark-as-read) | AREA_NOTIFICATIONS | — | After D-009 acceptance |
+| ~~Notification center polish (pagination, mark-as-read)~~ | ~~AREA_NOTIFICATIONS~~ | ~~—~~ | ~~Shipped: pagination, mark-as-read, unread filter all implemented~~ |
 | Multi-recipient escalation | AREA_NOTIFICATIONS | D-009 | Pending recipient model decision |
 | ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
-| Calendar source health UI | AREA_EVENTS | — | Enable/disable + sync status display |
+| ~~Calendar source health UI~~ | ~~AREA_EVENTS~~ | ~~—~~ | ~~Shipped 2026-03-19: /settings/calendar-sources — enable/disable, sync status, health badges, error display, add/delete~~ |
 | ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board~~ |
 | Shift notification channel (email for trade claims) | AREA_SHIFTS | — | V1 = in-app audit only; email deferred |
 | Student availability tracking | AREA_SHIFTS | — | Students declare unavailable dates; deferred to Phase B |
@@ -105,4 +105,5 @@
 - 2026-03-16: Closed GAP-2 (draft persistence). D-017 shipped: DRAFT CRUD API, dashboard Drafts section, auto-save on cancel, resume pre-fill. D-018 marked shipped (financial fields already in UI).
 - 2026-03-18: Closed scheduling + gear deep linking. shiftAssignmentId FK on Booking shipped, Event Command Center with missing gear detection.
 - 2026-03-18: Audit logging hardening — added createAuditEntry to 8 mutation endpoints (asset create, accessory attach/move/detach, image upload/delete, escalation config/rule update, profile update, draft discard). Per D-007.
+- 2026-03-19: Department filter/display on items page. Calendar source health UI shipped (/settings/calendar-sources). Notification center polish confirmed already shipped. Archived 8 completed plan files.
 - 2026-03-18: Security & data integrity hardening pass — 13 fixes: seed endpoint auth gating, STAFF→ADMIN privilege escalation blocked (role change + user creation), markCheckoutCompleted status guard (prevents double bulk stock return), bulk adjust Serializable isolation, shift trade TOCTOU races wrapped in transactions, scan session race condition fixed, booking route permission checks added, calendar source delete wrapped in transaction, escalation PATCH zod validation, shift trade status param validated, bulk scan quantity overflow guard, Booking.requesterUserId index, Notification→User FK with cascade delete.
