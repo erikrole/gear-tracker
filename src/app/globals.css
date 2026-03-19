@@ -1623,6 +1623,45 @@ textarea:focus-visible {
 }
 
 /* ===== Data Table ===== */
+/* ── Date-grouped event list ── */
+.event-list-grouped {
+  overflow-x: auto;
+}
+
+.event-date-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-card);
+  padding: 10px 16px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-date-header-today {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.event-date-count {
+  font-weight: var(--weight-normal);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.data-table-grouped thead {
+  display: none;
+}
+
+.data-table-grouped td:first-child {
+  width: 60px;
+}
+
 .data-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -4552,6 +4591,23 @@ textarea:focus-visible {
   font-size: var(--text-2xs);
   color: var(--text-secondary);
   padding: 0 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.cal-more:hover {
+  color: var(--text);
+}
+
+.cal-cell-expanded {
+  z-index: 10;
+  position: relative;
+  min-height: auto;
+  background: var(--bg-card);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
 }
 
 @media (max-width: 768px) {
