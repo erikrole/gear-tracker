@@ -5,6 +5,7 @@ import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { recordScan } from "@/lib/services/scans";
 import { scanSchema } from "@/lib/validation";
+import { handleSuccessfulScan, handleFailedScan } from "@/lib/services/badges";
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "checkout", "scan");
@@ -23,17 +24,28 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const body = scanSchema.parse(await req.json());
 
-  const result = await recordScan({
-    bookingId: id,
-    actorUserId: user.id,
-    phase: body.phase,
-    scanType: body.scanType as ScanType,
-    scanValue: body.scanValue,
-    quantity: body.quantity,
-    unitNumbers: body.unitNumbers,
-    deviceContext: body.deviceContext,
-    idempotencyKey: body.idempotencyKey
-  });
+  try {
+    const result = await recordScan({
+      bookingId: id,
+      actorUserId: user.id,
+      phase: body.phase,
+      scanType: body.scanType as ScanType,
+      scanValue: body.scanValue,
+      quantity: body.quantity,
+      unitNumbers: body.unitNumbers,
+      deviceContext: body.deviceContext,
+      idempotencyKey: body.idempotencyKey
+    });
 
-  return ok({ data: result });
+    // Track scan accuracy for Perfectionist badge streak
+    handleSuccessfulScan(user.id).catch(() => {});
+
+    return ok({ data: result });
+  } catch (error) {
+    // Track failed scans for streak resets (only for scan-related errors)
+    if (error instanceof HttpError && error.status === 400) {
+      handleFailedScan(user.id).catch(() => {});
+    }
+    throw error;
+  }
 });
