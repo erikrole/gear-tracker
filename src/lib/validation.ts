@@ -59,7 +59,8 @@ export const scanSchema = z.object({
   scanValue: z.string().min(1),
   quantity: z.number().int().positive().optional(),
   unitNumbers: z.array(z.number().int().positive()).optional(),
-  deviceContext: z.string().max(500).optional()
+  deviceContext: z.string().max(500).optional(),
+  idempotencyKey: z.string().max(100).optional()
 });
 
 export const overrideSchema = z.object({

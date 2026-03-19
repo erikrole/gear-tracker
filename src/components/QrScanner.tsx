@@ -52,8 +52,12 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
           },
           (decodedText) => {
             const now = Date.now();
-            // Debounce: ignore duplicate scans within 2 seconds
-            if (decodedText === lastScanRef.current && now - lastScanTimeRef.current < 2000) {
+            // Debounce: ignore duplicate scans within 3 seconds
+            if (decodedText === lastScanRef.current && now - lastScanTimeRef.current < 3000) {
+              return;
+            }
+            // Also ignore ANY scan within 1 second of the last (rapid-fire prevention)
+            if (now - lastScanTimeRef.current < 1000) {
               return;
             }
             lastScanRef.current = decodedText;

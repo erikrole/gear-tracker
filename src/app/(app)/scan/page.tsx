@@ -124,12 +124,23 @@ export default function ScanPage() {
   toastRef.current = toast;
   const manualInputRef = useRef<HTMLInputElement>(null);
 
+  // Race condition guards
+  const processingRef = useRef(false);
+  const loadingStatusRef = useRef(false);
+
+  // Idempotency: generate a unique key per scan attempt
+  const genIdempotencyKey = useCallback(() =>
+    `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, []);
+
   // ── Load scan status for booking modes ──
   const loadScanStatus = useCallback(async () => {
     if (!checkoutId || !phaseParam) return;
+    // Prevent concurrent status loads
+    if (loadingStatusRef.current) return;
+    loadingStatusRef.current = true;
     try {
       const res = await fetch(`/api/checkouts/${checkoutId}/scan-status?phase=${phaseParam}`);
-      if (!res.ok) { setLoadError(true); setStatusLoading(false); return; }
+      if (!res.ok) { setLoadError(true); setStatusLoading(false); loadingStatusRef.current = false; return; }
       const json = await res.json();
       const data = json.data as ScanStatus;
 
@@ -147,6 +158,7 @@ export default function ScanPage() {
       setLoadError(true);
     }
     setStatusLoading(false);
+    loadingStatusRef.current = false;
   }, [checkoutId, phaseParam]);
 
   useEffect(() => {
@@ -157,11 +169,26 @@ export default function ScanPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phase: phaseParam }),
-        }).catch(() => {/* non-blocking */});
+        }).then((res) => {
+          if (!res.ok) {
+            toastRef.current("Scan session could not be started — scans may not be audited", "error");
+          }
+        }).catch(() => {
+          toastRef.current("Scan session could not be started — scans may not be audited", "error");
+        });
       }
       loadScanStatus();
     }
   }, [mode, loadScanStatus, checkoutId, phaseParam]);
+
+  // Refresh scan status periodically so multi-device scanning stays in sync
+  useEffect(() => {
+    if (mode === "lookup" || !checkoutId || !phaseParam) return;
+    const interval = setInterval(() => {
+      loadScanStatus();
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [mode, checkoutId, phaseParam, loadScanStatus]);
 
   // ── Vibrate on scan (mobile haptic feedback) ──
   function vibrate(ms = 100) {
@@ -235,11 +262,13 @@ export default function ScanPage() {
       ? `/api/checkouts/${checkoutId}/checkin-scan`
       : `/api/checkouts/${checkoutId}/scan`;
 
+    const idempotencyKey = genIdempotencyKey();
+
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase: phaseParam, ...payload }),
+        body: JSON.stringify({ phase: phaseParam, idempotencyKey, ...payload }),
       });
 
       if (res.ok) {
@@ -248,8 +277,17 @@ export default function ScanPage() {
         await loadScanStatus();
         return true;
       } else {
-        const json = await res.json().catch(() => ({}));
-        const errMsg = (json as Record<string, string>).error || "Scan not recognized";
+        const json = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
+        const errCode = json.data?.code;
+        let errMsg = json.error || "Scan not recognized";
+        // Provide friendlier messages for known error codes
+        if (errCode === "SCAN_NOT_IN_CHECKOUT") {
+          errMsg = "This item is not part of this checkout";
+        } else if (res.status === 409) {
+          errMsg = json.error || "Unit not available — it may have been scanned by another device";
+        } else if (errCode === "DUPLICATE_SCAN") {
+          errMsg = "Already scanned — skipping duplicate";
+        }
         setLastScanResult({ message: errMsg, success: false });
         vibrate(50);
         return false;
@@ -258,11 +296,14 @@ export default function ScanPage() {
       setLastScanResult({ message: "Network error \u2014 try again", success: false });
       return false;
     }
-  }, [checkoutId, phaseParam, loadScanStatus]);
+  }, [checkoutId, phaseParam, loadScanStatus, genIdempotencyKey]);
 
   // ── Booking scan: record scan event ──
   const handleBookingScan = useCallback(async (value: string) => {
     if (!checkoutId || !phaseParam || !scanStatus) return;
+    // Double-guard: ref check prevents race between camera debounce and state update
+    if (processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
     setLastScanResult(null);
 
@@ -290,6 +331,7 @@ export default function ScanPage() {
         vibrate();
         setLastScanResult({ message: "Item scanned successfully", success: true });
         await loadScanStatus();
+        processingRef.current = false;
         setProcessing(false);
         return;
       }
@@ -323,21 +365,23 @@ export default function ScanPage() {
               availableUnits,
             });
             setSelectedUnits(new Set(availableUnits));
+            processingRef.current = false;
             setProcessing(false);
             return;
           }
         }
       }
 
-      setLastScanResult({ message: errMsg || "Scan not recognized", success: false });
+      setLastScanResult({ message: errMsg || "This item is not part of this checkout", success: false });
       vibrate(50);
+      processingRef.current = false;
       setProcessing(false);
       return;
     }
 
     // Standard flow: try as serialized scan
-    setProcessing(true);
     await submitScan({ scanType: "SERIALIZED", scanValue: value });
+    processingRef.current = false;
     setProcessing(false);
   }, [checkoutId, phaseParam, scanStatus, loadScanStatus, submitScan]);
 
@@ -362,7 +406,8 @@ export default function ScanPage() {
 
   // ── Route scan to correct handler ──
   const handleScan = useCallback((value: string) => {
-    if (processing) return;
+    // Use ref for synchronous guard — state may be stale from camera callback
+    if (processing || processingRef.current) return;
     if (mode === "lookup") {
       handleLookupScan(value);
     } else {
@@ -378,6 +423,13 @@ export default function ScanPage() {
       manualInputRef.current?.focus();
     }
   };
+
+  // Auto-focus the manual entry field on mount (helps barcode scanner keyboards)
+  useEffect(() => {
+    // Delay slightly to avoid conflict with camera initialization
+    const timer = setTimeout(() => manualInputRef.current?.focus(), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // ── Complete checkout/checkin ──
   async function handleComplete() {
@@ -699,7 +751,7 @@ export default function ScanPage() {
 
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))",
                 gap: 6,
                 maxHeight: 300,
                 overflowY: "auto",
