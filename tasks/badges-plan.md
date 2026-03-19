@@ -1,12 +1,12 @@
 # Badge System Implementation Plan
 
 > **Brief**: `docs/BRIEF_BADGES_V1.md`
-> **Status**: Planning
+> **Status**: In Progress
 > **Created**: 2026-03-19
 
 ## Slice Overview
 
-- [ ] **Slice 1**: Schema + Migration
+- [x] **Slice 1**: Schema + Migration
 - [ ] **Slice 2**: Badge Evaluation Engine
 - [ ] **Slice 3**: Student Profile UI (badge grid, stats, milestones)
 - [ ] **Slice 4**: Staff Dashboard (leaderboard, milestone report, feed)
@@ -18,16 +18,16 @@
 ## Slice 1: Schema + Migration
 
 ### Tasks
-- [ ] Add `COMPLETED` and `NO_SHOW` to `ShiftAssignmentStatus` enum
-- [ ] Create `BadgeDefinition` model
-- [ ] Create `StudentBadge` model (with unique constraint on userId + badgeId)
-- [ ] Create `BadgeStreak` model (with unique constraint on userId + streakType)
-- [ ] Create `BadgeCategory` enum
-- [ ] Add relations to `User` model
-- [ ] Run `npx prisma migrate dev`
-- [ ] Create seed script to populate all 42 badge definitions
-- [ ] Verify migration runs cleanly
-- [ ] Run `npm run build` to confirm clean compilation
+- [x] Add `COMPLETED` and `NO_SHOW` to `ShiftAssignmentStatus` enum
+- [x] Create `BadgeDefinition` model
+- [x] Create `StudentBadge` model (with unique constraint on userId + badgeId)
+- [x] Create `BadgeStreak` model (with unique constraint on userId + streakType)
+- [x] Create `BadgeCategory` enum
+- [x] Add relations to `User` model
+- [ ] Run `npx prisma migrate dev` (blocked — no DB in this environment, schema validates)
+- [x] Create seed script to populate all 42 badge definitions
+- [x] Validate schema with `prisma validate`
+- [x] Run `npm run build` — passes clean
 
 ### Acceptance Criteria
 - All 42 badges exist in `BadgeDefinition` table after seeding

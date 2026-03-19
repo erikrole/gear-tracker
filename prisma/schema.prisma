@@ -95,6 +95,8 @@ model User {
   favorites           FavoriteItem[]
   passwordResetTokens PasswordResetToken[]
   notifications       Notification[]
+  badges              StudentBadge[]
+  badgeStreaks         BadgeStreak[]
 
   @@map("users")
 }
@@ -653,6 +655,8 @@ enum ShiftAssignmentStatus {
   APPROVED
   DECLINED
   SWAPPED
+  COMPLETED
+  NO_SHOW
 }
 
 enum ShiftTradeStatus {
@@ -791,4 +795,57 @@ model ShiftTrade {
   @@index([postedByUserId])
   @@index([claimedByUserId])
   @@map("shift_trades")
+}
+
+// ── Student Badge System ────────────────────────────────
+
+enum BadgeCategory {
+  ACCOUNTABILITY
+  GEAR
+  SHIFT
+  EVENT
+  SECRET
+}
+
+model BadgeDefinition {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String
+  category    BadgeCategory
+  iconUrl     String?       @map("icon_url")
+  isSecret    Boolean       @default(false) @map("is_secret")
+  sortOrder   Int           @default(0) @map("sort_order")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  students    StudentBadge[]
+
+  @@index([category, sortOrder])
+  @@map("badge_definitions")
+}
+
+model StudentBadge {
+  id       String          @id @default(cuid())
+  userId   String          @map("user_id")
+  badgeId  String          @map("badge_id")
+  earnedAt DateTime        @default(now()) @map("earned_at")
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge    BadgeDefinition @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId, earnedAt])
+  @@map("student_badges")
+}
+
+model BadgeStreak {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  streakType      String    @map("streak_type")
+  currentCount    Int       @default(0) @map("current_count")
+  bestCount       Int       @default(0) @map("best_count")
+  lastResetAt     DateTime? @map("last_reset_at")
+  lastIncrementAt DateTime? @map("last_increment_at")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, streakType])
+  @@map("badge_streaks")
 }
