@@ -9,7 +9,6 @@ const REPORT_SECTIONS = [
   { href: "/reports/overdue", label: "Overdue" },
   { href: "/reports/scans", label: "Scans" },
   { href: "/reports/audit", label: "Audit" },
-  { href: "/reports/badges", label: "Badges" },
 ];
 
 export default function ReportsLayout({ children }: { children: React.ReactNode }) {
