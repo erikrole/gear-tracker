@@ -1,8 +1,8 @@
 import { Prisma, ShiftTradeStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
-
-const ACTIVE_ASSIGNMENT_STATUSES = ["DIRECT_ASSIGNED", "APPROVED"] as const;
+import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
+import { checkTimeConflict } from "@/lib/services/shift-assignments";
 
 /**
  * Post a shift assignment to the trade board.
@@ -25,9 +25,7 @@ export async function postTrade(
       throw new HttpError(403, "You can only trade your own shifts");
     }
     if (
-      !ACTIVE_ASSIGNMENT_STATUSES.includes(
-        assignment.status as (typeof ACTIVE_ASSIGNMENT_STATUSES)[number]
-      )
+      !(ACTIVE_ASSIGNMENT_STATUSES as readonly string[]).includes(assignment.status)
     ) {
       throw new HttpError(400, "Only active assignments can be traded");
     }
@@ -82,10 +80,23 @@ export async function claimTrade(tradeId: string, userId: string) {
     });
     if (!trade) throw new HttpError(404, "Trade not found");
     if (trade.status !== "OPEN") {
-      throw new HttpError(400, "Trade is no longer open");
+      throw new HttpError(409, "Trade is no longer open");
     }
     if (trade.postedByUserId === userId) {
       throw new HttpError(400, "You cannot claim your own trade");
+    }
+
+    // Validate claimant doesn't have a conflicting shift during this time
+    const shift = trade.shiftAssignment.shift;
+    await checkTimeConflict(tx, userId, shift.startsAt, shift.endsAt);
+
+    // Validate claimant's primary area matches the shift area
+    const claimant = await tx.user.findUnique({
+      where: { id: userId },
+      select: { primaryArea: true, role: true },
+    });
+    if (claimant?.primaryArea && claimant.primaryArea !== shift.area) {
+      throw new HttpError(400, `Your primary area (${claimant.primaryArea}) does not match this shift's area (${shift.area})`);
     }
 
     if (trade.requiresApproval) {
@@ -265,8 +276,18 @@ export async function listTrades(filters: {
 /* ── Internal helpers ── */
 
 async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, targetUserId: string, actorId: string) {
-  // Mark old assignment as SWAPPED and get it in one step
-  const assignment = await tx.shiftAssignment.update({
+  // Fetch assignment with shift times for conflict check
+  const assignment = await tx.shiftAssignment.findUnique({
+    where: { id: assignmentId },
+    include: { shift: true },
+  });
+  if (!assignment) throw new HttpError(404, "Assignment not found during swap");
+
+  // Validate target user has no conflicting shifts (exclude the assignment being swapped)
+  await checkTimeConflict(tx, targetUserId, assignment.shift.startsAt, assignment.shift.endsAt, assignmentId);
+
+  // Mark old assignment as SWAPPED
+  await tx.shiftAssignment.update({
     where: { id: assignmentId },
     data: { status: "SWAPPED" },
   });

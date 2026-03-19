@@ -71,16 +71,21 @@ function coverageDot(pct: number): string {
   return "var(--badge-red-bg, #ef4444)";
 }
 
-/** Count filled / total for a specific area across shifts */
+const ACTIVE_STATUSES = ["DIRECT_ASSIGNED", "APPROVED"];
+
+/** Count filled / total for a specific area across shifts (only active assignments) */
 function areaCoverage(shifts: Shift[], area: string) {
   const areaShifts = shifts.filter((s) => s.area === area);
-  const filled = areaShifts.filter((s) => s.assignments.length > 0).length;
+  const filled = areaShifts.filter((s) =>
+    s.assignments.some((a) => ACTIVE_STATUSES.includes(a.status))
+  ).length;
   return { filled, total: areaShifts.length };
 }
 
 export default function SchedulePage() {
   const [groups, setGroups] = useState<ShiftGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
@@ -130,8 +135,13 @@ export default function SchedulePage() {
       if (res.ok) {
         const json = await res.json();
         setGroups(json.data ?? []);
+        setLoadError(false);
+      } else {
+        setLoadError(true);
       }
-    } catch { /* network error */ }
+    } catch {
+      setLoadError(true);
+    }
     setLoading(false);
   }, [sportFilter, viewMode, calMonth]);
 
@@ -350,6 +360,11 @@ export default function SchedulePage() {
 
           {loading ? (
             <SkeletonTable rows={6} cols={7} />
+          ) : loadError ? (
+            <div className="p-16 text-center">
+              <p className="text-secondary mb-8">Failed to load shifts.</p>
+              <button className="btn btn-sm" onClick={loadGroups}>Retry</button>
+            </div>
           ) : filteredGroups.length === 0 ? (
             <EmptyState
               icon="calendar"
