@@ -110,6 +110,7 @@ export default function EventsPage() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
+  const [expandedDay, setExpandedDay] = useState<number | null>(null);
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -193,6 +194,18 @@ export default function EventsPage() {
     const now = new Date();
     return calMonth.getFullYear() === now.getFullYear() && calMonth.getMonth() === now.getMonth() && day === now.getDate();
   }
+
+  // Group events by date for list view
+  const groupedEvents = useMemo(() => {
+    const groups: [string, CalendarEvent[]][] = [];
+    let lastKey = "";
+    for (const ev of events) {
+      const key = new Date(ev.startsAt).toDateString();
+      if (key !== lastKey) { groups.push([key, []]); lastKey = key; }
+      groups[groups.length - 1][1].push(ev);
+    }
+    return groups;
+  }, [events]);
 
   function calBookingClass(ev: CalendarEvent): string {
     if (ev.isHome === true) return "cal-booking cal-booking-home";
@@ -648,30 +661,51 @@ export default function EventsPage() {
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                 <div key={d} className="cal-header">{d}</div>
               ))}
-              {calCells.map((cell, i) => (
-                <div key={i} className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""}`}>
-                  {cell.day && (
-                    <>
-                      <span className="cal-day-num">{cell.day}</span>
-                      {calEventsByDay.get(cell.day)?.slice(0, 3).map((ev) => (
-                        <Link
-                          key={ev.id}
-                          href={`/events/${ev.id}`}
-                          className={calBookingClass(ev)}
-                          title={ev.summary}
-                        >
-                          {ev.sportCode && ev.opponent
-                            ? `${ev.sportCode} ${ev.isHome === true ? "vs" : ev.isHome === false ? "at" : "vs"} ${ev.opponent}`
-                            : ev.summary}
-                        </Link>
-                      ))}
-                      {(calEventsByDay.get(cell.day)?.length ?? 0) > 3 && (
-                        <span className="cal-more">+{(calEventsByDay.get(cell.day)?.length ?? 0) - 3} more</span>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))}
+              {calCells.map((cell, i) => {
+                const dayEvents = cell.day ? calEventsByDay.get(cell.day) : undefined;
+                const isExpanded = expandedDay === cell.day;
+                const visibleEvents = isExpanded ? dayEvents : dayEvents?.slice(0, 3);
+                const hiddenCount = (dayEvents?.length ?? 0) - 3;
+                return (
+                  <div key={i} className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""} ${isExpanded ? "cal-cell-expanded" : ""}`}>
+                    {cell.day && (
+                      <>
+                        <span className="cal-day-num">{cell.day}</span>
+                        {visibleEvents?.map((ev) => (
+                          <Link
+                            key={ev.id}
+                            href={`/events/${ev.id}`}
+                            className={calBookingClass(ev)}
+                            title={ev.summary}
+                          >
+                            {ev.sportCode && ev.opponent
+                              ? `${ev.sportCode} ${ev.isHome === true ? "vs" : ev.isHome === false ? "at" : "vs"} ${ev.opponent}`
+                              : ev.summary}
+                          </Link>
+                        ))}
+                        {!isExpanded && hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            className="cal-more"
+                            onClick={() => setExpandedDay(cell.day)}
+                          >
+                            +{hiddenCount} more
+                          </button>
+                        )}
+                        {isExpanded && hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            className="cal-more"
+                            onClick={() => setExpandedDay(null)}
+                          >
+                            show less
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -689,55 +723,66 @@ export default function EventsPage() {
           ) : events.length === 0 ? (
             <div className="empty-state">No events found. Add a calendar source and sync.</div>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Sport</th>
-                  <th>Event</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Location</th>
-                  <th>Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((event) => (
-                  <tr key={event.id}>
-                    <td>
-                      {event.sportCode ? (
-                        <span className="badge badge-sm badge-purple" title={sportLabel(event.sportCode)}>{event.sportCode}</span>
-                      ) : null}
-                    </td>
-                    <td className="font-semibold">
-                      <Link href={`/events/${event.id}`} className="row-link">
-                        {event.opponent ? (
-                          <>
-                            {event.isHome === true ? "vs " : event.isHome === false ? "at " : ""}
-                            {event.opponent}
-                          </>
-                        ) : (
-                          event.summary
-                        )}
-                      </Link>
-                    </td>
-                    <td>{formatDate(event.startsAt)}</td>
-                    <td>{event.allDay ? "All day" : `${formatTime(event.startsAt)} - ${formatTime(event.endsAt)}`}</td>
-                    <td>
-                      {event.location ? (
-                        <span className="badge badge-blue">{event.location.name}</span>
-                      ) : event.rawLocationText ? (
-                        <span className="text-secondary text-xs">{event.rawLocationText}</span>
-                      ) : (
-                        <span className="badge badge-orange">needs mapping</span>
-                      )}
-                    </td>
-                    <td className="text-xs text-secondary">
-                      {event.source?.name}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="event-list-grouped">
+              {groupedEvents.map(([dateKey, groupEvents]) => {
+                const isGroupToday = new Date(dateKey).toDateString() === new Date().toDateString();
+                return (
+                  <div key={dateKey}>
+                    <div className={`event-date-header ${isGroupToday ? "event-date-header-today" : ""}`}>
+                      {formatDate(groupEvents[0].startsAt)}
+                      <span className="event-date-count">{groupEvents.length} event{groupEvents.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <table className="data-table data-table-grouped">
+                      <thead>
+                        <tr>
+                          <th>Sport</th>
+                          <th>Event</th>
+                          <th>Time</th>
+                          <th>Location</th>
+                          <th>Source</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {groupEvents.map((event) => (
+                          <tr key={event.id}>
+                            <td>
+                              {event.sportCode ? (
+                                <span className="badge badge-sm badge-purple" title={sportLabel(event.sportCode)}>{event.sportCode}</span>
+                              ) : null}
+                            </td>
+                            <td className="font-semibold">
+                              <Link href={`/events/${event.id}`} className="row-link">
+                                {event.opponent ? (
+                                  <>
+                                    {event.isHome === true ? "vs " : event.isHome === false ? "at " : ""}
+                                    {event.opponent}
+                                  </>
+                                ) : (
+                                  event.summary
+                                )}
+                              </Link>
+                            </td>
+                            <td>{event.allDay ? "All day" : `${formatTime(event.startsAt)} - ${formatTime(event.endsAt)}`}</td>
+                            <td>
+                              {event.location ? (
+                                <span className="badge badge-blue">{event.location.name}</span>
+                              ) : event.rawLocationText ? (
+                                <span className="text-secondary text-xs">{event.rawLocationText}</span>
+                              ) : (
+                                <span className="badge badge-orange">needs mapping</span>
+                              )}
+                            </td>
+                            <td className="text-xs text-secondary">
+                              {event.source?.name}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
