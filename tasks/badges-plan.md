@@ -7,8 +7,8 @@
 ## Slice Overview
 
 - [x] **Slice 1**: Schema + Migration
-- [ ] **Slice 2**: Badge Evaluation Engine
-- [ ] **Slice 3**: Student Profile UI (badge grid, stats, milestones)
+- [x] **Slice 2**: Badge Evaluation Engine
+- [x] **Slice 3**: Student Profile UI (badge grid, stats, milestones)
 - [ ] **Slice 4**: Staff Dashboard (leaderboard, milestone report, feed)
 - [ ] **Slice 5**: Notifications (in-app toast on badge unlock)
 - [ ] **Slice 6**: Equipment Issue Reporting (enables Steward badge)
