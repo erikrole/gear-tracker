@@ -996,14 +996,6 @@ textarea:focus-visible {
 }
 
 /* ── Event row with hover actions ── */
-.event-row-wrapper {
-  position: relative;
-}
-
-.event-row-wrapper + .event-row-wrapper {
-  border-top: 1px solid var(--border-light);
-}
-
 .event-row-clickable {
   text-decoration: none;
   color: inherit;
@@ -1012,50 +1004,11 @@ textarea:focus-visible {
   text-decoration: none;
 }
 
-.event-row-actions {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  pointer-events: none;
+/* Event action trigger button */
+.event-action-trigger {
+  width: 28px;
+  height: 28px;
   transition: opacity 0.15s ease;
-}
-
-.event-row-wrapper:hover .event-row-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.event-row-wrapper:hover .badge {
-  opacity: 0;
-}
-
-.event-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-3xs);
-  font-weight: var(--weight-semibold);
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: all var(--duration-normal) var(--ease-out);
-  box-shadow: var(--shadow-sm);
-}
-
-.event-action-btn:hover {
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border-color: var(--btn-primary-bg);
-  text-decoration: none;
-  box-shadow: var(--shadow);
 }
 
 /* ── Draft Row ── */
@@ -1150,8 +1103,8 @@ textarea:focus-visible {
 
 .overdue-banner-item {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 2px;
   background: rgba(255, 255, 255, 0.1);
   border: none;
   border-radius: 6px;
@@ -1159,6 +1112,8 @@ textarea:focus-visible {
   cursor: pointer;
   font-family: inherit;
   color: white;
+  text-align: left;
+  width: 100%;
   text-align: left;
   transition: background 0.15s ease;
 }
@@ -1186,13 +1141,45 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
-.overdue-banner-item-who {
+.overdue-banner-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.overdue-banner-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: var(--text-xs);
   opacity: 0.75;
-  white-space: nowrap;
+}
+
+.overdue-banner-item-meta .user-initials-avatar {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
 /* ── Section Count Badge ── */
+/* ── Empty section placeholder ── */
+.empty-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.empty-section-icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.4;
+}
+
 .section-count {
   background: var(--accent-soft);
   color: var(--text-secondary);
@@ -1583,27 +1570,6 @@ textarea:focus-visible {
     flex-wrap: wrap;
   }
 
-  /* Event row: always show action buttons on mobile */
-  .event-row-actions {
-    opacity: 1;
-    pointer-events: auto;
-    position: static;
-    transform: none;
-    margin-top: 6px;
-  }
-
-  .event-row-clickable {
-    flex-wrap: wrap;
-  }
-
-  .event-row-wrapper:hover .badge {
-    opacity: 1;
-  }
-
-  .event-action-btn {
-    font-size: var(--text-2xs);
-    padding: 3px 8px;
-  }
 }
 
 /* ===== Summary Cards ===== */

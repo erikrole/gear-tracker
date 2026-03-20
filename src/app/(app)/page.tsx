@@ -13,8 +13,17 @@ import {
   formatDateRange,
   formatEventDateTime,
   formatOverdueElapsed,
+  formatRelativeTime,
   isDueToday,
 } from "@/lib/format";
+import { ClipboardCheckIcon, CalendarCheckIcon, PackageIcon, CalendarIcon, InboxIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 /* ───── Types ───── */
 
@@ -99,6 +108,8 @@ type MyShift = {
     locationName: string | null;
   };
   gearStatus: string;
+  gearItems: ItemThumb[];
+  gearItemCount: number;
 };
 
 type DashboardData = {
@@ -300,9 +311,14 @@ export default function DashboardPage() {
                 className="overdue-banner-item"
                 onClick={() => setSelectedBookingId(item.bookingId)}
               >
-                <span className="overdue-banner-item-title">{item.bookingTitle}</span>
-                <span className="overdue-elapsed">{formatOverdueElapsed(item.endsAt, now)}</span>
-                <span className="overdue-banner-item-who">{item.requesterName}</span>
+                <div className="overdue-banner-item-main">
+                  <span className="overdue-banner-item-title">{item.bookingTitle}</span>
+                  <span className="overdue-banner-item-meta">
+                    <UserInitialsAvatar initials={item.requesterName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)} />
+                    {item.requesterName} &middot; {item.assetTags.length > 0 && <>{item.assetTags.join(", ")} &middot; </>}
+                    <span className="overdue-elapsed">{formatOverdueElapsed(item.endsAt, now)}</span>
+                  </span>
+                </div>
               </button>
             ))}
           </div>
@@ -323,7 +339,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.myCheckouts.total}</span>
             </a>
             {data.myCheckouts.items.length === 0 ? (
-              <div className="py-10 px-5 text-center text-muted-foreground">No open checkouts</div>
+              <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />No open checkouts</div>
             ) : (
               <CardContent className="p-0 py-1">
                 {data.myCheckouts.items.map((c) => (
@@ -365,7 +381,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.myReservations.length}</span>
             </a>
             {data.myReservations.length === 0 ? (
-              <div className="py-10 px-5 text-center text-muted-foreground">No upcoming reservations</div>
+              <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />No upcoming reservations</div>
             ) : (
               <CardContent className="p-0 py-1">
                 {data.myReservations.map((r) => (
@@ -407,7 +423,7 @@ export default function DashboardPage() {
                       </span>
                       <span className="ops-row-meta">
                         {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
-                        Edited {formatDateShort(d.updatedAt)}
+                        Edited {formatRelativeTime(d.updatedAt, now)}
                       </span>
                     </div>
                     <div className="draft-actions">
@@ -461,16 +477,18 @@ export default function DashboardPage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
                         {gearLabel ? (
-                          <span className={`badge ${s.gearStatus === "checked_out" ? "badge-green" : s.gearStatus === "reserved" ? "badge-orange" : "badge-gray"}`}>
-                            {gearLabel}
-                          </span>
+                          <>
+                            <GearAvatarStack items={s.gearItems} totalCount={s.gearItemCount} />
+                            <span className={`badge ${s.gearStatus === "checked_out" ? "badge-green" : s.gearStatus === "reserved" ? "badge-orange" : "badge-gray"}`}>
+                              {gearLabel}
+                            </span>
+                          </>
                         ) : (
-                          <a
-                            href={`/checkouts?create=true&title=${encodeURIComponent(eventTitle)}&startsAt=${encodeURIComponent(s.event.startsAt)}&endsAt=${encodeURIComponent(s.event.endsAt)}${s.event.locationId ? `&locationId=${s.event.locationId}` : ""}`}
-                            className="no-underline"
-                          >
-                            <Button variant="outline" size="sm">Reserve gear</Button>
-                          </a>
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={`/checkouts?create=true&title=${encodeURIComponent(eventTitle)}&startsAt=${encodeURIComponent(s.event.startsAt)}&endsAt=${encodeURIComponent(s.event.endsAt)}${s.event.locationId ? `&locationId=${s.event.locationId}` : ""}`}>
+                              Reserve gear
+                            </a>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -492,7 +510,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.teamCheckouts.total}</span>
             </a>
             {data.teamCheckouts.items.length === 0 ? (
-              <div className="py-10 px-5 text-center text-muted-foreground">No open checkouts</div>
+              <div className="empty-section"><InboxIcon className="empty-section-icon" />No open checkouts</div>
             ) : (
               <CardContent className="p-0 py-1">
                 {data.teamCheckouts.items.map((c) => (
@@ -535,7 +553,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.teamReservations.total}</span>
             </a>
             {data.teamReservations.items.length === 0 ? (
-              <div className="py-10 px-5 text-center text-muted-foreground">No active reservations</div>
+              <div className="empty-section"><InboxIcon className="empty-section-icon" />No active reservations</div>
             ) : (
               <CardContent className="p-0 py-1">
                 {data.teamReservations.items.map((r) => (
@@ -570,7 +588,7 @@ export default function DashboardPage() {
               <h2>Upcoming events</h2>
             </a>
             {data.upcomingEvents.length === 0 ? (
-              <div className="py-10 px-5 text-center text-muted-foreground">No upcoming events</div>
+              <div className="empty-section"><CalendarIcon className="empty-section-icon" />No upcoming events</div>
             ) : (
               <CardContent className="p-0 py-1">
                 {data.upcomingEvents.map((e) => {
@@ -579,44 +597,50 @@ export default function DashboardPage() {
                   const endsParam = encodeURIComponent(e.endsAt);
                   const locParam = e.locationId ? `&locationId=${e.locationId}` : "";
                   return (
-                    <div key={e.id} className="event-row-wrapper">
-                      <a href={`/events/${e.id}`} className="ops-row event-row-clickable">
-                        <div className="ops-row-main">
-                          <span className="ops-row-title">
-                            {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
-                            {e.opponent ? `vs ${e.opponent}` : e.title}
-                          </span>
-                          <span className="ops-row-meta">
-                            {formatEventDateTime(e.startsAt, e.endsAt, e.allDay)}
-                            {e.location && ` \u00B7 ${e.location}`}
-                          </span>
-                        </div>
-                        <div className="event-row-right">
-                          <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} />
-                          {e.isHome !== null && (
-                            <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
-                              {e.isHome ? "Home" : "Away"}
-                            </span>
-                          )}
-                        </div>
+                    <div key={e.id} className="ops-row event-row-clickable">
+                      <a href={`/events/${e.id}`} className="ops-row-main" style={{ textDecoration: "none", color: "inherit" }}>
+                        <span className="ops-row-title">
+                          {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
+                          {e.opponent ? `vs ${e.opponent}` : e.title}
+                        </span>
+                        <span className="ops-row-meta">
+                          {formatEventDateTime(e.startsAt, e.endsAt, e.allDay)}
+                          {e.location && ` \u00B7 ${e.location}`}
+                        </span>
                       </a>
-                      <div className="event-row-actions">
-                        <a
-                          href={`/checkouts?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}
-                          className="event-action-btn"
-                          title="Checkout for this event"
-                        >
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                          Checkout
-                        </a>
-                        <a
-                          href={`/reservations?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}
-                          className="event-action-btn"
-                          title="Reserve for this event"
-                        >
-                          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
-                          Reserve
-                        </a>
+                      <div className="event-row-right">
+                        <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} />
+                        {e.isHome !== null && (
+                          <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
+                            {e.isHome ? "Home" : "Away"}
+                          </span>
+                        )}
+                        <DropdownMenu>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="event-action-trigger">
+                                  <PackageIcon className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Gear for this event</TooltipContent>
+                          </Tooltip>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <a href={`/checkouts?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}>
+                                <ClipboardCheckIcon className="mr-2 size-4" />
+                                New checkout
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a href={`/reservations?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}>
+                                <CalendarCheckIcon className="mr-2 size-4" />
+                                New reservation
+                              </a>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   );

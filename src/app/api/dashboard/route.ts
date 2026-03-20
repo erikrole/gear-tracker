@@ -308,17 +308,30 @@ export const GET = withAuth(async (_req, { user }) => {
           eventId: { in: shiftEventIds },
           status: { in: ["DRAFT", "BOOKED", "OPEN"] },
         },
-        select: { eventId: true, status: true },
+        select: {
+          eventId: true,
+          status: true,
+          serializedItems: {
+            take: 3,
+            include: { asset: { select: { id: true, name: true, imageUrl: true } } },
+          },
+          _count: { select: { serializedItems: true, bulkItems: true } },
+        },
       })
     : [];
-  const gearByEvent = new Map<string, string>();
+  const gearByEvent = new Map<string, { status: string; items: typeof shiftGearBookings[0]["serializedItems"]; itemCount: number }>();
   for (const b of shiftGearBookings) {
     if (!b.eventId) continue;
     const current = gearByEvent.get(b.eventId);
-    // Prioritize: checked_out > reserved > draft
-    if (b.status === "OPEN") gearByEvent.set(b.eventId, "checked_out");
-    else if (b.status === "BOOKED" && current !== "checked_out") gearByEvent.set(b.eventId, "reserved");
-    else if (b.status === "DRAFT" && !current) gearByEvent.set(b.eventId, "draft");
+    const gearStatus = b.status === "OPEN" ? "checked_out" : b.status === "BOOKED" ? "reserved" : "draft";
+    const priority = { checked_out: 3, reserved: 2, draft: 1 };
+    if (!current || priority[gearStatus as keyof typeof priority] > priority[current.status as keyof typeof priority]) {
+      gearByEvent.set(b.eventId, {
+        status: gearStatus,
+        items: b.serializedItems,
+        itemCount: b._count.serializedItems + b._count.bulkItems,
+      });
+    }
   }
 
   const myShifts = myShiftsRaw.map((a) => {
@@ -340,7 +353,13 @@ export const GET = withAuth(async (_req, { user }) => {
         locationId: ev.locationId,
         locationName: ev.location?.name ?? null,
       },
-      gearStatus: gearByEvent.get(ev.id) ?? "none",
+      gearStatus: gearByEvent.get(ev.id)?.status ?? "none",
+      gearItems: (gearByEvent.get(ev.id)?.items ?? []).map((si) => ({
+        id: si.asset.id,
+        name: si.asset.name,
+        imageUrl: si.asset.imageUrl,
+      })),
+      gearItemCount: gearByEvent.get(ev.id)?.itemCount ?? 0,
     };
   });
 
