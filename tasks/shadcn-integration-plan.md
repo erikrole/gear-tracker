@@ -44,6 +44,18 @@ Components to **keep custom** (no shadcn equivalent or too domain-specific):
 - [x] Added Button, Badge, Skeleton to src/components/ui/
 - [x] Build passes, zero regressions
 
+### Slice 1.5: Avatar & AvatarGroup ✅ SHIPPED
+- [x] Added shadcn Avatar (Avatar, AvatarImage, AvatarFallback) using radix-ui unified package
+- [x] Created AvatarGroup component for stacked/overlapping avatars with overflow "+N" indicator
+- [x] Migrated Sidebar avatar (72px, border, translucent bg)
+- [x] Migrated UserRow mobile avatar (36px, initials fallback)
+- [x] Migrated UserDetail page avatar (48px, initials fallback)
+- [x] Added avatars to ShiftDetailPanel (active assignments + pending requests)
+- [x] Added stacked AvatarGroup to schedule page area coverage cells
+- [x] Added avatar to event detail page shift coverage table
+- [x] Removed old CSS: .sidebar-avatar-lg, .user-mobile-avatar, .user-detail-avatar
+- [x] Build passes, zero regressions
+
 ### Slice 2: Dialog & Toast Migration
 - [ ] Add shadcn `Dialog`, `Alert Dialog`, `Sonner`
 - [ ] Create adapter wrappers that match our existing API signatures:

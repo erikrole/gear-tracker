@@ -2,6 +2,7 @@ import { memo } from "react";
 import Link from "next/link";
 import type { UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /* ── Desktop Table Row ─────────────────────────────────── */
 
@@ -29,9 +30,11 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
   return (
     <Link href={`/users/${user.id}`} className="user-mobile-card no-underline">
       <div className="user-mobile-top">
-        <div className="user-mobile-avatar" aria-hidden="true">
-          {user.name.charAt(0).toUpperCase()}
-        </div>
+        <Avatar className="size-9" aria-hidden="true">
+          <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
+            {user.name.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
         <div className="user-mobile-name">
           <span className="row-link">{user.name}</span>
           <span className="text-secondary text-xs">{user.email}</span>

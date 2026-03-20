@@ -9,6 +9,8 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AvatarGroup } from "@/components/ui/avatar-group";
 
 /* ───── Types ───── */
 
@@ -76,10 +78,14 @@ const ACTIVE_STATUSES = ["DIRECT_ASSIGNED", "APPROVED"];
 /** Count filled / total for a specific area across shifts (only active assignments) */
 function areaCoverage(shifts: Shift[], area: string) {
   const areaShifts = shifts.filter((s) => s.area === area);
-  const filled = areaShifts.filter((s) =>
-    s.assignments.some((a) => ACTIVE_STATUSES.includes(a.status))
-  ).length;
-  return { filled, total: areaShifts.length };
+  const activeAssignments = areaShifts.flatMap((s) =>
+    s.assignments.filter((a) => ACTIVE_STATUSES.includes(a.status))
+  );
+  return {
+    filled: activeAssignments.length,
+    total: areaShifts.length,
+    assignedUsers: activeAssignments.map((a) => a.user),
+  };
 }
 
 export default function SchedulePage() {
@@ -411,9 +417,22 @@ export default function SchedulePage() {
                         if (ac.total === 0) return <td key={area} className="text-center text-secondary">—</td>;
                         return (
                           <td key={area} className="text-center">
-                            <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`}>
-                              {ac.filled}/{ac.total}
-                            </span>
+                            <div className="flex flex-col items-center gap-1">
+                              <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`}>
+                                {ac.filled}/{ac.total}
+                              </span>
+                              {ac.assignedUsers.length > 0 && (
+                                <AvatarGroup max={3}>
+                                  {ac.assignedUsers.map((u) => (
+                                    <Avatar key={u.id} className="size-6" title={u.name}>
+                                      <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
+                                        {u.name.charAt(0).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  ))}
+                                </AvatarGroup>
+                              )}
+                            </div>
                           </td>
                         );
                       })}

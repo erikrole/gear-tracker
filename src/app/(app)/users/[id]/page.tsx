@@ -8,6 +8,7 @@ import type { UserDetail, Location, Role } from "../types";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -86,9 +87,11 @@ export default function UserDetailPage() {
       <div className="page-header mb-0">
         <div>
           <div className="flex gap-12 items-center">
-            <div className="user-detail-avatar" aria-hidden="true">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
+            <Avatar className="size-12" aria-hidden="true">
+              <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
+                {user.name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <div>
               <h1 className="mb-0">{user.name}</h1>
               <div className="text-sm text-secondary mt-2">{user.email}</div>

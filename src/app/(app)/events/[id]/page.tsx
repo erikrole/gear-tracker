@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import DataList from "@/components/DataList";
 import { sportLabel } from "@/lib/sports";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 type CalendarEvent = {
   id: string;
@@ -284,7 +285,20 @@ export default function EventDetailPage() {
                     <tr key={shift.id}>
                       <td>{AREA_LABELS[shift.area] ?? shift.area}</td>
                       <td>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</td>
-                      <td>{activeAssignment ? activeAssignment.user.name : <span className="text-secondary">—</span>}</td>
+                      <td>
+                        {activeAssignment ? (
+                          <span className="flex items-center gap-2">
+                            <Avatar className="size-6">
+                              <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
+                                {activeAssignment.user.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            {activeAssignment.user.name}
+                          </span>
+                        ) : (
+                          <span className="text-secondary">—</span>
+                        )}
+                      </td>
                       <td>
                         {activeAssignment ? (
                           <span className="badge badge-green">Filled</span>
