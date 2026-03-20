@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Location = { id: string; name: string };
 type UserProfile = {
@@ -162,10 +169,15 @@ export default function ProfilePage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="profile-location">Default location</Label>
-            <select className="form-select w-full" id="profile-location" name="locationId" defaultValue={profile.location?.id || ""}>
-              <option value="">None</option>
-              {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-            </select>
+            <Select name="locationId" defaultValue={profile.location?.id || ""}>
+              <SelectTrigger id="profile-location" className="w-full">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {locations.map((location) => <SelectItem key={location.id} value={location.id}>{location.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <Button type="submit" disabled={savingProfile}>
             {savingProfile ? "Saving..." : "Save profile"}
@@ -209,17 +221,20 @@ export default function ProfilePage() {
                   <td>{user.email}</td>
                   <td>{user.location || "-"}</td>
                   <td>
-                    <select
-                      className="form-select"
+                    <Select
                       value={user.role}
-                      onChange={(e) => updateRole(user.id, e.target.value as ManagedUser["role"])}
+                      onValueChange={(v) => updateRole(user.id, v as ManagedUser["role"])}
                       disabled={updatingRoleId === user.id}
-                      style={{ opacity: updatingRoleId === user.id ? 0.6 : 1 }}
                     >
-                      <option value="ADMIN">Admin</option>
-                      <option value="STAFF">Staff</option>
-                      <option value="STUDENT">Student</option>
-                    </select>
+                      <SelectTrigger className={updatingRoleId === user.id ? "opacity-60" : ""}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="STAFF">Staff</SelectItem>
+                        <SelectItem value="STUDENT">Student</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
                 </tr>
               ))}

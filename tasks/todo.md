@@ -6,14 +6,11 @@ Last updated: 2026-03-20
 
 ## Active Work
 
-### shadcn/ui Advanced Components (future slices)
+### shadcn/ui Final Migration (Slices 6-8)
 
-- [ ] `Command` + `Combobox` (for search/filter upgrades)
-- [ ] `Dropdown Menu` + `Context Menu` (for booking context menu)
-- [ ] `Data Table` (for items/users/reports tables)
-- [ ] `Calendar` + `Date Picker` (for reservation date selection)
-
-See `tasks/shadcn-integration-plan.md` for full history.
+- [ ] **Slice 6**: Select — install shadcn Select, migrate 20 native `<select>` across 11 files
+- [ ] **Slice 7**: DropdownMenu — install shadcn DropdownMenu, migrate KebabMenu + ActionsMenu + BookingContextMenu
+- [ ] **Slice 8**: CSS cleanup — remove dead `.ctx-menu`, `.form-select`, `.overflow-btn`, `.popover` + orphaned rules
 
 ### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
 

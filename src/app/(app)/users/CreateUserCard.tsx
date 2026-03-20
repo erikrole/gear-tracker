@@ -5,6 +5,13 @@ import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Location } from "./types";
 
 export default function CreateUserCard({
@@ -87,19 +94,29 @@ export default function CreateUserCard({
             required
             aria-label="Temporary password"
           />
-          <select className="form-select" name="role" defaultValue="STAFF" aria-label="Role">
-            <option value="ADMIN">Admin</option>
-            <option value="STAFF">Staff</option>
-            <option value="STUDENT">Student</option>
-          </select>
-          <select className="form-select" name="locationId" defaultValue="" aria-label="Location">
-            <option value="">No location</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
+          <Select name="role" defaultValue="STAFF" aria-label="Role">
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+              <SelectItem value="STAFF">Staff</SelectItem>
+              <SelectItem value="STUDENT">Student</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select name="locationId" defaultValue="" aria-label="Location">
+            <SelectTrigger>
+              <SelectValue placeholder="No location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No location</SelectItem>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
           <Button type="submit" disabled={submitting}>

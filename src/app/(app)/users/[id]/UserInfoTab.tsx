@@ -8,6 +8,13 @@ import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import RoleBadge from "../RoleBadge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /* ── Editable Text Field ───────────────────────────────── */
 
@@ -117,19 +124,22 @@ function SelectField({
       <dt className="data-list-label">{label}</dt>
       <dd className="data-list-value">
         {editing ? (
-          <select
+          <Select
             value={value}
-            onChange={async (e) => { try { await onSave(e.target.value); } finally { setEditing(false); } }}
-            onBlur={() => setEditing(false)}
-            autoFocus
-            className="form-select"
-            style={{ fontSize: "var(--text-sm)", padding: "2px 6px" }}
+            onValueChange={async (v) => { try { await onSave(v); } finally { setEditing(false); } }}
+            open={editing}
+            onOpenChange={(open) => { if (!open) setEditing(false); }}
           >
-            {allowEmpty && <option value="">{emptyLabel || "None"}</option>}
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+            <SelectTrigger size="sm">
+              <SelectValue placeholder={emptyLabel || "None"} />
+            </SelectTrigger>
+            <SelectContent>
+              {allowEmpty && <SelectItem value="">{emptyLabel || "None"}</SelectItem>}
+              {options.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : (
           <span
             onClick={() => canEdit && setEditing(true)}

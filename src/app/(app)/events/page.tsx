@@ -11,6 +11,13 @@ import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type CalendarEvent = {
   id: string;
@@ -448,12 +455,16 @@ export default function EventsPage() {
           {showAddMapping && (
             <form onSubmit={handleAddMapping} className="flex flex-wrap gap-8 p-16">
               <Input name="pattern" placeholder="Pattern (regex or text)" required style={{ flex: 2, minWidth: 150 }} />
-              <select name="locationId" required className="form-select" style={{ flex: 1, minWidth: 120 }}>
-                <option value="">Select location</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </select>
+              <Select name="locationId" required defaultValue="">
+                <SelectTrigger style={{ flex: 1, minWidth: 120 }}>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input name="priority" type="number" defaultValue="0" placeholder="Priority" style={{ width: 80 }} title="Higher priority mappings are checked first" />
               <Button type="submit" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</Button>
             </form>

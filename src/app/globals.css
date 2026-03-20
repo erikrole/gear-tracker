@@ -2461,15 +2461,6 @@ textarea:focus-visible {
   outline: none;
 }
 
-.inline-edit-select {
-  padding: 2px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: var(--text-sm);
-  text-align: right;
-  outline: none;
-}
-
 .inline-edit-narrow {
   width: 140px;
   padding: 2px 6px;
@@ -2802,55 +2793,6 @@ textarea:focus-visible {
   margin-top: 8px;
 }
 
-/* ===== Context Menu ===== */
-.ctx-menu {
-  position: fixed;
-  z-index: var(--z-popover);
-  min-width: 180px;
-  background: var(--panel-solid);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 4px 0;
-  animation: ctx-in var(--duration-normal) var(--ease-out);
-}
-
-@keyframes ctx-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.ctx-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 14px;
-  border: none;
-  background: none;
-  font-size: var(--text-sm);
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  min-height: 40px;
-  transition: background var(--duration-fast) var(--ease-out);
-  border-radius: 0;
-  margin: 0;
-}
-
-.ctx-menu-item:hover {
-  background: var(--accent-soft);
-}
-
-.ctx-menu-item.danger {
-  color: var(--red);
-}
-
-.ctx-menu-sep {
-  height: 1px;
-  background: var(--border-light);
-  margin: 4px 0;
-}
 
 /* ===== Create Card ===== */
 .create-card {
@@ -3710,10 +3652,6 @@ textarea:focus-visible {
   max-width: min(520px, 100%);
 }
 
-.profile-form .form-select {
-  width: 100%;
-}
-
 /* Category search */
 .cat-search-wrap {
   position: relative;
@@ -3771,12 +3709,6 @@ textarea:focus-visible {
     position: static;
   }
 
-  /* Profile form selects: 44px touch targets, 16px prevents iOS zoom */
-  .profile-form .form-select {
-    min-height: 44px;
-    font-size: var(--text-lg);
-  }
-
   .profile-form .btn {
     min-height: 44px;
   }
@@ -3809,11 +3741,6 @@ textarea:focus-visible {
     min-width: 44px;
   }
 
-  /* Form-select global mobile: 44px + iOS zoom prevention */
-  .form-select {
-    min-height: 44px;
-    font-size: var(--text-lg);
-  }
 
   /* Diagnostic table: tighter padding on mobile */
   .diag-table th,
@@ -4518,25 +4445,6 @@ tr.status-overdue .status-label,
 .diag-table td { padding: 8px 16px; }
 .diag-table tbody tr { border-bottom: 1px solid var(--border-light); }
 
-/* ===== Form Controls ===== */
-
-.form-select {
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  background: var(--panel-solid);
-  color: var(--text);
-  outline: none;
-  min-height: 36px;
-  transition: border-color var(--duration-normal) var(--ease-out),
-              box-shadow var(--duration-normal) var(--ease-out);
-}
-.form-select:focus {
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring), 0 0 0 1px rgba(0, 0, 0, 0.03);
-}
-
 /* Filter chip bar — single row: search flexes, pills anchored right */
 .filter-chip-bar {
   display: flex !important;
@@ -4775,15 +4683,6 @@ tr.status-overdue .status-label,
   animation: popover-in var(--duration-normal) var(--ease-out);
 }
 
-/* Context menu positioning */
-.ctx-menu-anchor {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  margin-top: 4px;
-  z-index: var(--z-toast);
-}
-
 /* ===== Touch Target Audit ===== */
 
 /* Minimum 44px touch target on interactive elements */
@@ -4793,8 +4692,7 @@ button,
 }
 /* Links in nav / lists get touch padding */
 .sidebar-nav a,
-.bottom-nav a,
-.ctx-menu-item {
+.bottom-nav a {
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -5415,11 +5313,6 @@ textarea {
   .booking-filters-open {
     display: flex;
     flex-direction: column;
-  }
-
-  .booking-filters .form-select {
-    min-width: 0;
-    width: 100%;
   }
 
   .booking-mobile-card {

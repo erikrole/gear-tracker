@@ -6,6 +6,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /* ───── Types ───── */
 
@@ -68,7 +75,7 @@ type Step = "upload" | "mapping" | "preview" | "importing" | "summary";
 /* ───── Field definitions for column mapping ───── */
 
 const FIELD_OPTIONS = [
-  { value: "", label: "— Skip —" },
+  { value: "__skip__", label: "\u2014 Skip \u2014" },
   { value: "assetTag", label: "Asset Tag / Name" },
   { value: "type", label: "Category / Type" },
   { value: "brand", label: "Brand" },
@@ -216,7 +223,7 @@ export default function ImportPage() {
   function updateMapping(header: string, field: string) {
     setMapping((prev) => {
       const next = { ...prev };
-      if (field) next[header] = field;
+      if (field && field !== "__skip__") next[header] = field;
       else delete next[header];
       return next;
     });
@@ -440,16 +447,19 @@ export default function ImportPage() {
                         {csvSample[0]?.[colIdx] || "—"}
                       </td>
                       <td>
-                        <select
-                          value={mapping[header] || ""}
-                          onChange={(e) => updateMapping(header, e.target.value)}
-                          className="input"
-                          style={{ minWidth: 180 }}
+                        <Select
+                          value={mapping[header] || "__skip__"}
+                          onValueChange={(v) => updateMapping(header, v)}
                         >
-                          {FIELD_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
+                          <SelectTrigger style={{ minWidth: 180 }}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FIELD_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                     </tr>
                   ))}

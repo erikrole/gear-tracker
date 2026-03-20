@@ -17,6 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type CreateBookingCardProps = {
   config: BookingListConfig;
@@ -124,15 +131,16 @@ export function CreateBookingCard({
           <>
             <div className="mb-3 space-y-1">
               <Label>Sport</Label>
-              <select
-                value={createSport}
-                onChange={(e) => onCreateSportChange(e.target.value)}
-              >
-                <option value="">Select sport...</option>
-                {SPORT_CODES.map((s) => (
-                  <option key={s.code} value={s.code}>{s.code} - {s.label}</option>
-                ))}
-              </select>
+              <Select value={createSport} onValueChange={onCreateSportChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sport..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPORT_CODES.map((s) => (
+                    <SelectItem key={s.code} value={s.code}>{s.code} - {s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {createSport && (
@@ -223,12 +231,17 @@ export function CreateBookingCard({
         {!tieToEvent && (
           <div className="mb-3 space-y-1">
             <Label>Sport (optional)</Label>
-            <select value={createSport} onChange={(e) => onCreateSportChange(e.target.value)}>
-              <option value="">None</option>
-              {SPORT_CODES.map((s) => (
-                <option key={s.code} value={s.code}>{s.code} - {s.label}</option>
-              ))}
-            </select>
+            <Select value={createSport} onValueChange={onCreateSportChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {SPORT_CODES.map((s) => (
+                  <SelectItem key={s.code} value={s.code}>{s.code} - {s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
@@ -236,17 +249,25 @@ export function CreateBookingCard({
         <div className="field-row">
           <div className="mb-3 space-y-1">
             <Label>User</Label>
-            <select value={createRequester} onChange={(e) => onCreateRequesterChange(e.target.value)} required>
-              <option value="">Select...</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
+            <Select value={createRequester} onValueChange={onCreateRequesterChange} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div className="mb-3 space-y-1">
             <Label>Location</Label>
-            <select value={createLocationId} onChange={(e) => onCreateLocationIdChange(e.target.value)} required>
-              <option value="">Select...</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <Select value={createLocationId} onValueChange={onCreateLocationIdChange} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
