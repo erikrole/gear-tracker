@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
@@ -106,7 +107,7 @@ export default function CategoriesPage() {
           </div>
 
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /></div>
+            <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
           ) : (
             <div className="cat-list">
               {adding && (
@@ -130,7 +131,7 @@ export default function CategoriesPage() {
                 </div>
               )}
               {tree.length === 0 && !adding ? (
-                <div className="empty-state">
+                <div className="py-10 px-5 text-center text-muted-foreground">
                   {search ? "No categories match your search" : "No categories yet"}
                 </div>
               ) : (

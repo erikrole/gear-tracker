@@ -1,7 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import {
+  SearchIcon,
+  CalendarIcon,
+  BoxIcon,
+  ClipboardCheckIcon,
+  BellIcon,
+  UsersIcon,
+  FolderIcon,
+  BarChart3Icon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 
 type EmptyStateProps = {
   icon?: "search" | "calendar" | "box" | "clipboard" | "bell" | "users" | "folder" | "chart";
@@ -12,53 +29,15 @@ type EmptyStateProps = {
   onAction?: () => void;
 };
 
-const icons: Record<string, React.ReactNode> = {
-  search: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <path d="M21 21l-4.35-4.35" />
-    </svg>
-  ),
-  calendar: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  ),
-  box: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
-      <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" />
-    </svg>
-  ),
-  clipboard: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="2" width="14" height="20" rx="2" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  ),
-  bell: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
-    </svg>
-  ),
-  users: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-    </svg>
-  ),
-  folder: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2v11z" />
-    </svg>
-  ),
-  chart: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 20V10M12 20V4M6 20v-6" />
-    </svg>
-  ),
+const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  search: SearchIcon,
+  calendar: CalendarIcon,
+  box: BoxIcon,
+  clipboard: ClipboardCheckIcon,
+  bell: BellIcon,
+  users: UsersIcon,
+  folder: FolderIcon,
+  chart: BarChart3Icon,
 };
 
 export default function EmptyState({
@@ -69,11 +48,16 @@ export default function EmptyState({
   actionHref,
   onAction,
 }: EmptyStateProps) {
+  const Icon = iconMap[icon] ?? BoxIcon;
   return (
-    <div className="empty-state">
-      {icons[icon]}
-      <p className="empty-state-title">{title}</p>
-      {description && <p className="empty-state-desc">{description}</p>}
+    <Empty className="border-0 py-10">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Icon className="size-6 text-muted-foreground" />
+        </EmptyMedia>
+        <EmptyTitle>{title}</EmptyTitle>
+        {description && <EmptyDescription>{description}</EmptyDescription>}
+      </EmptyHeader>
       {actionLabel && actionHref && (
         <Button size="sm" asChild>
           <Link href={actionHref}>{actionLabel}</Link>
@@ -82,6 +66,6 @@ export default function EmptyState({
       {actionLabel && onAction && !actionHref && (
         <Button size="sm" onClick={onAction}>{actionLabel}</Button>
       )}
-    </div>
+    </Empty>
   );
 }

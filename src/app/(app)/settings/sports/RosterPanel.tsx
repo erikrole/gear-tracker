@@ -5,6 +5,7 @@ import { sportLabel } from "@/lib/sports";
 import { useToast } from "@/components/Toast";
 import type { RosterMember } from "./types";
 import { AREA_LABELS } from "./types";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function RosterPanel({
   sportCode,
@@ -93,7 +94,7 @@ export default function RosterPanel({
         <h2>{sportLabel(sportCode)} Roster</h2>
       </div>
       {loading ? (
-        <div className="p-16"><div className="loading-spinner"><div className="spinner" /></div></div>
+        <div className="flex items-center justify-center p-16"><Spinner className="size-8" /></div>
       ) : (
         <>
           {/* Desktop table */}

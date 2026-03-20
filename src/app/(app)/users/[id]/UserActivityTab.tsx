@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
+import { Spinner } from "@/components/ui/spinner";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -68,14 +69,14 @@ export default function UserActivityTab({ userId }: { userId: string }) {
       .finally(() => setLoading(false));
   }, [userId]);
 
-  if (loading) return <div className="loading-spinner"><div className="spinner" /></div>;
+  if (loading) return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
 
   if (fetchError) {
-    return <div className="empty-state">Failed to load activity history.</div>;
+    return <div className="py-10 px-5 text-center text-muted-foreground">Failed to load activity history.</div>;
   }
 
   if (entries.length === 0) {
-    return <div className="empty-state">No activity recorded yet.</div>;
+    return <div className="py-10 px-5 text-center text-muted-foreground">No activity recorded yet.</div>;
   }
 
   return (

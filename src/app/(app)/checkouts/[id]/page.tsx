@@ -8,6 +8,7 @@ import type { CheckoutAction } from "@/lib/booking-actions";
 import { formatDateTime } from "@/lib/format";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 
 type Checkout = {
   id: string;
@@ -185,11 +186,11 @@ export default function CheckoutDetailsPage() {
   }
 
   if (fetchError) {
-    return <div className="empty-state">Checkout not found or failed to load. <Link href="/checkouts">Back to checkouts</Link></div>;
+    return <div className="py-10 px-5 text-center text-muted-foreground">Checkout not found or failed to load. <Link href="/checkouts">Back to checkouts</Link></div>;
   }
 
   if (!checkout) {
-    return <div className="loading-spinner"><div className="spinner" /></div>;
+    return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
   }
 
   const actions = checkout.allowedActions ?? [];
@@ -330,7 +331,7 @@ export default function CheckoutDetailsPage() {
             )}
           </div>
           {checkout.serializedItems.length === 0 && checkout.bulkItems.length === 0 ? (
-            <div className="empty-state">No items in this checkout.</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">No items in this checkout.</div>
           ) : (
             <div>
               {checkout.serializedItems.map((item) => {

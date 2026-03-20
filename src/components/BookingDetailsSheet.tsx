@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
@@ -581,11 +582,11 @@ export default function BookingDetailsSheet({
         {/* Body */}
         <div className="sheet-body">
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /></div>
+            <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
           ) : fetchError ? (
-            <div className="empty-state">Failed to load booking details.</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">Failed to load booking details.</div>
           ) : !booking ? (
-            <div className="empty-state">Booking not found</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">Booking not found</div>
           ) : (
             <>
               {/* Info Tab - View Mode */}

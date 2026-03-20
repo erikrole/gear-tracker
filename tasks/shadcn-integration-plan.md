@@ -66,12 +66,16 @@ Components to **keep custom** (no shadcn equivalent or too domain-specific):
 - [x] Deleted `Modal.tsx`, removed ~150 lines of modal/confirm/toast CSS
 - [x] Build passes, zero regressions
 
-### Slice 3: Empty, Spinner, Item Components
-- [ ] Add shadcn `Empty`, `Spinner`, `Item`
-- [ ] Migrate `EmptyState.tsx` usages to shadcn Empty (preserve our 8 icon variants)
-- [ ] Add Spinner to loading states where we currently use CSS `.spin` animation
-- [ ] Use Item component in list views where applicable
-- [ ] Build passes
+### Slice 3: Empty, Spinner, Item, Separator Components ✅ SHIPPED
+- [x] Added shadcn Spinner (lucide Loader2Icon + animate-spin)
+- [x] Added shadcn Empty (Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent)
+- [x] Added shadcn Item (Item, ItemGroup, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions, ItemHeader, ItemFooter, ItemSeparator)
+- [x] Added shadcn Separator (dependency of Item)
+- [x] Migrated EmptyState.tsx to use shadcn Empty + lucide-react icons (replaced 8 inline SVGs)
+- [x] Migrated ~25 raw `className="empty-state"` usages to Tailwind utility classes
+- [x] Migrated ~21 `.loading-spinner` + `.spinner` CSS patterns to shadcn Spinner component
+- [x] Removed ~55 lines of CSS: `.empty-state*`, `.loading-spinner`, `.spinner`, `.btn-spinner`, `@keyframes spin`
+- [x] Build passes, zero regressions
 
 ### Slice 4: Form Components
 - [ ] Add `Input`, `Label`, `Field`, `Select`, `Checkbox`, `Switch`, `Textarea`

@@ -42,7 +42,7 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
             </button>
           </div>
         ) : (
-          <div className="empty-state p-16">Not currently checked out</div>
+          <div className="py-16 px-5 text-center text-muted-foreground">Not currently checked out</div>
         )}
       </div>
 
@@ -86,7 +86,7 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
             })}
           </div>
         ) : (
-          <div className="empty-state p-16">No upcoming reservations</div>
+          <div className="py-16 px-5 text-center text-muted-foreground">No upcoming reservations</div>
         )}
       </div>
     </div>
@@ -188,7 +188,7 @@ export function BookingKindTab({
         </div>
         <div className="p-16">
           {filtered.length === 0 ? (
-            <div className="empty-state">No past {label} for this item.</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">No past {label} for this item.</div>
           ) : (
             filtered.map((group) => (
               <div key={group.month} className="mb-16">

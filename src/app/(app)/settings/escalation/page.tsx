@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 
 type EscalationRule = {
   id: string;
@@ -96,7 +97,7 @@ export default function EscalationSettingsPage() {
           <h2 className="settings-title">Escalation</h2>
         </div>
         <div className="settings-main">
-          <div className="loading-spinner"><div className="spinner" /></div>
+          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
         </div>
       </div>
     );

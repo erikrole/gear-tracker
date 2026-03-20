@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 function LabelQRCode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -96,7 +97,7 @@ export default function LabelsPage() {
         </div>
 
         {loading ? (
-          <div className="loading-spinner"><div className="spinner" /></div>
+          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
         ) : (
           <div style={{ maxHeight: 300, overflowY: "auto" }}>
             {assets.map((asset) => (

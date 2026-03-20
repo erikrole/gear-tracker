@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -160,11 +161,11 @@ export default function SearchPage() {
       </form>
 
       {loading && (
-        <div className="loading-spinner"><div className="spinner" /></div>
+        <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
       )}
 
       {!loading && searched && results.length === 0 && (
-        <div className="empty-state">No results found for "{query}"</div>
+        <div className="py-10 px-5 text-center text-muted-foreground">No results found for "{query}"</div>
       )}
 
       {!loading && results.length > 0 && (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 import type { SportConfig } from "./types";
 import { AREAS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
@@ -122,7 +123,7 @@ export default function SportsSettingsPage() {
           <h2 className="settings-title">Sports</h2>
         </div>
         <div className="settings-main">
-          <div className="loading-spinner"><div className="spinner" /></div>
+          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
         </div>
       </div>
     );

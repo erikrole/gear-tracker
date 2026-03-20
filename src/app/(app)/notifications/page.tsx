@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
+import { Spinner } from "@/components/ui/spinner";
 
 type Notification = {
   id: string;
@@ -231,9 +232,7 @@ export default function NotificationsPage() {
         </div>
 
         {loading ? (
-          <div className="loading-spinner">
-            <div className="spinner" />
-          </div>
+          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
         ) : notifications.length === 0 ? (
           <EmptyState
             icon="bell"
