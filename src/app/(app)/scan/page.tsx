@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 const QrScanner = dynamic(() => import("@/components/QrScanner"), { ssr: false });
 
@@ -548,7 +549,7 @@ export default function ScanPage() {
       {mode !== "lookup" && loadError && (
         <div className="scan-status-card scan-status-error">
           Failed to load checkout details.{" "}
-          <button className="btn btn-sm" onClick={loadScanStatus}>Retry</button>
+          <Button variant="outline" size="sm" onClick={loadScanStatus}>Retry</Button>
         </div>
       )}
 
@@ -601,13 +602,13 @@ export default function ScanPage() {
             onKeyDown={(e) => e.key === "Enter" && handleManualEntry()}
             className="scan-manual-input"
           />
-          <button
-            className="btn btn-primary scan-manual-btn"
+          <Button
+            className="scan-manual-btn"
             onClick={handleManualEntry}
             disabled={!manualCode.trim() || processing}
           >
             {processing ? "..." : mode === "lookup" ? "Look up" : "Scan"}
-          </button>
+          </Button>
         </div>
 
         {/* Inline scan feedback */}
@@ -736,8 +737,9 @@ export default function ScanPage() {
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
                   {selectedUnits.size} of {unitPicker.availableUnits.length} selected
                 </span>
-                <button
-                  className="btn btn-sm"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     if (selectedUnits.size === unitPicker.availableUnits.length) {
                       setSelectedUnits(new Set());
@@ -747,7 +749,7 @@ export default function ScanPage() {
                   }}
                 >
                   {selectedUnits.size === unitPicker.availableUnits.length ? "Deselect all" : "Select all"}
-                </button>
+                </Button>
               </div>
 
               <div style={{
@@ -787,17 +789,16 @@ export default function ScanPage() {
             </div>
 
             <div className="sheet-actions" style={{ display: "flex", gap: 8 }}>
-              <button className="btn" onClick={() => setUnitPicker(null)} style={{ flex: 1, minHeight: 48 }}>
+              <Button variant="outline" onClick={() => setUnitPicker(null)} style={{ flex: 1, minHeight: 48 }}>
                 Cancel
-              </button>
-              <button
-                className="btn btn-primary"
+              </Button>
+              <Button
                 onClick={handleUnitPickerSubmit}
                 disabled={selectedUnits.size === 0 || processing}
                 style={{ flex: 1, minHeight: 48 }}
               >
                 {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
-              </button>
+              </Button>
             </div>
           </div>
         </>
@@ -806,8 +807,9 @@ export default function ScanPage() {
       {/* ══════ Sticky bottom bar (booking modes) ══════ */}
       {mode !== "lookup" && scanStatus && (
         <div className="scan-bottom-bar">
-          <button
-            className={`btn ${allComplete ? "btn-primary" : ""} scan-complete-btn`}
+          <Button
+            variant={allComplete ? "default" : "outline"}
+            className="scan-complete-btn"
             onClick={handleComplete}
             disabled={!allComplete || completing}
           >
@@ -817,7 +819,7 @@ export default function ScanPage() {
                 ? mode === "checkout" ? "Complete Checkout" : "Complete Check-in"
                 : `${totalItems - scannedItems} item${totalItems - scannedItems !== 1 ? "s" : ""} remaining`
             }
-          </button>
+          </Button>
         </div>
       )}
 
@@ -921,18 +923,18 @@ export default function ScanPage() {
             )}
 
             <div className="sheet-actions scan-sheet-actions">
-              <button
-                className="btn scan-sheet-btn"
+              <Button
+                variant="outline"
+                className="scan-sheet-btn"
                 onClick={() => setItemPreview(null)}
               >
                 Dismiss
-              </button>
-              <Link
-                href={`/items/${itemPreview.id}`}
-                className="btn btn-primary scan-sheet-btn"
-              >
-                View Details
-              </Link>
+              </Button>
+              <Button className="scan-sheet-btn" asChild>
+                <Link href={`/items/${itemPreview.id}`}>
+                  View Details
+                </Link>
+              </Button>
             </div>
           </div>
         </>

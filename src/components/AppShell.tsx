@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 type User = { name: string; email: string; role: string };
 
@@ -216,30 +217,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <input ref={searchInputRef} type="text" placeholder="Search items... (⌘K)" />
           </form>
           {/* Mobile search icon */}
-          <button
-            className="topbar-search-mobile btn topbar-icon-btn"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="topbar-search-mobile topbar-icon-btn"
             onClick={() => setSearchOpen(true)}
             aria-label="Search"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
               <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
             </svg>
-          </button>
+          </Button>
           <div className="topbar-actions">
-            <Link href="/notifications" className="btn topbar-icon-btn" aria-label="Notifications">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
-              </svg>
-              {unreadNotifications > 0 && (
-                <span className="topbar-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
-              )}
-            </Link>
-            <Link href="/profile" className="btn topbar-icon-btn" aria-label="Profile">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </Link>
+            <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
+              <Link href="/notifications" aria-label="Notifications">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+                </svg>
+                {unreadNotifications > 0 && (
+                  <span className="topbar-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+                )}
+              </Link>
+            </Button>
+            <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
+              <Link href="/profile" aria-label="Profile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </Link>
+            </Button>
           </div>
         </header>
         <div id="main-content" className="page-content">{children}</div>

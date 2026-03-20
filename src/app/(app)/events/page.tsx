@@ -6,7 +6,9 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
+import { Input } from "@/components/ui/input";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
+import { Button } from "@/components/ui/button";
 
 type CalendarEvent = {
   id: string;
@@ -347,12 +349,12 @@ export default function EventsPage() {
       <div className="page-header">
         <h1>Events</h1>
         <div className="flex gap-8">
-          <button className="btn" onClick={() => setShowMappings(!showMappings)}>
+          <Button variant="outline" onClick={() => setShowMappings(!showMappings)}>
             {showMappings ? "Hide mappings" : "Venue mappings"}
-          </button>
-          <button className="btn" onClick={() => setShowSources(!showSources)}>
+          </Button>
+          <Button variant="outline" onClick={() => setShowSources(!showSources)}>
             {showSources ? "Hide sources" : "Manage sources"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -432,9 +434,9 @@ export default function EventsPage() {
         <div className="card mb-16">
           <div className="card-header">
             <h2>Venue Mappings</h2>
-            <button className="btn btn-sm btn-primary" onClick={() => setShowAddMapping(!showAddMapping)}>
+            <Button size="sm" onClick={() => setShowAddMapping(!showAddMapping)}>
               {showAddMapping ? "Cancel" : "Add mapping"}
-            </button>
+            </Button>
           </div>
 
           <div className="text-xs text-secondary" style={{ padding: "8px 16px 0" }}>
@@ -443,15 +445,15 @@ export default function EventsPage() {
 
           {showAddMapping && (
             <form onSubmit={handleAddMapping} className="flex flex-wrap gap-8 p-16">
-              <input name="pattern" placeholder="Pattern (regex or text)" required className="form-input" style={{ flex: 2, minWidth: 150 }} />
+              <Input name="pattern" placeholder="Pattern (regex or text)" required style={{ flex: 2, minWidth: 150 }} />
               <select name="locationId" required className="form-select" style={{ flex: 1, minWidth: 120 }}>
                 <option value="">Select location</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.id}>{loc.name}</option>
                 ))}
               </select>
-              <input name="priority" type="number" defaultValue="0" placeholder="Priority" className="form-input" style={{ width: 80 }} title="Higher priority mappings are checked first" />
-              <button type="submit" className="btn btn-primary" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</button>
+              <Input name="priority" type="number" defaultValue="0" placeholder="Priority" style={{ width: 80 }} title="Higher priority mappings are checked first" />
+              <Button type="submit" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</Button>
             </form>
           )}
 
@@ -474,13 +476,15 @@ export default function EventsPage() {
                     <td><span className="badge badge-blue">{m.location.name}</span></td>
                     <td>{m.priority}</td>
                     <td>
-                      <button
-                        className="btn btn-sm text-red"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
                         onClick={() => handleDeleteMapping(m.id)}
                         disabled={deletingMappingId === m.id}
                       >
                         {deletingMappingId === m.id ? "..." : "Delete"}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -495,16 +499,16 @@ export default function EventsPage() {
         <div className="card mb-16">
           <div className="card-header">
             <h2>Calendar Sources</h2>
-            <button className="btn btn-sm btn-primary" onClick={() => setShowAddSource(!showAddSource)}>
+            <Button size="sm" onClick={() => setShowAddSource(!showAddSource)}>
               {showAddSource ? "Cancel" : "Add source"}
-            </button>
+            </Button>
           </div>
 
           {showAddSource && (
             <form onSubmit={handleAddSource} className="flex gap-8 p-16">
-              <input name="name" placeholder="Source name" required className="form-input flex-1" />
-              <input name="url" placeholder="webcal:// or https:// URL" required className="form-input" style={{ flex: 2 }} />
-              <button type="submit" className="btn btn-primary" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</button>
+              <Input name="name" placeholder="Source name" required className="flex-1" />
+              <Input name="url" placeholder="webcal:// or https:// URL" required style={{ flex: 2 }} />
+              <Button type="submit" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</Button>
             </form>
           )}
 
@@ -553,31 +557,35 @@ export default function EventsPage() {
                       )}
                     </td>
                     <td>
-                      <button
-                        className={`btn btn-sm ${source.enabled ? "" : "btn-primary"}`}
+                      <Button
+                        variant={source.enabled ? "outline" : "default"}
+                        size="sm"
                         onClick={() => handleToggleEnabled(source.id, !source.enabled)}
                         disabled={togglingId === source.id}
                         title={source.enabled ? "Disable this source (sync will skip it)" : "Enable this source"}
                       >
                         {togglingId === source.id ? "..." : source.enabled ? "Disable" : "Enable"}
-                      </button>
+                      </Button>
                     </td>
                     <td className="flex gap-4">
-                      <button
-                        className="btn btn-sm"
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleSync(source.id)}
                         disabled={syncing === source.id || !source.enabled}
                         title={!source.enabled ? "Enable source before syncing" : ""}
                       >
                         {syncing === source.id ? "Syncing..." : "Sync now"}
-                      </button>
-                      <button
-                        className="btn btn-sm text-red"
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
                         onClick={() => handleDeleteSource(source.id)}
                         disabled={deletingSourceId === source.id}
                       >
                         {deletingSourceId === source.id ? "..." : "Delete"}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -590,20 +598,22 @@ export default function EventsPage() {
       {/* Filters and view toggle */}
       <div className="filter-chip-bar mb-16">
         <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-          <button
-            className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : ""}`}
+          <Button
+            variant={viewMode === "list" ? "default" : "outline"}
+            size="sm"
             onClick={() => setViewMode("list")}
             style={{ borderRadius: 0, border: "none" }}
           >
             List
-          </button>
-          <button
-            className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : ""}`}
+          </Button>
+          <Button
+            variant={viewMode === "calendar" ? "default" : "outline"}
+            size="sm"
             onClick={() => setViewMode("calendar")}
             style={{ borderRadius: 0, border: "none" }}
           >
             Calendar
-          </button>
+          </Button>
         </div>
         {viewMode === "list" && (
           <div className="filter-chips">
@@ -645,13 +655,13 @@ export default function EventsPage() {
         <div className="card mb-16">
           <div className="card-header flex-between">
             <div className="flex-center gap-8">
-              <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
+              <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
               <h2 className="text-center" style={{ minWidth: 160 }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
               </h2>
-              <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
+              <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
             </div>
-            <button className="btn btn-sm" onClick={goCalToday}>Today</button>
+            <Button variant="outline" size="sm" onClick={goCalToday}>Today</Button>
           </div>
           <div className="p-16">
             <div className="cal-mobile-notice hidden">

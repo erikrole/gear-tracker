@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { Location } from "./types";
 
 export default function CreateUserCard({
@@ -56,30 +58,27 @@ export default function CreateUserCard({
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="card-header flex-between">
         <h2>Add user</h2>
-        <button type="button" className="btn btn-sm" onClick={onClose}>
+        <Button type="button" variant="outline" size="sm" onClick={onClose}>
           Cancel
-        </button>
+        </Button>
       </div>
       <form onSubmit={handleSubmit} className="p-16">
         <div className="form-grid form-grid-3">
-          <input
-            className="form-input"
+          <Input
             name="name"
             placeholder="Full name"
             required
             aria-label="Full name"
             autoFocus
           />
-          <input
-            className="form-input"
+          <Input
             name="email"
             type="email"
             placeholder="Email"
             required
             aria-label="Email"
           />
-          <input
-            className="form-input"
+          <Input
             name="password"
             type="password"
             minLength={8}
@@ -102,9 +101,9 @@ export default function CreateUserCard({
           </select>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-          <button className="btn btn-primary" type="submit" disabled={submitting}>
+          <Button type="submit" disabled={submitting}>
             {submitting ? "Adding..." : "Add user"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

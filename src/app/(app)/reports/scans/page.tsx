@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
+import { Button } from "@/components/ui/button";
 
 type ScanEntry = {
   id: string;
@@ -133,7 +134,7 @@ export default function ScanHistoryPage() {
     return (
       <div className="card p-16 text-center">
         <p className="text-secondary mb-8">Failed to load scan report.</p>
-        <button className="btn btn-sm" onClick={reload}>Retry</button>
+        <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
       </div>
     );
   }
@@ -146,28 +147,28 @@ export default function ScanHistoryPage() {
       <div className="flex-center gap-12 mb-16" style={{ flexWrap: "wrap" }}>
         <span className="text-sm text-muted">Period:</span>
         {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
-          <button
+          <Button
             key={d}
-            className={`btn btn-sm${periodDays === d ? " btn-primary" : ""}`}
+            variant={periodDays === d ? "default" : "outline"} size="sm"
             onClick={() => { setPeriodDays(d); setPage(0); }}
           >
             {label}
-          </button>
+          </Button>
         ))}
         <span className="text-sm text-muted" style={{ marginLeft: 8 }}>Phase:</span>
         {[{ v: "", label: "All" }, { v: "CHECKOUT", label: "Checkout" }, { v: "CHECKIN", label: "Check-in" }].map(({ v, label }) => (
-          <button
+          <Button
             key={v}
-            className={`btn btn-sm${phaseFilter === v ? " btn-primary" : ""}`}
+            variant={phaseFilter === v ? "default" : "outline"} size="sm"
             onClick={() => { setPhaseFilter(v); setPage(0); }}
           >
             {label}
-          </button>
+          </Button>
         ))}
         {data.data.length > 0 && (
-          <button className="btn btn-sm" onClick={() => downloadCsv(data.data)} style={{ marginLeft: "auto" }}>
+          <Button variant="outline" size="sm" onClick={() => downloadCsv(data.data)} style={{ marginLeft: "auto" }}>
             Export CSV
-          </button>
+          </Button>
         )}
       </div>
 
@@ -241,8 +242,8 @@ export default function ScanHistoryPage() {
               <div className="pagination">
                 <span>Page {page + 1} of {totalPages}</span>
                 <div className="pagination-btns">
-                  <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-                  <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</button>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
                 </div>
               </div>
             )}

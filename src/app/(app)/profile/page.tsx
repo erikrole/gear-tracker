@@ -3,6 +3,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 type Location = { id: string; name: string };
 type UserProfile = {
@@ -148,41 +151,41 @@ export default function ProfilePage() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header"><h2>My profile</h2></div>
         <form onSubmit={saveProfile} className="profile-form">
-          <label>
-            Name
-            <input className="form-input" name="name" defaultValue={profile.name} required style={{ width: "100%" }} />
-          </label>
-          <label>
-            Email
-            <input className="form-input" value={profile.email} disabled style={{ width: "100%", background: "var(--bg-secondary)" }} />
-          </label>
-          <label>
-            Default location
-            <select className="form-select" name="locationId" defaultValue={profile.location?.id || ""} style={{ width: "100%" }}>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-name">Name</Label>
+            <Input id="profile-name" name="name" defaultValue={profile.name} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-email">Email</Label>
+            <Input id="profile-email" value={profile.email} disabled className="bg-muted" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-location">Default location</Label>
+            <select className="form-select w-full" id="profile-location" name="locationId" defaultValue={profile.location?.id || ""}>
               <option value="">None</option>
               {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
             </select>
-          </label>
-          <button className="btn btn-primary" type="submit" disabled={savingProfile}>
+          </div>
+          <Button type="submit" disabled={savingProfile}>
             {savingProfile ? "Saving..." : "Save profile"}
-          </button>
+          </Button>
         </form>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header"><h2>Change password</h2></div>
         <form onSubmit={changePassword} className="profile-form">
-          <label>
-            Current password
-            <input className="form-input" name="currentPassword" type="password" required minLength={8} style={{ width: "100%" }} />
-          </label>
-          <label>
-            New password
-            <input className="form-input" name="newPassword" type="password" required minLength={8} style={{ width: "100%" }} />
-          </label>
-          <button className="btn btn-primary" type="submit" disabled={savingPassword}>
+          <div className="space-y-1.5">
+            <Label htmlFor="currentPassword">Current password</Label>
+            <Input id="currentPassword" name="currentPassword" type="password" required minLength={8} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="newPassword">New password</Label>
+            <Input id="newPassword" name="newPassword" type="password" required minLength={8} />
+          </div>
+          <Button type="submit" disabled={savingPassword}>
             {savingPassword ? "Updating..." : "Update password"}
-          </button>
+          </Button>
         </form>
       </div>
 

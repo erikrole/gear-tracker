@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 function LabelQRCode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -71,9 +72,9 @@ export default function LabelsPage() {
     <>
       <div className="page-header no-print">
         <h1>Print Labels</h1>
-        <button className="btn btn-primary" onClick={() => window.print()} disabled={selectedAssets.length === 0}>
+        <Button onClick={() => window.print()} disabled={selectedAssets.length === 0}>
           Print {selectedAssets.length > 0 ? `${selectedAssets.length} labels` : "labels"}
-        </button>
+        </Button>
       </div>
 
       {/* Selection UI (hidden when printing) */}
@@ -92,8 +93,8 @@ export default function LabelsPage() {
               fontSize: "var(--text-sm)"
             }}
           />
-          <button className="btn btn-sm" onClick={selectAll}>Select all</button>
-          <button className="btn btn-sm" onClick={selectNone}>Clear</button>
+          <Button variant="outline" size="sm" onClick={selectAll}>Select all</Button>
+          <Button variant="outline" size="sm" onClick={selectNone}>Clear</Button>
         </div>
 
         {loading ? (

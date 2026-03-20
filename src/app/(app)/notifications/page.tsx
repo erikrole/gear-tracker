@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 type Notification = {
   id: string;
@@ -198,17 +199,18 @@ export default function NotificationsPage() {
           )}
         </h1>
         <div className="notif-header-actions">
-          <button
-            className="btn btn-sm"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={runProcessing}
             disabled={processing}
           >
             {processing ? "Processing..." : "Check overdue"}
-          </button>
+          </Button>
           {unreadCount > 0 && (
-            <button className="btn btn-sm" onClick={markAllRead} disabled={markingAll}>
+            <Button variant="outline" size="sm" onClick={markAllRead} disabled={markingAll}>
               {markingAll ? "Marking..." : "Mark all read"}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -270,19 +272,23 @@ export default function NotificationsPage() {
                               : `/checkouts/${n.payload.bookingId}`;
                             const label = kind === "RESERVATION" ? "View reservation" : "View checkout";
                             return (
-                              <Link href={href} className="btn btn-sm notif-link-btn">
-                                {label} →
-                              </Link>
+                              <Button variant="outline" size="sm" className="notif-link-btn" asChild>
+                                <Link href={href}>
+                                  {label} →
+                                </Link>
+                              </Button>
                             );
                           })()}
                           {!n.readAt && (
-                            <button
-                              className="btn btn-sm btn-ghost notif-mark-btn"
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="notif-mark-btn"
                               onClick={() => markRead(n.id)}
                               disabled={markingId === n.id}
                             >
                               {markingId === n.id ? "..." : "Mark read"}
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -298,20 +304,22 @@ export default function NotificationsPage() {
                   {total}
                 </span>
                 <div className="pagination-btns">
-                  <button
-                    className="btn btn-sm"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={page === 0}
                     onClick={() => setPage(page - 1)}
                   >
                     Previous
-                  </button>
-                  <button
-                    className="btn btn-sm"
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={page >= totalPages - 1}
                     onClick={() => setPage(page + 1)}
                   >
                     Next
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

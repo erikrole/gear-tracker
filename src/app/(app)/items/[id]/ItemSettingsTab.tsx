@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import type { AssetDetail } from "./types";
+import { Button } from "@/components/ui/button";
 
 /* ── Settings Tab ───────────────────────────────────────── */
 
@@ -152,9 +153,9 @@ export function AccessoriesSection({
       <div className="card-header flex justify-between items-center">
         <h2>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</h2>
         {canEdit && !attaching && (
-          <button className="btn btn-sm" onClick={() => setAttaching(true)}>
+          <Button variant="outline" size="sm" onClick={() => setAttaching(true)}>
             + Attach
-          </button>
+          </Button>
         )}
       </div>
       <div className="p-16">
@@ -187,9 +188,9 @@ export function AccessoriesSection({
             {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
               <div className="text-sm text-secondary mt-4">No matching items found</div>
             )}
-            <button className="btn btn-sm mt-8" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
+            <Button variant="outline" size="sm" className="mt-8" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
               Cancel
-            </button>
+            </Button>
           </div>
         )}
 
@@ -208,13 +209,14 @@ export function AccessoriesSection({
                   <span className="text-sm text-secondary ml-8">{acc.brand} {acc.model}</span>
                 </div>
                 {canEdit && (
-                  <button
-                    className="btn btn-sm btn-ghost"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => detachAccessory(acc.id, acc.assetTag)}
                     title="Detach accessory"
                   >
                     Detach
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}

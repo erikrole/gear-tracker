@@ -2,6 +2,7 @@
 
 import { SPORT_CODES } from "@/lib/sports";
 import { FilterChip } from "@/components/FilterChip";
+import { Input } from "@/components/ui/input";
 import type { BookingListConfig, StatusOption, Location, FormUser } from "./types";
 
 export type BookingFiltersProps = {
@@ -44,9 +45,9 @@ export function BookingFilters({
   return (
     <div className="card-header filter-chip-bar">
       <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</h2>
-      <input
+      <Input
         type="text"
-        className="form-input filter-chip-search"
+        className="filter-chip-search"
         placeholder="Search by title or requester..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}

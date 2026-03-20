@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import type { RosterMember } from "./types";
 import { AREA_LABELS } from "./types";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 export default function RosterPanel({
   sportCode,
@@ -126,14 +127,15 @@ export default function RosterPanel({
                     </td>
                     <td>{member.user.primaryArea ? AREA_LABELS[member.user.primaryArea] : "\u2014"}</td>
                     <td>
-                      <button
-                        className="btn btn-ghost btn-sm"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         style={{ color: "var(--wi-red)" }}
                         onClick={() => removeFromRoster(member.id)}
                         disabled={saving === "remove-" + member.id}
                       >
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -161,14 +163,15 @@ export default function RosterPanel({
                     )}
                   </div>
                 </div>
-                <button
-                  className="btn btn-ghost btn-sm"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   style={{ color: "var(--wi-red)" }}
                   onClick={() => removeFromRoster(member.id)}
                   disabled={saving === "remove-" + member.id}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -190,13 +193,13 @@ export default function RosterPanel({
                   </option>
                 ))}
             </select>
-            <button
-              className="btn btn-primary btn-sm"
+            <Button
+              size="sm"
               onClick={addToRoster}
               disabled={!addUserId || saving === "add"}
             >
               Add to Roster
-            </button>
+            </Button>
           </div>
         </>
       )}

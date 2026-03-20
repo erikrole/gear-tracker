@@ -13,6 +13,9 @@ import {
   type AvailableAsset,
   type BulkSkuOption,
 } from "./types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export type CreateBookingCardProps = {
   config: BookingListConfig;
@@ -118,8 +121,8 @@ export function CreateBookingCard({
         {/* Event selection flow */}
         {tieToEvent && (
           <>
-            <div className="field-compact">
-              <label>Sport</label>
+            <div className="mb-3 space-y-1">
+              <Label>Sport</Label>
               <select
                 value={createSport}
                 onChange={(e) => onCreateSportChange(e.target.value)}
@@ -205,9 +208,9 @@ export function CreateBookingCard({
         )}
 
         {/* Title */}
-        <div className="field-compact">
-          <label>Title {tieToEvent && selectedEvent ? "(auto-generated, editable)" : ""}</label>
-          <input
+        <div className="mb-3 space-y-1">
+          <Label>Title {tieToEvent && selectedEvent ? "(auto-generated, editable)" : ""}</Label>
+          <Input
             value={createTitle}
             onChange={(e) => onCreateTitleChange(e.target.value)}
             placeholder={tieToEvent ? "Select an event above..." : "e.g. Game day equipment"}
@@ -217,8 +220,8 @@ export function CreateBookingCard({
 
         {/* Sport (when not tied to event) */}
         {!tieToEvent && (
-          <div className="field-compact">
-            <label>Sport (optional)</label>
+          <div className="mb-3 space-y-1">
+            <Label>Sport (optional)</Label>
             <select value={createSport} onChange={(e) => onCreateSportChange(e.target.value)}>
               <option value="">None</option>
               {SPORT_CODES.map((s) => (
@@ -230,15 +233,15 @@ export function CreateBookingCard({
 
         {/* Requester + Location */}
         <div className="field-row">
-          <div className="field-compact">
-            <label>User</label>
+          <div className="mb-3 space-y-1">
+            <Label>User</Label>
             <select value={createRequester} onChange={(e) => onCreateRequesterChange(e.target.value)} required>
               <option value="">Select...</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
-          <div className="field-compact">
-            <label>Location</label>
+          <div className="mb-3 space-y-1">
+            <Label>Location</Label>
             <select value={createLocationId} onChange={(e) => onCreateLocationIdChange(e.target.value)} required>
               <option value="">Select...</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -248,18 +251,18 @@ export function CreateBookingCard({
 
         {/* Dates */}
         <div className="field-row">
-          <div className="field-compact">
-            <label>From</label>
-            <input
+          <div className="mb-3 space-y-1">
+            <Label>From</Label>
+            <Input
               type="datetime-local"
               step={900}
               value={createStartsAt}
               onChange={(e) => onCreateStartsAtChange(e.target.value)}
             />
           </div>
-          <div className="field-compact">
-            <label>To</label>
-            <input
+          <div className="mb-3 space-y-1">
+            <Label>To</Label>
+            <Input
               type="datetime-local"
               step={900}
               value={createEndsAt}
@@ -290,14 +293,13 @@ export function CreateBookingCard({
       </div>
 
       <div className="create-card-footer">
-        <button className="btn" onClick={onClose}>Cancel</button>
-        <button
-          className="btn btn-primary"
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button
           disabled={submitting}
           onClick={onCreate}
         >
           {submitting ? "Creating..." : `Create ${config.label}`}
-        </button>
+        </Button>
       </div>
     </div>
   );

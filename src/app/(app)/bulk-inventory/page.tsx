@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type BulkSkuUnit = {
   id: string;
@@ -174,7 +176,7 @@ export default function BulkInventoryPage() {
     <>
       <div className="page-header">
         <h1>Bulk Inventory</h1>
-        <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+        <Button onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Close" : (
             <>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
@@ -183,15 +185,15 @@ export default function BulkInventoryPage() {
               Add SKU
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       {showCreate && (
         <div className="card mb-16">
           <div className="card-header"><h2>Add bulk SKU</h2></div>
           <form onSubmit={handleCreate} className="form-grid form-grid-3 p-16">
-            <input name="name" placeholder="Name" required className="form-input" />
-            <select name="categoryId" className="form-input">
+            <Input name="name" placeholder="Name" required />
+            <select name="categoryId" className="form-select">
               <option value="">Category</option>
               {categories.filter((c) => !c.parentId).map((parent) => (
                 <optgroup key={parent.id} label={parent.name}>
@@ -205,14 +207,14 @@ export default function BulkInventoryPage() {
               ))}
             </select>
             <input name="category" type="hidden" defaultValue="general" />
-            <input name="unit" placeholder="Unit (e.g. each, pair)" required className="form-input" />
-            <select name="locationId" required className="form-input">
+            <Input name="unit" placeholder="Unit (e.g. each, pair)" required />
+            <select name="locationId" required className="form-select">
               <option value="">Location</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <input name="binQrCodeValue" placeholder="Bin QR code value" required className="form-input" />
-            <input name="minThreshold" type="number" min={0} defaultValue={0} placeholder="Min threshold" className="form-input" />
-            <input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" className="form-input" />
+            <Input name="binQrCodeValue" placeholder="Bin QR code value" required />
+            <Input name="minThreshold" type="number" min={0} defaultValue={0} placeholder="Min threshold" />
+            <Input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" />
 
             {/* Track by number toggle */}
             <label className="col-span-full flex-center gap-10 cursor-pointer" style={{ padding: "8px 0", userSelect: "none" }}>
@@ -256,7 +258,7 @@ export default function BulkInventoryPage() {
             )}
 
             <div className="col-span-full flex-end">
-              <button className="btn btn-primary" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create SKU"}</button>
+              <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create SKU"}</Button>
             </div>
             {error && <div className="col-span-full text-red">{error}</div>}
           </form>
@@ -265,8 +267,8 @@ export default function BulkInventoryPage() {
 
       <div className="card">
         <div className="card-header filter-chip-bar">
-          <input
-            className="form-input filter-chip-search"
+          <Input
+            className="filter-chip-search"
             type="text"
             placeholder="Search by name or category..."
             value={search}
@@ -317,14 +319,14 @@ export default function BulkInventoryPage() {
                           </div>
                         )}
                         {!sku.trackByNumber && (
-                          <button
-                            className="btn btn-sm mt-4"
+                          <Button
+                            variant="outline" size="sm" className="mt-4"
                             style={{ fontSize: "var(--text-3xs)", padding: "2px 8px" }}
                             onClick={(e) => { e.stopPropagation(); handleConvertToNumbered(sku.id); }}
                             disabled={submitting}
                           >
                             Convert to numbered
-                          </button>
+                          </Button>
                         )}
                       </td>
                       <td>{sku.categoryRel?.name || sku.category}</td>
@@ -372,20 +374,20 @@ export default function BulkInventoryPage() {
                           onClick={(e) => e.stopPropagation()}
                           style={{ width: 70, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: "var(--text-base)" }}
                         />
-                        <button className="btn btn-sm btn-primary" disabled={submitting}
+                        <Button size="sm" disabled={submitting}
                           onClick={(e) => { e.stopPropagation(); handleAddUnits(sku.id); }}>
                           {submitting ? "..." : "Add"}
-                        </button>
-                        <button className="btn btn-sm"
+                        </Button>
+                        <Button variant="outline" size="sm"
                           onClick={(e) => { e.stopPropagation(); setAddingUnits(null); }}>
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     ) : (
-                      <button className="btn btn-sm"
+                      <Button variant="outline" size="sm"
                         onClick={(e) => { e.stopPropagation(); setAddingUnits(sku.id); }}>
                         Add more units
-                      </button>
+                      </Button>
                     )}
                   </div>
 
@@ -442,8 +444,8 @@ export default function BulkInventoryPage() {
               <div className="pagination">
                 <span>Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}</span>
                 <div className="pagination-btns">
-                  <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-                  <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</button>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
                 </div>
               </div>
             )}

@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 function validateName(name: string): string {
   if (!name.trim()) return "Name is required";
@@ -88,9 +92,9 @@ export default function RegisterPage() {
         <h1>Creative</h1>
         <p className="login-subtitle">Create your account</p>
 
-        <div className="form-group">
-          <label htmlFor="name">Name</label>
-          <input
+        <div className="mb-4 space-y-1.5">
+          <Label htmlFor="name">Name</Label>
+          <Input
             id="name"
             type="text"
             value={name}
@@ -99,13 +103,14 @@ export default function RegisterPage() {
             placeholder="Your full name"
             required
             autoFocus
+            className="h-11 text-base"
           />
-          {fieldErrors.name && <div className="field-error">{fieldErrors.name}</div>}
+          {fieldErrors.name && <p className="text-destructive text-xs mt-1">{fieldErrors.name}</p>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input
+        <div className="mb-4 space-y-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
             id="email"
             type="email"
             value={email}
@@ -113,14 +118,15 @@ export default function RegisterPage() {
             onBlur={() => handleBlur("email")}
             placeholder="you@example.com"
             required
+            className="h-11 text-base"
           />
-          {fieldErrors.email && <div className="field-error">{fieldErrors.email}</div>}
+          {fieldErrors.email && <p className="text-destructive text-xs mt-1">{fieldErrors.email}</p>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
+        <div className="mb-4 space-y-1.5">
+          <Label htmlFor="password">Password</Label>
           <div className="password-wrapper">
-            <input
+            <Input
               id="password"
               type={showPassword ? "text" : "password"}
               value={password}
@@ -129,6 +135,7 @@ export default function RegisterPage() {
               placeholder="At least 8 characters"
               required
               minLength={8}
+              className="h-11 text-base"
             />
             <button
               type="button"
@@ -136,28 +143,17 @@ export default function RegisterPage() {
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              )}
+              {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
             </button>
           </div>
-          {fieldErrors.password && <div className="field-error">{fieldErrors.password}</div>}
+          {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
         </div>
 
-        {error && <div className="form-error" role="alert">{error}</div>}
+        {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
 
-        <button type="submit" className="login-btn" disabled={loading}>
+        <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
           {loading ? "Creating account..." : "Create account"}
-        </button>
+        </Button>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
           Already have an account?{" "}

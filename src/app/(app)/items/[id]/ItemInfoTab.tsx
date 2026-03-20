@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { AssetDetail, CategoryOption } from "./types";
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -289,7 +291,7 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
       <div className="qr-modal">
         <div className="flex-between mb-16">
           <h2 className="m-0">QR Code</h2>
-          <button className="btn btn-sm" onClick={onClose}>Close</button>
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
         </div>
         <div className="flex-center mb-16 justify-center">
           <QRCodeCanvas value={asset.qrCodeValue} size={240} />
@@ -300,25 +302,25 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
         {canEdit && (
           <>
             <div className="flex gap-8 mb-8 justify-center">
-              <button className="btn" onClick={generateQR} disabled={saving}>
+              <Button variant="outline" onClick={generateQR} disabled={saving}>
                 {saving ? "..." : "Generate new QR"}
-              </button>
-              <button className="btn" onClick={() => setManualEntry(true)}>
+              </Button>
+              <Button variant="outline" onClick={() => setManualEntry(true)}>
                 Enter QR manually
-              </button>
+              </Button>
             </div>
             {manualEntry && (
               <div className="flex gap-6 mt-8">
-                <input
+                <Input
                   value={qrDraft}
                   onChange={(e) => setQrDraft(e.target.value)}
                   placeholder="Paste or type QR code..."
-                  className="form-input flex-1"
+                  className="flex-1"
                   onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
                   autoFocus
                 />
-                <button className="btn btn-primary" onClick={saveManualQR} disabled={saving}>Save</button>
-                <button className="btn" onClick={() => setManualEntry(false)}>Cancel</button>
+                <Button onClick={saveManualQR} disabled={saving}>Save</Button>
+                <Button variant="outline" onClick={() => setManualEntry(false)}>Cancel</Button>
               </div>
             )}
             {error && <div className="alert-error mt-8 text-center">{error}</div>}

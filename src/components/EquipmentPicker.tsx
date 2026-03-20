@@ -11,6 +11,7 @@ import {
 } from "@/lib/equipment-sections";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 import QrScanner from "@/components/QrScanner";
+import { Button } from "@/components/ui/button";
 
 /* ───── Status dot colors ───── */
 
@@ -362,9 +363,10 @@ export default function EquipmentPicker({
         <div className="equip-picker-header-actions">
           {visible && (
             <>
-              <button
+              <Button
                 type="button"
-                className="btn btn-sm btn-scan-add"
+                variant="outline" size="sm"
+                className="btn-scan-add"
                 onClick={() => setShowScanner(true)}
                 title="Scan QR to add item"
               >
@@ -376,14 +378,14 @@ export default function EquipmentPicker({
                   <path d="M13 10h2v5h-5v-2" />
                 </svg>
                 Scan
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="btn btn-sm"
+                variant="outline" size="sm"
                 onClick={onDone}
               >
                 Done adding
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -585,18 +587,18 @@ export default function EquipmentPicker({
                   return (
                     <>
                       {prev ? (
-                        <button type="button" className="btn btn-sm" onClick={() => advanceToSection(prev.key)}>
+                        <Button type="button" variant="outline" size="sm" onClick={() => advanceToSection(prev.key)}>
                           {"\u2190"} {prev.label}
-                        </button>
+                        </Button>
                       ) : <span />}
                       {next ? (
-                        <button type="button" className="btn btn-sm" onClick={() => advanceToSection(next.key)}>
+                        <Button type="button" variant="outline" size="sm" onClick={() => advanceToSection(next.key)}>
                           {next.label} {"\u2192"}
-                        </button>
+                        </Button>
                       ) : (
-                        <button type="button" className="btn btn-sm" onClick={onDone}>
+                        <Button type="button" variant="outline" size="sm" onClick={onDone}>
                           Done
-                        </button>
+                        </Button>
                       )}
                     </>
                   );
@@ -652,13 +654,13 @@ export default function EquipmentPicker({
           <div className="equip-empty-text">
             No equipment selected. You can also add equipment after creating.
           </div>
-          <button
+          <Button
             type="button"
-            className="btn btn-sm"
+            variant="outline" size="sm"
             onClick={onReopen}
           >
             + Add equipment
-          </button>
+          </Button>
         </div>
       )}
 
@@ -680,7 +682,7 @@ export default function EquipmentPicker({
               return <span key={item.bulkSkuId} className="picker-footer-tag picker-footer-tag-compact">{sku?.name || item.bulkSkuId} &times;{item.quantity}</span>;
             })}
           </div>
-          <button type="button" className="btn btn-sm" onClick={onReopen}>Edit</button>
+          <Button type="button" variant="outline" size="sm" onClick={onReopen}>Edit</Button>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { FilterChip } from "@/components/FilterChip";
+import { Input } from "@/components/ui/input";
 import type { Location, Role } from "./types";
 import { ROLE_OPTIONS } from "./types";
 
@@ -26,8 +27,8 @@ export default function UserFilters({
 
   return (
     <div className="card-header filter-chip-bar">
-      <input
-        className="form-input filter-chip-search"
+      <Input
+        className="filter-chip-search"
         type="text"
         placeholder="Search by name or email..."
         value={search}

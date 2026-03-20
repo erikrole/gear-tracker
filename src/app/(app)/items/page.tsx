@@ -7,6 +7,8 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type ActiveBooking = {
   id: string;
@@ -200,14 +202,15 @@ function CreateItemCard({
         <h2>New item</h2>
         <div className="flex gap-4">
           {(["serialized", "bulk"] as const).map((k) => (
-            <button
+            <Button
               key={k}
               type="button"
-              className={`btn btn-sm ${kind === k ? "btn-primary" : ""}`}
+              variant={kind === k ? "default" : "outline"}
+              size="sm"
               onClick={() => { setKind(k); setError(""); }}
             >
               {k === "serialized" ? "Serialized" : "Bulk"}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -216,9 +219,9 @@ function CreateItemCard({
         {kind === "serialized" ? (
           <>
             <div className="grid-3col">
-              <input name="assetTag" placeholder="Tag name *" required className="form-input" />
-              <input name="itemName" placeholder="Product name" className="form-input" />
-              <select name="categoryId" className="form-input">
+              <Input name="assetTag" placeholder="Tag name *" required />
+              <Input name="itemName" placeholder="Product name" />
+              <select name="categoryId" className="form-select">
                 <option value="">Category</option>
                 {categories.filter((c) => !c.parentId).map((parent) => (
                   <optgroup key={parent.id} label={parent.name}>
@@ -232,38 +235,39 @@ function CreateItemCard({
                 ))}
               </select>
               <input name="type" type="hidden" defaultValue="equipment" />
-              <select name="locationId" required className="form-input">
+              <select name="locationId" required className="form-select">
                 <option value="">Location *</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              <input name="brand" placeholder="Brand *" required className="form-input" />
-              <input name="model" placeholder="Model *" required className="form-input" />
-              <input name="serialNumber" placeholder="Serial number *" required className="form-input" />
-              <input name="qrCodeValue" placeholder="QR code value *" required className="form-input" />
+              <Input name="brand" placeholder="Brand *" required />
+              <Input name="model" placeholder="Model *" required />
+              <Input name="serialNumber" placeholder="Serial number *" required />
+              <Input name="qrCodeValue" placeholder="QR code value *" required />
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="link"
               onClick={() => setShowMeta((v) => !v)}
-              className="btn-link mt-12"
+              className="mt-12"
             >
               {showMeta ? "Hide" : "Show"} optional fields
-            </button>
+            </Button>
 
             {showMeta && (
               <div className="grid-3col mt-12">
-                <input name="description" placeholder="Description" className="form-input" />
-                <input name="owner" placeholder="Owner" className="form-input" />
+                <Input name="description" placeholder="Description" />
+                <Input name="owner" placeholder="Owner" />
               </div>
             )}
           </>
         ) : (
           <div className="grid-3col">
             <div>
-              <input name="name" placeholder="Product name *" required className="form-input" />
-              <div className="form-hint">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</div>
+              <Input name="name" placeholder="Product name *" required />
+              <p className="text-muted-foreground text-xs mt-1">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</p>
             </div>
-            <select name="categoryId" className="form-input">
+            <select name="categoryId" className="form-select">
               <option value="">Category</option>
               {categories.filter((c) => !c.parentId).map((parent) => (
                 <optgroup key={parent.id} label={parent.name}>
@@ -278,33 +282,33 @@ function CreateItemCard({
             </select>
             <input name="category" type="hidden" defaultValue="general" />
             <div>
-              <input name="unit" placeholder="Unit (e.g. ea, box) *" required className="form-input" />
-              <div className="form-hint">How you count them: ea, box, pack, pair, roll</div>
+              <Input name="unit" placeholder="Unit (e.g. ea, box) *" required />
+              <p className="text-muted-foreground text-xs mt-1">How you count them: ea, box, pack, pair, roll</p>
             </div>
-            <select name="locationId" required className="form-input">
+            <select name="locationId" required className="form-select">
               <option value="">Location *</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
             <div>
-              <input name="binQrCodeValue" placeholder="Bin QR code *" required className="form-input" />
-              <div className="form-hint">Scan or type the QR code on the storage bin</div>
+              <Input name="binQrCodeValue" placeholder="Bin QR code *" required />
+              <p className="text-muted-foreground text-xs mt-1">Scan or type the QR code on the storage bin</p>
             </div>
             <div>
-              <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" className="form-input" />
-              <div className="form-hint">How many are on hand right now</div>
+              <Input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" />
+              <p className="text-muted-foreground text-xs mt-1">How many are on hand right now</p>
             </div>
             <div>
-              <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" className="form-input" />
-              <div className="form-hint">Alert when stock falls below this</div>
+              <Input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" />
+              <p className="text-muted-foreground text-xs mt-1">Alert when stock falls below this</p>
             </div>
           </div>
         )}
 
         <div className="flex-end gap-8 mt-14">
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={submitting}>
             {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
-          </button>
+          </Button>
         </div>
         {error && <div className="alert-error mt-8">{error}</div>}
       </form>
@@ -340,14 +344,14 @@ function BulkActionBar({
       flexWrap: "wrap",
     }}>
       <span className="text-sm font-semibold">{count} selected</span>
-      <button className="btn btn-sm" onClick={onClear} disabled={busy}>Clear</button>
+      <Button variant="outline" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
       <div style={{ flex: 1 }} />
 
       {/* Move location */}
       <div className="relative">
-        <button className="btn btn-sm" onClick={() => { setShowLocPicker((v) => !v); setShowCatPicker(false); }} disabled={busy}>
+        <Button variant="outline" size="sm" onClick={() => { setShowLocPicker((v) => !v); setShowCatPicker(false); }} disabled={busy}>
           Move location
-        </button>
+        </Button>
         {showLocPicker && (
           <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 180, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: "var(--z-dropdown)" }}>
             {locations.map((l) => (
@@ -362,9 +366,9 @@ function BulkActionBar({
 
       {/* Change category */}
       <div className="relative">
-        <button className="btn btn-sm" onClick={() => { setShowCatPicker((v) => !v); setShowLocPicker(false); }} disabled={busy}>
+        <Button variant="outline" size="sm" onClick={() => { setShowCatPicker((v) => !v); setShowLocPicker(false); }} disabled={busy}>
           Change category
-        </button>
+        </Button>
         {showCatPicker && (
           <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 200, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: "var(--z-dropdown)" }}>
             <button className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer", fontStyle: "italic" }}
@@ -381,12 +385,12 @@ function BulkActionBar({
         )}
       </div>
 
-      <button className="btn btn-sm" onClick={() => onAction("maintenance")} disabled={busy}>
+      <Button variant="outline" size="sm" onClick={() => onAction("maintenance")} disabled={busy}>
         Maintenance
-      </button>
-      <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={() => { if (confirm(`Retire ${count} item${count > 1 ? "s" : ""}?`)) onAction("retire"); }} disabled={busy}>
+      </Button>
+      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm(`Retire ${count} item${count > 1 ? "s" : ""}?`)) onAction("retire"); }} disabled={busy}>
         Retire
-      </button>
+      </Button>
 
       {busy && <span className="text-sm text-muted">Processing...</span>}
       {error && <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>}
@@ -604,10 +608,10 @@ export default function ItemsPage() {
         <h1>Items</h1>
         {canEdit && (
           <div className="flex gap-8">
-            <Link href="/import" className="btn">Import</Link>
-            <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+            <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
+            <Button onClick={() => setShowCreate((v) => !v)}>
               {showCreate ? "Close" : "New item"}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -623,12 +627,12 @@ export default function ItemsPage() {
 
       <div className="card">
         <div className="card-header filter-chip-bar">
-          <input
+          <Input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="form-input filter-chip-search"
+            className="filter-chip-search"
           />
           <div className="filter-chips">
             <FilterChip
@@ -671,9 +675,10 @@ export default function ItemsPage() {
                 onClear={() => { setDepartmentFilter(""); setPage(0); }}
               />
             )}
-            <button
+            <Button
               type="button"
-              className={`btn btn-sm${favoriteFilter ? " btn-primary" : ""}`}
+              variant={favoriteFilter ? "default" : "outline"}
+              size="sm"
               onClick={() => { setFavoriteFilter((v) => !v); setPage(0); }}
               title="Show favorites only"
               style={{ fontSize: "var(--text-sm)", padding: "4px 10px", gap: 4, display: "inline-flex", alignItems: "center" }}
@@ -682,7 +687,7 @@ export default function ItemsPage() {
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
               Favorites
-            </button>
+            </Button>
             {hasActiveFilters && (
               <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
                 Clear all
@@ -806,8 +811,8 @@ export default function ItemsPage() {
               <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
               {totalPages > 1 && (
                 <div className="pagination-btns">
-                  <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-                  <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</button>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
                 </div>
               )}
             </div>

@@ -5,6 +5,9 @@ import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 type CalendarSource = {
   id: string;
@@ -156,9 +159,9 @@ export default function CalendarSourcesPage() {
       <div className="settings-main">
         <div className="action-row">
           {!showAdd && (
-            <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}>
+            <Button size="sm" onClick={() => setShowAdd(true)}>
               Add source
-            </button>
+            </Button>
           )}
         </div>
 
@@ -166,22 +169,20 @@ export default function CalendarSourcesPage() {
           <div className="card" style={{ padding: 16, marginBottom: 16 }}>
             <form onSubmit={handleAdd}>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div>
-                  <label className="form-label">Name</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label>Name</Label>
+                  <Input
                     type="text"
-                    className="form-input"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="e.g. UW Badgers Football"
                     required
                   />
                 </div>
-                <div>
-                  <label className="form-label">ICS URL</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label>ICS URL</Label>
+                  <Input
                     type="url"
-                    className="form-input"
                     value={newUrl}
                     onChange={(e) => setNewUrl(e.target.value)}
                     placeholder="https://example.com/calendar.ics"
@@ -189,12 +190,12 @@ export default function CalendarSourcesPage() {
                   />
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={addBusy}>
+                  <Button type="submit" size="sm" disabled={addBusy}>
                     {addBusy ? "Adding..." : "Add"}
-                  </button>
-                  <button type="button" className="btn btn-sm" onClick={() => { setShowAdd(false); setNewName(""); setNewUrl(""); }}>
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowAdd(false); setNewName(""); setNewUrl(""); }}>
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             </form>
@@ -237,27 +238,30 @@ export default function CalendarSourcesPage() {
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                        <button
-                          className="btn btn-sm"
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleToggle(source)}
                           disabled={toggling === source.id}
                         >
                           {source.enabled ? "Disable" : "Enable"}
-                        </button>
-                        <button
-                          className="btn btn-sm"
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleSync(source)}
                           disabled={syncing === source.id || !source.enabled}
                           title={!source.enabled ? "Enable source first" : undefined}
                         >
                           {syncing === source.id ? "Syncing..." : "Sync now"}
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger"
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
                           onClick={() => handleDelete(source)}
                         >
                           Delete
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

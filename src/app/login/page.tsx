@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
 function validateEmail(email: string): string {
   if (!email) return "Email is required";
@@ -76,9 +81,9 @@ export default function LoginPage() {
         <h1>Creative</h1>
         <p className="login-subtitle">Sign in to your account</p>
 
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input
+        <div className="mb-4 space-y-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
             id="email"
             type="email"
             value={email}
@@ -87,14 +92,15 @@ export default function LoginPage() {
             placeholder="you@example.com"
             required
             autoFocus
+            className="h-11 text-base"
           />
-          {fieldErrors.email && <div className="field-error">{fieldErrors.email}</div>}
+          {fieldErrors.email && <p className="text-destructive text-xs mt-1">{fieldErrors.email}</p>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
+        <div className="mb-4 space-y-1.5">
+          <Label htmlFor="password">Password</Label>
           <div className="password-wrapper">
-            <input
+            <Input
               id="password"
               type={showPassword ? "text" : "password"}
               value={password}
@@ -102,6 +108,7 @@ export default function LoginPage() {
               onBlur={() => handleBlur("password")}
               placeholder="Enter your password"
               required
+              className="h-11 text-base"
             />
             <button
               type="button"
@@ -109,38 +116,28 @@ export default function LoginPage() {
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              )}
+              {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
             </button>
           </div>
-          {fieldErrors.password && <div className="field-error">{fieldErrors.password}</div>}
+          {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
         </div>
 
-        <div className="remember-row">
-          <input
+        <div className="flex items-center gap-2 mb-4">
+          <Checkbox
             id="rememberMe"
-            type="checkbox"
             checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
+            onCheckedChange={(checked) => setRememberMe(checked === true)}
           />
-          <label htmlFor="rememberMe">Remember me for 30 days</label>
+          <Label htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer font-normal">
+            Remember me for 30 days
+          </Label>
         </div>
 
-        {error && <div className="form-error" role="alert">{error}</div>}
+        {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
 
-        <button type="submit" className="login-btn" disabled={loading}>
+        <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
-        </button>
+        </Button>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
           <Link href="/forgot-password">Forgot password?</Link>

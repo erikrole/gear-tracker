@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 type Checkout = {
   id: string;
@@ -213,22 +214,22 @@ export default function CheckoutDetailsPage() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canEdit && (
-            <button className="btn btn-sm" onClick={handleEdit} disabled={!!actionLoading}>Edit</button>
+            <Button variant="outline" size="sm" onClick={handleEdit} disabled={!!actionLoading}>Edit</Button>
           )}
           {canExtend && (
-            <button className="btn btn-sm" onClick={() => setShowExtend((v) => !v)} disabled={!!actionLoading}>
+            <Button variant="outline" size="sm" onClick={() => setShowExtend((v) => !v)} disabled={!!actionLoading}>
               Extend
-            </button>
+            </Button>
           )}
           {canCheckin && (
-            <button className="btn btn-sm" onClick={handleCompleteCheckin} disabled={!!actionLoading}>
+            <Button variant="outline" size="sm" onClick={handleCompleteCheckin} disabled={!!actionLoading}>
               {actionLoading === "complete-checkin" ? "Completing..." : "Complete check in"}
-            </button>
+            </Button>
           )}
           {canCancel && (
-            <button className="btn btn-sm btn-danger" onClick={handleCancel} disabled={!!actionLoading}>
+            <Button variant="destructive" size="sm" onClick={handleCancel} disabled={!!actionLoading}>
               {actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -246,42 +247,18 @@ export default function CheckoutDetailsPage() {
           flexWrap: "wrap",
         }}>
           {isOpen && (
-            <Link
-              href={`/scan?checkout=${id}&phase=CHECKOUT`}
-              className="btn btn-primary"
-              style={{
-                textDecoration: "none",
-                padding: "12px 20px",
-                fontSize: "var(--text-md)",
-                fontWeight: 600,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                minHeight: 48,
-              }}
-            >
-              Scan Items Out
-            </Link>
+            <Button asChild style={{ padding: "12px 20px", fontSize: "var(--text-md)", fontWeight: 600, minHeight: 48 }}>
+              <Link href={`/scan?checkout=${id}&phase=CHECKOUT`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                Scan Items Out
+              </Link>
+            </Button>
           )}
           {canCheckin && (
-            <Link
-              href={`/scan?checkout=${id}&phase=CHECKIN`}
-              className="btn"
-              style={{
-                textDecoration: "none",
-                padding: "12px 20px",
-                fontSize: "var(--text-md)",
-                fontWeight: 600,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                minHeight: 48,
-                background: "var(--green-bg)",
-                color: "var(--green)",
-              }}
-            >
-              Scan Items In
-            </Link>
+            <Button variant="outline" asChild style={{ padding: "12px 20px", fontSize: "var(--text-md)", fontWeight: 600, minHeight: 48, background: "var(--green-bg)", color: "var(--green)" }}>
+              <Link href={`/scan?checkout=${id}&phase=CHECKIN`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                Scan Items In
+              </Link>
+            </Button>
           )}
         </div>
       )}
@@ -297,10 +274,10 @@ export default function CheckoutDetailsPage() {
               min={checkout.endsAt.slice(0, 16)}
               style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 6 }}
             />
-            <button className="btn btn-primary btn-sm" onClick={handleExtend} disabled={!extendDate || !!actionLoading}>
+            <Button size="sm" onClick={handleExtend} disabled={!extendDate || !!actionLoading}>
               {actionLoading === "extend" ? "Saving..." : "Save"}
-            </button>
-            <button className="btn btn-sm" onClick={() => { setShowExtend(false); setExtendDate(""); }}>Cancel</button>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => { setShowExtend(false); setExtendDate(""); }}>Cancel</Button>
           </div>
         </div>
       )}
@@ -325,9 +302,9 @@ export default function CheckoutDetailsPage() {
           <div className="card-header" style={{ justifyContent: "space-between" }}>
             <h2>Equipment</h2>
             {canCheckin && checkinIds.size > 0 && (
-              <button className="btn btn-primary btn-sm" onClick={handleCheckinSelected} disabled={!!actionLoading}>
+              <Button size="sm" onClick={handleCheckinSelected} disabled={!!actionLoading}>
                 {actionLoading === "checkin" ? "Returning..." : `Return ${checkinIds.size} item${checkinIds.size > 1 ? "s" : ""}`}
-              </button>
+              </Button>
             )}
           </div>
           {checkout.serializedItems.length === 0 && checkout.bulkItems.length === 0 ? (
@@ -442,14 +419,15 @@ export default function CheckoutDetailsPage() {
                           placeholder={String(outQty - inQty)}
                           style={{ width: 60, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 4, textAlign: "center" }}
                         />
-                        <button
-                          className="btn btn-sm"
+                        <Button
+                          variant="outline"
+                          size="sm"
                           disabled={!bulkReturnQty[item.id] || actionLoading === `bulk-${item.id}`}
                           onClick={() => handleBulkReturn(item.id)}
                           style={{ whiteSpace: "nowrap" }}
                         >
                           {actionLoading === `bulk-${item.id}` ? "..." : "Return"}
-                        </button>
+                        </Button>
                       </div>
                     ) : null}
                   </div>

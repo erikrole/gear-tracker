@@ -6,6 +6,7 @@ import { formatDateFull } from "@/lib/format";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
+import { Button } from "@/components/ui/button";
 
 type CheckoutRow = {
   id: string;
@@ -102,7 +103,7 @@ export default function CheckoutsReportPage() {
     return (
       <div className="card p-16 text-center">
         <p className="text-secondary mb-8">Failed to load checkout report.</p>
-        <button className="btn btn-sm" onClick={() => { setError(false); setLoading(true); }}>Retry</button>
+        <Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); }}>Retry</Button>
       </div>
     );
   }
@@ -113,18 +114,18 @@ export default function CheckoutsReportPage() {
       <div className="flex-center gap-12 mb-16" style={{ flexWrap: "wrap" }}>
         <span className="text-sm text-muted">Period:</span>
         {[7, 30, 90].map((d) => (
-          <button
+          <Button
             key={d}
-            className={`btn btn-sm${days === d ? " btn-primary" : ""}`}
+            variant={days === d ? "default" : "outline"} size="sm"
             onClick={() => setDays(d)}
           >
             {d}d
-          </button>
+          </Button>
         ))}
         {data.recentCheckouts.length > 0 && (
-          <button className="btn btn-sm" onClick={() => downloadCsv(data.recentCheckouts)} style={{ marginLeft: "auto" }}>
+          <Button variant="outline" size="sm" onClick={() => downloadCsv(data.recentCheckouts)} style={{ marginLeft: "auto" }}>
             Export CSV
-          </button>
+          </Button>
         )}
       </div>
 

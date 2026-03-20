@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { BookingDetail } from "./types";
 
 type Props = {
@@ -34,19 +36,19 @@ export default function BookingEditForm({
 }: Props) {
   return (
     <div className="sheet-section">
-      <div className="sheet-field">
-        <label>Title</label>
-        <input
+      <div className="mb-3 space-y-1">
+        <Label>Title</Label>
+        <Input
           value={editTitle}
           onChange={(e) => onEditTitle(e.target.value)}
         />
       </div>
 
-      <div className="sheet-field-row">
+      <div className="flex gap-3">
         {booking.kind === "RESERVATION" && (
-          <div className="sheet-field">
-            <label>Start</label>
-            <input
+          <div className="mb-3 space-y-1">
+            <Label>Start</Label>
+            <Input
               type="datetime-local"
               step={900}
               value={editStartsAt}
@@ -54,9 +56,9 @@ export default function BookingEditForm({
             />
           </div>
         )}
-        <div className="sheet-field">
-          <label>{booking.kind === "RESERVATION" ? "End" : "Due date"}</label>
-          <input
+        <div className="mb-3 space-y-1">
+          <Label>{booking.kind === "RESERVATION" ? "End" : "Due date"}</Label>
+          <Input
             type="datetime-local"
             step={900}
             value={editEndsAt}
@@ -65,8 +67,8 @@ export default function BookingEditForm({
         </div>
       </div>
 
-      <div className="sheet-field">
-        <label>Notes</label>
+      <div className="mb-3 space-y-1">
+        <Label>Notes</Label>
         <textarea
           rows={3}
           value={editNotes}
