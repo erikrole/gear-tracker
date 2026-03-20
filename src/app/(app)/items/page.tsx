@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { StarIcon } from "lucide-react";
 import { RowSelectionState } from "@tanstack/react-table";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -16,7 +15,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -37,7 +35,6 @@ type Response = {
   total: number;
   limit: number;
   offset: number;
-  favoriteIds?: string[];
 };
 
 type ItemKind = "serialized" | "bulk";
@@ -362,13 +359,11 @@ export default function ItemsPage() {
   const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get("category") ?? "");
   const [brandFilter, setBrandFilter] = useState(() => searchParams.get("brand") ?? "");
   const [departmentFilter, setDepartmentFilter] = useState(() => searchParams.get("department") ?? "");
-  const [favoriteFilter, setFavoriteFilter] = useState(() => searchParams.get("favorite") === "true");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const limit = 25;
@@ -376,7 +371,7 @@ export default function ItemsPage() {
 
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
-  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter || favoriteFilter;
+  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -393,12 +388,11 @@ export default function ItemsPage() {
     if (categoryFilter) params.set("category", categoryFilter);
     if (brandFilter) params.set("brand", brandFilter);
     if (departmentFilter) params.set("department", departmentFilter);
-    if (favoriteFilter) params.set("favorite", "true");
     if (page > 0) params.set("page", String(page));
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter, page]);
+  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, page]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -412,7 +406,6 @@ export default function ItemsPage() {
     if (categoryFilter) params.set("category_id", categoryFilter);
     if (brandFilter) params.set("brand", brandFilter);
     if (departmentFilter) params.set("department_id", departmentFilter);
-    if (favoriteFilter) params.set("favorite", "true");
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -420,12 +413,11 @@ export default function ItemsPage() {
       const json: Response = await res.json();
       setItems(json.data ?? []);
       setTotal(json.total ?? 0);
-      if (json.favoriteIds) setFavoriteIds(new Set(json.favoriteIds));
     } catch {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
+  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -472,27 +464,11 @@ export default function ItemsPage() {
     setCategoryFilter("");
     setBrandFilter("");
     setDepartmentFilter("");
-    setFavoriteFilter(false);
     setPage(0);
   }
 
   // Clear selection when page/filters change
-  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
-
-  async function toggleFavorite(e: React.MouseEvent, assetId: string) {
-    e.stopPropagation();
-    try {
-      const res = await fetch(`/api/assets/${assetId}/favorite`, { method: "POST" });
-      if (!res.ok) return;
-      const json = await res.json();
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        if (json.data?.favorited) next.add(assetId);
-        else next.delete(assetId);
-        return next;
-      });
-    } catch { /* ignore */ }
-  }
+  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter]);
 
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
   const selectedCount = selectedIds.length;
@@ -526,9 +502,8 @@ export default function ItemsPage() {
   const categoryName = categoryOptions.find((c) => c.value === categoryFilter)?.label;
 
   const columns = useMemo(
-    () => getColumns({ favoriteIds, onToggleFavorite: toggleFavorite, canEdit }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [favoriteIds, canEdit]
+    () => getColumns({ canEdit }),
+    [canEdit]
   );
 
   return (
@@ -604,21 +579,6 @@ export default function ItemsPage() {
                 onClear={() => { setDepartmentFilter(""); setPage(0); }}
               />
             )}
-            <Tooltip>
-            <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant={favoriteFilter ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setFavoriteFilter((v) => !v); setPage(0); }}
-              className="text-sm px-2.5 py-1 gap-1 inline-flex items-center"
-            >
-              <StarIcon className="size-3.5" fill={favoriteFilter ? "currentColor" : "none"} />
-              Favorites
-            </Button>
-            </TooltipTrigger>
-            <TooltipContent>Show favorites only</TooltipContent>
-            </Tooltip>
             {hasActiveFilters && (
               <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
                 Clear all

@@ -2,10 +2,9 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import Image from "next/image";
-import { StarIcon, ImageIcon } from "lucide-react";
+import { ImageIcon, Barcode, Hash, CalendarDays } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { StatusDot } from "./status-dot";
 
 export type ActiveBooking = {
   id: string;
@@ -24,6 +23,7 @@ export type Asset = {
   serialNumber: string;
   status: string;
   computedStatus: string;
+  createdAt: string;
   location: { id: string; name: string };
   category: { id: string; name: string } | null;
   department: { id: string; name: string } | null;
@@ -32,9 +32,35 @@ export type Asset = {
   _count?: { accessories: number };
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  AVAILABLE: "Available",
+  CHECKED_OUT: "Checked out",
+  RESERVED: "Reserved",
+  MAINTENANCE: "Maintenance",
+  RETIRED: "Retired",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  AVAILABLE: "bg-emerald-500",
+  CHECKED_OUT: "bg-red-500",
+  RESERVED: "bg-purple-500",
+  MAINTENANCE: "bg-orange-500",
+  RETIRED: "bg-gray-400",
+};
+
+function formatDate(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "numeric",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
 type ColumnMeta = {
-  favoriteIds: Set<string>;
-  onToggleFavorite: (e: React.MouseEvent, id: string) => void;
   canEdit: boolean;
 };
 
@@ -70,30 +96,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
 
   columns.push(
     {
-      id: "favorite",
-      header: () => null,
-      cell: ({ row }) => {
-        const isFav = meta.favoriteIds.has(row.original.id);
-        return (
-          <button
-            type="button"
-            className="inline-flex items-center justify-center"
-            onClick={(e) => meta.onToggleFavorite(e, row.original.id)}
-          >
-            <StarIcon
-              className={`size-4 cursor-pointer shrink-0 ${
-                isFav
-                  ? "fill-yellow-500 text-yellow-500"
-                  : "text-muted-foreground"
-              }`}
-            />
-          </button>
-        );
-      },
-      enableSorting: false,
-      size: 32,
-    },
-    {
       id: "thumbnail",
       header: () => null,
       cell: ({ row }) => {
@@ -126,10 +128,15 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       header: "Name",
       cell: ({ row }) => {
         const item = row.original;
+        const statusLabel = STATUS_LABELS[item.computedStatus] || item.computedStatus;
+        const statusColor = STATUS_COLORS[item.computedStatus] || "bg-gray-400";
+        const shortSerial = item.serialNumber.length > 8
+          ? item.serialNumber.slice(0, 8)
+          : item.serialNumber;
+
         return (
-          <div className="flex items-center gap-2.5">
-            <StatusDot item={item} />
-            <div>
+          <div>
+            <div className="flex items-center gap-2">
               <span className="font-semibold text-sm">
                 {item.assetTag}
               </span>
@@ -137,15 +144,31 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
                 <Badge
                   variant="gray"
                   size="sm"
-                  className="ml-1.5"
                   title={`${item._count!.accessories} accessories`}
                 >
                   +{item._count!.accessories}
                 </Badge>
               )}
-              <div className="text-xs text-muted-foreground">
-                {item.name || `${item.brand} ${item.model}`}
-              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className={`inline-block size-2 rounded-full ${statusColor}`} />
+                {statusLabel}
+              </span>
+              <span className="inline-flex items-center gap-0.5">
+                <Barcode className="size-3" />
+                {item.assetTag}
+              </span>
+              <span className="inline-flex items-center gap-0.5">
+                <Hash className="size-3" />
+                {shortSerial}
+              </span>
+              {item.createdAt && (
+                <span className="inline-flex items-center gap-0.5">
+                  <CalendarDays className="size-3" />
+                  {formatDate(item.createdAt)}
+                </span>
+              )}
             </div>
           </div>
         );
@@ -161,12 +184,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       id: "location",
       header: "Location",
       cell: ({ row }) => row.original.location.name,
-    },
-    {
-      id: "department",
-      header: "Department",
-      cell: ({ row }) => row.original.department?.name ?? "\u2014",
-      meta: { className: "hidden md:table-cell" },
     },
     {
       id: "brand",
