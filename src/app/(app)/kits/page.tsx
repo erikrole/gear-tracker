@@ -1,6 +1,7 @@
 "use client";
 
 import EmptyState from "@/components/EmptyState";
+import { Card } from "@/components/ui/card";
 
 export default function KitsPage() {
   return (

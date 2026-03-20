@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import type { Location } from "./types";
 
 export default function CreateUserCard({

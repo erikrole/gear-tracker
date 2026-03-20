@@ -7,6 +7,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type CheckoutRow = {
   id: string;
@@ -82,18 +83,18 @@ export default function CheckoutsReportPage() {
     return (
       <>
         <div className="summary-grid mb-16">
-          <div className="card p-16 text-center">
+          <Card className="p-16 text-center">
             <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
             <div className="skeleton skeleton-text-sm" style={{ width: 80, margin: "0 auto" }} />
-          </div>
-          <div className="card p-16 text-center">
+          </Card>
+          <Card className="p-16 text-center">
             <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
             <div className="skeleton skeleton-text-sm" style={{ width: 80, margin: "0 auto" }} />
-          </div>
+          </Card>
         </div>
         <div className="grid-2col gap-16">
-          <div className="card"><SkeletonTable rows={5} cols={5} /></div>
-          <div className="card"><SkeletonTable rows={5} cols={2} /></div>
+          <Card><SkeletonTable rows={5} cols={5} /></Card>
+          <Card><SkeletonTable rows={5} cols={2} /></Card>
         </div>
       </>
     );
@@ -101,10 +102,10 @@ export default function CheckoutsReportPage() {
 
   if (error || !data) {
     return (
-      <div className="card p-16 text-center">
+      <Card className="p-16 text-center">
         <p className="text-secondary mb-8">Failed to load checkout report.</p>
         <Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); }}>Retry</Button>
-      </div>
+      </Card>
     );
   }
 

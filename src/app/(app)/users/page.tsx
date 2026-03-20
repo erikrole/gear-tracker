@@ -8,6 +8,7 @@ import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
 import CreateUserCard from "./CreateUserCard";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const LIMIT = 50;
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
 
 function LabelQRCode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);

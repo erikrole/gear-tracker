@@ -10,6 +10,7 @@ import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type CalendarEvent = {
   id: string;
@@ -217,8 +218,8 @@ export default function EventDetailPage() {
       </div>
 
       {/* Event details */}
-      <div className="card">
-        <div className="card-header"><h2>Details</h2></div>
+      <Card>
+        <CardHeader><CardTitle>Details</CardTitle></CardHeader>
         <div style={{ padding: 16 }}>
           <DataList
             items={[
@@ -246,17 +247,17 @@ export default function EventDetailPage() {
             ]}
           />
         </div>
-      </div>
+      </Card>
 
       {/* Shift coverage */}
       {shiftGroup && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-header flex-between">
-            <h2>Shift Coverage</h2>
+        <Card style={{ marginTop: 16 }}>
+          <CardHeader className="flex-between">
+            <CardTitle>Shift Coverage</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setSelectedGroupId(shiftGroup.id)}>
               Manage shifts
             </Button>
-          </div>
+          </CardHeader>
           <div style={{ padding: 16 }}>
             {shiftGroup.isPremier && (
               <div className="mb-8">
@@ -312,7 +313,7 @@ export default function EventDetailPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Command Center (staff/admin only) */}

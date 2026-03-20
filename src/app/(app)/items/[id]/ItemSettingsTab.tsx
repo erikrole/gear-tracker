@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 /* ── Settings Tab ───────────────────────────────────────── */
 
@@ -30,9 +31,9 @@ export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail;
   ];
 
   return (
-    <div className="card mt-14">
-      <div className="card-header"><h2>Policy Settings</h2></div>
-      <div className="p-16">
+    <Card className="mt-14">
+      <CardHeader><CardTitle>Policy Settings</CardTitle></CardHeader>
+      <CardContent className="p-16">
         <p className="text-sm text-secondary mb-16 m-0">
           These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
         </p>
@@ -49,8 +50,8 @@ export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail;
             </div>
           </div>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -149,16 +150,16 @@ export function AccessoriesSection({
   if (isChild) return null;
 
   return (
-    <div className="card mt-14">
-      <div className="card-header flex justify-between items-center">
-        <h2>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</h2>
+    <Card className="mt-14">
+      <CardHeader className="flex justify-between items-center">
+        <CardTitle>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</CardTitle>
         {canEdit && !attaching && (
           <Button variant="outline" size="sm" onClick={() => setAttaching(true)}>
             + Attach
           </Button>
         )}
-      </div>
-      <div className="p-16">
+      </CardHeader>
+      <CardContent className="p-16">
         {attaching && (
           <div className="mb-16">
             <input
@@ -222,7 +223,7 @@ export function AccessoriesSection({
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

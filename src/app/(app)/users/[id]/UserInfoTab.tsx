@@ -6,6 +6,7 @@ import { sportLabel } from "@/lib/sports";
 import type { UserDetail, Location, Role } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import RoleBadge from "../RoleBadge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 /* ── Editable Text Field ───────────────────────────────── */
 

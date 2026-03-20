@@ -12,6 +12,7 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 /* ───── Types ───── */
 

@@ -189,11 +189,11 @@ export default function OverdueLeaderboardPage() {
           <EmptyState icon="clipboard" title="No overdue checkouts right now" />
         </Card>
       ) : (
-        <div className="card">
-          <div className="card-header">
-            <h2>Overdue by person</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Overdue by person</CardTitle>
             <span className="text-sm text-muted">Sorted by total overdue time</span>
-          </div>
+          </CardHeader>
 
           {/* Desktop table */}
           <div className="hide-mobile-only">
@@ -233,7 +233,7 @@ export default function OverdueLeaderboardPage() {
               />
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </>
   );

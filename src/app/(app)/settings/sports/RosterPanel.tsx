@@ -91,10 +91,10 @@ export default function RosterPanel({
   }
 
   return (
-    <div className="card mt-16">
-      <div className="card-header">
-        <h2>{sportLabel(sportCode)} Roster</h2>
-      </div>
+    <Card className="mt-16">
+      <CardHeader>
+        <CardTitle>{sportLabel(sportCode)} Roster</CardTitle>
+      </CardHeader>
       {loading ? (
         <div className="flex items-center justify-center p-16"><Spinner className="size-8" /></div>
       ) : (
@@ -204,6 +204,6 @@ export default function RosterPanel({
           </div>
         </>
       )}
-    </div>
+    </Card>
   );
 }

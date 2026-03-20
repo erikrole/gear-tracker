@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type Notification = {
   id: string;

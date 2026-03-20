@@ -5,6 +5,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type BulkSkuUnit = {
   id: string;

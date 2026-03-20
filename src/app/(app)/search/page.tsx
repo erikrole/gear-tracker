@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";

@@ -1,5 +1,6 @@
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
+import { CardHeader } from "@/components/ui/card";
 import type { Location, Role } from "./types";
 import { ROLE_OPTIONS } from "./types";
 
