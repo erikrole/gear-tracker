@@ -8,26 +8,39 @@ const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOver
   return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
 };
 
+function getInitials(name: string) {
+  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
 function toBookingSummary(c: {
   id: string;
   title: string;
   refNumber: string | null;
   requester: { name: string };
+  location?: { name: string } | null;
   startsAt: Date;
   endsAt: Date;
   status: string;
   _count: { serializedItems: number; bulkItems: number };
+  serializedItems: Array<{ asset: { id: string; name: string | null; imageUrl: string | null } }>;
 }, now: Date, canBeOverdue: boolean) {
   return {
     id: c.id,
     title: c.title,
     refNumber: c.refNumber,
     requesterName: c.requester.name,
+    requesterInitials: getInitials(c.requester.name),
+    locationName: c.location?.name ?? null,
     startsAt: c.startsAt.toISOString(),
     endsAt: c.endsAt.toISOString(),
     itemCount: c._count.serializedItems + c._count.bulkItems,
     status: c.status,
     isOverdue: canBeOverdue && c.endsAt < now,
+    items: c.serializedItems.map((si) => ({
+      id: si.asset.id,
+      name: si.asset.name,
+      imageUrl: si.asset.imageUrl,
+    })),
   };
 }
 
@@ -45,6 +58,10 @@ export const GET = withAuth(async (_req, { user }) => {
     requester: { select: { id: true, name: true } },
     location: { select: { id: true, name: true } },
     _count: { select: { serializedItems: true, bulkItems: true } },
+    serializedItems: {
+      take: 3,
+      include: { asset: { select: { id: true, name: true, imageUrl: true } } },
+    },
   } as const;
 
   const [
@@ -120,7 +137,7 @@ export const GET = withAuth(async (_req, { user }) => {
     db.booking.count({
       where: { kind: "CHECKOUT", status: "OPEN", endsAt: { gte: startOfToday, lt: startOfTomorrow } },
     }),
-    // Upcoming events
+    // Upcoming events (with shift assignment data)
     db.calendarEvent.findMany({
       where: {
         startsAt: { gte: now, lte: sevenDaysFromNow },
@@ -130,6 +147,18 @@ export const GET = withAuth(async (_req, { user }) => {
       take: 5,
       include: {
         location: { select: { id: true, name: true } },
+        shiftGroup: {
+          include: {
+            shifts: {
+              include: {
+                assignments: {
+                  where: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } },
+                  include: { user: { select: { id: true, name: true } } },
+                },
+              },
+            },
+          },
+        },
       },
     }),
     // My reservations
@@ -144,6 +173,10 @@ export const GET = withAuth(async (_req, { user }) => {
       include: {
         location: { select: { id: true, name: true } },
         _count: { select: { serializedItems: true, bulkItems: true } },
+        serializedItems: {
+          take: 3,
+          include: { asset: { select: { id: true, name: true, imageUrl: true } } },
+        },
       },
     }),
     // Top overdue for banner
@@ -224,18 +257,39 @@ export const GET = withAuth(async (_req, { user }) => {
   const myCheckouts = myCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   myCheckouts.sort(sortOverdueFirst);
 
-  const events = upcomingEvents.map((e) => ({
-    id: e.id,
-    title: e.summary,
-    sportCode: e.sportCode ?? null,
-    startsAt: e.startsAt.toISOString(),
-    endsAt: e.endsAt.toISOString(),
-    allDay: e.allDay,
-    location: e.location?.name ?? null,
-    locationId: e.location?.id ?? null,
-    opponent: e.opponent ?? null,
-    isHome: e.isHome ?? null,
-  }));
+  const events = upcomingEvents.map((e) => {
+    // Collect assigned users across all shifts
+    const shifts = e.shiftGroup?.shifts ?? [];
+    const totalShiftSlots = shifts.length;
+    const seenUserIds = new Set<string>();
+    const assignedUsers: Array<{ id: string; name: string; initials: string }> = [];
+    for (const shift of shifts) {
+      for (const a of shift.assignments) {
+        if (!seenUserIds.has(a.user.id)) {
+          seenUserIds.add(a.user.id);
+          assignedUsers.push({
+            id: a.user.id,
+            name: a.user.name,
+            initials: getInitials(a.user.name),
+          });
+        }
+      }
+    }
+    return {
+      id: e.id,
+      title: e.summary,
+      sportCode: e.sportCode ?? null,
+      startsAt: e.startsAt.toISOString(),
+      endsAt: e.endsAt.toISOString(),
+      allDay: e.allDay,
+      location: e.location?.name ?? null,
+      locationId: e.location?.id ?? null,
+      opponent: e.opponent ?? null,
+      isHome: e.isHome ?? null,
+      totalShiftSlots,
+      assignedUsers,
+    };
+  });
 
   const overdueItems = topOverdue.map((b) => ({
     bookingId: b.id,
@@ -254,17 +308,30 @@ export const GET = withAuth(async (_req, { user }) => {
           eventId: { in: shiftEventIds },
           status: { in: ["DRAFT", "BOOKED", "OPEN"] },
         },
-        select: { eventId: true, status: true },
+        select: {
+          eventId: true,
+          status: true,
+          serializedItems: {
+            take: 3,
+            include: { asset: { select: { id: true, name: true, imageUrl: true } } },
+          },
+          _count: { select: { serializedItems: true, bulkItems: true } },
+        },
       })
     : [];
-  const gearByEvent = new Map<string, string>();
+  const gearByEvent = new Map<string, { status: string; items: typeof shiftGearBookings[0]["serializedItems"]; itemCount: number }>();
   for (const b of shiftGearBookings) {
     if (!b.eventId) continue;
     const current = gearByEvent.get(b.eventId);
-    // Prioritize: checked_out > reserved > draft
-    if (b.status === "OPEN") gearByEvent.set(b.eventId, "checked_out");
-    else if (b.status === "BOOKED" && current !== "checked_out") gearByEvent.set(b.eventId, "reserved");
-    else if (b.status === "DRAFT" && !current) gearByEvent.set(b.eventId, "draft");
+    const gearStatus = b.status === "OPEN" ? "checked_out" : b.status === "BOOKED" ? "reserved" : "draft";
+    const priority = { checked_out: 3, reserved: 2, draft: 1 };
+    if (!current || priority[gearStatus as keyof typeof priority] > priority[current.status as keyof typeof priority]) {
+      gearByEvent.set(b.eventId, {
+        status: gearStatus,
+        items: b.serializedItems,
+        itemCount: b._count.serializedItems + b._count.bulkItems,
+      });
+    }
   }
 
   const myShifts = myShiftsRaw.map((a) => {
@@ -286,7 +353,13 @@ export const GET = withAuth(async (_req, { user }) => {
         locationId: ev.locationId,
         locationName: ev.location?.name ?? null,
       },
-      gearStatus: gearByEvent.get(ev.id) ?? "none",
+      gearStatus: gearByEvent.get(ev.id)?.status ?? "none",
+      gearItems: (gearByEvent.get(ev.id)?.items ?? []).map((si) => ({
+        id: si.asset.id,
+        name: si.asset.name,
+        imageUrl: si.asset.imageUrl,
+      })),
+      gearItemCount: gearByEvent.get(ev.id)?.itemCount ?? 0,
     };
   });
 
@@ -320,6 +393,11 @@ export const GET = withAuth(async (_req, { user }) => {
         endsAt: r.endsAt.toISOString(),
         itemCount: r._count.serializedItems + r._count.bulkItems,
         locationName: r.location?.name ?? null,
+        items: r.serializedItems.map((si) => ({
+          id: si.asset.id,
+          name: si.asset.name,
+          imageUrl: si.asset.imageUrl,
+        })),
       })),
       overdueCount: totalOverdue,
       overdueItems,
