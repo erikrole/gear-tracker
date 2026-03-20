@@ -1,13 +1,12 @@
 import AppShell from "@/components/AppShell";
-import { ToastProvider } from "@/components/Toast";
+import { Toaster } from "@/components/ui/sonner";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ToastProvider>
-      <ConfirmProvider>
-        <AppShell>{children}</AppShell>
-      </ConfirmProvider>
-    </ToastProvider>
+    <ConfirmProvider>
+      <AppShell>{children}</AppShell>
+      <Toaster position="top-right" duration={4000} />
+    </ConfirmProvider>
   );
 }
