@@ -9,6 +9,7 @@ import DataList from "@/components/DataList";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 type CalendarEvent = {
   id: string;
@@ -203,20 +204,16 @@ export default function EventDetailPage() {
 
       {/* Action CTAs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-        <a
-          href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`}
-          className="btn btn-primary"
-          style={{ textDecoration: "none", minHeight: 44, display: "flex", alignItems: "center", padding: "10px 20px" }}
-        >
-          Reserve gear for this event
-        </a>
-        <a
-          href={`/checkouts?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`}
-          className="btn"
-          style={{ textDecoration: "none", minHeight: 44, display: "flex", alignItems: "center", padding: "10px 20px" }}
-        >
-          Checkout to this event
-        </a>
+        <Button asChild style={{ minHeight: 44, padding: "10px 20px" }}>
+          <a href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`} style={{ textDecoration: "none" }}>
+            Reserve gear for this event
+          </a>
+        </Button>
+        <Button variant="outline" asChild style={{ minHeight: 44, padding: "10px 20px" }}>
+          <a href={`/checkouts?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`} style={{ textDecoration: "none" }}>
+            Checkout to this event
+          </a>
+        </Button>
       </div>
 
       {/* Event details */}
@@ -256,9 +253,9 @@ export default function EventDetailPage() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-header flex-between">
             <h2>Shift Coverage</h2>
-            <button className="btn btn-sm" onClick={() => setSelectedGroupId(shiftGroup.id)}>
+            <Button variant="outline" size="sm" onClick={() => setSelectedGroupId(shiftGroup.id)}>
               Manage shifts
-            </button>
+            </Button>
           </div>
           <div style={{ padding: 16 }}>
             {shiftGroup.isPremier && (
@@ -415,8 +412,9 @@ export default function EventDetailPage() {
                         </span>
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          className="btn btn-sm"
+                        <Button
+                          variant="outline"
+                          size="sm"
                           disabled={nudgingId === m.assignmentId}
                           onClick={async () => {
                             setNudgingId(m.assignmentId);
@@ -431,15 +429,16 @@ export default function EventDetailPage() {
                           }}
                         >
                           {nudgingId === m.assignmentId ? "Sending..." : "Nudge"}
-                        </button>
+                        </Button>
                         {event && (
-                          <a
-                            href={`/checkouts?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}&requesterUserId=${m.userId}`}
-                            className="btn btn-sm btn-primary"
-                            style={{ textDecoration: "none" }}
-                          >
-                            Create checkout
-                          </a>
+                          <Button size="sm" asChild>
+                            <a
+                              href={`/checkouts?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}&requesterUserId=${m.userId}`}
+                              style={{ textDecoration: "none" }}
+                            >
+                              Create checkout
+                            </a>
+                          </Button>
                         )}
                       </div>
                     </div>
