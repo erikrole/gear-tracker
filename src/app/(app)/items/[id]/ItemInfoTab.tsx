@@ -357,7 +357,7 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
 
 /* ── QR Code Visual ─────────────────────────────────────── */
 
-function QRCodeCanvas({ value, size, margin = 2 }: { value: string; size: number; margin?: number }) {
+export function QRCodeCanvas({ value, size, margin = 2 }: { value: string; size: number; margin?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -384,7 +384,7 @@ function QRCodeCanvas({ value, size, margin = 2 }: { value: string; size: number
 
 /* ── QR Modal ──────────────────────────────────────────── */
 
-function QRModal({ asset, canEdit, onRefresh, open, onOpenChange }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function QRModal({ asset, canEdit, onRefresh, open, onOpenChange }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [manualEntry, setManualEntry] = useState(false);
   const [qrDraft, setQrDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -467,64 +467,6 @@ function QRModal({ asset, canEdit, onRefresh, open, onOpenChange }: { asset: Ass
         </DialogBody>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/* ── Tracking Codes Section (with asset tag label) ─────── */
-
-function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const [showModal, setShowModal] = useState(false);
-  // Split asset tag into stacked lines (e.g. "FB FX3 1" -> ["FB", "FX3", "1"])
-  const rawParts = asset.assetTag.split(/[\s]+/).filter(Boolean);
-  // Football tags have 3 natural parts and start with "FB"; all others get padded
-  const isFootball = rawParts.length === 3 && rawParts[0] === "FB";
-  // Always 3 lines — pad top with empty lines for non-3-part tags
-  const tagLines = rawParts.length >= 3
-    ? rawParts.slice(0, 3)
-    : [...Array(3 - rawParts.length).fill(""), ...rawParts];
-
-  return (
-    <>
-      <div className="p-16 border-t">
-        <div className="text-xs font-semibold text-secondary mb-8 section-label">TRACKING CODES</div>
-        <div className="flex gap-12 items-center">
-          {/* Asset tag label — matches physical Brother label */}
-          <button
-            className="asset-tag-label"
-            onClick={() => setShowModal(true)}
-            title="Click to enlarge QR code"
-          >
-            <div className={`asset-tag-label-text ${isFootball ? "" : "asset-tag-label-text-left"}`}>
-              {tagLines.map((line, i) => (
-                <div key={i} className="asset-tag-label-line">{line || "\u00A0"}</div>
-              ))}
-            </div>
-            <div className="asset-tag-label-qr">
-              <QRCodeCanvas value={asset.qrCodeValue} size={96} margin={0} />
-            </div>
-          </button>
-          <div className="flex flex-col gap-2">
-            <Badge variant="outline" className="gap-1.5 font-mono text-xs">
-              <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">QR</span>
-              {asset.qrCodeValue}
-            </Badge>
-            {asset.serialNumber && (
-              <Badge variant="outline" className="gap-1.5 font-mono text-xs">
-                <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">Serial</span>
-                {asset.serialNumber}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </div>
-      <QRModal
-        asset={asset}
-        canEdit={canEdit}
-        onRefresh={onRefresh}
-        open={showModal}
-        onOpenChange={setShowModal}
-      />
-    </>
   );
 }
 
@@ -684,7 +626,6 @@ export default function ItemInfoCard({
           />
         ))}
       </dl>
-      <TrackingCodesSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </Card>
   );
 }

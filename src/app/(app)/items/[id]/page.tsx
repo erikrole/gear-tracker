@@ -40,11 +40,11 @@ import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
 import { OperationalOverview, BookingKindTab, CalendarTab } from "./ItemBookingsTab";
 import ActivityFeed from "./ItemHistoryTab";
-import { SettingsTab, AccessoriesSection } from "./ItemSettingsTab";
+import { AccessoriesSection } from "./ItemSettingsTab";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
-type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "history" | "settings";
+type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "history";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
@@ -52,7 +52,6 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "reservations", label: "Reservations" },
   { key: "calendar", label: "Calendar" },
   { key: "history", label: "History" },
-  { key: "settings", label: "Settings" },
 ];
 
 /* ── Status Line ────────────────────────────────────────── */
@@ -385,7 +384,7 @@ export default function ItemDetailsPage() {
               onRefresh={loadAsset}
               onCategoriesChanged={loadCategories}
             />
-            <OperationalOverview asset={asset} now={now} onSelectBooking={setSelectedBookingId} />
+            <OperationalOverview asset={asset} now={now} canEdit={canEdit} onSelectBooking={setSelectedBookingId} onRefresh={loadAsset} />
           </div>
           <AccessoriesSection asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
         </>
@@ -415,11 +414,6 @@ export default function ItemDetailsPage() {
             <ActivityFeed assetId={asset.id} />
           </CardContent>
         </Card>
-      )}
-
-      {/* Settings tab */}
-      {activeTab === "settings" && (
-        <SettingsTab asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
       )}
 
       <BookingDetailsSheet

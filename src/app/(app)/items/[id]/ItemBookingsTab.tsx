@@ -6,15 +6,19 @@ import {
   formatCountdown,
   formatDateShort,
   formatDateFull,
+  formatDuration,
+  formatDateWithDayTime,
   isStartingToday,
   formatStartsIn,
 } from "@/lib/format";
 import type { AssetDetail } from "./types";
+import { QRCodeCanvas, QRModal } from "./ItemInfoTab";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
-import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -24,9 +28,114 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+/* ── Tracking Codes Card (sidebar) ─────────────────────── */
+
+function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const [showModal, setShowModal] = useState(false);
+  const rawParts = asset.assetTag.split(/[\s]+/).filter(Boolean);
+  const isFootball = rawParts.length === 3 && rawParts[0] === "FB";
+  const tagLines = rawParts.length >= 3
+    ? rawParts.slice(0, 3)
+    : [...Array(3 - rawParts.length).fill(""), ...rawParts];
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tracking Codes</CardTitle>
+        </CardHeader>
+        <CardContent className="p-16 pt-0">
+          <div className="flex gap-12 items-center">
+            <button
+              className="asset-tag-label"
+              onClick={() => setShowModal(true)}
+              title="Click to enlarge QR code"
+            >
+              <div className={`asset-tag-label-text ${isFootball ? "" : "asset-tag-label-text-left"}`}>
+                {tagLines.map((line, i) => (
+                  <div key={i} className="asset-tag-label-line">{line || "\u00A0"}</div>
+                ))}
+              </div>
+              <div className="asset-tag-label-qr">
+                <QRCodeCanvas value={asset.qrCodeValue} size={96} margin={0} />
+              </div>
+            </button>
+            <div className="flex flex-col gap-2">
+              <Badge variant="outline" className="gap-1.5 font-mono text-xs">
+                <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">QR</span>
+                {asset.qrCodeValue}
+              </Badge>
+              {asset.serialNumber && (
+                <Badge variant="outline" className="gap-1.5 font-mono text-xs">
+                  <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">Serial</span>
+                  {asset.serialNumber}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <QRModal
+        asset={asset}
+        canEdit={canEdit}
+        onRefresh={onRefresh}
+        open={showModal}
+        onOpenChange={setShowModal}
+      />
+    </>
+  );
+}
+
+/* ── Settings Card (sidebar) ───────────────────────────── */
+
+function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const [saving, setSaving] = useState(false);
+
+  async function toggleSetting(field: string, currentValue: boolean) {
+    setSaving(true);
+    await fetch(`/api/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: !currentValue }),
+    });
+    setSaving(false);
+    onRefresh();
+  }
+
+  const toggles = [
+    { field: "availableForReservation", label: "Available for reservation", value: asset.availableForReservation, help: "Item is available to be used in reservations" },
+    { field: "availableForCheckout", label: "Available for check out", value: asset.availableForCheckout, help: "Item is available to be used in check-outs" },
+    { field: "availableForCustody", label: "Available for custody", value: asset.availableForCustody, help: "Item can be taken into custody by a user" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Settings</CardTitle>
+      </CardHeader>
+      <CardContent className="p-16 pt-0">
+        {toggles.map((t) => (
+          <div key={t.field} className="flex items-center justify-between gap-3 mb-4 last:mb-0">
+            <div className="min-w-0">
+              <Label className="text-sm font-medium">{t.label}</Label>
+              <p className="text-xs text-muted-foreground mt-0.5 m-0">{t.help}</p>
+            </div>
+            <Switch
+              checked={t.value}
+              onCheckedChange={() => canEdit && toggleSetting(t.field, t.value)}
+              disabled={saving || !canEdit}
+              className="shrink-0"
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ── Operational Overview (Info tab dashboard cards) ─────── */
 
-export function OperationalOverview({ asset, now, onSelectBooking }: { asset: AssetDetail; now: Date; onSelectBooking: (id: string) => void }) {
+export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRefresh }: { asset: AssetDetail; now: Date; canEdit: boolean; onSelectBooking: (id: string) => void; onRefresh: () => void }) {
   const b = asset.activeBooking;
   const reservations = asset.upcomingReservations;
 
@@ -106,8 +215,30 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
           </Empty>
         )}
       </Card>
+
+      {/* Tracking Codes */}
+      <TrackingCodesCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
+
+      {/* Settings */}
+      <SettingsCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );
+}
+
+/* ── Booking Status Label ──────────────────────────────── */
+
+function bookingStatusLabel(status: string): { label: string; variant: "blue" | "green" | "gray" | "red" | "orange" } {
+  switch (status) {
+    case "BOOKED": return { label: "Booked", variant: "blue" };
+    case "CHECKED_OUT": return { label: "Checked out", variant: "blue" };
+    case "COMPLETED": return { label: "Completed", variant: "green" };
+    case "RETURNED": return { label: "Returned", variant: "green" };
+    case "CANCELLED": return { label: "Cancelled", variant: "gray" };
+    case "DRAFT": return { label: "Draft", variant: "gray" };
+    case "CONVERTED": return { label: "Converted", variant: "green" };
+    case "CLOSED": return { label: "Closed", variant: "gray" };
+    default: return { label: status, variant: "gray" };
+  }
 }
 
 /* ── Booking Kind Tab ───────────────────────────────────── */
@@ -122,9 +253,23 @@ export function BookingKindTab({
   onSelectBooking: (id: string) => void;
 }) {
   const label = kind === "CHECKOUT" ? "checkouts" : "reservations";
-  const filtered = groups
-    .map((g) => ({ month: g.month, items: g.items.filter((e) => e.booking.kind === kind) }))
-    .filter((g) => g.items.length > 0);
+
+  // Flatten and deduplicate all bookings of this kind
+  const allEntries = useMemo(() => {
+    const seen = new Set<string>();
+    const entries: AssetDetail["history"] = [];
+    for (const g of groups) {
+      for (const e of g.items) {
+        if (e.booking.kind === kind && !seen.has(e.booking.id)) {
+          seen.add(e.booking.id);
+          entries.push(e);
+        }
+      }
+    }
+    // Sort by start date descending (newest first)
+    entries.sort((a, b) => new Date(b.booking.startsAt).getTime() - new Date(a.booking.startsAt).getTime());
+    return entries;
+  }, [groups, kind]);
 
   const activeBooking = asset.activeBooking;
   const showActiveCard = activeBooking && activeBooking.kind === kind;
@@ -195,47 +340,63 @@ export function BookingKindTab({
         </Card>
       )}
 
-      {/* Past history */}
-      <Card className="history-card">
+      {/* All bookings — flat table */}
+      <Card>
         <CardHeader>
-          <CardTitle>Past {kind === "CHECKOUT" ? "Checkouts" : "Reservations"}</CardTitle>
-          {filtered.length > 0 && (
-            <span className="text-xs text-muted-foreground">Completed &amp; cancelled</span>
+          <CardTitle>{kind === "CHECKOUT" ? "Checkouts" : "Reservations"}</CardTitle>
+          {allEntries.length > 0 && (
+            <Badge variant="gray" size="sm">{allEntries.length}</Badge>
           )}
         </CardHeader>
-        <CardContent className="p-16">
-          {filtered.length === 0 ? (
-            <Empty className="py-8 border-0">
-              <EmptyDescription>No past {label} for this item.</EmptyDescription>
-            </Empty>
-          ) : (
-            filtered.map((group) => (
-              <div key={group.month} className="mb-6">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3 m-0">{group.month}</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Booking</TableHead>
-                      <TableHead>Requester</TableHead>
-                      <TableHead>When</TableHead>
-                      <TableHead>Location</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.items.map((entry) => (
-                      <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(entry.booking.id)}>
-                        <TableCell className="font-medium text-primary">{entry.booking.title}</TableCell>
-                        <TableCell>{entry.booking.requester.name}</TableCell>
-                        <TableCell>{formatDateFull(entry.booking.startsAt)}</TableCell>
-                        <TableCell>{entry.booking.location.name}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ))
-          )}
-        </CardContent>
+        {allEntries.length === 0 ? (
+          <Empty className="py-8 border-0">
+            <EmptyDescription>No {label} for this item.</EmptyDescription>
+          </Empty>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>From</TableHead>
+                <TableHead>To</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Location</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allEntries.map((entry) => {
+                const b = entry.booking;
+                const from = formatDateWithDayTime(b.startsAt);
+                const to = formatDateWithDayTime(b.endsAt);
+                const dur = formatDuration(b.startsAt, b.endsAt);
+                const st = bookingStatusLabel(b.status);
+                return (
+                  <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(b.id)}>
+                    <TableCell>
+                      <div className="font-medium text-primary">{b.title}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-gray-400"}`} />
+                        <span className="text-xs text-muted-foreground">{st.label}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{from.date}</div>
+                      <div className="text-xs text-muted-foreground">{from.dayTime}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{to.date}</div>
+                      <div className="text-xs text-muted-foreground">{to.dayTime}</div>
+                    </TableCell>
+                    <TableCell className="text-sm">{dur}</TableCell>
+                    <TableCell className="text-sm">{b.requester.name}</TableCell>
+                    <TableCell className="text-sm">{b.location.name}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </Card>
     </div>
   );

@@ -8,57 +8,7 @@ import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
-
-/* ── Settings Tab ───────────────────────────────────────── */
-
-export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const [saving, setSaving] = useState(false);
-
-  async function toggleSetting(field: string, currentValue: boolean) {
-    setSaving(true);
-    await fetch(`/api/assets/${asset.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: !currentValue }),
-    });
-    setSaving(false);
-    onRefresh();
-  }
-
-  const toggles = [
-    { field: "availableForReservation", label: "Available for reservation", value: asset.availableForReservation, help: "When enabled, this item can be included in reservations." },
-    { field: "availableForCheckout", label: "Available for check out", value: asset.availableForCheckout, help: "When enabled, this item can be checked out to users." },
-    { field: "availableForCustody", label: "Available for custody", value: asset.availableForCustody, help: "When enabled, this item can be taken into custody by a user." },
-  ];
-
-  return (
-    <Card className="mt-14">
-      <CardHeader><CardTitle>Policy Settings</CardTitle></CardHeader>
-      <CardContent className="p-16">
-        <p className="text-sm text-muted-foreground mb-4 m-0">
-          These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
-        </p>
-        {toggles.map((t) => (
-          <div key={t.field} className="flex items-start gap-3 mb-4">
-            <Switch
-              checked={t.value}
-              onCheckedChange={() => canEdit && toggleSetting(t.field, t.value)}
-              disabled={saving || !canEdit}
-              className="mt-0.5"
-            />
-            <div>
-              <Label className="text-sm font-medium">{t.label}</Label>
-              <p className="text-xs text-muted-foreground mt-0.5 m-0">{t.help}</p>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
 
 /* ── Accessories Section ────────────────────────────────── */
 
