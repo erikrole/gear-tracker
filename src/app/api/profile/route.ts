@@ -26,6 +26,7 @@ export const GET = withAuth(async (_req, { user }) => {
         name: profile.name,
         email: profile.email,
         role: profile.role,
+        avatarUrl: profile.avatarUrl ?? null,
         location: profile.location
       },
       locations
@@ -92,6 +93,7 @@ export const PATCH = withAuth(async (req, { user }) => {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      avatarUrl: updated.avatarUrl ?? null,
       location: updated.location
     }
   });

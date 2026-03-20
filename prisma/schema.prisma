@@ -73,6 +73,7 @@ model User {
   passwordHash   String       @map("password_hash")
   role           Role
   phone          String?
+  avatarUrl      String?      @map("avatar_url")
   primaryArea    ShiftArea?   @map("primary_area")
   locationId     String?      @map("location_id")
   createdAt      DateTime     @default(now()) @map("created_at")

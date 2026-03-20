@@ -39,6 +39,7 @@ type BookingSummary = {
   refNumber: string | null;
   requesterName: string;
   requesterInitials: string;
+  requesterAvatarUrl: string | null;
   locationName: string | null;
   startsAt: string;
   endsAt: string;
@@ -54,6 +55,7 @@ type MyReservation = {
   refNumber: string | null;
   requesterName: string;
   requesterInitials: string;
+  requesterAvatarUrl: string | null;
   startsAt: string;
   endsAt: string;
   itemCount: number;
@@ -73,7 +75,7 @@ type EventSummary = {
   opponent: string | null;
   isHome: boolean | null;
   totalShiftSlots: number;
-  assignedUsers: Array<{ id: string; name: string; initials: string }>;
+  assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null }>;
 };
 
 type OverdueItem = {
@@ -157,7 +159,10 @@ function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; totalCount
   );
 }
 
-function UserInitialsAvatar({ initials }: { initials: string }) {
+function UserInitialsAvatar({ initials, avatarUrl }: { initials: string; avatarUrl?: string | null }) {
+  if (avatarUrl) {
+    return <img className="user-initials-avatar" src={avatarUrl} alt="" />;
+  }
   return <span className="user-initials-avatar">{initials}</span>;
 }
 
@@ -172,7 +177,7 @@ function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers: EventS
     <div className="shift-avatar-stack">
       {showUsers.map((u) => (
         <div key={u.id} className="shift-avatar shift-avatar-filled" title={u.name}>
-          <span>{u.initials}</span>
+          {u.avatarUrl ? <img src={u.avatarUrl} alt="" /> : <span>{u.initials}</span>}
         </div>
       ))}
       {Array.from({ length: showEmpty }).map((_, i) => (
@@ -353,7 +358,7 @@ export default function DashboardPage() {
                     <div className="ops-row-main">
                       <span className="ops-row-title-bold">{c.title}</span>
                       <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={c.requesterInitials} />
+                        <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
                         {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -386,7 +391,7 @@ export default function DashboardPage() {
                     <div className="ops-row-main">
                       <span className="ops-row-title-bold">{r.title}</span>
                       <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={r.requesterInitials} />
+                        <UserInitialsAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
                         {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -513,7 +518,7 @@ export default function DashboardPage() {
                     <div className="ops-row-main">
                       <span className="ops-row-title-bold">{c.title}</span>
                       <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={c.requesterInitials} />
+                        <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
                         {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -546,7 +551,7 @@ export default function DashboardPage() {
                     <div className="ops-row-main">
                       <span className="ops-row-title-bold">{r.title}</span>
                       <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={r.requesterInitials} />
+                        <UserInitialsAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
                         {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>

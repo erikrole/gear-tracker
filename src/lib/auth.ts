@@ -10,6 +10,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: Role;
+  avatarUrl: string | null;
 };
 
 const SESSION_12H_MS = 1000 * 60 * 60 * 12;
@@ -105,6 +106,7 @@ export async function requireAuth(): Promise<AuthUser> {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
-    role: session.user.role
+    role: session.user.role,
+    avatarUrl: session.user.avatarUrl ?? null,
   };
 }

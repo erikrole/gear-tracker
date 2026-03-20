@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { SearchIcon, PackageIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon } from "lucide-react";
+import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon } from "lucide-react";
 import Sidebar from "./Sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 
-type User = { name: string; email: string; role: string };
+type User = { name: string; email: string; role: string; avatarUrl?: string | null };
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -26,6 +26,9 @@ type SearchResult = {
   title: string;
   subtitle: string;
   href: string;
+  // Item-specific fields for status display
+  computedStatus?: string;
+  activeBooking?: { requesterName: string; isOverdue: boolean } | null;
 };
 
 const bottomNavItems = [
@@ -154,9 +157,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           for (const item of (json.data || []).slice(0, 5)) {
             merged.push({
               type: "item", id: item.id,
-              title: `${item.assetTag} — ${item.brand} ${item.model}`,
-              subtitle: [item.type, item.location?.name].filter(Boolean).join(" · "),
+              title: item.assetTag,
+              subtitle: "",
               href: `/items/${item.id}`,
+              computedStatus: item.computedStatus,
+              activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName, isOverdue: item.activeBooking.isOverdue } : null,
             });
           }
         }
@@ -230,15 +235,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
           {cmdResults.filter((r) => r.type === "item").length > 0 && (
             <CommandGroup heading="Items">
-              {cmdResults.filter((r) => r.type === "item").map((r) => (
-                <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
-                  <PackageIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">{r.title}</div>
-                    {r.subtitle && <div className="truncate text-xs text-muted-foreground">{r.subtitle}</div>}
-                  </div>
-                </CommandItem>
-              ))}
+              {cmdResults.filter((r) => r.type === "item").map((r) => {
+                const status = r.computedStatus ?? "AVAILABLE";
+                const isOverdue = r.activeBooking?.isOverdue ?? false;
+                const dotClass = isOverdue ? "status-overdue"
+                  : status === "CHECKED_OUT" ? "status-checked-out"
+                  : status === "RESERVED" ? "status-reserved"
+                  : status === "MAINTENANCE" ? "status-maintenance"
+                  : status === "RETIRED" ? "status-retired"
+                  : "status-available";
+                const badgeClass = isOverdue ? "cmd-badge-red"
+                  : status === "CHECKED_OUT" ? "cmd-badge-blue"
+                  : status === "RESERVED" ? "cmd-badge-purple"
+                  : status === "MAINTENANCE" ? "cmd-badge-orange"
+                  : status === "RETIRED" ? "cmd-badge-muted"
+                  : "cmd-badge-green";
+                const statusLabel = isOverdue ? `Checked out by ${r.activeBooking?.requesterName}`
+                  : status === "CHECKED_OUT" ? `Checked out by ${r.activeBooking?.requesterName}`
+                  : status === "RESERVED" ? `Reserved by ${r.activeBooking?.requesterName}`
+                  : status === "MAINTENANCE" ? "In maintenance"
+                  : status === "RETIRED" ? "Retired"
+                  : "Available";
+                return (
+                  <CommandItem key={r.id} value={r.title} onSelect={() => handleCmdSelect(r.href)}>
+                    <span className={`status-dot ${dotClass} mr-2.5 shrink-0`} />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{r.title}</div>
+                      <div className="mt-0.5">
+                        <span className={`cmd-status-badge ${badgeClass}`}>{statusLabel}</span>
+                      </div>
+                    </div>
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           )}
           {cmdResults.filter((r) => r.type === "checkout").length > 0 && (
