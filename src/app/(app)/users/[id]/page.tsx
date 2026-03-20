@@ -10,6 +10,7 @@ import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -105,17 +106,15 @@ export default function UserDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="item-tabs" style={{ marginTop: 16 }}>
-        {tabDefs.map((tab) => (
-          <button
-            key={tab.key}
-            className={`item-tab ${activeTab === tab.key ? "active" : ""}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="mt-4">
+        <TabsList>
+          {tabDefs.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* Tab Content */}
       {activeTab === "info" && (

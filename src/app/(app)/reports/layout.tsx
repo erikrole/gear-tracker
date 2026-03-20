@@ -31,12 +31,12 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
         <h1>Reports</h1>
       </div>
 
-      <nav className="item-tabs" style={{ marginBottom: 20 }}>
+      <nav className="flex gap-0 border-b mb-5">
         {REPORT_SECTIONS.map((s) => (
           <Link
             key={s.href}
             href={s.href}
-            className={`item-tab no-underline${pathname.startsWith(s.href) ? " active" : ""}`}
+            className={`px-4 py-2.5 text-sm font-medium no-underline transition-colors border-b-2 -mb-px ${pathname.startsWith(s.href) ? "text-foreground border-primary font-semibold" : "text-muted-foreground border-transparent hover:text-foreground"}`}
           >
             {s.label}
           </Link>

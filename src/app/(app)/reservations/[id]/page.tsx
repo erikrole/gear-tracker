@@ -12,6 +12,7 @@ import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /* ───── Types ───── */
 
@@ -505,21 +506,19 @@ export default function ReservationDetailsPage() {
       )}
 
       {/* Tabs */}
-      <div className="tab-bar" style={{ marginBottom: 16 }}>
-        {(["info", "equipment", "history"] as TabKey[]).map((t) => (
-          <button
-            key={t}
-            className={`tab-btn ${tab === t ? "active" : ""}`}
-            onClick={() => setTab(t)}
-          >
-            {t === "info"
-              ? "Info"
-              : t === "equipment"
-                ? `Equipment (${itemCount})`
-                : "History"}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="mb-4">
+        <TabsList>
+          {(["info", "equipment", "history"] as TabKey[]).map((t) => (
+            <TabsTrigger key={t} value={t}>
+              {t === "info"
+                ? "Info"
+                : t === "equipment"
+                  ? `Equipment (${itemCount})`
+                  : "History"}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* ── Info Tab ── */}
       {tab === "info" && (

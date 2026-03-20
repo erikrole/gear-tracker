@@ -133,7 +133,7 @@ export default function BookingEquipmentEditor({
       {/* Add items picker */}
       <div className="sheet-section">
         {!addingItems ? (
-          <Button className="btn-full"
+          <Button className="w-full"
             onClick={() => { onSetAddingItems(true); onSetPickerSearch(""); }}
           >
             + Add items
@@ -202,7 +202,7 @@ export default function BookingEquipmentEditor({
                 )
               )}
             </div>
-            <Button variant="outline" size="sm" className="btn-mt"
+            <Button variant="outline" size="sm" className="mt-2"
               onClick={() => onSetAddingItems(false)}
             >
               Done adding

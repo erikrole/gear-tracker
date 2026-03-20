@@ -40,7 +40,7 @@ export default function BookingActions({
       )}
       {canCheckin && (
         <Button
-          className="btn-checkin"
+          className="bg-green-500 text-white border-none hover:bg-green-600"
           disabled={checkinLoading}
           onClick={onCheckinAll}
         >
@@ -57,7 +57,7 @@ export default function BookingActions({
           {cancelling ? "Cancelling..." : booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
         </Button>
       )}
-      <Button variant="outline" className="btn-full-page" asChild>
+      <Button variant="outline" className="no-underline ml-auto inline-flex items-center" asChild>
         <Link href={booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`}>
           Full page
         </Link>

@@ -1900,35 +1900,6 @@ textarea:focus-visible {
 }
 
 
-/* ===== Tabs ===== */
-.tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
-}
-
-.tab {
-  padding: 10px 20px;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
-  border: none;
-  background: none;
-  border-bottom: 2px solid transparent;
-  transition: all 0.15s;
-  cursor: pointer;
-}
-
-.tab:hover {
-  color: var(--text);
-}
-
-.tab.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
-  font-weight: var(--weight-semibold);
-}
 
 /* ===== Pagination ===== */
 .pagination {
@@ -2122,25 +2093,6 @@ textarea:focus-visible {
   vertical-align: middle;
 }
 
-.item-tabs {
-  display: flex;
-  gap: 20px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 2px;
-}
-
-.item-tab {
-  border: 0;
-  background: transparent;
-  padding: 10px 0;
-  font-weight: var(--weight-medium);
-  color: var(--text-secondary);
-}
-
-.item-tab.active {
-  color: var(--text);
-  border-bottom: 2px solid var(--accent);
-}
 
 .tracking-row {
   display: flex;
@@ -4964,15 +4916,6 @@ textarea {
   gap: 6px;
   align-items: center;
 }
-.btn-scan-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.btn-scan-add svg {
-  flex-shrink: 0;
-}
-
 /* ===== Picker Toolbar (search + filter) ===== */
 .picker-toolbar {
   display: flex;
@@ -5565,7 +5508,6 @@ textarea {
 .cell-bold { font-weight: var(--weight-semibold); }
 .cell-mono { font-family: monospace; font-size: var(--text-3xs); }
 .badge-purple-sm { font-size: var(--text-2xs); }
-.btn-return { font-size: var(--text-3xs); }
 
 /* Returned row */
 tr.returned-row { opacity: 0.55; }
@@ -5583,16 +5525,6 @@ tr.returned-row { opacity: 0.55; }
 .equip-edit-name { font-size: var(--text-sm); }
 .equip-edit-name-flex { font-size: var(--text-sm); flex: 1; }
 
-/* Danger outline button */
-.btn-danger-outline {
-  color: var(--red);
-  border-color: var(--red);
-  flex-shrink: 0;
-}
-
-/* Full-width button */
-.btn-full { width: 100%; }
-
 /* Picker tab row */
 .picker-tabs {
   display: flex;
@@ -5603,29 +5535,11 @@ tr.returned-row { opacity: 0.55; }
 /* Picker item bold name */
 .picker-item-name { font-weight: var(--weight-semibold); }
 
-/* Done adding with margin */
-.btn-mt { margin-top: 8px; }
-
 /* Updated field tags */
 .field-tag { margin-right: 8px; }
 
 /* Diff after spacing (conditional via class) */
 .diff-after-section { margin-top: 8px; }
-
-/* Check-in all button */
-.btn-checkin {
-  background: #22c55e;
-  color: white;
-  border: none;
-}
-
-/* Full-page link in sheet footer */
-.btn-full-page {
-  text-decoration: none;
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-}
 
 /* ===== Creation Flow Mobile Fixes ===== */
 @media (max-width: 768px) {
@@ -5740,12 +5654,6 @@ tr.returned-row { opacity: 0.55; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-
-  /* Scan button: 44px touch target */
-  .btn-scan-add {
-    min-height: 44px;
-    padding: 8px 12px;
   }
 
   /* Closed summary: wrap tags */
@@ -5998,28 +5906,11 @@ tr.returned-row { opacity: 0.55; }
     padding: 8px 12px;
   }
 
-  /* Tabs: horizontal scroll instead of wrapping */
-  .item-tabs {
+  /* Tabs: handled by shadcn Tabs component */
+  [data-slot="tabs-list"] {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    gap: 0;
-    margin-left: -16px;
-    margin-right: -16px;
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .item-tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .item-tab {
-    white-space: nowrap;
-    padding: 10px 14px;
-    min-height: 44px;
-    font-size: var(--text-sm);
-    flex-shrink: 0;
   }
 
   /* Details list: reduce label width for more value space */

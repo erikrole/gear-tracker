@@ -13,6 +13,7 @@ import { useConfirm } from "./ConfirmDialog";
 import { useToast } from "./Toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Props = {
   open: boolean;
@@ -175,19 +176,14 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
           <DialogCloseButton />
         </DialogHeader>
         <DialogBody className="pb-6">
-          {/* Tabs */}
-          <div className="tabs mb-16">
-            <button className={`tab ${tab === "url" ? "active" : ""}`} onClick={() => setTab("url")}>
-              Paste URL
-            </button>
-            <button className={`tab ${tab === "upload" ? "active" : ""}`} onClick={() => setTab("upload")}>
-              Upload
-            </button>
-          </div>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as "url" | "upload")}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="url">Paste URL</TabsTrigger>
+              <TabsTrigger value="upload">Upload</TabsTrigger>
+            </TabsList>
 
-          {/* Paste URL tab */}
-          {tab === "url" && (
-            <div>
+            {/* Paste URL tab */}
+            <TabsContent value="url">
               <Input
                 type="url"
                 placeholder="https://example.com/product-image.jpg"
@@ -217,12 +213,10 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                   {saving ? "Saving..." : "Save"}
                 </Button>
               </div>
-            </div>
-          )}
+            </TabsContent>
 
-          {/* Upload tab */}
-          {tab === "upload" && (
-            <div>
+            {/* Upload tab */}
+            <TabsContent value="upload">
               <div
                 className={`image-drop-zone ${dragging ? "dragging" : ""}`}
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -266,8 +260,8 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                   {saving ? "Uploading..." : "Upload"}
                 </Button>
               </div>
-            </div>
-          )}
+            </TabsContent>
+          </Tabs>
         </DialogBody>
       </DialogContent>
     </Dialog>

@@ -366,7 +366,7 @@ export default function EquipmentPicker({
               <Button
                 type="button"
                 variant="outline" size="sm"
-                className="btn-scan-add"
+                className="inline-flex items-center gap-1 max-md:min-h-[44px] max-md:px-3 max-md:py-2"
                 onClick={() => setShowScanner(true)}
                 title="Scan QR to add item"
               >
