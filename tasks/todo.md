@@ -6,11 +6,15 @@ Last updated: 2026-03-20
 
 ## Active Work
 
-### shadcn/ui Final Migration (Slices 6-8)
+### shadcn/ui Final Migration
 
-- [ ] **Slice 6**: Select — install shadcn Select, migrate 20 native `<select>` across 11 files
-- [ ] **Slice 7**: DropdownMenu — install shadcn DropdownMenu, migrate KebabMenu + ActionsMenu + BookingContextMenu
-- [ ] **Slice 8**: CSS cleanup — remove dead `.ctx-menu`, `.form-select`, `.overflow-btn`, `.popover` + orphaned rules
+- [x] **Slice A**: CommandDialog — replace search overlay with live fuzzy command palette (2026-03-20)
+- [x] **Slice B**: FilterChip → Popover — rewrite internals, zero consumer changes (2026-03-20)
+- [x] **Slice C**: StatusDot + BulkActionBar → Popover (2026-03-20)
+- [x] **Slice D**: BookingContextMenu → ContextMenu + DropdownMenu (2026-03-20)
+- [x] **Slice E**: DateTimePicker — Calendar + Popover + time selects, replaces all datetime-local (2026-03-20)
+- [x] **Slice F**: Tooltips on icon-only buttons (2026-03-20)
+- [ ] **Slice 8**: CSS cleanup — remove dead `.search-overlay*`, `.popover`, `.popover-item`, `.filter-chip-dropdown*`, `.ctx-menu`, `.overflow-btn` + orphaned rules
 
 ### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
 
@@ -28,6 +32,7 @@ Last updated: 2026-03-20
 
 ## Recently Shipped
 
+- [x] **shadcn/ui Deep Integration (A-F)** — Command palette, Popover migration, ContextMenu, DateTimePicker, Tooltips (2026-03-20)
 - [x] **shadcn/ui Slice 5.4** — Tabs migration + btn/badge CSS cleanup (2026-03-20)
 - [x] **shadcn/ui Slice 5.3** — Sheet migration (BookingDetailsSheet, ShiftDetailPanel, scan page) (2026-03-20)
 - [x] **shadcn/ui Slice 5.2** — Card migration across 20+ pages (2026-03-20)
