@@ -3,6 +3,9 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function validatePassword(password: string): string {
   if (!password) return "Password is required";
@@ -101,10 +104,10 @@ function ResetPasswordForm() {
     <>
       <p className="login-subtitle">Set a new password</p>
       <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="password">New password</label>
+        <div className="mb-4 space-y-1.5">
+          <Label htmlFor="password">New password</Label>
           <div className="password-wrapper">
-            <input
+            <Input
               id="password"
               type={showPassword ? "text" : "password"}
               value={password}
@@ -114,6 +117,7 @@ function ResetPasswordForm() {
               required
               minLength={8}
               autoFocus
+              className="h-11 text-base"
             />
             <button
               type="button"
@@ -121,26 +125,15 @@ function ResetPasswordForm() {
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              )}
+              {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
             </button>
           </div>
-          {fieldErrors.password && <div className="field-error">{fieldErrors.password}</div>}
+          {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="confirmPassword">Confirm password</label>
-          <input
+        <div className="mb-4 space-y-1.5">
+          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <Input
             id="confirmPassword"
             type={showPassword ? "text" : "password"}
             value={confirmPassword}
@@ -149,11 +142,12 @@ function ResetPasswordForm() {
             placeholder="Re-enter your password"
             required
             minLength={8}
+            className="h-11 text-base"
           />
-          {fieldErrors.confirmPassword && <div className="field-error">{fieldErrors.confirmPassword}</div>}
+          {fieldErrors.confirmPassword && <p className="text-destructive text-xs mt-1">{fieldErrors.confirmPassword}</p>}
         </div>
 
-        {error && <div className="form-error" role="alert">{error}</div>}
+        {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
 
         <button type="submit" className="login-btn" disabled={loading}>
           {loading ? "Resetting..." : "Reset password"}

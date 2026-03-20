@@ -8,6 +8,7 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Input } from "@/components/ui/input";
 
 /* ───── Types ───── */
 
@@ -491,9 +492,9 @@ export default function ShiftDetailPanel({
                       {/* Inline user picker for staff assignment */}
                       {assigningShiftId === shift.id && (
                         <div className="mt-8 p-8 rounded" style={{ border: "1px solid var(--border)", background: "var(--bg-card)" }}>
-                          <input
+                          <Input
                             type="text"
-                            className="form-input mb-8"
+                            className="mb-2"
                             placeholder="Search roster..."
                             value={userSearch}
                             onChange={(e) => setUserSearch(e.target.value)}

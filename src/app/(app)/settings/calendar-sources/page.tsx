@@ -5,6 +5,8 @@ import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type CalendarSource = {
   id: string;
@@ -166,22 +168,20 @@ export default function CalendarSourcesPage() {
           <div className="card" style={{ padding: 16, marginBottom: 16 }}>
             <form onSubmit={handleAdd}>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div>
-                  <label className="form-label">Name</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label>Name</Label>
+                  <Input
                     type="text"
-                    className="form-input"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="e.g. UW Badgers Football"
                     required
                   />
                 </div>
-                <div>
-                  <label className="form-label">ICS URL</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label>ICS URL</Label>
+                  <Input
                     type="url"
-                    className="form-input"
                     value={newUrl}
                     onChange={(e) => setNewUrl(e.target.value)}
                     placeholder="https://example.com/calendar.ics"

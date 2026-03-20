@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -146,10 +147,10 @@ export default function SearchPage() {
 
       <form onSubmit={handleSubmit} className="mb-24">
         <div className="flex gap-8">
-          <input
+          <Input
             ref={inputRef}
             type="text"
-            className="form-input flex-1"
+            className="flex-1"
             placeholder="Search items, checkouts, reservations..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}

@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
+import { Input } from "@/components/ui/input";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 
 type CalendarEvent = {
@@ -443,14 +444,14 @@ export default function EventsPage() {
 
           {showAddMapping && (
             <form onSubmit={handleAddMapping} className="flex flex-wrap gap-8 p-16">
-              <input name="pattern" placeholder="Pattern (regex or text)" required className="form-input" style={{ flex: 2, minWidth: 150 }} />
+              <Input name="pattern" placeholder="Pattern (regex or text)" required style={{ flex: 2, minWidth: 150 }} />
               <select name="locationId" required className="form-select" style={{ flex: 1, minWidth: 120 }}>
                 <option value="">Select location</option>
                 {locations.map((loc) => (
                   <option key={loc.id} value={loc.id}>{loc.name}</option>
                 ))}
               </select>
-              <input name="priority" type="number" defaultValue="0" placeholder="Priority" className="form-input" style={{ width: 80 }} title="Higher priority mappings are checked first" />
+              <Input name="priority" type="number" defaultValue="0" placeholder="Priority" style={{ width: 80 }} title="Higher priority mappings are checked first" />
               <button type="submit" className="btn btn-primary" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</button>
             </form>
           )}
@@ -502,8 +503,8 @@ export default function EventsPage() {
 
           {showAddSource && (
             <form onSubmit={handleAddSource} className="flex gap-8 p-16">
-              <input name="name" placeholder="Source name" required className="form-input flex-1" />
-              <input name="url" placeholder="webcal:// or https:// URL" required className="form-input" style={{ flex: 2 }} />
+              <Input name="name" placeholder="Source name" required className="flex-1" />
+              <Input name="url" placeholder="webcal:// or https:// URL" required style={{ flex: 2 }} />
               <button type="submit" className="btn btn-primary" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</button>
             </form>
           )}

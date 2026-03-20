@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Input } from "@/components/ui/input";
 import type { Location } from "./types";
 
 export default function CreateUserCard({
@@ -62,24 +63,21 @@ export default function CreateUserCard({
       </div>
       <form onSubmit={handleSubmit} className="p-16">
         <div className="form-grid form-grid-3">
-          <input
-            className="form-input"
+          <Input
             name="name"
             placeholder="Full name"
             required
             aria-label="Full name"
             autoFocus
           />
-          <input
-            className="form-input"
+          <Input
             name="email"
             type="email"
             placeholder="Email"
             required
             aria-label="Email"
           />
-          <input
-            className="form-input"
+          <Input
             name="password"
             type="password"
             minLength={8}

@@ -1976,46 +1976,6 @@ textarea:focus-visible {
   font-size: var(--text-base);
 }
 
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  margin-bottom: 5px;
-  color: var(--text);
-  letter-spacing: var(--tracking-wide);
-}
-
-.form-group input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  outline: none;
-  font-size: var(--text-base);
-  background: var(--panel-solid);
-  color: var(--text);
-  transition: border-color var(--duration-normal) var(--ease-out),
-              box-shadow var(--duration-normal) var(--ease-out);
-}
-
-.form-group input:focus {
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
-}
-
-.form-group input::placeholder {
-  color: var(--text-muted);
-}
-
-.form-error {
-  color: var(--red);
-  font-size: var(--text-sm);
-  margin-top: 12px;
-}
 
 .login-btn {
   width: 100%;
@@ -2086,11 +2046,6 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
-.field-error {
-  color: var(--red);
-  font-size: var(--text-xs);
-  margin-top: 4px;
-}
 
 /* ===== Tabs ===== */
 .tabs {
@@ -2899,41 +2854,6 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
-.sheet-field {
-  margin-bottom: 12px;
-}
-
-.sheet-field label {
-  display: block;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-}
-
-.sheet-field input,
-.sheet-field textarea,
-.sheet-field select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  outline: none;
-  font-size: var(--text-sm);
-  transition: border-color 0.15s;
-}
-
-.sheet-field input:focus,
-.sheet-field textarea:focus,
-.sheet-field select:focus {
-  border-color: var(--accent);
-}
-
-.sheet-field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
 
 .extend-buttons {
   display: flex;
@@ -3024,9 +2944,6 @@ textarea:focus-visible {
     padding: 12px 16px env(safe-area-inset-bottom, 12px);
   }
 
-  .sheet-field-row {
-    grid-template-columns: 1fr;
-  }
 
   .sheet-tabs {
     padding: 0 16px;
@@ -4077,35 +3994,6 @@ textarea:focus-visible {
   border-radius: var(--radius);
 }
 
-/* Form field inside create card */
-.field-compact {
-  margin-bottom: 12px;
-}
-
-.field-compact label {
-  display: block;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  margin-bottom: 4px;
-}
-
-.field-compact input,
-.field-compact select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  outline: none;
-  min-height: 40px;
-  transition: border-color 0.15s;
-}
-
-.field-compact input:focus,
-.field-compact select:focus {
-  border-color: var(--accent);
-}
 
 .field-row {
   display: grid;
@@ -4157,7 +4045,6 @@ textarea:focus-visible {
   max-width: min(520px, 100%);
 }
 
-.profile-form .form-input,
 .profile-form .form-select {
   width: 100%;
 }
@@ -4219,8 +4106,7 @@ textarea:focus-visible {
     position: static;
   }
 
-  /* Profile form inputs: 44px touch targets, 16px prevents iOS zoom */
-  .profile-form .form-input,
+  /* Profile form selects: 44px touch targets, 16px prevents iOS zoom */
   .profile-form .form-select {
     min-height: 44px;
     font-size: var(--text-lg);
@@ -4258,8 +4144,7 @@ textarea:focus-visible {
     min-width: 44px;
   }
 
-  /* Form-input/form-select global mobile: 44px + iOS zoom prevention */
-  .form-input,
+  /* Form-select global mobile: 44px + iOS zoom prevention */
   .form-select {
     min-height: 44px;
     font-size: var(--text-lg);
@@ -4974,7 +4859,6 @@ tr.status-overdue .status-label,
 
 /* ===== Form Controls ===== */
 
-.form-input,
 .form-select {
   padding: 8px 12px;
   border: 1px solid var(--border);
@@ -4987,22 +4871,9 @@ tr.status-overdue .status-label,
   transition: border-color var(--duration-normal) var(--ease-out),
               box-shadow var(--duration-normal) var(--ease-out);
 }
-.form-input:focus,
 .form-select:focus {
   border-color: var(--accent);
   box-shadow: var(--focus-ring), 0 0 0 1px rgba(0, 0, 0, 0.03);
-}
-
-.form-input::placeholder {
-  color: var(--text-muted);
-}
-
-/* Form field hints */
-.form-hint {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  margin-top: 4px;
-  line-height: var(--leading-snug);
 }
 
 /* Filter chip bar — single row: search flexes, pills anchored right */
@@ -5174,10 +5045,6 @@ tr.status-overdue .status-label,
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-.filter-bar .form-input {
-  flex: 1;
-  min-width: 180px;
 }
 
 /* Alert banners */
@@ -5882,9 +5749,6 @@ textarea {
   margin-left: auto;
   align-items: center;
 }
-.booking-filters .form-input {
-  min-width: 200px;
-}
 
 .filter-active-dot {
   width: 6px;
@@ -5923,7 +5787,6 @@ textarea {
     flex-direction: column;
   }
 
-  .booking-filters .form-input,
   .booking-filters .form-select {
     min-width: 0;
     width: 100%;
@@ -6101,12 +5964,6 @@ tr.returned-row { opacity: 0.55; }
     justify-content: center;
   }
 
-  /* Form inputs: 44px minimum touch target */
-  .field-compact input,
-  .field-compact select {
-    min-height: 44px;
-    font-size: var(--text-lg); /* prevents iOS zoom on focus */
-  }
 
   /* Section tabs: 44px touch target */
   .section-tab {

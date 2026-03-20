@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Input } from "@/components/ui/input";
 import type { AssetDetail, CategoryOption } from "./types";
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -309,11 +310,11 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
             </div>
             {manualEntry && (
               <div className="flex gap-6 mt-8">
-                <input
+                <Input
                   value={qrDraft}
                   onChange={(e) => setQrDraft(e.target.value)}
                   placeholder="Paste or type QR code..."
-                  className="form-input flex-1"
+                  className="flex-1"
                   onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
                   autoFocus
                 />

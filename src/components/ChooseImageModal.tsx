@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useConfirm } from "./ConfirmDialog";
 import { useToast } from "./Toast";
+import { Input } from "@/components/ui/input";
 
 type Props = {
   open: boolean;
@@ -186,9 +187,8 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
           {/* Paste URL tab */}
           {tab === "url" && (
             <div>
-              <input
+              <Input
                 type="url"
-                className="form-input"
                 placeholder="https://example.com/product-image.jpg"
                 value={url}
                 onChange={(e) => handleUrlChange(e.target.value)}

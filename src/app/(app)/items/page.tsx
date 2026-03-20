@@ -7,6 +7,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
+import { Input } from "@/components/ui/input";
 
 type ActiveBooking = {
   id: string;
@@ -216,9 +217,9 @@ function CreateItemCard({
         {kind === "serialized" ? (
           <>
             <div className="grid-3col">
-              <input name="assetTag" placeholder="Tag name *" required className="form-input" />
-              <input name="itemName" placeholder="Product name" className="form-input" />
-              <select name="categoryId" className="form-input">
+              <Input name="assetTag" placeholder="Tag name *" required />
+              <Input name="itemName" placeholder="Product name" />
+              <select name="categoryId" className="form-select">
                 <option value="">Category</option>
                 {categories.filter((c) => !c.parentId).map((parent) => (
                   <optgroup key={parent.id} label={parent.name}>
@@ -232,14 +233,14 @@ function CreateItemCard({
                 ))}
               </select>
               <input name="type" type="hidden" defaultValue="equipment" />
-              <select name="locationId" required className="form-input">
+              <select name="locationId" required className="form-select">
                 <option value="">Location *</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              <input name="brand" placeholder="Brand *" required className="form-input" />
-              <input name="model" placeholder="Model *" required className="form-input" />
-              <input name="serialNumber" placeholder="Serial number *" required className="form-input" />
-              <input name="qrCodeValue" placeholder="QR code value *" required className="form-input" />
+              <Input name="brand" placeholder="Brand *" required />
+              <Input name="model" placeholder="Model *" required />
+              <Input name="serialNumber" placeholder="Serial number *" required />
+              <Input name="qrCodeValue" placeholder="QR code value *" required />
             </div>
 
             <button
@@ -252,18 +253,18 @@ function CreateItemCard({
 
             {showMeta && (
               <div className="grid-3col mt-12">
-                <input name="description" placeholder="Description" className="form-input" />
-                <input name="owner" placeholder="Owner" className="form-input" />
+                <Input name="description" placeholder="Description" />
+                <Input name="owner" placeholder="Owner" />
               </div>
             )}
           </>
         ) : (
           <div className="grid-3col">
             <div>
-              <input name="name" placeholder="Product name *" required className="form-input" />
-              <div className="form-hint">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</div>
+              <Input name="name" placeholder="Product name *" required />
+              <p className="text-muted-foreground text-xs mt-1">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</p>
             </div>
-            <select name="categoryId" className="form-input">
+            <select name="categoryId" className="form-select">
               <option value="">Category</option>
               {categories.filter((c) => !c.parentId).map((parent) => (
                 <optgroup key={parent.id} label={parent.name}>
@@ -278,24 +279,24 @@ function CreateItemCard({
             </select>
             <input name="category" type="hidden" defaultValue="general" />
             <div>
-              <input name="unit" placeholder="Unit (e.g. ea, box) *" required className="form-input" />
-              <div className="form-hint">How you count them: ea, box, pack, pair, roll</div>
+              <Input name="unit" placeholder="Unit (e.g. ea, box) *" required />
+              <p className="text-muted-foreground text-xs mt-1">How you count them: ea, box, pack, pair, roll</p>
             </div>
-            <select name="locationId" required className="form-input">
+            <select name="locationId" required className="form-select">
               <option value="">Location *</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
             <div>
-              <input name="binQrCodeValue" placeholder="Bin QR code *" required className="form-input" />
-              <div className="form-hint">Scan or type the QR code on the storage bin</div>
+              <Input name="binQrCodeValue" placeholder="Bin QR code *" required />
+              <p className="text-muted-foreground text-xs mt-1">Scan or type the QR code on the storage bin</p>
             </div>
             <div>
-              <input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" className="form-input" />
-              <div className="form-hint">How many are on hand right now</div>
+              <Input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" />
+              <p className="text-muted-foreground text-xs mt-1">How many are on hand right now</p>
             </div>
             <div>
-              <input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" className="form-input" />
-              <div className="form-hint">Alert when stock falls below this</div>
+              <Input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" />
+              <p className="text-muted-foreground text-xs mt-1">Alert when stock falls below this</p>
             </div>
           </div>
         )}
@@ -623,12 +624,12 @@ export default function ItemsPage() {
 
       <div className="card">
         <div className="card-header filter-chip-bar">
-          <input
+          <Input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="form-input filter-chip-search"
+            className="filter-chip-search"
           />
           <div className="filter-chips">
             <FilterChip

@@ -3,6 +3,7 @@
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import type { SportConfig, ShiftConfig } from "./types";
 import { AREAS, AREA_LABELS, defaultShiftConfigs } from "./types";
+import { Input } from "@/components/ui/input";
 
 export default function ShiftConfigTable({
   configs,
@@ -70,7 +71,7 @@ export default function ShiftConfigTable({
                     <td key={area} style={{ textAlign: "center" }}>
                       {isActive ? (
                         <span className="text-sm">
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             max={20}
@@ -78,13 +79,12 @@ export default function ShiftConfigTable({
                             onChange={(e) =>
                               onUpdateShift(code, area, "homeCount", Math.max(0, parseInt(e.target.value) || 0))
                             }
-                            className="form-input"
                             style={{ width: 40, textAlign: "center", display: "inline-block" }}
                             title="Home"
                             disabled={saving?.startsWith(code + "-" + area) ?? false}
                           />
                           <span className="text-secondary mx-4">/</span>
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             max={20}
@@ -92,7 +92,6 @@ export default function ShiftConfigTable({
                             onChange={(e) =>
                               onUpdateShift(code, area, "awayCount", Math.max(0, parseInt(e.target.value) || 0))
                             }
-                            className="form-input"
                             style={{ width: 40, textAlign: "center", display: "inline-block" }}
                             title="Away"
                             disabled={saving?.startsWith(code + "-" + area) ?? false}
@@ -147,7 +146,7 @@ export default function ShiftConfigTable({
                       <div key={area} className="sport-mobile-shift-row">
                         <span className="text-sm text-secondary">{AREA_LABELS[area]}</span>
                         <span className="text-sm">
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             max={20}
@@ -155,12 +154,11 @@ export default function ShiftConfigTable({
                             onChange={(e) =>
                               onUpdateShift(code, area, "homeCount", Math.max(0, parseInt(e.target.value) || 0))
                             }
-                            className="form-input"
                             style={{ width: 44, textAlign: "center", display: "inline-block" }}
                             disabled={saving?.startsWith(code + "-" + area) ?? false}
                           />
                           <span className="text-secondary mx-4">/</span>
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             max={20}
@@ -168,7 +166,6 @@ export default function ShiftConfigTable({
                             onChange={(e) =>
                               onUpdateShift(code, area, "awayCount", Math.max(0, parseInt(e.target.value) || 0))
                             }
-                            className="form-input"
                             style={{ width: 44, textAlign: "center", display: "inline-block" }}
                             disabled={saving?.startsWith(code + "-" + area) ?? false}
                           />

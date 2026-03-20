@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -51,9 +53,9 @@ export default function ForgotPasswordPage() {
           </>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="email">Email address</label>
-              <input
+            <div className="mb-4 space-y-1.5">
+              <Label htmlFor="email">Email address</Label>
+              <Input
                 id="email"
                 type="email"
                 value={email}
@@ -61,10 +63,11 @@ export default function ForgotPasswordPage() {
                 placeholder="you@example.com"
                 required
                 autoFocus
+                className="h-11 text-base"
               />
             </div>
 
-            {error && <div className="form-error" role="alert">{error}</div>}
+            {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
 
             <button type="submit" className="login-btn" disabled={loading}>
               {loading ? "Sending..." : "Send reset link"}

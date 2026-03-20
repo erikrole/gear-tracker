@@ -77,11 +77,14 @@ Components to **keep custom** (no shadcn equivalent or too domain-specific):
 - [x] Removed ~55 lines of CSS: `.empty-state*`, `.loading-spinner`, `.spinner`, `.btn-spinner`, `@keyframes spin`
 - [x] Build passes, zero regressions
 
-### Slice 4: Form Components
-- [ ] Add `Input`, `Label`, `Field`, `Select`, `Checkbox`, `Switch`, `Textarea`
-- [ ] Migrate settings forms and booking forms to use shadcn form primitives
-- [ ] Replace `.form-group` CSS pattern with shadcn Field component
-- [ ] Build passes
+### Slice 4: Form Components ✅ SHIPPED
+- [x] Added shadcn `Input`, `Label`, `Textarea`, `Checkbox` to `src/components/ui/`
+- [x] Migrated auth forms (login, register, forgot-password, reset-password) — `form-group` → Tailwind, `<input>` → `<Input>`, inline SVGs → lucide icons, native checkbox → shadcn Checkbox
+- [x] Migrated app forms (~16 files): profile, users, settings, items, events, bulk-inventory, search, booking filters, shift detail, choose image modal, booking edit form, create booking card
+- [x] Replaced `.form-group`, `.field-compact`, `.sheet-field`, `.form-error`, `.field-error`, `.form-hint`, `.form-label`, `.form-input` CSS with Tailwind utilities + shadcn components
+- [x] Kept `.form-select` (still used for native `<select>` elements), `.form-grid`, `.profile-form`
+- [x] Removed ~120 lines of CSS
+- [x] Build passes, zero regressions
 
 ### Slice 5: Advanced Components (future)
 - [ ] `Sheet` (for BookingDetailsSheet refinement)
