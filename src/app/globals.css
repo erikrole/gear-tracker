@@ -834,44 +834,6 @@ textarea:focus-visible {
 }
 
 /* ===== Buttons ===== */
-/* ===== Cards ===== */
-.card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--duration-normal) var(--ease-out),
-              transform var(--duration-normal) var(--ease-out);
-}
-
-.card:hover {
-  box-shadow: var(--shadow);
-}
-
-.card-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-light);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.card-header-wrap {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.card-header h2 {
-  font-family: var(--font-heading);
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-wide);
-  line-height: var(--leading-tight);
-  margin: 0;
-}
-
-.card-body {
-  padding: 20px;
-}
 
 /* ===== Dashboard Grid (legacy) ===== */
 .dashboard-grid {
@@ -1264,9 +1226,6 @@ textarea:focus-visible {
 }
 
 /* ── Ops Row (clickable list items) ── */
-.card-body-compact {
-  padding: 4px 0;
-}
 
 .ops-row {
   display: flex;
