@@ -6,15 +6,14 @@ Last updated: 2026-03-20
 
 ## Active Work
 
-### shadcn/ui Slice 3: Spinner, Empty, Item Components
+### shadcn/ui Slice 4: Form Components Migration
 
-- [x] Add shadcn Spinner, Empty, Separator, Item to `src/components/ui/`
-- [x] Migrate `EmptyState.tsx` (14 usages) → shadcn Empty (preserve 8 icon variants via lucide-react)
-- [x] Migrate raw `empty-state` CSS class usages (~25 sites) → Tailwind utility classes
-- [x] Migrate `.loading-spinner` + `.spinner` pattern (~21 files) → shadcn Spinner
-- [x] Remove old CSS: `.empty-state`, `.loading-spinner`, `.spinner`, `.btn-spinner`
-- [x] `npm run build` — verify zero regressions
-- [ ] Commit & push
+- [ ] Step 1: Add shadcn form primitives (Input, Label, Textarea, Checkbox, Select)
+- [ ] Step 2: Migrate auth forms (register, login, forgot-password, reset-password)
+- [ ] Step 3: Migrate app forms (~16 files)
+- [ ] Step 4: CSS cleanup + doc sync
+
+See `tasks/shadcn-slice4-plan.md` for full details.
 
 ### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
 
