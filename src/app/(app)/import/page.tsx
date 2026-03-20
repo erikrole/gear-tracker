@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 /* ───── Types ───── */
 
@@ -357,8 +359,8 @@ export default function ImportPage() {
 
       {/* ── Upload step ── */}
       {step === "upload" && (
-        <div className="card">
-          <div className="card-header"><h2>Upload CSV file</h2></div>
+        <Card>
+          <CardHeader><CardTitle>Upload CSV file</CardTitle></CardHeader>
           <div className="p-24">
             <div
               onDrop={handleDrop}
@@ -408,19 +410,19 @@ export default function ImportPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Column mapping step ── */}
       {step === "mapping" && csvHeaders.length > 0 && (
         <>
-          <div className="card mb-16">
-            <div className="card-header">
-              <h2>Map CSV columns to fields</h2>
+          <Card className="mb-16">
+            <CardHeader>
+              <CardTitle>Map CSV columns to fields</CardTitle>
               <span className="text-secondary text-sm">
                 {Object.values(mapping).filter(Boolean).length} of {csvHeaders.length} columns mapped
               </span>
-            </div>
+            </CardHeader>
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
@@ -454,7 +456,7 @@ export default function ImportPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
           <div className="flex-end gap-8">
             <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
@@ -483,14 +485,14 @@ export default function ImportPage() {
 
           {/* New entities to create */}
           {(preview.summary.newLocations.length > 0 || preview.summary.newDepartments.length > 0 || preview.summary.kits.length > 0) && (
-            <div className="card mb-16">
-              <div className="card-header"><h2>Will be auto-created</h2></div>
+            <Card className="mb-16">
+              <CardHeader><CardTitle>Will be auto-created</CardTitle></CardHeader>
               <div className="p-16 flex flex-wrap gap-16">
                 {preview.summary.newLocations.length > 0 && (
                   <div>
                     <div className="font-semibold text-sm mb-4">New Locations</div>
                     {preview.summary.newLocations.map((l) => (
-                      <span key={l} className="badge badge-blue mr-4 mb-4">{l}</span>
+                      <Badge key={l} variant="blue" className="mr-4 mb-4">{l}</Badge>
                     ))}
                   </div>
                 )}
@@ -498,7 +500,7 @@ export default function ImportPage() {
                   <div>
                     <div className="font-semibold text-sm mb-4">New Departments</div>
                     {preview.summary.newDepartments.map((d) => (
-                      <span key={d} className="badge badge-purple mr-4 mb-4">{d}</span>
+                      <Badge key={d} variant="purple" className="mr-4 mb-4">{d}</Badge>
                     ))}
                   </div>
                 )}
@@ -506,19 +508,19 @@ export default function ImportPage() {
                   <div>
                     <div className="font-semibold text-sm mb-4">Kits</div>
                     {preview.summary.kits.map((k) => (
-                      <span key={k} className="badge badge-orange mr-4 mb-4">{k}</span>
+                      <Badge key={k} variant="orange" className="mr-4 mb-4">{k}</Badge>
                     ))}
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Preview table */}
-          <div className="card">
-            <div className="card-header">
-              <h2>Preview ({preview.rows.length}{preview.totalRows > 200 ? ` of ${preview.totalRows}` : ""} rows)</h2>
-            </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Preview ({preview.rows.length}{preview.totalRows > 200 ? ` of ${preview.totalRows}` : ""} rows)</CardTitle>
+            </CardHeader>
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
@@ -549,16 +551,16 @@ export default function ImportPage() {
                       <td className="text-xs text-secondary">{row.line}</td>
                       <td>
                         {row.action === "create" ? (
-                          <span className="badge badge-green">new</span>
+                          <Badge variant="green">new</Badge>
                         ) : row.action === "update" ? (
-                          <span className="badge badge-blue">update</span>
+                          <Badge variant="blue">update</Badge>
                         ) : (
-                          <span className="badge badge-red">skip</span>
+                          <Badge variant="red">skip</Badge>
                         )}
                       </td>
                       <td className="font-semibold">
                         {row.assetTag}
-                        {row.assetTagDeduped && <span className="badge badge-orange ml-4" style={{ fontSize: "var(--text-2xs)" }}>renamed</span>}
+                        {row.assetTagDeduped && <Badge variant="orange" size="sm" className="ml-4">renamed</Badge>}
                       </td>
                       <td>{row.brand}</td>
                       <td>{row.model}</td>
@@ -567,11 +569,11 @@ export default function ImportPage() {
                       <td>{row.locationName}</td>
                       <td>
                         {row.errors.length > 0 ? (
-                          <span className="badge badge-red" title={row.errors.join(", ")}>error</span>
+                          <Badge variant="red" title={row.errors.join(", ")}>error</Badge>
                         ) : row.retired ? (
-                          <span className="badge badge-gray">retired</span>
+                          <Badge variant="gray">retired</Badge>
                         ) : (
-                          <span className="badge badge-green">ok</span>
+                          <Badge variant="green">ok</Badge>
                         )}
                       </td>
                     </tr>
@@ -579,7 +581,7 @@ export default function ImportPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
           <div className="flex-end gap-8 mt-16">
             <Button variant="outline" onClick={() => setStep("mapping")}>Back to mapping</Button>
@@ -596,7 +598,7 @@ export default function ImportPage() {
 
       {/* ── Importing step ── */}
       {step === "importing" && (
-        <div className="card">
+        <Card>
           <div className="p-48 text-center">
             <div className="flex items-center justify-center py-10">
               <Spinner className="size-8" />
@@ -606,7 +608,7 @@ export default function ImportPage() {
               Creating locations, departments, kits, and assets
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Summary step ── */}
@@ -620,13 +622,13 @@ export default function ImportPage() {
           </div>
 
           {result.errors.length > 0 && (
-            <div className="card mb-16">
-              <div className="card-header">
-                <h2>Errors ({result.errors.length})</h2>
+            <Card className="mb-16">
+              <CardHeader>
+                <CardTitle>Errors ({result.errors.length})</CardTitle>
                 <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
                   Download error CSV
                 </Button>
-              </div>
+              </CardHeader>
               <div className="overflow-x-auto" style={{ maxHeight: 300 }}>
                 <table className="data-table">
                   <thead>
@@ -647,10 +649,10 @@ export default function ImportPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Card>
           )}
 
-          <div className="card">
+          <Card>
             <div className="p-24 text-center">
               <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>
                 {result.created + result.updated > 0 ? "Import complete" : "No items imported"}
@@ -663,7 +665,7 @@ export default function ImportPage() {
                 <Button asChild><a href="/items" className="no-underline">View items</a></Button>
               </div>
             </div>
-          </div>
+          </Card>
         </>
       )}
     </>
@@ -682,11 +684,11 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="card p-16 text-center">
+    <Card className="p-16 text-center">
       <div className="metric-value" style={{ color: warn ? "var(--red)" : color || "var(--text-primary)" }}>
         {value}
       </div>
       <div className="metric-label">{label}</div>
-    </div>
+    </Card>
   );
 }

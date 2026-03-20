@@ -10,6 +10,8 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 type Checkout = {
   id: string;
@@ -24,12 +26,12 @@ type Checkout = {
   allowedActions: CheckoutAction[];
 };
 
-const statusBadgeClass: Record<string, string> = {
-  DRAFT: "badge-gray",
-  BOOKED: "badge-blue",
-  OPEN: "badge-green",
-  COMPLETED: "badge-purple",
-  CANCELLED: "badge-red",
+const statusBadgeVariant: Record<string, BadgeProps["variant"]> = {
+  DRAFT: "gray",
+  BOOKED: "blue",
+  OPEN: "green",
+  COMPLETED: "purple",
+  CANCELLED: "red",
 };
 
 export default function CheckoutDetailsPage() {
@@ -209,8 +211,8 @@ export default function CheckoutDetailsPage() {
       <div className="page-header" style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1>{checkout.title}</h1>
-          <span className={`badge ${statusBadgeClass[checkout.status] || "badge-gray"}`}>{checkout.status.toLowerCase()}</span>
-          {isOverdue && <span className="badge badge-red">overdue</span>}
+          <Badge variant={statusBadgeVariant[checkout.status] || "gray"}>{checkout.status.toLowerCase()}</Badge>
+          {isOverdue && <Badge variant="red">overdue</Badge>}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canEdit && (
@@ -264,7 +266,7 @@ export default function CheckoutDetailsPage() {
       )}
 
       {showExtend && (
-        <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+        <Card style={{ padding: 16, marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <label style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>New end date:</label>
             <input
@@ -279,12 +281,12 @@ export default function CheckoutDetailsPage() {
             </Button>
             <Button variant="outline" size="sm" onClick={() => { setShowExtend(false); setExtendDate(""); }}>Cancel</Button>
           </div>
-        </div>
+        </Card>
       )}
 
       <div className="details-grid">
-        <div className="card details-card">
-          <div className="card-header"><h2>Checkout details</h2></div>
+        <Card className="details-card">
+          <CardHeader><CardTitle>Checkout details</CardTitle></CardHeader>
           <div style={{ padding: 16 }}>
             <DataList
               items={[
@@ -296,17 +298,17 @@ export default function CheckoutDetailsPage() {
               ]}
             />
           </div>
-        </div>
+        </Card>
 
-        <div className="card details-card">
-          <div className="card-header" style={{ justifyContent: "space-between" }}>
-            <h2>Equipment</h2>
+        <Card className="details-card">
+          <CardHeader style={{ justifyContent: "space-between" }}>
+            <CardTitle>Equipment</CardTitle>
             {canCheckin && checkinIds.size > 0 && (
               <Button size="sm" onClick={handleCheckinSelected} disabled={!!actionLoading}>
                 {actionLoading === "checkin" ? "Returning..." : `Return ${checkinIds.size} item${checkinIds.size > 1 ? "s" : ""}`}
               </Button>
             )}
-          </div>
+          </CardHeader>
           {checkout.serializedItems.length === 0 && checkout.bulkItems.length === 0 ? (
             <div className="py-10 px-5 text-center text-muted-foreground">No items in this checkout.</div>
           ) : (
@@ -435,7 +437,7 @@ export default function CheckoutDetailsPage() {
               })}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </>
   );

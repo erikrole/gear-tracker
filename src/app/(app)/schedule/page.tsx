@@ -12,6 +12,8 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 /* ───── Types ───── */
 
@@ -62,10 +64,10 @@ const AREA_LABELS: Record<string, string> = {
   COMMS: "Comms",
 };
 
-function coverageClass(pct: number): string {
-  if (pct >= 100) return "badge-green";
-  if (pct > 0) return "badge-orange";
-  return "badge-red";
+function coverageVariant(pct: number): BadgeProps["variant"] {
+  if (pct >= 100) return "green";
+  if (pct > 0) return "orange";
+  return "red";
 }
 
 function coverageDot(pct: number): string {
@@ -302,17 +304,17 @@ export default function SchedulePage() {
 
       {/* Calendar view */}
       {viewMode === "calendar" && (
-        <div className="card mb-16">
-          <div className="card-header flex-between">
+        <Card className="mb-16">
+          <CardHeader className="flex-between">
             <div className="flex-center gap-8">
               <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
-              <h2 className="text-center" style={{ minWidth: 160 }}>
+              <CardTitle className="text-center" style={{ minWidth: 160 }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-              </h2>
+              </CardTitle>
               <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
             </div>
             <Button variant="outline" size="sm" onClick={goCalToday}>Today</Button>
-          </div>
+          </CardHeader>
           <div className="p-16">
             <div className="cal-mobile-notice hidden">
               Switch to List view for the best mobile experience.
@@ -359,15 +361,15 @@ export default function SchedulePage() {
               ))}
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* List view */}
       {viewMode === "list" && (
-        <div className="card">
-          <div className="card-header">
-            <h2>Upcoming Shifts ({filteredGroups.length})</h2>
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Shifts ({filteredGroups.length})</CardTitle>
+          </CardHeader>
 
           {loading ? (
             <SkeletonTable rows={6} cols={7} />
@@ -405,7 +407,7 @@ export default function SchedulePage() {
                           {g.event.summary}
                         </span>
                         {g.isPremier && (
-                          <span className="badge badge-blue ml-4" style={{ fontSize: "var(--text-2xs)" }}>Premier</span>
+                          <Badge variant="blue" size="sm" className="ml-4">Premier</Badge>
                         )}
                       </td>
                       <td className="text-nowrap">
@@ -414,7 +416,7 @@ export default function SchedulePage() {
                       </td>
                       <td>
                         {g.event.sportCode && (
-                          <span className="badge badge-gray">{g.event.sportCode}</span>
+                          <Badge variant="gray">{g.event.sportCode}</Badge>
                         )}
                       </td>
                       {AREAS.map((area) => {
@@ -423,9 +425,9 @@ export default function SchedulePage() {
                         return (
                           <td key={area} className="text-center">
                             <div className="flex flex-col items-center gap-1">
-                              <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`}>
+                              <Badge variant={coverageVariant(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}>
                                 {ac.filled}/{ac.total}
-                              </span>
+                              </Badge>
                               {ac.assignedUsers.length > 0 && (
                                 <AvatarGroup max={3}>
                                   {ac.assignedUsers.map((u) => (
@@ -442,9 +444,9 @@ export default function SchedulePage() {
                         );
                       })}
                       <td className="text-center">
-                        <span className={`badge ${coverageClass(g.coverage.percentage)}`}>
+                        <Badge variant={coverageVariant(g.coverage.percentage)}>
                           {g.coverage.percentage}%
-                        </span>
+                        </Badge>
                       </td>
                     </tr>
                   ))}
@@ -457,14 +459,14 @@ export default function SchedulePage() {
                   <div key={g.id} className="schedule-mobile-card" onClick={() => setSelectedGroupId(g.id)} style={{ cursor: "pointer" }}>
                     <div className="flex-between mb-4">
                       <span className="font-semibold">{g.event.summary}</span>
-                      <span className={`badge ${coverageClass(g.coverage.percentage)}`}>
+                      <Badge variant={coverageVariant(g.coverage.percentage)}>
                         {g.coverage.filled}/{g.coverage.total}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="text-xs text-secondary flex gap-8">
                       <span>{formatDateShort(g.event.startsAt)} {formatTimeShort(g.event.startsAt)}</span>
-                      {g.event.sportCode && <span className="badge badge-gray">{g.event.sportCode}</span>}
-                      {g.isPremier && <span className="badge badge-blue">Premier</span>}
+                      {g.event.sportCode && <Badge variant="gray">{g.event.sportCode}</Badge>}
+                      {g.isPremier && <Badge variant="blue">Premier</Badge>}
                     </div>
                     <div className="flex gap-8 mt-4">
                       {AREAS.map((area) => {
@@ -472,7 +474,7 @@ export default function SchedulePage() {
                         if (ac.total === 0) return null;
                         return (
                           <span key={area} className="text-xs">
-                            {AREA_LABELS[area]}: <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`} style={{ fontSize: "var(--text-2xs)" }}>{ac.filled}/{ac.total}</span>
+                            {AREA_LABELS[area]}: <Badge variant={coverageVariant(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)} size="sm">{ac.filled}/{ac.total}</Badge>
                           </span>
                         );
                       })}
@@ -482,7 +484,7 @@ export default function SchedulePage() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Shift detail panel */}

@@ -6,6 +6,8 @@ import { sportLabel } from "@/lib/sports";
 import type { UserDetail, Location, Role } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import RoleBadge from "../RoleBadge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 /* ── Editable Text Field ───────────────────────────────── */
 
@@ -199,11 +201,11 @@ export default function UserInfoTab({
   return (
     <div className="details-grid mt-14">
       {/* Profile Card */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Profile</h2>
-        </div>
-        <dl className="card-body-compact">
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 py-1">
           <EditableField
             label="Name"
             value={user.name}
@@ -253,15 +255,15 @@ export default function UserInfoTab({
             allowEmpty
             emptyLabel="Not assigned"
           />
-        </dl>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Assignments Card */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Assignments</h2>
-        </div>
-        <div className="card-body">
+      <Card>
+        <CardHeader>
+          <CardTitle>Assignments</CardTitle>
+        </CardHeader>
+        <CardContent>
           {/* Sport Assignments */}
           <h3 className="text-sm font-semibold text-secondary mb-8">Sports</h3>
           {user.sportAssignments.length === 0 ? (
@@ -269,9 +271,9 @@ export default function UserInfoTab({
           ) : (
             <div className="assignment-chips mb-16">
               {user.sportAssignments.map((sa) => (
-                <span key={sa.id} className="badge-sm badge-blue">
+                <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}
-                </span>
+                </Badge>
               ))}
             </div>
           )}
@@ -283,15 +285,15 @@ export default function UserInfoTab({
           ) : (
             <div className="assignment-chips">
               {user.areaAssignments.map((aa) => (
-                <span key={aa.id} className={`badge-sm ${aa.isPrimary ? "badge-purple" : "badge-gray"}`}>
+                <Badge key={aa.id} variant={aa.isPrimary ? "purple" : "gray"} size="sm">
                   {AREA_LABELS[aa.area] || aa.area}
                   {aa.isPrimary && " (Primary)"}
-                </span>
+                </Badge>
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

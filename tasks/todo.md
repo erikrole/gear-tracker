@@ -6,14 +6,14 @@ Last updated: 2026-03-20
 
 ## Active Work
 
-### shadcn/ui Slice 4: Form Components Migration
+### shadcn/ui Advanced Components (future slices)
 
-- [ ] Step 1: Add shadcn form primitives (Input, Label, Textarea, Checkbox, Select)
-- [ ] Step 2: Migrate auth forms (register, login, forgot-password, reset-password)
-- [ ] Step 3: Migrate app forms (~16 files)
-- [ ] Step 4: CSS cleanup + doc sync
+- [ ] `Command` + `Combobox` (for search/filter upgrades)
+- [ ] `Dropdown Menu` + `Context Menu` (for booking context menu)
+- [ ] `Data Table` (for items/users/reports tables)
+- [ ] `Calendar` + `Date Picker` (for reservation date selection)
 
-See `tasks/shadcn-slice4-plan.md` for full details.
+See `tasks/shadcn-integration-plan.md` for full history.
 
 ### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
 
@@ -31,6 +31,12 @@ See `tasks/shadcn-slice4-plan.md` for full details.
 
 ## Recently Shipped
 
+- [x] **shadcn/ui Slice 5.4** — Tabs migration + btn/badge CSS cleanup (2026-03-20)
+- [x] **shadcn/ui Slice 5.3** — Sheet migration (BookingDetailsSheet, ShiftDetailPanel, scan page) (2026-03-20)
+- [x] **shadcn/ui Slice 5.2** — Card migration across 20+ pages (2026-03-20)
+- [x] **shadcn/ui Slice 5.1** — Button migration (182+ usages), Badge migration (2026-03-20)
+- [x] **shadcn/ui Slice 4** — Form components (Input, Label, Textarea, Checkbox) (2026-03-20)
+- [x] **shadcn/ui Slice 3** — Empty, Spinner, Item, Separator (2026-03-20)
 - [x] **shadcn/ui Slice 2** — Dialog, AlertDialog, Sonner migration (2026-03-20)
 - [x] **shadcn/ui Slice 1.5** — Avatar & AvatarGroup (2026-03-20)
 - [x] **shadcn/ui Slice 1** — Foundation + Button/Badge/Skeleton (2026-03-20)

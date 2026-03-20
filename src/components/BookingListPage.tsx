@@ -10,6 +10,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 import {
   SortHeader,
@@ -503,7 +504,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       )}
 
       {/* ════════ Filter bar + list ════════ */}
-      <div className="card">
+      <Card>
         <BookingFilters
           config={config}
           search={search}
@@ -585,7 +586,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
             )}
           </>
         )}
-      </div>
+      </Card>
 
       {/* ════════ Context menu ════════ */}
       <BookingContextMenu

@@ -10,6 +10,9 @@ import { formatDateTime } from "@/lib/format";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /* ───── Types ───── */
 
@@ -78,12 +81,12 @@ function formatRelative(iso: string) {
   return `${days}d ago`;
 }
 
-const statusBadgeClass: Record<string, string> = {
-  DRAFT: "badge-gray",
-  BOOKED: "badge-blue",
-  OPEN: "badge-green",
-  COMPLETED: "badge-purple",
-  CANCELLED: "badge-red",
+const statusBadgeVariant: Record<string, BadgeProps["variant"]> = {
+  DRAFT: "gray",
+  BOOKED: "blue",
+  OPEN: "green",
+  COMPLETED: "purple",
+  CANCELLED: "red",
 };
 
 const actionLabels: Record<string, string> = {
@@ -374,12 +377,12 @@ export default function ReservationDetailsPage() {
       <div className="page-header" style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1>{reservation.title}</h1>
-          <span
-            className={`badge ${statusBadgeClass[reservation.status] || "badge-gray"}`}
+          <Badge
+            variant={statusBadgeVariant[reservation.status] || "gray"}
           >
             {reservation.status.toLowerCase()}
-          </span>
-          {isOverdue && <span className="badge badge-red">overdue</span>}
+          </Badge>
+          {isOverdue && <Badge variant="red">overdue</Badge>}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canConvert && (
@@ -441,7 +444,7 @@ export default function ReservationDetailsPage() {
 
       {/* Extend panel */}
       {showExtend && (
-        <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+        <Card style={{ padding: 16, marginBottom: 12 }}>
           <div
             style={{
               display: "flex",
@@ -499,29 +502,27 @@ export default function ReservationDetailsPage() {
               </Button>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Tabs */}
-      <div className="tab-bar" style={{ marginBottom: 16 }}>
-        {(["info", "equipment", "history"] as TabKey[]).map((t) => (
-          <button
-            key={t}
-            className={`tab-btn ${tab === t ? "active" : ""}`}
-            onClick={() => setTab(t)}
-          >
-            {t === "info"
-              ? "Info"
-              : t === "equipment"
-                ? `Equipment (${itemCount})`
-                : "History"}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="mb-4">
+        <TabsList>
+          {(["info", "equipment", "history"] as TabKey[]).map((t) => (
+            <TabsTrigger key={t} value={t}>
+              {t === "info"
+                ? "Info"
+                : t === "equipment"
+                  ? `Equipment (${itemCount})`
+                  : "History"}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* ── Info Tab ── */}
       {tab === "info" && (
-        <div className="card details-card">
+        <Card className="details-card">
           <div style={{ padding: 16 }}>
             <DataList
               items={[
@@ -529,11 +530,11 @@ export default function ReservationDetailsPage() {
                 {
                   label: "Status",
                   value: (
-                    <span
-                      className={`badge ${statusBadgeClass[reservation.status] || "badge-gray"}`}
+                    <Badge
+                      variant={statusBadgeVariant[reservation.status] || "gray"}
                     >
                       {reservation.status.toLowerCase()}
-                    </span>
+                    </Badge>
                   ),
                 },
                 { label: "Location", value: reservation.location?.name ?? "\u2014" },
@@ -577,12 +578,12 @@ export default function ReservationDetailsPage() {
                 </div>
               )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Equipment Tab ── */}
       {tab === "equipment" && (
-        <div className="card details-card">
+        <Card className="details-card">
           {/* Search */}
           {itemCount > 3 && (
             <div style={{ padding: "12px 16px 0" }}>
@@ -652,12 +653,12 @@ export default function ReservationDetailsPage() {
               </tbody>
             </table>
           )}
-        </div>
+        </Card>
       )}
 
       {/* ── History Tab ── */}
       {tab === "history" && (
-        <div className="card details-card" style={{ padding: 16 }}>
+        <Card className="details-card" style={{ padding: 16 }}>
           {/* Filter chips */}
           <div className="filter-chips" style={{ marginBottom: 12 }}>
             {(
@@ -792,7 +793,7 @@ export default function ReservationDetailsPage() {
               </div>
             ))
           )}
-        </div>
+        </Card>
       )}
     </>
   );

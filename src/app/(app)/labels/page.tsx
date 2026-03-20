@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
 
 function LabelQRCode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -78,8 +79,8 @@ export default function LabelsPage() {
       </div>
 
       {/* Selection UI (hidden when printing) */}
-      <div className="card no-print" style={{ marginBottom: 16 }}>
-        <div className="card-header" style={{ gap: 12 }}>
+      <Card className="no-print" style={{ marginBottom: 16 }}>
+        <CardHeader style={{ gap: 12 }}>
           <input
             type="text"
             placeholder="Search items..."
@@ -95,7 +96,7 @@ export default function LabelsPage() {
           />
           <Button variant="outline" size="sm" onClick={selectAll}>Select all</Button>
           <Button variant="outline" size="sm" onClick={selectNone}>Clear</Button>
-        </div>
+        </CardHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
@@ -131,7 +132,7 @@ export default function LabelsPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Label grid (visible when printing) */}
       {selectedAssets.length > 0 && (

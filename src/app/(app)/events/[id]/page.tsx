@@ -10,6 +10,8 @@ import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type CalendarEvent = {
   id: string;
@@ -179,21 +181,21 @@ export default function EventDetailPage() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-        <span className={`badge ${event.status === "CANCELLED" ? "badge-red" : "badge-green"}`}>
+        <Badge variant={event.status === "CANCELLED" ? "red" : "green"}>
           {event.status.toLowerCase()}
-        </span>
+        </Badge>
         {event.sportCode && (
-          <span className="badge badge-purple">{sportLabel(event.sportCode)}</span>
+          <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>
         )}
         {event.isHome !== null && (
-          <span className={`badge ${event.isHome ? "badge-green" : "badge-orange"}`}>
+          <Badge variant={event.isHome ? "green" : "orange"}>
             {event.isHome ? "Home" : "Away"}
-          </span>
+          </Badge>
         )}
         {event.location ? (
-          <span className="badge badge-blue">{event.location.name}</span>
+          <Badge variant="blue">{event.location.name}</Badge>
         ) : (
-          <span className="badge badge-orange">needs location mapping</span>
+          <Badge variant="orange">needs location mapping</Badge>
         )}
         {event.source && (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>
@@ -217,8 +219,8 @@ export default function EventDetailPage() {
       </div>
 
       {/* Event details */}
-      <div className="card">
-        <div className="card-header"><h2>Details</h2></div>
+      <Card>
+        <CardHeader><CardTitle>Details</CardTitle></CardHeader>
         <div style={{ padding: 16 }}>
           <DataList
             items={[
@@ -246,21 +248,21 @@ export default function EventDetailPage() {
             ]}
           />
         </div>
-      </div>
+      </Card>
 
       {/* Shift coverage */}
       {shiftGroup && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-header flex-between">
-            <h2>Shift Coverage</h2>
+        <Card style={{ marginTop: 16 }}>
+          <CardHeader className="flex-between">
+            <CardTitle>Shift Coverage</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setSelectedGroupId(shiftGroup.id)}>
               Manage shifts
             </Button>
-          </div>
+          </CardHeader>
           <div style={{ padding: 16 }}>
             {shiftGroup.isPremier && (
               <div className="mb-8">
-                <span className="badge badge-blue">Premier Event</span>
+                <Badge variant="blue">Premier Event</Badge>
                 <span className="text-xs text-secondary ml-4">Students can request shifts</span>
               </div>
             )}
@@ -299,11 +301,11 @@ export default function EventDetailPage() {
                       </td>
                       <td>
                         {activeAssignment ? (
-                          <span className="badge badge-green">Filled</span>
+                          <Badge variant="green">Filled</Badge>
                         ) : pendingCount > 0 ? (
-                          <span className="badge badge-orange">{pendingCount} request{pendingCount > 1 ? "s" : ""}</span>
+                          <Badge variant="orange">{pendingCount} request{pendingCount > 1 ? "s" : ""}</Badge>
                         ) : (
-                          <span className="badge badge-red">Open</span>
+                          <Badge variant="red">Open</Badge>
                         )}
                       </td>
                     </tr>
@@ -312,30 +314,30 @@ export default function EventDetailPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Command Center (staff/admin only) */}
       {commandCenter && commandCenter.shifts.length > 0 && (currentUserRole === "STAFF" || currentUserRole === "ADMIN") && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-header">
-            <h2>Command Center</h2>
-          </div>
+        <Card style={{ marginTop: 16 }}>
+          <CardHeader>
+            <CardTitle>Command Center</CardTitle>
+          </CardHeader>
           <div style={{ padding: 16 }}>
             {/* Gear status pills */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              <span className="badge badge-gray">
+              <Badge variant="gray">
                 {commandCenter.gearSummary.byStatus.draft} Draft
-              </span>
-              <span className="badge badge-orange">
+              </Badge>
+              <Badge variant="orange">
                 {commandCenter.gearSummary.byStatus.reserved} Reserved
-              </span>
-              <span className="badge badge-green">
+              </Badge>
+              <Badge variant="green">
                 {commandCenter.gearSummary.byStatus.checkedOut} Checked out
-              </span>
-              <span className="badge badge-blue">
+              </Badge>
+              <Badge variant="blue">
                 {commandCenter.gearSummary.byStatus.completed} Returned
-              </span>
+              </Badge>
             </div>
 
             {/* Shift + gear grid */}
@@ -361,22 +363,22 @@ export default function EventDetailPage() {
                       <td>{shift.assignment ? shift.assignment.userName : <span className="text-secondary">&mdash;</span>}</td>
                       <td>
                         {shift.assignment ? (
-                          <span className="badge badge-green">Filled</span>
+                          <Badge variant="green">Filled</Badge>
                         ) : shift.pendingRequests > 0 ? (
-                          <span className="badge badge-orange">{shift.pendingRequests} req</span>
+                          <Badge variant="orange">{shift.pendingRequests} req</Badge>
                         ) : (
-                          <span className="badge badge-red">Open</span>
+                          <Badge variant="red">Open</Badge>
                         )}
                       </td>
                       <td>
                         {!shift.assignment ? (
                           <span className="text-secondary">&mdash;</span>
                         ) : hasMissingGear ? (
-                          <span className="badge badge-red">None</span>
+                          <Badge variant="red">None</Badge>
                         ) : shift.assignment.linkedBookingId ? (
-                          <span className="badge badge-green">Linked</span>
+                          <Badge variant="green">Linked</Badge>
                         ) : (
-                          <span className="badge badge-orange">Unlinked</span>
+                          <Badge variant="orange">Unlinked</Badge>
                         )}
                       </td>
                     </tr>
@@ -447,7 +449,7 @@ export default function EventDetailPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Shift detail panel */}

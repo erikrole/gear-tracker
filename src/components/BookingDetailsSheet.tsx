@@ -4,6 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -239,8 +248,6 @@ export default function BookingDetailsSheet({
   }) ?? [];
 
   /* ───── Handlers ───── */
-
-  if (!bookingId) return null;
 
   function enterEditMode() {
     if (!booking) return;
@@ -538,40 +545,33 @@ export default function BookingDetailsSheet({
   /* ───── Render ───── */
 
   return (
-    <>
-      {/* Overlay */}
-      <div className="sheet-overlay" onClick={onClose} />
-
-      {/* Panel */}
-      <div className="sheet-panel">
+    <Sheet open={!!bookingId} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent className="sm:max-w-lg">
         {/* Header */}
-        <div className="sheet-header">
-          <div>
-            <h2 className="sheet-title">
-              {booking?.refNumber && <span className="ref-number">{booking.refNumber}</span>}
-              {booking?.title || "Loading..."}
-            </h2>
-            {booking && (
-              <div className="badge-row">
-                <span className={`badge ${statusBadge[booking.status] || "badge-gray"}`}>
-                  {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
-                </span>
-                <span className="badge badge-gray">{booking.bookingType}</span>
-                {booking.locationMode === "MIXED" && (
-                  <span className="badge badge-mixed">Mixed locations</span>
-                )}
-              </div>
-            )}
-          </div>
-          <button className="sheet-close" onClick={onClose}>&times;</button>
-        </div>
+        <SheetHeader>
+          <SheetTitle>
+            {booking?.refNumber && <span className="text-muted-foreground text-sm font-normal mr-2">{booking.refNumber}</span>}
+            {booking?.title || "Loading..."}
+          </SheetTitle>
+          {booking && (
+            <div className="flex gap-2 flex-wrap mt-1">
+              <Badge variant={(statusBadge[booking.status] || "gray") as BadgeProps["variant"]}>
+                {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
+              </Badge>
+              <Badge variant="gray">{booking.bookingType}</Badge>
+              {booking.locationMode === "MIXED" && (
+                <Badge variant="mixed">Mixed locations</Badge>
+              )}
+            </div>
+          )}
+        </SheetHeader>
 
         {/* Tabs */}
-        <div className="sheet-tabs">
+        <div className="flex border-b px-6">
           {(["info", "equipment", "history"] as TabKey[]).map((t) => (
             <button
               key={t}
-              className={`sheet-tab ${tab === t ? "active" : ""}`}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
               onClick={() => setTab(t)}
             >
               {t === "info" ? "Info" : t === "equipment" ? `Equipment${booking ? ` (${booking.serializedItems.length + booking.bulkItems.length})` : ""}` : "History"}
@@ -580,7 +580,7 @@ export default function BookingDetailsSheet({
         </div>
 
         {/* Body */}
-        <div className="sheet-body">
+        <SheetBody className="px-6 py-4">
           {loading ? (
             <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
           ) : fetchError ? (
@@ -676,26 +676,28 @@ export default function BookingDetailsSheet({
               )}
             </>
           )}
-        </div>
+        </SheetBody>
 
         {/* Footer actions */}
         {booking && !editMode && !equipEditMode && (
-          <BookingActions
-            booking={booking}
-            canEdit={!!canEdit}
-            canCheckin={!!canCheckin}
-            canConvert={!!canConvert}
-            canCancel={!!canCancel}
-            checkinLoading={checkinLoading}
-            converting={converting}
-            cancelling={cancelling}
-            onEdit={enterEditMode}
-            onCheckinAll={handleCheckinAll}
-            onConvert={handleConvert}
-            onCancel={handleCancel}
-          />
+          <SheetFooter>
+            <BookingActions
+              booking={booking}
+              canEdit={!!canEdit}
+              canCheckin={!!canCheckin}
+              canConvert={!!canConvert}
+              canCancel={!!canCancel}
+              checkinLoading={checkinLoading}
+              converting={converting}
+              cancelling={cancelling}
+              onEdit={enterEditMode}
+              onCheckinAll={handleCheckinAll}
+              onConvert={handleConvert}
+              onCancel={handleCancel}
+            />
+          </SheetFooter>
         )}
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }

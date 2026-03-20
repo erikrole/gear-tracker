@@ -10,6 +10,8 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -324,17 +326,15 @@ export default function ItemDetailsPage() {
       )}
 
       {/* Tabs */}
-      <div className="item-tabs">
-        {tabDefs.map((tab) => (
-          <button
-            key={tab.key}
-            className={`item-tab ${activeTab === tab.key ? "active" : ""}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
+        <TabsList>
+          {tabDefs.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
@@ -373,12 +373,12 @@ export default function ItemDetailsPage() {
 
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
-        <div className="card mt-14">
-          <div className="card-header"><h2>Activity Log</h2></div>
-          <div className="p-16">
+        <Card className="mt-14">
+          <CardHeader><CardTitle>Activity Log</CardTitle></CardHeader>
+          <CardContent className="p-16">
             <ActivityFeed assetId={asset.id} />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Settings tab */}

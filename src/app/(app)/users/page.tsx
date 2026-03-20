@@ -8,6 +8,7 @@ import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
 import CreateUserCard from "./CreateUserCard";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const LIMIT = 50;
 
@@ -157,7 +158,7 @@ export default function UsersPage() {
       )}
 
       {/* Users List */}
-      <div className="card">
+      <Card>
         <UserFilters
           search={search}
           onSearchChange={setSearch}
@@ -239,7 +240,7 @@ export default function UsersPage() {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </>
   );
 }

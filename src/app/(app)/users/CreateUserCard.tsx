@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import type { Location } from "./types";
 
 export default function CreateUserCard({
@@ -55,13 +56,13 @@ export default function CreateUserCard({
   }
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div className="card-header flex-between">
-        <h2>Add user</h2>
+    <Card style={{ marginBottom: 16 }}>
+      <CardHeader className="flex-between">
+        <CardTitle>Add user</CardTitle>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           Cancel
         </Button>
-      </div>
+      </CardHeader>
       <form onSubmit={handleSubmit} className="p-16">
         <div className="form-grid form-grid-3">
           <Input
@@ -106,6 +107,6 @@ export default function CreateUserCard({
           </Button>
         </div>
       </form>
-    </div>
+    </Card>
   );
 }

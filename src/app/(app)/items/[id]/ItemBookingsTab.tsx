@@ -11,6 +11,7 @@ import {
 } from "@/lib/format";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 /* ── Operational Overview (Info tab dashboard cards) ─────── */
 
@@ -21,12 +22,12 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
   return (
     <div className="flex-col gap-16">
       {/* Active Checkout / Reservation Card (always visible) */}
-      <div className="card">
-        <div className="card-header">
-          <h2>{b?.kind === "RESERVATION" ? "Active Reservation" : "Active Checkout"}</h2>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{b?.kind === "RESERVATION" ? "Active Reservation" : "Active Checkout"}</CardTitle>
+        </CardHeader>
         {b ? (
-          <div className="card-body card-body-compact">
+          <CardContent className="p-0 py-1">
             <button
               className="possession-card"
               onClick={() => onSelectBooking(b.id)}
@@ -41,22 +42,22 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
                 </span>
               </div>
             </button>
-          </div>
+          </CardContent>
         ) : (
           <div className="py-16 px-5 text-center text-muted-foreground">Not currently checked out</div>
         )}
-      </div>
+      </Card>
 
       {/* Upcoming Reservations Card (always visible) */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Upcoming Reservations</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upcoming Reservations</CardTitle>
           {reservations.length > 0 && (
             <span className="section-count">{reservations.length}</span>
           )}
-        </div>
+        </CardHeader>
         {reservations.length > 0 ? (
-          <div className="card-body card-body-compact">
+          <CardContent className="p-0 py-1">
             {reservations.map((r) => {
               const pastStart = new Date(r.startsAt) < now;
               const startsToday = !pastStart && isStartingToday(r.startsAt, now);
@@ -85,11 +86,11 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
                 </button>
               );
             })}
-          </div>
+          </CardContent>
         ) : (
           <div className="py-16 px-5 text-center text-muted-foreground">No upcoming reservations</div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -118,9 +119,9 @@ export function BookingKindTab({
     <div className="flex-col gap-16 mt-14">
       {/* Active booking card at top of matching tab */}
       {showActiveCard && activeBooking && (
-        <div className="card">
-          <div className="card-header"><h2>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</h2></div>
-          <div className="card-body card-body-compact">
+        <Card>
+          <CardHeader><CardTitle>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</CardTitle></CardHeader>
+          <CardContent className="p-0 py-1">
             <button
               className="possession-card"
               onClick={() => onSelectBooking(activeBooking.id)}
@@ -135,18 +136,18 @@ export function BookingKindTab({
                 </span>
               </div>
             </button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Upcoming reservations at top of Reservations tab */}
       {showUpcoming && (
-        <div className="card">
-          <div className="card-header">
-            <h2>Upcoming Reservations</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Reservations</CardTitle>
             <span className="section-count">{asset.upcomingReservations.length}</span>
-          </div>
-          <div className="card-body card-body-compact">
+          </CardHeader>
+          <CardContent className="p-0 py-1">
             {asset.upcomingReservations.map((r) => {
               const pastStart = new Date(r.startsAt) < now;
               const startsToday = !pastStart && isStartingToday(r.startsAt, now);
@@ -175,19 +176,19 @@ export function BookingKindTab({
                 </button>
               );
             })}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Past history */}
-      <div className="card history-card">
-        <div className="card-header">
-          <h2>Past {kind === "CHECKOUT" ? "Checkouts" : "Reservations"}</h2>
+      <Card className="history-card">
+        <CardHeader>
+          <CardTitle>Past {kind === "CHECKOUT" ? "Checkouts" : "Reservations"}</CardTitle>
           {filtered.length > 0 && (
             <span className="text-xs text-secondary">Completed &amp; cancelled</span>
           )}
-        </div>
-        <div className="p-16">
+        </CardHeader>
+        <CardContent className="p-16">
           {filtered.length === 0 ? (
             <div className="py-10 px-5 text-center text-muted-foreground">No past {label} for this item.</div>
           ) : (
@@ -210,8 +211,8 @@ export function BookingKindTab({
               </div>
             ))
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -276,16 +277,16 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
 
   return (
     <div className="mt-14">
-      <div className="card">
-        <div className="card-header">
+      <Card>
+        <CardHeader>
           <div className="flex-center gap-8">
             <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
-            <h2 className="cal-month-label">{monthLabel}</h2>
+            <CardTitle className="cal-month-label">{monthLabel}</CardTitle>
             <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
           </div>
           <Button variant="outline" size="sm" onClick={goToday}>Today</Button>
-        </div>
-        <div className="p-16">
+        </CardHeader>
+        <CardContent className="p-16">
           {/* Day headers */}
           <div className="cal-grid">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
@@ -314,8 +315,8 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Legend */}
       <div className="cal-legend">

@@ -1,5 +1,7 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
+
 type MetricCardProps = {
   label: string;
   value: number | string;
@@ -9,7 +11,7 @@ type MetricCardProps = {
 
 export default function MetricCard({ label, value, color, badge }: MetricCardProps) {
   return (
-    <div className="card p-16 text-center">
+    <Card className="p-16 text-center">
       <div className="metric-value" style={color ? { color } : undefined}>
         {value}
       </div>
@@ -20,6 +22,6 @@ export default function MetricCard({ label, value, color, badge }: MetricCardPro
           label
         )}
       </div>
-    </div>
+    </Card>
   );
 }

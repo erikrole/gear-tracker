@@ -8,8 +8,16 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+} from "@/components/ui/sheet";
 
 /* ───── Types ───── */
 
@@ -85,11 +93,11 @@ const WORKER_LABELS: Record<string, string> = {
 };
 
 const STATUS_BADGES: Record<string, string> = {
-  DIRECT_ASSIGNED: "badge-blue",
-  REQUESTED: "badge-orange",
-  APPROVED: "badge-green",
-  DECLINED: "badge-red",
-  SWAPPED: "badge-gray",
+  DIRECT_ASSIGNED: "blue",
+  REQUESTED: "orange",
+  APPROVED: "green",
+  DECLINED: "red",
+  SWAPPED: "gray",
 };
 
 /* ───── Component ───── */
@@ -287,8 +295,6 @@ export default function ShiftDetailPanel({
     setActing(null);
   }
 
-  if (!groupId) return null;
-
   // Group shifts by area
   const shiftsByArea = (group?.shifts ?? []).reduce<Record<string, Shift[]>>((acc, s) => {
     const key = s.area;
@@ -303,12 +309,11 @@ export default function ShiftDetailPanel({
   });
 
   return (
-    <div className="sheet-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet-panel">
-        <div className="sheet-header">
-          <h2>{group?.event.summary ?? "Loading..."}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">&times;</button>
-        </div>
+    <Sheet open={!!groupId} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent className="sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{group?.event.summary ?? "Loading..."}</SheetTitle>
+        </SheetHeader>
 
         {loading ? (
           <div className="p-16 text-secondary">Loading shift details...</div>
@@ -320,7 +325,7 @@ export default function ShiftDetailPanel({
         ) : !group ? (
           <div className="p-16 text-secondary">Shift group not found.</div>
         ) : (
-          <div className="sheet-body">
+          <SheetBody className="px-6 py-4">
             {/* Event info */}
             <DataList
               columns={2}
@@ -332,9 +337,9 @@ export default function ShiftDetailPanel({
                   label: "Premier",
                   value: (
                     <span className="flex-center gap-4">
-                      <span className={`badge ${group.isPremier ? "badge-blue" : "badge-gray"}`}>
+                      <Badge variant={group.isPremier ? "blue" : "gray"}>
                         {group.isPremier ? "Yes" : "No"}
-                      </span>
+                      </Badge>
                       {isStaff && (
                         <Button
                           variant="outline"
@@ -386,13 +391,13 @@ export default function ShiftDetailPanel({
                           {WORKER_LABELS[shift.workerType] ?? shift.workerType}
                         </span>
                         {isAssigned ? (
-                          <span className="badge badge-green">Filled</span>
+                          <Badge variant="green">Filled</Badge>
                         ) : pendingRequests.length > 0 ? (
-                          <span className="badge badge-orange">
+                          <Badge variant="orange">
                             {pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""}
-                          </span>
+                          </Badge>
                         ) : (
-                          <span className="badge badge-red">Open</span>
+                          <Badge variant="red">Open</Badge>
                         )}
                       </div>
 
@@ -408,9 +413,9 @@ export default function ShiftDetailPanel({
                             {activeAssignment.user.name}
                           </span>
                           <div className="flex gap-4">
-                            <span className={`badge ${STATUS_BADGES[activeAssignment.status] ?? "badge-gray"}`} style={{ fontSize: "var(--text-2xs)" }}>
+                            <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">
                               {activeAssignment.status.replace("_", " ")}
-                            </span>
+                            </Badge>
                             {isStaff && (
                               <Button
                                 variant="ghost"
@@ -564,9 +569,9 @@ export default function ShiftDetailPanel({
                 <strong>Notes:</strong> {group.notes}
               </div>
             )}
-          </div>
+          </SheetBody>
         )}
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

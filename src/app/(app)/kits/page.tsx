@@ -1,6 +1,7 @@
 "use client";
 
 import EmptyState from "@/components/EmptyState";
+import { Card } from "@/components/ui/card";
 
 export default function KitsPage() {
   return (
@@ -8,13 +9,13 @@ export default function KitsPage() {
       <div className="page-header">
         <h1>Kits</h1>
       </div>
-      <div className="card">
+      <Card>
         <EmptyState
           icon="box"
           title="Kits coming soon"
           description="Group items together for easy checkout and tracking."
         />
-      </div>
+      </Card>
     </>
   );
 }

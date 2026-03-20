@@ -8,6 +8,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type CalendarSource = {
   id: string;
@@ -138,13 +140,13 @@ export default function CalendarSourcesPage() {
   }
 
   function healthBadge(source: CalendarSource) {
-    if (!source.enabled) return <span className="badge badge-gray">disabled</span>;
-    if (source.lastError) return <span className="badge badge-red" title={source.lastError}>error</span>;
-    if (!source.lastFetchedAt) return <span className="badge badge-gray">never synced</span>;
+    if (!source.enabled) return <Badge variant="gray">disabled</Badge>;
+    if (source.lastError) return <Badge variant="red" title={source.lastError}>error</Badge>;
+    if (!source.lastFetchedAt) return <Badge variant="gray">never synced</Badge>;
     const lastSync = new Date(source.lastFetchedAt);
     const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
-    if (hoursSince > 24) return <span className="badge badge-yellow">stale</span>;
-    return <span className="badge badge-green">healthy</span>;
+    if (hoursSince > 24) return <Badge variant="yellow">stale</Badge>;
+    return <Badge variant="green">healthy</Badge>;
   }
 
   return (
@@ -166,7 +168,7 @@ export default function CalendarSourcesPage() {
         </div>
 
         {showAdd && (
-          <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <Card style={{ padding: 16, marginBottom: 16 }}>
             <form onSubmit={handleAdd}>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div className="space-y-1.5">
@@ -199,19 +201,19 @@ export default function CalendarSourcesPage() {
                 </div>
               </div>
             </form>
-          </div>
+          </Card>
         )}
 
         {loading ? (
-          <div className="card" style={{ padding: 40, textAlign: "center" }}>
+          <Card style={{ padding: 40, textAlign: "center" }}>
             <Spinner className="size-8" />
-          </div>
+          </Card>
         ) : sources.length === 0 ? (
-          <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+          <Card style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
             No calendar sources configured. Add one to start syncing events.
-          </div>
+          </Card>
         ) : (
-          <div className="card">
+          <Card>
             <table className="data-table">
               <thead>
                 <tr>
@@ -278,7 +280,7 @@ export default function CalendarSourcesPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         )}
       </div>
     </div>

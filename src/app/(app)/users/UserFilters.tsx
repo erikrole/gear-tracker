@@ -1,5 +1,6 @@
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
+import { CardHeader } from "@/components/ui/card";
 import type { Location, Role } from "./types";
 import { ROLE_OPTIONS } from "./types";
 
@@ -26,7 +27,7 @@ export default function UserFilters({
   const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
 
   return (
-    <div className="card-header filter-chip-bar">
+    <CardHeader className="filter-chip-bar">
       <Input
         className="filter-chip-search"
         type="text"
@@ -57,6 +58,6 @@ export default function UserFilters({
           </button>
         )}
       </div>
-    </div>
+    </CardHeader>
   );
 }

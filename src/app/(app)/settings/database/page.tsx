@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type MigrationRow = { name: string; appliedAt: string | null };
 type DriftItem = { table: string; column: string; status: string };
@@ -60,18 +62,18 @@ export default function DatabasePage() {
         </div>
 
         {error && (
-          <div className="card mb-16">
-            <div className="card-body text-red">
+          <Card className="mb-16">
+            <CardContent className="text-red">
               {error}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {result && (
           <>
             {/* Overall status */}
-            <div className="card mb-16">
-              <div className="card-body flex-center gap-12">
+            <Card className="mb-16">
+              <CardContent className="flex-center gap-12">
                 <span
                   className="shrink-0"
                   style={{
@@ -85,16 +87,16 @@ export default function DatabasePage() {
                 <span className="font-semibold" style={{ fontSize: "var(--text-md)" }}>
                   {result.ok ? "Schema is healthy" : "Issues detected"}
                 </span>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Remediation steps */}
             {result.remediation.length > 0 && (
-              <div className="card mb-16">
-                <div className="card-header">
+              <Card className="mb-16">
+                <CardHeader>
                   <span className="font-semibold text-sm">Remediation</span>
-                </div>
-                <div className="card-body flex-col gap-8">
+                </CardHeader>
+                <CardContent className="flex-col gap-8">
                   {result.remediation.map((step, i) => (
                     <div
                       key={i}
@@ -109,18 +111,18 @@ export default function DatabasePage() {
                       {step}
                     </div>
                   ))}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Migration table */}
-            <div className="card mb-16">
-              <div className="card-header">
+            <Card className="mb-16">
+              <CardHeader>
                 <span className="font-semibold text-sm">Migrations</span>
                 <StatusBadge ok={result.checks.migrationTable.exists} label={result.checks.migrationTable.exists ? "Table exists" : "Table missing"} />
-              </div>
+              </CardHeader>
               {result.checks.migrationTable.migrations.length > 0 && (
-                <div className="card-body" style={{ padding: 0 }}>
+                <CardContent style={{ padding: 0 }}>
                   <table className="diag-table">
                     <thead>
                       <tr>
@@ -139,13 +141,13 @@ export default function DatabasePage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </CardContent>
               )}
-            </div>
+            </Card>
 
             {/* Tables */}
-            <div className="card mb-16">
-              <div className="card-header">
+            <Card className="mb-16">
+              <CardHeader>
                 <span className="font-semibold text-sm">Tables</span>
                 <StatusBadge
                   ok={result.checks.tables.missing.length === 0}
@@ -153,17 +155,17 @@ export default function DatabasePage() {
                     ? `${result.checks.tables.present.length} present`
                     : `${result.checks.tables.missing.length} missing`}
                 />
-              </div>
+              </CardHeader>
               {result.checks.tables.missing.length > 0 && (
-                <div className="card-body">
+                <CardContent>
                   <TagList items={result.checks.tables.missing} variant="danger" />
-                </div>
+                </CardContent>
               )}
-            </div>
+            </Card>
 
             {/* Enums */}
-            <div className="card mb-16">
-              <div className="card-header">
+            <Card className="mb-16">
+              <CardHeader>
                 <span className="font-semibold text-sm">Enums</span>
                 <StatusBadge
                   ok={result.checks.enums.missing.length === 0}
@@ -171,17 +173,17 @@ export default function DatabasePage() {
                     ? `${result.checks.enums.present.length} present`
                     : `${result.checks.enums.missing.length} missing`}
                 />
-              </div>
+              </CardHeader>
               {result.checks.enums.missing.length > 0 && (
-                <div className="card-body">
+                <CardContent>
                   <TagList items={result.checks.enums.missing} variant="danger" />
-                </div>
+                </CardContent>
               )}
-            </div>
+            </Card>
 
             {/* Extensions */}
-            <div className="card mb-16">
-              <div className="card-header">
+            <Card className="mb-16">
+              <CardHeader>
                 <span className="font-semibold text-sm">Extensions</span>
                 <StatusBadge
                   ok={result.checks.extensions.missing.length === 0}
@@ -189,22 +191,22 @@ export default function DatabasePage() {
                     ? `${result.checks.extensions.present.length} installed`
                     : `${result.checks.extensions.missing.length} missing`}
                 />
-              </div>
+              </CardHeader>
               {result.checks.extensions.missing.length > 0 && (
-                <div className="card-body">
+                <CardContent>
                   <TagList items={result.checks.extensions.missing} variant="danger" />
-                </div>
+                </CardContent>
               )}
-            </div>
+            </Card>
 
             {/* Column drift */}
             {result.checks.columns.drift.length > 0 && (
-              <div className="card mb-16">
-                <div className="card-header">
+              <Card className="mb-16">
+                <CardHeader>
                   <span className="font-semibold text-sm">Column Drift</span>
                   <StatusBadge ok={false} label={`${result.checks.columns.drift.length} missing`} />
-                </div>
-                <div className="card-body" style={{ padding: 0 }}>
+                </CardHeader>
+                <CardContent style={{ padding: 0 }}>
                   <table className="diag-table">
                     <thead>
                       <tr>
@@ -219,24 +221,24 @@ export default function DatabasePage() {
                           <td><code>{d.table}</code></td>
                           <td><code>{d.column}</code></td>
                           <td>
-                            <span className="badge badge-red" style={{ fontSize: "var(--text-3xs)" }}>{d.status}</span>
+                            <Badge variant="red" size="sm">{d.status}</Badge>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
           </>
         )}
 
         {!result && !error && !loading && (
-          <div className="card">
+          <Card>
             <div className="py-10 px-5 text-center text-muted-foreground">
               Click &ldquo;Run diagnostics&rdquo; to check schema health
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </div>
@@ -247,22 +249,19 @@ export default function DatabasePage() {
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <span
-      className={`badge badge-sm ${ok ? "badge-green" : "badge-red"}`}
-    >
+    <Badge variant={ok ? "green" : "red"} size="sm">
       {label}
-    </span>
+    </Badge>
   );
 }
 
 function TagList({ items, variant }: { items: string[]; variant: "danger" | "info" }) {
-  const cls = variant === "danger" ? "badge-red" : "badge-blue";
   return (
     <div className="flex flex-wrap gap-6">
       {items.map((item) => (
-        <span key={item} className={`badge badge-sm ${cls}`}>
+        <Badge key={item} variant={variant === "danger" ? "red" : "blue"} size="sm">
           {item}
-        </span>
+        </Badge>
       ))}
     </div>
   );

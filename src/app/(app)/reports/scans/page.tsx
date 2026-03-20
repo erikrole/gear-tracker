@@ -7,6 +7,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type ScanEntry = {
   id: string;
@@ -100,12 +101,12 @@ export default function ScanHistoryPage() {
     return (
       <>
         <div className="summary-grid mb-16">
-          <div className="card p-16 text-center">
+          <Card className="p-16 text-center">
             <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
             <div className="skeleton skeleton-text-sm" style={{ width: 80, margin: "0 auto" }} />
-          </div>
+          </Card>
         </div>
-        <div className="card"><SkeletonTable rows={8} cols={6} /></div>
+        <Card><SkeletonTable rows={8} cols={6} /></Card>
       </>
     );
   }
@@ -132,10 +133,10 @@ export default function ScanHistoryPage() {
 
   if (error || !data) {
     return (
-      <div className="card p-16 text-center">
+      <Card className="p-16 text-center">
         <p className="text-secondary mb-8">Failed to load scan report.</p>
         <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
-      </div>
+      </Card>
     );
   }
 
@@ -181,11 +182,11 @@ export default function ScanHistoryPage() {
         />
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h2>Scan history</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Scan history</CardTitle>
           <span className="text-sm text-muted">{data.total} events</span>
-        </div>
+        </CardHeader>
 
         {data.data.length === 0 ? (
           <EmptyState icon="search" title="No scan events recorded" />
@@ -249,7 +250,7 @@ export default function ScanHistoryPage() {
             )}
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 }

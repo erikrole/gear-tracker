@@ -5,6 +5,7 @@ import type { SportConfig, ShiftConfig } from "./types";
 import { AREAS, AREA_LABELS, defaultShiftConfigs } from "./types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default function ShiftConfigTable({
   configs,
@@ -33,8 +34,8 @@ export default function ShiftConfigTable({
   }
 
   return (
-    <div className="card">
-      <div className="card-header"><h2>Sport Coverage</h2></div>
+    <Card>
+      <CardHeader><CardTitle>Sport Coverage</CardTitle></CardHeader>
 
       {/* Desktop table */}
       <div className="data-table-wrap hide-mobile-only">
@@ -195,6 +196,6 @@ export default function ShiftConfigTable({
           Numbers show Home / Away shift count per area. Toggle Active to enable shift generation for a sport.
         </p>
       </div>
-    </div>
+    </Card>
   );
 }
