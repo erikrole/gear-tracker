@@ -1,61 +1,28 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { toast as sonnerToast } from "sonner";
 
 type ToastType = "success" | "error" | "info";
 
-type Toast = {
-  id: number;
-  message: string;
-  type: ToastType;
-};
-
-type ToastContextType = {
-  toast: (message: string, type?: ToastType) => void;
-};
-
-const ToastContext = createContext<ToastContextType>({ toast: () => {} });
-
+/**
+ * Drop-in replacement for the old useToast() hook.
+ * Returns { toast(message, type?) } — same API, powered by Sonner.
+ * No provider needed; just render <Toaster /> once in the layout.
+ */
 export function useToast() {
-  return useContext(ToastContext);
-}
+  function toast(message: string, type: ToastType = "info") {
+    switch (type) {
+      case "success":
+        sonnerToast.success(message);
+        break;
+      case "error":
+        sonnerToast.error(message);
+        break;
+      case "info":
+        sonnerToast.info(message);
+        break;
+    }
+  }
 
-let nextId = 0;
-
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const toast = useCallback((message: string, type: ToastType = "info") => {
-    const id = nextId++;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  }, []);
-
-  const dismiss = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  return (
-    <ToastContext.Provider value={{ toast }}>
-      {children}
-      {toasts.length > 0 && (
-        <div className="toast-container" role="status" aria-live="polite">
-          {toasts.map((t) => (
-            <div
-              key={t.id}
-              className={`toast toast-${t.type}`}
-              onClick={() => dismiss(t.id)}
-            >
-              <span className="toast-icon">
-                {t.type === "success" ? "\u2713" : t.type === "error" ? "\u2717" : "\u2139"}
-              </span>
-              <span className="toast-message">{t.message}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </ToastContext.Provider>
-  );
+  return { toast };
 }

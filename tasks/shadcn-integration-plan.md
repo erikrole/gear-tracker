@@ -56,15 +56,15 @@ Components to **keep custom** (no shadcn equivalent or too domain-specific):
 - [x] Removed old CSS: .sidebar-avatar-lg, .user-mobile-avatar, .user-detail-avatar
 - [x] Build passes, zero regressions
 
-### Slice 2: Dialog & Toast Migration
-- [ ] Add shadcn `Dialog`, `Alert Dialog`, `Sonner`
-- [ ] Create adapter wrappers that match our existing API signatures:
-  - `useConfirm()` → backed by shadcn AlertDialog under the hood
-  - `useToast()` → backed by Sonner
-- [ ] Swap providers in `(app)/layout.tsx`
-- [ ] Verify all confirm/toast callsites still work (grep for `useConfirm`, `useToast`)
-- [ ] Remove old `Modal.tsx`, `ConfirmDialog.tsx`, `Toast.tsx` once verified
-- [ ] Build passes, test all destructive actions trigger confirms
+### Slice 2: Dialog & Toast Migration ✅ SHIPPED
+- [x] Added shadcn Dialog, AlertDialog, Sonner (+ sonner npm package)
+- [x] Created `src/components/ui/dialog.tsx`, `alert-dialog.tsx`, `sonner.tsx`
+- [x] Migrated ConfirmDialog internals to shadcn AlertDialog (kept `useConfirm()` API)
+- [x] Migrated Toast to Sonner thin wrapper (kept `useToast()` API — 26 callsites unchanged)
+- [x] Migrated ChooseImageModal from custom Modal to shadcn Dialog
+- [x] Swapped providers in `(app)/layout.tsx` — removed ToastProvider, added `<Toaster />`
+- [x] Deleted `Modal.tsx`, removed ~150 lines of modal/confirm/toast CSS
+- [x] Build passes, zero regressions
 
 ### Slice 3: Empty, Spinner, Item Components
 - [ ] Add shadcn `Empty`, `Spinner`, `Item`

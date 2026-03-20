@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import Modal from "./Modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogCloseButton,
+  DialogBody,
+} from "@/components/ui/dialog";
 import { useConfirm } from "./ConfirmDialog";
 import { useToast } from "./Toast";
 
@@ -159,101 +166,109 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Choose image">
-      {/* Tabs */}
-      <div className="tabs mb-16">
-        <button className={`tab ${tab === "url" ? "active" : ""}`} onClick={() => setTab("url")}>
-          Paste URL
-        </button>
-        <button className={`tab ${tab === "upload" ? "active" : ""}`} onClick={() => setTab("upload")}>
-          Upload
-        </button>
-      </div>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Choose image</DialogTitle>
+          <DialogCloseButton />
+        </DialogHeader>
+        <DialogBody className="pb-6">
+          {/* Tabs */}
+          <div className="tabs mb-16">
+            <button className={`tab ${tab === "url" ? "active" : ""}`} onClick={() => setTab("url")}>
+              Paste URL
+            </button>
+            <button className={`tab ${tab === "upload" ? "active" : ""}`} onClick={() => setTab("upload")}>
+              Upload
+            </button>
+          </div>
 
-      {/* Paste URL tab */}
-      {tab === "url" && (
-        <div>
-          <input
-            type="url"
-            className="form-input"
-            placeholder="https://example.com/product-image.jpg"
-            value={url}
-            onChange={(e) => handleUrlChange(e.target.value)}
-            style={{ width: "100%" }}
-          />
-          {urlPreview && (
-            <div className="image-preview-container mt-16">
-              <img
-                src={urlPreview}
-                alt="Preview"
-                onError={() => { setUrlError(true); setUrlPreview(null); }}
-                onLoad={() => setUrlError(false)}
+          {/* Paste URL tab */}
+          {tab === "url" && (
+            <div>
+              <input
+                type="url"
+                className="form-input"
+                placeholder="https://example.com/product-image.jpg"
+                value={url}
+                onChange={(e) => handleUrlChange(e.target.value)}
+                style={{ width: "100%" }}
               />
+              {urlPreview && (
+                <div className="image-preview-container mt-16">
+                  <img
+                    src={urlPreview}
+                    alt="Preview"
+                    onError={() => { setUrlError(true); setUrlPreview(null); }}
+                    onLoad={() => setUrlError(false)}
+                  />
+                </div>
+              )}
+              {urlError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
+              <div className="flex-end gap-8 mt-16">
+                {currentImageUrl && (
+                  <button className="btn btn-danger" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
+                    Remove
+                  </button>
+                )}
+                <button className="btn" onClick={handleClose}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveUrl} disabled={!urlPreview || urlError || saving}>
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
             </div>
           )}
-          {urlError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
-          <div className="flex-end gap-8 mt-16">
-            {currentImageUrl && (
-              <button className="btn btn-danger" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
-                Remove
-              </button>
-            )}
-            <button className="btn" onClick={handleClose}>Cancel</button>
-            <button className="btn btn-primary" onClick={saveUrl} disabled={!urlPreview || urlError || saving}>
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </div>
-      )}
 
-      {/* Upload tab */}
-      {tab === "upload" && (
-        <div>
-          <div
-            className={`image-drop-zone ${dragging ? "dragging" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {filePreview ? (
-              <img src={filePreview} alt="Preview" className="image-drop-zone-preview" />
-            ) : (
-              <div className="text-center">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)", marginBottom: 8 }}>
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
-                <p className="text-sm text-secondary mb-8">Drop an image here</p>
-                <span className="btn btn-sm">Pick from computer</span>
+          {/* Upload tab */}
+          {tab === "upload" && (
+            <div>
+              <div
+                className={`image-drop-zone ${dragging ? "dragging" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {filePreview ? (
+                  <img src={filePreview} alt="Preview" className="image-drop-zone-preview" />
+                ) : (
+                  <div className="text-center">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)", marginBottom: 8 }}>
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                    <p className="text-sm text-secondary mb-8">Drop an image here</p>
+                    <span className="btn btn-sm">Pick from computer</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleFileSelect(f);
-            }}
-          />
-          {fileError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>{fileError}</p>}
-          <div className="flex-end gap-8 mt-16">
-            {currentImageUrl && (
-              <button className="btn btn-danger" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
-                Remove
-              </button>
-            )}
-            <button className="btn" onClick={handleClose}>Cancel</button>
-            <button className="btn btn-primary" onClick={uploadFile} disabled={!file || !!fileError || saving}>
-              {saving ? "Uploading..." : "Upload"}
-            </button>
-          </div>
-        </div>
-      )}
-    </Modal>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileSelect(f);
+                }}
+              />
+              {fileError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>{fileError}</p>}
+              <div className="flex-end gap-8 mt-16">
+                {currentImageUrl && (
+                  <button className="btn btn-danger" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
+                    Remove
+                  </button>
+                )}
+                <button className="btn" onClick={handleClose}>Cancel</button>
+                <button className="btn btn-primary" onClick={uploadFile} disabled={!file || !!fileError || saving}>
+                  {saving ? "Uploading..." : "Upload"}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   );
 }
