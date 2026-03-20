@@ -704,6 +704,10 @@ textarea:focus-visible {
   color: inherit;
   padding: 28px 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.15s ease;
+}
+.sidebar-profile:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 
@@ -1290,10 +1294,11 @@ textarea:focus-visible {
   line-height: var(--leading-snug);
 }
 
-.ops-row-count {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  white-space: nowrap;
+/* ── Row right-side actions (flex wrapper) ── */
+.ops-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 

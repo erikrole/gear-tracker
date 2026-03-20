@@ -475,7 +475,7 @@ export default function DashboardPage() {
                           {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
                         </span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                      <div className="ops-row-actions">
                         {gearLabel ? (
                           <>
                             <GearAvatarStack items={s.gearItems} totalCount={s.gearItemCount} />
@@ -598,7 +598,7 @@ export default function DashboardPage() {
                   const locParam = e.locationId ? `&locationId=${e.locationId}` : "";
                   return (
                     <div key={e.id} className="ops-row event-row-clickable">
-                      <a href={`/events/${e.id}`} className="ops-row-main" style={{ textDecoration: "none", color: "inherit" }}>
+                      <a href={`/events/${e.id}`} className="ops-row-main no-underline">
                         <span className="ops-row-title">
                           {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
                           {e.opponent ? `vs ${e.opponent}` : e.title}
