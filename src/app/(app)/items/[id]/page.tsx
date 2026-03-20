@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -185,16 +185,6 @@ export default function ItemDetailsPage() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
-
-  const historyByMonth = useMemo(() => {
-    if (!asset) return [] as Array<{ month: string; items: AssetDetail["history"] }>;
-    const groups = new Map<string, AssetDetail["history"]>();
-    for (const item of asset.history) {
-      const month = new Date(item.booking.startsAt).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-      groups.set(month, [...(groups.get(month) || []), item]);
-    }
-    return Array.from(groups.entries()).map(([month, items]) => ({ month, items }));
-  }, [asset]);
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
@@ -394,7 +384,7 @@ export default function ItemDetailsPage() {
       {(activeTab === "checkouts" || activeTab === "reservations") && (
         <BookingKindTab
           kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}
-          groups={historyByMonth}
+          history={asset.history}
           asset={asset}
           now={now}
           onSelectBooking={setSelectedBookingId}

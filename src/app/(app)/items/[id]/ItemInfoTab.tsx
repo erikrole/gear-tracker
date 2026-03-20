@@ -61,7 +61,7 @@ function getFiscalYearOptions(): string[] {
 /* ── Editable Field ─────────────────────────────────────── */
 
 function EditableField({
-  label, value, placeholder, canEdit, onSave, mono, type,
+  label, value, placeholder, canEdit, onSave, mono,
 }: {
   label: string;
   value: string;
@@ -69,7 +69,6 @@ function EditableField({
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
   mono?: boolean;
-  type?: "text" | "select";
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -103,7 +102,7 @@ function EditableField({
     <div className="data-list-row">
       <dt className="data-list-label">{label}</dt>
       <dd className={`data-list-value${mono ? " font-mono" : ""}`}>
-        {editing && type !== "select" ? (
+        {editing ? (
           <Input
             ref={inputRef}
             value={draft}
@@ -243,10 +242,8 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
   useEffect(() => { if (creating) inputRef.current?.focus(); }, [creating]);
 
   // Build flat list of selectable categories (children, or parents with no children)
-  const selectableCategories = categories.filter((c) => {
-    if (c.parentId) return true; // child category — always selectable
-    return categories.filter((ch) => ch.parentId === c.id).length === 0; // parent with no children
-  });
+  const parentsWithChildren = new Set(categories.filter((c) => c.parentId).map((c) => c.parentId));
+  const selectableCategories = categories.filter((c) => c.parentId || !parentsWithChildren.has(c.id));
 
   async function handleCreateCategory() {
     if (!newCatName.trim()) { setCreating(false); return; }
@@ -393,13 +390,17 @@ export function QRModal({ asset, canEdit, onRefresh, open, onOpenChange }: { ass
   async function generateQR() {
     setSaving(true);
     setError("");
-    const res = await fetch(`/api/assets/${asset.id}/generate-qr`, { method: "POST" });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setError((json as Record<string, string>).error || "Failed");
+    try {
+      const res = await fetch(`/api/assets/${asset.id}/generate-qr`, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError((json as Record<string, string>).error || "Failed");
+      }
+      onRefresh();
+    } catch {
+      setError("Network error — please try again.");
     }
     setSaving(false);
-    onRefresh();
   }
 
   async function saveManualQR() {

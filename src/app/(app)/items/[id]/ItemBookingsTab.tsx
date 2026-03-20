@@ -5,13 +5,12 @@ import {
   getUrgency,
   formatCountdown,
   formatDateShort,
-  formatDateFull,
   formatDuration,
   formatDateWithDayTime,
   isStartingToday,
   formatStartsIn,
 } from "@/lib/format";
-import type { AssetDetail } from "./types";
+import type { AssetDetail, ActiveBookingDetail, UpcomingReservation } from "./types";
 import { QRCodeCanvas, QRModal } from "./ItemInfoTab";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +26,85 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+/* ── Shared: Urgency Badge ────────────────────────────── */
+
+export function UrgencyBadge({ startsAt, endsAt, now }: { startsAt: string; endsAt: string; now: Date }) {
+  const urgency = getUrgency(startsAt, endsAt, now);
+  const variant = urgency === "critical" || urgency === "overdue" ? "red" : urgency === "warning" ? "orange" : "blue";
+  return <Badge variant={variant} className="mt-1">{formatCountdown(endsAt, now)}</Badge>;
+}
+
+/* ── Shared: Upcoming Reservations List ──────────────── */
+
+export function UpcomingReservationsList({
+  reservations, now, onSelectBooking,
+}: {
+  reservations: UpcomingReservation[];
+  now: Date;
+  onSelectBooking: (id: string) => void;
+}) {
+  return (
+    <>
+      {reservations.map((r) => {
+        const pastStart = new Date(r.startsAt) < now;
+        const startsToday = !pastStart && isStartingToday(r.startsAt, now);
+        return (
+          <button
+            key={r.bookingId}
+            className={`ops-row ${pastStart ? "ops-row-overdue" : startsToday ? "ops-row-due-today" : ""}`}
+            onClick={() => onSelectBooking(r.bookingId)}
+          >
+            <div className="ops-row-main">
+              <span className="ops-row-title">{r.title}</span>
+              <span className="ops-row-meta">
+                {r.requesterName} {"\u00b7"}{" "}
+                {pastStart ? (
+                  <>{formatDateShort(r.startsAt)} <Badge variant="red" size="sm">{formatStartsIn(r.startsAt, now)}</Badge></>
+                ) : startsToday ? (
+                  <Badge variant="orange" size="sm">{formatStartsIn(r.startsAt, now)}</Badge>
+                ) : (
+                  <>{formatDateShort(r.startsAt)} {"\u2013"} {formatDateShort(r.endsAt)}</>
+                )}
+              </span>
+            </div>
+            <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "green"} size="sm">
+              {r.status === "BOOKED" ? "Booked" : r.status === "DRAFT" ? "Draft" : "Open"}
+            </Badge>
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+/* ── Shared: Active Booking Card ─────────────────────── */
+
+export function ActiveBookingCard({
+  booking, kind, now, onSelectBooking,
+}: {
+  booking: ActiveBookingDetail;
+  kind: string;
+  now: Date;
+  onSelectBooking: (id: string) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader><CardTitle>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</CardTitle></CardHeader>
+      <CardContent className="p-0 py-1">
+        <button className="possession-card" onClick={() => onSelectBooking(booking.id)}>
+          <div className="possession-card-body">
+            <span className="possession-asset-tag">{booking.title}</span>
+            <span className="possession-asset-name">
+              {kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {booking.requesterName}
+            </span>
+            <UrgencyBadge startsAt={booking.startsAt} endsAt={booking.endsAt} now={now} />
+          </div>
+        </button>
+      </CardContent>
+    </Card>
+  );
+}
 
 /* ── Tracking Codes Card (sidebar) ─────────────────────── */
 
@@ -142,33 +220,16 @@ export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRe
   return (
     <div className="flex-col gap-16">
       {/* Active Checkout / Reservation Card (always visible) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{b?.kind === "RESERVATION" ? "Active Reservation" : "Active Checkout"}</CardTitle>
-        </CardHeader>
-        {b ? (
-          <CardContent className="p-0 py-1">
-            <button
-              className="possession-card"
-              onClick={() => onSelectBooking(b.id)}
-            >
-              <div className="possession-card-body">
-                <span className="possession-asset-tag">{b.title}</span>
-                <span className="possession-asset-name">
-                  {b.kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {b.requesterName}
-                </span>
-                <Badge variant={getUrgency(b.startsAt, b.endsAt, now) === "critical" ? "red" : getUrgency(b.startsAt, b.endsAt, now) === "warning" ? "orange" : "blue"} className="mt-1">
-                  {formatCountdown(b.endsAt, now)}
-                </Badge>
-              </div>
-            </button>
-          </CardContent>
-        ) : (
+      {b ? (
+        <ActiveBookingCard booking={b} kind={b.kind} now={now} onSelectBooking={onSelectBooking} />
+      ) : (
+        <Card>
+          <CardHeader><CardTitle>Active Checkout</CardTitle></CardHeader>
           <Empty className="py-8 border-0">
             <EmptyDescription>Not currently checked out</EmptyDescription>
           </Empty>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Upcoming Reservations Card (always visible) */}
       <Card>
@@ -180,34 +241,7 @@ export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRe
         </CardHeader>
         {reservations.length > 0 ? (
           <CardContent className="p-0 py-1">
-            {reservations.map((r) => {
-              const pastStart = new Date(r.startsAt) < now;
-              const startsToday = !pastStart && isStartingToday(r.startsAt, now);
-              return (
-                <button
-                  key={r.bookingId}
-                  className={`ops-row ${pastStart ? "ops-row-overdue" : startsToday ? "ops-row-due-today" : ""}`}
-                  onClick={() => onSelectBooking(r.bookingId)}
-                >
-                  <div className="ops-row-main">
-                    <span className="ops-row-title">{r.title}</span>
-                    <span className="ops-row-meta">
-                      {r.requesterName} {"\u00b7"}{" "}
-                      {pastStart ? (
-                        <>{formatDateShort(r.startsAt)} <Badge variant="red" size="sm">{formatStartsIn(r.startsAt, now)}</Badge></>
-                      ) : startsToday ? (
-                        <Badge variant="orange" size="sm">{formatStartsIn(r.startsAt, now)}</Badge>
-                      ) : (
-                        <>{formatDateShort(r.startsAt)} {"\u2013"} {formatDateShort(r.endsAt)}</>
-                      )}
-                    </span>
-                  </div>
-                  <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "green"} size="sm">
-                    {r.status === "BOOKED" ? "Booked" : r.status === "DRAFT" ? "Draft" : "Open"}
-                  </Badge>
-                </button>
-              );
-            })}
+            <UpcomingReservationsList reservations={reservations} now={now} onSelectBooking={onSelectBooking} />
           </CardContent>
         ) : (
           <Empty className="py-8 border-0">
@@ -244,32 +278,29 @@ function bookingStatusLabel(status: string): { label: string; variant: "blue" | 
 /* ── Booking Kind Tab ───────────────────────────────────── */
 
 export function BookingKindTab({
-  kind, groups, asset, now, onSelectBooking,
+  kind, history, asset, now, onSelectBooking,
 }: {
   kind: "CHECKOUT" | "RESERVATION";
-  groups: Array<{ month: string; items: AssetDetail["history"] }>;
+  history: AssetDetail["history"];
   asset: AssetDetail;
   now: Date;
   onSelectBooking: (id: string) => void;
 }) {
   const label = kind === "CHECKOUT" ? "checkouts" : "reservations";
 
-  // Flatten and deduplicate all bookings of this kind
+  // Deduplicate and filter bookings of this kind, sorted newest first
   const allEntries = useMemo(() => {
     const seen = new Set<string>();
     const entries: AssetDetail["history"] = [];
-    for (const g of groups) {
-      for (const e of g.items) {
-        if (e.booking.kind === kind && !seen.has(e.booking.id)) {
-          seen.add(e.booking.id);
-          entries.push(e);
-        }
+    for (const e of history) {
+      if (e.booking.kind === kind && !seen.has(e.booking.id)) {
+        seen.add(e.booking.id);
+        entries.push(e);
       }
     }
-    // Sort by start date descending (newest first)
     entries.sort((a, b) => new Date(b.booking.startsAt).getTime() - new Date(a.booking.startsAt).getTime());
     return entries;
-  }, [groups, kind]);
+  }, [history, kind]);
 
   const activeBooking = asset.activeBooking;
   const showActiveCard = activeBooking && activeBooking.kind === kind;
@@ -279,25 +310,7 @@ export function BookingKindTab({
     <div className="flex-col gap-16 mt-14">
       {/* Active booking card at top of matching tab */}
       {showActiveCard && activeBooking && (
-        <Card>
-          <CardHeader><CardTitle>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</CardTitle></CardHeader>
-          <CardContent className="p-0 py-1">
-            <button
-              className="possession-card"
-              onClick={() => onSelectBooking(activeBooking.id)}
-            >
-              <div className="possession-card-body">
-                <span className="possession-asset-tag">{activeBooking.title}</span>
-                <span className="possession-asset-name">
-                  {kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {activeBooking.requesterName}
-                </span>
-                <Badge variant={getUrgency(activeBooking.startsAt, activeBooking.endsAt, now) === "critical" ? "red" : getUrgency(activeBooking.startsAt, activeBooking.endsAt, now) === "warning" ? "orange" : "blue"} className="mt-1">
-                  {formatCountdown(activeBooking.endsAt, now)}
-                </Badge>
-              </div>
-            </button>
-          </CardContent>
-        </Card>
+        <ActiveBookingCard booking={activeBooking} kind={kind} now={now} onSelectBooking={onSelectBooking} />
       )}
 
       {/* Upcoming reservations at top of Reservations tab */}
@@ -308,34 +321,7 @@ export function BookingKindTab({
             <Badge variant="gray" size="sm">{asset.upcomingReservations.length}</Badge>
           </CardHeader>
           <CardContent className="p-0 py-1">
-            {asset.upcomingReservations.map((r) => {
-              const pastStart = new Date(r.startsAt) < now;
-              const startsToday = !pastStart && isStartingToday(r.startsAt, now);
-              return (
-                <button
-                  key={r.bookingId}
-                  className={`ops-row ${pastStart ? "ops-row-overdue" : startsToday ? "ops-row-due-today" : ""}`}
-                  onClick={() => onSelectBooking(r.bookingId)}
-                >
-                  <div className="ops-row-main">
-                    <span className="ops-row-title">{r.title}</span>
-                    <span className="ops-row-meta">
-                      {r.requesterName} {"\u00b7"}{" "}
-                      {pastStart ? (
-                        <>{formatDateShort(r.startsAt)} <Badge variant="red" size="sm">{formatStartsIn(r.startsAt, now)}</Badge></>
-                      ) : startsToday ? (
-                        <Badge variant="orange" size="sm">{formatStartsIn(r.startsAt, now)}</Badge>
-                      ) : (
-                        <>{formatDateFull(r.startsAt)} {"\u2013"} {formatDateFull(r.endsAt)}</>
-                      )}
-                    </span>
-                  </div>
-                  <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "green"} size="sm">
-                    {r.status === "BOOKED" ? "Booked" : r.status === "DRAFT" ? "Draft" : "Open"}
-                  </Badge>
-                </button>
-              );
-            })}
+            <UpcomingReservationsList reservations={asset.upcomingReservations} now={now} onSelectBooking={onSelectBooking} />
           </CardContent>
         </Card>
       )}
