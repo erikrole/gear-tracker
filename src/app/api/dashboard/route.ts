@@ -12,6 +12,19 @@ function getInitials(name: string) {
   return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
+// Prioritize bodies and lenses in gear avatar display
+function sortItemsByCategory(
+  items: Array<{ asset: { id: string; name: string | null; imageUrl: string | null; category: { name: string } | null } }>,
+) {
+  return [...items].sort((a, b) => {
+    const aIsBodyLens = /body|lens/i.test(a.asset.category?.name ?? "");
+    const bIsBodyLens = /body|lens/i.test(b.asset.category?.name ?? "");
+    if (aIsBodyLens && !bIsBodyLens) return -1;
+    if (!aIsBodyLens && bIsBodyLens) return 1;
+    return 0;
+  });
+}
+
 function toBookingSummary(c: {
   id: string;
   title: string;
@@ -22,8 +35,9 @@ function toBookingSummary(c: {
   endsAt: Date;
   status: string;
   _count: { serializedItems: number; bulkItems: number };
-  serializedItems: Array<{ asset: { id: string; name: string | null; imageUrl: string | null } }>;
+  serializedItems: Array<{ asset: { id: string; name: string | null; imageUrl: string | null; category: { name: string } | null } }>;
 }, now: Date, canBeOverdue: boolean) {
+  const sorted = sortItemsByCategory(c.serializedItems);
   return {
     id: c.id,
     title: c.title,
@@ -36,7 +50,7 @@ function toBookingSummary(c: {
     itemCount: c._count.serializedItems + c._count.bulkItems,
     status: c.status,
     isOverdue: canBeOverdue && c.endsAt < now,
-    items: c.serializedItems.map((si) => ({
+    items: sorted.slice(0, 3).map((si) => ({
       id: si.asset.id,
       name: si.asset.name,
       imageUrl: si.asset.imageUrl,
@@ -59,8 +73,7 @@ export const GET = withAuth(async (_req, { user }) => {
     location: { select: { id: true, name: true } },
     _count: { select: { serializedItems: true, bulkItems: true } },
     serializedItems: {
-      take: 3,
-      include: { asset: { select: { id: true, name: true, imageUrl: true } } },
+      include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
     },
   } as const;
 
@@ -171,11 +184,11 @@ export const GET = withAuth(async (_req, { user }) => {
       orderBy: { startsAt: "asc" },
       take: 5,
       include: {
+        requester: { select: { id: true, name: true } },
         location: { select: { id: true, name: true } },
         _count: { select: { serializedItems: true, bulkItems: true } },
         serializedItems: {
-          take: 3,
-          include: { asset: { select: { id: true, name: true, imageUrl: true } } },
+          include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
         },
       },
     }),
@@ -312,14 +325,13 @@ export const GET = withAuth(async (_req, { user }) => {
           eventId: true,
           status: true,
           serializedItems: {
-            take: 3,
-            include: { asset: { select: { id: true, name: true, imageUrl: true } } },
+            include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
           },
           _count: { select: { serializedItems: true, bulkItems: true } },
         },
       })
     : [];
-  const gearByEvent = new Map<string, { status: string; items: typeof shiftGearBookings[0]["serializedItems"]; itemCount: number }>();
+  const gearByEvent = new Map<string, { status: string; items: Array<{ asset: { id: string; name: string | null; imageUrl: string | null } }>; itemCount: number }>();
   for (const b of shiftGearBookings) {
     if (!b.eventId) continue;
     const current = gearByEvent.get(b.eventId);
@@ -328,7 +340,7 @@ export const GET = withAuth(async (_req, { user }) => {
     if (!current || priority[gearStatus as keyof typeof priority] > priority[current.status as keyof typeof priority]) {
       gearByEvent.set(b.eventId, {
         status: gearStatus,
-        items: b.serializedItems,
+        items: sortItemsByCategory(b.serializedItems).slice(0, 3),
         itemCount: b._count.serializedItems + b._count.bulkItems,
       });
     }
@@ -385,20 +397,25 @@ export const GET = withAuth(async (_req, { user }) => {
         items: teamReservations,
       },
       upcomingEvents: events,
-      myReservations: myReservations.map((r) => ({
-        id: r.id,
-        title: r.title,
-        refNumber: r.refNumber,
-        startsAt: r.startsAt.toISOString(),
-        endsAt: r.endsAt.toISOString(),
-        itemCount: r._count.serializedItems + r._count.bulkItems,
-        locationName: r.location?.name ?? null,
-        items: r.serializedItems.map((si) => ({
-          id: si.asset.id,
-          name: si.asset.name,
-          imageUrl: si.asset.imageUrl,
-        })),
-      })),
+      myReservations: myReservations.map((r) => {
+        const sorted = sortItemsByCategory(r.serializedItems);
+        return {
+          id: r.id,
+          title: r.title,
+          refNumber: r.refNumber,
+          requesterName: r.requester.name,
+          requesterInitials: getInitials(r.requester.name),
+          startsAt: r.startsAt.toISOString(),
+          endsAt: r.endsAt.toISOString(),
+          itemCount: r._count.serializedItems + r._count.bulkItems,
+          locationName: r.location?.name ?? null,
+          items: sorted.slice(0, 3).map((si) => ({
+            id: si.asset.id,
+            name: si.asset.name,
+            imageUrl: si.asset.imageUrl,
+          })),
+        };
+      }),
       overdueCount: totalOverdue,
       overdueItems,
       drafts: myDrafts.map((d) => ({

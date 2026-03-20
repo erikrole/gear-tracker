@@ -1216,6 +1216,8 @@ textarea:focus-visible {
 
 .ops-row:hover {
   background: var(--panel-hover);
+}
+.ops-row:not(.ops-row-status):hover {
   padding-left: 22px;
   box-shadow: inset 3px 0 0 var(--accent);
 }
@@ -1234,20 +1236,32 @@ textarea:focus-visible {
   border-top: 1px solid var(--border-light);
 }
 
-.ops-row-overdue {
-  background: rgba(220, 38, 38, 0.06);
-  border-left: 3px solid #dc2626;
+/* Status color bar on left — matches status dot colors */
+.ops-row-status {
+  border-left: 3px solid transparent;
+  padding-left: 17px;
+}
+.ops-row-status:hover {
+  padding-left: 19px;
 }
 
+.ops-row-checked-out {
+  border-left-color: var(--blue, #3b82f6);
+}
+.ops-row-reserved {
+  border-left-color: var(--purple, #7c3aed);
+}
+.ops-row-overdue {
+  border-left-color: #dc2626;
+  background: rgba(220, 38, 38, 0.06);
+}
 .ops-row-overdue:hover {
   background: rgba(220, 38, 38, 0.10);
 }
-
 .ops-row-due-today {
-  border-left: 3px solid #d97706;
+  border-left-color: #d97706;
   background: rgba(217, 119, 6, 0.04);
 }
-
 .ops-row-due-today:hover {
   background: rgba(217, 119, 6, 0.08);
 }
@@ -1278,6 +1292,16 @@ textarea:focus-visible {
 .ops-row-title {
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: var(--tracking-snug);
+}
+
+.ops-row-title-bold {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -1525,11 +1549,7 @@ textarea:focus-visible {
   opacity: 0.85;
 }
 
-/* ── Ownership accent for My Gear rows ── */
-.ops-row-owned {
-  border-left: 3px solid var(--accent, #3b82f6);
-  padding-left: 9px;
-}
+/* .ops-row-owned replaced by .ops-row-status + .ops-row-checked-out / .ops-row-reserved */
 
 /* ── Mobile: stack columns vertically ── */
 @media (max-width: 768px) {
