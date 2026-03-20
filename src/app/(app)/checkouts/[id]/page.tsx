@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { toLocalDateTimeValue } from "@/components/booking-details/helpers";
 
 type Checkout = {
   id: string;
@@ -272,11 +273,7 @@ export default function CheckoutDetailsPage() {
             <label style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>New end date:</label>
             <DateTimePicker
               value={extendDate ? new Date(extendDate) : undefined}
-              onChange={(d) => {
-                const offsetMs = d.getTimezoneOffset() * 60 * 1000;
-                const local = new Date(d.getTime() - offsetMs);
-                setExtendDate(local.toISOString().slice(0, 16));
-              }}
+              onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
               minDate={new Date(checkout.endsAt)}
               placeholder="Select new end date"
             />

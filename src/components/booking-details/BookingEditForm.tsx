@@ -21,18 +21,18 @@ type Props = {
   onCancel: () => void;
 };
 
-/** Convert datetime-local string back to Date */
+import { toLocalDateTimeValue } from "./helpers";
+
+/** Convert datetime-local string back to Date (treats string as local time) */
 function parseLocalDateTime(s: string): Date | undefined {
   if (!s) return undefined;
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? undefined : d;
-}
-
-/** Convert Date to datetime-local string (for the parent's string-based state) */
-function toLocalDateTimeValue(date: Date): string {
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
-  const local = new Date(date.getTime() - offsetMs);
-  return local.toISOString().slice(0, 16);
+  // datetime-local strings are "YYYY-MM-DDTHH:MM" — parse components directly
+  const [datePart, timePart] = s.split("T");
+  if (!datePart || !timePart) return undefined;
+  const [y, mo, d] = datePart.split("-").map(Number);
+  const [h, mi] = timePart.split(":").map(Number);
+  const date = new Date(y, mo - 1, d, h, mi);
+  return isNaN(date.getTime()) ? undefined : date;
 }
 
 export default function BookingEditForm({

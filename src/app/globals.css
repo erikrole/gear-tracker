@@ -611,55 +611,6 @@ textarea:focus-visible {
 }
 
 /* ===== Search Overlay (mobile) ===== */
-.search-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-overlay);
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.search-overlay-content {
-  background: var(--panel);
-  padding: 12px 16px;
-  padding-top: calc(12px + env(safe-area-inset-top, 0px));
-}
-
-.search-overlay-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0 12px;
-}
-
-.search-overlay-icon {
-  flex-shrink: 0;
-  color: var(--text-secondary);
-}
-
-.search-overlay-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 12px 0;
-  font-size: var(--text-lg);
-  outline: none;
-  min-height: 44px;
-}
-
-.search-overlay-close {
-  background: none;
-  border: none;
-  color: var(--accent);
-  font-size: var(--text-base);
-  font-weight: var(--weight-semibold);
-  cursor: pointer;
-  white-space: nowrap;
-  padding: 8px 0;
-}
-
 /* Search results page */
 .search-result-row {
   display: flex;
@@ -4545,67 +4496,6 @@ tr.status-overdue .status-label,
   opacity: 1;
 }
 
-.filter-chip-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  min-width: 180px;
-  max-height: 280px;
-  overflow-y: auto;
-  background: var(--panel-solid);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
-  z-index: var(--z-modal);
-  padding: 4px;
-}
-
-.filter-chip-option {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  background: none;
-  text-align: left;
-  font-size: var(--text-sm);
-  color: var(--text);
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background 0.1s;
-}
-
-.filter-chip-option:hover {
-  background: var(--accent-soft);
-}
-
-.filter-chip-option-active {
-  background: var(--accent-soft);
-  color: var(--text);
-  font-weight: var(--weight-semibold);
-}
-
-.filter-chip-empty {
-  padding: 12px;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.filter-chip-clear-all {
-  border: none;
-  background: none;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 5px 8px;
-  font-weight: var(--weight-medium);
-  transition: color 0.15s;
-}
-
-.filter-chip-clear-all:hover {
-  color: var(--text);
-}
-
 /* Dark mode filter chips — handled by variables, no override needed */
 
 /* Filter bar (compact inputs) */
@@ -4663,25 +4553,6 @@ tr.status-overdue .status-label,
 .status-text-maintenance { color: var(--orange); }
 .status-text-retired { color: var(--text-muted); }
 
-/* Popover card (e.g. status dot hover) */
-@keyframes popover-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.popover {
-  position: absolute;
-  background: var(--panel-solid);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  padding: 8px 12px;
-  white-space: nowrap;
-  z-index: var(--z-popover);
-  font-size: var(--text-xs);
-  max-width: calc(100vw - 32px);
-  animation: popover-in var(--duration-normal) var(--ease-out);
-}
 
 /* ===== Touch Target Audit ===== */
 

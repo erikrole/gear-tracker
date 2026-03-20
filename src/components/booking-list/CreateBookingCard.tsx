@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { toLocalDateTimeValue } from "./types";
 import {
   Select,
   SelectContent,
@@ -278,11 +279,7 @@ export function CreateBookingCard({
             <Label>From</Label>
             <DateTimePicker
               value={createStartsAt ? new Date(createStartsAt) : undefined}
-              onChange={(d) => {
-                const offsetMs = d.getTimezoneOffset() * 60 * 1000;
-                const local = new Date(d.getTime() - offsetMs);
-                onCreateStartsAtChange(local.toISOString().slice(0, 16));
-              }}
+              onChange={(d) => onCreateStartsAtChange(toLocalDateTimeValue(d))}
               placeholder="Start date & time"
             />
           </div>
@@ -290,11 +287,7 @@ export function CreateBookingCard({
             <Label>To</Label>
             <DateTimePicker
               value={createEndsAt ? new Date(createEndsAt) : undefined}
-              onChange={(d) => {
-                const offsetMs = d.getTimezoneOffset() * 60 * 1000;
-                const local = new Date(d.getTime() - offsetMs);
-                onCreateEndsAtChange(local.toISOString().slice(0, 16));
-              }}
+              onChange={(d) => onCreateEndsAtChange(toLocalDateTimeValue(d))}
               placeholder="End date & time"
             />
           </div>

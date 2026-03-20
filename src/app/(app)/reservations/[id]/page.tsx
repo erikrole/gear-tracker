@@ -14,6 +14,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { toLocalDateTimeValue } from "@/components/booking-details/helpers";
 
 /* ───── Types ───── */
 
@@ -459,11 +460,7 @@ export default function ReservationDetailsPage() {
             </label>
             <DateTimePicker
               value={extendDate ? new Date(extendDate) : undefined}
-              onChange={(d) => {
-                const offsetMs = d.getTimezoneOffset() * 60 * 1000;
-                const local = new Date(d.getTime() - offsetMs);
-                setExtendDate(local.toISOString().slice(0, 16));
-              }}
+              onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
               minDate={new Date(reservation.endsAt)}
               placeholder="Select new end date"
             />

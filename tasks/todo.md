@@ -14,7 +14,7 @@ Last updated: 2026-03-20
 - [x] **Slice D**: BookingContextMenu → ContextMenu + DropdownMenu (2026-03-20)
 - [x] **Slice E**: DateTimePicker — Calendar + Popover + time selects, replaces all datetime-local (2026-03-20)
 - [x] **Slice F**: Tooltips on icon-only buttons (2026-03-20)
-- [ ] **Slice 8**: CSS cleanup — remove dead `.search-overlay*`, `.popover`, `.popover-item`, `.filter-chip-dropdown*`, `.ctx-menu`, `.overflow-btn` + orphaned rules
+- [x] **Slice 8**: CSS cleanup — remove dead `.search-overlay*`, `.popover`, `.filter-chip-dropdown*` + fix datetime timezone bug + fix MenuItems type (2026-03-20)
 
 ### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
 

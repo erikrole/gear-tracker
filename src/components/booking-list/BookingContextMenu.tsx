@@ -43,8 +43,8 @@ function MenuItems({
   Separator,
   Item,
 }: BookingMenuProps & {
-  Separator: React.ComponentType<React.ComponentProps<"div">>;
-  Item: React.ComponentType<React.ComponentProps<"div"> & { onSelect?: () => void; disabled?: boolean }>;
+  Separator: React.ComponentType;
+  Item: React.ComponentType<{ children?: React.ReactNode; className?: string; onSelect?: () => void; disabled?: boolean }>;
 }) {
   const actor = { id: currentUserId, role: currentUserRole };
   const allowed = new Set(
@@ -130,6 +130,3 @@ export function BookingOverflowMenu({
     </DropdownMenu>
   );
 }
-
-// Keep the old export name for backward compatibility during migration
-export { BookingContextMenuWrapper as BookingContextMenu };
