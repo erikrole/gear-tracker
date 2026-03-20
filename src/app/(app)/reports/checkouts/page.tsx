@@ -142,8 +142,8 @@ export default function CheckoutsReportPage() {
 
       <div className="grid-2col gap-16">
         {/* Recent checkouts */}
-        <div className="card">
-          <div className="card-header"><h2>Recent checkouts</h2></div>
+        <Card>
+          <CardHeader><CardTitle>Recent checkouts</CardTitle></CardHeader>
           {data.recentCheckouts.length === 0 ? (
             <EmptyState icon="clipboard" title="No checkouts in this period" />
           ) : (
@@ -184,11 +184,11 @@ export default function CheckoutsReportPage() {
               </div>
             </>
           )}
-        </div>
+        </Card>
 
         {/* Top requesters */}
-        <div className="card">
-          <div className="card-header"><h2>Top requesters</h2></div>
+        <Card>
+          <CardHeader><CardTitle>Top requesters</CardTitle></CardHeader>
           {data.topRequesters.length === 0 ? (
             <EmptyState icon="users" title="No data" />
           ) : (
@@ -216,7 +216,7 @@ export default function CheckoutsReportPage() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </>
   );
