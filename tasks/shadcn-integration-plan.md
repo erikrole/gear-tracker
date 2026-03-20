@@ -1,0 +1,138 @@
+# shadcn/ui Integration Plan
+
+## Goal
+Integrate shadcn/ui into the gear-tracker codebase as the foundation for new UI components, and gradually migrate existing custom components to shadcn equivalents. This preserves the current design language (Wisconsin brand colors, dark mode, spacing) while gaining access to 59 polished, accessible primitives.
+
+## Current State
+- **Stack**: Next.js 15 + React 19 + Tailwind CSS 4 — all compatible with shadcn v4
+- **Styling**: 2,894-line `globals.css` with ~150 CSS variables, BEM-like class conventions
+- **Components**: 33 custom components, ~10 of which overlap with shadcn equivalents
+- **Dark mode**: `data-theme="dark"` attribute + localStorage + prefers-color-scheme
+- **Path alias**: `@/*` → `src/*` already configured
+
+## Overlapping Components (Migration Candidates)
+
+| Our Component | shadcn Equivalent | Priority | Notes |
+|---|---|---|---|
+| `Modal.tsx` | Dialog | High | Focus trap, Escape, overlay — shadcn Dialog does all this |
+| `ConfirmDialog.tsx` | Alert Dialog | High | Promise-based confirm → AlertDialog |
+| `Toast.tsx` | Sonner | High | Replace custom context + provider with Sonner |
+| `EmptyState.tsx` | Empty | Medium | Direct mapping, shadcn version is composable |
+| `Skeleton.tsx` | Skeleton | Medium | Ours has 5 variants — keep composition, swap primitive |
+| `FilterChip.tsx` | Select / Combobox | Medium | Depends on complexity needed |
+| Buttons (`.btn-*`) | Button | Medium | CSS classes → React component with variants |
+| Cards (`.card`) | Card | Low | Simple CSS, low urgency |
+| Badges (`.badge-*`) | Badge | Low | Simple CSS, low urgency |
+| Data tables | Table + Data Table | Low | Heavy, do later |
+| Tabs (`.tab`) | Tabs | Low | Already works fine |
+
+Components to **keep custom** (no shadcn equivalent or too domain-specific):
+- `AppShell.tsx`, `Sidebar.tsx` (layout shell)
+- `BookingDetailsSheet.tsx`, `BookingListPage.tsx` (domain logic)
+- `EquipmentPicker.tsx`, `QrScanner.tsx`, `DonutChart.tsx` (specialized)
+
+---
+
+## Implementation Slices
+
+### Slice 1: Foundation Setup (this PR)
+- [ ] Run `npx shadcn@latest init` — configure for Tailwind CSS 4, `src/components/ui/`, New York style
+- [ ] Map our CSS variables to shadcn's expected naming scheme:
+  - `--bg` → `--background`, `--text` → `--foreground`, `--bg-card` → `--card`, etc.
+  - Keep our existing vars as aliases so nothing breaks
+  - Map `--radius` (8px) → shadcn's `--radius`
+- [ ] Reconcile dark mode: shadcn uses `.dark` class by default; configure to use our `data-theme="dark"` attribute or add the `.dark` class alongside it
+- [ ] Add first 3 components as proof: `Button`, `Badge`, `Skeleton`
+- [ ] Verify `npm run build` passes with zero regressions
+- [ ] No page changes — just infrastructure + new components available
+
+### Slice 2: Dialog & Toast Migration
+- [ ] Add shadcn `Dialog`, `Alert Dialog`, `Sonner`
+- [ ] Create adapter wrappers that match our existing API signatures:
+  - `useConfirm()` → backed by shadcn AlertDialog under the hood
+  - `useToast()` → backed by Sonner
+- [ ] Swap providers in `(app)/layout.tsx`
+- [ ] Verify all confirm/toast callsites still work (grep for `useConfirm`, `useToast`)
+- [ ] Remove old `Modal.tsx`, `ConfirmDialog.tsx`, `Toast.tsx` once verified
+- [ ] Build passes, test all destructive actions trigger confirms
+
+### Slice 3: Empty, Spinner, Item Components
+- [ ] Add shadcn `Empty`, `Spinner`, `Item`
+- [ ] Migrate `EmptyState.tsx` usages to shadcn Empty (preserve our 8 icon variants)
+- [ ] Add Spinner to loading states where we currently use CSS `.spin` animation
+- [ ] Use Item component in list views where applicable
+- [ ] Build passes
+
+### Slice 4: Form Components
+- [ ] Add `Input`, `Label`, `Field`, `Select`, `Checkbox`, `Switch`, `Textarea`
+- [ ] Migrate settings forms and booking forms to use shadcn form primitives
+- [ ] Replace `.form-group` CSS pattern with shadcn Field component
+- [ ] Build passes
+
+### Slice 5: Advanced Components (future)
+- [ ] `Sheet` (for BookingDetailsSheet refinement)
+- [ ] `Command` + `Combobox` (for search/filter upgrades)
+- [ ] `Dropdown Menu` + `Context Menu` (for booking context menu)
+- [ ] `Data Table` (for items/users/reports tables)
+- [ ] `Calendar` + `Date Picker` (for reservation date selection)
+
+---
+
+## CSS Variable Mapping Strategy
+
+We need to bridge our variable names to shadcn's expected names. shadcn v4 uses Tailwind 4's CSS theme variables.
+
+```css
+/* Add to globals.css — shadcn compatibility layer */
+:root {
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg-card);
+  --card-foreground: var(--text);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--accent-soft);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--accent-soft);       /* shadcn accent ≠ our accent */
+  --accent-foreground: var(--text);
+  --destructive: var(--red);
+  --border: var(--border);
+  --input: var(--border);
+  --ring: var(--accent);
+  --radius: 0.5rem;                   /* matches our --radius: 8px */
+}
+```
+
+Dark mode variables follow the same pattern inside `[data-theme="dark"]`.
+
+## Dark Mode Reconciliation
+
+shadcn defaults to toggling a `.dark` class on `<html>`. Our app uses `data-theme="dark"`. Options:
+1. **Recommended**: Configure shadcn's dark mode selector to `[data-theme="dark"]` in the CSS — zero changes to existing theme toggle logic
+2. Alternative: Add `.dark` class alongside `data-theme` in Sidebar.tsx — more fragile
+
+We'll go with option 1.
+
+## Risk Assessment
+
+| Risk | Mitigation |
+|---|---|
+| CSS variable name collision (`--accent`, `--border`, `--radius`) | Alias layer — our vars remain, shadcn vars reference ours |
+| Bundle size increase | shadcn is tree-shakeable (copy-paste, not npm). Only adds what we use |
+| Breaking existing styles | Slice 1 adds no page changes. Each subsequent slice is independently testable |
+| Radix UI dependency bloat | Only Dialog/AlertDialog/Select pull Radix. ~15-20KB gzipped total |
+| Dark mode mismatch | Use `[data-theme="dark"]` selector for shadcn dark styles |
+
+## Success Criteria
+- `npm run build` passes after every slice
+- No visual regression on existing pages after Slice 1
+- Dialog/Toast migration (Slice 2) preserves all existing UX flows
+- New components use shadcn primitives going forward
+- Dark mode works identically before and after
+
+## Scope of This PR (Slice 1 Only)
+We ship Slice 1 as the first PR: init shadcn, bridge CSS variables, add Button/Badge/Skeleton as proof-of-concept. No existing pages are modified — this is pure additive infrastructure.
