@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SearchIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import type { Category } from "./types";
@@ -88,10 +90,8 @@ export default function CategoriesPage() {
         <Card>
           <CardHeader>
             <div className="cat-search-wrap">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="cat-search-icon">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-              </svg>
-              <input
+              <SearchIcon className="cat-search-icon size-4" />
+              <Input
                 type="text"
                 placeholder="Search"
                 value={search}

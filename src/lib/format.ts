@@ -143,6 +143,27 @@ export function formatRelativeTime(iso: string, now: Date): string {
   return formatDateShort(iso);
 }
 
+/** Human-readable duration: "2 days", "5 hours", "30 minutes" */
+export function formatDuration(startsAt: string, endsAt: string): string {
+  const diff = new Date(endsAt).getTime() - new Date(startsAt).getTime();
+  if (diff <= 0) return "—";
+  const minutes = Math.round(diff / 60_000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(diff / (60 * 60_000));
+  if (hours < 24) return hours === 1 ? "1 hour" : `${hours} hours`;
+  const days = Math.round(diff / (24 * 60 * 60_000));
+  return days === 1 ? "1 day" : `${days} days`;
+}
+
+/** "Mar 11, Friday 12:00 PM" — date with day-of-week and time */
+export function formatDateWithDayTime(iso: string): { date: string; dayTime: string } {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const dayTime = d.toLocaleDateString("en-US", { weekday: "long" }) + " " +
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return { date, dayTime };
+}
+
 /** "Mar 11 – Mar 14" or "Mar 11" if same day */
 export function formatDateRange(startsAt: string, endsAt: string) {
   const s = new Date(startsAt);

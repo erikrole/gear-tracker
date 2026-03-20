@@ -9,6 +9,7 @@ import {
   DialogCloseButton,
   DialogBody,
 } from "@/components/ui/dialog";
+import { ImageIcon } from "lucide-react";
 import { useConfirm } from "./ConfirmDialog";
 import { useToast } from "./Toast";
 import { Button } from "@/components/ui/button";
@@ -228,11 +229,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                   <img src={filePreview} alt="Preview" className="image-drop-zone-preview" />
                 ) : (
                   <div className="text-center">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)", marginBottom: 8 }}>
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <path d="M21 15l-5-5L5 21" />
-                    </svg>
+                    <ImageIcon className="size-12 text-[var(--text-tertiary)] mb-2" />
                     <p className="text-sm text-secondary mb-8">Drop an image here</p>
                     <Button variant="outline" size="sm" asChild><span>Pick from computer</span></Button>
                   </div>

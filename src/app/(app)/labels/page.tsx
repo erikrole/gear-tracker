@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 function LabelQRCode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -79,20 +81,14 @@ export default function LabelsPage() {
       </div>
 
       {/* Selection UI (hidden when printing) */}
-      <Card className="no-print" style={{ marginBottom: 16 }}>
-        <CardHeader style={{ gap: 12 }}>
-          <input
+      <Card className="no-print mb-4">
+        <CardHeader className="gap-3">
+          <Input
             type="text"
             placeholder="Search items..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              flex: 1,
-              padding: "7px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              fontSize: "var(--text-sm)"
-            }}
+            className="flex-1"
           />
           <Button variant="outline" size="sm" onClick={selectAll}>Select all</Button>
           <Button variant="outline" size="sm" onClick={selectNone}>Clear</Button>
@@ -101,33 +97,24 @@ export default function LabelsPage() {
         {loading ? (
           <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
         ) : (
-          <div style={{ maxHeight: 300, overflowY: "auto" }}>
+          <div className="max-h-[300px] overflow-y-auto">
             {assets.map((asset) => (
               <label
                 key={asset.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                  borderBottom: "1px solid var(--border)",
-                  background: selectedIds.has(asset.id) ? "#f0fdf4" : "white"
-                }}
+                className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer border-b border-border ${selectedIds.has(asset.id) ? "bg-green-50" : "bg-white"}`}
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selectedIds.has(asset.id)}
-                  onChange={() => toggleSelect(asset.id)}
-                  style={{ width: 18, height: 18 }}
+                  onCheckedChange={() => toggleSelect(asset.id)}
+                  className="size-[18px]"
                 />
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 600 }}>{asset.assetTag}</span>
-                  <span style={{ color: "var(--text-secondary)", fontSize: "var(--text-xs)", marginLeft: 8 }}>
+                <div className="flex-1">
+                  <span className="font-semibold">{asset.assetTag}</span>
+                  <span className="text-secondary text-xs ml-2">
                     {asset.brand} {asset.model}
                   </span>
                 </div>
-                <span style={{ fontSize: "var(--text-3xs)", color: "var(--text-secondary)" }}>{asset.location.name}</span>
+                <span className="text-xs text-secondary">{asset.location.name}</span>
               </label>
             ))}
           </div>

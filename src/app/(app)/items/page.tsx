@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { StarIcon, ImageIcon } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
@@ -94,8 +95,7 @@ function StatusDot({ item }: { item: Asset }) {
             onClick={(e) => {
               if (hasBooking) { e.stopPropagation(); setOpen((v) => !v); }
             }}
-            className={`status-dot ${statusDotClass[item.computedStatus] || "status-retired"}`}
-            style={{ width: 8, height: 8, cursor: hasBooking ? "pointer" : "default" }}
+            className={`status-dot ${statusDotClass[item.computedStatus] || "status-retired"} ${hasBooking ? "cursor-pointer" : "cursor-default"}`}
           />
         </span>
       </PopoverTrigger>
@@ -361,14 +361,10 @@ function BulkActionBar({
   onClear: () => void;
 }) {
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
-      background: "var(--primary-bg, rgba(59,130,246,0.08))", borderBottom: "1px solid var(--border)",
-      flexWrap: "wrap",
-    }}>
+    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--primary-bg,rgba(59,130,246,0.08))] border-b border-border flex-wrap">
       <span className="text-sm font-semibold">{count} selected</span>
       <Button variant="outline" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
 
       {/* Move location */}
       <Popover>
@@ -412,7 +408,7 @@ function BulkActionBar({
       </Button>
 
       {busy && <span className="text-sm text-muted">Processing...</span>}
-      {error && <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>}
+      {error && <span className="text-sm text-red">{error}</span>}
     </div>
   );
 }
@@ -701,11 +697,9 @@ export default function ItemsPage() {
               variant={favoriteFilter ? "default" : "outline"}
               size="sm"
               onClick={() => { setFavoriteFilter((v) => !v); setPage(0); }}
-              style={{ fontSize: "var(--text-sm)", padding: "4px 10px", gap: 4, display: "inline-flex", alignItems: "center" }}
+              className="text-sm px-2.5 py-1 gap-1 inline-flex items-center"
             >
-              <svg viewBox="0 0 24 24" fill={favoriteFilter ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
+              <StarIcon className="size-3.5" fill={favoriteFilter ? "currentColor" : "none"} />
               Favorites
             </Button>
             </TooltipTrigger>
@@ -743,7 +737,7 @@ export default function ItemsPage() {
               <thead>
                 <tr>
                   {canEdit && (
-                    <th style={{ width: 36, padding: "8px 4px" }}>
+                    <th className="w-9 px-1 py-2">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <input
@@ -756,8 +750,8 @@ export default function ItemsPage() {
                       </Tooltip>
                     </th>
                   )}
-                  <th style={{ width: 32, padding: "8px 2px" }}></th>
-                  <th style={{ width: 44, padding: "8px 4px" }}></th>
+                  <th className="w-8 px-0.5 py-2"></th>
+                  <th className="w-11 px-1 py-2"></th>
                   <th>Name</th>
                   <th>Category</th>
                   <th>Location</th>
@@ -770,12 +764,11 @@ export default function ItemsPage() {
                 {items.map((item) => (
                   <tr
                     key={item.id}
-                    className="cursor-pointer"
                     onClick={() => router.push(`/items/${item.id}`)}
-                    style={selected.has(item.id) ? { background: "var(--primary-bg, rgba(59,130,246,0.06))" } : undefined}
+                    className={`cursor-pointer ${selected.has(item.id) ? "bg-[var(--primary-bg,rgba(59,130,246,0.06))]" : ""}`}
                   >
                     {canEdit && (
-                      <td style={{ width: 36, padding: "8px 4px" }} onClick={(e) => e.stopPropagation()}>
+                      <td className="w-9 px-1 py-2" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(item.id)}
@@ -783,27 +776,17 @@ export default function ItemsPage() {
                         />
                       </td>
                     )}
-                    <td style={{ width: 32, padding: "8px 2px" }} onClick={(e) => toggleFavorite(e, item.id)}>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill={favoriteIds.has(item.id) ? "var(--yellow, #eab308)" : "none"}
-                        stroke={favoriteIds.has(item.id) ? "var(--yellow, #eab308)" : "var(--text-muted, #9ca3af)"}
-                        strokeWidth="2"
-                        style={{ width: 16, height: 16, cursor: "pointer", flexShrink: 0 }}
-                      >
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
+                    <td className="w-8 px-0.5 py-2" onClick={(e) => toggleFavorite(e, item.id)}>
+                      <StarIcon
+                        className={`size-4 cursor-pointer shrink-0 ${favoriteIds.has(item.id) ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"}`}
+                      />
                     </td>
-                    <td style={{ width: 44, padding: "8px 4px" }}>
+                    <td className="w-11 px-1 py-2">
                       <div className="item-thumb">
                         {item.imageUrl ? (
                           <Image src={item.imageUrl} alt="" width={72} height={72} sizes="36px" loading="lazy" unoptimized={!item.imageUrl.includes(".public.blob.vercel-storage.com")} />
                         ) : (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)" }}>
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <path d="M21 15l-5-5L5 21" />
-                          </svg>
+                          <ImageIcon className="size-5 text-[var(--text-tertiary)]" />
                         )}
                       </div>
                     </td>

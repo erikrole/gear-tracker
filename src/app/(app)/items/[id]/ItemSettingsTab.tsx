@@ -1,59 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-
-/* ── Settings Tab ───────────────────────────────────────── */
-
-export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const [saving, setSaving] = useState(false);
-
-  async function toggleSetting(field: string, currentValue: boolean) {
-    setSaving(true);
-    await fetch(`/api/assets/${asset.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: !currentValue }),
-    });
-    setSaving(false);
-    onRefresh();
-  }
-
-  const toggles = [
-    { field: "availableForReservation", label: "Available for reservation", value: asset.availableForReservation, help: "When enabled, this item can be included in reservations." },
-    { field: "availableForCheckout", label: "Available for check out", value: asset.availableForCheckout, help: "When enabled, this item can be checked out to users." },
-    { field: "availableForCustody", label: "Available for custody", value: asset.availableForCustody, help: "When enabled, this item can be taken into custody by a user." },
-  ];
-
-  return (
-    <Card className="mt-14">
-      <CardHeader><CardTitle>Policy Settings</CardTitle></CardHeader>
-      <CardContent className="p-16">
-        <p className="text-sm text-secondary mb-16 m-0">
-          These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
-        </p>
-        {toggles.map((t) => (
-          <div key={t.field} className="toggle-row mb-16">
-            <button
-              className={`toggle${t.value ? " on" : ""}`}
-              onClick={() => canEdit && toggleSetting(t.field, t.value)}
-              disabled={saving || !canEdit}
-            />
-            <div>
-              <div className="toggle-label">{t.label}</div>
-              <div className="text-xs text-secondary mt-2">{t.help}</div>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
+import { Empty, EmptyDescription } from "@/components/ui/empty";
 
 /* ── Accessories Section ────────────────────────────────── */
 
@@ -71,6 +26,9 @@ export function AccessoriesSection({
   const [searchResults, setSearchResults] = useState<Array<{ id: string; assetTag: string; brand: string; model: string }>>([]);
   const [searching, setSearching] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up debounce timeout on unmount
+  useEffect(() => () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); }, []);
 
   // Is this item itself an accessory? If so, don't show the attach section.
   const isChild = !!asset.parentAsset;
@@ -162,41 +120,41 @@ export function AccessoriesSection({
       <CardContent className="p-16">
         {attaching && (
           <div className="mb-16">
-            <input
+            <Input
               type="text"
-              className="input w-full"
               placeholder="Search by asset tag, brand, or model..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               autoFocus
             />
-            {searching && <div className="text-sm text-secondary mt-4">Searching...</div>}
+            {searching && <div className="text-sm text-muted-foreground mt-2">Searching...</div>}
             {searchResults.length > 0 && (
-              <div className="mt-4" style={{ border: "1px solid var(--border)", borderRadius: 6 }}>
+              <div className="mt-2 rounded-md border divide-y">
                 {searchResults.map((r) => (
                   <button
                     key={r.id}
-                    className="w-full text-left p-8 hover:bg-hover flex justify-between items-center"
-                    style={{ borderBottom: "1px solid var(--border)" }}
+                    className="w-full text-left px-3 py-2 hover:bg-muted/50 flex justify-between items-center text-sm transition-colors"
                     onClick={() => attachAccessory(r.id)}
                   >
-                    <span className="font-mono text-sm">{r.assetTag}</span>
-                    <span className="text-sm text-secondary">{r.brand} {r.model}</span>
+                    <span className="font-mono font-medium">{r.assetTag}</span>
+                    <span className="text-muted-foreground">{r.brand} {r.model}</span>
                   </button>
                 ))}
               </div>
             )}
             {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-              <div className="text-sm text-secondary mt-4">No matching items found</div>
+              <div className="text-sm text-muted-foreground mt-2">No matching items found</div>
             )}
-            <Button variant="outline" size="sm" className="mt-8" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
               Cancel
             </Button>
           </div>
         )}
 
         {accessories.length === 0 && !attaching && (
-          <div className="text-sm text-secondary">No accessories attached to this item.</div>
+          <Empty className="py-8 border-0">
+            <EmptyDescription>No accessories attached to this item.</EmptyDescription>
+          </Empty>
         )}
 
         {accessories.length > 0 && (
@@ -207,7 +165,7 @@ export function AccessoriesSection({
                   <Link href={`/items/${acc.id}`} className="font-mono text-sm font-medium">
                     {acc.assetTag}
                   </Link>
-                  <span className="text-sm text-secondary ml-8">{acc.brand} {acc.model}</span>
+                  <span className="text-sm text-muted-foreground ml-2">{acc.brand} {acc.model}</span>
                 </div>
                 {canEdit && (
                   <Button

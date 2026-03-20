@@ -1,12 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { PlusIcon, ChevronDownIcon } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -190,9 +193,7 @@ export default function BulkInventoryPage() {
         <Button onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Close" : (
             <>
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
+              <PlusIcon className="size-3.5" />
               Add SKU
             </>
           )}
@@ -238,42 +239,22 @@ export default function BulkInventoryPage() {
             <Input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" />
 
             {/* Track by number toggle */}
-            <label className="col-span-full flex-center gap-10 cursor-pointer" style={{ padding: "8px 0", userSelect: "none" }}>
-              <div
-                role="switch"
-                aria-checked={trackByNumber}
-                onClick={() => setTrackByNumber(!trackByNumber)}
-                onKeyDown={(e) => e.key === "Enter" && setTrackByNumber(!trackByNumber)}
-                tabIndex={0}
-                style={{
-                  width: 40, height: 22, borderRadius: 11,
-                  background: trackByNumber ? "#3b82f6" : "#d1d5db",
-                  position: "relative", transition: "background 0.2s",
-                  flexShrink: 0, cursor: "pointer",
-                }}
-              >
-                <div style={{
-                  width: 18, height: 18, borderRadius: "50%",
-                  background: "white", position: "absolute",
-                  top: 2, left: trackByNumber ? 20 : 2,
-                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }} />
-              </div>
-              <div>
+            <div className="col-span-full flex items-center gap-3 py-2">
+              <Switch
+                id="trackByNumber"
+                checked={trackByNumber}
+                onCheckedChange={setTrackByNumber}
+              />
+              <Label htmlFor="trackByNumber" className="cursor-pointer">
                 <div className="font-semibold text-base">Track by number</div>
                 <div className="text-sm text-secondary">
                   Number each unit individually for loss tracking
                 </div>
-              </div>
-            </label>
+              </Label>
+            </div>
 
             {trackByNumber && (
-              <div className="col-span-full text-sm" style={{
-                padding: "10px 14px",
-                background: "#eff6ff",
-                borderRadius: 8,
-                color: "#1e40af",
-              }}>
+              <div className="col-span-full text-sm rounded-lg bg-blue-50 px-3.5 py-2.5 text-blue-800">
                 This will create individually numbered units. Make sure to physically label each item with its number.
               </div>
             )}
@@ -328,10 +309,7 @@ export default function BulkInventoryPage() {
                         <div className="flex-center gap-6">
                           {sku.name}
                           {sku.trackByNumber && (
-                            <span style={{
-                              fontSize: "var(--text-2xs)", fontWeight: 600, padding: "2px 6px",
-                              borderRadius: 4, background: "#eff6ff", color: "#3b82f6",
-                            }}>#</span>
+                            <Badge variant="blue" size="sm">#</Badge>
                           )}
                         </div>
                         {sku.trackByNumber && units.length > 0 && (
@@ -341,8 +319,7 @@ export default function BulkInventoryPage() {
                         )}
                         {!sku.trackByNumber && (
                           <Button
-                            variant="outline" size="sm" className="mt-4"
-                            style={{ fontSize: "var(--text-3xs)", padding: "2px 8px" }}
+                            variant="outline" size="sm" className="mt-4 text-xs px-2 py-0.5"
                             onClick={(e) => { e.stopPropagation(); handleConvertToNumbered(sku.id); }}
                             disabled={submitting}
                           >
@@ -353,7 +330,7 @@ export default function BulkInventoryPage() {
                       <td>{sku.categoryRel?.name || sku.category}</td>
                       <td>{sku.unit}</td>
                       <td>
-                        <span className="font-semibold" style={{ color: isLow ? "var(--red)" : "inherit" }}>
+                        <span className={`font-semibold ${isLow ? "text-red" : ""}`}>
                           {sku.trackByNumber ? `${units.filter((u) => u.status === "AVAILABLE").length}/${units.length}` : onHand}
                         </span>
                       </td>
@@ -365,10 +342,7 @@ export default function BulkInventoryPage() {
                           <Badge variant="green">in stock</Badge>
                         )}
                         {sku.trackByNumber && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                            className="ml-8 text-secondary" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                            <path d="M6 9l6 6 6-6" />
-                          </svg>
+                          <ChevronDownIcon className={`ml-2 size-3 text-secondary transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
                         )}
                       </td>
                     </tr>
@@ -384,16 +358,16 @@ export default function BulkInventoryPage() {
               const units = sku.units ?? [];
 
               return (
-                <div className="p-16" style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
+                <div className="p-16 border-t border-border bg-[var(--bg)]">
                   <div className="flex-between mb-12">
-                    <h3 className="m-0" style={{ fontSize: "var(--text-md)" }}>{sku.name} — Units</h3>
+                    <h3 className="m-0 text-md">{sku.name} — Units</h3>
                     {addingUnits === sku.id ? (
                       <div className="flex-center gap-8">
-                        <input
+                        <Input
                           type="number" min={1} max={500} value={addCount}
                           onChange={(e) => setAddCount(Number(e.target.value))}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ width: 70, padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: "var(--text-base)" }}
+                          className="w-[70px] px-2 py-1"
                         />
                         <Button size="sm" disabled={submitting}
                           onClick={(e) => { e.stopPropagation(); handleAddUnits(sku.id); }}>
@@ -415,25 +389,15 @@ export default function BulkInventoryPage() {
                   {units.length === 0 ? (
                     <div className="text-secondary text-base">No units created yet.</div>
                   ) : (
-                    <div style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))",
-                      gap: 6,
-                    }}>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
                       {units.map((u) => {
                         const colors = UNIT_STATUS_COLORS[u.status];
                         return (
                           <div
                             key={u.id}
                             title={`#${u.unitNumber} — ${colors.label}${u.notes ? ` (${u.notes})` : ""}`}
-                            style={{
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              gap: 4, padding: "6px 4px",
-                              background: colors.bg, borderRadius: 6,
-                              fontSize: "var(--text-sm)", fontWeight: 600,
-                              cursor: u.status !== "CHECKED_OUT" ? "pointer" : "default",
-                              position: "relative",
-                            }}
+                            className={`flex items-center justify-center gap-1 px-1 py-1.5 rounded-md text-sm font-semibold relative ${u.status !== "CHECKED_OUT" ? "cursor-pointer" : "cursor-default"}`}
+                            style={{ background: colors.bg }}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (u.status === "CHECKED_OUT") return;
@@ -443,10 +407,7 @@ export default function BulkInventoryPage() {
                               handleUnitStatusChange(sku.id, u.unitNumber, next);
                             }}
                           >
-                            <div style={{
-                              width: 6, height: 6, borderRadius: "50%",
-                              background: colors.dot, flexShrink: 0,
-                            }} />
+                            <div className="size-1.5 rounded-full shrink-0" style={{ background: colors.dot }} />
                             {u.unitNumber}
                           </div>
                         );

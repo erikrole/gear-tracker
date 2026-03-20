@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon } from "lucide-react";
+import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, MenuIcon } from "lucide-react";
 import Sidebar from "./Sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -32,60 +32,11 @@ type SearchResult = {
 };
 
 const bottomNavItems = [
-  {
-    label: "Home",
-    href: "/",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    label: "Items",
-    href: "/items",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-        <path d="M2 17l10 5 10-5" />
-        <path d="M2 12l10 5 10-5" />
-      </svg>
-    ),
-  },
-  {
-    label: "Reservations",
-    href: "/reservations",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <path d="M12 8v8M8 12h8" />
-      </svg>
-    ),
-  },
-  {
-    label: "Checkouts",
-    href: "/checkouts",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
-        <rect x="5" y="2" width="14" height="20" rx="2" />
-        <path d="M9 12l2 2 4-4" />
-      </svg>
-    ),
-  },
-  {
-    label: "Scan",
-    href: "/scan",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22">
-        <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
-        <line x1="7" y1="12" x2="17" y2="12" />
-        <line x1="12" y1="7" x2="12" y2="17" />
-      </svg>
-    ),
-  },
+  { label: "Home", href: "/", icon: <LayoutGridIcon className="size-[22px]" /> },
+  { label: "Items", href: "/items", icon: <LayersIcon className="size-[22px]" /> },
+  { label: "Reservations", href: "/reservations", icon: <CalendarPlusIcon className="size-[22px]" /> },
+  { label: "Checkouts", href: "/checkouts", icon: <ClipboardCheckIcon className="size-[22px]" /> },
+  { label: "Scan", href: "/scan", icon: <ScanIcon className="size-[22px]" /> },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -213,7 +164,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: "100vh" }}>
+      <div className="flex items-center justify-center min-h-screen">
         <Spinner className="size-8" />
       </div>
     );
@@ -334,9 +285,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setSidebarOpen(true)}
             aria-label="Open menu"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            </svg>
+            <MenuIcon />
           </button>
           {/* Search trigger (desktop + mobile) */}
           <button

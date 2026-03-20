@@ -3,15 +3,31 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
+const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,25 +35,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PencilIcon, ImageIcon } from "lucide-react";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
 import { OperationalOverview, BookingKindTab, CalendarTab } from "./ItemBookingsTab";
 import ActivityFeed from "./ItemHistoryTab";
-import { SettingsTab, AccessoriesSection } from "./ItemSettingsTab";
+import { AccessoriesSection } from "./ItemSettingsTab";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
-type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "history" | "settings";
+type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "insights" | "history";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
   { key: "checkouts", label: "Checkouts" },
   { key: "reservations", label: "Reservations" },
   { key: "calendar", label: "Calendar" },
+  { key: "insights", label: "Insights" },
   { key: "history", label: "History" },
-  { key: "settings", label: "Settings" },
 ];
 
 /* ── Status Line ────────────────────────────────────────── */
@@ -47,37 +64,37 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
   const b = asset.activeBooking;
 
   if (s === "AVAILABLE") {
-    return <span className="status-text status-text-available">Available</span>;
+    return <Badge variant="green">Available</Badge>;
   }
   if (s === "CHECKED_OUT" && b) {
     const href = `/checkouts/${b.id}`;
     if (b.status === "DRAFT") {
       return (
-        <Link href={href} className="status-text status-text-checking-out no-underline">
-          Checking out
-        </Link>
+        <Badge variant="blue" asChild>
+          <Link href={href} className="no-underline">Checking out</Link>
+        </Badge>
       );
     }
     return (
-      <Link href={href} className="status-text status-text-checked-out no-underline">
-        Checked out by {b.requesterName}
-      </Link>
+      <Badge variant="blue" asChild>
+        <Link href={href} className="no-underline">Checked out by {b.requesterName}</Link>
+      </Badge>
     );
   }
   if (s === "RESERVED" && b) {
     return (
-      <Link href={`/reservations/${b.id}`} className="status-text status-text-reserved no-underline">
-        Reserved by {b.requesterName}
-      </Link>
+      <Badge variant="purple" asChild>
+        <Link href={`/reservations/${b.id}`} className="no-underline">Reserved by {b.requesterName}</Link>
+      </Badge>
     );
   }
   if (s === "MAINTENANCE") {
-    return <span className="status-text status-text-maintenance">Needs Maintenance</span>;
+    return <Badge variant="orange">Needs Maintenance</Badge>;
   }
   if (s === "RETIRED") {
-    return <span className="status-text status-text-retired">Retired</span>;
+    return <Badge variant="gray">Retired</Badge>;
   }
-  return <span className="text-secondary text-base">{s}</span>;
+  return <Badge variant="gray">{s}</Badge>;
 }
 
 /* ── Actions Dropdown ───────────────────────────────────── */
@@ -172,16 +189,6 @@ export default function ItemDetailsPage() {
     };
   }, []);
 
-  const historyByMonth = useMemo(() => {
-    if (!asset) return [] as Array<{ month: string; items: AssetDetail["history"] }>;
-    const groups = new Map<string, AssetDetail["history"]>();
-    for (const item of asset.history) {
-      const month = new Date(item.booking.startsAt).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-      groups.set(month, [...(groups.get(month) || []), item]);
-    }
-    return Array.from(groups.entries()).map(([month, items]) => ({ month, items }));
-  }, [asset]);
-
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   const [actionBusy, setActionBusy] = useState(false);
@@ -252,31 +259,36 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <div className="breadcrumb"><Link href="/items">Items</Link> <span>{"\u203a"}</span> {asset.assetTag}</div>
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild><Link href="/items">Items</Link></BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{asset.assetTag}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       <div className="page-header mb-0">
         <div className="flex gap-16 items-center">
-          {/* Hero image */}
+          {/* Hero image — kept square */}
           {asset.imageUrl ? (
             <button
-              className="asset-hero-image"
+              className={`asset-hero-image aspect-square ${canEdit ? "cursor-pointer" : "cursor-default"}`}
               onClick={() => canEdit && setImageModalOpen(true)}
               title={canEdit ? "Change image" : undefined}
-              style={{ cursor: canEdit ? "pointer" : "default" }}
             >
-              <Image src={asset.imageUrl} alt={asset.assetTag} width={200} height={200} sizes="100px" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
+              <Image src={asset.imageUrl} alt={asset.assetTag} width={200} height={200} sizes="100px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
               {canEdit && (
                 <div className="asset-hero-image-overlay">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                  <PencilIcon className="size-5" />
                 </div>
               )}
             </button>
           ) : canEdit ? (
-            <button className="asset-hero-image asset-hero-image-empty" onClick={() => setImageModalOpen(true)} title="Add image">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)" }}>
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="M21 15l-5-5L5 21" />
-              </svg>
+            <button className="asset-hero-image asset-hero-image-empty aspect-square" onClick={() => setImageModalOpen(true)} title="Add image">
+              <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
             </button>
           ) : null}
           <div>
@@ -294,13 +306,29 @@ export default function ItemDetailsPage() {
           </div>
         </div>
         <div className="header-actions">
-          {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-          <Button variant={asset.availableForReservation ? "default" : "outline"} className="header-action-btn" asChild>
-            <Link href={`/reservations?newFor=${asset.id}`} className="no-underline">Reserve</Link>
-          </Button>
-          <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} className="header-action-btn" asChild>
-            <Link href={`/checkouts?newFor=${asset.id}`} className="no-underline">Check out</Link>
-          </Button>
+          <TooltipProvider>
+            {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={asset.availableForReservation ? "default" : "outline"} className="header-action-btn" asChild>
+                  <Link href={`/reservations?newFor=${asset.id}`} className="no-underline">Reserve</Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {asset.availableForReservation ? "Create a reservation for this item" : "Reservations disabled for this item"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} className="header-action-btn" asChild>
+                  <Link href={`/checkouts?newFor=${asset.id}`} className="no-underline">Check out</Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {asset.availableForCheckout ? "Check out this item" : "Check out disabled for this item"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -311,12 +339,12 @@ export default function ItemDetailsPage() {
 
       {/* Parent banner — shown when this item is an accessory */}
       {asset.parentAsset && (
-        <div className="mb-16 p-8 text-sm" style={{ background: "var(--bg-muted)", borderRadius: 6, border: "1px solid var(--border)" }}>
+        <div className="mb-4 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
           Accessory of{" "}
           <Link href={`/items/${asset.parentAsset.id}`} className="font-medium">
             {asset.parentAsset.assetTag}
           </Link>
-          <span className="text-secondary ml-4">{asset.parentAsset.brand} {asset.parentAsset.model}</span>
+          <span className="text-muted-foreground ml-2">{asset.parentAsset.brand} {asset.parentAsset.model}</span>
         </div>
       )}
 
@@ -344,7 +372,7 @@ export default function ItemDetailsPage() {
               onRefresh={loadAsset}
               onCategoriesChanged={loadCategories}
             />
-            <OperationalOverview asset={asset} now={now} onSelectBooking={setSelectedBookingId} />
+            <OperationalOverview asset={asset} now={now} canEdit={canEdit} onSelectBooking={setSelectedBookingId} onRefresh={loadAsset} />
           </div>
           <AccessoriesSection asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
         </>
@@ -354,7 +382,7 @@ export default function ItemDetailsPage() {
       {(activeTab === "checkouts" || activeTab === "reservations") && (
         <BookingKindTab
           kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}
-          groups={historyByMonth}
+          history={asset.history}
           asset={asset}
           now={now}
           onSelectBooking={setSelectedBookingId}
@@ -366,6 +394,11 @@ export default function ItemDetailsPage() {
         <CalendarTab asset={asset} onSelectBooking={setSelectedBookingId} />
       )}
 
+      {/* Insights tab — utilization dashboard */}
+      {activeTab === "insights" && (
+        <ItemInsightsTab assetId={asset.id} />
+      )}
+
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
         <Card className="mt-14">
@@ -374,11 +407,6 @@ export default function ItemDetailsPage() {
             <ActivityFeed assetId={asset.id} />
           </CardContent>
         </Card>
-      )}
-
-      {/* Settings tab */}
-      {activeTab === "settings" && (
-        <SettingsTab asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
       )}
 
       <BookingDetailsSheet

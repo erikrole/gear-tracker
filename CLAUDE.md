@@ -105,7 +105,16 @@ Every commit that ships functionality MUST include doc updates in the same commi
 - No feature is "done" until its area doc reflects shipped reality
 - This applies to ALL work — not just PRs. Every push must leave docs in sync with code.
 
-### 13. Plan File Lifecycle
+### 13. shadcn/ui Component Standard (NON-NEGOTIABLE)
+All UI work MUST use shadcn/ui components as the standard component library:
+- Use existing shadcn components from `src/components/ui/` for all new features and edits
+- Install new shadcn components via `npx shadcn@latest add <component>` when needed
+- Never build custom UI primitives (buttons, inputs, dialogs, tables, etc.) when a shadcn equivalent exists
+- All components must wire together cleanly — no dead code, no orphaned imports, no unused exports
+- When refactoring, remove old custom components that shadcn replaces
+- Reference installed components: check `src/components/ui/` for what's available before building
+
+### 14. Plan File Lifecycle
 Plan files in `tasks/` follow this lifecycle:
 1. `tasks/[feature]-plan.md` — created during planning
 2. Active during implementation (slices checked off)

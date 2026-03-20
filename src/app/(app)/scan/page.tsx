@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { ChevronLeftIcon, XIcon, ScanIcon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -501,9 +503,7 @@ export default function ScanPage() {
       {mode !== "lookup" && scanStatus && (
         <div className="scan-sticky-header">
           <Link href={`/checkouts/${checkoutId}`} className="scan-header-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
+            <ChevronLeftIcon className="size-[18px]" />
             <div className="scan-header-info">
               <span className="scan-header-title">{scanStatus.title}</span>
               <span className="scan-header-meta">
@@ -574,9 +574,7 @@ export default function ScanPage() {
               className="scan-camera-toggle"
               onClick={() => { setScanning(false); setCameraError(""); setLastScanResult(null); }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M18.36 5.64l-12.72 12.72M5.64 5.64l12.72 12.72" />
-              </svg>
+              <XIcon className="size-4" />
             </button>
           </div>
         ) : (
@@ -584,11 +582,7 @@ export default function ScanPage() {
             className="scan-camera-start"
             onClick={() => { setScanning(true); setCameraError(""); setLastScanResult(null); }}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-              <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
-              <line x1="7" y1="12" x2="17" y2="12" />
-              <line x1="12" y1="7" x2="12" y2="17" />
-            </svg>
+            <ScanIcon className="size-8" />
             <span>Tap to start camera</span>
           </button>
         )}
@@ -601,7 +595,7 @@ export default function ScanPage() {
 
         {/* Manual entry */}
         <div className="scan-manual-entry">
-          <input
+          <Input
             ref={manualInputRef}
             type="text"
             placeholder={mode === "lookup" ? "Enter asset tag or QR code..." : "Enter item code..."}
@@ -631,11 +625,7 @@ export default function ScanPage() {
       {/* ══════ Lookup mode hint ══════ */}
       {mode === "lookup" && !scanning && !lastScanResult && (
         <div className="scan-hint">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
-            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
-            <line x1="7" y1="12" x2="17" y2="12" />
-            <line x1="12" y1="7" x2="12" y2="17" />
-          </svg>
+          <ScanIcon className="size-12" />
           <span>Scan any item&apos;s QR code or enter its asset tag to view details.</span>
         </div>
       )}
@@ -688,11 +678,7 @@ export default function ScanPage() {
                       <span className="scan-item-tag">
                         {item.name}
                         {item.trackByNumber && (
-                          <span style={{
-                            fontSize: "var(--text-2xs)", fontWeight: 600, padding: "1px 5px",
-                            borderRadius: 4, background: "#eff6ff", color: "#3b82f6",
-                            marginLeft: 6,
-                          }}>#</span>
+                          <span className="text-xs font-semibold px-1.5 py-px rounded bg-blue-50 text-blue-500 ml-1.5">#</span>
                         )}
                       </span>
                       <span className="scan-item-desc">{item.scanned} / {item.required} scanned</span>
@@ -700,17 +686,9 @@ export default function ScanPage() {
 
                     {/* Show allocated unit numbers */}
                     {item.trackByNumber && allocated.length > 0 && (
-                      <div style={{
-                        display: "flex", flexWrap: "wrap", gap: 4,
-                        marginTop: 8, marginLeft: 40,
-                      }}>
+                      <div className="flex flex-wrap gap-1 mt-2 ml-10">
                         {allocated.map((u) => (
-                          <span key={u.unitNumber} style={{
-                            fontSize: "var(--text-3xs)", fontWeight: 600,
-                            padding: "2px 6px", borderRadius: 4,
-                            background: u.checkedIn ? "#dcfce7" : u.checkedOut ? "#dbeafe" : "#f3f4f6",
-                            color: u.checkedIn ? "#166534" : u.checkedOut ? "#1e40af" : "#6b7280",
-                          }}>
+                          <span key={u.unitNumber} className={`text-xs font-semibold px-1.5 py-0.5 rounded ${u.checkedIn ? "bg-green-100 text-green-800" : u.checkedOut ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-500"}`}>
                             #{u.unitNumber}
                           </span>
                         ))}
@@ -756,34 +734,18 @@ export default function ScanPage() {
                   </Button>
                 </div>
 
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))",
-                  gap: 6,
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  paddingBottom: 8,
-                }}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] gap-1.5 max-h-[300px] overflow-y-auto pb-2">
                   {unitPicker.availableUnits.map((num) => {
-                    const selected = selectedUnits.has(num);
+                    const isSelected = selectedUnits.has(num);
                   return (
                     <button
                       key={num}
                       onClick={() => {
                         const next = new Set(selectedUnits);
-                        if (selected) next.delete(num); else next.add(num);
+                        if (isSelected) next.delete(num); else next.add(num);
                         setSelectedUnits(next);
                       }}
-                      style={{
-                        padding: "8px 4px",
-                        borderRadius: 8,
-                        border: selected ? "2px solid #3b82f6" : "2px solid #e5e7eb",
-                        background: selected ? "#dbeafe" : "white",
-                        fontSize: "var(--text-base)", fontWeight: 600,
-                        cursor: "pointer",
-                        color: selected ? "#1e40af" : "var(--text)",
-                        transition: "all 0.1s",
-                      }}
+                      className={`px-1 py-2 rounded-lg border-2 font-semibold cursor-pointer transition-all duration-100 ${isSelected ? "border-blue-500 bg-blue-100 text-blue-800" : "border-gray-200 bg-white text-[var(--text)]"}`}
                     >
                       #{num}
                     </button>
@@ -795,14 +757,13 @@ export default function ScanPage() {
           </SheetBody>
 
           <SheetFooter className="flex-row gap-2">
-            <Button variant="outline" onClick={() => setUnitPicker(null)} className="flex-1" style={{ minHeight: 48 }}>
+            <Button variant="outline" onClick={() => setUnitPicker(null)} className="flex-1 min-h-12">
               Cancel
             </Button>
             <Button
               onClick={handleUnitPickerSubmit}
               disabled={selectedUnits.size === 0 || processing}
-              className="flex-1"
-              style={{ minHeight: 48 }}
+              className="flex-1 min-h-12"
             >
               {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
             </Button>
