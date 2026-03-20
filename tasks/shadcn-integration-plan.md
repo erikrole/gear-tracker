@@ -86,7 +86,16 @@ Components to **keep custom** (no shadcn equivalent or too domain-specific):
 - [x] Removed ~120 lines of CSS
 - [x] Build passes, zero regressions
 
-### Slice 5: Advanced Components (future)
+### Slice 5.1: Button Migration ✅ SHIPPED
+- [x] Migrated 182+ `.btn` / `.btn-*` CSS class usages to shadcn `<Button>` with variant/size props
+- [x] Replaced `login-btn` in 4 auth pages with `<Button className="w-full h-11 text-base font-semibold">`
+- [x] Migrated 60+ files: settings, profile, users, items, events, checkouts, reservations, notifications, labels, schedule, scan, import, search, dashboard, reports, error, AppShell, and all booking/shared components
+- [x] Removed ~100 lines of CSS: `.btn`, `.btn-primary`, `.btn-danger`, `.btn-brand`, `.btn-ghost`, `.btn-sm`, `.login-btn`, `.btn-link`, `.btn-danger-text`, `.btn:disabled`
+- [x] Kept layout utility classes still in use: `.btn-checkin`, `.btn-full-page`, `.btn-scan-add`, `.btn-full`, `.btn-mt`, `.btn-return`, `.btn-danger-outline`
+- [x] Build passes, zero regressions
+
+### Slice 5.2+ Advanced Components (future)
+- [ ] `Card` (222 usages — next highest impact)
 - [ ] `Sheet` (for BookingDetailsSheet refinement)
 - [ ] `Command` + `Combobox` (for search/filter upgrades)
 - [ ] `Dropdown Menu` + `Context Menu` (for booking context menu)
