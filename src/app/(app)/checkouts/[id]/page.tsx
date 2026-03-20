@@ -12,6 +12,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { toLocalDateTimeValue } from "@/components/booking-details/helpers";
 
 type Checkout = {
   id: string;
@@ -269,12 +271,11 @@ export default function CheckoutDetailsPage() {
         <Card style={{ padding: 16, marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <label style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>New end date:</label>
-            <input
-              type="datetime-local"
-              value={extendDate}
-              onChange={(e) => setExtendDate(e.target.value)}
-              min={checkout.endsAt.slice(0, 16)}
-              style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 6 }}
+            <DateTimePicker
+              value={extendDate ? new Date(extendDate) : undefined}
+              onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
+              minDate={new Date(checkout.endsAt)}
+              placeholder="Select new end date"
             />
             <Button size="sm" onClick={handleExtend} disabled={!extendDate || !!actionLoading}>
               {actionLoading === "extend" ? "Saving..." : "Save"}

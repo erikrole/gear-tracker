@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import type { BookingDetail } from "./types";
 
 type Props = {
@@ -19,6 +20,20 @@ type Props = {
   onSave: () => void;
   onCancel: () => void;
 };
+
+import { toLocalDateTimeValue } from "./helpers";
+
+/** Convert datetime-local string back to Date (treats string as local time) */
+function parseLocalDateTime(s: string): Date | undefined {
+  if (!s) return undefined;
+  // datetime-local strings are "YYYY-MM-DDTHH:MM" — parse components directly
+  const [datePart, timePart] = s.split("T");
+  if (!datePart || !timePart) return undefined;
+  const [y, mo, d] = datePart.split("-").map(Number);
+  const [h, mi] = timePart.split(":").map(Number);
+  const date = new Date(y, mo - 1, d, h, mi);
+  return isNaN(date.getTime()) ? undefined : date;
+}
 
 export default function BookingEditForm({
   booking,
@@ -46,23 +61,19 @@ export default function BookingEditForm({
 
       <div className="flex gap-3">
         {booking.kind === "RESERVATION" && (
-          <div className="mb-3 space-y-1">
+          <div className="mb-3 space-y-1 flex-1">
             <Label>Start</Label>
-            <Input
-              type="datetime-local"
-              step={900}
-              value={editStartsAt}
-              onChange={(e) => onEditStartsAt(e.target.value)}
+            <DateTimePicker
+              value={parseLocalDateTime(editStartsAt)}
+              onChange={(d) => onEditStartsAt(toLocalDateTimeValue(d))}
             />
           </div>
         )}
-        <div className="mb-3 space-y-1">
+        <div className="mb-3 space-y-1 flex-1">
           <Label>{booking.kind === "RESERVATION" ? "End" : "Due date"}</Label>
-          <Input
-            type="datetime-local"
-            step={900}
-            value={editEndsAt}
-            onChange={(e) => onEditEndsAt(e.target.value)}
+          <DateTimePicker
+            value={parseLocalDateTime(editEndsAt)}
+            onChange={(d) => onEditEndsAt(toLocalDateTimeValue(d))}
           />
         </div>
       </div>

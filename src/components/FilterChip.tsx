@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export function FilterChip({
   label,
@@ -18,54 +23,42 @@ export function FilterChip({
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
   const active = value !== "";
 
   return (
-    <div ref={ref} className="filter-chip-wrap">
-      <button
-        type="button"
-        className={`filter-chip ${active ? "filter-chip-active" : ""}`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="filter-chip-label">{label}{active && ":"}</span>
-        {active && <span className="filter-chip-value">{displayValue || value}</span>}
-        {active ? (
-          <span
-            className="filter-chip-clear"
-            onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
-          >&times;</span>
-        ) : (
-          <span className="filter-chip-chevron">{"\u25BE"}</span>
-        )}
-      </button>
-      {open && (
-        <div className="filter-chip-dropdown">
-          {options.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={`filter-chip-option ${opt.value === value ? "filter-chip-option-active" : ""}`}
-              onClick={() => { onSelect(opt.value); setOpen(false); }}
-            >
-              {opt.label}
-            </button>
-          ))}
-          {options.length === 0 && (
-            <div className="filter-chip-empty">No options</div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`filter-chip ${active ? "filter-chip-active" : ""}`}
+        >
+          <span className="filter-chip-label">{label}{active && ":"}</span>
+          {active && <span className="filter-chip-value">{displayValue || value}</span>}
+          {active ? (
+            <span
+              className="filter-chip-clear"
+              onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
+            >&times;</span>
+          ) : (
+            <span className="filter-chip-chevron">{"\u25BE"}</span>
           )}
-        </div>
-      )}
-    </div>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={4} className="w-auto min-w-[140px] max-h-[240px] overflow-y-auto p-1">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground ${opt.value === value ? "bg-accent text-accent-foreground font-medium" : ""}`}
+            onClick={() => { onSelect(opt.value); setOpen(false); }}
+          >
+            {opt.label}
+          </button>
+        ))}
+        {options.length === 0 && (
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">No options</div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

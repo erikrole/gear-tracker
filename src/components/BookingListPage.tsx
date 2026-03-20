@@ -17,7 +17,6 @@ import {
   BookingFilters,
   BookingTableRow,
   BookingMobileCard,
-  BookingContextMenu,
   CreateBookingCard,
   roundTo15Min,
   toLocalDateTimeValue,
@@ -102,11 +101,10 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
 
-  // ── Sheet + context menu ──
+  // ── Sheet + menu ──
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; item: BookingItem } | null>(null);
   const [extendingId, setExtendingId] = useState<string | null>(null);
 
   const limit = 20;
@@ -406,19 +404,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     }
   }
 
-  // ── Context menu handlers ──
-
-  function handleContextMenu(e: React.MouseEvent, item: BookingItem) {
-    e.preventDefault();
-    e.stopPropagation();
-    setCtxMenu({ x: e.clientX, y: e.clientY, item });
-  }
-
-  function handleOverflow(e: React.MouseEvent, item: BookingItem) {
-    e.stopPropagation();
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    setCtxMenu({ x: rect.right - 180, y: rect.bottom + 4, item });
-  }
+  // ── Menu handlers ──
 
   async function handleExtendFromMenu(bookingId: string, days: number) {
     const item = items.find((i) => i.id === bookingId);
@@ -554,8 +540,12 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                       item={item}
                       overdueStatus={config.overdueStatus}
                       onClick={() => setSelectedBookingId(item.id)}
-                      onContextMenu={(e) => handleContextMenu(e, item)}
-                      onOverflow={(e) => handleOverflow(e, item)}
+                      menuProps={{
+                        currentUserId, currentUserRole, config, extendingId,
+                        onViewDetails: (id) => setSelectedBookingId(id),
+                        onExtend: handleExtendFromMenu,
+                        items, reload,
+                      }}
                     />
                   ))}
                 </tbody>
@@ -570,7 +560,12 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                   item={item}
                   overdueStatus={config.overdueStatus}
                   onClick={() => setSelectedBookingId(item.id)}
-                  onOverflow={(e) => handleOverflow(e, item)}
+                  menuProps={{
+                    currentUserId, currentUserRole, config, extendingId,
+                    onViewDetails: (id) => setSelectedBookingId(id),
+                    onExtend: handleExtendFromMenu,
+                    items, reload,
+                  }}
                 />
               ))}
             </div>
@@ -587,20 +582,6 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           </>
         )}
       </Card>
-
-      {/* ════════ Context menu ════════ */}
-      <BookingContextMenu
-        ctxMenu={ctxMenu}
-        onClose={() => setCtxMenu(null)}
-        onViewDetails={(id) => setSelectedBookingId(id)}
-        onExtend={handleExtendFromMenu}
-        extendingId={extendingId}
-        currentUserId={currentUserId}
-        currentUserRole={currentUserRole}
-        config={config}
-        items={items}
-        reload={reload}
-      />
 
       {/* ════════ Booking details sheet ════════ */}
       <BookingDetailsSheet
