@@ -549,7 +549,7 @@ export default function ScanPage() {
       {mode !== "lookup" && loadError && (
         <div className="scan-status-card scan-status-error">
           Failed to load checkout details.{" "}
-          <button className="btn btn-sm" onClick={loadScanStatus}>Retry</button>
+          <Button variant="outline" size="sm" onClick={loadScanStatus}>Retry</Button>
         </div>
       )}
 
@@ -602,13 +602,13 @@ export default function ScanPage() {
             onKeyDown={(e) => e.key === "Enter" && handleManualEntry()}
             className="scan-manual-input"
           />
-          <button
-            className="btn btn-primary scan-manual-btn"
+          <Button
+            className="scan-manual-btn"
             onClick={handleManualEntry}
             disabled={!manualCode.trim() || processing}
           >
             {processing ? "..." : mode === "lookup" ? "Look up" : "Scan"}
-          </button>
+          </Button>
         </div>
 
         {/* Inline scan feedback */}
@@ -737,8 +737,9 @@ export default function ScanPage() {
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
                   {selectedUnits.size} of {unitPicker.availableUnits.length} selected
                 </span>
-                <button
-                  className="btn btn-sm"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
                     if (selectedUnits.size === unitPicker.availableUnits.length) {
                       setSelectedUnits(new Set());
@@ -748,7 +749,7 @@ export default function ScanPage() {
                   }}
                 >
                   {selectedUnits.size === unitPicker.availableUnits.length ? "Deselect all" : "Select all"}
-                </button>
+                </Button>
               </div>
 
               <div style={{
