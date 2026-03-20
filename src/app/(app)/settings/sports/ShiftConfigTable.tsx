@@ -4,6 +4,7 @@ import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import type { SportConfig, ShiftConfig } from "./types";
 import { AREAS, AREA_LABELS, defaultShiftConfigs } from "./types";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function ShiftConfigTable({
   configs,
@@ -104,12 +105,13 @@ export default function ShiftConfigTable({
                   ))}
                   <td>
                     {isActive && (
-                      <button
-                        className="btn btn-ghost btn-sm"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => onExpand(code)}
                       >
                         {isExpanded ? "Close" : "Roster"}
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
@@ -173,13 +175,14 @@ export default function ShiftConfigTable({
                       </div>
                     ))}
                   </div>
-                  <button
-                    className="btn btn-ghost btn-sm"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => onExpand(code)}
                     style={{ alignSelf: "flex-start" }}
                   >
                     {isExpanded ? "Close roster" : "Roster"}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>

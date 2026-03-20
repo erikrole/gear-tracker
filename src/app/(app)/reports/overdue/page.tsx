@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
+import { Button } from "@/components/ui/button";
 
 type OverdueBooking = {
   id: string;
@@ -159,7 +160,7 @@ export default function OverdueLeaderboardPage() {
     return (
       <div className="card p-16 text-center">
         <p className="text-secondary mb-8">Failed to load overdue report.</p>
-        <button className="btn btn-sm" onClick={loadData}>Retry</button>
+        <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
       </div>
     );
   }
@@ -168,9 +169,9 @@ export default function OverdueLeaderboardPage() {
     <>
       {data.leaderboard.length > 0 && (
         <div className="flex-center mb-16" style={{ justifyContent: "flex-end" }}>
-          <button className="btn btn-sm" onClick={() => downloadCsv(data.leaderboard)}>
+          <Button variant="outline" size="sm" onClick={() => downloadCsv(data.leaderboard)}>
             Export CSV
-          </button>
+          </Button>
         </div>
       )}
       <div className="summary-grid mb-16">

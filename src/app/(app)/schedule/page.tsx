@@ -11,6 +11,7 @@ import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Button } from "@/components/ui/button";
 
 /* ───── Types ───── */
 

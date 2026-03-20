@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import type { BookingDetail } from "./types";
 
 type Props = {
@@ -35,33 +36,32 @@ export default function BookingActions({
   return (
     <div className="sheet-actions">
       {canEdit && (
-        <button className="btn btn-primary" onClick={onEdit}>Edit</button>
+        <Button onClick={onEdit}>Edit</Button>
       )}
       {canCheckin && (
-        <button
-          className="btn btn-checkin"
+        <Button
+          className="btn-checkin"
           disabled={checkinLoading}
           onClick={onCheckinAll}
         >
           {checkinLoading ? "Checking in..." : "Check in all"}
-        </button>
+        </Button>
       )}
       {canConvert && (
-        <button className="btn btn-primary" onClick={onConvert} disabled={converting}>
+        <Button onClick={onConvert} disabled={converting}>
           {converting ? "Converting..." : "Start checkout"}
-        </button>
+        </Button>
       )}
       {canCancel && (
-        <button className="btn btn-danger" onClick={onCancel} disabled={cancelling}>
+        <Button variant="destructive" onClick={onCancel} disabled={cancelling}>
           {cancelling ? "Cancelling..." : booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
-        </button>
+        </Button>
       )}
-      <Link
-        href={booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`}
-        className="btn btn-full-page"
-      >
-        Full page
-      </Link>
+      <Button variant="outline" className="btn-full-page" asChild>
+        <Link href={booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`}>
+          Full page
+        </Link>
+      </Button>
     </div>
   );
 }

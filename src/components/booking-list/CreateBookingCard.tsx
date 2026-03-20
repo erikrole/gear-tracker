@@ -13,6 +13,7 @@ import {
   type AvailableAsset,
   type BulkSkuOption,
 } from "./types";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -292,14 +293,13 @@ export function CreateBookingCard({
       </div>
 
       <div className="create-card-footer">
-        <button className="btn" onClick={onClose}>Cancel</button>
-        <button
-          className="btn btn-primary"
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button
           disabled={submitting}
           onClick={onCreate}
         >
           {submitting ? "Creating..." : `Create ${config.label}`}
-        </button>
+        </Button>
       </div>
     </div>
   );

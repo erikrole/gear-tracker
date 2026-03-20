@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -48,7 +49,7 @@ export default function ForgotPasswordPage() {
               If an account exists with that email, we&apos;ve sent a password reset link. Check your inbox.
             </p>
             <Link href="/login">
-              <button type="button" className="login-btn">Back to sign in</button>
+              <Button type="button" className="w-full h-11 text-base font-semibold">Back to sign in</Button>
             </Link>
           </>
         ) : (
@@ -69,9 +70,9 @@ export default function ForgotPasswordPage() {
 
             {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
 
-            <button type="submit" className="login-btn" disabled={loading}>
+            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
               {loading ? "Sending..." : "Send reset link"}
-            </button>
+            </Button>
 
             <p style={{ textAlign: "center", marginTop: 16, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
               <Link href="/login">Back to sign in</Link>

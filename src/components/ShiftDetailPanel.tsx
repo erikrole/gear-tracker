@@ -8,6 +8,7 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 /* ───── Types ───── */
@@ -314,7 +315,7 @@ export default function ShiftDetailPanel({
         ) : loadError ? (
           <div className="p-16 text-center">
             <p className="text-secondary mb-8">Failed to load shift details.</p>
-            <button className="btn btn-sm" onClick={fetchGroup}>Retry</button>
+            <Button variant="outline" size="sm" onClick={fetchGroup}>Retry</Button>
           </div>
         ) : !group ? (
           <div className="p-16 text-secondary">Shift group not found.</div>
@@ -335,14 +336,15 @@ export default function ShiftDetailPanel({
                         {group.isPremier ? "Yes" : "No"}
                       </span>
                       {isStaff && (
-                        <button
-                          className="btn btn-sm"
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={handleTogglePremier}
                           disabled={acting === "premier"}
                           style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                         >
                           {acting === "premier" ? "..." : "Toggle"}
-                        </button>
+                        </Button>
                       )}
                     </span>
                   ),
@@ -410,14 +412,16 @@ export default function ShiftDetailPanel({
                               {activeAssignment.status.replace("_", " ")}
                             </span>
                             {isStaff && (
-                              <button
-                                className="btn btn-sm text-red"
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
                                 onClick={() => handleRemove(activeAssignment.id)}
                                 disabled={acting === activeAssignment.id}
                                 style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                               >
                                 {acting === activeAssignment.id ? "..." : "Remove"}
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </div>
@@ -438,22 +442,24 @@ export default function ShiftDetailPanel({
                               </span>
                               {isStaff && (
                                 <div className="flex gap-4">
-                                  <button
-                                    className="btn btn-sm btn-primary"
+                                  <Button
+                                    size="sm"
                                     onClick={() => handleApprove(req.id)}
                                     disabled={acting === req.id}
                                     style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                                   >
                                     {acting === req.id ? "..." : "Approve"}
-                                  </button>
-                                  <button
-                                    className="btn btn-sm text-red"
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive"
                                     onClick={() => handleDecline(req.id)}
                                     disabled={acting === req.id}
                                     style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                                   >
                                     Decline
-                                  </button>
+                                  </Button>
                                 </div>
                               )}
                             </div>
@@ -465,23 +471,24 @@ export default function ShiftDetailPanel({
                       {!isAssigned && (
                         <div className="flex gap-4 mt-8">
                           {isStaff && (
-                            <button
-                              className="btn btn-sm btn-primary"
+                            <Button
+                              size="sm"
                               onClick={() => openAssignPicker(shift.id)}
                               style={{ fontSize: "var(--text-3xs)" }}
                             >
                               Assign
-                            </button>
+                            </Button>
                           )}
                           {!isStaff && group.isPremier && !userHasRequested && (
-                            <button
-                              className="btn btn-sm"
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleRequest(shift.id)}
                               disabled={acting === shift.id}
                               style={{ fontSize: "var(--text-3xs)" }}
                             >
                               {acting === shift.id ? "Requesting..." : "Request this shift"}
-                            </button>
+                            </Button>
                           )}
                           {userHasRequested && (
                             <span className="text-xs text-secondary">You have requested this shift</span>
@@ -506,7 +513,7 @@ export default function ShiftDetailPanel({
                           ) : rosterError ? (
                             <div className="text-xs text-secondary">
                               Failed to load roster.{" "}
-                              <button className="btn btn-sm" onClick={() => group?.event.sportCode && loadRoster(group.event.sportCode)} style={{ fontSize: "var(--text-3xs)" }}>Retry</button>
+                              <Button variant="outline" size="sm" onClick={() => group?.event.sportCode && loadRoster(group.event.sportCode)} style={{ fontSize: "var(--text-3xs)" }}>Retry</Button>
                             </div>
                           ) : filteredRoster.length === 0 ? (
                             <div className="text-xs text-secondary">
@@ -517,9 +524,11 @@ export default function ShiftDetailPanel({
                           ) : (
                             <div style={{ maxHeight: 200, overflowY: "auto" }}>
                               {filteredRoster.map((u) => (
-                                <button
+                                <Button
                                   key={u.id}
-                                  className="btn btn-sm w-full text-left mb-2"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-left mb-2"
                                   onClick={() => handleAssign(shift.id, u.id)}
                                   disabled={acting === shift.id}
                                   style={{ fontSize: "var(--text-xs)", justifyContent: "flex-start" }}
@@ -529,17 +538,19 @@ export default function ShiftDetailPanel({
                                     {u.role === "STUDENT" ? "ST" : "FT"}
                                     {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
                                   </span>
-                                </button>
+                                </Button>
                               ))}
                             </div>
                           )}
-                          <button
-                            className="btn btn-sm mt-4"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-4"
                             onClick={() => setAssigningShiftId(null)}
                             style={{ fontSize: "var(--text-3xs)" }}
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>

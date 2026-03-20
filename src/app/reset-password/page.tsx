@@ -6,6 +6,7 @@ import Link from "next/link";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 function validatePassword(password: string): string {
   if (!password) return "Password is required";
@@ -80,7 +81,7 @@ function ResetPasswordForm() {
         <p className="login-subtitle">Invalid reset link</p>
         <p style={{ marginBottom: 16 }}>This password reset link is invalid or has expired.</p>
         <Link href="/forgot-password">
-          <button type="button" className="login-btn">Request a new link</button>
+          <Button type="button" className="w-full h-11 text-base font-semibold">Request a new link</Button>
         </Link>
       </>
     );
@@ -94,7 +95,7 @@ function ResetPasswordForm() {
           Your password has been reset. You can now sign in with your new password.
         </p>
         <Link href="/login">
-          <button type="button" className="login-btn">Sign in</button>
+          <Button type="button" className="w-full h-11 text-base font-semibold">Sign in</Button>
         </Link>
       </>
     );
@@ -149,9 +150,9 @@ function ResetPasswordForm() {
 
         {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
 
-        <button type="submit" className="login-btn" disabled={loading}>
+        <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
           {loading ? "Resetting..." : "Reset password"}
-        </button>
+        </Button>
       </form>
     </>
   );

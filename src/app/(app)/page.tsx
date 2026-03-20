@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 import EmptyState from "@/components/EmptyState";
 import { SkeletonCard } from "@/components/Skeleton";
@@ -163,8 +164,8 @@ export default function DashboardPage() {
       <div className="page-header">
         <h1>Dashboard</h1>
         <div className="quick-actions">
-          <a href="/checkouts?create=true" className="btn">New checkout</a>
-          <a href="/reservations?create=true" className="btn">New reservation</a>
+          <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
+          <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
         </div>
       </div>
 
@@ -336,21 +337,21 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <div className="draft-actions">
-                      <a
-                        href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}
-                        className="btn btn-sm"
-                      >
-                        Resume
-                      </a>
-                      <button
-                        className="btn btn-sm btn-ghost"
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
+                          Resume
+                        </a>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={async () => {
                           await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
                           loadData();
                         }}
                       >
                         Discard
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -392,9 +393,9 @@ export default function DashboardPage() {
                         ) : (
                           <a
                             href={`/checkouts?create=true&title=${encodeURIComponent(eventTitle)}&startsAt=${encodeURIComponent(s.event.startsAt)}&endsAt=${encodeURIComponent(s.event.endsAt)}${s.event.locationId ? `&locationId=${s.event.locationId}` : ""}`}
-                            className="btn btn-sm"
+                            className="no-underline"
                           >
-                            Reserve gear
+                            <Button variant="outline" size="sm">Reserve gear</Button>
                           </a>
                         )}
                       </div>

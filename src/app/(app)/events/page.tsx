@@ -8,6 +8,7 @@ import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
 import { Input } from "@/components/ui/input";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
+import { Button } from "@/components/ui/button";
 
 type CalendarEvent = {
   id: string;
@@ -348,12 +349,12 @@ export default function EventsPage() {
       <div className="page-header">
         <h1>Events</h1>
         <div className="flex gap-8">
-          <button className="btn" onClick={() => setShowMappings(!showMappings)}>
+          <Button variant="outline" onClick={() => setShowMappings(!showMappings)}>
             {showMappings ? "Hide mappings" : "Venue mappings"}
-          </button>
-          <button className="btn" onClick={() => setShowSources(!showSources)}>
+          </Button>
+          <Button variant="outline" onClick={() => setShowSources(!showSources)}>
             {showSources ? "Hide sources" : "Manage sources"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -433,9 +434,9 @@ export default function EventsPage() {
         <div className="card mb-16">
           <div className="card-header">
             <h2>Venue Mappings</h2>
-            <button className="btn btn-sm btn-primary" onClick={() => setShowAddMapping(!showAddMapping)}>
+            <Button size="sm" onClick={() => setShowAddMapping(!showAddMapping)}>
               {showAddMapping ? "Cancel" : "Add mapping"}
-            </button>
+            </Button>
           </div>
 
           <div className="text-xs text-secondary" style={{ padding: "8px 16px 0" }}>

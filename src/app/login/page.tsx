@@ -7,6 +7,7 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
 function validateEmail(email: string): string {
   if (!email) return "Email is required";
@@ -134,9 +135,9 @@ export default function LoginPage() {
 
         {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
 
-        <button type="submit" className="login-btn" disabled={loading}>
+        <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
-        </button>
+        </Button>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
           <Link href="/forgot-password">Forgot password?</Link>

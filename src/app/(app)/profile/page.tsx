@@ -5,6 +5,7 @@ import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 type Location = { id: string; name: string };
 type UserProfile = {
@@ -165,9 +166,9 @@ export default function ProfilePage() {
               {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
             </select>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={savingProfile}>
+          <Button type="submit" disabled={savingProfile}>
             {savingProfile ? "Saving..." : "Save profile"}
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -182,9 +183,9 @@ export default function ProfilePage() {
             <Label htmlFor="newPassword">New password</Label>
             <Input id="newPassword" name="newPassword" type="password" required minLength={8} />
           </div>
-          <button className="btn btn-primary" type="submit" disabled={savingPassword}>
+          <Button type="submit" disabled={savingPassword}>
             {savingPassword ? "Updating..." : "Update password"}
-          </button>
+          </Button>
         </form>
       </div>
 

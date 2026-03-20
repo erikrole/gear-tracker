@@ -7,6 +7,7 @@ import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
 import CreateUserCard from "./CreateUserCard";
+import { Button } from "@/components/ui/button";
 
 const LIMIT = 50;
 
@@ -140,9 +141,9 @@ export default function UsersPage() {
           {total > 0 && <span className="section-count">{total}</span>}
         </div>
         {canEdit && !showCreate && (
-          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+          <Button onClick={() => setShowCreate(true)}>
             Add user
-          </button>
+          </Button>
         )}
       </div>
 
@@ -229,12 +230,12 @@ export default function UsersPage() {
               Showing {page * LIMIT + 1}&ndash;{Math.min((page + 1) * LIMIT, total)} of {total}
             </span>
             <div className="pagination-btns">
-              <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
                 Previous
-              </button>
-              <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         )}

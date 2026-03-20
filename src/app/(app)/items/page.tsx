@@ -8,6 +8,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type ActiveBooking = {
   id: string;
@@ -201,14 +202,15 @@ function CreateItemCard({
         <h2>New item</h2>
         <div className="flex gap-4">
           {(["serialized", "bulk"] as const).map((k) => (
-            <button
+            <Button
               key={k}
               type="button"
-              className={`btn btn-sm ${kind === k ? "btn-primary" : ""}`}
+              variant={kind === k ? "default" : "outline"}
+              size="sm"
               onClick={() => { setKind(k); setError(""); }}
             >
               {k === "serialized" ? "Serialized" : "Bulk"}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -302,10 +304,10 @@ function CreateItemCard({
         )}
 
         <div className="flex-end gap-8 mt-14">
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={submitting}>
             {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
-          </button>
+          </Button>
         </div>
         {error && <div className="alert-error mt-8">{error}</div>}
       </form>
@@ -341,14 +343,14 @@ function BulkActionBar({
       flexWrap: "wrap",
     }}>
       <span className="text-sm font-semibold">{count} selected</span>
-      <button className="btn btn-sm" onClick={onClear} disabled={busy}>Clear</button>
+      <Button variant="outline" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
       <div style={{ flex: 1 }} />
 
       {/* Move location */}
       <div className="relative">
-        <button className="btn btn-sm" onClick={() => { setShowLocPicker((v) => !v); setShowCatPicker(false); }} disabled={busy}>
+        <Button variant="outline" size="sm" onClick={() => { setShowLocPicker((v) => !v); setShowCatPicker(false); }} disabled={busy}>
           Move location
-        </button>
+        </Button>
         {showLocPicker && (
           <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 180, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: "var(--z-dropdown)" }}>
             {locations.map((l) => (
@@ -363,9 +365,9 @@ function BulkActionBar({
 
       {/* Change category */}
       <div className="relative">
-        <button className="btn btn-sm" onClick={() => { setShowCatPicker((v) => !v); setShowLocPicker(false); }} disabled={busy}>
+        <Button variant="outline" size="sm" onClick={() => { setShowCatPicker((v) => !v); setShowLocPicker(false); }} disabled={busy}>
           Change category
-        </button>
+        </Button>
         {showCatPicker && (
           <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 200, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: "var(--z-dropdown)" }}>
             <button className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer", fontStyle: "italic" }}
@@ -382,12 +384,12 @@ function BulkActionBar({
         )}
       </div>
 
-      <button className="btn btn-sm" onClick={() => onAction("maintenance")} disabled={busy}>
+      <Button variant="outline" size="sm" onClick={() => onAction("maintenance")} disabled={busy}>
         Maintenance
-      </button>
-      <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={() => { if (confirm(`Retire ${count} item${count > 1 ? "s" : ""}?`)) onAction("retire"); }} disabled={busy}>
+      </Button>
+      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm(`Retire ${count} item${count > 1 ? "s" : ""}?`)) onAction("retire"); }} disabled={busy}>
         Retire
-      </button>
+      </Button>
 
       {busy && <span className="text-sm text-muted">Processing...</span>}
       {error && <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>}
@@ -605,10 +607,10 @@ export default function ItemsPage() {
         <h1>Items</h1>
         {canEdit && (
           <div className="flex gap-8">
-            <Link href="/import" className="btn">Import</Link>
-            <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+            <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
+            <Button onClick={() => setShowCreate((v) => !v)}>
               {showCreate ? "Close" : "New item"}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -672,9 +674,10 @@ export default function ItemsPage() {
                 onClear={() => { setDepartmentFilter(""); setPage(0); }}
               />
             )}
-            <button
+            <Button
               type="button"
-              className={`btn btn-sm${favoriteFilter ? " btn-primary" : ""}`}
+              variant={favoriteFilter ? "default" : "outline"}
+              size="sm"
               onClick={() => { setFavoriteFilter((v) => !v); setPage(0); }}
               title="Show favorites only"
               style={{ fontSize: "var(--text-sm)", padding: "4px 10px", gap: 4, display: "inline-flex", alignItems: "center" }}
@@ -683,7 +686,7 @@ export default function ItemsPage() {
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
               Favorites
-            </button>
+            </Button>
             {hasActiveFilters && (
               <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
                 Clear all
@@ -807,8 +810,8 @@ export default function ItemsPage() {
               <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
               {totalPages > 1 && (
                 <div className="pagination-btns">
-                  <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-                  <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</button>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
                 </div>
               )}
             </div>

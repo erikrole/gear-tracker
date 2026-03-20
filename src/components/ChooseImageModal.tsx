@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useConfirm } from "./ConfirmDialog";
 import { useToast } from "./Toast";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Props = {
@@ -207,14 +208,14 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
               {urlError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
               <div className="flex-end gap-8 mt-16">
                 {currentImageUrl && (
-                  <button className="btn btn-danger" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
+                  <Button variant="destructive" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
                     Remove
-                  </button>
+                  </Button>
                 )}
-                <button className="btn" onClick={handleClose}>Cancel</button>
-                <button className="btn btn-primary" onClick={saveUrl} disabled={!urlPreview || urlError || saving}>
+                <Button variant="outline" onClick={handleClose}>Cancel</Button>
+                <Button onClick={saveUrl} disabled={!urlPreview || urlError || saving}>
                   {saving ? "Saving..." : "Save"}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -239,7 +240,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                       <path d="M21 15l-5-5L5 21" />
                     </svg>
                     <p className="text-sm text-secondary mb-8">Drop an image here</p>
-                    <span className="btn btn-sm">Pick from computer</span>
+                    <Button variant="outline" size="sm" asChild><span>Pick from computer</span></Button>
                   </div>
                 )}
               </div>
@@ -256,14 +257,14 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
               {fileError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>{fileError}</p>}
               <div className="flex-end gap-8 mt-16">
                 {currentImageUrl && (
-                  <button className="btn btn-danger" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
+                  <Button variant="destructive" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
                     Remove
-                  </button>
+                  </Button>
                 )}
-                <button className="btn" onClick={handleClose}>Cancel</button>
-                <button className="btn btn-primary" onClick={uploadFile} disabled={!file || !!fileError || saving}>
+                <Button variant="outline" onClick={handleClose}>Cancel</Button>
+                <Button onClick={uploadFile} disabled={!file || !!fileError || saving}>
                   {saving ? "Uploading..." : "Upload"}
-                </button>
+                </Button>
               </div>
             </div>
           )}
