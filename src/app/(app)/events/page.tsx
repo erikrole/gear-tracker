@@ -453,7 +453,7 @@ export default function EventsPage() {
                 ))}
               </select>
               <Input name="priority" type="number" defaultValue="0" placeholder="Priority" style={{ width: 80 }} title="Higher priority mappings are checked first" />
-              <button type="submit" className="btn btn-primary" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</button>
+              <Button type="submit" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</Button>
             </form>
           )}
 
@@ -476,13 +476,15 @@ export default function EventsPage() {
                     <td><span className="badge badge-blue">{m.location.name}</span></td>
                     <td>{m.priority}</td>
                     <td>
-                      <button
-                        className="btn btn-sm text-red"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
                         onClick={() => handleDeleteMapping(m.id)}
                         disabled={deletingMappingId === m.id}
                       >
                         {deletingMappingId === m.id ? "..." : "Delete"}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -497,16 +499,16 @@ export default function EventsPage() {
         <div className="card mb-16">
           <div className="card-header">
             <h2>Calendar Sources</h2>
-            <button className="btn btn-sm btn-primary" onClick={() => setShowAddSource(!showAddSource)}>
+            <Button size="sm" onClick={() => setShowAddSource(!showAddSource)}>
               {showAddSource ? "Cancel" : "Add source"}
-            </button>
+            </Button>
           </div>
 
           {showAddSource && (
             <form onSubmit={handleAddSource} className="flex gap-8 p-16">
               <Input name="name" placeholder="Source name" required className="flex-1" />
               <Input name="url" placeholder="webcal:// or https:// URL" required style={{ flex: 2 }} />
-              <button type="submit" className="btn btn-primary" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</button>
+              <Button type="submit" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</Button>
             </form>
           )}
 
@@ -555,31 +557,35 @@ export default function EventsPage() {
                       )}
                     </td>
                     <td>
-                      <button
-                        className={`btn btn-sm ${source.enabled ? "" : "btn-primary"}`}
+                      <Button
+                        variant={source.enabled ? "outline" : "default"}
+                        size="sm"
                         onClick={() => handleToggleEnabled(source.id, !source.enabled)}
                         disabled={togglingId === source.id}
                         title={source.enabled ? "Disable this source (sync will skip it)" : "Enable this source"}
                       >
                         {togglingId === source.id ? "..." : source.enabled ? "Disable" : "Enable"}
-                      </button>
+                      </Button>
                     </td>
                     <td className="flex gap-4">
-                      <button
-                        className="btn btn-sm"
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleSync(source.id)}
                         disabled={syncing === source.id || !source.enabled}
                         title={!source.enabled ? "Enable source before syncing" : ""}
                       >
                         {syncing === source.id ? "Syncing..." : "Sync now"}
-                      </button>
-                      <button
-                        className="btn btn-sm text-red"
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
                         onClick={() => handleDeleteSource(source.id)}
                         disabled={deletingSourceId === source.id}
                       >
                         {deletingSourceId === source.id ? "..." : "Delete"}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
