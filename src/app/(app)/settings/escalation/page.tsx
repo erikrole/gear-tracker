@@ -4,6 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type EscalationRule = {
   id: string;
@@ -170,18 +177,20 @@ export default function EscalationSettingsPage() {
               <label htmlFor="cap" className="text-sm font-semibold">
                 Max notifications per booking
               </label>
-              <select
-                id="cap"
-                className="form-select"
-                value={config.maxNotificationsPerBooking}
-                onChange={(e) => updateCap(Number(e.target.value))}
+              <Select
+                value={String(config.maxNotificationsPerBooking)}
+                onValueChange={(v) => updateCap(Number(v))}
                 disabled={saving === "cap"}
-                style={{ width: 80 }}
               >
-                {[5, 10, 15, 20, 50].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+                <SelectTrigger id="cap" style={{ width: 80 }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[5, 10, 15, 20, 50].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <p className="text-sm text-secondary mt-8 m-0">
               Once a booking reaches this limit, no further notifications will be sent for it.

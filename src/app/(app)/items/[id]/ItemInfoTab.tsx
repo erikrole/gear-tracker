@@ -5,6 +5,15 @@ import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { AssetDetail, CategoryOption } from "./types";
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -97,16 +106,20 @@ function FiscalYearField({ value, canEdit, onSave }: { value: string; canEdit: b
       <dt className="data-list-label">Fiscal Year</dt>
       <dd className="data-list-value">
         {editing ? (
-          <select
+          <Select
             value={value}
-            onChange={async (e) => { await onSave(e.target.value); setEditing(false); }}
-            onBlur={() => setEditing(false)}
-            autoFocus
-            className="inline-edit-select"
+            onValueChange={async (v) => { await onSave(v); setEditing(false); }}
+            open={editing}
+            onOpenChange={(open) => { if (!open) setEditing(false); }}
           >
-            <option value="">{"\u2014"}</option>
-            {options.map((fy) => <option key={fy} value={fy}>{fy}</option>)}
-          </select>
+            <SelectTrigger size="sm">
+              <SelectValue placeholder={"\u2014"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{"\u2014"}</SelectItem>
+              {options.map((fy) => <SelectItem key={fy} value={fy}>{fy}</SelectItem>)}
+            </SelectContent>
+          </Select>
         ) : (
           <span
             onClick={() => canEdit && setEditing(true)}
@@ -178,29 +191,34 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
             />
           </div>
         ) : editing ? (
-          <select
+          <Select
             defaultValue={currentId}
-            onChange={async (e) => {
-              if (e.target.value === "__create__") { setEditing(false); setCreating(true); return; }
-              await onSave(e.target.value); setEditing(false);
+            onValueChange={async (v) => {
+              if (v === "__create__") { setEditing(false); setCreating(true); return; }
+              await onSave(v); setEditing(false);
             }}
-            onBlur={() => setEditing(false)}
-            autoFocus
-            className="inline-edit-select"
+            open={editing}
+            onOpenChange={(open) => { if (!open) setEditing(false); }}
           >
-            <option value="">{"\u2014"}</option>
-            {categories.filter((c) => !c.parentId).map((parent) => (
-              <optgroup key={parent.id} label={parent.name}>
-                {categories.filter((c) => c.parentId === parent.id).length === 0
-                  ? <option value={parent.id}>{parent.name}</option>
-                  : categories.filter((c) => c.parentId === parent.id).map((child) => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))
-                }
-              </optgroup>
-            ))}
-            <option value="__create__">+ Create new category</option>
-          </select>
+            <SelectTrigger size="sm">
+              <SelectValue placeholder={"\u2014"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{"\u2014"}</SelectItem>
+              {categories.filter((c) => !c.parentId).map((parent) => (
+                <SelectGroup key={parent.id}>
+                  <SelectLabel>{parent.name}</SelectLabel>
+                  {categories.filter((c) => c.parentId === parent.id).length === 0
+                    ? <SelectItem value={parent.id}>{parent.name}</SelectItem>
+                    : categories.filter((c) => c.parentId === parent.id).map((child) => (
+                      <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                    ))
+                  }
+                </SelectGroup>
+              ))}
+              <SelectItem value="__create__">+ Create new category</SelectItem>
+            </SelectContent>
+          </Select>
         ) : (
           <span
             onClick={() => canEdit && setEditing(true)}

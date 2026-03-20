@@ -8,6 +8,13 @@ import { AREA_LABELS } from "./types";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function RosterPanel({
   sportCode,
@@ -179,21 +186,20 @@ export default function RosterPanel({
 
           {/* Add to roster */}
           <div className="p-12 flex gap-8 items-center" style={{ flexWrap: "wrap" }}>
-            <select
-              className="form-select"
-              value={addUserId}
-              onChange={(e) => setAddUserId(e.target.value)}
-              style={{ minWidth: 200, flex: "1 1 200px" }}
-            >
-              <option value="">Select user...</option>
-              {allUsers
-                .filter((u) => !roster.some((r) => r.userId === u.id))
-                .map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.role})
-                  </option>
-                ))}
-            </select>
+            <Select value={addUserId} onValueChange={setAddUserId}>
+              <SelectTrigger style={{ minWidth: 200, flex: "1 1 200px" }}>
+                <SelectValue placeholder="Select user..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allUsers
+                  .filter((u) => !roster.some((r) => r.userId === u.id))
+                  .map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name} ({u.role})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
             <Button
               size="sm"
               onClick={addToRoster}

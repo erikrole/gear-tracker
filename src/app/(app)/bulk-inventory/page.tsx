@@ -7,6 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type BulkSkuUnit = {
   id: string;
@@ -195,25 +204,35 @@ export default function BulkInventoryPage() {
           <CardHeader><CardTitle>Add bulk SKU</CardTitle></CardHeader>
           <form onSubmit={handleCreate} className="form-grid form-grid-3 p-16">
             <Input name="name" placeholder="Name" required />
-            <select name="categoryId" className="form-select">
-              <option value="">Category</option>
-              {categories.filter((c) => !c.parentId).map((parent) => (
-                <optgroup key={parent.id} label={parent.name}>
-                  {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))}
-                  {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                    <option value={parent.id}>{parent.name}</option>
-                  )}
-                </optgroup>
-              ))}
-            </select>
+            <Select name="categoryId" defaultValue="">
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Category</SelectItem>
+                {categories.filter((c) => !c.parentId).map((parent) => (
+                  <SelectGroup key={parent.id}>
+                    <SelectLabel>{parent.name}</SelectLabel>
+                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                      <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                    ))}
+                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                      <SelectItem value={parent.id}>{parent.name}</SelectItem>
+                    )}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
             <input name="category" type="hidden" defaultValue="general" />
             <Input name="unit" placeholder="Unit (e.g. each, pair)" required />
-            <select name="locationId" required className="form-select">
-              <option value="">Location</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <Select name="locationId" required defaultValue="">
+              <SelectTrigger>
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Input name="binQrCodeValue" placeholder="Bin QR code value" required />
             <Input name="minThreshold" type="number" min={0} defaultValue={0} placeholder="Min threshold" />
             <Input name="initialQuantity" type="number" min={0} defaultValue={0} placeholder="Initial quantity" />

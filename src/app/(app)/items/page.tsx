@@ -11,6 +11,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ActiveBooking = {
   id: string;
@@ -223,24 +232,34 @@ function CreateItemCard({
             <div className="grid-3col">
               <Input name="assetTag" placeholder="Tag name *" required />
               <Input name="itemName" placeholder="Product name" />
-              <select name="categoryId" className="form-select">
-                <option value="">Category</option>
-                {categories.filter((c) => !c.parentId).map((parent) => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                      <option key={child.id} value={child.id}>{child.name}</option>
-                    ))}
-                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                      <option value={parent.id}>{parent.name}</option>
-                    )}
-                  </optgroup>
-                ))}
-              </select>
+              <Select name="categoryId" defaultValue="">
+                <SelectTrigger>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Category</SelectItem>
+                  {categories.filter((c) => !c.parentId).map((parent) => (
+                    <SelectGroup key={parent.id}>
+                      <SelectLabel>{parent.name}</SelectLabel>
+                      {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                        <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                      ))}
+                      {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                        <SelectItem value={parent.id}>{parent.name}</SelectItem>
+                      )}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
               <input name="type" type="hidden" defaultValue="equipment" />
-              <select name="locationId" required className="form-select">
-                <option value="">Location *</option>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              <Select name="locationId" required defaultValue="">
+                <SelectTrigger>
+                  <SelectValue placeholder="Location *" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <Input name="brand" placeholder="Brand *" required />
               <Input name="model" placeholder="Model *" required />
               <Input name="serialNumber" placeholder="Serial number *" required />
@@ -269,28 +288,38 @@ function CreateItemCard({
               <Input name="name" placeholder="Product name *" required />
               <p className="text-muted-foreground text-xs mt-1">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</p>
             </div>
-            <select name="categoryId" className="form-select">
-              <option value="">Category</option>
-              {categories.filter((c) => !c.parentId).map((parent) => (
-                <optgroup key={parent.id} label={parent.name}>
-                  {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))}
-                  {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                    <option value={parent.id}>{parent.name}</option>
-                  )}
-                </optgroup>
-              ))}
-            </select>
+            <Select name="categoryId" defaultValue="">
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Category</SelectItem>
+                {categories.filter((c) => !c.parentId).map((parent) => (
+                  <SelectGroup key={parent.id}>
+                    <SelectLabel>{parent.name}</SelectLabel>
+                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                      <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+                    ))}
+                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                      <SelectItem value={parent.id}>{parent.name}</SelectItem>
+                    )}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
             <input name="category" type="hidden" defaultValue="general" />
             <div>
               <Input name="unit" placeholder="Unit (e.g. ea, box) *" required />
               <p className="text-muted-foreground text-xs mt-1">How you count them: ea, box, pack, pair, roll</p>
             </div>
-            <select name="locationId" required className="form-select">
-              <option value="">Location *</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            <Select name="locationId" required defaultValue="">
+              <SelectTrigger>
+                <SelectValue placeholder="Location *" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <div>
               <Input name="binQrCodeValue" placeholder="Bin QR code *" required />
               <p className="text-muted-foreground text-xs mt-1">Scan or type the QR code on the storage bin</p>

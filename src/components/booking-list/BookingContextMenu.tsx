@@ -17,6 +17,9 @@ export type BookingContextMenuProps = {
   reload: () => Promise<void>;
 };
 
+const menuItemClass =
+  "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-left outline-hidden select-none bg-transparent border-none cursor-default hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
+
 export function BookingContextMenu({
   ctxMenu,
   onClose,
@@ -68,11 +71,11 @@ export function BookingContextMenu({
   return (
     <div
       ref={ctxRef}
-      className="ctx-menu"
+      className="fixed z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
       style={{ top: ctxMenu.y, left: ctxMenu.x }}
     >
       <button
-        className="ctx-menu-item"
+        className={menuItemClass}
         onClick={() => ctxAction(() => onViewDetails(ctxMenu.item.id))}
       >
         View details
@@ -80,7 +83,7 @@ export function BookingContextMenu({
 
       {ctxAllowed.has("edit") && (
         <button
-          className="ctx-menu-item"
+          className={menuItemClass}
           onClick={() => ctxAction(() => onViewDetails(ctxMenu.item.id))}
         >
           Edit
@@ -89,16 +92,16 @@ export function BookingContextMenu({
 
       {ctxAllowed.has("extend") && (
         <>
-          <div className="ctx-menu-sep" />
+          <div className="-mx-1 my-1 h-px bg-muted" />
           <button
-            className="ctx-menu-item"
+            className={menuItemClass}
             onClick={() => ctxAction(() => onExtend(ctxMenu.item.id, 1))}
             disabled={extendingId === ctxMenu.item.id}
           >
             {extendingId === ctxMenu.item.id ? "Extending..." : "Extend +1 day"}
           </button>
           <button
-            className="ctx-menu-item"
+            className={menuItemClass}
             onClick={() => ctxAction(() => onExtend(ctxMenu.item.id, 7))}
             disabled={extendingId === ctxMenu.item.id}
           >
@@ -110,9 +113,9 @@ export function BookingContextMenu({
       {config.contextMenuExtras.map((extra) =>
         ctxAllowed.has(extra.action) ? (
           <span key={extra.action}>
-            <div className="ctx-menu-sep" />
+            <div className="-mx-1 my-1 h-px bg-muted" />
             <button
-              className={`ctx-menu-item${extra.danger ? " danger" : ""}`}
+              className={`${menuItemClass}${extra.danger ? " text-destructive" : ""}`}
               onClick={() => ctxAction(() => {
                 if (extra.opensSheet) onViewDetails(ctxMenu.item.id);
                 else extra.handler?.(ctxMenu.item.id, items, reload);

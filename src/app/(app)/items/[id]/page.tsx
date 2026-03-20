@@ -12,6 +12,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -82,46 +89,34 @@ function ActionsMenu({
   asset: AssetDetail;
   onAction: (action: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [open]);
-
   const canDelete = !asset.hasBookingHistory;
 
   return (
-    <div ref={ref} className="relative">
-      <Button variant="outline" className="header-action-btn" onClick={() => setOpen((v) => !v)}>Actions</Button>
-      {open && (
-        <div className="ctx-menu ctx-menu-anchor">
-          <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("duplicate"); }}>
-            Duplicate
-          </button>
-          <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("maintenance"); }}>
-            {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
-          </button>
-          <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("retire"); }}>
-            Retire
-          </button>
-          <div className="ctx-menu-sep" />
-          <button
-            className="ctx-menu-item danger"
-            disabled={!canDelete}
-            title={!canDelete ? "Item has booking history \u2014 use Retire instead" : "Permanently delete this item"}
-            onClick={() => { if (canDelete) { setOpen(false); onAction("delete"); } }}
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="header-action-btn">Actions</Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onAction("duplicate")}>
+          Duplicate
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onAction("maintenance")}>
+          {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onAction("retire")}>
+          Retire
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={!canDelete}
+          title={!canDelete ? "Item has booking history \u2014 use Retire instead" : "Permanently delete this item"}
+          onSelect={() => onAction("delete")}
+        >
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
