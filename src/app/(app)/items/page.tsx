@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { RowSelectionState } from "@tanstack/react-table";
+import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
@@ -364,6 +364,7 @@ export default function ItemsPage() {
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const limit = 25;
@@ -612,6 +613,8 @@ export default function ItemsPage() {
               data={items}
               rowSelection={rowSelection}
               onRowSelectionChange={setRowSelection}
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
             />
             <div className="flex items-center justify-between px-3 py-3 border-t text-sm text-muted-foreground">
               <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
