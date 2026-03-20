@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 type EmptyStateProps = {
   icon?: "search" | "calendar" | "box" | "clipboard" | "bell" | "users" | "folder" | "chart";
@@ -74,10 +75,12 @@ export default function EmptyState({
       <p className="empty-state-title">{title}</p>
       {description && <p className="empty-state-desc">{description}</p>}
       {actionLabel && actionHref && (
-        <Link href={actionHref} className="btn btn-primary btn-sm">{actionLabel}</Link>
+        <Button size="sm" asChild>
+          <Link href={actionHref}>{actionLabel}</Link>
+        </Button>
       )}
       {actionLabel && onAction && !actionHref && (
-        <button className="btn btn-primary btn-sm" onClick={onAction}>{actionLabel}</button>
+        <Button size="sm" onClick={onAction}>{actionLabel}</Button>
       )}
     </div>
   );

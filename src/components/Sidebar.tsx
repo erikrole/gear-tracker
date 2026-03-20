@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navItems = [
   {
@@ -181,9 +182,11 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
       {/* User profile header */}
       {user && (
         <div className="sidebar-profile">
-          <div className="sidebar-avatar-lg">
-            {user.name.charAt(0).toUpperCase()}
-          </div>
+          <Avatar className="size-[72px] border-2 border-white/15 bg-white/10 mb-2.5">
+            <AvatarFallback className="bg-transparent text-white/90 text-[26px] font-semibold">
+              {user.name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <div className="sidebar-profile-name">{user.name}</div>
         </div>
       )}

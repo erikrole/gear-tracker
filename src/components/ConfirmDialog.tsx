@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 type ConfirmOptions = {
   title: string;
@@ -96,16 +97,16 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             <h3 id="confirm-dialog-title" className="confirm-title">{state.title}</h3>
             <p className="confirm-message">{state.message}</p>
             <div className="confirm-actions">
-              <button className="btn" onClick={() => handleClose(false)}>
+              <Button variant="outline" onClick={() => handleClose(false)}>
                 {state.cancelLabel || "Cancel"}
-              </button>
-              <button
-                className={`btn ${state.variant === "danger" ? "btn-danger" : "btn-primary"}`}
+              </Button>
+              <Button
+                variant={state.variant === "danger" ? "destructive" : "default"}
                 onClick={() => handleClose(true)}
                 autoFocus
               >
                 {state.confirmLabel || "Confirm"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

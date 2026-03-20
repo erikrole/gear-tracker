@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import type { BookingDetail } from "./types";
 
 type Props = {
@@ -74,14 +75,13 @@ export default function BookingEditForm({
       </div>
 
       <div className="action-row-mt">
-        <button
-          className="btn btn-primary"
+        <Button
           disabled={saving}
           onClick={onSave}
         >
           {saving ? "Saving..." : "Save changes"}
-        </button>
-        <button className="btn" onClick={onCancel}>Cancel</button>
+        </Button>
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   );

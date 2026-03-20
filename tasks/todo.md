@@ -1,10 +1,23 @@
 # Current Task Queue
 
-Last updated: 2026-03-16
+Last updated: 2026-03-20
 
 ---
 
 ## Active Work
+
+### shadcn Avatar Integration (Slice 1.5 of shadcn plan)
+
+- [ ] Add shadcn Avatar component (Avatar, AvatarImage, AvatarFallback)
+- [ ] Create AvatarGroup component for stacked/overlapping avatars
+- [ ] Migrate Sidebar avatar (sidebar-avatar-lg → Avatar)
+- [ ] Migrate UserRow mobile avatar (user-mobile-avatar → Avatar)
+- [ ] Migrate UserDetail page avatar (user-detail-avatar → Avatar)
+- [ ] Add stacked avatars to ShiftDetailPanel pending requests
+- [ ] Add stacked avatars to schedule page coverage indicators
+- [ ] Clean up old avatar CSS classes from globals.css
+- [ ] npm run build — verify zero regressions
+- [ ] Commit & push
 
 ### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
 
@@ -12,19 +25,8 @@ Last updated: 2026-03-16
 
 - [x] Research: competitive analysis + integration strategy (2026-03-17)
 - [x] **Slice 1**: Shift context banner on checkout creation form (2026-03-17)
-  - When event selected, show "Your shift: VIDEO 1:30–5:00 PM" banner
-  - Fetches from `GET /api/my-shifts?eventId=...`
-  - Files: `BookingListPage.tsx`, new API: `GET /api/my-shifts`
 - [x] **Slice 2**: "My Shifts" dashboard widget with gear status (2026-03-17)
-  - New widget below Drafts in left column
-  - Shows upcoming shifts + gear checkout status (none/reserved/checked out)
-  - "Reserve Gear" link → checkout creation pre-filled with event
-  - Files: `page.tsx` (dashboard), `GET /api/dashboard` enrichment
 - [x] **Slice 3**: "Gear Up" notification on shift assignment approval (2026-03-17)
-  - On approve/direct-assign, create in-app notification for student
-  - Type: `shift_gear_up` with event + area context
-  - Non-blocking, deduped per assignment
-  - Files: `shift-assignments.ts`, `notifications.ts`
 - [x] **Slice 4**: Event Command Center — unified staff view (2026-03-18)
 - [ ] **Slice 5** (future): Game-Day Readiness Score
 - [x] **Slice 6**: Shift-Checkout linking (shiftAssignmentId FK) (2026-03-18)
@@ -33,6 +35,7 @@ Last updated: 2026-03-16
 
 ## Recently Shipped
 
+- [x] **shadcn/ui Slice 1** — Foundation + Button/Badge/Skeleton (2026-03-20)
 - [x] **Dashboard Drafts (D-017 / GAP-2)** — DRAFT booking CRUD, dashboard section, auto-save on cancel, resume pre-fill (2026-03-16)
 - [x] **D-018 Doc Sync** — Asset financial fields already in UI; docs updated to reflect shipped (2026-03-16)
 - [x] **Dark mode contrast sweep** — 14 elements fixed across 2 commits (2026-03-16)

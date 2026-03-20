@@ -6,6 +6,8 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import DataList from "@/components/DataList";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AvatarGroup } from "@/components/ui/avatar-group";
 
 /* ───── Types ───── */
 
@@ -394,7 +396,14 @@ export default function ShiftDetailPanel({
                       {/* Active assignment */}
                       {activeAssignment && (
                         <div className="flex-between">
-                          <span className="text-sm">{activeAssignment.user.name}</span>
+                          <span className="text-sm flex items-center gap-2">
+                            <Avatar className="size-6">
+                              <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-medium">
+                                {activeAssignment.user.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            {activeAssignment.user.name}
+                          </span>
                           <div className="flex gap-4">
                             <span className={`badge ${STATUS_BADGES[activeAssignment.status] ?? "badge-gray"}`} style={{ fontSize: "var(--text-2xs)" }}>
                               {activeAssignment.status.replace("_", " ")}
@@ -418,7 +427,14 @@ export default function ShiftDetailPanel({
                         <div className="mt-8">
                           {pendingRequests.map((req) => (
                             <div key={req.id} className="flex-between mb-4">
-                              <span className="text-sm text-secondary">{req.user.name}</span>
+                              <span className="text-sm text-secondary flex items-center gap-2">
+                                <Avatar className="size-6">
+                                  <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
+                                    {req.user.name.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {req.user.name}
+                              </span>
                               {isStaff && (
                                 <div className="flex gap-4">
                                   <button

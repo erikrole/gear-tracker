@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import DataList from "@/components/DataList";
 import { formatDateTime } from "@/lib/format";
 import { statusBadge } from "./helpers";
@@ -96,9 +97,9 @@ export default function BookingOverview({
         <div className="sheet-section">
           <div className="sheet-section-title">Extend due date</div>
           <div className="extend-buttons">
-            <button className="btn" onClick={() => onExtend(1)} disabled={extending}>{extending ? "..." : "+1 day"}</button>
-            <button className="btn" onClick={() => onExtend(3)} disabled={extending}>{extending ? "..." : "+3 days"}</button>
-            <button className="btn" onClick={() => onExtend(7)} disabled={extending}>{extending ? "..." : "+1 week"}</button>
+            <Button variant="outline" onClick={() => onExtend(1)} disabled={extending}>{extending ? "..." : "+1 day"}</Button>
+            <Button variant="outline" onClick={() => onExtend(3)} disabled={extending}>{extending ? "..." : "+3 days"}</Button>
+            <Button variant="outline" onClick={() => onExtend(7)} disabled={extending}>{extending ? "..." : "+1 week"}</Button>
           </div>
         </div>
       )}
