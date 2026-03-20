@@ -16,7 +16,7 @@ import {
   formatRelativeTime,
   isDueToday,
 } from "@/lib/format";
-import { ClipboardCheckIcon, CalendarCheckIcon, PackageIcon, CalendarIcon, InboxIcon } from "lucide-react";
+import { ClipboardCheckIcon, CalendarCheckIcon, PackageIcon, CalendarIcon, InboxIcon, AlertTriangleIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -303,9 +303,7 @@ export default function DashboardPage() {
         <div className="overdue-banner">
           <div className="overdue-banner-header">
             <div className="overdue-banner-title">
-              <svg className="overdue-banner-icon" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
+              <AlertTriangleIcon className="overdue-banner-icon size-[18px]" />
               <span className="pulse-dot" />
               <strong>{data.overdueCount} overdue checkout{data.overdueCount !== 1 ? "s" : ""}</strong>
             </div>

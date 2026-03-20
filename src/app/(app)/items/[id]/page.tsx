@@ -35,6 +35,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PencilIcon, ImageIcon } from "lucide-react";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -274,25 +275,20 @@ export default function ItemDetailsPage() {
           {/* Hero image — kept square */}
           {asset.imageUrl ? (
             <button
-              className="asset-hero-image aspect-square"
+              className={`asset-hero-image aspect-square ${canEdit ? "cursor-pointer" : "cursor-default"}`}
               onClick={() => canEdit && setImageModalOpen(true)}
               title={canEdit ? "Change image" : undefined}
-              style={{ cursor: canEdit ? "pointer" : "default" }}
             >
               <Image src={asset.imageUrl} alt={asset.assetTag} width={200} height={200} sizes="100px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
               {canEdit && (
                 <div className="asset-hero-image-overlay">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                  <PencilIcon className="size-5" />
                 </div>
               )}
             </button>
           ) : canEdit ? (
             <button className="asset-hero-image asset-hero-image-empty aspect-square" onClick={() => setImageModalOpen(true)} title="Add image">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-tertiary)" }}>
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="M21 15l-5-5L5 21" />
-              </svg>
+              <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
             </button>
           ) : null}
           <div>

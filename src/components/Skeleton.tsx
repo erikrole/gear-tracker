@@ -1,20 +1,16 @@
 "use client";
 
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-
-/** Skeleton placeholder for loading states */
-export function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
-  return <div className={`skeleton ${className}`} style={style} />;
-}
+import { Skeleton } from "@/components/ui/skeleton";
 
 /** Skeleton row: simulates a list item with avatar + two text lines */
 export function SkeletonRow() {
   return (
     <div className="skeleton-row">
-      <div className="skeleton skeleton-circle" />
+      <Skeleton className="skeleton-circle" />
       <div className="skeleton-lines">
-        <div className="skeleton skeleton-text" style={{ width: "60%" }} />
-        <div className="skeleton skeleton-text-sm" style={{ width: "40%" }} />
+        <Skeleton className="skeleton-text w-[60%]" />
+        <Skeleton className="skeleton-text-sm w-[40%]" />
       </div>
     </div>
   );
@@ -25,14 +21,14 @@ export function SkeletonCard({ rows = 3 }: { rows?: number }) {
   return (
     <Card>
       <CardHeader>
-        <div className="skeleton skeleton-text" style={{ width: 120 }} />
+        <Skeleton className="skeleton-text w-[120px]" />
       </CardHeader>
       <CardContent className="p-0 py-1">
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="skeleton-row">
-            <div className="skeleton-lines" style={{ flex: 1 }}>
-              <div className="skeleton skeleton-text" style={{ width: `${70 - i * 10}%` }} />
-              <div className="skeleton skeleton-text-sm" style={{ width: `${45 - i * 5}%` }} />
+            <div className="skeleton-lines flex-1">
+              <Skeleton className="skeleton-text" style={{ width: `${70 - i * 10}%` }} />
+              <Skeleton className="skeleton-text-sm" style={{ width: `${45 - i * 5}%` }} />
             </div>
           </div>
         ))}
@@ -47,8 +43,8 @@ export function SkeletonStats({ count = 4 }: { count?: number }) {
     <div className="stat-strip">
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="stat-card">
-          <div className="skeleton skeleton-text-sm" style={{ width: 80 }} />
-          <div className="skeleton skeleton-text-lg" style={{ width: 40, marginTop: 8 }} />
+          <Skeleton className="skeleton-text-sm w-20" />
+          <Skeleton className="skeleton-text-lg w-10 mt-2" />
         </div>
       ))}
     </div>
@@ -62,7 +58,7 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
       <thead>
         <tr>
           {Array.from({ length: cols }, (_, i) => (
-            <th key={i}><div className="skeleton skeleton-text-sm" style={{ width: `${60 + (i % 3) * 10}%` }} /></th>
+            <th key={i}><Skeleton className="skeleton-text-sm" style={{ width: `${60 + (i % 3) * 10}%` }} /></th>
           ))}
         </tr>
       </thead>
@@ -70,7 +66,7 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
         {Array.from({ length: rows }, (_, r) => (
           <tr key={r}>
             {Array.from({ length: cols }, (_, c) => (
-              <td key={c}><div className="skeleton skeleton-text" style={{ width: `${50 + ((r + c) % 4) * 10}%` }} /></td>
+              <td key={c}><Skeleton className="skeleton-text" style={{ width: `${50 + ((r + c) % 4) * 10}%` }} /></td>
             ))}
           </tr>
         ))}

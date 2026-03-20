@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { UploadIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -393,12 +394,8 @@ export default function ImportPage() {
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-secondary">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
+                  <div className="text-4xl mb-2">
+                    <UploadIcon className="size-12 text-secondary" />
                   </div>
                   <div className="font-semibold mb-4">Drop your CSV here</div>
                   <div className="text-secondary text-sm">

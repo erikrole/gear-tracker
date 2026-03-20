@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { XIcon } from "lucide-react";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { FilterChip } from "@/components/FilterChip";
@@ -369,19 +370,21 @@ export default function EventsPage() {
 
       {/* Sync result message */}
       {syncMessage && (
-        <div className="mb-12 text-sm rounded" style={{ padding: "8px 12px", background: syncMessage.includes("failed") ? "var(--bg-warning, #fef9c3)" : "var(--bg-info, #eff6ff)", color: syncMessage.includes("failed") ? "var(--text-warning, #92400e)" : "var(--text-info, #1e40af)" }}>
+        <div className={`mb-12 text-sm rounded px-3 py-2 ${syncMessage.includes("failed") ? "bg-yellow-50 text-yellow-800" : "bg-blue-50 text-blue-800"}`}>
           {syncMessage}
-          <button type="button" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }} className="ml-8" style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>&times;</button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }} className="ml-2 opacity-60 hover:opacity-100 h-auto p-0.5">
+            <XIcon className="size-3.5" />
+          </Button>
         </div>
       )}
 
       {/* Sync diagnostics panel */}
       {syncDiagnostics && (
-        <details className="mb-12 rounded text-sm" style={{ border: "1px solid var(--border-light)", fontSize: "var(--text-xs)" }}>
+        <details className="mb-12 rounded text-xs border border-border">
           <summary className="p-12 cursor-pointer font-semibold">
             Sync Diagnostics — {syncDiagnostics.parsedEventCount ?? 0} events parsed, {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB fetched
           </summary>
-          <div className="p-12" style={{ display: "grid", gap: 8 }}>
+          <div className="p-12 grid gap-2">
             <div><strong>Fetch URL:</strong> <code className="text-xs" style={{ wordBreak: "break-all" }}>{syncDiagnostics.fetchUrl}</code></div>
             <div><strong>HTTP Status:</strong> {syncDiagnostics.httpStatus}</div>
             <div><strong>Response Size:</strong> {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB</div>
@@ -425,9 +428,9 @@ export default function EventsPage() {
                     {syncDiagnostics.errors!.map((e: { uid: string; summary: string; operation: string; reason: string }, i: number) => (
                       <tr key={`${e.uid}-${i}`}>
                         <td><Badge variant={e.operation === "create" ? "blue" : e.operation === "update" ? "orange" : "gray"}>{e.operation}</Badge></td>
-                        <td className="font-mono" style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{e.uid.slice(0, 30)}</td>
-                        <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{e.summary}</td>
-                        <td className="text-red" style={{ wordBreak: "break-word" }}>{e.reason}</td>
+                        <td className="font-mono max-w-[120px] overflow-hidden text-ellipsis">{e.uid.slice(0, 30)}</td>
+                        <td className="max-w-[150px] overflow-hidden text-ellipsis">{e.summary}</td>
+                        <td className="text-red break-words">{e.reason}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -448,15 +451,15 @@ export default function EventsPage() {
             </Button>
           </CardHeader>
 
-          <div className="text-xs text-secondary" style={{ padding: "8px 16px 0" }}>
+          <div className="text-xs text-secondary px-4 pt-2">
             Patterns are matched against the combined venue + summary text from calendar events during sync. Supports regex or plain text (case-insensitive).
           </div>
 
           {showAddMapping && (
             <form onSubmit={handleAddMapping} className="flex flex-wrap gap-8 p-16">
-              <Input name="pattern" placeholder="Pattern (regex or text)" required style={{ flex: 2, minWidth: 150 }} />
+              <Input name="pattern" placeholder="Pattern (regex or text)" required className="flex-[2] min-w-[150px]" />
               <Select name="locationId" required defaultValue="">
-                <SelectTrigger style={{ flex: 1, minWidth: 120 }}>
+                <SelectTrigger className="flex-1 min-w-[120px]">
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
@@ -465,7 +468,7 @@ export default function EventsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input name="priority" type="number" defaultValue="0" placeholder="Priority" style={{ width: 80 }} title="Higher priority mappings are checked first" />
+              <Input name="priority" type="number" defaultValue="0" placeholder="Priority" className="w-20" title="Higher priority mappings are checked first" />
               <Button type="submit" disabled={addingMapping}>{addingMapping ? "Adding..." : "Add"}</Button>
             </form>
           )}
@@ -520,7 +523,7 @@ export default function EventsPage() {
           {showAddSource && (
             <form onSubmit={handleAddSource} className="flex gap-8 p-16">
               <Input name="name" placeholder="Source name" required className="flex-1" />
-              <Input name="url" placeholder="webcal:// or https:// URL" required style={{ flex: 2 }} />
+              <Input name="url" placeholder="webcal:// or https:// URL" required className="flex-[2]" />
               <Button type="submit" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</Button>
             </form>
           )}
@@ -541,7 +544,7 @@ export default function EventsPage() {
               </thead>
               <tbody>
                 {sources.map((source) => (
-                  <tr key={source.id} style={source.enabled ? {} : { opacity: 0.6 }}>
+                  <tr key={source.id} className={source.enabled ? "" : "opacity-60"}>
                     <td className="font-semibold">{source.name}</td>
                     <td>{source._count.events}</td>
                     <td>
@@ -564,7 +567,7 @@ export default function EventsPage() {
                         <Badge variant="gray">disabled</Badge>
                       )}
                       {source.lastError && (
-                        <div className="text-xs text-red mt-2 truncate" style={{ maxWidth: 200 }} title={source.lastError}>
+                        <div className="text-xs text-red mt-2 truncate max-w-[200px]" title={source.lastError}>
                           {source.lastError}
                         </div>
                       )}
@@ -610,12 +613,12 @@ export default function EventsPage() {
 
       {/* Filters and view toggle */}
       <div className="filter-chip-bar mb-16">
-        <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+        <div className="flex rounded border border-border overflow-hidden">
           <Button
             variant={viewMode === "list" ? "default" : "outline"}
             size="sm"
             onClick={() => setViewMode("list")}
-            style={{ borderRadius: 0, border: "none" }}
+            className="rounded-none border-none"
           >
             List
           </Button>
@@ -623,7 +626,7 @@ export default function EventsPage() {
             variant={viewMode === "calendar" ? "default" : "outline"}
             size="sm"
             onClick={() => setViewMode("calendar")}
-            style={{ borderRadius: 0, border: "none" }}
+            className="rounded-none border-none"
           >
             Calendar
           </Button>
@@ -669,7 +672,7 @@ export default function EventsPage() {
           <CardHeader className="flex-between">
             <div className="flex-center gap-8">
               <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
-              <CardTitle className="text-center" style={{ minWidth: 160 }}>
+              <CardTitle className="text-center min-w-[160px]">
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
               </CardTitle>
               <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>

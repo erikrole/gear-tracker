@@ -10,6 +10,7 @@ import {
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
+import { QrCodeIcon, SearchIcon } from "lucide-react";
 import QrScanner from "@/components/QrScanner";
 import { Button } from "@/components/ui/button";
 
@@ -370,13 +371,7 @@ export default function EquipmentPicker({
                 onClick={() => setShowScanner(true)}
                 title="Scan QR to add item"
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="1" y="1" width="5" height="5" rx="1" />
-                  <rect x="10" y="1" width="5" height="5" rx="1" />
-                  <rect x="1" y="10" width="5" height="5" rx="1" />
-                  <rect x="10" y="10" width="2" height="2" />
-                  <path d="M13 10h2v5h-5v-2" />
-                </svg>
+                <QrCodeIcon className="size-4" />
                 Scan
               </Button>
               <Button
@@ -423,10 +418,7 @@ export default function EquipmentPicker({
               {/* Search + "Only available" filter */}
               <div className="picker-toolbar">
                 <div className="picker-search-wrap">
-                  <svg className="picker-search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="7" cy="7" r="5" />
-                    <path d="M11 11l3.5 3.5" />
-                  </svg>
+                  <SearchIcon className="picker-search-icon size-3.5" />
                   <input
                     className="picker-search"
                     placeholder={`Search ${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label.toLowerCase() || "items"}...`}
