@@ -52,6 +52,8 @@ type MyReservation = {
   id: string;
   title: string;
   refNumber: string | null;
+  requesterName: string;
+  requesterInitials: string;
   startsAt: string;
   endsAt: string;
   itemCount: number;
@@ -345,23 +347,14 @@ export default function DashboardPage() {
                 {data.myCheckouts.items.map((c) => (
                   <button
                     key={c.id}
-                    className={`ops-row ops-row-owned ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : ""}`}
+                    className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-subtext">
-                        {c.title}
-                        {c.locationName && ` \u00B7 ${c.locationName}`}
-                      </span>
+                      <span className="ops-row-title-bold">{c.title}</span>
                       <span className="ops-row-meta">
-                        {c.itemCount} item{c.itemCount !== 1 ? "s" : ""} &middot;{" "}
-                        {c.isOverdue ? (
-                          <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
-                        ) : isDueToday(c.endsAt, now) ? (
-                          <span className="due-today-badge">Due today</span>
-                        ) : (
-                          <>Due {formatDateShort(c.endsAt)}</>
-                        )}
+                        <UserInitialsAvatar initials={c.requesterInitials} />
+                        {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
                     <GearAvatarStack items={c.items} totalCount={c.itemCount} />
@@ -387,16 +380,14 @@ export default function DashboardPage() {
                 {data.myReservations.map((r) => (
                   <button
                     key={r.id}
-                    className="ops-row ops-row-owned"
+                    className="ops-row ops-row-status ops-row-reserved"
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-subtext">
-                        {r.title}
-                        {r.locationName && ` \u00B7 ${r.locationName}`}
-                      </span>
+                      <span className="ops-row-title-bold">{r.title}</span>
                       <span className="ops-row-meta">
-                        {r.itemCount} item{r.itemCount !== 1 ? "s" : ""} &middot; {formatDateRange(r.startsAt, r.endsAt)}
+                        <UserInitialsAvatar initials={r.requesterInitials} />
+                        {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
                     <GearAvatarStack items={r.items} totalCount={r.itemCount} />
@@ -516,24 +507,14 @@ export default function DashboardPage() {
                 {data.teamCheckouts.items.map((c) => (
                   <button
                     key={c.id}
-                    className={`ops-row ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : ""}`}
+                    className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-subtext">
-                        {c.title}
-                        {c.locationName && ` \u00B7 ${c.locationName}`}
-                      </span>
+                      <span className="ops-row-title-bold">{c.title}</span>
                       <span className="ops-row-meta">
                         <UserInitialsAvatar initials={c.requesterInitials} />
-                        {c.requesterName} &middot; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""} &middot;{" "}
-                        {c.isOverdue ? (
-                          <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
-                        ) : isDueToday(c.endsAt, now) ? (
-                          <span className="due-today-badge">Due today</span>
-                        ) : (
-                          <>Due {formatDateShort(c.endsAt)}</>
-                        )}
+                        {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
                     <GearAvatarStack items={c.items} totalCount={c.itemCount} />
@@ -559,17 +540,14 @@ export default function DashboardPage() {
                 {data.teamReservations.items.map((r) => (
                   <button
                     key={r.id}
-                    className="ops-row"
+                    className="ops-row ops-row-status ops-row-reserved"
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-subtext">
-                        {r.title}
-                        {r.locationName && ` \u00B7 ${r.locationName}`}
-                      </span>
+                      <span className="ops-row-title-bold">{r.title}</span>
                       <span className="ops-row-meta">
                         <UserInitialsAvatar initials={r.requesterInitials} />
-                        {r.requesterName} &middot; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""} &middot; {formatDateRange(r.startsAt, r.endsAt)}
+                        {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
                     <GearAvatarStack items={r.items} totalCount={r.itemCount} />
