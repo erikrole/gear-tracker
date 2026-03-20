@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 /* ───── Types ───── */
 
@@ -63,10 +64,10 @@ const AREA_LABELS: Record<string, string> = {
   COMMS: "Comms",
 };
 
-function coverageClass(pct: number): string {
-  if (pct >= 100) return "badge-green";
-  if (pct > 0) return "badge-orange";
-  return "badge-red";
+function coverageVariant(pct: number): BadgeProps["variant"] {
+  if (pct >= 100) return "green";
+  if (pct > 0) return "orange";
+  return "red";
 }
 
 function coverageDot(pct: number): string {
@@ -406,7 +407,7 @@ export default function SchedulePage() {
                           {g.event.summary}
                         </span>
                         {g.isPremier && (
-                          <span className="badge badge-blue ml-4" style={{ fontSize: "var(--text-2xs)" }}>Premier</span>
+                          <Badge variant="blue" size="sm" className="ml-4">Premier</Badge>
                         )}
                       </td>
                       <td className="text-nowrap">
@@ -415,7 +416,7 @@ export default function SchedulePage() {
                       </td>
                       <td>
                         {g.event.sportCode && (
-                          <span className="badge badge-gray">{g.event.sportCode}</span>
+                          <Badge variant="gray">{g.event.sportCode}</Badge>
                         )}
                       </td>
                       {AREAS.map((area) => {
@@ -424,9 +425,9 @@ export default function SchedulePage() {
                         return (
                           <td key={area} className="text-center">
                             <div className="flex flex-col items-center gap-1">
-                              <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`}>
+                              <Badge variant={coverageVariant(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}>
                                 {ac.filled}/{ac.total}
-                              </span>
+                              </Badge>
                               {ac.assignedUsers.length > 0 && (
                                 <AvatarGroup max={3}>
                                   {ac.assignedUsers.map((u) => (
@@ -443,9 +444,9 @@ export default function SchedulePage() {
                         );
                       })}
                       <td className="text-center">
-                        <span className={`badge ${coverageClass(g.coverage.percentage)}`}>
+                        <Badge variant={coverageVariant(g.coverage.percentage)}>
                           {g.coverage.percentage}%
-                        </span>
+                        </Badge>
                       </td>
                     </tr>
                   ))}

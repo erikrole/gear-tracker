@@ -17,11 +17,11 @@ export function toLocalDateTimeValue(date: Date) {
 }
 
 export const statusBadge: Record<string, string> = {
-  DRAFT: "badge-gray",
-  BOOKED: "badge-blue",
-  OPEN: "badge-green",
-  COMPLETED: "badge-purple",
-  CANCELLED: "badge-red",
+  DRAFT: "gray",
+  BOOKED: "blue",
+  OPEN: "green",
+  COMPLETED: "purple",
+  CANCELLED: "red",
 };
 
 export const EQUIPMENT_ACTIONS = new Set([

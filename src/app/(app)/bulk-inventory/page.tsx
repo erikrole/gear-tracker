@@ -6,6 +6,7 @@ import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type BulkSkuUnit = {
   id: string;
@@ -340,9 +341,9 @@ export default function BulkInventoryPage() {
                       <td>{sku.minThreshold}</td>
                       <td>
                         {isLow ? (
-                          <span className="badge badge-orange">low stock</span>
+                          <Badge variant="orange">low stock</Badge>
                         ) : (
-                          <span className="badge badge-green">in stock</span>
+                          <Badge variant="green">in stock</Badge>
                         )}
                         {sku.trackByNumber && (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"

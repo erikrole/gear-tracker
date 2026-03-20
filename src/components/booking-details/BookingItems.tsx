@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import type { BookingDetail, SerializedItem, BulkItem } from "./types";
 
 type Props = {
@@ -74,7 +75,7 @@ export default function BookingItems({
                   {canCheckin && (
                     <td>
                       {item.allocationStatus === "returned" ? (
-                        <span className="badge badge-purple badge-purple-sm">returned</span>
+                        <Badge variant="purple" size="sm">returned</Badge>
                       ) : (
                         <Button
                           variant="outline"

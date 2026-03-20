@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { Badge } from "@/components/ui/badge";
 import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -553,12 +554,12 @@ export default function BookingDetailsSheet({
             </h2>
             {booking && (
               <div className="badge-row">
-                <span className={`badge ${statusBadge[booking.status] || "badge-gray"}`}>
+                <Badge variant={statusBadge[booking.status] || "gray"}>
                   {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
-                </span>
-                <span className="badge badge-gray">{booking.bookingType}</span>
+                </Badge>
+                <Badge variant="gray">{booking.bookingType}</Badge>
                 {booking.locationMode === "MIXED" && (
-                  <span className="badge badge-mixed">Mixed locations</span>
+                  <Badge variant="mixed">Mixed locations</Badge>
                 )}
               </div>
             )}

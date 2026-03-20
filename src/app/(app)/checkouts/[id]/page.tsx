@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 type Checkout = {
   id: string;
@@ -25,12 +26,12 @@ type Checkout = {
   allowedActions: CheckoutAction[];
 };
 
-const statusBadgeClass: Record<string, string> = {
-  DRAFT: "badge-gray",
-  BOOKED: "badge-blue",
-  OPEN: "badge-green",
-  COMPLETED: "badge-purple",
-  CANCELLED: "badge-red",
+const statusBadgeVariant: Record<string, BadgeProps["variant"]> = {
+  DRAFT: "gray",
+  BOOKED: "blue",
+  OPEN: "green",
+  COMPLETED: "purple",
+  CANCELLED: "red",
 };
 
 export default function CheckoutDetailsPage() {
@@ -210,8 +211,8 @@ export default function CheckoutDetailsPage() {
       <div className="page-header" style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1>{checkout.title}</h1>
-          <span className={`badge ${statusBadgeClass[checkout.status] || "badge-gray"}`}>{checkout.status.toLowerCase()}</span>
-          {isOverdue && <span className="badge badge-red">overdue</span>}
+          <Badge variant={statusBadgeVariant[checkout.status] || "gray"}>{checkout.status.toLowerCase()}</Badge>
+          {isOverdue && <Badge variant="red">overdue</Badge>}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canEdit && (

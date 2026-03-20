@@ -5,6 +5,7 @@ import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 /* ───── Types ───── */
 
@@ -491,7 +492,7 @@ export default function ImportPage() {
                   <div>
                     <div className="font-semibold text-sm mb-4">New Locations</div>
                     {preview.summary.newLocations.map((l) => (
-                      <span key={l} className="badge badge-blue mr-4 mb-4">{l}</span>
+                      <Badge key={l} variant="blue" className="mr-4 mb-4">{l}</Badge>
                     ))}
                   </div>
                 )}
@@ -499,7 +500,7 @@ export default function ImportPage() {
                   <div>
                     <div className="font-semibold text-sm mb-4">New Departments</div>
                     {preview.summary.newDepartments.map((d) => (
-                      <span key={d} className="badge badge-purple mr-4 mb-4">{d}</span>
+                      <Badge key={d} variant="purple" className="mr-4 mb-4">{d}</Badge>
                     ))}
                   </div>
                 )}
@@ -507,7 +508,7 @@ export default function ImportPage() {
                   <div>
                     <div className="font-semibold text-sm mb-4">Kits</div>
                     {preview.summary.kits.map((k) => (
-                      <span key={k} className="badge badge-orange mr-4 mb-4">{k}</span>
+                      <Badge key={k} variant="orange" className="mr-4 mb-4">{k}</Badge>
                     ))}
                   </div>
                 )}
@@ -550,16 +551,16 @@ export default function ImportPage() {
                       <td className="text-xs text-secondary">{row.line}</td>
                       <td>
                         {row.action === "create" ? (
-                          <span className="badge badge-green">new</span>
+                          <Badge variant="green">new</Badge>
                         ) : row.action === "update" ? (
-                          <span className="badge badge-blue">update</span>
+                          <Badge variant="blue">update</Badge>
                         ) : (
-                          <span className="badge badge-red">skip</span>
+                          <Badge variant="red">skip</Badge>
                         )}
                       </td>
                       <td className="font-semibold">
                         {row.assetTag}
-                        {row.assetTagDeduped && <span className="badge badge-orange ml-4" style={{ fontSize: "var(--text-2xs)" }}>renamed</span>}
+                        {row.assetTagDeduped && <Badge variant="orange" size="sm" className="ml-4">renamed</Badge>}
                       </td>
                       <td>{row.brand}</td>
                       <td>{row.model}</td>
@@ -568,11 +569,11 @@ export default function ImportPage() {
                       <td>{row.locationName}</td>
                       <td>
                         {row.errors.length > 0 ? (
-                          <span className="badge badge-red" title={row.errors.join(", ")}>error</span>
+                          <Badge variant="red" title={row.errors.join(", ")}>error</Badge>
                         ) : row.retired ? (
-                          <span className="badge badge-gray">retired</span>
+                          <Badge variant="gray">retired</Badge>
                         ) : (
-                          <span className="badge badge-green">ok</span>
+                          <Badge variant="green">ok</Badge>
                         )}
                       </td>
                     </tr>

@@ -6,6 +6,7 @@ import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type OverdueBooking = {
   id: string;
@@ -57,7 +58,7 @@ function LeaderboardMobileCard({
           <span style={{ fontWeight: 600 }}>{entry.name}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="badge badge-red">{entry.overdueCount}</span>
+          <Badge variant="red">{entry.overdueCount}</Badge>
           <span className="text-muted">{expanded ? "\u25B2" : "\u25BC"}</span>
         </div>
       </div>
@@ -256,7 +257,7 @@ function OverdueTableRows({
         <td className="text-muted">{rank}</td>
         <td style={{ fontWeight: 600 }}>{entry.name}</td>
         <td className="text-right">
-          <span className="badge badge-red">{entry.overdueCount}</span>
+          <Badge variant="red">{entry.overdueCount}</Badge>
         </td>
         <td className="text-right" style={{ color: "var(--red)", fontWeight: 600 }}>
           {formatOverdue(entry.totalOverdueHours)}

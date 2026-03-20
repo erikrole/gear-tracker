@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type CalendarEvent = {
   id: string;
@@ -416,7 +417,7 @@ export default function EventsPage() {
                   <tbody>
                     {syncDiagnostics.errors!.map((e: { uid: string; summary: string; operation: string; reason: string }, i: number) => (
                       <tr key={`${e.uid}-${i}`}>
-                        <td><span className={`badge ${e.operation === "create" ? "badge-blue" : e.operation === "update" ? "badge-orange" : "badge-gray"}`}>{e.operation}</span></td>
+                        <td><Badge variant={e.operation === "create" ? "blue" : e.operation === "update" ? "orange" : "gray"}>{e.operation}</Badge></td>
                         <td className="font-mono" style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{e.uid.slice(0, 30)}</td>
                         <td style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{e.summary}</td>
                         <td className="text-red" style={{ wordBreak: "break-word" }}>{e.reason}</td>
@@ -474,7 +475,7 @@ export default function EventsPage() {
                 {mappings.map((m) => (
                   <tr key={m.id}>
                     <td className="font-mono text-xs">{m.pattern}</td>
-                    <td><span className="badge badge-blue">{m.location.name}</span></td>
+                    <td><Badge variant="blue">{m.location.name}</Badge></td>
                     <td>{m.priority}</td>
                     <td>
                       <Button
@@ -541,15 +542,15 @@ export default function EventsPage() {
                     </td>
                     <td>
                       {source.lastError ? (
-                        <span className="badge badge-red cursor-pointer" title={source.lastError}>error</span>
+                        <Badge variant="red" className="cursor-pointer" title={source.lastError}>error</Badge>
                       ) : source.enabled ? (
                         source.lastFetchedAt && (Date.now() - new Date(source.lastFetchedAt).getTime()) > 24 * 60 * 60 * 1000 ? (
-                          <span className="badge badge-orange cursor-pointer" title={`Last synced ${formatDate(source.lastFetchedAt)}`}>stale</span>
+                          <Badge variant="orange" className="cursor-pointer" title={`Last synced ${formatDate(source.lastFetchedAt)}`}>stale</Badge>
                         ) : (
-                          <span className="badge badge-green">active</span>
+                          <Badge variant="green">active</Badge>
                         )
                       ) : (
-                        <span className="badge badge-gray">disabled</span>
+                        <Badge variant="gray">disabled</Badge>
                       )}
                       {source.lastError && (
                         <div className="text-xs text-red mt-2 truncate" style={{ maxWidth: 200 }} title={source.lastError}>
@@ -758,7 +759,7 @@ export default function EventsPage() {
                           <tr key={event.id}>
                             <td>
                               {event.sportCode ? (
-                                <span className="badge badge-sm badge-purple" title={sportLabel(event.sportCode)}>{event.sportCode}</span>
+                                <Badge variant="purple" size="sm" title={sportLabel(event.sportCode)}>{event.sportCode}</Badge>
                               ) : null}
                             </td>
                             <td className="font-semibold">
@@ -776,11 +777,11 @@ export default function EventsPage() {
                             <td>{event.allDay ? "All day" : `${formatTime(event.startsAt)} - ${formatTime(event.endsAt)}`}</td>
                             <td>
                               {event.location ? (
-                                <span className="badge badge-blue">{event.location.name}</span>
+                                <Badge variant="blue">{event.location.name}</Badge>
                               ) : event.rawLocationText ? (
                                 <span className="text-secondary text-xs">{event.rawLocationText}</span>
                               ) : (
-                                <span className="badge badge-orange">needs mapping</span>
+                                <Badge variant="orange">needs mapping</Badge>
                               )}
                             </td>
                             <td className="text-xs text-secondary">

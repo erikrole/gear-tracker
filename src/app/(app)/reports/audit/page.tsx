@@ -6,6 +6,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type AuditEntry = {
   id: string;
@@ -27,7 +28,7 @@ function AuditMobileCard({ entry }: { entry: AuditEntry }) {
   return (
     <div className="report-mobile-card" style={{ flexDirection: "column", gap: 4 }}>
       <div className="report-mobile-top">
-        <span className="badge badge-gray">{entry.action}</span>
+        <Badge variant="gray">{entry.action}</Badge>
         <span className="text-xs text-muted">{formatDateTime(entry.createdAt)}</span>
       </div>
       <div className="text-sm">
@@ -141,7 +142,7 @@ export default function AuditReportPage() {
                   <tr key={entry.id}>
                     <td className="nowrap text-sm">{formatDateTime(entry.createdAt)}</td>
                     <td>{entry.actor}</td>
-                    <td><span className="badge badge-gray">{entry.action}</span></td>
+                    <td><Badge variant="gray">{entry.action}</Badge></td>
                     <td className="text-sm font-mono">{entry.entityType}:{entry.entityId.slice(0, 8)}</td>
                   </tr>
                 ))}
