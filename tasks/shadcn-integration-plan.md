@@ -35,16 +35,14 @@ Components to **keep custom** (no shadcn equivalent or too domain-specific):
 
 ## Implementation Slices
 
-### Slice 1: Foundation Setup (this PR)
-- [ ] Run `npx shadcn@latest init` — configure for Tailwind CSS 4, `src/components/ui/`, New York style
-- [ ] Map our CSS variables to shadcn's expected naming scheme:
-  - `--bg` → `--background`, `--text` → `--foreground`, `--bg-card` → `--card`, etc.
-  - Keep our existing vars as aliases so nothing breaks
-  - Map `--radius` (8px) → shadcn's `--radius`
-- [ ] Reconcile dark mode: shadcn uses `.dark` class by default; configure to use our `data-theme="dark"` attribute or add the `.dark` class alongside it
-- [ ] Add first 3 components as proof: `Button`, `Badge`, `Skeleton`
-- [ ] Verify `npm run build` passes with zero regressions
-- [ ] No page changes — just infrastructure + new components available
+### Slice 1: Foundation Setup ✅ SHIPPED
+- [x] Manual setup (CLI auth blocked): components.json, src/lib/utils.ts, src/components/ui/
+- [x] Installed deps: class-variance-authority, clsx, tailwind-merge, lucide-react, radix-ui, tw-animate-css
+- [x] CSS variable bridge: our tokens → shadcn naming via @theme inline
+- [x] Dark mode: `@custom-variant dark (&:is([data-theme="dark"] *))` — shadcn dark: prefix uses our toggle
+- [x] Note: used `--sc-accent` for shadcn's accent to avoid collision with our `--accent` (= primary)
+- [x] Added Button, Badge, Skeleton to src/components/ui/
+- [x] Build passes, zero regressions
 
 ### Slice 2: Dialog & Toast Migration
 - [ ] Add shadcn `Dialog`, `Alert Dialog`, `Sonner`
