@@ -186,12 +186,13 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
     select: {
       assetId: true,
       booking: {
-        select: { id: true, kind: true, title: true, requester: { select: { name: true } } },
+        select: { id: true, kind: true, title: true, status: true, endsAt: true, requester: { select: { name: true } } },
       },
     },
   });
 
-  const bookingByAsset = new Map<string, { id: string; kind: string; title: string; requesterName: string }>();
+  const now = new Date();
+  const bookingByAsset = new Map<string, { id: string; kind: string; title: string; requesterName: string; isOverdue: boolean }>();
   for (const alloc of allocations) {
     if (!bookingByAsset.has(alloc.assetId)) {
       bookingByAsset.set(alloc.assetId, {
@@ -199,6 +200,7 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
         kind: alloc.booking.kind,
         title: alloc.booking.title,
         requesterName: alloc.booking.requester.name,
+        isOverdue: alloc.booking.status === "OPEN" && alloc.booking.endsAt < now,
       });
     }
   }
