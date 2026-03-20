@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import { StarIcon, ImageIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { StarIcon } from "lucide-react";
+import { RowSelectionState } from "@tanstack/react-table";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Popover,
   PopoverContent,
@@ -27,34 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-type ActiveBooking = {
-  id: string;
-  kind: string;
-  title: string;
-  requesterName: string;
-};
+import { type Asset, getColumns } from "./columns";
+import { DataTable } from "./data-table";
 
 type CategoryOption = { id: string; name: string; parentId: string | null };
-
-type Asset = {
-  id: string;
-  assetTag: string;
-  name: string | null;
-  type: string;
-  brand: string;
-  model: string;
-  serialNumber: string;
-  status: string;
-  computedStatus: string;
-  location: { id: string; name: string };
-  category: { id: string; name: string } | null;
-  department: { id: string; name: string } | null;
-  imageUrl: string | null;
-  activeBooking: ActiveBooking | null;
-  _count?: { accessories: number };
-};
-
 type Location = { id: string; name: string };
 
 type Response = {
@@ -65,59 +40,7 @@ type Response = {
   favoriteIds?: string[];
 };
 
-const statusDotClass: Record<string, string> = {
-  AVAILABLE: "status-available",
-  CHECKED_OUT: "status-checked-out",
-  RESERVED: "status-reserved",
-  MAINTENANCE: "status-maintenance",
-  RETIRED: "status-retired",
-};
-
-function StatusDot({ item }: { item: Asset }) {
-  const [open, setOpen] = useState(false);
-  const hasBooking = item.activeBooking !== null;
-  const label = item.computedStatus.replace("_", " ").toLowerCase();
-  const bookingPath = item.activeBooking
-    ? item.activeBooking.kind === "CHECKOUT"
-      ? `/checkouts/${item.activeBooking.id}`
-      : `/reservations/${item.activeBooking.id}`
-    : null;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <span
-          className="relative inline-flex shrink-0"
-          onMouseEnter={() => hasBooking && setOpen(true)}
-          onMouseLeave={() => setOpen(false)}
-        >
-          <span
-            onClick={(e) => {
-              if (hasBooking) { e.stopPropagation(); setOpen((v) => !v); }
-            }}
-            className={`status-dot ${statusDotClass[item.computedStatus] || "status-retired"} ${hasBooking ? "cursor-pointer" : "cursor-default"}`}
-          />
-        </span>
-      </PopoverTrigger>
-      {hasBooking && item.activeBooking && (
-        <PopoverContent side="right" sideOffset={8} className="w-auto max-w-[240px]" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onClick={(e) => e.stopPropagation()}>
-          <div className="font-semibold mb-1 capitalize">{label}</div>
-          <div className="text-muted-foreground text-sm mb-2">
-            {item.activeBooking.title} &middot; {item.activeBooking.requesterName}
-          </div>
-          {bookingPath && (
-            <Link href={bookingPath} className="text-sm font-medium text-primary no-underline hover:underline">
-              View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
-            </Link>
-          )}
-        </PopoverContent>
-      )}
-    </Popover>
-  );
-}
-
 type ItemKind = "serialized" | "bulk";
-
 
 function CreateItemCard({
   locations,
@@ -422,7 +345,6 @@ const STATUS_OPTIONS = [
 ];
 
 export default function ItemsPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [items, setItems] = useState<Asset[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -445,7 +367,7 @@ export default function ItemsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState("");
@@ -555,24 +477,7 @@ export default function ItemsPage() {
   }
 
   // Clear selection when page/filters change
-  useEffect(() => { setSelected(new Set()); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
-
-  function toggleSelect(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleSelectAll() {
-    if (selected.size === items.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(items.map((i) => i.id)));
-    }
-  }
+  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
 
   async function toggleFavorite(e: React.MouseEvent, assetId: string) {
     e.stopPropagation();
@@ -589,6 +494,9 @@ export default function ItemsPage() {
     } catch { /* ignore */ }
   }
 
+  const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
+  const selectedCount = selectedIds.length;
+
   async function executeBulkAction(action: string, payload?: Record<string, string | null>) {
     setBulkBusy(true);
     setBulkError("");
@@ -596,7 +504,7 @@ export default function ItemsPage() {
       const res = await fetch("/api/assets/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [...selected], action, ...payload }),
+        body: JSON.stringify({ ids: selectedIds, action, ...payload }),
       });
       if (!res.ok) {
         const json = await res.json();
@@ -604,7 +512,7 @@ export default function ItemsPage() {
         setBulkBusy(false);
         return;
       }
-      setSelected(new Set());
+      setRowSelection({});
       setBulkBusy(false);
       reload();
     } catch {
@@ -616,6 +524,12 @@ export default function ItemsPage() {
   // Resolve display values for active filters
   const locationName = locations.find((l) => l.id === locationFilter)?.name;
   const categoryName = categoryOptions.find((c) => c.value === categoryFilter)?.label;
+
+  const columns = useMemo(
+    () => getColumns({ favoriteIds, onToggleFavorite: toggleFavorite, canEdit }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [favoriteIds, canEdit]
+  );
 
   return (
     <>
@@ -722,105 +636,27 @@ export default function ItemsPage() {
         ) : (
           <>
             {/* Bulk action bar */}
-            {canEdit && selected.size > 0 && (
+            {canEdit && selectedCount > 0 && (
               <BulkActionBar
-                count={selected.size}
+                count={selectedCount}
                 locations={locations}
                 categoryOptions={categoryOptions}
                 busy={bulkBusy}
                 error={bulkError}
                 onAction={executeBulkAction}
-                onClear={() => setSelected(new Set())}
+                onClear={() => setRowSelection({})}
               />
             )}
-            <table className="data-table">
-              <thead>
-                <tr>
-                  {canEdit && (
-                    <th className="w-9 px-1 py-2">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <input
-                            type="checkbox"
-                            checked={items.length > 0 && selected.size === items.length}
-                            onChange={toggleSelectAll}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>Select all on page</TooltipContent>
-                      </Tooltip>
-                    </th>
-                  )}
-                  <th className="w-8 px-0.5 py-2"></th>
-                  <th className="w-11 px-1 py-2"></th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Location</th>
-                  <th className="hide-mobile">Department</th>
-                  <th className="hide-mobile">Brand</th>
-                  <th className="hide-mobile">Model</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr
-                    key={item.id}
-                    onClick={() => router.push(`/items/${item.id}`)}
-                    className={`cursor-pointer ${selected.has(item.id) ? "bg-[var(--primary-bg,rgba(59,130,246,0.06))]" : ""}`}
-                  >
-                    {canEdit && (
-                      <td className="w-9 px-1 py-2" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selected.has(item.id)}
-                          onChange={() => toggleSelect(item.id)}
-                        />
-                      </td>
-                    )}
-                    <td className="w-8 px-0.5 py-2" onClick={(e) => toggleFavorite(e, item.id)}>
-                      <StarIcon
-                        className={`size-4 cursor-pointer shrink-0 ${favoriteIds.has(item.id) ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"}`}
-                      />
-                    </td>
-                    <td className="w-11 px-1 py-2">
-                      <div className="item-thumb">
-                        {item.imageUrl ? (
-                          <Image src={item.imageUrl} alt="" width={72} height={72} sizes="36px" loading="lazy" unoptimized={!item.imageUrl.includes(".public.blob.vercel-storage.com")} />
-                        ) : (
-                          <ImageIcon className="size-5 text-[var(--text-tertiary)]" />
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex-center gap-10">
-                        <StatusDot item={item} />
-                        <div>
-                          <span className="row-link font-semibold">
-                            {item.assetTag}
-                          </span>
-                          {(item._count?.accessories ?? 0) > 0 && (
-                            <Badge variant="gray" size="sm" className="ml-4" title={`${item._count!.accessories} accessories`}>
-                              +{item._count!.accessories}
-                            </Badge>
-                          )}
-                          <div className="text-xs text-secondary">
-                            {item.name || `${item.brand} ${item.model}`}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>{item.category?.name || item.type}</td>
-                    <td>{item.location.name}</td>
-                    <td className="hide-mobile">{item.department?.name ?? "\u2014"}</td>
-                    <td className="hide-mobile">{item.brand}</td>
-                    <td className="hide-mobile">{item.model}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="pagination">
+            <DataTable
+              columns={columns}
+              data={items}
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
+            />
+            <div className="flex items-center justify-between px-3 py-3 border-t text-sm text-muted-foreground">
               <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
               {totalPages > 1 && (
-                <div className="pagination-btns">
+                <div className="flex gap-1">
                   <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
                   <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
                 </div>
