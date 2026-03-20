@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { SunIcon, MoonIcon, MonitorIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -139,7 +139,7 @@ const navItems = [
 const STUDENT_HIDDEN_HREFS = new Set(["/users", "/kits", "/reports", "/settings"]);
 
 type SidebarProps = {
-  user: { name: string; email: string; role?: string } | null;
+  user: { name: string; email: string; role?: string; avatarUrl?: string | null } | null;
   open?: boolean;
   onClose?: () => void;
   onSignOut?: () => void;
@@ -186,8 +186,9 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
     <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
       {/* User profile header */}
       {user && (
-        <Link href="/profile" className="sidebar-profile" onClick={onClose}>
+        <Link href="/users" className="sidebar-profile" onClick={onClose}>
           <Avatar className="size-[72px] border-2 border-white/15 bg-white/10 mb-2.5">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
             <AvatarFallback className="bg-transparent text-white/90 text-[26px] font-semibold">
               {user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
             </AvatarFallback>

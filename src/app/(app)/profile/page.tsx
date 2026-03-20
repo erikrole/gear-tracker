@@ -1,12 +1,14 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { CameraIcon, TrashIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -21,6 +23,7 @@ type UserProfile = {
   name: string;
   email: string;
   role: "ADMIN" | "STAFF" | "STUDENT";
+  avatarUrl: string | null;
   location: Location | null;
 };
 
@@ -39,7 +42,9 @@ export default function ProfilePage() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -59,6 +64,42 @@ export default function ProfilePage() {
       .then((res) => res.ok ? res.json() : null)
       .then((json) => setUsers(json?.data || []));
   }, [profile?.role]);
+
+  async function uploadAvatar(file: File) {
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to upload avatar", "error");
+      } else {
+        setProfile((p) => p ? { ...p, avatarUrl: json.data.avatarUrl } : p);
+        toast("Avatar updated", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setUploadingAvatar(false);
+  }
+
+  async function removeAvatar() {
+    setUploadingAvatar(true);
+    try {
+      const res = await fetch("/api/profile/avatar", { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to remove avatar", "error");
+      } else {
+        setProfile((p) => p ? { ...p, avatarUrl: null } : p);
+        toast("Avatar removed", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setUploadingAvatar(false);
+  }
 
   async function saveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -158,6 +199,49 @@ export default function ProfilePage() {
 
       <Card style={{ marginBottom: 16 }}>
         <CardHeader><CardTitle>My profile</CardTitle></CardHeader>
+        <div className="profile-avatar-section">
+          <Avatar className="size-20 border-2 border-border">
+            {profile.avatarUrl && <AvatarImage src={profile.avatarUrl} alt={profile.name} />}
+            <AvatarFallback className="text-2xl font-semibold">
+              {profile.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="profile-avatar-actions">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadAvatar(file);
+                e.target.value = "";
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploadingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <CameraIcon className="mr-1.5 size-4" />
+              {uploadingAvatar ? "Uploading..." : profile.avatarUrl ? "Change photo" : "Upload photo"}
+            </Button>
+            {profile.avatarUrl && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={uploadingAvatar}
+                onClick={removeAvatar}
+              >
+                <TrashIcon className="mr-1.5 size-4" />
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
         <form onSubmit={saveProfile} className="profile-form">
           <div className="space-y-1.5">
             <Label htmlFor="profile-name">Name</Label>

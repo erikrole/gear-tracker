@@ -18,7 +18,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 
-type User = { name: string; email: string; role: string };
+type User = { name: string; email: string; role: string; avatarUrl?: string | null };
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";

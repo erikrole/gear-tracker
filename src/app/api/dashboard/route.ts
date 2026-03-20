@@ -29,7 +29,7 @@ function toBookingSummary(c: {
   id: string;
   title: string;
   refNumber: string | null;
-  requester: { name: string };
+  requester: { name: string; avatarUrl: string | null };
   location?: { name: string } | null;
   startsAt: Date;
   endsAt: Date;
@@ -44,6 +44,7 @@ function toBookingSummary(c: {
     refNumber: c.refNumber,
     requesterName: c.requester.name,
     requesterInitials: getInitials(c.requester.name),
+    requesterAvatarUrl: c.requester.avatarUrl ?? null,
     locationName: c.location?.name ?? null,
     startsAt: c.startsAt.toISOString(),
     endsAt: c.endsAt.toISOString(),
@@ -69,7 +70,7 @@ export const GET = withAuth(async (_req, { user }) => {
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
 
   const bookingInclude = {
-    requester: { select: { id: true, name: true } },
+    requester: { select: { id: true, name: true, avatarUrl: true } },
     location: { select: { id: true, name: true } },
     _count: { select: { serializedItems: true, bulkItems: true } },
     serializedItems: {
@@ -166,7 +167,7 @@ export const GET = withAuth(async (_req, { user }) => {
               include: {
                 assignments: {
                   where: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } },
-                  include: { user: { select: { id: true, name: true } } },
+                  include: { user: { select: { id: true, name: true, avatarUrl: true } } },
                 },
               },
             },
@@ -184,7 +185,7 @@ export const GET = withAuth(async (_req, { user }) => {
       orderBy: { startsAt: "asc" },
       take: 5,
       include: {
-        requester: { select: { id: true, name: true } },
+        requester: { select: { id: true, name: true, avatarUrl: true } },
         location: { select: { id: true, name: true } },
         _count: { select: { serializedItems: true, bulkItems: true } },
         serializedItems: {
@@ -202,7 +203,7 @@ export const GET = withAuth(async (_req, { user }) => {
       orderBy: { endsAt: "asc" },
       take: 5,
       include: {
-        requester: { select: { id: true, name: true } },
+        requester: { select: { id: true, name: true, avatarUrl: true } },
         serializedItems: {
           take: 3,
           include: {
@@ -275,7 +276,7 @@ export const GET = withAuth(async (_req, { user }) => {
     const shifts = e.shiftGroup?.shifts ?? [];
     const totalShiftSlots = shifts.length;
     const seenUserIds = new Set<string>();
-    const assignedUsers: Array<{ id: string; name: string; initials: string }> = [];
+    const assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null }> = [];
     for (const shift of shifts) {
       for (const a of shift.assignments) {
         if (!seenUserIds.has(a.user.id)) {
@@ -284,6 +285,7 @@ export const GET = withAuth(async (_req, { user }) => {
             id: a.user.id,
             name: a.user.name,
             initials: getInitials(a.user.name),
+            avatarUrl: a.user.avatarUrl ?? null,
           });
         }
       }
@@ -405,6 +407,7 @@ export const GET = withAuth(async (_req, { user }) => {
           refNumber: r.refNumber,
           requesterName: r.requester.name,
           requesterInitials: getInitials(r.requester.name),
+          requesterAvatarUrl: r.requester.avatarUrl ?? null,
           startsAt: r.startsAt.toISOString(),
           endsAt: r.endsAt.toISOString(),
           itemCount: r._count.serializedItems + r._count.bulkItems,

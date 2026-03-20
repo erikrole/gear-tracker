@@ -1350,6 +1350,7 @@ textarea:focus-visible {
   font-weight: var(--weight-bold);
   flex-shrink: 0;
   letter-spacing: -0.5px;
+  object-fit: cover;
 }
 
 /* ── Gear avatar stack (stacked item thumbnails) ── */
@@ -1419,6 +1420,12 @@ textarea:focus-visible {
 .shift-avatar-filled {
   background: var(--accent-soft);
   color: var(--text-secondary);
+  overflow: hidden;
+}
+.shift-avatar-filled img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .shift-avatar-empty {
@@ -3730,6 +3737,19 @@ textarea:focus-visible {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 12px;
+}
+
+/* Profile avatar upload */
+.profile-avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 16px 0;
+}
+.profile-avatar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Profile forms */
