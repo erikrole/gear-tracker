@@ -11,7 +11,9 @@ import {
 } from "@/lib/format";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
 
 /* ── Operational Overview (Info tab dashboard cards) ─────── */
 
@@ -37,14 +39,16 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
                 <span className="possession-asset-name">
                   {b.kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {b.requesterName}
                 </span>
-                <span className={`possession-countdown countdown-text-${getUrgency(b.startsAt, b.endsAt, now)}`}>
+                <Badge variant={getUrgency(b.startsAt, b.endsAt, now) === "critical" ? "red" : getUrgency(b.startsAt, b.endsAt, now) === "warning" ? "orange" : "blue"} className="mt-1">
                   {formatCountdown(b.endsAt, now)}
-                </span>
+                </Badge>
               </div>
             </button>
           </CardContent>
         ) : (
-          <div className="py-16 px-5 text-center text-muted-foreground">Not currently checked out</div>
+          <Empty className="py-8 border-0">
+            <EmptyDescription>Not currently checked out</EmptyDescription>
+          </Empty>
         )}
       </Card>
 
@@ -80,15 +84,17 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
                       )}
                     </span>
                   </div>
-                  <span className={`badge ${r.status === "BOOKED" ? "badge-blue" : r.status === "DRAFT" ? "badge-gray" : "badge-green"}`}>
+                  <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "green"} size="sm">
                     {r.status === "BOOKED" ? "Booked" : r.status === "DRAFT" ? "Draft" : "Open"}
-                  </span>
+                  </Badge>
                 </button>
               );
             })}
           </CardContent>
         ) : (
-          <div className="py-16 px-5 text-center text-muted-foreground">No upcoming reservations</div>
+          <Empty className="py-8 border-0">
+            <EmptyDescription>No upcoming reservations</EmptyDescription>
+          </Empty>
         )}
       </Card>
     </div>
@@ -131,9 +137,9 @@ export function BookingKindTab({
                 <span className="possession-asset-name">
                   {kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {activeBooking.requesterName}
                 </span>
-                <span className={`possession-countdown countdown-text-${getUrgency(activeBooking.startsAt, activeBooking.endsAt, now)}`}>
+                <Badge variant={getUrgency(activeBooking.startsAt, activeBooking.endsAt, now) === "critical" ? "red" : getUrgency(activeBooking.startsAt, activeBooking.endsAt, now) === "warning" ? "orange" : "blue"} className="mt-1">
                   {formatCountdown(activeBooking.endsAt, now)}
-                </span>
+                </Badge>
               </div>
             </button>
           </CardContent>
@@ -170,9 +176,9 @@ export function BookingKindTab({
                       )}
                     </span>
                   </div>
-                  <span className={`badge ${r.status === "BOOKED" ? "badge-blue" : r.status === "DRAFT" ? "badge-gray" : "badge-green"}`}>
+                  <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "green"} size="sm">
                     {r.status === "BOOKED" ? "Booked" : r.status === "DRAFT" ? "Draft" : "Open"}
-                  </span>
+                  </Badge>
                 </button>
               );
             })}
@@ -190,7 +196,9 @@ export function BookingKindTab({
         </CardHeader>
         <CardContent className="p-16">
           {filtered.length === 0 ? (
-            <div className="py-10 px-5 text-center text-muted-foreground">No past {label} for this item.</div>
+            <Empty className="py-8 border-0">
+              <EmptyDescription>No past {label} for this item.</EmptyDescription>
+            </Empty>
           ) : (
             filtered.map((group) => (
               <div key={group.month} className="mb-16">

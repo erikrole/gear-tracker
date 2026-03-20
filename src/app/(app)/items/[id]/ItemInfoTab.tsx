@@ -5,6 +5,17 @@ import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogCloseButton,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -14,6 +25,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import type { AssetDetail, CategoryOption } from "./types";
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -76,14 +104,14 @@ function EditableField({
       <dt className="data-list-label">{label}</dt>
       <dd className={`data-list-value${mono ? " font-mono" : ""}`}>
         {editing && type !== "select" ? (
-          <input
+          <Input
             ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
             disabled={saving}
-            className={`inline-edit-input${mono ? " font-mono" : ""}`}
+            className={cn("h-8 text-right text-sm", mono && "font-mono")}
           />
         ) : (
           <span onClick={() => canEdit && setEditing(true)} style={displayStyle} title={canEdit ? "Click to edit" : undefined}>
@@ -133,17 +161,92 @@ function FiscalYearField({ value, canEdit, onSave }: { value: string; canEdit: b
   );
 }
 
+/* ── Date Picker Field ─────────────────────────────────── */
+
+function DatePickerField({ label, value, placeholder, canEdit, onSave }: { label: string; value: string; placeholder?: string; canEdit: boolean; onSave: (v: string) => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const dateValue = value ? new Date(value + "T00:00:00") : undefined;
+
+  async function handleSelect(day: Date | undefined) {
+    if (!day) return;
+    const iso = format(day, "yyyy-MM-dd");
+    if (iso === value) { setOpen(false); return; }
+    setSaving(true);
+    try {
+      await onSave(iso);
+    } catch { /* handled upstream */ }
+    setSaving(false);
+    setOpen(false);
+  }
+
+  async function handleClear() {
+    setSaving(true);
+    try {
+      await onSave("");
+    } catch { /* handled upstream */ }
+    setSaving(false);
+    setOpen(false);
+  }
+
+  return (
+    <div className="data-list-row">
+      <dt className="data-list-label">{label}</dt>
+      <dd className="data-list-value">
+        {canEdit ? (
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={saving}
+                className={cn("h-8 w-auto min-w-[140px] justify-start text-sm font-normal", !value && "text-muted-foreground italic")}
+              >
+                <CalendarIcon className="mr-2 size-3.5" />
+                {value ? format(dateValue!, "MMM d, yyyy") : (placeholder || "Pick a date")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dateValue}
+                onSelect={handleSelect}
+                defaultMonth={dateValue}
+              />
+              {value && (
+                <div className="border-t px-3 py-2">
+                  <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={handleClear}>
+                    Clear date
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <span>{value ? format(dateValue!, "MMM d, yyyy") : "\u2014"}</span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
 /* ── Category Select Field ──────────────────────────────── */
 
 function CategoryField({ value, currentId, canEdit, categories, onSave, onCategoriesChanged }: { value: string; currentId: string; canEdit: boolean; categories: CategoryOption[]; onSave: (id: string) => Promise<void>; onCategoriesChanged: () => void }) {
   const { toast } = useToast();
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (creating) inputRef.current?.focus(); }, [creating]);
+
+  // Build flat list of selectable categories (children, or parents with no children)
+  const selectableCategories = categories.filter((c) => {
+    if (c.parentId) return true; // child category — always selectable
+    return categories.filter((ch) => ch.parentId === c.id).length === 0; // parent with no children
+  });
 
   async function handleCreateCategory() {
     if (!newCatName.trim()) { setCreating(false); return; }
@@ -175,8 +278,8 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
       <dt className="data-list-label">Category</dt>
       <dd className="data-list-value">
         {creating ? (
-          <div className="flex gap-4">
-            <input
+          <div className="flex gap-2">
+            <Input
               ref={inputRef}
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
@@ -187,45 +290,65 @@ function CategoryField({ value, currentId, canEdit, categories, onSave, onCatego
                 if (e.key === "Enter") handleCreateCategory();
                 if (e.key === "Escape") { setCreating(false); setNewCatName(""); }
               }}
-              className="inline-edit-narrow"
+              className="h-8 w-[180px] text-sm"
             />
           </div>
-        ) : editing ? (
-          <Select
-            defaultValue={currentId}
-            onValueChange={async (v) => {
-              if (v === "__create__") { setEditing(false); setCreating(true); return; }
-              await onSave(v); setEditing(false);
-            }}
-            open={editing}
-            onOpenChange={(open) => { if (!open) setEditing(false); }}
-          >
-            <SelectTrigger size="sm">
-              <SelectValue placeholder={"\u2014"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">{"\u2014"}</SelectItem>
-              {categories.filter((c) => !c.parentId).map((parent) => (
-                <SelectGroup key={parent.id}>
-                  <SelectLabel>{parent.name}</SelectLabel>
-                  {categories.filter((c) => c.parentId === parent.id).length === 0
-                    ? <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                    : categories.filter((c) => c.parentId === parent.id).map((child) => (
-                      <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                    ))
-                  }
-                </SelectGroup>
-              ))}
-              <SelectItem value="__create__">+ Create new category</SelectItem>
-            </SelectContent>
-          </Select>
+        ) : canEdit ? (
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="h-8 w-auto min-w-[140px] justify-between text-sm font-normal"
+              >
+                {value || <span className="text-muted-foreground italic">Add category</span>}
+                <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Search categories..." />
+                <CommandList>
+                  <CommandEmpty>No category found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value=""
+                      onSelect={async () => { await onSave(""); setOpen(false); }}
+                    >
+                      <Check className={cn("mr-2 size-4", !currentId ? "opacity-100" : "opacity-0")} />
+                      <span className="text-muted-foreground">&mdash;</span>
+                    </CommandItem>
+                    {selectableCategories.map((cat) => {
+                      const parentName = cat.parentId
+                        ? categories.find((p) => p.id === cat.parentId)?.name
+                        : null;
+                      return (
+                        <CommandItem
+                          key={cat.id}
+                          value={cat.name}
+                          onSelect={async () => { await onSave(cat.id); setOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 size-4", currentId === cat.id ? "opacity-100" : "opacity-0")} />
+                          {parentName ? <span className="text-muted-foreground mr-1">{parentName} /</span> : null}
+                          {cat.name}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={() => { setOpen(false); setCreating(true); }}
+                    >
+                      + Create new category
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         ) : (
-          <span
-            onClick={() => canEdit && setEditing(true)}
-            style={!value ? { color: "var(--text-muted)", fontStyle: "italic", cursor: canEdit ? "pointer" : "default" } : { cursor: canEdit ? "pointer" : "default", borderBottom: canEdit ? "1px dashed var(--border)" : "none", padding: "0 2px" }}
-          >
-            {value || "Add category"}
-          </span>
+          <span>{value || "\u2014"}</span>
         )}
       </dd>
     </div>
@@ -261,12 +384,11 @@ function QRCodeCanvas({ value, size, margin = 2 }: { value: string; size: number
 
 /* ── QR Modal ──────────────────────────────────────────── */
 
-function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void; onClose: () => void }) {
+function QRModal({ asset, canEdit, onRefresh, open, onOpenChange }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [manualEntry, setManualEntry] = useState(false);
   const [qrDraft, setQrDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const backdropRef = useRef<HTMLDivElement>(null);
 
   async function generateQR() {
     setSaving(true);
@@ -302,51 +424,49 @@ function QRModal({ asset, canEdit, onRefresh, onClose }: { asset: AssetDetail; c
   }
 
   return (
-    <div
-      ref={backdropRef}
-      className="qr-modal-backdrop"
-      onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
-    >
-      <div className="qr-modal">
-        <div className="flex-between mb-16">
-          <h2 className="m-0">QR Code</h2>
-          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-        </div>
-        <div className="flex-center mb-16 justify-center">
-          <QRCodeCanvas value={asset.qrCodeValue} size={240} />
-        </div>
-        <div className="font-semibold font-mono mb-16 text-center text-base">
-          {asset.qrCodeValue}
-        </div>
-        {canEdit && (
-          <>
-            <div className="flex gap-8 mb-8 justify-center">
-              <Button variant="outline" onClick={generateQR} disabled={saving}>
-                {saving ? "..." : "Generate new QR"}
-              </Button>
-              <Button variant="outline" onClick={() => setManualEntry(true)}>
-                Enter QR manually
-              </Button>
-            </div>
-            {manualEntry && (
-              <div className="flex gap-6 mt-8">
-                <Input
-                  value={qrDraft}
-                  onChange={(e) => setQrDraft(e.target.value)}
-                  placeholder="Paste or type QR code..."
-                  className="flex-1"
-                  onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
-                  autoFocus
-                />
-                <Button onClick={saveManualQR} disabled={saving}>Save</Button>
-                <Button variant="outline" onClick={() => setManualEntry(false)}>Cancel</Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>QR Code</DialogTitle>
+          <DialogCloseButton />
+        </DialogHeader>
+        <DialogBody className="py-6">
+          <div className="flex justify-center mb-4">
+            <QRCodeCanvas value={asset.qrCodeValue} size={240} />
+          </div>
+          <div className="font-semibold font-mono text-center text-sm mb-4">
+            {asset.qrCodeValue}
+          </div>
+          {canEdit && (
+            <>
+              <div className="flex gap-2 justify-center mb-2">
+                <Button variant="outline" size="sm" onClick={generateQR} disabled={saving}>
+                  {saving ? "..." : "Generate new QR"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setManualEntry(true)}>
+                  Enter QR manually
+                </Button>
               </div>
-            )}
-            {error && <div className="alert-error mt-8 text-center">{error}</div>}
-          </>
-        )}
-      </div>
-    </div>
+              {manualEntry && (
+                <div className="flex gap-2 mt-3">
+                  <Input
+                    value={qrDraft}
+                    onChange={(e) => setQrDraft(e.target.value)}
+                    placeholder="Paste or type QR code..."
+                    className="flex-1"
+                    onKeyDown={(e) => { if (e.key === "Enter") saveManualQR(); if (e.key === "Escape") setManualEntry(false); }}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={saveManualQR} disabled={saving}>Save</Button>
+                  <Button variant="outline" size="sm" onClick={() => setManualEntry(false)}>Cancel</Button>
+                </div>
+              )}
+              {error && <div className="text-destructive text-sm mt-2 text-center">{error}</div>}
+            </>
+          )}
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -383,28 +503,27 @@ function TrackingCodesSection({ asset, canEdit, onRefresh }: { asset: AssetDetai
               <QRCodeCanvas value={asset.qrCodeValue} size={96} margin={0} />
             </div>
           </button>
-          <div className="flex-col gap-6">
-            <div className="tracking-pill">
-              <span className="tracking-pill-label">QR</span>
-              <span className="tracking-pill-value">{asset.qrCodeValue}</span>
-            </div>
+          <div className="flex flex-col gap-2">
+            <Badge variant="outline" className="gap-1.5 font-mono text-xs">
+              <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">QR</span>
+              {asset.qrCodeValue}
+            </Badge>
             {asset.serialNumber && (
-              <div className="tracking-pill">
-                <span className="tracking-pill-label">Serial</span>
-                <span className="tracking-pill-value">{asset.serialNumber}</span>
-              </div>
+              <Badge variant="outline" className="gap-1.5 font-mono text-xs">
+                <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">Serial</span>
+                {asset.serialNumber}
+              </Badge>
             )}
           </div>
         </div>
       </div>
-      {showModal && (
-        <QRModal
-          asset={asset}
-          canEdit={canEdit}
-          onRefresh={onRefresh}
-          onClose={() => setShowModal(false)}
-        />
-      )}
+      <QRModal
+        asset={asset}
+        canEdit={canEdit}
+        onRefresh={onRefresh}
+        open={showModal}
+        onOpenChange={setShowModal}
+      />
     </>
   );
 }
@@ -490,9 +609,7 @@ export default function ItemInfoCard({
 
   const procurementFields: FieldDef[] = [
     { label: "Purchase price", key: "purchasePrice", value: asset.purchasePrice ? String(asset.purchasePrice) : "", placeholder: "Add purchase price" },
-    { label: "Purchase date", key: "purchaseDate", value: asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : "", placeholder: "Add purchase date" },
     { label: "Residual value", key: "residualValue", value: asset.residualValue ? String(asset.residualValue) : "", placeholder: "Add residual value" },
-    { label: "Warranty date", key: "warrantyDate", value: asset.warrantyDate ? String(asset.warrantyDate).slice(0, 10) : "", placeholder: "Add warranty date" },
     { label: "Link", key: "linkUrl", value: asset.linkUrl || "", placeholder: "Add product link" },
   ];
 
@@ -506,8 +623,9 @@ export default function ItemInfoCard({
   function renderFieldGroup(title: string, fields: FieldDef[], extra?: React.ReactNode) {
     return (
       <>
-        <div className="field-group-header">
-          {title}
+        <div className="col-span-full px-4 pt-4 pb-1">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</Label>
+          <Separator className="mt-1.5" />
         </div>
         {fields.map((f) => (
           <EditableField
@@ -533,11 +651,27 @@ export default function ItemInfoCard({
       <dl className="data-list data-list-2col">
         {renderFieldGroup("Identity", identityFields)}
         {currentUserRole !== "STUDENT" && renderFieldGroup("Procurement", procurementFields, (
-          <FiscalYearField
-            value={asset.metadata?.fiscalYearPurchased || ""}
-            canEdit={canEdit}
-            onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
-          />
+          <>
+            <DatePickerField
+              label="Purchase date"
+              value={asset.purchaseDate ? asset.purchaseDate.slice(0, 10) : ""}
+              placeholder="Add purchase date"
+              canEdit={canEdit}
+              onSave={(v) => saveField("purchaseDate", v)}
+            />
+            <DatePickerField
+              label="Warranty date"
+              value={asset.warrantyDate ? String(asset.warrantyDate).slice(0, 10) : ""}
+              placeholder="Add warranty date"
+              canEdit={canEdit}
+              onSave={(v) => saveField("warrantyDate", v)}
+            />
+            <FiscalYearField
+              value={asset.metadata?.fiscalYearPurchased || ""}
+              canEdit={canEdit}
+              onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
+            />
+          </>
         ))}
         {renderFieldGroup("Administrative", adminFields, (
           <CategoryField

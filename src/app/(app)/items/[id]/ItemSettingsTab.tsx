@@ -6,7 +6,11 @@ import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
 
 /* ── Settings Tab ───────────────────────────────────────── */
 
@@ -38,15 +42,16 @@ export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail;
           These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
         </p>
         {toggles.map((t) => (
-          <div key={t.field} className="toggle-row mb-16">
-            <button
-              className={`toggle${t.value ? " on" : ""}`}
-              onClick={() => canEdit && toggleSetting(t.field, t.value)}
+          <div key={t.field} className="flex items-start gap-3 mb-4">
+            <Switch
+              checked={t.value}
+              onCheckedChange={() => canEdit && toggleSetting(t.field, t.value)}
               disabled={saving || !canEdit}
+              className="mt-0.5"
             />
             <div>
-              <div className="toggle-label">{t.label}</div>
-              <div className="text-xs text-secondary mt-2">{t.help}</div>
+              <Label className="text-sm font-medium">{t.label}</Label>
+              <p className="text-xs text-muted-foreground mt-0.5 m-0">{t.help}</p>
             </div>
           </div>
         ))}
@@ -162,9 +167,8 @@ export function AccessoriesSection({
       <CardContent className="p-16">
         {attaching && (
           <div className="mb-16">
-            <input
+            <Input
               type="text"
-              className="input w-full"
               placeholder="Search by asset tag, brand, or model..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
@@ -196,7 +200,9 @@ export function AccessoriesSection({
         )}
 
         {accessories.length === 0 && !attaching && (
-          <div className="text-sm text-secondary">No accessories attached to this item.</div>
+          <Empty className="py-8 border-0">
+            <EmptyDescription>No accessories attached to this item.</EmptyDescription>
+          </Empty>
         )}
 
         {accessories.length > 0 && (
