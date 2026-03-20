@@ -94,9 +94,30 @@ Components to **keep custom** (no shadcn equivalent or too domain-specific):
 - [x] Kept layout utility classes still in use: `.btn-checkin`, `.btn-full-page`, `.btn-scan-add`, `.btn-full`, `.btn-mt`, `.btn-return`, `.btn-danger-outline`
 - [x] Build passes, zero regressions
 
-### Slice 5.2+ Advanced Components (future)
-- [ ] `Card` (222 usages — next highest impact)
-- [ ] `Sheet` (for BookingDetailsSheet refinement)
+### Slice 5.2: Card Migration ✅ SHIPPED
+- [x] Added shadcn Card (Card, CardHeader, CardTitle, CardContent) to src/components/ui/
+- [x] Migrated 20+ pages from `.card` / `.card-header` / `.card-body` CSS to shadcn Card
+- [x] Removed all `.card`, `.card-header`, `.card-body` CSS
+- [x] Build passes, zero regressions
+
+### Slice 5.3: Sheet Migration ✅ SHIPPED
+- [x] Added shadcn Sheet (right-side sliding panel built on Radix Dialog)
+- [x] Migrated BookingDetailsSheet from custom overlay/panel to Sheet
+- [x] Migrated ShiftDetailPanel from custom overlay/panel to Sheet
+- [x] Migrated scan page unit picker and item preview to Sheet
+- [x] Removed ~95 lines of structural sheet CSS
+- [x] Kept content-level sheet CSS (section, actions, equip-bar)
+- [x] Build passes, zero regressions
+
+### Slice 5.4: Tabs Migration ✅ SHIPPED
+- [x] Added shadcn Tabs (Radix-based accessible tabs)
+- [x] Migrated ChooseImageModal, items/[id], users/[id], reservations/[id] to shadcn Tabs
+- [x] Migrated reports/settings layout nav tabs to Tailwind
+- [x] Cleaned up remaining .btn-* layout classes to Tailwind
+- [x] Removed ~90 lines CSS (.tabs, .tab, .item-tabs, .item-tab + responsive overrides)
+- [x] Build passes, zero regressions
+
+### Slice 6+ Advanced Components (future)
 - [ ] `Command` + `Combobox` (for search/filter upgrades)
 - [ ] `Dropdown Menu` + `Context Menu` (for booking context menu)
 - [ ] `Data Table` (for items/users/reports tables)
