@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -155,9 +156,9 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <Button type="submit" disabled={loading}>
             {loading ? "Searching..." : "Search"}
-          </button>
+          </Button>
         </div>
       </form>
 

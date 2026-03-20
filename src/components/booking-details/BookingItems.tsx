@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import type { BookingDetail, SerializedItem, BulkItem } from "./types";
 
 type Props = {
@@ -39,9 +40,9 @@ export default function BookingItems({
           style={{ flex: 1 }}
         />
         {canEditEquipment && (
-          <button className="btn btn-sm" onClick={onEnterEquipEditMode}>
+          <Button variant="outline" size="sm" onClick={onEnterEquipEditMode}>
             Edit
-          </button>
+          </Button>
         )}
         {!canEditEquipment && booking.kind === "CHECKOUT" && (
           <span className="text-hint">
@@ -75,13 +76,14 @@ export default function BookingItems({
                       {item.allocationStatus === "returned" ? (
                         <span className="badge badge-purple badge-purple-sm">returned</span>
                       ) : (
-                        <button
-                          className="btn btn-sm btn-return"
+                        <Button
+                          variant="outline"
+                          size="xs"
                           disabled={checkinLoading}
                           onClick={(e) => { e.stopPropagation(); onCheckinItem(item.asset.id); }}
                         >
                           Return
-                        </button>
+                        </Button>
                       )}
                     </td>
                   )}

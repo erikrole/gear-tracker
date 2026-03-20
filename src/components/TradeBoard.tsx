@@ -7,6 +7,7 @@ import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 
 /* ───── Types ───── */
 
@@ -224,7 +225,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         ) : loadError ? (
           <div className="p-16 text-center">
             <p className="text-secondary mb-8">Failed to load trades.</p>
-            <button className="btn btn-sm" onClick={loadTrades}>Retry</button>
+            <Button variant="outline" size="sm" onClick={loadTrades}>Retry</Button>
           </div>
         ) : filteredTrades.length === 0 ? (
           <EmptyState
@@ -275,47 +276,49 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                         <div className="flex gap-4">
                           {/* Student can claim open trades (not their own) */}
                           {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
-                            <button
-                              className="btn btn-sm btn-primary"
+                            <Button
+                              size="sm"
                               onClick={() => handleClaim(t.id)}
                               disabled={acting === t.id}
                               style={{ fontSize: "var(--text-3xs)" }}
                             >
                               {acting === t.id ? "..." : "Claim"}
-                            </button>
+                            </Button>
                           )}
 
                           {/* Poster can cancel open/claimed trades */}
                           {(t.status === "OPEN" || t.status === "CLAIMED") && t.postedBy.id === currentUserId && (
-                            <button
-                              className="btn btn-sm text-red"
+                            <Button
+                              variant="ghost" size="sm"
+                              className="text-destructive"
                               onClick={() => handleCancel(t.id)}
                               disabled={acting === t.id}
                               style={{ fontSize: "var(--text-3xs)" }}
                             >
                               Cancel
-                            </button>
+                            </Button>
                           )}
 
                           {/* Staff can approve/decline claimed trades */}
                           {isStaff && t.status === "CLAIMED" && (
                             <>
-                              <button
-                                className="btn btn-sm btn-primary"
+                              <Button
+                                size="sm"
                                 onClick={() => handleApprove(t.id)}
                                 disabled={acting === t.id}
                                 style={{ fontSize: "var(--text-3xs)" }}
                               >
                                 {acting === t.id ? "..." : "Approve"}
-                              </button>
-                              <button
-                                className="btn btn-sm text-red"
+                              </Button>
+                              <Button
+                                variant="ghost" size="sm"
+                                className="text-destructive"
                                 onClick={() => handleDecline(t.id)}
                                 disabled={acting === t.id}
                                 style={{ fontSize: "var(--text-3xs)" }}
                               >
                                 Decline
-                              </button>
+                              </Button>
                             </>
                           )}
                         </div>
@@ -349,39 +352,41 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                     )}
                     <div className="flex gap-4">
                       {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
-                        <button
-                          className="btn btn-sm btn-primary"
+                        <Button
+                          size="sm"
                           onClick={() => handleClaim(t.id)}
                           disabled={acting === t.id}
                         >
                           {acting === t.id ? "..." : "Claim"}
-                        </button>
+                        </Button>
                       )}
                       {(t.status === "OPEN" || t.status === "CLAIMED") && t.postedBy.id === currentUserId && (
-                        <button
-                          className="btn btn-sm text-red"
+                        <Button
+                          variant="ghost" size="sm"
+                          className="text-destructive"
                           onClick={() => handleCancel(t.id)}
                           disabled={acting === t.id}
                         >
                           Cancel
-                        </button>
+                        </Button>
                       )}
                       {isStaff && t.status === "CLAIMED" && (
                         <>
-                          <button
-                            className="btn btn-sm btn-primary"
+                          <Button
+                            size="sm"
                             onClick={() => handleApprove(t.id)}
                             disabled={acting === t.id}
                           >
                             {acting === t.id ? "..." : "Approve"}
-                          </button>
-                          <button
-                            className="btn btn-sm text-red"
+                          </Button>
+                          <Button
+                            variant="ghost" size="sm"
+                            className="text-destructive"
                             onClick={() => handleDecline(t.id)}
                             disabled={acting === t.id}
                           >
                             Decline
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>

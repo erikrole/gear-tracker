@@ -9,6 +9,7 @@ const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsShe
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -95,7 +96,7 @@ function ActionsMenu({
 
   return (
     <div ref={ref} className="relative">
-      <button className="btn header-action-btn" onClick={() => setOpen((v) => !v)}>Actions</button>
+      <Button variant="outline" className="header-action-btn" onClick={() => setOpen((v) => !v)}>Actions</Button>
       {open && (
         <div className="ctx-menu ctx-menu-anchor">
           <button className="ctx-menu-item" onClick={() => { setOpen(false); onAction("duplicate"); }}>
@@ -297,8 +298,12 @@ export default function ItemDetailsPage() {
         </div>
         <div className="header-actions">
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-          <Link href={`/reservations?newFor=${asset.id}`} className={`btn ${asset.availableForReservation ? "btn-primary" : ""} header-action-btn no-underline`}>Reserve</Link>
-          <Link href={`/checkouts?newFor=${asset.id}`} className={`btn ${asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "btn-primary" : ""} header-action-btn no-underline`}>Check out</Link>
+          <Button variant={asset.availableForReservation ? "default" : "outline"} className="header-action-btn" asChild>
+            <Link href={`/reservations?newFor=${asset.id}`} className="no-underline">Reserve</Link>
+          </Button>
+          <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} className="header-action-btn" asChild>
+            <Link href={`/checkouts?newFor=${asset.id}`} className="no-underline">Check out</Link>
+          </Button>
         </div>
       </div>
 

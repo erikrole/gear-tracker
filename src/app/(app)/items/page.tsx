@@ -245,13 +245,14 @@ function CreateItemCard({
               <Input name="qrCodeValue" placeholder="QR code value *" required />
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="link"
               onClick={() => setShowMeta((v) => !v)}
-              className="btn-link mt-12"
+              className="mt-12"
             >
               {showMeta ? "Hide" : "Show"} optional fields
-            </button>
+            </Button>
 
             {showMeta && (
               <div className="grid-3col mt-12">

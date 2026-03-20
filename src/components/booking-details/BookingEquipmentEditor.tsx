@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDateTime } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import type { AvailableAsset, BulkSkuOption, ConflictData } from "./types";
 
 type Props = {
@@ -81,12 +82,11 @@ export default function BookingEquipmentEditor({
               <span className="equip-edit-name">
                 {resolveAssetName(assetId)}
               </span>
-              <button
-                className="btn btn-sm btn-danger-outline"
+              <Button variant="destructive" size="sm"
                 onClick={() => onRemoveSerializedItem(assetId)}
               >
                 Remove
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -120,12 +120,11 @@ export default function BookingEquipmentEditor({
                   +
                 </button>
               </div>
-              <button
-                className="btn btn-sm btn-danger-outline"
+              <Button variant="destructive" size="sm"
                 onClick={() => onRemoveBulkItem(item.bulkSkuId)}
               >
                 &times;
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -134,12 +133,11 @@ export default function BookingEquipmentEditor({
       {/* Add items picker */}
       <div className="sheet-section">
         {!addingItems ? (
-          <button
-            className="btn btn-full"
+          <Button className="btn-full"
             onClick={() => { onSetAddingItems(true); onSetPickerSearch(""); }}
           >
             + Add items
-          </button>
+          </Button>
         ) : (
           <div>
             <div className="picker-tabs">
@@ -204,12 +202,11 @@ export default function BookingEquipmentEditor({
                 )
               )}
             </div>
-            <button
-              className="btn btn-sm btn-mt"
+            <Button variant="outline" size="sm" className="btn-mt"
               onClick={() => onSetAddingItems(false)}
             >
               Done adding
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -217,19 +214,17 @@ export default function BookingEquipmentEditor({
       {/* Save / Cancel equip edit */}
       <div className="sheet-section">
         <div className="action-row">
-          <button
-            className="btn btn-primary"
+          <Button
             disabled={equipSaving}
             onClick={onSave}
           >
             {equipSaving ? "Saving..." : "Save equipment"}
-          </button>
-          <button
-            className="btn"
+          </Button>
+          <Button variant="outline"
             onClick={onCancel}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
     </>

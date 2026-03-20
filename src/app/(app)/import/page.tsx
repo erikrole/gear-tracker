@@ -326,7 +326,7 @@ export default function ImportPage() {
       <div className="page-header">
         <h1>Import Items</h1>
         {step !== "upload" && step !== "importing" && (
-          <button className="btn" onClick={resetWizard}>Start over</button>
+          <Button variant="outline" onClick={resetWizard}>Start over</Button>
         )}
       </div>
 
@@ -400,13 +400,12 @@ export default function ImportPage() {
             </div>
 
             <div className="flex-end mt-16">
-              <button
-                className="btn btn-primary"
+              <Button
                 disabled={!file || loading}
                 onClick={handleParseHeaders}
               >
                 {loading ? "Reading..." : "Next: Map columns"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -458,14 +457,13 @@ export default function ImportPage() {
           </div>
 
           <div className="flex-end gap-8">
-            <button className="btn" onClick={() => setStep("upload")}>Back</button>
-            <button
-              className="btn btn-primary"
+            <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
+            <Button
               disabled={!mapping["Name"] && !Object.values(mapping).includes("assetTag")}
               onClick={handlePreview}
             >
               {loading ? "Processing..." : "Preview import"}
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -584,15 +582,14 @@ export default function ImportPage() {
           </div>
 
           <div className="flex-end gap-8 mt-16">
-            <button className="btn" onClick={() => setStep("mapping")}>Back to mapping</button>
-            <button className="btn" onClick={resetWizard}>Cancel</button>
-            <button
-              className="btn btn-primary"
+            <Button variant="outline" onClick={() => setStep("mapping")}>Back to mapping</Button>
+            <Button variant="outline" onClick={resetWizard}>Cancel</Button>
+            <Button
               disabled={preview.summary.withErrors === preview.summary.totalItems}
               onClick={handleImport}
             >
               Import {preview.summary.totalItems - preview.summary.withErrors} items
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -626,9 +623,9 @@ export default function ImportPage() {
             <div className="card mb-16">
               <div className="card-header">
                 <h2>Errors ({result.errors.length})</h2>
-                <button className="btn btn-sm" onClick={handleDownloadErrors}>
+                <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
                   Download error CSV
-                </button>
+                </Button>
               </div>
               <div className="overflow-x-auto" style={{ maxHeight: 300 }}>
                 <table className="data-table">
@@ -662,8 +659,8 @@ export default function ImportPage() {
                 {result.created} created, {result.updated} updated, {result.skipped} skipped
               </div>
               <div className="flex gap-8" style={{ justifyContent: "center" }}>
-                <button className="btn" onClick={resetWizard}>Import another file</button>
-                <a href="/items" className="btn btn-primary no-underline">View items</a>
+                <Button variant="outline" onClick={resetWizard}>Import another file</Button>
+                <Button asChild><a href="/items" className="no-underline">View items</a></Button>
               </div>
             </div>
           </div>

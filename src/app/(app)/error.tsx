@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function AppError({
   error,
@@ -20,12 +21,12 @@ export default function AppError({
         This may be caused by an expired session or a temporary loading issue.
       </p>
       <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-        <button className="btn btn-primary" onClick={reset}>
+        <Button onClick={reset}>
           Try again
-        </button>
-        <a href="/login" className="btn">
-          Sign in
-        </a>
+        </Button>
+        <Button variant="outline" asChild>
+          <a href="/login">Sign in</a>
+        </Button>
       </div>
     </div>
   );

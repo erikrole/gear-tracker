@@ -789,17 +789,16 @@ export default function ScanPage() {
             </div>
 
             <div className="sheet-actions" style={{ display: "flex", gap: 8 }}>
-              <button className="btn" onClick={() => setUnitPicker(null)} style={{ flex: 1, minHeight: 48 }}>
+              <Button variant="outline" onClick={() => setUnitPicker(null)} style={{ flex: 1, minHeight: 48 }}>
                 Cancel
-              </button>
-              <button
-                className="btn btn-primary"
+              </Button>
+              <Button
                 onClick={handleUnitPickerSubmit}
                 disabled={selectedUnits.size === 0 || processing}
                 style={{ flex: 1, minHeight: 48 }}
               >
                 {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
-              </button>
+              </Button>
             </div>
           </div>
         </>
@@ -808,8 +807,9 @@ export default function ScanPage() {
       {/* ══════ Sticky bottom bar (booking modes) ══════ */}
       {mode !== "lookup" && scanStatus && (
         <div className="scan-bottom-bar">
-          <button
-            className={`btn ${allComplete ? "btn-primary" : ""} scan-complete-btn`}
+          <Button
+            variant={allComplete ? "default" : "outline"}
+            className="scan-complete-btn"
             onClick={handleComplete}
             disabled={!allComplete || completing}
           >
@@ -819,7 +819,7 @@ export default function ScanPage() {
                 ? mode === "checkout" ? "Complete Checkout" : "Complete Check-in"
                 : `${totalItems - scannedItems} item${totalItems - scannedItems !== 1 ? "s" : ""} remaining`
             }
-          </button>
+          </Button>
         </div>
       )}
 
@@ -923,18 +923,18 @@ export default function ScanPage() {
             )}
 
             <div className="sheet-actions scan-sheet-actions">
-              <button
-                className="btn scan-sheet-btn"
+              <Button
+                variant="outline"
+                className="scan-sheet-btn"
                 onClick={() => setItemPreview(null)}
               >
                 Dismiss
-              </button>
-              <Link
-                href={`/items/${itemPreview.id}`}
-                className="btn btn-primary scan-sheet-btn"
-              >
-                View Details
-              </Link>
+              </Button>
+              <Button className="scan-sheet-btn" asChild>
+                <Link href={`/items/${itemPreview.id}`}>
+                  View Details
+                </Link>
+              </Button>
             </div>
           </div>
         </>

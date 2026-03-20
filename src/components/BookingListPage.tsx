@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import type { BulkSelection } from "@/components/EquipmentPicker";
+import { Button } from "@/components/ui/button";
 
 import {
   SortHeader,
@@ -456,9 +457,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     <>
       <div className="page-header">
         <h1>{config.labelPlural}</h1>
-        <button className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
+        <Button onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Close" : `New ${config.label}`}
-        </button>
+        </Button>
       </div>
 
       {/* ════════ Create booking card ════════ */}
@@ -577,8 +578,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
               <div className="pagination">
                 <span>Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}</span>
                 <div className="pagination-btns">
-                  <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-                  <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</button>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
                 </div>
               </div>
             )}

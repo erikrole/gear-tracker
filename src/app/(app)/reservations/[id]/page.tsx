@@ -9,6 +9,7 @@ import type { ReservationAction } from "@/lib/booking-actions";
 import { formatDateTime } from "@/lib/format";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+import { Button } from "@/components/ui/button";
 
 /* ───── Types ───── */
 
@@ -382,49 +383,53 @@ export default function ReservationDetailsPage() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canConvert && (
-            <button
-              className="btn btn-primary btn-sm"
+            <Button
+              size="sm"
               onClick={handleConvert}
               disabled={!!actionLoading}
             >
               {actionLoading === "convert" ? "Converting..." : "Start checkout"}
-            </button>
+            </Button>
           )}
           {canEdit && (
-            <button
-              className="btn btn-sm"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => router.push(`/reservations?editId=${id}`)}
               disabled={!!actionLoading}
             >
               Edit
-            </button>
+            </Button>
           )}
           {canExtend && (
-            <button
-              className="btn btn-sm"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowExtend((v) => !v)}
               disabled={!!actionLoading}
             >
               Extend
-            </button>
+            </Button>
           )}
           {canDuplicate && (
-            <button
-              className="btn btn-sm"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDuplicate}
               disabled={!!actionLoading}
             >
               {actionLoading === "duplicate" ? "Duplicating..." : "Duplicate"}
-            </button>
+            </Button>
           )}
           {canCancel && (
-            <button
-              className="btn btn-sm btn-danger"
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={handleCancel}
               disabled={!!actionLoading}
             >
               {actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -459,22 +464,23 @@ export default function ReservationDetailsPage() {
                 borderRadius: 6,
               }}
             />
-            <button
-              className="btn btn-primary btn-sm"
+            <Button
+              size="sm"
               onClick={handleExtend}
               disabled={!extendDate || !!actionLoading}
             >
               {actionLoading === "extend" ? "Saving..." : "Save"}
-            </button>
-            <button
-              className="btn btn-sm"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setShowExtend(false);
                 setExtendDate("");
               }}
             >
               Cancel
-            </button>
+            </Button>
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             {[
@@ -482,14 +488,15 @@ export default function ReservationDetailsPage() {
               { label: "+3 days", days: 3 },
               { label: "+1 week", days: 7 },
             ].map(({ label, days }) => (
-              <button
+              <Button
                 key={days}
-                className="btn btn-sm"
+                variant="outline"
+                size="sm"
                 onClick={() => handleQuickExtend(days)}
                 style={{ fontSize: "var(--text-xs)" }}
               >
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

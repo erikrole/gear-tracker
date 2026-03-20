@@ -216,20 +216,22 @@ export default function SchedulePage() {
       <div className="page-header">
         <h1>Schedule</h1>
         <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-          <button
-            className={`btn btn-sm ${pageTab === "schedule" ? "btn-primary" : ""}`}
+          <Button
+            variant={pageTab === "schedule" ? "default" : "outline"}
+            size="sm"
             onClick={() => setPageTab("schedule")}
             style={{ borderRadius: 0, border: "none" }}
           >
             Shifts
-          </button>
-          <button
-            className={`btn btn-sm ${pageTab === "trades" ? "btn-primary" : ""}`}
+          </Button>
+          <Button
+            variant={pageTab === "trades" ? "default" : "outline"}
+            size="sm"
             onClick={() => setPageTab("trades")}
             style={{ borderRadius: 0, border: "none" }}
           >
             Trade Board
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -241,20 +243,22 @@ export default function SchedulePage() {
       {/* View toggle + filters */}
       <div className="filter-chip-bar mb-16">
         <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
-          <button
-            className={`btn btn-sm ${viewMode === "list" ? "btn-primary" : ""}`}
+          <Button
+            variant={viewMode === "list" ? "default" : "outline"}
+            size="sm"
             onClick={() => setViewMode("list")}
             style={{ borderRadius: 0, border: "none" }}
           >
             List
-          </button>
-          <button
-            className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : ""}`}
+          </Button>
+          <Button
+            variant={viewMode === "calendar" ? "default" : "outline"}
+            size="sm"
             onClick={() => setViewMode("calendar")}
             style={{ borderRadius: 0, border: "none" }}
           >
             Calendar
-          </button>
+          </Button>
         </div>
         <div className="filter-chips">
           <FilterChip
@@ -301,13 +305,13 @@ export default function SchedulePage() {
         <div className="card mb-16">
           <div className="card-header flex-between">
             <div className="flex-center gap-8">
-              <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
+              <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
               <h2 className="text-center" style={{ minWidth: 160 }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
               </h2>
-              <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
+              <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
             </div>
-            <button className="btn btn-sm" onClick={goCalToday}>Today</button>
+            <Button variant="outline" size="sm" onClick={goCalToday}>Today</Button>
           </div>
           <div className="p-16">
             <div className="cal-mobile-notice hidden">
@@ -370,7 +374,7 @@ export default function SchedulePage() {
           ) : loadError ? (
             <div className="p-16 text-center">
               <p className="text-secondary mb-8">Failed to load shifts.</p>
-              <button className="btn btn-sm" onClick={loadGroups}>Retry</button>
+              <Button variant="outline" size="sm" onClick={loadGroups}>Retry</Button>
             </div>
           ) : filteredGroups.length === 0 ? (
             <EmptyState

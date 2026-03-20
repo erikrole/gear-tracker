@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 type MigrationRow = { name: string; appliedAt: string | null };
 type DriftItem = { table: string; column: string; status: string };
@@ -53,9 +54,9 @@ export default function DatabasePage() {
 
       <div className="settings-main">
         <div className="settings-action-row">
-          <button className="btn btn-primary" onClick={runCheck} disabled={loading}>
+          <Button onClick={runCheck} disabled={loading}>
             {loading ? "Checking\u2026" : "Run diagnostics"}
-          </button>
+          </Button>
         </div>
 
         {error && (

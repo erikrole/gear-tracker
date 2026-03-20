@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
@@ -78,9 +79,9 @@ export default function CategoriesPage() {
 
       <div className="settings-main">
         <div className="settings-action-row">
-          <button className="btn btn-primary" onClick={() => setAdding(true)}>
+          <Button onClick={() => setAdding(true)}>
             Add new category
-          </button>
+          </Button>
         </div>
 
         <div className="card">

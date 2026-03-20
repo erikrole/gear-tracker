@@ -10,6 +10,7 @@ import {
   formatStartsIn,
 } from "@/lib/format";
 import type { AssetDetail } from "./types";
+import { Button } from "@/components/ui/button";
 
 /* ── Operational Overview (Info tab dashboard cards) ─────── */
 
@@ -278,11 +279,11 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
       <div className="card">
         <div className="card-header">
           <div className="flex-center gap-8">
-            <button className="btn btn-sm" onClick={prevMonth}>&lsaquo;</button>
+            <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
             <h2 className="cal-month-label">{monthLabel}</h2>
-            <button className="btn btn-sm" onClick={nextMonth}>{"\u203a"}</button>
+            <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
           </div>
-          <button className="btn btn-sm" onClick={goToday}>Today</button>
+          <Button variant="outline" size="sm" onClick={goToday}>Today</Button>
         </div>
         <div className="p-16">
           {/* Day headers */}
