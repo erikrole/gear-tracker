@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 
 /* ───── Types ───── */
 
@@ -599,8 +600,8 @@ export default function ImportPage() {
       {step === "importing" && (
         <div className="card">
           <div className="p-48 text-center">
-            <div className="loading-spinner" style={{ position: "static" }}>
-              <div className="spinner" />
+            <div className="flex items-center justify-center py-10">
+              <Spinner className="size-8" />
             </div>
             <div className="mt-16 font-semibold">Importing items...</div>
             <div className="text-secondary text-sm">

@@ -232,7 +232,7 @@ export default function DatabasePage() {
 
         {!result && !error && !loading && (
           <div className="card">
-            <div className="empty-state">
+            <div className="py-10 px-5 text-center text-muted-foreground">
               Click &ldquo;Run diagnostics&rdquo; to check schema health
             </div>
           </div>

@@ -254,7 +254,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.myCheckouts.total}</span>
             </a>
             {data.myCheckouts.items.length === 0 ? (
-              <div className="empty-state">No open checkouts</div>
+              <div className="py-10 px-5 text-center text-muted-foreground">No open checkouts</div>
             ) : (
               <div className="card-body card-body-compact">
                 {data.myCheckouts.items.map((c) => (
@@ -292,7 +292,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.myReservations.length}</span>
             </a>
             {data.myReservations.length === 0 ? (
-              <div className="empty-state">No upcoming reservations</div>
+              <div className="py-10 px-5 text-center text-muted-foreground">No upcoming reservations</div>
             ) : (
               <div className="card-body card-body-compact">
                 {data.myReservations.map((r) => (
@@ -417,7 +417,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.teamCheckouts.total}</span>
             </a>
             {data.teamCheckouts.items.length === 0 ? (
-              <div className="empty-state">No open checkouts</div>
+              <div className="py-10 px-5 text-center text-muted-foreground">No open checkouts</div>
             ) : (
               <div className="card-body card-body-compact">
                 {data.teamCheckouts.items.map((c) => (
@@ -456,7 +456,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.teamReservations.total}</span>
             </a>
             {data.teamReservations.items.length === 0 ? (
-              <div className="empty-state">No active reservations</div>
+              <div className="py-10 px-5 text-center text-muted-foreground">No active reservations</div>
             ) : (
               <div className="card-body card-body-compact">
                 {data.teamReservations.items.map((r) => (
@@ -487,7 +487,7 @@ export default function DashboardPage() {
               <h2>Upcoming events</h2>
             </a>
             {data.upcomingEvents.length === 0 ? (
-              <div className="empty-state">No upcoming events</div>
+              <div className="py-10 px-5 text-center text-muted-foreground">No upcoming events</div>
             ) : (
               <div className="card-body card-body-compact">
                 {data.upcomingEvents.map((e) => {

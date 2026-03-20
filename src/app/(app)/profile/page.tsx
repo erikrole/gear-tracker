@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 
 type Location = { id: string; name: string };
 type UserProfile = {
@@ -132,10 +133,10 @@ export default function ProfilePage() {
   }
 
   if (loadError) {
-    return <div className="empty-state">Failed to load profile. Please refresh.</div>;
+    return <div className="py-10 px-5 text-center text-muted-foreground">Failed to load profile. Please refresh.</div>;
   }
   if (!profile) {
-    return <div className="loading-spinner"><div className="spinner" /></div>;
+    return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
   }
 
   return (

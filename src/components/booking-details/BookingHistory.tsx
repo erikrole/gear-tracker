@@ -37,7 +37,7 @@ export default function BookingHistory({
       </div>
 
       {filteredAuditLogs.length === 0 ? (
-        <div className="empty-state">
+        <div className="py-10 px-5 text-center text-muted-foreground">
           {historyFilter === "all" ? "No history yet" : "No matching history entries"}
         </div>
       ) : (

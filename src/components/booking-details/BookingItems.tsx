@@ -117,7 +117,7 @@ export default function BookingItems({
       )}
 
       {(filteredSerializedItems.length === 0 && filteredBulkItems.length === 0) && (
-        <div className="empty-state">
+        <div className="py-10 px-5 text-center text-muted-foreground">
           {equipSearch ? "No items match your search" : "No equipment in this booking"}
         </div>
       )}

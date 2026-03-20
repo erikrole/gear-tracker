@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -244,11 +245,11 @@ export default function ItemDetailsPage() {
   }
 
   if (fetchError) {
-    return <div className="empty-state">Item not found or failed to load. <Link href="/items">Back to items</Link></div>;
+    return <div className="py-10 px-5 text-center text-muted-foreground">Item not found or failed to load. <Link href="/items">Back to items</Link></div>;
   }
 
   if (!asset) {
-    return <div className="loading-spinner"><div className="spinner" /></div>;
+    return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
   }
 
   return (

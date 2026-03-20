@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useToast } from "@/components/Toast";
+import { Spinner } from "@/components/ui/spinner";
 
 const QrScanner = dynamic(() => import("@/components/QrScanner"), { ssr: false });
 
@@ -539,7 +540,7 @@ export default function ScanPage() {
       {/* ══════ Loading / error states ══════ */}
       {mode !== "lookup" && statusLoading && (
         <div className="scan-status-card">
-          <div className="spinner" style={{ width: 20, height: 20 }} />
+          <Spinner className="size-5" />
           <span>Loading checkout details...</span>
         </div>
       )}
@@ -639,7 +640,7 @@ export default function ScanPage() {
           </div>
 
           {scanStatus.serializedItems.length === 0 && scanStatus.bulkItems.length === 0 ? (
-            <div className="empty-state">No items to scan.</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">No items to scan.</div>
           ) : (
             <div className="scan-checklist-items">
               {/* Unscanned first, then scanned */}

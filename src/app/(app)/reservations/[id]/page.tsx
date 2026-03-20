@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DataList from "@/components/DataList";
+import { Spinner } from "@/components/ui/spinner";
 import type { ReservationAction } from "@/lib/booking-actions";
 import { formatDateTime } from "@/lib/format";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -346,7 +347,7 @@ export default function ReservationDetailsPage() {
 
   if (fetchError) {
     return (
-      <div className="empty-state">
+      <div className="py-10 px-5 text-center text-muted-foreground">
         Reservation not found or failed to load.{" "}
         <Link href="/reservations">Back to reservations</Link>
       </div>
@@ -354,11 +355,7 @@ export default function ReservationDetailsPage() {
   }
 
   if (!reservation) {
-    return (
-      <div className="loading-spinner">
-        <div className="spinner" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
   }
 
   const itemCount =
@@ -599,7 +596,7 @@ export default function ReservationDetailsPage() {
           )}
 
           {filteredSerialized.length === 0 && filteredBulk.length === 0 ? (
-            <div className="empty-state">
+            <div className="py-10 px-5 text-center text-muted-foreground">
               {equipSearch
                 ? "No items match your search."
                 : "No items added to this reservation yet."}
@@ -674,7 +671,7 @@ export default function ReservationDetailsPage() {
           </div>
 
           {filteredAuditLogs.length === 0 ? (
-            <div className="empty-state">
+            <div className="py-10 px-5 text-center text-muted-foreground">
               {historyFilter === "all"
                 ? "No history yet"
                 : "No matching history entries"}

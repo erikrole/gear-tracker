@@ -9,6 +9,7 @@ import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Spinner } from "@/components/ui/spinner";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -65,7 +66,7 @@ export default function UserDetailPage() {
 
   if (fetchError) {
     return (
-      <div className="empty-state">
+      <div className="py-10 px-5 text-center text-muted-foreground">
         User not found or failed to load.{" "}
         <Link href="/users">Back to users</Link>
       </div>
@@ -73,7 +74,7 @@ export default function UserDetailPage() {
   }
 
   if (!user) {
-    return <div className="loading-spinner"><div className="spinner" /></div>;
+    return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
   }
 
   return (

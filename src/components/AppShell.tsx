@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
+import { Spinner } from "@/components/ui/spinner";
 
 type User = { name: string; email: string; role: string };
 
@@ -143,8 +144,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="loading-spinner" style={{ minHeight: "100vh" }}>
-        <div className="spinner" />
+      <div className="flex items-center justify-center" style={{ minHeight: "100vh" }}>
+        <Spinner className="size-8" />
       </div>
     );
   }

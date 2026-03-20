@@ -6,17 +6,14 @@ Last updated: 2026-03-20
 
 ## Active Work
 
-### shadcn Avatar Integration (Slice 1.5 of shadcn plan)
+### shadcn/ui Slice 3: Spinner, Empty, Item Components
 
-- [ ] Add shadcn Avatar component (Avatar, AvatarImage, AvatarFallback)
-- [ ] Create AvatarGroup component for stacked/overlapping avatars
-- [ ] Migrate Sidebar avatar (sidebar-avatar-lg → Avatar)
-- [ ] Migrate UserRow mobile avatar (user-mobile-avatar → Avatar)
-- [ ] Migrate UserDetail page avatar (user-detail-avatar → Avatar)
-- [ ] Add stacked avatars to ShiftDetailPanel pending requests
-- [ ] Add stacked avatars to schedule page coverage indicators
-- [ ] Clean up old avatar CSS classes from globals.css
-- [ ] npm run build — verify zero regressions
+- [x] Add shadcn Spinner, Empty, Separator, Item to `src/components/ui/`
+- [x] Migrate `EmptyState.tsx` (14 usages) → shadcn Empty (preserve 8 icon variants via lucide-react)
+- [x] Migrate raw `empty-state` CSS class usages (~25 sites) → Tailwind utility classes
+- [x] Migrate `.loading-spinner` + `.spinner` pattern (~21 files) → shadcn Spinner
+- [x] Remove old CSS: `.empty-state`, `.loading-spinner`, `.spinner`, `.btn-spinner`
+- [x] `npm run build` — verify zero regressions
 - [ ] Commit & push
 
 ### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
@@ -35,6 +32,8 @@ Last updated: 2026-03-20
 
 ## Recently Shipped
 
+- [x] **shadcn/ui Slice 2** — Dialog, AlertDialog, Sonner migration (2026-03-20)
+- [x] **shadcn/ui Slice 1.5** — Avatar & AvatarGroup (2026-03-20)
 - [x] **shadcn/ui Slice 1** — Foundation + Button/Badge/Skeleton (2026-03-20)
 - [x] **Dashboard Drafts (D-017 / GAP-2)** — DRAFT booking CRUD, dashboard section, auto-save on cancel, resume pre-fill (2026-03-16)
 - [x] **D-018 Doc Sync** — Asset financial fields already in UI; docs updated to reflect shipped (2026-03-16)

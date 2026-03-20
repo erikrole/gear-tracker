@@ -456,7 +456,7 @@ export default function EventsPage() {
           )}
 
           {mappings.length === 0 ? (
-            <div className="empty-state">No venue mappings configured. Add patterns to automatically map calendar events to locations.</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">No venue mappings configured. Add patterns to automatically map calendar events to locations.</div>
           ) : (
             <table className="data-table">
               <thead>
@@ -509,7 +509,7 @@ export default function EventsPage() {
           )}
 
           {sources.length === 0 ? (
-            <div className="empty-state">No calendar sources configured</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">No calendar sources configured</div>
           ) : (
             <table className="data-table">
               <thead>
@@ -721,7 +721,7 @@ export default function EventsPage() {
           {loading ? (
             <SkeletonTable rows={6} cols={5} />
           ) : events.length === 0 ? (
-            <div className="empty-state">No events found. Add a calendar source and sync.</div>
+            <div className="py-10 px-5 text-center text-muted-foreground">No events found. Add a calendar source and sync.</div>
           ) : (
             <div className="event-list-grouped">
               {groupedEvents.map(([dateKey, groupEvents]) => {

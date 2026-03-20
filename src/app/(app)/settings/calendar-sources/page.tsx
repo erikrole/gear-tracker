@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
+import { Spinner } from "@/components/ui/spinner";
 
 type CalendarSource = {
   id: string;
@@ -202,7 +203,7 @@ export default function CalendarSourcesPage() {
 
         {loading ? (
           <div className="card" style={{ padding: 40, textAlign: "center" }}>
-            <div className="spinner" />
+            <Spinner className="size-8" />
           </div>
         ) : sources.length === 0 ? (
           <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
