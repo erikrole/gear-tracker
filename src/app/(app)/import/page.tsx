@@ -358,8 +358,8 @@ export default function ImportPage() {
 
       {/* ── Upload step ── */}
       {step === "upload" && (
-        <div className="card">
-          <div className="card-header"><h2>Upload CSV file</h2></div>
+        <Card>
+          <CardHeader><CardTitle>Upload CSV file</CardTitle></CardHeader>
           <div className="p-24">
             <div
               onDrop={handleDrop}
@@ -409,19 +409,19 @@ export default function ImportPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Column mapping step ── */}
       {step === "mapping" && csvHeaders.length > 0 && (
         <>
-          <div className="card mb-16">
-            <div className="card-header">
-              <h2>Map CSV columns to fields</h2>
+          <Card className="mb-16">
+            <CardHeader>
+              <CardTitle>Map CSV columns to fields</CardTitle>
               <span className="text-secondary text-sm">
                 {Object.values(mapping).filter(Boolean).length} of {csvHeaders.length} columns mapped
               </span>
-            </div>
+            </CardHeader>
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
@@ -455,7 +455,7 @@ export default function ImportPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
           <div className="flex-end gap-8">
             <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
@@ -484,8 +484,8 @@ export default function ImportPage() {
 
           {/* New entities to create */}
           {(preview.summary.newLocations.length > 0 || preview.summary.newDepartments.length > 0 || preview.summary.kits.length > 0) && (
-            <div className="card mb-16">
-              <div className="card-header"><h2>Will be auto-created</h2></div>
+            <Card className="mb-16">
+              <CardHeader><CardTitle>Will be auto-created</CardTitle></CardHeader>
               <div className="p-16 flex flex-wrap gap-16">
                 {preview.summary.newLocations.length > 0 && (
                   <div>
@@ -512,14 +512,14 @@ export default function ImportPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           )}
 
           {/* Preview table */}
-          <div className="card">
-            <div className="card-header">
-              <h2>Preview ({preview.rows.length}{preview.totalRows > 200 ? ` of ${preview.totalRows}` : ""} rows)</h2>
-            </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Preview ({preview.rows.length}{preview.totalRows > 200 ? ` of ${preview.totalRows}` : ""} rows)</CardTitle>
+            </CardHeader>
             <div className="overflow-x-auto">
               <table className="data-table">
                 <thead>
@@ -580,7 +580,7 @@ export default function ImportPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
 
           <div className="flex-end gap-8 mt-16">
             <Button variant="outline" onClick={() => setStep("mapping")}>Back to mapping</Button>
@@ -597,7 +597,7 @@ export default function ImportPage() {
 
       {/* ── Importing step ── */}
       {step === "importing" && (
-        <div className="card">
+        <Card>
           <div className="p-48 text-center">
             <div className="flex items-center justify-center py-10">
               <Spinner className="size-8" />
@@ -607,7 +607,7 @@ export default function ImportPage() {
               Creating locations, departments, kits, and assets
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Summary step ── */}
@@ -621,13 +621,13 @@ export default function ImportPage() {
           </div>
 
           {result.errors.length > 0 && (
-            <div className="card mb-16">
-              <div className="card-header">
-                <h2>Errors ({result.errors.length})</h2>
+            <Card className="mb-16">
+              <CardHeader>
+                <CardTitle>Errors ({result.errors.length})</CardTitle>
                 <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
                   Download error CSV
                 </Button>
-              </div>
+              </CardHeader>
               <div className="overflow-x-auto" style={{ maxHeight: 300 }}>
                 <table className="data-table">
                   <thead>
@@ -648,10 +648,10 @@ export default function ImportPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Card>
           )}
 
-          <div className="card">
+          <Card>
             <div className="p-24 text-center">
               <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>
                 {result.created + result.updated > 0 ? "Import complete" : "No items imported"}
@@ -664,7 +664,7 @@ export default function ImportPage() {
                 <Button asChild><a href="/items" className="no-underline">View items</a></Button>
               </div>
             </div>
-          </div>
+          </Card>
         </>
       )}
     </>

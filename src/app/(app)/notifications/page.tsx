@@ -216,8 +216,8 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header notif-filter-bar">
+      <Card>
+        <CardHeader className="notif-filter-bar">
           <label className="notif-filter-label">
             <input
               type="checkbox"
@@ -232,7 +232,7 @@ export default function NotificationsPage() {
           <span className="notif-count">
             {total} notification{total !== 1 ? "s" : ""}
           </span>
-        </div>
+        </CardHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
@@ -326,7 +326,7 @@ export default function NotificationsPage() {
             )}
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 }

@@ -303,17 +303,17 @@ export default function SchedulePage() {
 
       {/* Calendar view */}
       {viewMode === "calendar" && (
-        <div className="card mb-16">
-          <div className="card-header flex-between">
+        <Card className="mb-16">
+          <CardHeader className="flex-between">
             <div className="flex-center gap-8">
               <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
-              <h2 className="text-center" style={{ minWidth: 160 }}>
+              <CardTitle className="text-center" style={{ minWidth: 160 }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-              </h2>
+              </CardTitle>
               <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
             </div>
             <Button variant="outline" size="sm" onClick={goCalToday}>Today</Button>
-          </div>
+          </CardHeader>
           <div className="p-16">
             <div className="cal-mobile-notice hidden">
               Switch to List view for the best mobile experience.
@@ -360,15 +360,15 @@ export default function SchedulePage() {
               ))}
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* List view */}
       {viewMode === "list" && (
-        <div className="card">
-          <div className="card-header">
-            <h2>Upcoming Shifts ({filteredGroups.length})</h2>
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Shifts ({filteredGroups.length})</CardTitle>
+          </CardHeader>
 
           {loading ? (
             <SkeletonTable rows={6} cols={7} />
@@ -483,7 +483,7 @@ export default function SchedulePage() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Shift detail panel */}

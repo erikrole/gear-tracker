@@ -190,8 +190,8 @@ export default function BulkInventoryPage() {
       </div>
 
       {showCreate && (
-        <div className="card mb-16">
-          <div className="card-header"><h2>Add bulk SKU</h2></div>
+        <Card className="mb-16">
+          <CardHeader><CardTitle>Add bulk SKU</CardTitle></CardHeader>
           <form onSubmit={handleCreate} className="form-grid form-grid-3 p-16">
             <Input name="name" placeholder="Name" required />
             <select name="categoryId" className="form-select">
@@ -263,11 +263,11 @@ export default function BulkInventoryPage() {
             </div>
             {error && <div className="col-span-full text-red">{error}</div>}
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="card">
-        <div className="card-header filter-chip-bar">
+      <Card>
+        <CardHeader className="filter-chip-bar">
           <Input
             className="filter-chip-search"
             type="text"
@@ -275,7 +275,7 @@ export default function BulkInventoryPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-        </div>
+        </CardHeader>
         {loading ? (
           <SkeletonTable rows={6} cols={6} />
         ) : filteredItems.length === 0 ? (
@@ -452,7 +452,7 @@ export default function BulkInventoryPage() {
             )}
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 }

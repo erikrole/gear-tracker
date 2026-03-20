@@ -181,7 +181,7 @@ export default function SearchPage() {
                 <h2 className="text-sm text-secondary text-uppercase font-semibold mb-8 m-0">
                   {sectionLabels[type]} ({items.length})
                 </h2>
-                <div className="card">
+                <Card>
                   {items.map((r, i) => (
                     <Link
                       key={r.id}
@@ -200,7 +200,7 @@ export default function SearchPage() {
                       )}
                     </Link>
                   ))}
-                </div>
+                </Card>
               </div>
             );
           })}

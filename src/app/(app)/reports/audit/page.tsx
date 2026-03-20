@@ -115,11 +115,11 @@ export default function AuditReportPage() {
         )}
       </div>
 
-    <div className="card">
-      <div className="card-header">
-        <h2>Audit trail</h2>
+    <Card>
+      <CardHeader>
+        <CardTitle>Audit trail</CardTitle>
         <span className="text-sm text-muted">{data.total} entries</span>
-      </div>
+      </CardHeader>
 
       {data.data.length === 0 ? (
         <EmptyState icon="clipboard" title="No audit log entries" />
@@ -167,7 +167,7 @@ export default function AuditReportPage() {
           )}
         </>
       )}
-    </div>
+    </Card>
     </>
   );
 }

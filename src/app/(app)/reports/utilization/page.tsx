@@ -5,6 +5,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type UtilizationData = {
   totalAssets: number;
@@ -34,8 +35,8 @@ function BreakdownCard({
   if (rows.length === 0) return null;
 
   return (
-    <div className="card">
-      <div className="card-header"><h2>{title}</h2></div>
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
 
       {/* Desktop table */}
       <div className="hide-mobile-only">
@@ -66,7 +67,7 @@ function BreakdownCard({
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -114,15 +115,15 @@ export default function UtilizationPage() {
       <>
         <div className="summary-grid mb-16">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="card p-16 text-center">
+            <Card key={i} className="p-16 text-center">
               <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
               <div className="skeleton skeleton-text-sm" style={{ width: 80, margin: "0 auto" }} />
-            </div>
+            </Card>
           ))}
         </div>
         <div className="grid-2col gap-16">
-          <div className="card"><SkeletonTable rows={4} cols={2} /></div>
-          <div className="card"><SkeletonTable rows={4} cols={2} /></div>
+          <Card><SkeletonTable rows={4} cols={2} /></Card>
+          <Card><SkeletonTable rows={4} cols={2} /></Card>
         </div>
       </>
     );
@@ -130,10 +131,10 @@ export default function UtilizationPage() {
 
   if (error || !data) {
     return (
-      <div className="card p-16 text-center">
+      <Card className="p-16 text-center">
         <p className="text-secondary mb-8">Failed to load utilization report.</p>
         <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
-      </div>
+      </Card>
     );
   }
 
