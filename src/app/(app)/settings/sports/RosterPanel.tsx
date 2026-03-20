@@ -7,6 +7,7 @@ import type { RosterMember } from "./types";
 import { AREA_LABELS } from "./types";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function RosterPanel({
   sportCode,

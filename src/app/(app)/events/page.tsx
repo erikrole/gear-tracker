@@ -9,6 +9,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import { Input } from "@/components/ui/input";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type CalendarEvent = {
   id: string;
@@ -431,13 +432,13 @@ export default function EventsPage() {
 
       {/* Venue mapping panel */}
       {showMappings && (
-        <div className="card mb-16">
-          <div className="card-header">
-            <h2>Venue Mappings</h2>
+        <Card className="mb-16">
+          <CardHeader>
+            <CardTitle>Venue Mappings</CardTitle>
             <Button size="sm" onClick={() => setShowAddMapping(!showAddMapping)}>
               {showAddMapping ? "Cancel" : "Add mapping"}
             </Button>
-          </div>
+          </CardHeader>
 
           <div className="text-xs text-secondary" style={{ padding: "8px 16px 0" }}>
             Patterns are matched against the combined venue + summary text from calendar events during sync. Supports regex or plain text (case-insensitive).
@@ -491,18 +492,18 @@ export default function EventsPage() {
               </tbody>
             </table>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Sources management panel */}
       {showSources && (
-        <div className="card mb-16">
-          <div className="card-header">
-            <h2>Calendar Sources</h2>
+        <Card className="mb-16">
+          <CardHeader>
+            <CardTitle>Calendar Sources</CardTitle>
             <Button size="sm" onClick={() => setShowAddSource(!showAddSource)}>
               {showAddSource ? "Cancel" : "Add source"}
             </Button>
-          </div>
+          </CardHeader>
 
           {showAddSource && (
             <form onSubmit={handleAddSource} className="flex gap-8 p-16">
@@ -592,7 +593,7 @@ export default function EventsPage() {
               </tbody>
             </table>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Filters and view toggle */}
@@ -652,17 +653,17 @@ export default function EventsPage() {
 
       {/* Calendar view */}
       {viewMode === "calendar" && (
-        <div className="card mb-16">
-          <div className="card-header flex-between">
+        <Card className="mb-16">
+          <CardHeader className="flex-between">
             <div className="flex-center gap-8">
               <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
-              <h2 className="text-center" style={{ minWidth: 160 }}>
+              <CardTitle className="text-center" style={{ minWidth: 160 }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-              </h2>
+              </CardTitle>
               <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
             </div>
             <Button variant="outline" size="sm" onClick={goCalToday}>Today</Button>
-          </div>
+          </CardHeader>
           <div className="p-16">
             <div className="cal-mobile-notice hidden">
               Switch to List view for the best mobile experience.
@@ -718,15 +719,15 @@ export default function EventsPage() {
               })}
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Events list */}
       {viewMode === "list" && (
-        <div className="card">
-          <div className="card-header">
-            <h2>{includePast ? "All" : "Upcoming"} Events ({events.length})</h2>
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>{includePast ? "All" : "Upcoming"} Events ({events.length})</CardTitle>
+          </CardHeader>
 
           {loading ? (
             <SkeletonTable rows={6} cols={5} />
@@ -794,7 +795,7 @@ export default function EventsPage() {
               })}
             </div>
           )}
-        </div>
+        </Card>
       )}
     </>
   );

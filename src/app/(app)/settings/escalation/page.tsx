@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 type EscalationRule = {
   id: string;
@@ -115,8 +116,8 @@ export default function EscalationSettingsPage() {
 
       <div className="settings-main">
         {/* Rules table */}
-        <div className="card mb-16">
-          <div className="card-header"><h2>Notification Triggers</h2></div>
+        <Card className="mb-16">
+          <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
           <div className="data-table-wrap">
           <table className="data-table">
             <thead>
@@ -159,11 +160,11 @@ export default function EscalationSettingsPage() {
             </tbody>
           </table>
           </div>
-        </div>
+        </Card>
 
         {/* Fatigue controls */}
-        <div className="card">
-          <div className="card-header"><h2>Fatigue Controls</h2></div>
+        <Card>
+          <CardHeader><CardTitle>Fatigue Controls</CardTitle></CardHeader>
           <div className="p-16">
             <div className="flex gap-12 items-center">
               <label htmlFor="cap" className="text-sm font-semibold">
@@ -187,7 +188,7 @@ export default function EscalationSettingsPage() {
               This prevents alert fatigue for long-overdue items.
             </p>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

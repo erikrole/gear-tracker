@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AssetDetail, CategoryOption } from "./types";
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -507,10 +508,10 @@ export default function ItemInfoCard({
   }
 
   return (
-    <div className="card details-card">
-      <div className="card-header">
-        <h2>Item Information</h2>
-      </div>
+    <Card className="details-card">
+      <CardHeader>
+        <CardTitle>Item Information</CardTitle>
+      </CardHeader>
       <dl className="data-list data-list-2col">
         {renderFieldGroup("Identity", identityFields)}
         {currentUserRole !== "STUDENT" && renderFieldGroup("Procurement", procurementFields, (
@@ -532,6 +533,6 @@ export default function ItemInfoCard({
         ))}
       </dl>
       <TrackingCodesSection asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
-    </div>
+    </Card>
   );
 }

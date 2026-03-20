@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type OverdueBooking = {
   id: string;
@@ -137,13 +138,13 @@ export default function OverdueLeaderboardPage() {
       <>
         <div className="summary-grid mb-16">
           {[0, 1].map((i) => (
-            <div key={i} className="card p-16 text-center">
+            <Card key={i} className="p-16 text-center">
               <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
               <div className="skeleton skeleton-text-sm" style={{ width: 100, margin: "0 auto" }} />
-            </div>
+            </Card>
           ))}
         </div>
-        <div className="card">
+        <Card>
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="skeleton-row" style={{ padding: "12px 16px" }}>
               <div className="skeleton-lines" style={{ flex: 1 }}>
@@ -151,17 +152,17 @@ export default function OverdueLeaderboardPage() {
               </div>
             </div>
           ))}
-        </div>
+        </Card>
       </>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="card p-16 text-center">
+      <Card className="p-16 text-center">
         <p className="text-secondary mb-8">Failed to load overdue report.</p>
         <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
-      </div>
+      </Card>
     );
   }
 
@@ -184,9 +185,9 @@ export default function OverdueLeaderboardPage() {
       </div>
 
       {data.leaderboard.length === 0 ? (
-        <div className="card">
+        <Card>
           <EmptyState icon="clipboard" title="No overdue checkouts right now" />
-        </div>
+        </Card>
       ) : (
         <div className="card">
           <div className="card-header">

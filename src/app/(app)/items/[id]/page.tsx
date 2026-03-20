@@ -10,6 +10,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -373,12 +374,12 @@ export default function ItemDetailsPage() {
 
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
-        <div className="card mt-14">
-          <div className="card-header"><h2>Activity Log</h2></div>
-          <div className="p-16">
+        <Card className="mt-14">
+          <CardHeader><CardTitle>Activity Log</CardTitle></CardHeader>
+          <CardContent className="p-16">
             <ActivityFeed assetId={asset.id} />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Settings tab */}

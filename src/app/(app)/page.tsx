@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 import EmptyState from "@/components/EmptyState";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { SkeletonCard } from "@/components/Skeleton";
 import {
   formatDateShort,
@@ -249,15 +250,15 @@ export default function DashboardPage() {
           <span className="dashboard-col-label">My Gear</span>
 
           {/* My Checkouts */}
-          <div className="card">
-            <a href="/checkouts?mine=true" className="card-header card-header-link">
+          <Card>
+            <a href="/checkouts?mine=true" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
               <h2>My checkouts</h2>
               <span className="section-count">{data.myCheckouts.total}</span>
             </a>
             {data.myCheckouts.items.length === 0 ? (
               <div className="py-10 px-5 text-center text-muted-foreground">No open checkouts</div>
             ) : (
-              <div className="card-body card-body-compact">
+              <CardContent className="p-0 py-1">
                 {data.myCheckouts.items.map((c) => (
                   <button
                     key={c.id}
@@ -282,20 +283,20 @@ export default function DashboardPage() {
                 {data.myCheckouts.total > data.myCheckouts.items.length && (
                   <a href="/checkouts?mine=true" className="view-all-link">View all {data.myCheckouts.total} &rarr;</a>
                 )}
-              </div>
+              </CardContent>
             )}
-          </div>
+          </Card>
 
           {/* My Reservations */}
-          <div className="card">
-            <a href="/reservations?mine=true" className="card-header card-header-link">
+          <Card>
+            <a href="/reservations?mine=true" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
               <h2>My reservations</h2>
               <span className="section-count">{data.myReservations.length}</span>
             </a>
             {data.myReservations.length === 0 ? (
               <div className="py-10 px-5 text-center text-muted-foreground">No upcoming reservations</div>
             ) : (
-              <div className="card-body card-body-compact">
+              <CardContent className="p-0 py-1">
                 {data.myReservations.map((r) => (
                   <button
                     key={r.id}
@@ -312,18 +313,18 @@ export default function DashboardPage() {
                     <span className="ops-row-count">{r.itemCount} item{r.itemCount !== 1 ? "s" : ""}</span>
                   </button>
                 ))}
-              </div>
+              </CardContent>
             )}
-          </div>
+          </Card>
 
           {/* Drafts */}
           {data.drafts.length > 0 && (
-            <div className="card">
-              <div className="card-header">
-                <h2>Drafts</h2>
+            <Card>
+              <CardHeader>
+                <CardTitle>Drafts</CardTitle>
                 <span className="section-count">{data.drafts.length}</span>
-              </div>
-              <div className="card-body card-body-compact">
+              </CardHeader>
+              <CardContent className="p-0 py-1">
                 {data.drafts.map((d) => (
                   <div key={d.id} className="ops-row draft-row">
                     <div className="ops-row-main">
@@ -355,17 +356,17 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
           {/* My Shifts */}
           {data.myShifts.length > 0 && (
-            <div className="card">
-              <a href="/schedule" className="card-header card-header-link">
+            <Card>
+              <a href="/schedule" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
                 <h2>My shifts</h2>
                 <span className="section-count">{data.myShifts.length}</span>
               </a>
-              <div className="card-body card-body-compact">
+              <CardContent className="p-0 py-1">
                 {data.myShifts.map((s) => {
                   const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
                   const eventTitle = s.event.opponent
@@ -402,8 +403,8 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 
@@ -412,15 +413,15 @@ export default function DashboardPage() {
           <span className="dashboard-col-label">Team Activity</span>
 
           {/* Team Checkouts */}
-          <div className="card">
-            <a href="/checkouts" className="card-header card-header-link">
+          <Card>
+            <a href="/checkouts" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
               <h2>Checked out</h2>
               <span className="section-count">{data.teamCheckouts.total}</span>
             </a>
             {data.teamCheckouts.items.length === 0 ? (
               <div className="py-10 px-5 text-center text-muted-foreground">No open checkouts</div>
             ) : (
-              <div className="card-body card-body-compact">
+              <CardContent className="p-0 py-1">
                 {data.teamCheckouts.items.map((c) => (
                   <button
                     key={c.id}
@@ -446,20 +447,20 @@ export default function DashboardPage() {
                 {data.teamCheckouts.total > data.teamCheckouts.items.length && (
                   <a href="/checkouts" className="view-all-link">View all {data.teamCheckouts.total} &rarr;</a>
                 )}
-              </div>
+              </CardContent>
             )}
-          </div>
+          </Card>
 
           {/* Team Reservations */}
-          <div className="card">
-            <a href="/reservations" className="card-header card-header-link">
+          <Card>
+            <a href="/reservations" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
               <h2>Reserved</h2>
               <span className="section-count">{data.teamReservations.total}</span>
             </a>
             {data.teamReservations.items.length === 0 ? (
               <div className="py-10 px-5 text-center text-muted-foreground">No active reservations</div>
             ) : (
-              <div className="card-body card-body-compact">
+              <CardContent className="p-0 py-1">
                 {data.teamReservations.items.map((r) => (
                   <button
                     key={r.id}
@@ -478,19 +479,19 @@ export default function DashboardPage() {
                 {data.teamReservations.total > data.teamReservations.items.length && (
                   <a href="/reservations" className="view-all-link">View all {data.teamReservations.total} &rarr;</a>
                 )}
-              </div>
+              </CardContent>
             )}
-          </div>
+          </Card>
 
           {/* Upcoming Events */}
-          <div className="card">
-            <a href="/events" className="card-header card-header-link">
+          <Card>
+            <a href="/events" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
               <h2>Upcoming events</h2>
             </a>
             {data.upcomingEvents.length === 0 ? (
               <div className="py-10 px-5 text-center text-muted-foreground">No upcoming events</div>
             ) : (
-              <div className="card-body card-body-compact">
+              <CardContent className="p-0 py-1">
                 {data.upcomingEvents.map((e) => {
                   const titleParam = encodeURIComponent(e.title);
                   const startsParam = encodeURIComponent(e.startsAt);
@@ -536,9 +537,9 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
-              </div>
+              </CardContent>
             )}
-          </div>
+          </Card>
 
         </div>
       </div>

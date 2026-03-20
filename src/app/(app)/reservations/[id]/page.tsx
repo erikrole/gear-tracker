@@ -10,6 +10,7 @@ import { formatDateTime } from "@/lib/format";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 /* ───── Types ───── */
 
@@ -441,7 +442,7 @@ export default function ReservationDetailsPage() {
 
       {/* Extend panel */}
       {showExtend && (
-        <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+        <Card style={{ padding: 16, marginBottom: 12 }}>
           <div
             style={{
               display: "flex",
@@ -499,7 +500,7 @@ export default function ReservationDetailsPage() {
               </Button>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Tabs */}
@@ -521,7 +522,7 @@ export default function ReservationDetailsPage() {
 
       {/* ── Info Tab ── */}
       {tab === "info" && (
-        <div className="card details-card">
+        <Card className="details-card">
           <div style={{ padding: 16 }}>
             <DataList
               items={[
@@ -577,12 +578,12 @@ export default function ReservationDetailsPage() {
                 </div>
               )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* ── Equipment Tab ── */}
       {tab === "equipment" && (
-        <div className="card details-card">
+        <Card className="details-card">
           {/* Search */}
           {itemCount > 3 && (
             <div style={{ padding: "12px 16px 0" }}>
@@ -652,12 +653,12 @@ export default function ReservationDetailsPage() {
               </tbody>
             </table>
           )}
-        </div>
+        </Card>
       )}
 
       {/* ── History Tab ── */}
       {tab === "history" && (
-        <div className="card details-card" style={{ padding: 16 }}>
+        <Card className="details-card" style={{ padding: 16 }}>
           {/* Filter chips */}
           <div className="filter-chips" style={{ marginBottom: 12 }}>
             {(
@@ -792,7 +793,7 @@ export default function ReservationDetailsPage() {
               </div>
             ))
           )}
-        </div>
+        </Card>
       )}
     </>
   );

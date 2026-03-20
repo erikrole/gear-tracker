@@ -9,6 +9,7 @@ import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type ActiveBooking = {
   id: string;
@@ -197,9 +198,9 @@ function CreateItemCard({
   }
 
   return (
-    <div className="card mb-16">
-      <div className="card-header flex-between">
-        <h2>New item</h2>
+    <Card className="mb-16">
+      <CardHeader className="flex-between">
+        <CardTitle>New item</CardTitle>
         <div className="flex gap-4">
           {(["serialized", "bulk"] as const).map((k) => (
             <Button
@@ -213,7 +214,7 @@ function CreateItemCard({
             </Button>
           ))}
         </div>
-      </div>
+      </CardHeader>
 
       <form onSubmit={handleSubmit} className="p-16">
         {kind === "serialized" ? (
@@ -312,7 +313,7 @@ function CreateItemCard({
         </div>
         {error && <div className="alert-error mt-8">{error}</div>}
       </form>
-    </div>
+    </Card>
   );
 }
 
@@ -625,8 +626,8 @@ export default function ItemsPage() {
         />
       )}
 
-      <div className="card">
-        <div className="card-header filter-chip-bar">
+      <Card>
+        <CardHeader className="filter-chip-bar">
           <Input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
@@ -694,7 +695,7 @@ export default function ItemsPage() {
               </button>
             )}
           </div>
-        </div>
+        </CardHeader>
 
         {loading ? (
           <SkeletonTable rows={8} cols={5} />
@@ -818,7 +819,7 @@ export default function ItemsPage() {
             </div>
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 }

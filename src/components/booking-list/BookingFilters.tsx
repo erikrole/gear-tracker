@@ -3,6 +3,7 @@
 import { SPORT_CODES } from "@/lib/sports";
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
+import { CardHeader, CardTitle } from "@/components/ui/card";
 import type { BookingListConfig, StatusOption, Location, FormUser } from "./types";
 
 export type BookingFiltersProps = {
@@ -43,8 +44,8 @@ export function BookingFilters({
   users,
 }: BookingFiltersProps) {
   return (
-    <div className="card-header filter-chip-bar">
-      <h2 style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</h2>
+    <CardHeader className="filter-chip-bar">
+      <CardTitle style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</CardTitle>
       <Input
         type="text"
         className="filter-chip-search"
@@ -118,6 +119,6 @@ export function BookingFilters({
           </button>
         )}
       </div>
-    </div>
+    </CardHeader>
   );
 }

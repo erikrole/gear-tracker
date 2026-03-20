@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
@@ -84,8 +85,8 @@ export default function CategoriesPage() {
           </Button>
         </div>
 
-        <div className="card">
-          <div className="card-header">
+        <Card>
+          <CardHeader>
             <div className="cat-search-wrap">
               <svg viewBox="0 0 20 20" fill="currentColor" className="cat-search-icon">
                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
@@ -99,7 +100,7 @@ export default function CategoriesPage() {
                 aria-label="Search categories"
               />
             </div>
-          </div>
+          </CardHeader>
 
           <div className="cat-list-header">
             <button onClick={() => setSortAsc((v) => !v)} className="cat-sort-btn">
@@ -142,7 +143,7 @@ export default function CategoriesPage() {
               )}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

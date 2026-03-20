@@ -1,5 +1,7 @@
 "use client";
 
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+
 /** Skeleton placeholder for loading states */
 export function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return <div className={`skeleton ${className}`} style={style} />;
@@ -21,11 +23,11 @@ export function SkeletonRow() {
 /** Skeleton card: simulates a dashboard card with header + rows */
 export function SkeletonCard({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="card">
-      <div className="card-header">
+    <Card>
+      <CardHeader>
         <div className="skeleton skeleton-text" style={{ width: 120 }} />
-      </div>
-      <div className="card-body card-body-compact">
+      </CardHeader>
+      <CardContent className="p-0 py-1">
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="skeleton-row">
             <div className="skeleton-lines" style={{ flex: 1 }}>
@@ -34,8 +36,8 @@ export function SkeletonCard({ rows = 3 }: { rows?: number }) {
             </div>
           </div>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

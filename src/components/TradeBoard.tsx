@@ -8,6 +8,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 /* ───── Types ───── */
 
@@ -215,10 +216,10 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h2>Trade Board ({filteredTrades.length})</h2>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Trade Board ({filteredTrades.length})</CardTitle>
+        </CardHeader>
 
         {loading ? (
           <SkeletonTable rows={4} cols={6} />
@@ -396,7 +397,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
             </div>
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 }

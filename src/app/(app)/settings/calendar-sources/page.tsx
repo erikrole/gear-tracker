@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 type CalendarSource = {
   id: string;
@@ -166,7 +167,7 @@ export default function CalendarSourcesPage() {
         </div>
 
         {showAdd && (
-          <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <Card style={{ padding: 16, marginBottom: 16 }}>
             <form onSubmit={handleAdd}>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div className="space-y-1.5">
@@ -199,19 +200,19 @@ export default function CalendarSourcesPage() {
                 </div>
               </div>
             </form>
-          </div>
+          </Card>
         )}
 
         {loading ? (
-          <div className="card" style={{ padding: 40, textAlign: "center" }}>
+          <Card style={{ padding: 40, textAlign: "center" }}>
             <Spinner className="size-8" />
-          </div>
+          </Card>
         ) : sources.length === 0 ? (
-          <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+          <Card style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
             No calendar sources configured. Add one to start syncing events.
-          </div>
+          </Card>
         ) : (
-          <div className="card">
+          <Card>
             <table className="data-table">
               <thead>
                 <tr>
@@ -278,7 +279,7 @@ export default function CalendarSourcesPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         )}
       </div>
     </div>
