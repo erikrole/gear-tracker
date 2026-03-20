@@ -683,11 +683,11 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <div className="card p-16 text-center">
+    <Card className="p-16 text-center">
       <div className="metric-value" style={{ color: warn ? "var(--red)" : color || "var(--text-primary)" }}>
         {value}
       </div>
       <div className="metric-label">{label}</div>
-    </div>
+    </Card>
   );
 }
