@@ -11,6 +11,13 @@ import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+} from "@/components/ui/sheet";
 
 /* ───── Types ───── */
 
@@ -288,8 +295,6 @@ export default function ShiftDetailPanel({
     setActing(null);
   }
 
-  if (!groupId) return null;
-
   // Group shifts by area
   const shiftsByArea = (group?.shifts ?? []).reduce<Record<string, Shift[]>>((acc, s) => {
     const key = s.area;
@@ -304,12 +309,11 @@ export default function ShiftDetailPanel({
   });
 
   return (
-    <div className="sheet-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet-panel">
-        <div className="sheet-header">
-          <h2>{group?.event.summary ?? "Loading..."}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">&times;</button>
-        </div>
+    <Sheet open={!!groupId} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent className="sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{group?.event.summary ?? "Loading..."}</SheetTitle>
+        </SheetHeader>
 
         {loading ? (
           <div className="p-16 text-secondary">Loading shift details...</div>
@@ -321,7 +325,7 @@ export default function ShiftDetailPanel({
         ) : !group ? (
           <div className="p-16 text-secondary">Shift group not found.</div>
         ) : (
-          <div className="sheet-body">
+          <SheetBody className="px-6 py-4">
             {/* Event info */}
             <DataList
               columns={2}
@@ -565,9 +569,9 @@ export default function ShiftDetailPanel({
                 <strong>Notes:</strong> {group.notes}
               </div>
             )}
-          </div>
+          </SheetBody>
         )}
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

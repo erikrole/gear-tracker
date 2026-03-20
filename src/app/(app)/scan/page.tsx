@@ -7,6 +7,14 @@ import dynamic from "next/dynamic";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+  SheetFooter,
+} from "@/components/ui/sheet";
 
 const QrScanner = dynamic(() => import("@/components/QrScanner"), { ssr: false });
 
@@ -717,51 +725,47 @@ export default function ScanPage() {
       )}
 
       {/* ══════ Numbered bulk unit picker ══════ */}
-      {unitPicker && (
-        <>
-          <div className="sheet-overlay" onClick={() => setUnitPicker(null)} />
-          <div className="sheet-panel" style={{ maxWidth: 480 }}>
-            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 0" }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border)" }} />
-            </div>
+      <Sheet open={!!unitPicker} onOpenChange={(open) => { if (!open) setUnitPicker(null); }}>
+        <SheetContent className="sm:max-w-[480px]">
+          <SheetHeader>
+            <SheetTitle>Select {unitPicker?.name} units</SheetTitle>
+            <p className="text-sm text-muted-foreground">
+              {mode === "checkout" ? "Which units are going out?" : "Which units came back?"}
+            </p>
+          </SheetHeader>
 
-            <div className="sheet-header">
-              <h2 style={{ margin: 0 }}>Select {unitPicker.name} units</h2>
-              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
-                {mode === "checkout" ? "Which units are going out?" : "Which units came back?"}
-              </div>
-            </div>
+          <SheetBody className="px-6 py-4">
+            {unitPicker && (
+              <>
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm font-semibold">
+                    {selectedUnits.size} of {unitPicker.availableUnits.length} selected
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedUnits.size === unitPicker.availableUnits.length) {
+                        setSelectedUnits(new Set());
+                      } else {
+                        setSelectedUnits(new Set(unitPicker.availableUnits));
+                      }
+                    }}
+                  >
+                    {selectedUnits.size === unitPicker.availableUnits.length ? "Deselect all" : "Select all"}
+                  </Button>
+                </div>
 
-            <div style={{ padding: "0 16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>
-                  {selectedUnits.size} of {unitPicker.availableUnits.length} selected
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (selectedUnits.size === unitPicker.availableUnits.length) {
-                      setSelectedUnits(new Set());
-                    } else {
-                      setSelectedUnits(new Set(unitPicker.availableUnits));
-                    }
-                  }}
-                >
-                  {selectedUnits.size === unitPicker.availableUnits.length ? "Deselect all" : "Select all"}
-                </Button>
-              </div>
-
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))",
-                gap: 6,
-                maxHeight: 300,
-                overflowY: "auto",
-                paddingBottom: 8,
-              }}>
-                {unitPicker.availableUnits.map((num) => {
-                  const selected = selectedUnits.has(num);
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))",
+                  gap: 6,
+                  maxHeight: 300,
+                  overflowY: "auto",
+                  paddingBottom: 8,
+                }}>
+                  {unitPicker.availableUnits.map((num) => {
+                    const selected = selectedUnits.has(num);
                   return (
                     <button
                       key={num}
@@ -785,24 +789,26 @@ export default function ScanPage() {
                     </button>
                   );
                 })}
-              </div>
-            </div>
+                </div>
+              </>
+            )}
+          </SheetBody>
 
-            <div className="sheet-actions" style={{ display: "flex", gap: 8 }}>
-              <Button variant="outline" onClick={() => setUnitPicker(null)} style={{ flex: 1, minHeight: 48 }}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleUnitPickerSubmit}
-                disabled={selectedUnits.size === 0 || processing}
-                style={{ flex: 1, minHeight: 48 }}
-              >
-                {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
+          <SheetFooter className="flex-row gap-2">
+            <Button variant="outline" onClick={() => setUnitPicker(null)} className="flex-1" style={{ minHeight: 48 }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUnitPickerSubmit}
+              disabled={selectedUnits.size === 0 || processing}
+              className="flex-1"
+              style={{ minHeight: 48 }}
+            >
+              {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* ══════ Sticky bottom bar (booking modes) ══════ */}
       {mode !== "lookup" && scanStatus && (
@@ -837,34 +843,33 @@ export default function ScanPage() {
       )}
 
       {/* ══════ Item preview bottom sheet (lookup mode) ══════ */}
-      {itemPreview && (
-        <>
-          <div className="sheet-overlay" onClick={() => setItemPreview(null)} />
-          <div className="sheet-panel" style={{ maxWidth: 480 }}>
-            {/* Drag handle */}
-            <div className="scan-sheet-handle">
-              <div className="scan-sheet-handle-bar" />
-            </div>
-
-            <div className="sheet-header scan-sheet-header">
+      <Sheet open={!!itemPreview} onOpenChange={(open) => { if (!open) setItemPreview(null); }}>
+        <SheetContent className="sm:max-w-[480px]">
+          <SheetHeader>
+            <div className="flex items-center justify-between">
               <div>
-                <h2 style={{ margin: 0 }}>{itemPreview.assetTag}</h2>
+                <SheetTitle>{itemPreview?.assetTag}</SheetTitle>
                 <div className="scan-sheet-subtitle">
-                  {itemPreview.brand} {itemPreview.model}
+                  {itemPreview?.brand} {itemPreview?.model}
                 </div>
               </div>
-              <span
-                className="scan-status-badge"
-                style={{
-                  background: statusColor(itemPreview.computedStatus).bg,
-                  color: statusColor(itemPreview.computedStatus).text,
-                }}
-              >
-                {statusLabel(itemPreview.computedStatus)}
-              </span>
+              {itemPreview && (
+                <span
+                  className="scan-status-badge"
+                  style={{
+                    background: statusColor(itemPreview.computedStatus).bg,
+                    color: statusColor(itemPreview.computedStatus).text,
+                  }}
+                >
+                  {statusLabel(itemPreview.computedStatus)}
+                </span>
+              )}
             </div>
+          </SheetHeader>
 
-            <div className="sheet-section scan-sheet-details">
+          {itemPreview && (
+          <SheetBody className="px-6 py-4">
+            <div className="scan-sheet-details">
               {itemPreview.serialNumber && (
                 <div className="scan-sheet-row">
                   <span className="scan-sheet-label">Serial</span>
@@ -922,23 +927,27 @@ export default function ScanPage() {
               </div>
             )}
 
-            <div className="sheet-actions scan-sheet-actions">
-              <Button
-                variant="outline"
-                className="scan-sheet-btn"
-                onClick={() => setItemPreview(null)}
-              >
-                Dismiss
-              </Button>
-              <Button className="scan-sheet-btn" asChild>
-                <Link href={`/items/${itemPreview.id}`}>
-                  View Details
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
+          </SheetBody>
+          )}
+
+          {itemPreview && (
+          <SheetFooter className="flex-row gap-2">
+            <Button
+              variant="outline"
+              className="scan-sheet-btn"
+              onClick={() => setItemPreview(null)}
+            >
+              Dismiss
+            </Button>
+            <Button className="scan-sheet-btn" asChild>
+              <Link href={`/items/${itemPreview.id}`}>
+                View Details
+              </Link>
+            </Button>
+          </SheetFooter>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
