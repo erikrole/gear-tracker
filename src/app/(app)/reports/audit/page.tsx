@@ -5,6 +5,7 @@ import { formatDateTime } from "@/lib/format";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type AuditEntry = {
   id: string;
@@ -79,15 +80,15 @@ export default function AuditReportPage() {
   }, [page, periodDays]);
 
   if (loading) {
-    return <div className="card"><SkeletonTable rows={6} cols={4} /></div>;
+    return <Card><SkeletonTable rows={6} cols={4} /></Card>;
   }
 
   if (error || !data) {
     return (
-      <div className="card p-16 text-center">
+      <Card className="p-16 text-center">
         <p className="text-secondary mb-8">Failed to load audit report.</p>
         <Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setPage(0); }}>Retry</Button>
-      </div>
+      </Card>
     );
   }
 

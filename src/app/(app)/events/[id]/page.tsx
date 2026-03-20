@@ -318,10 +318,10 @@ export default function EventDetailPage() {
 
       {/* Command Center (staff/admin only) */}
       {commandCenter && commandCenter.shifts.length > 0 && (currentUserRole === "STAFF" || currentUserRole === "ADMIN") && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-header">
-            <h2>Command Center</h2>
-          </div>
+        <Card style={{ marginTop: 16 }}>
+          <CardHeader>
+            <CardTitle>Command Center</CardTitle>
+          </CardHeader>
           <div style={{ padding: 16 }}>
             {/* Gear status pills */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -448,7 +448,7 @@ export default function EventDetailPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Shift detail panel */}

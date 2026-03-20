@@ -182,11 +182,11 @@ export default function ScanHistoryPage() {
         />
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h2>Scan history</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Scan history</CardTitle>
           <span className="text-sm text-muted">{data.total} events</span>
-        </div>
+        </CardHeader>
 
         {data.data.length === 0 ? (
           <EmptyState icon="search" title="No scan events recorded" />
@@ -250,7 +250,7 @@ export default function ScanHistoryPage() {
             )}
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 }

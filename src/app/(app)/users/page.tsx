@@ -158,7 +158,7 @@ export default function UsersPage() {
       )}
 
       {/* Users List */}
-      <div className="card">
+      <Card>
         <UserFilters
           search={search}
           onSearchChange={setSearch}
@@ -240,7 +240,7 @@ export default function UsersPage() {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </>
   );
 }

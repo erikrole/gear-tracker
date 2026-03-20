@@ -149,8 +149,8 @@ export default function ProfilePage() {
         <h1>Profile & Settings</h1>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-header"><h2>My profile</h2></div>
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader><CardTitle>My profile</CardTitle></CardHeader>
         <form onSubmit={saveProfile} className="profile-form">
           <div className="space-y-1.5">
             <Label htmlFor="profile-name">Name</Label>
@@ -171,10 +171,10 @@ export default function ProfilePage() {
             {savingProfile ? "Saving..." : "Save profile"}
           </Button>
         </form>
-      </div>
+      </Card>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-header"><h2>Change password</h2></div>
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader><CardTitle>Change password</CardTitle></CardHeader>
         <form onSubmit={changePassword} className="profile-form">
           <div className="space-y-1.5">
             <Label htmlFor="currentPassword">Current password</Label>
@@ -188,11 +188,11 @@ export default function ProfilePage() {
             {savingPassword ? "Updating..." : "Update password"}
           </Button>
         </form>
-      </div>
+      </Card>
 
       {profile.role === "ADMIN" && (
-        <div className="card">
-          <div className="card-header"><h2>User roles</h2></div>
+        <Card>
+          <CardHeader><CardTitle>User roles</CardTitle></CardHeader>
           <table className="data-table roles-table">
             <thead>
               <tr>
@@ -225,7 +225,7 @@ export default function ProfilePage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
     </>
   );

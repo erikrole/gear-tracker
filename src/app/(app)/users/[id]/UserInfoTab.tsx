@@ -200,11 +200,11 @@ export default function UserInfoTab({
   return (
     <div className="details-grid mt-14">
       {/* Profile Card */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Profile</h2>
-        </div>
-        <dl className="card-body-compact">
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 py-1">
           <EditableField
             label="Name"
             value={user.name}
@@ -254,15 +254,15 @@ export default function UserInfoTab({
             allowEmpty
             emptyLabel="Not assigned"
           />
-        </dl>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Assignments Card */}
-      <div className="card">
-        <div className="card-header">
-          <h2>Assignments</h2>
-        </div>
-        <div className="card-body">
+      <Card>
+        <CardHeader>
+          <CardTitle>Assignments</CardTitle>
+        </CardHeader>
+        <CardContent>
           {/* Sport Assignments */}
           <h3 className="text-sm font-semibold text-secondary mb-8">Sports</h3>
           {user.sportAssignments.length === 0 ? (
@@ -291,8 +291,8 @@ export default function UserInfoTab({
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
