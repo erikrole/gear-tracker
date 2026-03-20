@@ -428,17 +428,27 @@
 .theme-toggle-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 8px 16px;
-  font-size: var(--text-xs);
+}
+
+/* Override shadcn ToggleGroup colors for dark sidebar */
+.theme-toggle-row [data-slot="toggle-group"] {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.theme-toggle-row [data-slot="toggle-group-item"] {
   color: var(--sidebar-text);
 }
 
-.theme-toggle-row label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+.theme-toggle-row [data-slot="toggle-group-item"]:hover {
+  color: var(--sidebar-text-active);
+}
+
+.theme-toggle-row [data-slot="toggle-group-item"][data-state="on"] {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--sidebar-text-active);
+  box-shadow: none;
 }
 
 * {
@@ -580,28 +590,29 @@ textarea:focus-visible {
 .topbar-search {
   flex: 1;
   max-width: 400px;
-  position: relative;
 }
 
-.topbar-search input {
+.topbar-search-desktop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
-  padding: 8px 12px 8px 36px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
-  outline: none;
+  cursor: pointer;
   transition: border-color 0.15s;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
-.topbar-search input:focus {
+.topbar-search-desktop:hover {
   border-color: var(--accent);
 }
 
-.topbar-search svg {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+.topbar-search-desktop svg {
+  flex-shrink: 0;
   color: var(--text-secondary);
 }
 
@@ -631,6 +642,11 @@ textarea:focus-visible {
   align-items: center;
   gap: 4px;
   margin-left: auto;
+}
+
+.topbar-icon-btn,
+.topbar-icon-btn a {
+  text-decoration: none;
 }
 
 .topbar-icon-btn {
@@ -684,6 +700,8 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-decoration: none;
+  color: inherit;
   padding: 28px 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -726,6 +744,11 @@ textarea:focus-visible {
   background: var(--sidebar-active);
   color: var(--sidebar-text-active);
   border-left: 2px solid var(--wi-red);
+}
+
+/* Hide Scan link on desktop — only show on iPad/mobile */
+@media (min-width: 769px) {
+  .sidebar-scan-nav { display: none; }
 }
 
 .sidebar-nav a svg {
@@ -875,6 +898,10 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.quick-actions a {
+  text-decoration: none;
+}
+
 /* ── Stat Strip ── */
 .stat-strip {
   display: grid;
@@ -902,6 +929,7 @@ textarea:focus-visible {
 
 .stat-strip-clickable:hover {
   box-shadow: var(--shadow);
+  background: var(--accent-soft);
 }
 
 .stat-strip-value {
@@ -1267,6 +1295,9 @@ textarea:focus-visible {
 }
 
 .ops-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   line-height: var(--leading-snug);
@@ -1276,6 +1307,121 @@ textarea:focus-visible {
   font-size: var(--text-xs);
   color: var(--text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Booking subtext (title + location, muted) ── */
+.ops-row-subtext {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── User initials avatar (inline, small) ── */
+.user-initials-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+/* ── Gear avatar stack (stacked item thumbnails) ── */
+.gear-avatar-stack {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.gear-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  flex-shrink: 0;
+}
+
+.gear-avatar + .gear-avatar {
+  margin-left: -8px;
+}
+
+.gear-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gear-avatar-overflow {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* ── Shift avatar stack (event assigned users) ── */
+.shift-avatar-stack {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.shift-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  flex-shrink: 0;
+}
+
+.shift-avatar + .shift-avatar {
+  margin-left: -6px;
+}
+
+.shift-avatar-filled {
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+}
+
+.shift-avatar-empty {
+  background: transparent;
+  border: 2px dashed var(--border);
+}
+
+.shift-avatar-overflow {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+/* ── Event row right section ── */
+.event-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 

@@ -18,16 +18,25 @@ import {
 
 /* ───── Types ───── */
 
+type ItemThumb = {
+  id: string;
+  name: string | null;
+  imageUrl: string | null;
+};
+
 type BookingSummary = {
   id: string;
   title: string;
   refNumber: string | null;
   requesterName: string;
+  requesterInitials: string;
+  locationName: string | null;
   startsAt: string;
   endsAt: string;
   itemCount: number;
   status: string;
   isOverdue: boolean;
+  items: ItemThumb[];
 };
 
 type MyReservation = {
@@ -38,6 +47,7 @@ type MyReservation = {
   endsAt: string;
   itemCount: number;
   locationName: string | null;
+  items: ItemThumb[];
 };
 
 type EventSummary = {
@@ -51,6 +61,8 @@ type EventSummary = {
   locationId: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  totalShiftSlots: number;
+  assignedUsers: Array<{ id: string; name: string; initials: string }>;
 };
 
 type OverdueItem = {
@@ -106,6 +118,61 @@ type DashboardData = {
   drafts: DraftSummary[];
   myShifts: MyShift[];
 };
+
+/* ───── Shared sub-components ───── */
+
+function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; totalCount: number }) {
+  if (totalCount === 0) return null;
+  const overflow = totalCount - items.length;
+  return (
+    <div className="gear-avatar-stack">
+      {items.map((item) => (
+        <div key={item.id} className="gear-avatar" title={item.name || undefined}>
+          {item.imageUrl ? (
+            <img src={item.imageUrl} alt={item.name || "Item"} />
+          ) : (
+            <span>{(item.name || "?")[0].toUpperCase()}</span>
+          )}
+        </div>
+      ))}
+      {overflow > 0 && (
+        <div className="gear-avatar gear-avatar-overflow">
+          <span>+{overflow}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UserInitialsAvatar({ initials }: { initials: string }) {
+  return <span className="user-initials-avatar">{initials}</span>;
+}
+
+function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers: EventSummary["assignedUsers"]; totalSlots: number }) {
+  if (totalSlots === 0) return null;
+  const emptySlots = Math.max(0, totalSlots - assignedUsers.length);
+  const maxShow = 5;
+  const showUsers = assignedUsers.slice(0, maxShow);
+  const showEmpty = Math.min(emptySlots, maxShow - showUsers.length);
+  const overflow = assignedUsers.length + emptySlots - maxShow;
+  return (
+    <div className="shift-avatar-stack">
+      {showUsers.map((u) => (
+        <div key={u.id} className="shift-avatar shift-avatar-filled" title={u.name}>
+          <span>{u.initials}</span>
+        </div>
+      ))}
+      {Array.from({ length: showEmpty }).map((_, i) => (
+        <div key={`empty-${i}`} className="shift-avatar shift-avatar-empty" />
+      ))}
+      {overflow > 0 && (
+        <div className="shift-avatar shift-avatar-overflow">
+          <span>+{overflow}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ───── Component ───── */
 
@@ -266,8 +333,12 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{c.refNumber && <span className="ref-number">{c.refNumber}</span>}{c.title}</span>
+                      <span className="ops-row-subtext">
+                        {c.title}
+                        {c.locationName && ` \u00B7 ${c.locationName}`}
+                      </span>
                       <span className="ops-row-meta">
+                        {c.itemCount} item{c.itemCount !== 1 ? "s" : ""} &middot;{" "}
                         {c.isOverdue ? (
                           <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
                         ) : isDueToday(c.endsAt, now) ? (
@@ -277,7 +348,7 @@ export default function DashboardPage() {
                         )}
                       </span>
                     </div>
-                    <span className="ops-row-count">{c.itemCount} item{c.itemCount !== 1 ? "s" : ""}</span>
+                    <GearAvatarStack items={c.items} totalCount={c.itemCount} />
                   </button>
                 ))}
                 {data.myCheckouts.total > data.myCheckouts.items.length && (
@@ -304,13 +375,15 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{r.refNumber && <span className="ref-number">{r.refNumber}</span>}{r.title}</span>
-                      <span className="ops-row-meta">
-                        {formatDateRange(r.startsAt, r.endsAt)}
+                      <span className="ops-row-subtext">
+                        {r.title}
                         {r.locationName && ` \u00B7 ${r.locationName}`}
                       </span>
+                      <span className="ops-row-meta">
+                        {r.itemCount} item{r.itemCount !== 1 ? "s" : ""} &middot; {formatDateRange(r.startsAt, r.endsAt)}
+                      </span>
                     </div>
-                    <span className="ops-row-count">{r.itemCount} item{r.itemCount !== 1 ? "s" : ""}</span>
+                    <GearAvatarStack items={r.items} totalCount={r.itemCount} />
                   </button>
                 ))}
               </CardContent>
@@ -429,9 +502,13 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(c.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{c.refNumber && <span className="ref-number">{c.refNumber}</span>}{c.title}</span>
+                      <span className="ops-row-subtext">
+                        {c.title}
+                        {c.locationName && ` \u00B7 ${c.locationName}`}
+                      </span>
                       <span className="ops-row-meta">
-                        {c.requesterName} &middot;{" "}
+                        <UserInitialsAvatar initials={c.requesterInitials} />
+                        {c.requesterName} &middot; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""} &middot;{" "}
                         {c.isOverdue ? (
                           <>Due {formatDateShort(c.endsAt)} <span className="overdue-badge-inline">{formatOverdueElapsed(c.endsAt, now)}</span></>
                         ) : isDueToday(c.endsAt, now) ? (
@@ -441,7 +518,7 @@ export default function DashboardPage() {
                         )}
                       </span>
                     </div>
-                    <span className="ops-row-count">{c.itemCount} item{c.itemCount !== 1 ? "s" : ""}</span>
+                    <GearAvatarStack items={c.items} totalCount={c.itemCount} />
                   </button>
                 ))}
                 {data.teamCheckouts.total > data.teamCheckouts.items.length && (
@@ -468,12 +545,16 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title">{r.refNumber && <span className="ref-number">{r.refNumber}</span>}{r.title}</span>
+                      <span className="ops-row-subtext">
+                        {r.title}
+                        {r.locationName && ` \u00B7 ${r.locationName}`}
+                      </span>
                       <span className="ops-row-meta">
-                        {r.requesterName} &middot; {formatDateRange(r.startsAt, r.endsAt)}
+                        <UserInitialsAvatar initials={r.requesterInitials} />
+                        {r.requesterName} &middot; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""} &middot; {formatDateRange(r.startsAt, r.endsAt)}
                       </span>
                     </div>
-                    <span className="ops-row-count">{r.itemCount} item{r.itemCount !== 1 ? "s" : ""}</span>
+                    <GearAvatarStack items={r.items} totalCount={r.itemCount} />
                   </button>
                 ))}
                 {data.teamReservations.total > data.teamReservations.items.length && (
@@ -510,11 +591,14 @@ export default function DashboardPage() {
                             {e.location && ` \u00B7 ${e.location}`}
                           </span>
                         </div>
-                        {e.isHome !== null && (
-                          <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
-                            {e.isHome ? "Home" : "Away"}
-                          </span>
-                        )}
+                        <div className="event-row-right">
+                          <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} />
+                          {e.isHome !== null && (
+                            <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
+                              {e.isHome ? "Home" : "Away"}
+                            </span>
+                          )}
+                        </div>
                       </a>
                       <div className="event-row-actions">
                         <a

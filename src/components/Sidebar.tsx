@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SunIcon, MoonIcon, MonitorIcon } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const navItems = [
   {
@@ -93,6 +95,7 @@ const navItems = [
   {
     label: "Scan",
     href: "/scan",
+    className: "sidebar-scan-nav",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2" />
@@ -107,6 +110,16 @@ const navItems = [
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 20V10M12 20V4M6 20v-6" />
+      </svg>
+    ),
+  },
+  {
+    label: "Profile",
+    href: "/profile",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
       </svg>
     ),
   },
@@ -169,26 +182,18 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
-  function cycleTheme() {
-    const next: ThemePref = theme === "system" ? "dark" : theme === "dark" ? "light" : "system";
-    setTheme(next);
-  }
-
-  const themeIcon = theme === "dark" ? "\u{1F319}" : theme === "light" ? "\u2600\uFE0F" : "\u{1F4BB}";
-  const themeLabel = theme === "system" ? "System" : theme === "dark" ? "Dark" : "Light";
-
   return (
     <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
       {/* User profile header */}
       {user && (
-        <div className="sidebar-profile">
+        <Link href="/profile" className="sidebar-profile" onClick={onClose}>
           <Avatar className="size-[72px] border-2 border-white/15 bg-white/10 mb-2.5">
             <AvatarFallback className="bg-transparent text-white/90 text-[26px] font-semibold">
-              {user.name.charAt(0).toUpperCase()}
+              {user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
             </AvatarFallback>
           </Avatar>
           <div className="sidebar-profile-name">{user.name}</div>
-        </div>
+        </Link>
       )}
 
       {/* Navigation */}
@@ -202,7 +207,7 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
             <Link
               key={item.href}
               href={item.href}
-              className={isActive ? "active" : ""}
+              className={[isActive ? "active" : "", (item as { className?: string }).className || ""].filter(Boolean).join(" ")}
               onClick={onClose}
             >
               {item.icon}
@@ -214,10 +219,17 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
 
       {/* Theme toggle */}
       <div className="theme-toggle-row">
-        <button className="sidebar-logout" onClick={cycleTheme} style={{ marginTop: 0 }}>
-          <span>{themeIcon}</span>
-          {themeLabel}
-        </button>
+        <ToggleGroup type="single" value={theme} onValueChange={(v) => { if (v) setTheme(v as ThemePref); }}>
+          <ToggleGroupItem value="light" aria-label="Light theme">
+            <SunIcon className="size-3.5" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="dark" aria-label="Dark theme">
+            <MoonIcon className="size-3.5" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="system" aria-label="System theme">
+            <MonitorIcon className="size-3.5" />
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {/* Log out */}
