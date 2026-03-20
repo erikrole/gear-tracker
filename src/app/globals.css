@@ -1,4 +1,55 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* ===== shadcn/ui — Tailwind CSS 4 theme mapping =====
+   Maps our design tokens to shadcn's expected --color-* variables.
+   This block lets shadcn components use `bg-primary`, `text-foreground`, etc.
+   while we keep our existing CSS variable names for legacy components.
+   To update: change values in :root / [data-theme="dark"] below — these
+   @theme entries just point at them.
+*/
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--sc-accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar-background: var(--sidebar-bg);
+  --color-sidebar-foreground: var(--sidebar-text-active);
+  --color-sidebar-primary: var(--sidebar-text-active);
+  --color-sidebar-primary-foreground: var(--sidebar-bg);
+  --color-sidebar-accent: var(--sidebar-hover);
+  --color-sidebar-accent-foreground: var(--sidebar-text-active);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
+}
 
 /* ===== Brand Font Placeholders ===== */
 /* Drop real font files into /public/fonts/ and uncomment to activate.
@@ -171,6 +222,36 @@
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
   --bg-active: var(--accent-soft);
+
+  /* ===== shadcn/ui semantic tokens (light) =====
+     These map our design tokens to shadcn's expected variable names.
+     shadcn components reference these via @theme inline → --color-*.
+     Our existing CSS continues using --bg, --text, etc. unchanged. */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg-card);
+  --card-foreground: var(--text);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text);
+  /* --primary already defined above as var(--accent) */
+  --primary-foreground: #ffffff;
+  --secondary: var(--accent-soft);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-secondary);
+  /* Note: shadcn's "accent" concept differs from ours. We use --sc-accent
+     to avoid collision with our existing --accent (which = primary). */
+  --sc-accent: var(--accent-soft);
+  --accent-foreground: var(--text);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --input: var(--border);
+  --ring: var(--accent);
+  --chart-1: var(--blue);
+  --chart-2: var(--green);
+  --chart-3: var(--purple);
+  --chart-4: var(--orange);
+  --chart-5: var(--red);
 }
 
 /* ===== Dark Mode ===== */
@@ -221,6 +302,25 @@
     --primary: var(--accent);
     --primary-hover: var(--accent-hover);
     --bg-active: var(--accent-soft);
+
+    /* shadcn dark tokens */
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--bg-card);
+    --card-foreground: var(--text);
+    --popover: var(--bg-elevated);
+    --popover-foreground: var(--text);
+    --primary-foreground: #111111;
+    --secondary: rgba(255, 255, 255, 0.07);
+    --secondary-foreground: var(--text);
+    --muted: var(--bg-surface);
+    --muted-foreground: var(--text-secondary);
+    --sc-accent: rgba(255, 255, 255, 0.07);
+    --accent-foreground: var(--text);
+    --destructive: var(--red);
+    --destructive-foreground: #ffffff;
+    --input: var(--border);
+    --ring: var(--accent);
   }
 }
 
@@ -270,6 +370,25 @@
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
   --bg-active: var(--accent-soft);
+
+  /* shadcn dark tokens */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--bg-card);
+  --card-foreground: var(--text);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text);
+  --primary-foreground: #111111;
+  --secondary: rgba(255, 255, 255, 0.07);
+  --secondary-foreground: var(--text);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-secondary);
+  --sc-accent: rgba(255, 255, 255, 0.07);
+  --accent-foreground: var(--text);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --input: var(--border);
+  --ring: var(--accent);
 }
 
 /* Dark mode form overrides */
@@ -289,6 +408,19 @@
   :root:not([data-theme="light"]) textarea {
     background: var(--panel-solid);
     color: var(--text);
+  }
+}
+
+/* ===== shadcn/ui base reset =====
+   Sets border-color and outline defaults so shadcn components
+   get consistent borders without explicit border-color classes. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
   }
 }
 
