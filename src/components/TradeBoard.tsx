@@ -265,7 +265,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                       </td>
                       <td>{t.postedBy.name}</td>
                       <td>
-                        <Badge variant={STATUS_BADGES[t.status] ?? "gray"}>
+                        <Badge variant={(STATUS_BADGES[t.status] ?? "gray") as BadgeProps["variant"]}>
                           {t.status}
                         </Badge>
                         {t.claimedBy && (
@@ -340,7 +340,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                   <div key={t.id} className="schedule-mobile-card">
                     <div className="flex-between mb-4">
                       <span className="font-semibold">{ev.summary}</span>
-                      <Badge variant={STATUS_BADGES[t.status] ?? "gray"}>
+                      <Badge variant={(STATUS_BADGES[t.status] ?? "gray") as BadgeProps["variant"]}>
                         {t.status}
                       </Badge>
                     </div>
