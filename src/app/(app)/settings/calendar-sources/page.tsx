@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type CalendarSource = {
   id: string;
@@ -139,13 +140,13 @@ export default function CalendarSourcesPage() {
   }
 
   function healthBadge(source: CalendarSource) {
-    if (!source.enabled) return <span className="badge badge-gray">disabled</span>;
-    if (source.lastError) return <span className="badge badge-red" title={source.lastError}>error</span>;
-    if (!source.lastFetchedAt) return <span className="badge badge-gray">never synced</span>;
+    if (!source.enabled) return <Badge variant="gray">disabled</Badge>;
+    if (source.lastError) return <Badge variant="red" title={source.lastError}>error</Badge>;
+    if (!source.lastFetchedAt) return <Badge variant="gray">never synced</Badge>;
     const lastSync = new Date(source.lastFetchedAt);
     const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
-    if (hoursSince > 24) return <span className="badge badge-yellow">stale</span>;
-    return <span className="badge badge-green">healthy</span>;
+    if (hoursSince > 24) return <Badge variant="yellow">stale</Badge>;
+    return <Badge variant="green">healthy</Badge>;
   }
 
   return (

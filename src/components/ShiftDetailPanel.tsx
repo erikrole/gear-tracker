@@ -8,6 +8,7 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -85,11 +86,11 @@ const WORKER_LABELS: Record<string, string> = {
 };
 
 const STATUS_BADGES: Record<string, string> = {
-  DIRECT_ASSIGNED: "badge-blue",
-  REQUESTED: "badge-orange",
-  APPROVED: "badge-green",
-  DECLINED: "badge-red",
-  SWAPPED: "badge-gray",
+  DIRECT_ASSIGNED: "blue",
+  REQUESTED: "orange",
+  APPROVED: "green",
+  DECLINED: "red",
+  SWAPPED: "gray",
 };
 
 /* ───── Component ───── */
@@ -332,9 +333,9 @@ export default function ShiftDetailPanel({
                   label: "Premier",
                   value: (
                     <span className="flex-center gap-4">
-                      <span className={`badge ${group.isPremier ? "badge-blue" : "badge-gray"}`}>
+                      <Badge variant={group.isPremier ? "blue" : "gray"}>
                         {group.isPremier ? "Yes" : "No"}
-                      </span>
+                      </Badge>
                       {isStaff && (
                         <Button
                           variant="outline"
@@ -386,13 +387,13 @@ export default function ShiftDetailPanel({
                           {WORKER_LABELS[shift.workerType] ?? shift.workerType}
                         </span>
                         {isAssigned ? (
-                          <span className="badge badge-green">Filled</span>
+                          <Badge variant="green">Filled</Badge>
                         ) : pendingRequests.length > 0 ? (
-                          <span className="badge badge-orange">
+                          <Badge variant="orange">
                             {pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""}
-                          </span>
+                          </Badge>
                         ) : (
-                          <span className="badge badge-red">Open</span>
+                          <Badge variant="red">Open</Badge>
                         )}
                       </div>
 
@@ -408,9 +409,9 @@ export default function ShiftDetailPanel({
                             {activeAssignment.user.name}
                           </span>
                           <div className="flex gap-4">
-                            <span className={`badge ${STATUS_BADGES[activeAssignment.status] ?? "badge-gray"}`} style={{ fontSize: "var(--text-2xs)" }}>
+                            <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">
                               {activeAssignment.status.replace("_", " ")}
-                            </span>
+                            </Badge>
                             {isStaff && (
                               <Button
                                 variant="ghost"

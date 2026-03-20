@@ -7,6 +7,7 @@ import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -59,10 +60,10 @@ const AREA_LABELS: Record<string, string> = {
 };
 
 const STATUS_BADGES: Record<string, string> = {
-  OPEN: "badge-green",
-  CLAIMED: "badge-orange",
-  COMPLETED: "badge-gray",
-  CANCELLED: "badge-red",
+  OPEN: "green",
+  CLAIMED: "orange",
+  COMPLETED: "gray",
+  CANCELLED: "red",
 };
 
 export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
@@ -260,13 +261,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                         <div className="text-xs text-secondary">{formatTimeShort(ev.startsAt)}</div>
                       </td>
                       <td>
-                        <span className="badge badge-gray">{AREA_LABELS[area] ?? area}</span>
+                        <Badge variant="gray">{AREA_LABELS[area] ?? area}</Badge>
                       </td>
                       <td>{t.postedBy.name}</td>
                       <td>
-                        <span className={`badge ${STATUS_BADGES[t.status] ?? "badge-gray"}`}>
+                        <Badge variant={STATUS_BADGES[t.status] ?? "gray"}>
                           {t.status}
-                        </span>
+                        </Badge>
                         {t.claimedBy && (
                           <div className="text-xs text-secondary mt-2">
                             Claimed by {t.claimedBy.name}
@@ -339,13 +340,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                   <div key={t.id} className="schedule-mobile-card">
                     <div className="flex-between mb-4">
                       <span className="font-semibold">{ev.summary}</span>
-                      <span className={`badge ${STATUS_BADGES[t.status] ?? "badge-gray"}`}>
+                      <Badge variant={STATUS_BADGES[t.status] ?? "gray"}>
                         {t.status}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="text-xs text-secondary flex gap-8 mb-4">
                       <span>{formatDateShort(ev.startsAt)} {formatTimeShort(ev.startsAt)}</span>
-                      <span className="badge badge-gray">{AREA_LABELS[area] ?? area}</span>
+                      <Badge variant="gray">{AREA_LABELS[area] ?? area}</Badge>
                     </div>
                     <div className="text-xs mb-4">Posted by {t.postedBy.name}</div>
                     {t.claimedBy && (

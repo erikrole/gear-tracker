@@ -459,14 +459,14 @@ export default function SchedulePage() {
                   <div key={g.id} className="schedule-mobile-card" onClick={() => setSelectedGroupId(g.id)} style={{ cursor: "pointer" }}>
                     <div className="flex-between mb-4">
                       <span className="font-semibold">{g.event.summary}</span>
-                      <span className={`badge ${coverageClass(g.coverage.percentage)}`}>
+                      <Badge variant={coverageVariant(g.coverage.percentage)}>
                         {g.coverage.filled}/{g.coverage.total}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="text-xs text-secondary flex gap-8">
                       <span>{formatDateShort(g.event.startsAt)} {formatTimeShort(g.event.startsAt)}</span>
-                      {g.event.sportCode && <span className="badge badge-gray">{g.event.sportCode}</span>}
-                      {g.isPremier && <span className="badge badge-blue">Premier</span>}
+                      {g.event.sportCode && <Badge variant="gray">{g.event.sportCode}</Badge>}
+                      {g.isPremier && <Badge variant="blue">Premier</Badge>}
                     </div>
                     <div className="flex gap-8 mt-4">
                       {AREAS.map((area) => {
@@ -474,7 +474,7 @@ export default function SchedulePage() {
                         if (ac.total === 0) return null;
                         return (
                           <span key={area} className="text-xs">
-                            {AREA_LABELS[area]}: <span className={`badge ${coverageClass(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)}`} style={{ fontSize: "var(--text-2xs)" }}>{ac.filled}/{ac.total}</span>
+                            {AREA_LABELS[area]}: <Badge variant={coverageVariant(ac.total > 0 ? (ac.filled / ac.total) * 100 : 0)} size="sm">{ac.filled}/{ac.total}</Badge>
                           </span>
                         );
                       })}

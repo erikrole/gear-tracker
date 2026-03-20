@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 
 /* ───── Types ───── */
 
@@ -79,12 +80,12 @@ function formatRelative(iso: string) {
   return `${days}d ago`;
 }
 
-const statusBadgeClass: Record<string, string> = {
-  DRAFT: "badge-gray",
-  BOOKED: "badge-blue",
-  OPEN: "badge-green",
-  COMPLETED: "badge-purple",
-  CANCELLED: "badge-red",
+const statusBadgeVariant: Record<string, BadgeProps["variant"]> = {
+  DRAFT: "gray",
+  BOOKED: "blue",
+  OPEN: "green",
+  COMPLETED: "purple",
+  CANCELLED: "red",
 };
 
 const actionLabels: Record<string, string> = {
@@ -375,12 +376,12 @@ export default function ReservationDetailsPage() {
       <div className="page-header" style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1>{reservation.title}</h1>
-          <span
-            className={`badge ${statusBadgeClass[reservation.status] || "badge-gray"}`}
+          <Badge
+            variant={statusBadgeVariant[reservation.status] || "gray"}
           >
             {reservation.status.toLowerCase()}
-          </span>
-          {isOverdue && <span className="badge badge-red">overdue</span>}
+          </Badge>
+          {isOverdue && <Badge variant="red">overdue</Badge>}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canConvert && (
@@ -530,11 +531,11 @@ export default function ReservationDetailsPage() {
                 {
                   label: "Status",
                   value: (
-                    <span
-                      className={`badge ${statusBadgeClass[reservation.status] || "badge-gray"}`}
+                    <Badge
+                      variant={statusBadgeVariant[reservation.status] || "gray"}
                     >
                       {reservation.status.toLowerCase()}
-                    </span>
+                    </Badge>
                   ),
                 },
                 { label: "Location", value: reservation.location?.name ?? "\u2014" },

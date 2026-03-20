@@ -7,6 +7,7 @@ import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type Notification = {
   id: string;
@@ -194,9 +195,9 @@ export default function NotificationsPage() {
         <h1>
           Notifications
           {unreadCount > 0 && (
-            <span className="badge badge-blue notif-badge">
+            <Badge variant="blue" className="notif-badge">
               {unreadCount}
-            </span>
+            </Badge>
           )}
         </h1>
         <div className="notif-header-actions">

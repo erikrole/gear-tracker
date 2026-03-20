@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -554,7 +554,7 @@ export default function BookingDetailsSheet({
             </h2>
             {booking && (
               <div className="badge-row">
-                <Badge variant={statusBadge[booking.status] || "gray"}>
+                <Badge variant={(statusBadge[booking.status] || "gray") as BadgeProps["variant"]}>
                   {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
                 </Badge>
                 <Badge variant="gray">{booking.bookingType}</Badge>

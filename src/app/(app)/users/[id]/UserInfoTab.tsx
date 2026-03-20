@@ -7,6 +7,7 @@ import type { UserDetail, Location, Role } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import RoleBadge from "../RoleBadge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 /* ── Editable Text Field ───────────────────────────────── */
 
@@ -270,9 +271,9 @@ export default function UserInfoTab({
           ) : (
             <div className="assignment-chips mb-16">
               {user.sportAssignments.map((sa) => (
-                <span key={sa.id} className="badge-sm badge-blue">
+                <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}
-                </span>
+                </Badge>
               ))}
             </div>
           )}
@@ -284,10 +285,10 @@ export default function UserInfoTab({
           ) : (
             <div className="assignment-chips">
               {user.areaAssignments.map((aa) => (
-                <span key={aa.id} className={`badge-sm ${aa.isPrimary ? "badge-purple" : "badge-gray"}`}>
+                <Badge key={aa.id} variant={aa.isPrimary ? "purple" : "gray"} size="sm">
                   {AREA_LABELS[aa.area] || aa.area}
                   {aa.isPrimary && " (Primary)"}
-                </span>
+                </Badge>
               ))}
             </div>
           )}

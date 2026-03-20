@@ -5,6 +5,7 @@ import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import type { TreeNode } from "./types";
 import KebabMenu from "./KebabMenu";
+import { Badge } from "@/components/ui/badge";
 
 export default function CategoryRow({
   node,
@@ -122,9 +123,9 @@ export default function CategoryRow({
         </div>
         <div className="cat-row-actions">
           {displayCount > 0 && (
-            <span className="badge-sm badge-purple">
+            <Badge variant="purple" size="sm">
               {displayCount} item{displayCount !== 1 ? "s" : ""}
-            </span>
+            </Badge>
           )}
           <KebabMenu
             onRename={() => { setNewName(node.name); setRenaming(true); }}

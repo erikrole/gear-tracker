@@ -10,6 +10,7 @@ import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type ActiveBooking = {
   id: string;
@@ -789,9 +790,9 @@ export default function ItemsPage() {
                             {item.assetTag}
                           </span>
                           {(item._count?.accessories ?? 0) > 0 && (
-                            <span className="badge badge-sm badge-gray ml-4" title={`${item._count!.accessories} accessories`}>
+                            <Badge variant="gray" size="sm" className="ml-4" title={`${item._count!.accessories} accessories`}>
                               +{item._count!.accessories}
-                            </span>
+                            </Badge>
                           )}
                           <div className="text-xs text-secondary">
                             {item.name || `${item.brand} ${item.model}`}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type MigrationRow = { name: string; appliedAt: string | null };
 type DriftItem = { table: string; column: string; status: string };
@@ -220,7 +221,7 @@ export default function DatabasePage() {
                           <td><code>{d.table}</code></td>
                           <td><code>{d.column}</code></td>
                           <td>
-                            <span className="badge badge-red" style={{ fontSize: "var(--text-3xs)" }}>{d.status}</span>
+                            <Badge variant="red" size="sm">{d.status}</Badge>
                           </td>
                         </tr>
                       ))}
@@ -248,22 +249,19 @@ export default function DatabasePage() {
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <span
-      className={`badge badge-sm ${ok ? "badge-green" : "badge-red"}`}
-    >
+    <Badge variant={ok ? "green" : "red"} size="sm">
       {label}
-    </span>
+    </Badge>
   );
 }
 
 function TagList({ items, variant }: { items: string[]; variant: "danger" | "info" }) {
-  const cls = variant === "danger" ? "badge-red" : "badge-blue";
   return (
     <div className="flex flex-wrap gap-6">
       {items.map((item) => (
-        <span key={item} className={`badge badge-sm ${cls}`}>
+        <Badge key={item} variant={variant === "danger" ? "red" : "blue"} size="sm">
           {item}
-        </span>
+        </Badge>
       ))}
     </div>
   );

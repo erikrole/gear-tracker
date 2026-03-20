@@ -13,6 +13,7 @@ import {
   type AvailableAsset,
   type BulkSkuOption,
 } from "./types";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -168,12 +169,12 @@ export function CreateBookingCard({
                           </div>
                         </div>
                         {ev.isHome !== null && (
-                          <span className="badge badge-gray badge-gray-sm">
+                          <Badge variant="gray" size="sm">
                             {ev.isHome ? "HOME" : "AWAY"}
-                          </span>
+                          </Badge>
                         )}
                         {ev.sportCode && (
-                          <span className="badge-sport">{ev.sportCode}</span>
+                          <Badge variant="sport" size="sm">{ev.sportCode}</Badge>
                         )}
                       </div>
                     ))}
@@ -200,9 +201,9 @@ export function CreateBookingCard({
               </span>
             </div>
             {myShiftForEvent.gearStatus !== "none" && (
-              <span className={`badge ${myShiftForEvent.gearStatus === "checked_out" ? "badge-green" : myShiftForEvent.gearStatus === "reserved" ? "badge-orange" : "badge-gray"}`}>
+              <Badge variant={myShiftForEvent.gearStatus === "checked_out" ? "green" : myShiftForEvent.gearStatus === "reserved" ? "orange" : "gray"}>
                 {myShiftForEvent.gearStatus === "checked_out" ? "Gear out" : myShiftForEvent.gearStatus === "reserved" ? "Gear reserved" : "Draft"}
-              </span>
+              </Badge>
             )}
           </div>
         )}
