@@ -38,7 +38,7 @@ export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail;
     <Card className="mt-14">
       <CardHeader><CardTitle>Policy Settings</CardTitle></CardHeader>
       <CardContent className="p-16">
-        <p className="text-sm text-secondary mb-16 m-0">
+        <p className="text-sm text-muted-foreground mb-4 m-0">
           These settings control whether this item is eligible for certain operations. They do not reflect the current real-time status.
         </p>
         {toggles.map((t) => (
@@ -174,26 +174,25 @@ export function AccessoriesSection({
               onChange={(e) => handleSearch(e.target.value)}
               autoFocus
             />
-            {searching && <div className="text-sm text-secondary mt-4">Searching...</div>}
+            {searching && <div className="text-sm text-muted-foreground mt-2">Searching...</div>}
             {searchResults.length > 0 && (
-              <div className="mt-4" style={{ border: "1px solid var(--border)", borderRadius: 6 }}>
+              <div className="mt-2 rounded-md border divide-y">
                 {searchResults.map((r) => (
                   <button
                     key={r.id}
-                    className="w-full text-left p-8 hover:bg-hover flex justify-between items-center"
-                    style={{ borderBottom: "1px solid var(--border)" }}
+                    className="w-full text-left px-3 py-2 hover:bg-muted/50 flex justify-between items-center text-sm transition-colors"
                     onClick={() => attachAccessory(r.id)}
                   >
-                    <span className="font-mono text-sm">{r.assetTag}</span>
-                    <span className="text-sm text-secondary">{r.brand} {r.model}</span>
+                    <span className="font-mono font-medium">{r.assetTag}</span>
+                    <span className="text-muted-foreground">{r.brand} {r.model}</span>
                   </button>
                 ))}
               </div>
             )}
             {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-              <div className="text-sm text-secondary mt-4">No matching items found</div>
+              <div className="text-sm text-muted-foreground mt-2">No matching items found</div>
             )}
-            <Button variant="outline" size="sm" className="mt-8" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
               Cancel
             </Button>
           </div>
@@ -213,7 +212,7 @@ export function AccessoriesSection({
                   <Link href={`/items/${acc.id}`} className="font-mono text-sm font-medium">
                     {acc.assetTag}
                   </Link>
-                  <span className="text-sm text-secondary ml-8">{acc.brand} {acc.model}</span>
+                  <span className="text-sm text-muted-foreground ml-2">{acc.brand} {acc.model}</span>
                 </div>
                 {canEdit && (
                   <Button

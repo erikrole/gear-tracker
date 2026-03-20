@@ -14,6 +14,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 /* ── Operational Overview (Info tab dashboard cards) ─────── */
 
@@ -57,7 +66,7 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
         <CardHeader>
           <CardTitle>Upcoming Reservations</CardTitle>
           {reservations.length > 0 && (
-            <span className="section-count">{reservations.length}</span>
+            <Badge variant="gray" size="sm">{reservations.length}</Badge>
           )}
         </CardHeader>
         {reservations.length > 0 ? (
@@ -76,9 +85,9 @@ export function OperationalOverview({ asset, now, onSelectBooking }: { asset: As
                     <span className="ops-row-meta">
                       {r.requesterName} {"\u00b7"}{" "}
                       {pastStart ? (
-                        <>{formatDateShort(r.startsAt)} <span className="overdue-badge-inline">{formatStartsIn(r.startsAt, now)}</span></>
+                        <>{formatDateShort(r.startsAt)} <Badge variant="red" size="sm">{formatStartsIn(r.startsAt, now)}</Badge></>
                       ) : startsToday ? (
-                        <span className="due-today-badge">{formatStartsIn(r.startsAt, now)}</span>
+                        <Badge variant="orange" size="sm">{formatStartsIn(r.startsAt, now)}</Badge>
                       ) : (
                         <>{formatDateShort(r.startsAt)} {"\u2013"} {formatDateShort(r.endsAt)}</>
                       )}
@@ -151,7 +160,7 @@ export function BookingKindTab({
         <Card>
           <CardHeader>
             <CardTitle>Upcoming Reservations</CardTitle>
-            <span className="section-count">{asset.upcomingReservations.length}</span>
+            <Badge variant="gray" size="sm">{asset.upcomingReservations.length}</Badge>
           </CardHeader>
           <CardContent className="p-0 py-1">
             {asset.upcomingReservations.map((r) => {
@@ -168,9 +177,9 @@ export function BookingKindTab({
                     <span className="ops-row-meta">
                       {r.requesterName} {"\u00b7"}{" "}
                       {pastStart ? (
-                        <>{formatDateShort(r.startsAt)} <span className="overdue-badge-inline">{formatStartsIn(r.startsAt, now)}</span></>
+                        <>{formatDateShort(r.startsAt)} <Badge variant="red" size="sm">{formatStartsIn(r.startsAt, now)}</Badge></>
                       ) : startsToday ? (
-                        <span className="due-today-badge">{formatStartsIn(r.startsAt, now)}</span>
+                        <Badge variant="orange" size="sm">{formatStartsIn(r.startsAt, now)}</Badge>
                       ) : (
                         <>{formatDateFull(r.startsAt)} {"\u2013"} {formatDateFull(r.endsAt)}</>
                       )}
@@ -191,7 +200,7 @@ export function BookingKindTab({
         <CardHeader>
           <CardTitle>Past {kind === "CHECKOUT" ? "Checkouts" : "Reservations"}</CardTitle>
           {filtered.length > 0 && (
-            <span className="text-xs text-secondary">Completed &amp; cancelled</span>
+            <span className="text-xs text-muted-foreground">Completed &amp; cancelled</span>
           )}
         </CardHeader>
         <CardContent className="p-16">
@@ -201,21 +210,28 @@ export function BookingKindTab({
             </Empty>
           ) : (
             filtered.map((group) => (
-              <div key={group.month} className="mb-16">
-                <h3 className="text-xl mb-8 m-0">{group.month}</h3>
-                <table className="data-table item-history-table">
-                  <thead><tr><th>Booking</th><th>Requester</th><th>When</th><th>Location</th></tr></thead>
-                  <tbody>
+              <div key={group.month} className="mb-6">
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3 m-0">{group.month}</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Booking</TableHead>
+                      <TableHead>Requester</TableHead>
+                      <TableHead>When</TableHead>
+                      <TableHead>Location</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {group.items.map((entry) => (
-                      <tr key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(entry.booking.id)}>
-                        <td><span className="row-link">{entry.booking.title}</span></td>
-                        <td>{entry.booking.requester.name}</td>
-                        <td>{formatDateFull(entry.booking.startsAt)}</td>
-                        <td>{entry.booking.location.name}</td>
-                      </tr>
+                      <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(entry.booking.id)}>
+                        <TableCell className="font-medium text-primary">{entry.booking.title}</TableCell>
+                        <TableCell>{entry.booking.requester.name}</TableCell>
+                        <TableCell>{formatDateFull(entry.booking.startsAt)}</TableCell>
+                        <TableCell>{entry.booking.location.name}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ))
           )}
@@ -327,9 +343,13 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
       </Card>
 
       {/* Legend */}
-      <div className="cal-legend">
-        <span><span className="cal-legend-dot cal-legend-dot-checkout" />Checkout</span>
-        <span><span className="cal-legend-dot cal-legend-dot-reservation" />Reservation</span>
+      <div className="flex items-center gap-4 mt-3 justify-center">
+        <div className="flex items-center gap-1.5 text-sm">
+          <Badge variant="blue" size="sm">Checkout</Badge>
+        </div>
+        <div className="flex items-center gap-1.5 text-sm">
+          <Badge variant="purple" size="sm">Reservation</Badge>
+        </div>
       </div>
     </div>
   );

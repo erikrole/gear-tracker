@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import { Spinner } from "@/components/ui/spinner";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -75,20 +78,29 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
   if (loading) return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
 
   if (fetchError) {
-    return <div className="py-10 px-5 text-center text-muted-foreground">Failed to load activity history.</div>;
+    return (
+      <Empty className="py-8 border-0">
+        <EmptyDescription>Failed to load activity history.</EmptyDescription>
+      </Empty>
+    );
   }
 
   if (entries.length === 0) {
-    return <div className="py-10 px-5 text-center text-muted-foreground">No activity recorded yet.</div>;
+    return (
+      <Empty className="py-8 border-0">
+        <EmptyDescription>No activity recorded yet.</EmptyDescription>
+      </Empty>
+    );
   }
 
   return (
-    <div className="history-feed">
+    <div className="flex flex-col gap-4">
       {entries.map((entry) => {
         const actorName = entry.actor?.name || "System";
         const initial = actorName.slice(0, 1).toUpperCase();
         const actionLabel = ACTION_LABELS[entry.action] || entry.action;
         const isUpdate = entry.action === "updated" && entry.beforeJson && entry.afterJson;
+        const isBookingEvent = entry.entityType === "booking";
         const changes = isUpdate
           ? Object.keys(entry.afterJson!).filter((k) => {
               const b = (entry.beforeJson as Record<string, unknown>)?.[k];
@@ -98,14 +110,16 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
           : [];
 
         return (
-          <div className="history-row" key={entry.id}>
-            <div className={`history-dot${entry.entityType === "booking" ? " history-dot-booking" : ""}`}>
-              {initial}
-            </div>
-            <div>
-              <div>
+          <div className="flex gap-3 items-start" key={entry.id}>
+            <Avatar className={`size-7 text-xs shrink-0 ${isBookingEvent ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : ""}`}>
+              <AvatarFallback className={isBookingEvent ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : ""}>
+                {initial}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm">
                 <strong>{actorName}</strong>{" "}
-                {entry.entityType === "booking" ? (
+                {isBookingEvent ? (
                   <span>
                     {actionLabel}
                     {entry.afterJson && typeof entry.afterJson === "object" && "title" in entry.afterJson && (
@@ -117,9 +131,9 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
                 )}
               </div>
               {isUpdate && changes.length > 0 && (
-                <div className="text-xs text-secondary mt-4">
+                <div className="mt-1.5 space-y-0.5">
                   {changes.map((key) => (
-                    <div key={key} className="py-1">
+                    <div key={key} className="text-xs text-muted-foreground font-mono">
                       {describeFieldChange(
                         key,
                         (entry.beforeJson as Record<string, unknown>)?.[key],
@@ -129,7 +143,7 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
                   ))}
                 </div>
               )}
-              <div className="muted mt-2">{formatDateTime(entry.createdAt)}</div>
+              <div className="text-xs text-muted-foreground mt-1">{formatDateTime(entry.createdAt)}</div>
             </div>
           </div>
         );
