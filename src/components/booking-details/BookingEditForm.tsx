@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import type { BookingDetail } from "./types";
 
 type Props = {
@@ -19,6 +20,20 @@ type Props = {
   onSave: () => void;
   onCancel: () => void;
 };
+
+/** Convert datetime-local string back to Date */
+function parseLocalDateTime(s: string): Date | undefined {
+  if (!s) return undefined;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+
+/** Convert Date to datetime-local string (for the parent's string-based state) */
+function toLocalDateTimeValue(date: Date): string {
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+  const local = new Date(date.getTime() - offsetMs);
+  return local.toISOString().slice(0, 16);
+}
 
 export default function BookingEditForm({
   booking,
@@ -46,23 +61,19 @@ export default function BookingEditForm({
 
       <div className="flex gap-3">
         {booking.kind === "RESERVATION" && (
-          <div className="mb-3 space-y-1">
+          <div className="mb-3 space-y-1 flex-1">
             <Label>Start</Label>
-            <Input
-              type="datetime-local"
-              step={900}
-              value={editStartsAt}
-              onChange={(e) => onEditStartsAt(e.target.value)}
+            <DateTimePicker
+              value={parseLocalDateTime(editStartsAt)}
+              onChange={(d) => onEditStartsAt(toLocalDateTimeValue(d))}
             />
           </div>
         )}
-        <div className="mb-3 space-y-1">
+        <div className="mb-3 space-y-1 flex-1">
           <Label>{booking.kind === "RESERVATION" ? "End" : "Due date"}</Label>
-          <Input
-            type="datetime-local"
-            step={900}
-            value={editEndsAt}
-            onChange={(e) => onEditEndsAt(e.target.value)}
+          <DateTimePicker
+            value={parseLocalDateTime(editEndsAt)}
+            onChange={(d) => onEditEndsAt(toLocalDateTimeValue(d))}
           />
         </div>
       </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
@@ -11,6 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -68,7 +74,6 @@ const statusDotClass: Record<string, string> = {
 
 function StatusDot({ item }: { item: Asset }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
   const hasBooking = item.activeBooking !== null;
   const label = item.computedStatus.replace("_", " ").toLowerCase();
   const bookingPath = item.activeBooking
@@ -77,47 +82,37 @@ function StatusDot({ item }: { item: Asset }) {
       : `/reservations/${item.activeBooking.id}`
     : null;
 
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
   return (
-    <span
-      ref={ref}
-      className="relative inline-flex shrink-0"
-      onMouseEnter={() => hasBooking && setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <span
-        onClick={(e) => {
-          if (hasBooking) { e.stopPropagation(); setOpen((v) => !v); }
-        }}
-        className={`status-dot ${statusDotClass[item.computedStatus] || "status-retired"}`}
-        style={{ width: 8, height: 8, cursor: hasBooking ? "pointer" : "default" }}
-      />
-      {open && item.activeBooking && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="popover"
-          style={{ left: 16, top: "50%", transform: "translateY(-50%)" }}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <span
+          className="relative inline-flex shrink-0"
+          onMouseEnter={() => hasBooking && setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
         >
-          <div className="font-semibold mb-4" style={{ textTransform: "capitalize" }}>{label}</div>
-          <div className="text-secondary mb-4">
+          <span
+            onClick={(e) => {
+              if (hasBooking) { e.stopPropagation(); setOpen((v) => !v); }
+            }}
+            className={`status-dot ${statusDotClass[item.computedStatus] || "status-retired"}`}
+            style={{ width: 8, height: 8, cursor: hasBooking ? "pointer" : "default" }}
+          />
+        </span>
+      </PopoverTrigger>
+      {hasBooking && item.activeBooking && (
+        <PopoverContent side="right" sideOffset={8} className="w-auto max-w-[240px]" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} onClick={(e) => e.stopPropagation()}>
+          <div className="font-semibold mb-1 capitalize">{label}</div>
+          <div className="text-muted-foreground text-sm mb-2">
             {item.activeBooking.title} &middot; {item.activeBooking.requesterName}
           </div>
           {bookingPath && (
-            <Link href={bookingPath} className="font-medium no-underline" style={{ color: "var(--primary)" }}>
+            <Link href={bookingPath} className="text-sm font-medium text-primary no-underline hover:underline">
               View {item.activeBooking.kind === "CHECKOUT" ? "checkout" : "reservation"} &rarr;
             </Link>
           )}
-        </div>
+        </PopoverContent>
       )}
-    </span>
+    </Popover>
   );
 }
 
@@ -365,9 +360,6 @@ function BulkActionBar({
   onAction: (action: string, payload?: Record<string, string | null>) => void;
   onClear: () => void;
 }) {
-  const [showLocPicker, setShowLocPicker] = useState(false);
-  const [showCatPicker, setShowCatPicker] = useState(false);
-
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
@@ -379,42 +371,38 @@ function BulkActionBar({
       <div style={{ flex: 1 }} />
 
       {/* Move location */}
-      <div className="relative">
-        <Button variant="outline" size="sm" onClick={() => { setShowLocPicker((v) => !v); setShowCatPicker(false); }} disabled={busy}>
-          Move location
-        </Button>
-        {showLocPicker && (
-          <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 180, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: "var(--z-dropdown)" }}>
-            {locations.map((l) => (
-              <button key={l.id} className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer" }}
-                onClick={() => { setShowLocPicker(false); onAction("move_location", { locationId: l.id }); }}>
-                {l.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" disabled={busy}>Move location</Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-auto min-w-[180px] max-h-[240px] overflow-y-auto p-1">
+          {locations.map((l) => (
+            <button key={l.id} className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground"
+              onClick={() => onAction("move_location", { locationId: l.id })}>
+              {l.name}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
 
       {/* Change category */}
-      <div className="relative">
-        <Button variant="outline" size="sm" onClick={() => { setShowCatPicker((v) => !v); setShowLocPicker(false); }} disabled={busy}>
-          Change category
-        </Button>
-        {showCatPicker && (
-          <div className="popover" style={{ right: 0, top: "100%", marginTop: 4, minWidth: 200, maxHeight: 240, overflow: "auto", position: "absolute", zIndex: "var(--z-dropdown)" }}>
-            <button className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer", fontStyle: "italic" }}
-              onClick={() => { setShowCatPicker(false); onAction("change_category", { categoryId: null }); }}>
-              None
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" disabled={busy}>Change category</Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-auto min-w-[200px] max-h-[240px] overflow-y-auto p-1">
+          <button className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left italic outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground"
+            onClick={() => onAction("change_category", { categoryId: null })}>
+            None
+          </button>
+          {categoryOptions.map((c) => (
+            <button key={c.value} className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground"
+              onClick={() => onAction("change_category", { categoryId: c.value })}>
+              {c.label}
             </button>
-            {categoryOptions.map((c) => (
-              <button key={c.value} className="popover-item" style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 12px", background: "none", border: "none", cursor: "pointer" }}
-                onClick={() => { setShowCatPicker(false); onAction("change_category", { categoryId: c.value }); }}>
-                {c.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+          ))}
+        </PopoverContent>
+      </Popover>
 
       <Button variant="outline" size="sm" onClick={() => onAction("maintenance")} disabled={busy}>
         Maintenance
@@ -706,12 +694,13 @@ export default function ItemsPage() {
                 onClear={() => { setDepartmentFilter(""); setPage(0); }}
               />
             )}
+            <Tooltip>
+            <TooltipTrigger asChild>
             <Button
               type="button"
               variant={favoriteFilter ? "default" : "outline"}
               size="sm"
               onClick={() => { setFavoriteFilter((v) => !v); setPage(0); }}
-              title="Show favorites only"
               style={{ fontSize: "var(--text-sm)", padding: "4px 10px", gap: 4, display: "inline-flex", alignItems: "center" }}
             >
               <svg viewBox="0 0 24 24" fill={favoriteFilter ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
@@ -719,6 +708,9 @@ export default function ItemsPage() {
               </svg>
               Favorites
             </Button>
+            </TooltipTrigger>
+            <TooltipContent>Show favorites only</TooltipContent>
+            </Tooltip>
             {hasActiveFilters && (
               <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
                 Clear all
@@ -752,12 +744,16 @@ export default function ItemsPage() {
                 <tr>
                   {canEdit && (
                     <th style={{ width: 36, padding: "8px 4px" }}>
-                      <input
-                        type="checkbox"
-                        checked={items.length > 0 && selected.size === items.length}
-                        onChange={toggleSelectAll}
-                        title="Select all on page"
-                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <input
+                            type="checkbox"
+                            checked={items.length > 0 && selected.size === items.length}
+                            onChange={toggleSelectAll}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent>Select all on page</TooltipContent>
+                      </Tooltip>
                     </th>
                   )}
                   <th style={{ width: 32, padding: "8px 2px" }}></th>

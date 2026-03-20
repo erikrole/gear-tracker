@@ -3,11 +3,30 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { SearchIcon, PackageIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon } from "lucide-react";
 import Sidebar from "./Sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+} from "@/components/ui/command";
 
 type User = { name: string; email: string; role: string };
+
+type SearchResult = {
+  type: "item" | "checkout" | "reservation";
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+};
 
 const bottomNavItems = [
   {
@@ -92,39 +111,83 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [router, pathname]);
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchMobileRef = useRef<HTMLInputElement>(null);
-
-  const handleSearch = useCallback((q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) return;
-    setSearchOpen(false);
-    setSearchQuery("");
-    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-  }, [router]);
+  // Command palette state
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQuery, setCmdQuery] = useState("");
+  const [cmdResults, setCmdResults] = useState<SearchResult[]>([]);
+  const [cmdLoading, setCmdLoading] = useState(false);
+  const cmdAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        if (window.innerWidth <= 768) {
-          setSearchOpen(true);
-        } else {
-          searchInputRef.current?.focus();
-        }
+        setCmdOpen(true);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Live search when query changes
   useEffect(() => {
-    if (searchOpen) {
-      requestAnimationFrame(() => searchMobileRef.current?.focus());
-    }
-  }, [searchOpen]);
+    const q = cmdQuery.trim();
+    if (!q) { setCmdResults([]); setCmdLoading(false); return; }
+
+    setCmdLoading(true);
+    cmdAbortRef.current?.abort();
+    const controller = new AbortController();
+    cmdAbortRef.current = controller;
+
+    const timer = setTimeout(async () => {
+      const encoded = encodeURIComponent(q);
+      try {
+        const [itemsRes, checkoutsRes, reservationsRes] = await Promise.all([
+          fetch(`/api/assets?q=${encoded}&limit=5`, { signal: controller.signal }),
+          fetch(`/api/checkouts?q=${encoded}&limit=5`, { signal: controller.signal }),
+          fetch(`/api/reservations?q=${encoded}&limit=5`, { signal: controller.signal }),
+        ]);
+        if (controller.signal.aborted) return;
+        const merged: SearchResult[] = [];
+        if (itemsRes.ok) {
+          const json = await itemsRes.json();
+          for (const item of (json.data || []).slice(0, 5)) {
+            merged.push({
+              type: "item", id: item.id,
+              title: `${item.assetTag} — ${item.brand} ${item.model}`,
+              subtitle: [item.type, item.location?.name].filter(Boolean).join(" · "),
+              href: `/items/${item.id}`,
+            });
+          }
+        }
+        if (checkoutsRes.ok) {
+          const json = await checkoutsRes.json();
+          for (const b of (json.data || []).slice(0, 5)) {
+            merged.push({ type: "checkout", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/checkouts/${b.id}` });
+          }
+        }
+        if (reservationsRes.ok) {
+          const json = await reservationsRes.json();
+          for (const b of (json.data || []).slice(0, 5)) {
+            merged.push({ type: "reservation", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/reservations/${b.id}` });
+          }
+        }
+        if (!controller.signal.aborted) { setCmdResults(merged); setCmdLoading(false); }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (!controller.signal.aborted) { setCmdResults([]); setCmdLoading(false); }
+      }
+    }, 200);
+
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [cmdQuery]);
+
+  function handleCmdSelect(href: string) {
+    setCmdOpen(false);
+    setCmdQuery("");
+    setCmdResults([]);
+    router.push(href);
+  }
 
   // Offline detection
   const [online, setOnline] = useState(true);
@@ -157,31 +220,72 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <a href="#main-content" className="skip-link">Skip to content</a>
 
-      {/* Mobile search overlay */}
-      {searchOpen && (
-        <div className="search-overlay" onClick={() => setSearchOpen(false)}>
-          <div className="search-overlay-content" onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={(e) => { e.preventDefault(); handleSearch(searchQuery); }}>
-              <div className="search-overlay-bar">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="search-overlay-icon">
-                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                </svg>
-                <input
-                  ref={searchMobileRef}
-                  type="text"
-                  className="search-overlay-input"
-                  placeholder="Search items..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button type="button" className="search-overlay-close" onClick={() => setSearchOpen(false)}>
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Command palette */}
+      <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); } }}>
+        <CommandInput placeholder="Search items, checkouts, reservations..." value={cmdQuery} onValueChange={setCmdQuery} />
+        <CommandList>
+          {cmdLoading && <div className="py-4 text-center text-sm text-muted-foreground">Searching...</div>}
+          {!cmdLoading && cmdQuery.trim() && cmdResults.length === 0 && (
+            <CommandEmpty>No results found.</CommandEmpty>
+          )}
+          {cmdResults.filter((r) => r.type === "item").length > 0 && (
+            <CommandGroup heading="Items">
+              {cmdResults.filter((r) => r.type === "item").map((r) => (
+                <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
+                  <PackageIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{r.title}</div>
+                    {r.subtitle && <div className="truncate text-xs text-muted-foreground">{r.subtitle}</div>}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          {cmdResults.filter((r) => r.type === "checkout").length > 0 && (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="Checkouts">
+                {cmdResults.filter((r) => r.type === "checkout").map((r) => (
+                  <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
+                    <ClipboardCheckIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{r.title}</div>
+                      {r.subtitle && <div className="truncate text-xs text-muted-foreground">{r.subtitle}</div>}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
+          {cmdResults.filter((r) => r.type === "reservation").length > 0 && (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="Reservations">
+                {cmdResults.filter((r) => r.type === "reservation").map((r) => (
+                  <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
+                    <CalendarCheckIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{r.title}</div>
+                      {r.subtitle && <div className="truncate text-xs text-muted-foreground">{r.subtitle}</div>}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
+          {cmdQuery.trim() && cmdResults.length > 0 && (
+            <>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem onSelect={() => handleCmdSelect(`/search?q=${encodeURIComponent(cmdQuery.trim())}`)}>
+                  <SearchIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                  See all results for &ldquo;{cmdQuery.trim()}&rdquo;
+                </CommandItem>
+              </CommandGroup>
+            </>
+          )}
+        </CommandList>
+      </CommandDialog>
 
       {/* Mobile overlay */}
       <div
@@ -205,48 +309,52 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <path d="M3 12h18M3 6h18M3 18h18" />
             </svg>
           </button>
-          {/* Desktop search */}
-          <form className="topbar-search topbar-search-desktop" onSubmit={(e) => {
-            e.preventDefault();
-            const input = searchInputRef.current;
-            if (input) { handleSearch(input.value); input.value = ""; input.blur(); }
-          }}>
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-            <input ref={searchInputRef} type="text" placeholder="Search items... (⌘K)" />
-          </form>
-          {/* Mobile search icon */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="topbar-search-mobile topbar-icon-btn"
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search"
+          {/* Search trigger (desktop + mobile) */}
+          <button
+            className="topbar-search topbar-search-desktop"
+            onClick={() => setCmdOpen(true)}
+            type="button"
           >
-            <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-          </Button>
+            <SearchIcon className="size-4" />
+            <span>Search... (⌘K)</span>
+          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="topbar-search-mobile topbar-icon-btn"
+                onClick={() => setCmdOpen(true)}
+              >
+                <SearchIcon className="size-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Search (⌘K)</TooltipContent>
+          </Tooltip>
           <div className="topbar-actions">
-            <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
-              <Link href="/notifications" aria-label="Notifications">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
-                </svg>
-                {unreadNotifications > 0 && (
-                  <span className="topbar-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
-                )}
-              </Link>
-            </Button>
-            <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
-              <Link href="/profile" aria-label="Profile">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </Link>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
+                  <Link href="/notifications">
+                    <BellIcon className="size-5" />
+                    {unreadNotifications > 0 && (
+                      <span className="topbar-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+                    )}
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Notifications</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
+                  <Link href="/profile">
+                    <UserIcon className="size-5" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Profile</TooltipContent>
+            </Tooltip>
           </div>
         </header>
         <div id="main-content" className="page-content">{children}</div>
