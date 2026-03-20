@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
+const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
@@ -44,13 +45,14 @@ import { AccessoriesSection } from "./ItemSettingsTab";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
-type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "history";
+type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "insights" | "history";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
   { key: "checkouts", label: "Checkouts" },
   { key: "reservations", label: "Reservations" },
   { key: "calendar", label: "Calendar" },
+  { key: "insights", label: "Insights" },
   { key: "history", label: "History" },
 ];
 
@@ -394,6 +396,11 @@ export default function ItemDetailsPage() {
       {/* Calendar tab */}
       {activeTab === "calendar" && (
         <CalendarTab asset={asset} onSelectBooking={setSelectedBookingId} />
+      )}
+
+      {/* Insights tab — utilization dashboard */}
+      {activeTab === "insights" && (
+        <ItemInsightsTab assetId={asset.id} />
       )}
 
       {/* History tab — full activity feed from audit log */}
