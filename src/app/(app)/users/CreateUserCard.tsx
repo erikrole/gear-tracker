@@ -64,7 +64,7 @@ export default function CreateUserCard({
 
   return (
     <Card style={{ marginBottom: 16 }}>
-      <CardHeader className="flex-between">
+      <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Add user</CardTitle>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           Cancel
