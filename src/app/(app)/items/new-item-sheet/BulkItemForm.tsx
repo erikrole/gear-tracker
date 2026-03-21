@@ -6,20 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 import type { BulkMode, BulkSkuOption, CategoryOption, Location } from "./types";
 import { generateQrCode } from "./helpers";
 import { FormRow, SectionHeading } from "./layout";
+import { FormCombobox, CategoryCombobox, BulkSkuCombobox } from "./FormCombobox";
 
 export interface BulkFormHandle {
   validate(): string | null;
@@ -37,9 +29,9 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
   function BulkItemForm({ categories, locations, open }, ref) {
     const [bulkMode, setBulkMode] = useState<BulkMode>("new");
 
-    // New bulk SKU fields
+    // New bulk SKU fields — empty string = no selection
     const [bulkName, setBulkName] = useState("");
-    const [categoryId, setCategoryId] = useState("__none__");
+    const [categoryId, setCategoryId] = useState("");
     const [locationId, setLocationId] = useState("");
     const [bulkQrCode, setBulkQrCode] = useState("");
     const [initialQuantity, setInitialQuantity] = useState("0");
@@ -48,6 +40,8 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
     const [existingBulkSkus, setExistingBulkSkus] = useState<BulkSkuOption[]>([]);
     const [selectedBulkSkuId, setSelectedBulkSkuId] = useState("");
     const [addQty, setAddQty] = useState(1);
+
+    const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
 
     // Fetch existing bulk SKUs when open
     useEffect(() => {
@@ -67,7 +61,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
       validate() {
         if (bulkMode === "new") {
           if (!bulkName.trim()) return "Bulk item name is required.";
-          if (!categoryId || categoryId === "__none__") return "Please select a category.";
+          if (!categoryId) return "Please select a category.";
           if (!locationId) return "Please select a location.";
           if (!bulkQrCode.trim()) return "QR code is required.";
         } else {
@@ -85,13 +79,12 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             label: sku?.name || "Bulk item",
           };
         }
-        const resolvedCategoryId = categoryId === "__none__" ? "" : categoryId;
         return {
           url: "/api/bulk-skus",
           body: {
             name: bulkName.trim(),
             category: "general",
-            ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
+            ...(categoryId ? { categoryId } : {}),
             locationId,
             binQrCodeValue: bulkQrCode.trim(),
             initialQuantity: parseInt(initialQuantity, 10) || 0,
@@ -102,7 +95,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
       reset() {
         setBulkMode("new");
         setBulkName("");
-        setCategoryId("__none__");
+        setCategoryId("");
         setLocationId("");
         setBulkQrCode("");
         setInitialQuantity("0");
@@ -145,38 +138,18 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             </FormRow>
 
             <FormRow label="Category" required>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Select a category</SelectItem>
-                  {categories.filter((c) => !c.parentId).map((parent) => (
-                    <SelectGroup key={parent.id}>
-                      <SelectLabel>{parent.name}</SelectLabel>
-                      {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                        <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                      ))}
-                      {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                        <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                      )}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CategoryCombobox value={categoryId} onValueChange={setCategoryId} categories={categories} />
             </FormRow>
 
             <FormRow label="Location" required>
-              <Select value={locationId} onValueChange={setLocationId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormCombobox
+                value={locationId}
+                onValueChange={setLocationId}
+                options={locationOptions}
+                placeholder="Select a location"
+                searchPlaceholder="Search locations..."
+                emptyLabel="No location found."
+              />
             </FormRow>
 
             <FormRow label="QR code" required>
@@ -213,21 +186,11 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             ) : (
               <>
                 <FormRow label="Bulk item" required>
-                  <Select value={selectedBulkSkuId} onValueChange={setSelectedBulkSkuId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a bulk item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {existingBulkSkus.map((sku) => {
-                        const qty = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
-                        return (
-                          <SelectItem key={sku.id} value={sku.id}>
-                            {sku.name} — {qty} on hand ({sku.location.name})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <BulkSkuCombobox
+                    value={selectedBulkSkuId}
+                    onValueChange={setSelectedBulkSkuId}
+                    skus={existingBulkSkus}
+                  />
                 </FormRow>
 
                 {selectedBulkSkuId && (() => {

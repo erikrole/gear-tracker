@@ -6,20 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import QrScanner from "@/components/QrScanner";
 
 import type { CategoryOption, Department, Location, ParentSearchResult } from "./types";
 import { generateQrCode, useIsMobile, useParentSearch, FISCAL_YEARS } from "./helpers";
 import { FormRow, FormRow2Col, SectionHeading } from "./layout";
+import { FormCombobox, CategoryCombobox } from "./FormCombobox";
 
 export interface SerializedFormHandle {
   validate(): string | null;
@@ -35,11 +27,11 @@ interface Props {
 
 export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
   function SerializedItemForm({ categories, departments, locations }, ref) {
-    // Controlled selects
-    const [categoryId, setCategoryId] = useState("__none__");
+    // Controlled selects — empty string = no selection (no __none__ sentinels)
+    const [categoryId, setCategoryId] = useState("");
     const [locationId, setLocationId] = useState("");
-    const [departmentId, setDepartmentId] = useState("__none__");
-    const [fiscalYear, setFiscalYear] = useState("__none__");
+    const [departmentId, setDepartmentId] = useState("");
+    const [fiscalYear, setFiscalYear] = useState("");
 
     // Text inputs (controlled for imperative access)
     const [assetTag, setAssetTag] = useState("");
@@ -68,6 +60,11 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
     const isMobile = useIsMobile();
 
+    // Build combobox options
+    const departmentOptions = departments.map((d) => ({ value: d.id, label: d.name }));
+    const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
+    const fiscalYearOptions = FISCAL_YEARS.map((fy) => ({ value: fy, label: fy }));
+
     useImperativeHandle(ref, () => ({
       validate() {
         if (!assetTag.trim()) return "Asset tag is required.";
@@ -75,19 +72,15 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         if (!brand.trim()) return "Brand is required.";
         if (!model.trim()) return "Model is required.";
         if (!qrCodeValue.trim()) return "QR code is required.";
-        if (!categoryId || categoryId === "__none__") return "Please select a category.";
-        if (!departmentId || departmentId === "__none__") return "Please select a department.";
+        if (!categoryId) return "Please select a category.";
+        if (!departmentId) return "Please select a department.";
         if (!locationId) return "Please select a location.";
         if (isAccessory && !parentAsset) return "Please select a parent item for this accessory.";
         return null;
       },
       getSubmitBody() {
         const notes: Record<string, string> = {};
-        const fy = fiscalYear !== "__none__" ? fiscalYear : "";
-        if (fy) notes.fiscalYear = fy;
-
-        const resolvedCategoryId = categoryId === "__none__" ? "" : categoryId;
-        const resolvedDepartmentId = departmentId === "__none__" ? "" : departmentId;
+        if (fiscalYear) notes.fiscalYear = fiscalYear;
 
         return {
           assetTag: assetTag.trim(),
@@ -101,8 +94,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           availableForCustody: isAccessory ? false : availableForCustody,
           ...(isAccessory && parentAsset ? { parentAssetId: parentAsset.id } : {}),
           ...(serialNumber.trim() ? { serialNumber: serialNumber.trim() } : {}),
-          ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
-          ...(resolvedDepartmentId ? { departmentId: resolvedDepartmentId } : {}),
+          ...(categoryId ? { categoryId } : {}),
+          ...(departmentId ? { departmentId } : {}),
           ...(itemName.trim() ? { name: itemName.trim() } : {}),
           ...(purchaseDate ? { purchaseDate } : {}),
           ...(purchasePrice ? { purchasePrice: parseFloat(purchasePrice) } : {}),
@@ -115,11 +108,11 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
       },
       reset(keepShared = false) {
         if (!keepShared) {
-          setCategoryId("__none__");
+          setCategoryId("");
           setLocationId("");
-          setDepartmentId("__none__");
+          setDepartmentId("");
         }
-        setFiscalYear("__none__");
+        setFiscalYear("");
         setAssetTag("");
         setItemName("");
         setBrand("");
@@ -171,52 +164,29 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           <SectionHeading>Organization</SectionHeading>
 
           <FormRow label="Category" required>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Select a category</SelectItem>
-                {categories.filter((c) => !c.parentId).map((parent) => (
-                  <SelectGroup key={parent.id}>
-                    <SelectLabel>{parent.name}</SelectLabel>
-                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                      <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                    ))}
-                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                      <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                    )}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
+            <CategoryCombobox value={categoryId} onValueChange={setCategoryId} categories={categories} />
           </FormRow>
 
           <FormRow label="Department" required>
-            <Select value={departmentId} onValueChange={setDepartmentId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Select a department</SelectItem>
-                {departments.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormCombobox
+              value={departmentId}
+              onValueChange={setDepartmentId}
+              options={departmentOptions}
+              placeholder="Select a department"
+              searchPlaceholder="Search departments..."
+              emptyLabel="No department found."
+            />
           </FormRow>
 
           <FormRow label="Location" required>
-            <Select value={locationId} onValueChange={setLocationId} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormCombobox
+              value={locationId}
+              onValueChange={setLocationId}
+              options={locationOptions}
+              placeholder="Select a location"
+              searchPlaceholder="Search locations..."
+              emptyLabel="No location found."
+            />
           </FormRow>
         </section>
 
@@ -309,17 +279,15 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           </FormRow2Col>
 
           <FormRow label="Fiscal year">
-            <Select value={fiscalYear} onValueChange={setFiscalYear}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select fiscal year" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                {FISCAL_YEARS.map((fy) => (
-                  <SelectItem key={fy} value={fy}>{fy}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormCombobox
+              value={fiscalYear}
+              onValueChange={setFiscalYear}
+              options={fiscalYearOptions}
+              placeholder="Select fiscal year"
+              searchPlaceholder="Search..."
+              emptyLabel="No match."
+              allowClear
+            />
           </FormRow>
 
           <FormRow label="Link">
