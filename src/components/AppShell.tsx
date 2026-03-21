@@ -8,6 +8,7 @@ import Sidebar from "./Sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
 import {
   CommandDialog,
   CommandInput,
@@ -335,7 +336,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Tooltip>
           </div>
         </header>
-        <div id="main-content" className="page-content">{children}</div>
+        <div id="main-content" className="page-content">
+          <PageBreadcrumb />
+          {children}
+        </div>
       </main>
 
       {/* Mobile bottom nav */}
