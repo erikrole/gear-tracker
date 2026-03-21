@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import ChooseImageModal from "@/components/ChooseImageModal";
 
 import type { NewItemSheetProps, ItemKind } from "./new-item-sheet/types";
 import { SectionHeading, SuccessFlash } from "./new-item-sheet/layout";
@@ -38,6 +39,11 @@ export function NewItemSheet({
   const [successMsg, setSuccessMsg] = useState("");
   const successTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  // Image upload post-creation (serialized items only)
+  const [createdAssetId, setCreatedAssetId] = useState<string | null>(null);
+  const [createdLabel, setCreatedLabel] = useState("");
+  const [showImageModal, setShowImageModal] = useState(false);
+
   const serializedRef = useRef<SerializedFormHandle>(null);
   const bulkRef = useRef<BulkFormHandle>(null);
 
@@ -45,6 +51,9 @@ export function NewItemSheet({
     setError("");
     setSuccessMsg("");
     setKind("serialized");
+    setCreatedAssetId(null);
+    setCreatedLabel("");
+    setShowImageModal(false);
     serializedRef.current?.reset();
     bulkRef.current?.reset();
   }, []);
@@ -57,6 +66,19 @@ export function NewItemSheet({
 
   useEffect(() => () => clearTimeout(successTimer.current), []);
 
+  function proceedAfterImage() {
+    onCreated();
+    if (addAnother) {
+      serializedRef.current?.reset(true);
+      setCreatedAssetId(null);
+      setCreatedLabel("");
+      showSuccessMessage(`"${createdLabel}" created — ready for next item`);
+    } else {
+      onOpenChange(false);
+      resetAll();
+    }
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -64,7 +86,7 @@ export function NewItemSheet({
 
     try {
       let res: globalThis.Response;
-      let createdLabel = "";
+      let label = "";
 
       if (kind === "serialized") {
         const validationError = serializedRef.current?.validate();
@@ -73,7 +95,7 @@ export function NewItemSheet({
           return;
         }
         const body = serializedRef.current!.getSubmitBody();
-        createdLabel = (body.assetTag as string) || (body.name as string) || "Asset";
+        label = (body.assetTag as string) || (body.name as string) || "Asset";
 
         setSubmitting(true);
         res = await fetch("/api/assets", {
@@ -89,7 +111,7 @@ export function NewItemSheet({
         }
         const payload = bulkRef.current!.getSubmitPayload();
         if (!payload) return;
-        createdLabel = payload.label;
+        label = payload.label;
 
         setSubmitting(true);
         res = await fetch(payload.url, {
@@ -107,12 +129,19 @@ export function NewItemSheet({
       }
 
       setSubmitting(false);
-      onCreated();
 
+      // For serialized items, show image upload prompt before proceeding
+      if (kind === "serialized" && json.data?.id) {
+        setCreatedAssetId(json.data.id);
+        setCreatedLabel(label);
+        return; // Don't close yet — show image upload prompt
+      }
+
+      // Bulk items: proceed immediately (no image upload)
+      onCreated();
       if (addAnother) {
-        serializedRef.current?.reset(true);
         bulkRef.current?.reset();
-        showSuccessMessage(`"${createdLabel}" created — ready for next item`);
+        showSuccessMessage(`"${label}" created — ready for next item`);
       } else {
         onOpenChange(false);
         resetAll();
@@ -123,6 +152,9 @@ export function NewItemSheet({
     }
   }
 
+  // Post-creation success state (serialized only)
+  const showPostCreate = kind === "serialized" && createdAssetId;
+
   return (
     <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetAll(); }}>
       <SheetContent className="sm:max-w-xl">
@@ -132,79 +164,136 @@ export function NewItemSheet({
         </SheetHeader>
 
         <SheetBody className="px-6 py-6">
-          <form id="new-item-form" onSubmit={handleSubmit} className="space-y-6">
-            {/* ── Item type ── */}
-            <section className="space-y-3">
-              <SectionHeading>Item type</SectionHeading>
-              <RadioGroup value={kind} onValueChange={(v) => setKind(v as ItemKind)}>
-                <div className="flex items-start gap-3">
-                  <RadioGroupItem value="serialized" id="kind-serialized" className="mt-0.5" />
-                  <div>
-                    <Label htmlFor="kind-serialized" className="font-medium cursor-pointer">As an individual item</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Recommended for unique, high-cost items (cameras, computers, etc.)
-                    </p>
+          {showPostCreate ? (
+            <div className="space-y-6">
+              <SuccessFlash message={`"${createdLabel}" created successfully!`} />
+              <div className="flex flex-col items-center gap-4 py-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setShowImageModal(true)}
+                >
+                  <ImageIcon className="size-4" />
+                  Add Image
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  You can also add an image later from the item detail page.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <form id="new-item-form" onSubmit={handleSubmit} className="space-y-6">
+              {/* ── Item type ── */}
+              <section className="space-y-3">
+                <SectionHeading>Item type</SectionHeading>
+                <RadioGroup value={kind} onValueChange={(v) => setKind(v as ItemKind)}>
+                  <div className="flex items-start gap-3">
+                    <RadioGroupItem value="serialized" id="kind-serialized" className="mt-0.5" />
+                    <div>
+                      <Label htmlFor="kind-serialized" className="font-medium cursor-pointer">As an individual item</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Recommended for unique, high-cost items (cameras, computers, etc.)
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <RadioGroupItem value="bulk" id="kind-bulk" className="mt-0.5" />
-                  <div>
-                    <Label htmlFor="kind-bulk" className="font-medium cursor-pointer">As a bulk item</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Recommended for low-cost items (batteries, cables, sandbags, etc.)
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <RadioGroupItem value="bulk" id="kind-bulk" className="mt-0.5" />
+                    <div>
+                      <Label htmlFor="kind-bulk" className="font-medium cursor-pointer">As a bulk item</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Recommended for low-cost items (batteries, cables, sandbags, etc.)
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </RadioGroup>
-            </section>
+                </RadioGroup>
+              </section>
 
-            <Separator />
+              <Separator />
 
-            {successMsg && <SuccessFlash message={successMsg} />}
+              {successMsg && <SuccessFlash message={successMsg} />}
 
-            {kind === "serialized" ? (
-              <SerializedItemForm
-                ref={serializedRef}
-                categories={categories}
-                departments={departments}
-                locations={locations}
-              />
-            ) : (
-              <BulkItemForm
-                ref={bulkRef}
-                categories={categories}
-                locations={locations}
-                open={open}
-              />
-            )}
+              {kind === "serialized" ? (
+                <SerializedItemForm
+                  ref={serializedRef}
+                  categories={categories}
+                  departments={departments}
+                  locations={locations}
+                />
+              ) : (
+                <BulkItemForm
+                  ref={bulkRef}
+                  categories={categories}
+                  locations={locations}
+                  open={open}
+                />
+              )}
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircleIcon className="size-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </form>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircleIcon className="size-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+            </form>
+          )}
         </SheetBody>
 
         <SheetFooter>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="add-another"
-              checked={addAnother}
-              onCheckedChange={(v) => setAddAnother(!!v)}
-            />
-            <Label htmlFor="add-another" className="text-sm cursor-pointer">Add another</Label>
-          </div>
-          <div className="flex-1" />
-          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" form="new-item-form" disabled={submitting}>
-            {submitting ? "Adding..." : "Add"}
-          </Button>
+          {showPostCreate ? (
+            <>
+              <div className="flex-1" />
+              {addAnother && (
+                <Button variant="outline" type="button" onClick={proceedAfterImage}>
+                  Add Another
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={() => {
+                  onCreated();
+                  onOpenChange(false);
+                  resetAll();
+                }}
+              >
+                Done
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="add-another"
+                  checked={addAnother}
+                  onCheckedChange={(v) => setAddAnother(!!v)}
+                />
+                <Label htmlFor="add-another" className="text-sm cursor-pointer">Add another</Label>
+              </div>
+              <div className="flex-1" />
+              <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="new-item-form" disabled={submitting}>
+                {submitting ? "Adding..." : "Add"}
+              </Button>
+            </>
+          )}
         </SheetFooter>
       </SheetContent>
+
+      {/* Image upload modal — renders on top of the sheet */}
+      {createdAssetId && (
+        <ChooseImageModal
+          open={showImageModal}
+          onClose={() => setShowImageModal(false)}
+          assetId={createdAssetId}
+          currentImageUrl={null}
+          onImageChanged={() => {
+            setShowImageModal(false);
+            proceedAfterImage();
+          }}
+        />
+      )}
     </Sheet>
   );
 }
