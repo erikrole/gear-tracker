@@ -2,9 +2,6 @@
 
 import { type ColumnDef } from "@tanstack/react-table";
 import {
-  ArrowDown,
-  ArrowUp,
-  ChevronsUpDown,
   MoreHorizontal,
   ExternalLink,
   Copy,
@@ -75,35 +72,6 @@ function statusBadge(asset: Asset) {
   }
 }
 
-/* Column header with sort — follows shadcn reference exactly */
-function SortableHeader({
-  column,
-  title,
-}: {
-  column: { getIsSorted: () => false | "asc" | "desc"; toggleSorting: (desc?: boolean) => void };
-  title: string;
-}) {
-  const sorted = column.getIsSorted();
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="-ml-3 h-8 data-[state=open]:bg-accent"
-      onClick={() => column.toggleSorting(sorted === "asc")}
-    >
-      <span>{title}</span>
-      {sorted === "desc" ? (
-        <ArrowDown className="ml-1 size-3.5" />
-      ) : sorted === "asc" ? (
-        <ArrowUp className="ml-1 size-3.5" />
-      ) : (
-        <ChevronsUpDown className="ml-1 size-3.5" />
-      )}
-    </Button>
-  );
-}
-
 type ColumnMeta = {
   canEdit: boolean;
   onRowAction?: (action: string, asset: Asset) => void;
@@ -123,7 +91,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
           }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
-          className="translate-y-[2px]"
         />
       ),
       cell: ({ row }) => (
@@ -132,7 +99,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           onClick={(e) => e.stopPropagation()}
           aria-label="Select row"
-          className="translate-y-[2px]"
         />
       ),
       enableSorting: false,
@@ -142,18 +108,16 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
 
   columns.push(
     {
+      header: "Name",
       accessorKey: "assetTag",
-      header: ({ column }) => <SortableHeader column={column} title="Name" />,
       cell: ({ row }) => {
         const item = row.original;
         const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
         return (
           <div className="flex flex-col min-w-0">
-            <span className="font-medium truncate max-w-[300px]">{item.assetTag}</span>
+            <div className="font-medium">{item.assetTag}</div>
             {subtitle && (
-              <span className="text-xs text-muted-foreground truncate max-w-[300px]">
-                {subtitle}
-              </span>
+              <div className="text-xs text-muted-foreground">{subtitle}</div>
             )}
           </div>
         );
@@ -161,32 +125,22 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       enableHiding: false,
     },
     {
+      header: "Category",
       id: "category",
-      header: ({ column }) => <SortableHeader column={column} title="Category" />,
       accessorFn: (row) => row.category?.name || row.type,
-      cell: ({ row }) => (
-        <div className="w-[120px]">
-          {row.original.category?.name || row.original.type}
-        </div>
-      ),
+      cell: ({ row }) => row.original.category?.name || row.original.type,
     },
     {
-      id: "status",
       header: "Status",
-      cell: ({ row }) => (
-        <div className="w-[160px]">
-          {statusBadge(row.original)}
-        </div>
-      ),
+      id: "status",
+      cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
     },
     {
+      header: "Location",
       id: "location",
-      header: ({ column }) => <SortableHeader column={column} title="Location" />,
       accessorFn: (row) => row.location.name,
-      cell: ({ row }) => (
-        <div className="w-[120px]">{row.original.location.name}</div>
-      ),
+      cell: ({ row }) => row.original.location.name,
     },
   );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import {
   type ColumnDef,
   type SortingState,
@@ -30,6 +30,7 @@ interface DataTableProps {
   onRowSelectionChange: OnChangeFn<RowSelectionState>;
   columnVisibility: VisibilityState;
   onColumnVisibilityChange: OnChangeFn<VisibilityState>;
+  filterBar?: ReactNode;
 }
 
 export function DataTable({
@@ -39,6 +40,7 @@ export function DataTable({
   onRowSelectionChange,
   columnVisibility,
   onColumnVisibilityChange,
+  filterBar,
 }: DataTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -58,12 +60,17 @@ export function DataTable({
 
   return (
     <div className="rounded-md border">
+      {filterBar && (
+        <div className="flex flex-wrap gap-3 px-4 py-4">
+          {filterBar}
+        </div>
+      )}
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} className="bg-muted/50">
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
+                <TableHead key={header.id} className="relative h-10 border-t select-none">
                   {header.isPlaceholder
                     ? null
                     : flexRender(
