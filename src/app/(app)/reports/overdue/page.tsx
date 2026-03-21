@@ -119,7 +119,7 @@ export default function OverdueLeaderboardPage() {
     setError(false);
     fetch("/api/reports?type=overdue")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json) => setData(json?.data ?? null))
+      .then((json) => setData(json ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }
