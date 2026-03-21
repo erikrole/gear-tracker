@@ -20,28 +20,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-
-/* ── Types ──────────────────────────────────────────────── */
-
-type WindowStats = {
-  totalBookings: number;
-  utilizationPct: number;
-  monthly: Array<{ month: string; checkouts: number; reservations: number }>;
-  bySport: Array<{ sport: string; days: number }>;
-  topBorrowers: Array<{ name: string; count: number }>;
-  byKind: { CHECKOUT: number; RESERVATION: number };
-  byDayOfWeek: number[];
-  punctuality: { onTime: number; late: number };
-  avgDurationDays: number;
-  longestDurationDays: number;
-  costPerUse: number | null;
-  idleStreakDays: number | null;
-  ageDays: number | null;
-};
-
-type WindowKey = "30d" | "90d" | "1yr" | "all";
-
-type InsightsData = Record<WindowKey, WindowStats>;
+import type { InsightsData, WindowKey } from "./types";
 
 /* ── Chart Configs ──────────────────────────────────────── */
 
@@ -127,18 +106,35 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
 
   const stats = data[window];
 
-  if (stats.totalBookings === 0 && window !== "all") {
-    // Try "all" window to see if there's any data at all
-    const allStats = data.all;
-    if (allStats.totalBookings === 0) {
-      return (
-        <div className="mt-14">
-          <Empty className="py-12">
-            <EmptyDescription>No booking history yet. Insights will appear after this item is checked out or reserved.</EmptyDescription>
-          </Empty>
+  const allHasData = data.all.totalBookings > 0;
+
+  if (!allHasData) {
+    return (
+      <div className="mt-14">
+        <Empty className="py-12">
+          <EmptyDescription>No booking history yet. Insights will appear after this item is checked out or reserved.</EmptyDescription>
+        </Empty>
+      </div>
+    );
+  }
+
+  if (stats.totalBookings === 0) {
+    return (
+      <div className="mt-14">
+        {/* Time window toggle */}
+        <div className="flex justify-end mb-4">
+          <ToggleGroup type="single" value={window} onValueChange={(v) => v && setWindow(v as WindowKey)}>
+            <ToggleGroupItem value="30d">30d</ToggleGroupItem>
+            <ToggleGroupItem value="90d">90d</ToggleGroupItem>
+            <ToggleGroupItem value="1yr">1yr</ToggleGroupItem>
+            <ToggleGroupItem value="all">All</ToggleGroupItem>
+          </ToggleGroup>
         </div>
-      );
-    }
+        <Empty className="py-12">
+          <EmptyDescription>No bookings in this time window. Try a longer period or switch to &ldquo;All&rdquo;.</EmptyDescription>
+        </Empty>
+      </div>
+    );
   }
 
   // Prepare chart data
@@ -222,7 +218,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
                   <XAxis dataKey="month" tickFormatter={formatMonthLabel} tickLine={false} axisLine={false} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={30} />
                   <ChartTooltip content={<ChartTooltipContent labelFormatter={formatMonthLabel} />} />
-                  <ChartLegend content={<ChartLegendContent payload={[]} />} />
+                  <ChartLegend content={<ChartLegendContent />} />
                   <Area type="monotone" dataKey="checkouts" stackId="1" stroke="var(--color-checkouts)" fill="var(--color-checkouts)" fillOpacity={0.4} />
                   <Area type="monotone" dataKey="reservations" stackId="1" stroke="var(--color-reservations)" fill="var(--color-reservations)" fillOpacity={0.4} />
                 </AreaChart>
@@ -289,7 +285,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
               <ChartContainer config={kindConfig} className="mx-auto aspect-square max-h-[200px]">
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                  <ChartLegend content={<ChartLegendContent nameKey="name" payload={[]} />} />
+                  <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                   <Pie data={kindData} dataKey="value" nameKey="name" innerRadius="50%" outerRadius="80%" paddingAngle={3}>
                     {kindData.map((d) => (
                       <Cell key={d.name} fill={KIND_COLORS[d.name as keyof typeof KIND_COLORS]} />
@@ -334,7 +330,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
                     <YAxis dataKey="name" type="category" hide />
                     <XAxis type="number" hide />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent payload={[]} />} />
+                    <ChartLegend content={<ChartLegendContent />} />
                     <Bar dataKey="onTime" stackId="a" fill="var(--color-onTime)" radius={[4, 0, 0, 4]} />
                     <Bar dataKey="late" stackId="a" fill="var(--color-late)" radius={[0, 4, 4, 0]} />
                   </BarChart>

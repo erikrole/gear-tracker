@@ -90,7 +90,7 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
     <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
       {/* User profile header */}
       {user && (
-        <Link href="/users" className="sidebar-profile" onClick={onClose}>
+        <Link href="/profile" className="sidebar-profile" onClick={onClose}>
           <Avatar className="size-[72px] border-2 border-white/15 bg-white/10 mb-2.5">
             {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
             <AvatarFallback className="bg-transparent text-white/90 text-[26px] font-semibold">

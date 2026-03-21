@@ -8,7 +8,7 @@ import type { UserDetail, Location, Role } from "../types";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -90,6 +90,7 @@ export default function UserDetailPage() {
         <div>
           <div className="flex gap-12 items-center">
             <Avatar className="size-12" aria-hidden="true">
+              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
               <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
                 {user.name.charAt(0).toUpperCase()}
               </AvatarFallback>

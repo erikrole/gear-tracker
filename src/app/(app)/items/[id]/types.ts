@@ -38,7 +38,7 @@ export type AssetDetail = {
   linkUrl: string | null;
   imageUrl: string | null;
   location: { name: string };
-  department: { name: string } | null;
+  department: { id: string; name: string } | null;
   category: { id: string; name: string } | null;
   availableForReservation: boolean;
   availableForCheckout: boolean;
@@ -86,3 +86,25 @@ export type AssetDetail = {
 };
 
 export type CategoryOption = { id: string; name: string; parentId: string | null };
+
+/* ── Insights API types ──────────────────────────────────── */
+
+export type WindowStats = {
+  totalBookings: number;
+  utilizationPct: number;
+  monthly: Array<{ month: string; checkouts: number; reservations: number }>;
+  bySport: Array<{ sport: string; days: number }>;
+  topBorrowers: Array<{ name: string; count: number }>;
+  byKind: { CHECKOUT: number; RESERVATION: number };
+  byDayOfWeek: number[];
+  punctuality: { onTime: number; late: number };
+  avgDurationDays: number;
+  longestDurationDays: number;
+  costPerUse: number | null;
+  idleStreakDays: number | null;
+  ageDays: number | null;
+};
+
+export type WindowKey = "30d" | "90d" | "1yr" | "all";
+
+export type InsightsData = Record<WindowKey, WindowStats>;

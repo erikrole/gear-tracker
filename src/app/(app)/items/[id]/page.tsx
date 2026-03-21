@@ -9,7 +9,6 @@ const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsShe
 const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
-import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -41,6 +40,7 @@ import { PencilIcon, ImageIcon, Copy, Check } from "lucide-react";
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
+import type { DepartmentOption } from "./ItemInfoTab";
 import { OperationalOverview, BookingKindTab, CalendarTab } from "./ItemBookingsTab";
 import ActivityFeed from "./ItemHistoryTab";
 import { AccessoriesSection } from "./ItemSettingsTab";
@@ -184,6 +184,7 @@ export default function ItemDetailsPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [fetchError, setFetchError] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -202,6 +203,13 @@ export default function ItemDetailsPage() {
       .catch(() => {});
   }, []);
 
+  const loadDepartments = useCallback(() => {
+    fetch("/api/departments")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setDepartments(json.data || []); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     loadAsset();
     fetch("/api/me")
@@ -209,7 +217,8 @@ export default function ItemDetailsPage() {
       .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); })
       .catch(() => {});
     loadCategories();
-  }, [loadAsset, loadCategories]);
+    loadDepartments();
+  }, [loadAsset, loadCategories, loadDepartments]);
 
   // Live countdown tick every 60 seconds + refresh on tab focus
   useEffect(() => {
@@ -473,9 +482,11 @@ export default function ItemDetailsPage() {
               canEdit={canEdit}
               currentUserRole={currentUserRole}
               categories={categories}
+              departments={departments}
               onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
               onRefresh={loadAsset}
               onCategoriesChanged={loadCategories}
+              onDepartmentsChanged={loadDepartments}
             />
             <OperationalOverview asset={asset} now={now} canEdit={canEdit} onSelectBooking={setSelectedBookingId} onRefresh={loadAsset} />
           </div>

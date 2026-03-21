@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,11 +36,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Calendar } from "@/components/ui/calendar";
 import {
   CalendarIcon,
@@ -50,20 +45,17 @@ import {
   ExternalLink,
   Copy,
 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { format, parse, isValid } from "date-fns";
 import type { AssetDetail, CategoryOption } from "./types";
-import { SaveableField, useSaveField } from "./SaveableField";
+import { SaveableField, useSaveField } from "@/components/SaveableField";
 
 /* ── Constants ─────────────────────────────────────────── */
-
-const DEPARTMENTS = [
-  "Creative",
-  "Football",
-  "Men's Basketball",
-  "Brand Comm",
-  "Live Production",
-] as const;
 
 function getFiscalYearOptions(): string[] {
   const now = new Date();
@@ -98,6 +90,7 @@ function TextInputField({
 }) {
   const [draft, setDraft] = useState(value);
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   useEffect(() => {
     setDraft(value);
@@ -110,8 +103,9 @@ function TextInputField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <Input
+        id={fieldId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -149,6 +143,7 @@ function TextareaField({
 }) {
   const [draft, setDraft] = useState(value);
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   useEffect(() => {
     setDraft(value);
@@ -161,8 +156,9 @@ function TextareaField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status} className="items-start">
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId} className="items-start">
       <Textarea
+        id={fieldId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -193,6 +189,7 @@ function LinkField({
   const [draft, setDraft] = useState(value);
   const [copied, setCopied] = useState(false);
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   useEffect(() => {
     setDraft(value);
@@ -212,9 +209,10 @@ function LinkField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <div className="flex items-center gap-1">
         <Input
+          id={fieldId}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
@@ -308,6 +306,7 @@ function DatePickerField({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   const dateValue = value ? new Date(value + "T00:00:00") : undefined;
 
@@ -348,9 +347,10 @@ function DatePickerField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <div className="flex items-center gap-1">
         <Input
+          id={fieldId}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitTyped}
@@ -448,6 +448,7 @@ function ComboboxField({
                   <CommandItem
                     value=" "
                     onSelect={async () => {
+                      if (!value) { setOpen(false); return; }
                       await saveField.save("");
                       setOpen(false);
                     }}
@@ -465,6 +466,7 @@ function ComboboxField({
                       key={opt}
                       value={opt}
                       onSelect={async () => {
+                        if (value === opt) { setOpen(false); return; }
                         await saveField.save(opt);
                         setOpen(false);
                       }}
@@ -614,6 +616,7 @@ function CategoryField({
                   <CommandItem
                     value=" "
                     onSelect={async () => {
+                      if (!currentId) { setOpen(false); return; }
                       await saveField.save("");
                       setOpen(false);
                     }}
@@ -636,6 +639,7 @@ function CategoryField({
                         key={cat.id}
                         value={cat.name}
                         onSelect={async () => {
+                          if (currentId === cat.id) { setOpen(false); return; }
                           await saveField.save(cat.id);
                           setOpen(false);
                         }}
@@ -659,6 +663,7 @@ function CategoryField({
                         key={child.id}
                         value={`${parent.name} ${child.name}`}
                         onSelect={async () => {
+                          if (currentId === child.id) { setOpen(false); return; }
                           await saveField.save(child.id);
                           setOpen(false);
                         }}
@@ -866,21 +871,13 @@ export function QRModal({
 
 /* ── Collapsible Section Header ────────────────────────── */
 
-function SectionHeader({
-  title,
-  open,
-  onToggle,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
+const SectionHeader = React.forwardRef<
+  HTMLDivElement,
+  { title: string; open: boolean } & React.HTMLAttributes<HTMLDivElement>
+>(function SectionHeader({ title, open, ...props }, ref) {
   return (
-    <div className="col-span-full px-4 pt-4 pb-1">
-      <button
-        onClick={onToggle}
-        className="flex items-center gap-1.5 w-full text-left group"
-      >
+    <div ref={ref} className="col-span-full px-4 pt-4 pb-1" {...props}>
+      <div className="flex items-center gap-1.5 w-full text-left group cursor-pointer">
         <ChevronDown
           className={cn(
             "size-3.5 text-muted-foreground transition-transform duration-200",
@@ -890,32 +887,37 @@ function SectionHeader({
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer group-hover:text-foreground transition-colors">
           {title}
         </Label>
-      </button>
+      </div>
       <Separator className="mt-1.5" />
     </div>
   );
-}
+});
 
 /* ── Item Info Card (tab entry point) ───────────────────── */
+
+export type DepartmentOption = { id: string; name: string };
 
 export default function ItemInfoCard({
   asset,
   canEdit,
   currentUserRole,
   categories,
+  departments,
   onFieldSaved,
   onRefresh,
   onCategoriesChanged,
+  onDepartmentsChanged,
 }: {
   asset: AssetDetail;
   canEdit: boolean;
   currentUserRole: string;
   categories: CategoryOption[];
+  departments: DepartmentOption[];
   onFieldSaved: (updated: Partial<AssetDetail>) => void;
   onRefresh: () => void;
   onCategoriesChanged: () => void;
+  onDepartmentsChanged: () => void;
 }) {
-  const { toast } = useToast();
   const [identityOpen, setIdentityOpen] = useState(true);
   const [procurementOpen, setProcurementOpen] = useState(true);
   const [adminOpen, setAdminOpen] = useState(true);
@@ -978,6 +980,21 @@ export default function ItemInfoCard({
     onRefresh();
   }
 
+  async function saveDepartment(departmentName: string) {
+    // Find department by name
+    const dept = departments.find((d) => d.name === departmentName);
+    const departmentId = dept?.id || null;
+    const res = await fetch(`/api/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ departmentId }),
+    });
+    if (!res.ok) {
+      throw new Error("Failed to save department");
+    }
+    onRefresh();
+  }
+
   const fiscalYearOptions = getFiscalYearOptions();
 
   return (
@@ -987,68 +1004,66 @@ export default function ItemInfoCard({
       </CardHeader>
       <div>
         {/* ── Identity Section ── */}
-        <SectionHeader
-          title="Identity"
-          open={identityOpen}
-          onToggle={() => setIdentityOpen(!identityOpen)}
-        />
-        {identityOpen && (
-          <div className="grid grid-cols-1 sm:grid-cols-2">
-            <TextInputField
-              label="Asset tag"
-              value={asset.assetTag}
-              canEdit={canEdit}
-              onSave={(v) => saveField("assetTag", v)}
-            />
-            <TextInputField
-              label="Item name"
-              value={asset.name || ""}
-              placeholder="Add item name"
-              canEdit={canEdit}
-              onSave={(v) => saveField("name", v)}
-            />
-            <TextInputField
-              label="Brand"
-              value={asset.brand}
-              placeholder="Add brand"
-              canEdit={canEdit}
-              onSave={(v) => saveField("brand", v)}
-            />
-            <TextInputField
-              label="Model"
-              value={asset.model}
-              placeholder="Add model"
-              canEdit={canEdit}
-              onSave={(v) => saveField("model", v)}
-            />
-            <TextInputField
-              label="Serial number"
-              value={asset.serialNumber}
-              canEdit={canEdit}
-              onSave={(v) => saveField("serialNumber", v)}
-              mono
-            />
-            <div className="sm:col-span-2">
-              <TextareaField
-                label="Description"
-                value={asset.metadata?.description || ""}
-                placeholder="Add description"
+        <Collapsible open={identityOpen} onOpenChange={setIdentityOpen}>
+          <CollapsibleTrigger asChild>
+            <SectionHeader title="Identity" open={identityOpen} />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2">
+              <TextInputField
+                label="Asset tag"
+                value={asset.assetTag}
                 canEdit={canEdit}
-                onSave={(v) => saveField("metadata.description", v)}
+                onSave={(v) => saveField("assetTag", v)}
               />
+              <TextInputField
+                label="Item name"
+                value={asset.name || ""}
+                placeholder="Add item name"
+                canEdit={canEdit}
+                onSave={(v) => saveField("name", v)}
+              />
+              <TextInputField
+                label="Brand"
+                value={asset.brand}
+                placeholder="Add brand"
+                canEdit={canEdit}
+                onSave={(v) => saveField("brand", v)}
+              />
+              <TextInputField
+                label="Model"
+                value={asset.model}
+                placeholder="Add model"
+                canEdit={canEdit}
+                onSave={(v) => saveField("model", v)}
+              />
+              <TextInputField
+                label="Serial number"
+                value={asset.serialNumber}
+                canEdit={canEdit}
+                onSave={(v) => saveField("serialNumber", v)}
+                mono
+              />
+              <div className="sm:col-span-2">
+                <TextareaField
+                  label="Description"
+                  value={asset.metadata?.description || ""}
+                  placeholder="Add description"
+                  canEdit={canEdit}
+                  onSave={(v) => saveField("metadata.description", v)}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* ── Procurement Section ── */}
         {currentUserRole !== "STUDENT" && (
-          <>
-            <SectionHeader
-              title="Procurement"
-              open={procurementOpen}
-              onToggle={() => setProcurementOpen(!procurementOpen)}
-            />
-            {procurementOpen && (
+          <Collapsible open={procurementOpen} onOpenChange={setProcurementOpen}>
+            <CollapsibleTrigger asChild>
+              <SectionHeader title="Procurement" open={procurementOpen} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
               <div className="grid grid-cols-1 sm:grid-cols-2">
                 <TextInputField
                   label="Purchase price"
@@ -1109,60 +1124,60 @@ export default function ItemInfoCard({
                   }
                 />
               </div>
-            )}
-          </>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         {/* ── Administrative Section ── */}
-        <SectionHeader
-          title="Administrative"
-          open={adminOpen}
-          onToggle={() => setAdminOpen(!adminOpen)}
-        />
-        {adminOpen && (
-          <div className="grid grid-cols-1 sm:grid-cols-2">
-            <TextInputField
-              label="Location"
-              value={asset.location.name}
-              canEdit={false}
-              readOnly
-              onSave={async () => {}}
-            />
-            <TextInputField
-              label="Owner"
-              value={asset.metadata?.owner || ""}
-              placeholder="Add owner"
-              canEdit={canEdit}
-              onSave={(v) => saveField("metadata.owner", v)}
-            />
-            <ComboboxField
-              label="Department"
-              value={asset.metadata?.department || ""}
-              options={[...DEPARTMENTS]}
-              placeholder="Select department"
-              searchPlaceholder="Search departments..."
-              canEdit={canEdit}
-              onSave={(v) => saveField("metadata.department", v)}
-            />
-            <TextInputField
-              label="UW Asset Tag"
-              value={asset.metadata?.uwAssetTag || ""}
-              placeholder="Add UW asset tag"
-              canEdit={canEdit}
-              onSave={(v) => saveField("metadata.uwAssetTag", v)}
-            />
-            <div className="sm:col-span-2">
-              <CategoryField
-                value={asset.category?.name || ""}
-                currentId={asset.category?.id || ""}
-                canEdit={canEdit}
-                categories={categories}
-                onSave={saveCategory}
-                onCategoriesChanged={onCategoriesChanged}
+        <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
+          <CollapsibleTrigger asChild>
+            <SectionHeader title="Administrative" open={adminOpen} />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2">
+              <TextInputField
+                label="Location"
+                value={asset.location.name}
+                canEdit={false}
+                readOnly
+                onSave={async () => {}}
               />
+              <TextInputField
+                label="Owner"
+                value={asset.metadata?.owner || ""}
+                placeholder="Add owner"
+                canEdit={canEdit}
+                onSave={(v) => saveField("metadata.owner", v)}
+              />
+              <ComboboxField
+                label="Department"
+                value={asset.department?.name || ""}
+                options={departments.map((d) => d.name)}
+                placeholder="Select department"
+                searchPlaceholder="Search departments..."
+                canEdit={canEdit}
+                onSave={saveDepartment}
+              />
+              <TextInputField
+                label="UW Asset Tag"
+                value={asset.metadata?.uwAssetTag || ""}
+                placeholder="Add UW asset tag"
+                canEdit={canEdit}
+                onSave={(v) => saveField("metadata.uwAssetTag", v)}
+              />
+              <div className="sm:col-span-2">
+                <CategoryField
+                  value={asset.category?.name || ""}
+                  currentId={asset.category?.id || ""}
+                  canEdit={canEdit}
+                  categories={categories}
+                  onSave={saveCategory}
+                  onCategoriesChanged={onCategoriesChanged}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </Card>
   );

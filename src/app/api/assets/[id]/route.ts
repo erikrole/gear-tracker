@@ -22,6 +22,7 @@ const patchAssetSchema = z
     residualValue: z.number().nonnegative().nullable().optional(),
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),
+    departmentId: z.string().cuid().nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
     notes: z.string().max(10000).optional(),
     linkUrl: z.string().url().nullable().optional(),
@@ -44,7 +45,7 @@ export const GET = withAuth<{ id: string }>(async (req, { params }) => {
   const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations, accessories] = await Promise.all([
     db.asset.findUnique({
       where: { id: params.id },
-      include: { location: true, category: true, parent: { select: { id: true, assetTag: true, name: true, brand: true, model: true } } }
+      include: { location: true, category: true, department: { select: { id: true, name: true } }, parent: { select: { id: true, assetTag: true, name: true, brand: true, model: true } } }
     }),
     deriveAssetStatus(params.id).catch(() => null),
     db.bookingSerializedItem.findMany({
@@ -222,7 +223,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         ? { warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null }
         : {}),
     },
-    include: { location: true, category: true },
+    include: { location: true, category: true, department: { select: { id: true, name: true } } },
   });
 
   // Build granular before/after diff for changed fields only

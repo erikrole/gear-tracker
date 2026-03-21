@@ -88,11 +88,13 @@ export function SaveableField({
   label,
   status = "idle",
   className,
+  htmlFor,
   children,
 }: {
   label: string;
   status?: SaveStatus;
   className?: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -102,7 +104,10 @@ export function SaveableField({
         className,
       )}
     >
-      <Label className="text-sm font-medium text-muted-foreground shrink-0 min-w-[100px]">
+      <Label
+        htmlFor={htmlFor}
+        className="text-sm font-medium text-muted-foreground shrink-0 min-w-[100px]"
+      >
         {label}
       </Label>
       <div className="flex items-center gap-2 flex-1 justify-end min-w-0">

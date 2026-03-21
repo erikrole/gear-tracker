@@ -9,6 +9,7 @@ export type UserRow = {
   primaryArea: string | null;
   locationId: string | null;
   location: string | null;
+  avatarUrl: string | null;
 };
 
 export type SportAssignment = {

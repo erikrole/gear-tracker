@@ -137,7 +137,7 @@ export default function UsersPage() {
     <>
       {/* Header */}
       <div className="page-header">
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           <h1>Users</h1>
           {total > 0 && <span className="section-count">{total}</span>}
         </div>
