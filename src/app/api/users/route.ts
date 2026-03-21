@@ -95,6 +95,7 @@ export const GET = withAuth(async (req, { user }) => {
       primaryArea: u.primaryArea,
       locationId: u.locationId,
       location: u.location?.name ?? null,
+      avatarUrl: u.avatarUrl ?? null,
     })),
     total,
     limit,

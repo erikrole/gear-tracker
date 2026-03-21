@@ -53,7 +53,7 @@ export const PATCH = withAuth(async (req, { user }) => {
   const updated = await db.user.update({
     where: { id: user.id },
     data: updateData,
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, avatarUrl: true },
   });
 
   await createAuditEntry({

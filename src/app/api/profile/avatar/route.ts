@@ -43,7 +43,7 @@ export const POST = withAuth(async (req, { user }) => {
     select: { id: true, avatarUrl: true },
   });
 
-  return ok(updated);
+  return ok({ data: { avatarUrl: updated.avatarUrl } });
 });
 
 /**
@@ -63,11 +63,10 @@ export const DELETE = withAuth(async (_req, { user }) => {
     await deleteImage(current.avatarUrl).catch(() => {});
   }
 
-  const updated = await db.user.update({
+  await db.user.update({
     where: { id: user.id },
     data: { avatarUrl: null },
-    select: { id: true, avatarUrl: true },
   });
 
-  return ok(updated);
+  return ok({ data: { avatarUrl: null } });
 });
