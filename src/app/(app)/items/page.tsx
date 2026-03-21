@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { type Asset, getColumns } from "./columns";
 import { DataTable } from "./data-table";
+import { FacetedFilter } from "./faceted-filter";
 
 type CategoryOption = { id: string; name: string; parentId: string | null };
 type Location = { id: string; name: string };
@@ -292,9 +293,9 @@ function BulkActionBar({
   onClear: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-border rounded-md flex-wrap">
+    <div className="flex items-center gap-2 w-full flex-wrap">
       <span className="text-sm font-semibold">{count} selected</span>
-      <Button variant="outline" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
+      <Button variant="ghost" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
       <div className="flex-1" />
 
       {/* Move location */}
@@ -365,11 +366,26 @@ export default function ItemsPage() {
   });
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") ?? "");
-  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") ?? "");
-  const [locationFilter, setLocationFilter] = useState(() => searchParams.get("location") ?? "");
-  const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get("category") ?? "");
-  const [brandFilter, setBrandFilter] = useState(() => searchParams.get("brand") ?? "");
-  const [departmentFilter, setDepartmentFilter] = useState(() => searchParams.get("department") ?? "");
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(() => {
+    const vals = searchParams.getAll("status").filter(Boolean);
+    return new Set(vals);
+  });
+  const [locationFilter, setLocationFilter] = useState<Set<string>>(() => {
+    const vals = searchParams.getAll("location").filter(Boolean);
+    return new Set(vals);
+  });
+  const [categoryFilter, setCategoryFilter] = useState<Set<string>>(() => {
+    const vals = searchParams.getAll("category").filter(Boolean);
+    return new Set(vals);
+  });
+  const [brandFilter, setBrandFilter] = useState<Set<string>>(() => {
+    const vals = searchParams.getAll("brand").filter(Boolean);
+    return new Set(vals);
+  });
+  const [departmentFilter, setDepartmentFilter] = useState<Set<string>>(() => {
+    const vals = searchParams.getAll("department").filter(Boolean);
+    return new Set(vals);
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -384,7 +400,7 @@ export default function ItemsPage() {
 
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
-  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter;
+  const hasActiveFilters = statusFilter.size > 0 || locationFilter.size > 0 || categoryFilter.size > 0 || brandFilter.size > 0 || departmentFilter.size > 0;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -396,16 +412,23 @@ export default function ItemsPage() {
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
-    if (statusFilter) params.set("status", statusFilter);
-    if (locationFilter) params.set("location", locationFilter);
-    if (categoryFilter) params.set("category", categoryFilter);
-    if (brandFilter) params.set("brand", brandFilter);
-    if (departmentFilter) params.set("department", departmentFilter);
+    statusFilter.forEach((v) => params.append("status", v));
+    locationFilter.forEach((v) => params.append("location", v));
+    categoryFilter.forEach((v) => params.append("category", v));
+    brandFilter.forEach((v) => params.append("brand", v));
+    departmentFilter.forEach((v) => params.append("department", v));
     if (page > 0) params.set("page", String(page));
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
   }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, page]);
+
+  // Serialize a Set to stable string for dependency tracking
+  const statusKey = [...statusFilter].sort().join(",");
+  const locationKey = [...locationFilter].sort().join(",");
+  const categoryKey = [...categoryFilter].sort().join(",");
+  const brandKey = [...brandFilter].sort().join(",");
+  const departmentKey = [...departmentFilter].sort().join(",");
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -414,11 +437,11 @@ export default function ItemsPage() {
     params.set("limit", String(limit));
     params.set("offset", String(page * limit));
     if (debouncedSearch) params.set("q", debouncedSearch);
-    if (statusFilter) params.set("status", statusFilter);
-    if (locationFilter) params.set("location_id", locationFilter);
-    if (categoryFilter) params.set("category_id", categoryFilter);
-    if (brandFilter) params.set("brand", brandFilter);
-    if (departmentFilter) params.set("department_id", departmentFilter);
+    statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
+    locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
+    categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
+    brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
+    departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -430,7 +453,7 @@ export default function ItemsPage() {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, limit, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter]);
+  }, [page, limit, debouncedSearch, statusKey, locationKey, categoryKey, brandKey, departmentKey]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -470,16 +493,16 @@ export default function ItemsPage() {
     });
 
   function clearAllFilters() {
-    setStatusFilter("");
-    setLocationFilter("");
-    setCategoryFilter("");
-    setBrandFilter("");
-    setDepartmentFilter("");
+    setStatusFilter(new Set());
+    setLocationFilter(new Set());
+    setCategoryFilter(new Set());
+    setBrandFilter(new Set());
+    setDepartmentFilter(new Set());
     setPage(0);
   }
 
   // Clear selection when page/filters change
-  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter]);
+  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusKey, locationKey, categoryKey, brandKey, departmentKey]);
 
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
   const selectedCount = selectedIds.length;
@@ -565,19 +588,6 @@ export default function ItemsPage() {
       )}
 
       <div className="space-y-4">
-        {/* Bulk action bar */}
-        {canEdit && selectedCount > 0 && (
-          <BulkActionBar
-            count={selectedCount}
-            locations={locations}
-            categoryOptions={categoryOptions}
-            busy={bulkBusy}
-            error={bulkError}
-            onAction={executeBulkAction}
-            onClear={() => setRowSelection({})}
-          />
-        )}
-
         {/* Table */}
         {loading ? (
           <div className="rounded-md border">
@@ -618,64 +628,68 @@ export default function ItemsPage() {
             onColumnVisibilityChange={setColumnVisibility}
             filterBar={
               <>
-                <div className="w-48 *:not-first:mt-2">
-                  <Label>Name</Label>
-                  <div className="relative">
-                    <Input
-                      className="peer pl-9"
-                      value={search}
-                      onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                      placeholder="Search items"
-                      type="text"
-                    />
-                    <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
-                      <SearchIcon size={16} />
-                    </div>
+                {/* Input Group: search with icon */}
+                <div className="relative w-48">
+                  <Input
+                    className="peer pl-9"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                    placeholder="Search items"
+                    type="text"
+                  />
+                  <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
+                    <SearchIcon size={16} />
                   </div>
+                  {search && (
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground/80 hover:text-foreground"
+                      onClick={() => { setSearch(""); setPage(0); }}
+                    >
+                      <XIcon size={14} />
+                    </button>
+                  )}
                 </div>
-                <div className="w-40 *:not-first:mt-2">
-                  <Label>Category</Label>
-                  <Select value={categoryFilter || "all"} onValueChange={(v) => { setCategoryFilter(v === "all" ? "" : v); setPage(0); }}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {categoryOptions.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-40 *:not-first:mt-2">
-                  <Label>Status</Label>
-                  <Select value={statusFilter || "all"} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(0); }}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {STATUS_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-40 *:not-first:mt-2">
-                  <Label>Location</Label>
-                  <Select value={locationFilter || "all"} onValueChange={(v) => { setLocationFilter(v === "all" ? "" : v); setPage(0); }}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {locations.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+
+                {/* Faceted multi-select filters */}
+                <FacetedFilter
+                  title="Category"
+                  options={categoryOptions}
+                  selected={categoryFilter}
+                  onSelectionChange={(s) => { setCategoryFilter(s); setPage(0); }}
+                />
+                <FacetedFilter
+                  title="Status"
+                  options={STATUS_OPTIONS}
+                  selected={statusFilter}
+                  onSelectionChange={(s) => { setStatusFilter(s); setPage(0); }}
+                />
+                <FacetedFilter
+                  title="Location"
+                  options={locations.map((l) => ({ value: l.id, label: l.name }))}
+                  selected={locationFilter}
+                  onSelectionChange={(s) => { setLocationFilter(s); setPage(0); }}
+                />
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" className="h-9" onClick={clearAllFilters}>
+                    Clear filters
+                    <XIcon className="ml-2 size-4" />
+                  </Button>
+                )}
               </>
+            }
+            bulkActionBar={
+              canEdit && selectedCount > 0 ? (
+                <BulkActionBar
+                  count={selectedCount}
+                  locations={locations}
+                  categoryOptions={categoryOptions}
+                  busy={bulkBusy}
+                  error={bulkError}
+                  onAction={executeBulkAction}
+                  onClear={() => setRowSelection({})}
+                />
+              ) : undefined
             }
           />
         )}
