@@ -85,7 +85,7 @@ export type AssetDetail = {
   }>;
 };
 
-export type CategoryOption = { id: string; name: string; parentId: string | null };
+export type { CategoryOption } from "@/types/category";
 
 /* ── Insights API types ──────────────────────────────────── */
 

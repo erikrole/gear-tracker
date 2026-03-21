@@ -1,14 +1,7 @@
-export type CategoryOption = { id: string; name: string; parentId: string | null };
+import type { CategoryOption } from "@/types/category";
+
 export type Location = { id: string; name: string };
 export type Department = { id: string; name: string };
-
-export type BulkSkuOption = {
-  id: string;
-  name: string;
-  location: { name: string };
-  balances: { onHandQuantity: number }[];
-  categoryRel: { name: string } | null;
-};
 
 export type ParentSearchResult = {
   id: string;

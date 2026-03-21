@@ -20,7 +20,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import ChooseImageModal from "@/components/ChooseImageModal";
 
 import type { NewItemSheetProps, ItemKind } from "./new-item-sheet/types";
-import { SectionHeading, SuccessFlash } from "./new-item-sheet/layout";
+import { SectionHeading, SuccessFlash } from "@/components/form-layout";
 import { SerializedItemForm, type SerializedFormHandle } from "./new-item-sheet/SerializedItemForm";
 import { BulkItemForm, type BulkFormHandle } from "./new-item-sheet/BulkItemForm";
 

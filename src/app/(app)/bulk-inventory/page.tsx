@@ -42,8 +42,8 @@ type BulkSku = {
   categoryRel?: { id: string; name: string } | null;
 };
 
+import type { CategoryOption } from "@/types/category";
 type Location = { id: string; name: string };
-type CategoryOption = { id: string; name: string; parentId: string | null };
 
 type Response = { data: BulkSku[]; total: number; limit: number; offset: number };
 

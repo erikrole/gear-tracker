@@ -44,7 +44,7 @@ import { DataTable } from "./data-table";
 import { FacetedFilter } from "./faceted-filter";
 import { NewItemSheet } from "./new-item-sheet";
 
-type CategoryOption = { id: string; name: string; parentId: string | null };
+import type { CategoryOption } from "@/types/category";
 type Location = { id: string; name: string };
 
 type Response = {
