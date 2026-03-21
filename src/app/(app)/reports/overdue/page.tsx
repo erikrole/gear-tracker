@@ -6,6 +6,7 @@ import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
 type OverdueBooking = {
@@ -140,16 +141,16 @@ export default function OverdueLeaderboardPage() {
         <div className="summary-grid mb-16">
           {[0, 1].map((i) => (
             <Card key={i} className="p-16 text-center">
-              <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
-              <div className="skeleton skeleton-text-sm" style={{ width: 100, margin: "0 auto" }} />
+              <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
+              <Skeleton className="skeleton-text-sm mx-auto w-[100px]" />
             </Card>
           ))}
         </div>
         <Card>
           {Array.from({ length: 4 }, (_, i) => (
             <div key={i} className="skeleton-row" style={{ padding: "12px 16px" }}>
-              <div className="skeleton-lines" style={{ flex: 1 }}>
-                <div className="skeleton skeleton-text" style={{ width: `${60 - i * 8}%` }} />
+              <div className="skeleton-lines flex-1">
+                <Skeleton className="skeleton-text" style={{ width: `${60 - i * 8}%` }} />
               </div>
             </div>
           ))}

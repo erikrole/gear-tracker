@@ -38,7 +38,7 @@
 | Feature | Owner Area | Decision Ref | Notes |
 |---|---|---|---|
 | ~~Asset financial fields UI~~ | ~~AREA_ITEMS~~ | ~~D-018~~ | ~~Shipped 2026-03-16: Procurement section in item detail Info tab~~ |
-| Department filter/display | AREA_ITEMS | D-019 | Schema ready, optional grouping |
+| ~~Department filter/display~~ | ~~AREA_ITEMS~~ | ~~D-019~~ | ~~Shipped 2026-03-21: department FK, combobox filter on items page~~ |
 | Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI. Simple parent-child accessories shipped via D-023. |
 | Dashboard saved filters | AREA_DASHBOARD | — | Deferred from V1 |
 | Dashboard filter chips (Sport, Location) | AREA_DASHBOARD | — | Deferred from V1 |
@@ -107,3 +107,6 @@
 - 2026-03-18: Audit logging hardening — added createAuditEntry to 8 mutation endpoints (asset create, accessory attach/move/detach, image upload/delete, escalation config/rule update, profile update, draft discard). Per D-007.
 - 2026-03-19: Department filter/display on items page. Calendar source health UI shipped (/settings/calendar-sources). Notification center polish confirmed already shipped. Archived 8 completed plan files.
 - 2026-03-18: Security & data integrity hardening pass — 13 fixes: seed endpoint auth gating, STAFF→ADMIN privilege escalation blocked (role change + user creation), markCheckoutCompleted status guard (prevents double bulk stock return), bulk adjust Serializable isolation, shift trade TOCTOU races wrapped in transactions, scan session race condition fixed, booking route permission checks added, calendar source delete wrapped in transaction, escalation PATCH zod validation, shift trade status param validated, bulk scan quantity overflow guard, Booking.requesterUserId index, Notification→User FK with cascade delete.
+- 2026-03-20: Full shadcn/ui migration (Slices 1–5.4 + Deep Integration A–F). Replaced all custom primitives with shadcn components across 20+ pages.
+- 2026-03-21: Items page rebuilt with shadcn DataTable — sorting, row actions, context menu, column visibility, enhanced pagination. Department FK + combobox filter. Insights tab with legends, empty states, punctuality accuracy. Item detail page overhauled with shadcn inputs and save feedback.
+- 2026-03-21: MVP polish pass — audit logging added to departments and notifications/process routes, skeleton components standardized to shadcn, inline styles replaced with Tailwind utilities.

@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { createAuditEntry } from "@/lib/audit";
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -32,6 +33,14 @@ export const POST = withAuth(async (req, { user }) => {
         where: { id: existing.id },
         data: { active: true },
       });
+      await createAuditEntry({
+        actorId: user.id,
+        actorRole: user.role,
+        entityType: "department",
+        entityId: dept.id,
+        action: "reactivated",
+        after: { name: dept.name },
+      });
       return ok({ data: { id: dept.id, name: dept.name } }, 200);
     }
     throw new HttpError(409, "Department already exists");
@@ -39,6 +48,15 @@ export const POST = withAuth(async (req, { user }) => {
 
   const department = await db.department.create({
     data: { name: body.name },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "department",
+    entityId: department.id,
+    action: "created",
+    after: { name: department.name },
   });
 
   return ok({ data: { id: department.id, name: department.name } }, 201);

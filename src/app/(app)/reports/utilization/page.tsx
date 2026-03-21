@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SkeletonTable } from "@/components/Skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
@@ -116,8 +117,8 @@ export default function UtilizationPage() {
         <div className="summary-grid mb-16">
           {Array.from({ length: 4 }, (_, i) => (
             <Card key={i} className="p-16 text-center">
-              <div className="skeleton skeleton-text-lg" style={{ width: 40, margin: "0 auto 8px" }} />
-              <div className="skeleton skeleton-text-sm" style={{ width: 80, margin: "0 auto" }} />
+              <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
+              <Skeleton className="skeleton-text-sm mx-auto w-[80px]" />
             </Card>
           ))}
         </div>

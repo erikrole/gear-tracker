@@ -262,7 +262,7 @@ export default function BulkInventoryPage() {
             <div className="col-span-full flex-end">
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create SKU"}</Button>
             </div>
-            {error && <div className="col-span-full text-red">{error}</div>}
+            {error && <div className="col-span-full text-destructive">{error}</div>}
           </form>
         </Card>
       )}

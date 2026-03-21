@@ -1,6 +1,6 @@
 # Current Task Queue
 
-Last updated: 2026-03-20
+Last updated: 2026-03-21
 
 ---
 
@@ -32,6 +32,10 @@ Last updated: 2026-03-20
 
 ## Recently Shipped
 
+- [x] **MVP Polish Pass** — Audit logging gaps (departments, notifications/process), skeleton→shadcn, inline style→Tailwind, text-destructive (2026-03-21)
+- [x] **Item Detail Overhaul** — shadcn inputs, save feedback, department combobox, collapsible sections, UserInfoTab parity (2026-03-21)
+- [x] **Items Page DataTable Rebuild** — Sorting, row actions, context menu, column visibility, enhanced pagination, department FK filter (2026-03-21)
+- [x] **Insights Tab Hardening** — Legends, empty states, punctuality accuracy fix (2026-03-21)
 - [x] **shadcn/ui Deep Integration (A-F)** — Command palette, Popover migration, ContextMenu, DateTimePicker, Tooltips (2026-03-20)
 - [x] **shadcn/ui Slice 5.4** — Tabs migration + btn/badge CSS cleanup (2026-03-20)
 - [x] **shadcn/ui Slice 5.3** — Sheet migration (BookingDetailsSheet, ShiftDetailPanel, scan page) (2026-03-20)
@@ -59,7 +63,7 @@ Last updated: 2026-03-20
 - [ ] **Dashboard filter chips** (Sport, Location) — deferred from V1
 - [ ] **Dashboard saved filters** — deferred from V1
 - [ ] **Kit management UI** (D-020) — full schema, zero UI
-- [ ] **Department filter/display** (D-019) — schema ready, no UI
+- [x] **Department filter/display** (D-019) — shipped 2026-03-21
 - [ ] **Notification center pagination** — list grows unbounded
 - [ ] **Shift email notifications** — V1 = in-app audit only
 - [ ] **Student availability tracking** — students declare unavailable dates
