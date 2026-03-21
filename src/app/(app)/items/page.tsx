@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { SearchIcon, XIcon } from "lucide-react";
+import { AlertCircleIcon, SearchIcon, XIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -268,7 +269,12 @@ function CreateItemCard({
             {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
           </Button>
         </div>
-        {error && <div className="text-sm text-destructive border border-destructive/50 bg-destructive/10 rounded-md px-4 py-2.5 mt-2">{error}</div>}
+        {error && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertCircleIcon className="size-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
       </form>
     </Card>
   );
@@ -641,13 +647,15 @@ export default function ItemsPage() {
                     <SearchIcon size={16} />
                   </div>
                   {search && (
-                    <button
+                    <Button
                       type="button"
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground/80 hover:text-foreground"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
                       onClick={() => { setSearch(""); setPage(0); }}
                     >
                       <XIcon size={14} />
-                    </button>
+                    </Button>
                   )}
                 </div>
 
