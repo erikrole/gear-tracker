@@ -49,6 +49,7 @@
   --color-sidebar-accent-foreground: var(--sidebar-text-active);
   --color-sidebar-border: var(--border);
   --color-sidebar-ring: var(--ring);
+  --color-heatmap-zero: var(--heatmap-zero);
 }
 
 /* ===== Brand Font Placeholders ===== */
@@ -252,6 +253,7 @@
   --chart-3: var(--purple);
   --chart-4: var(--orange);
   --chart-5: var(--red);
+  --heatmap-zero: rgb(221, 221, 221);
 }
 
 /* ===== Dark Mode ===== */
@@ -709,7 +711,6 @@ textarea:focus-visible {
 .sidebar-profile:hover {
   background: rgba(255, 255, 255, 0.06);
 }
-
 
 .sidebar-profile-name {
   font-size: var(--text-lg);
@@ -1946,8 +1947,6 @@ textarea:focus-visible {
   font-size: var(--text-base);
 }
 
-
-
 .password-wrapper {
   position: relative;
 }
@@ -1994,8 +1993,6 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
-
-
 /* ===== Pagination ===== */
 .pagination {
   display: flex;
@@ -2012,7 +2009,6 @@ textarea:focus-visible {
   gap: 4px;
 }
 
-
 /* ===== Modal ===== */
 @keyframes fade-in {
   from { opacity: 0; }
@@ -2023,7 +2019,6 @@ textarea:focus-visible {
   from { opacity: 0; transform: translateY(12px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 
 /* ===== Profile Page ===== */
 .profile-grid {
@@ -2048,7 +2043,6 @@ textarea:focus-visible {
 .profile-field-value {
   font-size: var(--text-md);
 }
-
 
 .form-success {
   color: var(--green);
@@ -2187,7 +2181,6 @@ textarea:focus-visible {
   margin-right: 4px;
   vertical-align: middle;
 }
-
 
 .tracking-row {
   display: flex;
@@ -2628,7 +2621,6 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
-
 .extend-buttons {
   display: flex;
   gap: 6px;
@@ -2885,7 +2877,6 @@ textarea:focus-visible {
   color: var(--text);
   margin-top: 8px;
 }
-
 
 /* ===== Create Card ===== */
 .create-card {
@@ -3694,7 +3685,6 @@ textarea:focus-visible {
   border-radius: var(--radius);
 }
 
-
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3846,7 +3836,6 @@ textarea:focus-visible {
     min-height: 44px;
     min-width: 44px;
   }
-
 
   /* Diagnostic table: tighter padding on mobile */
   .diag-table th,
@@ -4258,7 +4247,6 @@ textarea:focus-visible {
   white-space: nowrap;
   letter-spacing: 0.02em;
 }
-
 
 .booking-name-cell {
   display: flex;
@@ -4698,7 +4686,6 @@ tr.status-overdue .status-label,
   margin-bottom: 12px;
 }
 
-
 /* Form body layout (used in settings/profile forms) */
 .form-body {
   padding: 16px;
@@ -4706,7 +4693,6 @@ tr.status-overdue .status-label,
   gap: 12px;
   max-width: 520px;
 }
-
 
 /* Status text */
 .status-text {
@@ -4719,7 +4705,6 @@ tr.status-overdue .status-label,
 .status-text-reserved { color: var(--purple); }
 .status-text-maintenance { color: var(--orange); }
 .status-text-retired { color: var(--text-muted); }
-
 
 /* ===== Touch Target Audit ===== */
 
@@ -5369,7 +5354,6 @@ textarea {
   width: 90px;
 }
 
-
 /* Badge row under title */
 .badge-row {
   display: flex;
@@ -5491,7 +5475,6 @@ tr.returned-row { opacity: 0.55; }
     min-height: 44px;
     justify-content: center;
   }
-
 
   /* Section tabs: 44px touch target */
   .section-tab {
@@ -6052,7 +6035,6 @@ tr.returned-row { opacity: 0.55; }
   gap: 10px;
 }
 
-
 .user-mobile-name {
   display: flex;
   flex-direction: column;
@@ -6098,7 +6080,6 @@ tr.returned-row { opacity: 0.55; }
   gap: 10px;
   width: 100%;
 }
-
 
 /* Assignment chips */
 .assignment-chips {
@@ -6151,4 +6132,11 @@ tr.returned-row { opacity: 0.55; }
 
 .roster-mobile-card:last-child {
   border-bottom: none;
+}
+
+/* ---break---
+*/
+
+.dark {
+  --heatmap-zero: rgb(51, 51, 51);
 }

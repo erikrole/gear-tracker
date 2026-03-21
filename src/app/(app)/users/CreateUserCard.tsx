@@ -35,7 +35,7 @@ export default function CreateUserCard({
       email: String(form.get("email") || ""),
       password: String(form.get("password") || ""),
       role: String(form.get("role") || "STAFF"),
-      locationId: String(form.get("locationId") || "") || null,
+      locationId: (() => { const v = String(form.get("locationId") || ""); return v === "__none__" ? null : v || null; })(),
     };
 
     try {
@@ -104,12 +104,12 @@ export default function CreateUserCard({
               <SelectItem value="STUDENT">Student</SelectItem>
             </SelectContent>
           </Select>
-          <Select name="locationId" defaultValue="" aria-label="Location">
+          <Select name="locationId" defaultValue="__none__" aria-label="Location">
             <SelectTrigger>
               <SelectValue placeholder="No location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No location</SelectItem>
+              <SelectItem value="__none__">No location</SelectItem>
               {locations.map((loc) => (
                 <SelectItem key={loc.id} value={loc.id}>
                   {loc.name}

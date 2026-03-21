@@ -232,12 +232,12 @@ export function CreateBookingCard({
         {!tieToEvent && (
           <div className="mb-3 space-y-1">
             <Label>Sport (optional)</Label>
-            <Select value={createSport} onValueChange={onCreateSportChange}>
+            <Select value={createSport || "__none__"} onValueChange={(v) => onCreateSportChange(v === "__none__" ? "" : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="None" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None</SelectItem>
                 {SPORT_CODES.map((s) => (
                   <SelectItem key={s.code} value={s.code}>{s.code} - {s.label}</SelectItem>
                 ))}

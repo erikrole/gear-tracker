@@ -93,7 +93,7 @@ export default function ScanHistoryPage() {
     }
     fetch(`/api/reports?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json) => setData(json?.data ?? null))
+      .then((json) => setData(json ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [page, phaseFilter, periodDays]);
@@ -127,7 +127,7 @@ export default function ScanHistoryPage() {
     }
     fetch(`/api/reports?${params}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json) => setData(json?.data ?? null))
+      .then((json) => setData(json ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }

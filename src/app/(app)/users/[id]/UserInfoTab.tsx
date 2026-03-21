@@ -94,10 +94,11 @@ function SelectInputField({
   return (
     <SaveableField label={label} status={status}>
       <Select
-        value={value}
+        value={value || "__none__"}
         onValueChange={(v) => {
-          if (v === value) return;
-          save(v);
+          const resolved = v === "__none__" ? "" : v;
+          if (resolved === value) return;
+          save(resolved);
         }}
         disabled={!canEdit}
       >
@@ -106,7 +107,7 @@ function SelectInputField({
         </SelectTrigger>
         <SelectContent>
           {allowEmpty && (
-            <SelectItem value="">{emptyLabel || "None"}</SelectItem>
+            <SelectItem value="__none__">{emptyLabel || "None"}</SelectItem>
           )}
           {options.map((o) => (
             <SelectItem key={o.value} value={o.value}>

@@ -98,7 +98,8 @@ export default function BulkInventoryPage() {
     setSubmitting(true);
     setError("");
     const form = new FormData(e.currentTarget);
-    const selectedCategoryId = String(form.get("categoryId") || "");
+    const rawCategoryId = String(form.get("categoryId") || "");
+    const selectedCategoryId = rawCategoryId === "__none__" ? "" : rawCategoryId;
     const payload = {
       name: String(form.get("name") || ""),
       category: String(form.get("category") || "general"),
@@ -205,12 +206,12 @@ export default function BulkInventoryPage() {
           <CardHeader><CardTitle>Add bulk SKU</CardTitle></CardHeader>
           <form onSubmit={handleCreate} className="form-grid form-grid-3 p-16">
             <Input name="name" placeholder="Name" required />
-            <Select name="categoryId" defaultValue="">
+            <Select name="categoryId" defaultValue="__none__">
               <SelectTrigger>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Category</SelectItem>
+                <SelectItem value="__none__">Category</SelectItem>
                 {categories.filter((c) => !c.parentId).map((parent) => (
                   <SelectGroup key={parent.id}>
                     <SelectLabel>{parent.name}</SelectLabel>
