@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2Icon, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle2Icon, Dices, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,12 +27,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import QrScanner from "@/components/QrScanner";
 
 type CategoryOption = { id: string; name: string; parentId: string | null };
 type Location = { id: string; name: string };
@@ -61,10 +57,13 @@ function FormRow({ label, required, children }: { label: string; required?: bool
   );
 }
 
-function FormRow2Col({ label, children }: { label?: string; children: React.ReactNode }) {
+function FormRow2Col({ label, required, children }: { label?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[140px_1fr] items-start gap-4">
-      <Label className="pt-2.5 text-sm font-medium">{label}</Label>
+      <Label className="pt-2.5 text-sm font-medium">
+        {label}
+        {required && <span className="text-destructive ml-0.5">*</span>}
+      </Label>
       <div className="grid grid-cols-2 gap-3">{children}</div>
     </div>
   );
@@ -80,6 +79,23 @@ function SuccessFlash({ message }: { message: string }) {
   );
 }
 
+/** Generate a random QR code value matching the app's format: QR-XXXXXXXX */
+function generateQrCode(): string {
+  const array = new Uint8Array(8);
+  crypto.getRandomValues(array);
+  const hex = Array.from(array).map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+  return `QR-${hex}`;
+}
+
+/** Detect if the user is likely on a mobile device with a camera. */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
+  return isMobile;
+}
+
 export function NewItemSheet({
   open,
   onOpenChange,
@@ -91,7 +107,6 @@ export function NewItemSheet({
   const [kind, setKind] = useState<ItemKind>("serialized");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [showMore, setShowMore] = useState(false);
   const [addAnother, setAddAnother] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const successTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -101,25 +116,33 @@ export function NewItemSheet({
   const [locationId, setLocationId] = useState("");
   const [departmentId, setDepartmentId] = useState("__none__");
 
+  // QR code field — controlled so generate/scan can populate it
+  const [qrCodeValue, setQrCodeValue] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
+
+  const isMobile = useIsMobile();
   const formRef = useRef<HTMLFormElement>(null);
 
   // Full reset — closing the sheet
   const resetAll = useCallback(() => {
     setError("");
     setSuccessMsg("");
-    setShowMore(false);
     setCategoryId("__none__");
     setLocationId("");
     setDepartmentId("__none__");
+    setQrCodeValue("");
+    setShowScanner(false);
     setKind("serialized");
   }, []);
 
-  // Partial reset — "add another" keeps location, category, department, kind, showMore
+  // Partial reset — "add another" keeps location, category, department, kind
   function resetForAnother() {
     setError("");
+    setQrCodeValue("");
+    setShowScanner(false);
   }
 
-  function showSuccess(msg: string) {
+  function showSuccessMsg(msg: string) {
     setSuccessMsg(msg);
     clearTimeout(successTimer.current);
     successTimer.current = setTimeout(() => setSuccessMsg(""), 3000);
@@ -128,8 +151,24 @@ export function NewItemSheet({
   // Cleanup timer on unmount
   useEffect(() => () => clearTimeout(successTimer.current), []);
 
+  // Validate controlled selects that HTML5 validation can't reach
+  function validateSelects(): string | null {
+    if (kind === "serialized") {
+      if (!categoryId || categoryId === "__none__") return "Please select a category.";
+      if (!departmentId || departmentId === "__none__") return "Please select a department.";
+    }
+    if (!locationId) return "Please select a location.";
+    return null;
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const selectError = validateSelects();
+    if (selectError) {
+      setError(selectError);
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     setSuccessMsg("");
@@ -152,6 +191,7 @@ export function NewItemSheet({
         const purchasePriceStr = String(form.get("purchasePrice") || "").trim();
         const residualValueStr = String(form.get("residualValue") || "").trim();
         const assetTag = String(form.get("assetTag") || "");
+        const serialNumber = String(form.get("serialNumber") || "").trim();
 
         res = await fetch("/api/assets", {
           method: "POST",
@@ -161,9 +201,9 @@ export function NewItemSheet({
             type: "equipment",
             brand: String(form.get("brand") || ""),
             model: String(form.get("model") || ""),
-            serialNumber: String(form.get("serialNumber") || ""),
-            qrCodeValue: String(form.get("qrCodeValue") || ""),
+            qrCodeValue,
             locationId,
+            ...(serialNumber ? { serialNumber } : {}),
             ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
             ...(resolvedDepartmentId ? { departmentId: resolvedDepartmentId } : {}),
             ...(itemName ? { name: itemName } : {}),
@@ -208,10 +248,9 @@ export function NewItemSheet({
       onCreated();
 
       if (addAnother) {
-        // Reset only per-item fields; keep location, category, department, kind
         formRef.current?.reset();
         resetForAnother();
-        showSuccess(`"${createdLabel}" created — ready for next item`);
+        showSuccessMsg(`"${createdLabel}" created — ready for next item`);
       } else {
         onOpenChange(false);
         resetAll();
@@ -221,6 +260,41 @@ export function NewItemSheet({
       setSubmitting(false);
     }
   }
+
+  const categorySelect = (
+    <Select value={categoryId} onValueChange={setCategoryId}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select a category" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">No category</SelectItem>
+        {categories.filter((c) => !c.parentId).map((parent) => (
+          <SelectGroup key={parent.id}>
+            <SelectLabel>{parent.name}</SelectLabel>
+            {categories.filter((c) => c.parentId === parent.id).map((child) => (
+              <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
+            ))}
+            {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+              <SelectItem value={parent.id}>{parent.name}</SelectItem>
+            )}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const locationSelect = (
+    <Select value={locationId} onValueChange={setLocationId} required>
+      <SelectTrigger>
+        <SelectValue placeholder="Select a location" />
+      </SelectTrigger>
+      <SelectContent>
+        {locations.map((l) => (
+          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetAll(); }}>
@@ -232,7 +306,7 @@ export function NewItemSheet({
 
         <SheetBody className="px-6 py-6">
           <form id="new-item-form" ref={formRef} onSubmit={handleSubmit} className="space-y-8">
-            {/* Section 1: Item type — set context before filling fields */}
+            {/* Section 1: Item type */}
             <section className="space-y-4">
               <h3 className="text-base font-semibold">How do you want this item to be added?</h3>
 
@@ -268,134 +342,100 @@ export function NewItemSheet({
 
               {kind === "serialized" ? (
                 <>
-                  {/* Brand / Model — side by side */}
-                  <FormRow2Col label="Brand / Model">
+                  <FormRow label="Name" required>
+                    <Input name="itemName" placeholder="e.g. Sony A7III Camera" required />
+                  </FormRow>
+
+                  <FormRow2Col label="Brand / Model" required>
                     <Input name="brand" placeholder="e.g. Sony" required />
                     <Input name="model" placeholder="e.g. A7III" required />
                   </FormRow2Col>
 
-                  <FormRow label="Name">
-                    <Input name="itemName" placeholder="e.g. Sony A7III Camera" />
+                  <FormRow label="Category" required>
+                    {categorySelect}
                   </FormRow>
 
-                  <FormRow label="Category">
-                    <Select value={categoryId} onValueChange={setCategoryId}>
+                  <FormRow label="Department" required>
+                    <Select value={departmentId} onValueChange={setDepartmentId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder="Select a department" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">No category</SelectItem>
-                        {categories.filter((c) => !c.parentId).map((parent) => (
-                          <SelectGroup key={parent.id}>
-                            <SelectLabel>{parent.name}</SelectLabel>
-                            {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                              <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                            ))}
-                            {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                              <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                            )}
-                          </SelectGroup>
+                        <SelectItem value="__none__">Select a department</SelectItem>
+                        {departments.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </FormRow>
 
                   <FormRow label="Location" required>
-                    <Select value={locationId} onValueChange={setLocationId} required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((l) => (
-                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {locationSelect}
                   </FormRow>
 
                   <FormRow label="Asset tag" required>
                     <Input name="assetTag" placeholder="Unique tag name" required />
                   </FormRow>
-                  <FormRow label="Serial number" required>
-                    <Input name="serialNumber" placeholder="Serial number" required />
+
+                  <FormRow label="Serial number">
+                    <Input name="serialNumber" placeholder="Serial number (optional)" />
                   </FormRow>
+
                   <FormRow label="QR code" required>
-                    <Input name="qrCodeValue" placeholder="QR code value" required />
-                  </FormRow>
-                </>
-              ) : (
-                <>
-                  <FormRow label="Product name" required>
-                    <Input name="bulkName" placeholder="e.g. AA Batteries" required />
-                  </FormRow>
-
-                  <FormRow label="Category">
-                    <Select value={categoryId} onValueChange={setCategoryId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">No category</SelectItem>
-                        {categories.filter((c) => !c.parentId).map((parent) => (
-                          <SelectGroup key={parent.id}>
-                            <SelectLabel>{parent.name}</SelectLabel>
-                            {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                              <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                            ))}
-                            {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                              <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                            )}
-                          </SelectGroup>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormRow>
-
-                  <FormRow label="Location" required>
-                    <Select value={locationId} onValueChange={setLocationId} required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((l) => (
-                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormRow>
-
-                  <FormRow label="Unit" required>
-                    <Input name="unit" placeholder="ea, box, pack" required />
-                  </FormRow>
-                  <FormRow label="Bin QR code" required>
-                    <Input name="binQrCodeValue" placeholder="QR code on storage bin" required />
-                  </FormRow>
-                  <FormRow2Col label="Stock">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Initial quantity</Label>
-                      <Input name="initialQuantity" type="number" min="0" defaultValue="0" />
+                    <div className="flex gap-2">
+                      <Input
+                        value={qrCodeValue}
+                        onChange={(e) => setQrCodeValue(e.target.value)}
+                        placeholder="QR code value"
+                        required
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        title="Generate QR code"
+                        onClick={() => setQrCodeValue(generateQrCode())}
+                      >
+                        <Dices className="size-4" />
+                      </Button>
+                      {isMobile && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title="Scan QR code"
+                          onClick={() => setShowScanner((v) => !v)}
+                        >
+                          <ScanLine className="size-4" />
+                        </Button>
+                      )}
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Min threshold</Label>
-                      <Input name="minThreshold" type="number" min="0" defaultValue="0" />
-                    </div>
-                  </FormRow2Col>
-                </>
-              )}
-            </section>
+                    {showScanner && (
+                      <div className="mt-2">
+                        <QrScanner
+                          active={showScanner}
+                          onScan={(value) => {
+                            setQrCodeValue(value);
+                            setShowScanner(false);
+                          }}
+                          onError={() => setShowScanner(false)}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1 w-full text-xs"
+                          onClick={() => setShowScanner(false)}
+                        >
+                          Close scanner
+                        </Button>
+                      </div>
+                    )}
+                  </FormRow>
 
-            {/* Collapsible: more item info (serialized only) */}
-            {kind === "serialized" && (
-              <Collapsible open={showMore} onOpenChange={setShowMore}>
-                <div className="flex justify-center">
-                  <CollapsibleTrigger asChild>
-                    <Button variant="link" size="sm" className="gap-1.5 text-muted-foreground">
-                      {showMore ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                      {showMore ? "Show less item info" : "Show more item info"}
-                    </Button>
-                  </CollapsibleTrigger>
-                </div>
-                <CollapsibleContent className="space-y-4 pt-4">
+                  <Separator />
+
                   <FormRow2Col label="Purchase">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">Date</Label>
@@ -422,20 +462,6 @@ export function NewItemSheet({
                     <Input name="linkUrl" type="url" placeholder="https://..." />
                   </FormRow>
 
-                  <FormRow label="Department">
-                    <Select value={departmentId} onValueChange={setDepartmentId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
-                        {departments.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormRow>
-
                   <FormRow label="UW Asset Tag">
                     <Input name="uwAssetTag" placeholder="0" />
                   </FormRow>
@@ -447,9 +473,40 @@ export function NewItemSheet({
                   <FormRow label="Description">
                     <Input name="description" placeholder="Optional notes" />
                   </FormRow>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
+                </>
+              ) : (
+                <>
+                  <FormRow label="Product name" required>
+                    <Input name="bulkName" placeholder="e.g. AA Batteries" required />
+                  </FormRow>
+
+                  <FormRow label="Category">
+                    {categorySelect}
+                  </FormRow>
+
+                  <FormRow label="Location" required>
+                    {locationSelect}
+                  </FormRow>
+
+                  <FormRow label="Unit" required>
+                    <Input name="unit" placeholder="ea, box, pack" required />
+                  </FormRow>
+                  <FormRow label="Bin QR code" required>
+                    <Input name="binQrCodeValue" placeholder="QR code on storage bin" required />
+                  </FormRow>
+                  <FormRow2Col label="Stock">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Initial quantity</Label>
+                      <Input name="initialQuantity" type="number" min="0" defaultValue="0" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Min threshold</Label>
+                      <Input name="minThreshold" type="number" min="0" defaultValue="0" />
+                    </div>
+                  </FormRow2Col>
+                </>
+              )}
+            </section>
 
             {error && (
               <Alert variant="destructive">
