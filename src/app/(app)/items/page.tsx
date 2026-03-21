@@ -356,8 +356,6 @@ const TOGGLEABLE_COLUMNS = [
   { id: "status", label: "Status" },
   { id: "category", label: "Category" },
   { id: "location", label: "Location" },
-  { id: "brand", label: "Brand" },
-  { id: "model", label: "Model" },
 ];
 
 const STATUS_OPTIONS = [

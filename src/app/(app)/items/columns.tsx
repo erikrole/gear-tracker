@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   ImageIcon,
   ArrowUpDown,
-  MoreHorizontal,
   ExternalLink,
   Copy,
   Wrench,
@@ -59,12 +58,12 @@ function statusBadge(asset: Asset) {
     case "CHECKED_OUT": {
       const name = activeBooking?.requesterName;
       const isOverdue = activeBooking?.isOverdue;
-      const label = name ? `Checked out by ${name}` : "Checked out";
+      const label = name ? `Checked out — ${name}` : "Checked out";
       return <Badge variant={isOverdue ? "red" : "blue"}>{label}</Badge>;
     }
     case "RESERVED": {
       const name = activeBooking?.requesterName;
-      const label = name ? `Reserved by ${name}` : "Reserved";
+      const label = name ? `Reserved — ${name}` : "Reserved";
       return <Badge variant="purple">{label}</Badge>;
     }
     case "MAINTENANCE":
@@ -81,11 +80,11 @@ function SortableHeader({ column, label }: { column: { toggleSorting: (desc?: bo
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-3 h-8"
+      className="-ml-3 h-8 text-xs uppercase tracking-wider font-medium text-muted-foreground hover:text-foreground"
       onClick={() => column.toggleSorting()}
     >
       {label}
-      <ArrowUpDown className="ml-1 size-3.5" />
+      <ArrowUpDown className="ml-1 size-3" />
     </Button>
   );
 }
@@ -125,26 +124,26 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       ),
       enableSorting: false,
       enableHiding: false,
-      size: 40,
-      meta: { className: "w-10 px-0" },
+      size: 44,
+      meta: { className: "w-11 px-0" },
     });
   }
 
   columns.push(
     {
       id: "thumbnail",
-      header: "Image",
+      header: () => null,
       cell: ({ row }) => {
         const item = row.original;
         return (
-          <div className="size-10 rounded-md overflow-hidden flex items-center justify-center shrink-0 bg-muted">
+          <div className="size-9 rounded-md overflow-hidden flex items-center justify-center shrink-0 bg-muted/50">
             {item.imageUrl ? (
               <Image
                 src={item.imageUrl}
                 alt=""
-                width={80}
-                height={80}
-                sizes="40px"
+                width={72}
+                height={72}
+                sizes="36px"
                 loading="lazy"
                 className="w-full h-full object-cover"
                 unoptimized={
@@ -152,26 +151,27 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
                 }
               />
             ) : (
-              <ImageIcon className="size-4 text-muted-foreground" />
+              <ImageIcon className="size-3.5 text-muted-foreground/50" />
             )}
           </div>
         );
       },
       enableSorting: false,
-      size: 56,
-      meta: { className: "w-14 py-2 px-3" },
+      size: 52,
+      meta: { className: "w-[52px] py-2 pl-4 pr-0" },
     },
     {
       accessorKey: "assetTag",
       header: ({ column }) => <SortableHeader column={column} label="Name" />,
       cell: ({ row }) => {
         const item = row.original;
+        const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
         return (
-          <div className="flex flex-col">
-            <span className="font-medium truncate max-w-[200px]">{item.assetTag}</span>
-            {item.brand && item.model && (
-              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                {item.brand} {item.model}
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-medium leading-tight truncate">{item.assetTag}</span>
+            {subtitle && (
+              <span className="text-xs text-muted-foreground leading-tight truncate">
+                {subtitle}
               </span>
             )}
           </div>
@@ -180,47 +180,43 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       enableHiding: false,
     },
     {
+      id: "category",
+      header: ({ column }) => <SortableHeader column={column} label="Category" />,
+      accessorFn: (row) => row.category?.name || row.type,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground text-sm">
+          {row.original.category?.name || row.original.type}
+        </span>
+      ),
+      meta: { className: "hidden sm:table-cell" },
+    },
+    {
       id: "status",
       header: "Status",
       cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
     },
     {
-      id: "category",
-      header: ({ column }) => <SortableHeader column={column} label="Category" />,
-      accessorFn: (row) => row.category?.name || row.type,
-      cell: ({ row }) =>
-        row.original.category?.name || row.original.type,
-    },
-    {
       id: "location",
       header: ({ column }) => <SortableHeader column={column} label="Location" />,
       accessorFn: (row) => row.location.name,
-      cell: ({ row }) => row.original.location.name,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground text-sm">
+          {row.original.location.name}
+        </span>
+      ),
+      meta: { className: "hidden lg:table-cell" },
     },
-    {
-      id: "brand",
-      header: ({ column }) => <SortableHeader column={column} label="Brand" />,
-      accessorFn: (row) => row.brand,
-      cell: ({ row }) => row.original.brand,
-      meta: { className: "hidden md:table-cell" },
-    },
-    {
-      id: "model",
-      header: ({ column }) => <SortableHeader column={column} label="Model" />,
-      accessorFn: (row) => row.model,
-      cell: ({ row }) => row.original.model,
-      meta: { className: "hidden md:table-cell" },
-    }
   );
 
-  // Row actions (kebab menu)
+  // Row actions
   if (meta.canEdit) {
     columns.push({
       id: "actions",
       enableHiding: false,
       enableSorting: false,
       size: 44,
+      meta: { className: "w-11 pr-4" },
       cell: ({ row }) => {
         const asset = row.original;
         return (
@@ -229,10 +225,10 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 text-muted-foreground hover:text-foreground"
+                className="size-8 text-muted-foreground/60 hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Pencil className="size-4" />
+                <Pencil className="size-3.5" />
                 <span className="sr-only">Open menu</span>
               </Button>
             </DropdownMenuTrigger>

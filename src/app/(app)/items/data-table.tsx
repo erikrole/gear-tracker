@@ -75,7 +75,7 @@ export function DataTable({
 
   return (
     <Table>
-      <TableHeader className="sticky top-0 z-10 bg-background">
+      <TableHeader className="sticky top-0 z-10 bg-card">
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => {

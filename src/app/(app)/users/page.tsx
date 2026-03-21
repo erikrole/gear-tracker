@@ -242,7 +242,6 @@ export default function UsersPage() {
                   <TableHeader>
                     <TableRow>
                       <SortableHead label="Name" sortKey="name" currentSort={sort} onSort={setSort} />
-                      <SortableHead label="Email" sortKey="email" currentSort={sort} onSort={setSort} className="hidden md:table-cell" />
                       <SortableHead label="Role" sortKey="role" currentSort={sort} onSort={setSort} />
                       <TableHead className="hidden md:table-cell">Location</TableHead>
                       <TableHead className="hidden md:table-cell">Area</TableHead>
