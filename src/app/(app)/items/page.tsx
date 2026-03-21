@@ -4,12 +4,22 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { ChevronDown, X } from "lucide-react";
-import { SkeletonTable } from "@/components/Skeleton";
+import { SlidersHorizontal, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -269,61 +279,6 @@ function CreateItemCard({
 }
 
 
-function FilterDropdown({
-  label,
-  value,
-  displayValue,
-  options,
-  onSelect,
-  onClear,
-}: {
-  label: string;
-  value: string;
-  displayValue?: string;
-  options: { value: string; label: string }[];
-  onSelect: (v: string) => void;
-  onClear: () => void;
-}) {
-  const active = value !== "";
-  const selectedLabel = displayValue || options.find((o) => o.value === value)?.label;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant={active ? "secondary" : "outline"}
-          size="sm"
-          className="gap-1"
-        >
-          {label}{active ? `: ${selectedLabel}` : ""}
-          {active ? (
-            <X
-              className="size-3 ml-0.5"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClear(); }}
-            />
-          ) : (
-            <ChevronDown className="size-3.5" />
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-[240px] overflow-y-auto">
-        {options.map((opt) => (
-          <DropdownMenuCheckboxItem
-            key={opt.value}
-            checked={opt.value === value}
-            onCheckedChange={() => onSelect(opt.value)}
-          >
-            {opt.label}
-          </DropdownMenuCheckboxItem>
-        ))}
-        {options.length === 0 && (
-          <div className="px-2 py-1.5 text-sm text-muted-foreground">No options</div>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 function BulkActionBar({
   count,
   locations,
@@ -342,7 +297,7 @@ function BulkActionBar({
   onClear: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--primary-bg,rgba(59,130,246,0.08))] border-b border-border flex-wrap">
+    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--primary-bg,rgba(59,130,246,0.08))] border border-border rounded-md flex-wrap">
       <span className="text-sm font-semibold">{count} selected</span>
       <Button variant="outline" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
       <div className="flex-1" />
@@ -396,6 +351,7 @@ function BulkActionBar({
 
 const TOGGLEABLE_COLUMNS = [
   { id: "thumbnail", label: "Thumbnail" },
+  { id: "status", label: "Status" },
   { id: "category", label: "Category" },
   { id: "location", label: "Location" },
   { id: "brand", label: "Brand" },
@@ -443,6 +399,7 @@ export default function ItemsPage() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
   const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter;
+  const activeFilterCount = [statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter].filter(Boolean).length;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -517,8 +474,6 @@ export default function ItemsPage() {
   }, []);
 
   const totalPages = Math.ceil(total / limit);
-  const rangeStart = total === 0 ? 0 : page * limit + 1;
-  const rangeEnd = Math.min((page + 1) * limit, total);
 
   // Build flat category options for the chip dropdown
   const categoryOptions = categories
@@ -571,6 +526,7 @@ export default function ItemsPage() {
   // Resolve display values for active filters
   const locationName = locations.find((l) => l.id === locationFilter)?.name;
   const categoryName = categoryOptions.find((c) => c.value === categoryFilter)?.label;
+  const departmentName = departments.find((d) => d.id === departmentFilter)?.name;
 
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     switch (action) {
@@ -628,65 +584,116 @@ export default function ItemsPage() {
         />
       )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2 flex-wrap p-4">
+      <div className="space-y-4">
+        {/* Toolbar */}
+        <div className="flex items-center gap-2">
           <Input
             type="text"
-            placeholder="Search by tag, brand, model, serial..."
+            placeholder="Search items..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="flex-1 min-w-[120px] max-w-sm"
+            className="max-w-sm"
           />
-          <div className="flex items-center gap-2 flex-wrap">
-            <FilterDropdown
-              label="Status"
-              value={statusFilter}
-              options={STATUS_OPTIONS}
-              onSelect={(v) => { setStatusFilter(v); setPage(0); }}
-              onClear={() => { setStatusFilter(""); setPage(0); }}
-            />
-            <FilterDropdown
-              label="Location"
-              value={locationFilter}
-              displayValue={locationName}
-              options={locations.map((l) => ({ value: l.id, label: l.name }))}
-              onSelect={(v) => { setLocationFilter(v); setPage(0); }}
-              onClear={() => { setLocationFilter(""); setPage(0); }}
-            />
-            <FilterDropdown
-              label="Category"
-              value={categoryFilter}
-              displayValue={categoryName}
-              options={categoryOptions}
-              onSelect={(v) => { setCategoryFilter(v); setPage(0); }}
-              onClear={() => { setCategoryFilter(""); setPage(0); }}
-            />
-            <FilterDropdown
-              label="Brand"
-              value={brandFilter}
-              options={brands.map((b) => ({ value: b, label: b }))}
-              onSelect={(v) => { setBrandFilter(v); setPage(0); }}
-              onClear={() => { setBrandFilter(""); setPage(0); }}
-            />
-            {departments.length > 0 && (
-              <FilterDropdown
-                label="Department"
-                value={departmentFilter}
-                options={departments.map((d) => ({ value: d.id, label: d.name }))}
-                onSelect={(v) => { setDepartmentFilter(v); setPage(0); }}
-                onClear={() => { setDepartmentFilter(""); setPage(0); }}
-              />
-            )}
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearAllFilters}>
-                Clear all
-              </Button>
-            )}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Filters popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <SlidersHorizontal className="size-4" />
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <Badge variant="secondary" className="ml-0.5 px-1.5 py-0 text-xs">
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[260px] space-y-3 p-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status</Label>
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "__all__" ? "" : v); setPage(0); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All statuses</SelectItem>
+                      {STATUS_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Location</Label>
+                  <Select value={locationFilter} onValueChange={(v) => { setLocationFilter(v === "__all__" ? "" : v); setPage(0); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All locations" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All locations</SelectItem>
+                      {locations.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Category</Label>
+                  <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v === "__all__" ? "" : v); setPage(0); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All categories</SelectItem>
+                      {categoryOptions.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Brand</Label>
+                  <Select value={brandFilter} onValueChange={(v) => { setBrandFilter(v === "__all__" ? "" : v); setPage(0); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All brands" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All brands</SelectItem>
+                      {brands.map((b) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {departments.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Department</Label>
+                    <Select value={departmentFilter} onValueChange={(v) => { setDepartmentFilter(v === "__all__" ? "" : v); setPage(0); }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All departments" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All departments</SelectItem>
+                        {departments.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="w-full">
+                    Clear all filters
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            {/* Columns dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="ml-auto gap-1">
+                <Button variant="outline" size="sm">
                   Columns
-                  <ChevronDown className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[180px]">
@@ -704,28 +711,89 @@ export default function ItemsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardHeader>
+        </div>
 
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {statusFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setStatusFilter(""); setPage(0); }}>
+                Status: {STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}
+                <X className="size-3" />
+              </Button>
+            )}
+            {locationFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setLocationFilter(""); setPage(0); }}>
+                Location: {locationName}
+                <X className="size-3" />
+              </Button>
+            )}
+            {categoryFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setCategoryFilter(""); setPage(0); }}>
+                Category: {categoryName}
+                <X className="size-3" />
+              </Button>
+            )}
+            {brandFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setBrandFilter(""); setPage(0); }}>
+                Brand: {brandFilter}
+                <X className="size-3" />
+              </Button>
+            )}
+            {departmentFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setDepartmentFilter(""); setPage(0); }}>
+                Department: {departmentName}
+                <X className="size-3" />
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Bulk action bar */}
+        {canEdit && selectedCount > 0 && (
+          <BulkActionBar
+            count={selectedCount}
+            locations={locations}
+            categoryOptions={categoryOptions}
+            busy={bulkBusy}
+            error={bulkError}
+            onAction={executeBulkAction}
+            onClear={() => setRowSelection({})}
+          />
+        )}
+
+        {/* Table */}
         {loading ? (
-          <SkeletonTable rows={8} cols={5} />
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <TableHead key={i}>
+                      <Skeleton className="h-4 w-20" />
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 8 }, (_, r) => (
+                  <TableRow key={r}>
+                    {Array.from({ length: 6 }, (_, c) => (
+                      <TableCell key={c}>
+                        <Skeleton className="h-4" style={{ width: `${50 + ((r + c) % 4) * 12}%` }} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : loadError ? (
           <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={reload} />
         ) : items.length === 0 ? (
           <EmptyState icon="search" title="No items found" description="Try adjusting your search or filters." />
         ) : (
-          <>
-            {/* Bulk action bar */}
-            {canEdit && selectedCount > 0 && (
-              <BulkActionBar
-                count={selectedCount}
-                locations={locations}
-                categoryOptions={categoryOptions}
-                busy={bulkBusy}
-                error={bulkError}
-                onAction={executeBulkAction}
-                onClear={() => setRowSelection({})}
-              />
-            )}
+          <div className="rounded-md border">
             <DataTable
               columns={columns}
               data={items}
@@ -735,40 +803,44 @@ export default function ItemsPage() {
               onColumnVisibilityChange={setColumnVisibility}
               onRowAction={handleRowAction}
               canEdit={canEdit}
-              selectedCount={selectedCount}
-              total={total}
             />
-            <div className="flex items-center justify-between px-4 py-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-4">
-                <span>{selectedCount} of {total} row(s) selected.</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs">Rows per page</span>
-                  <Select
-                    value={String(limit)}
-                    onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
-                  >
-                    <SelectTrigger className="h-8 w-[70px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[10, 25, 50, 100].map((n) => (
-                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          </div>
+        )}
+
+        {/* Pagination footer */}
+        {!loading && !loadError && items.length > 0 && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex-1">
+              {selectedCount} of {items.length} row(s) selected.
+            </div>
+            <div className="flex items-center gap-6 lg:gap-8">
+              <div className="flex items-center gap-2">
+                <p className="text-sm">Rows per page</p>
+                <Select
+                  value={String(limit)}
+                  onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
+                >
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm">
+                Page {page + 1} of {totalPages || 1}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs">
-                  Page {page + 1} of {totalPages || 1}
-                </span>
                 <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
                 <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
               </div>
             </div>
-          </>
+          </div>
         )}
-      </Card>
+      </div>
     </>
   );
 }
