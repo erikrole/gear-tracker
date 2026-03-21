@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -269,6 +268,61 @@ function CreateItemCard({
   );
 }
 
+
+function FilterDropdown({
+  label,
+  value,
+  displayValue,
+  options,
+  onSelect,
+  onClear,
+}: {
+  label: string;
+  value: string;
+  displayValue?: string;
+  options: { value: string; label: string }[];
+  onSelect: (v: string) => void;
+  onClear: () => void;
+}) {
+  const active = value !== "";
+  const selectedLabel = displayValue || options.find((o) => o.value === value)?.label;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant={active ? "secondary" : "outline"}
+          size="sm"
+          className="gap-1"
+        >
+          {label}{active ? `: ${selectedLabel}` : ""}
+          {active ? (
+            <X
+              className="size-3 ml-0.5"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClear(); }}
+            />
+          ) : (
+            <ChevronDown className="size-3.5" />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-[240px] overflow-y-auto">
+        {options.map((opt) => (
+          <DropdownMenuCheckboxItem
+            key={opt.value}
+            checked={opt.value === value}
+            onCheckedChange={() => onSelect(opt.value)}
+          >
+            {opt.label}
+          </DropdownMenuCheckboxItem>
+        ))}
+        {options.length === 0 && (
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">No options</div>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function BulkActionBar({
   count,
@@ -575,24 +629,23 @@ export default function ItemsPage() {
       )}
 
       <Card>
-        <CardHeader className="filter-chip-bar">
+        <CardHeader className="flex flex-row items-center gap-2 flex-wrap p-4">
           <Input
             type="text"
             placeholder="Search by tag, brand, model, serial..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="filter-chip-search"
+            className="flex-1 min-w-[120px] max-w-sm"
           />
-          <div className="filter-chips">
-            <FilterChip
+          <div className="flex items-center gap-2 flex-wrap">
+            <FilterDropdown
               label="Status"
               value={statusFilter}
-              displayValue={STATUS_OPTIONS.find((s) => s.value === statusFilter)?.label}
               options={STATUS_OPTIONS}
               onSelect={(v) => { setStatusFilter(v); setPage(0); }}
               onClear={() => { setStatusFilter(""); setPage(0); }}
             />
-            <FilterChip
+            <FilterDropdown
               label="Location"
               value={locationFilter}
               displayValue={locationName}
@@ -600,7 +653,7 @@ export default function ItemsPage() {
               onSelect={(v) => { setLocationFilter(v); setPage(0); }}
               onClear={() => { setLocationFilter(""); setPage(0); }}
             />
-            <FilterChip
+            <FilterDropdown
               label="Category"
               value={categoryFilter}
               displayValue={categoryName}
@@ -608,7 +661,7 @@ export default function ItemsPage() {
               onSelect={(v) => { setCategoryFilter(v); setPage(0); }}
               onClear={() => { setCategoryFilter(""); setPage(0); }}
             />
-            <FilterChip
+            <FilterDropdown
               label="Brand"
               value={brandFilter}
               options={brands.map((b) => ({ value: b, label: b }))}
@@ -616,7 +669,7 @@ export default function ItemsPage() {
               onClear={() => { setBrandFilter(""); setPage(0); }}
             />
             {departments.length > 0 && (
-              <FilterChip
+              <FilterDropdown
                 label="Department"
                 value={departmentFilter}
                 options={departments.map((d) => ({ value: d.id, label: d.name }))}
@@ -625,9 +678,9 @@ export default function ItemsPage() {
               />
             )}
             {hasActiveFilters && (
-              <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
+              <Button variant="ghost" size="sm" onClick={clearAllFilters}>
                 Clear all
-              </button>
+              </Button>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
