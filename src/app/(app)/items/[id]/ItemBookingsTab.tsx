@@ -12,7 +12,7 @@ import {
 } from "@/lib/format";
 import type { AssetDetail, ActiveBookingDetail, UpcomingReservation } from "./types";
 import { QRCodeCanvas, QRModal } from "./ItemInfoTab";
-import type { SaveStatus } from "./SaveableField";
+import type { SaveStatus } from "@/components/SaveableField";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";

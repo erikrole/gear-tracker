@@ -140,7 +140,7 @@ function CreateItemCard({
 
   return (
     <Card className="mb-16">
-      <CardHeader className="flex-between">
+      <CardHeader className="flex items-center justify-between">
         <CardTitle>New item</CardTitle>
         <div className="flex gap-4">
           {(["serialized", "bulk"] as const).map((k) => (
@@ -160,7 +160,7 @@ function CreateItemCard({
       <form onSubmit={handleSubmit} className="p-16">
         {kind === "serialized" ? (
           <>
-            <div className="grid-3col">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <Input name="assetTag" placeholder="Tag name *" required />
               <Input name="itemName" placeholder="Product name" />
               <Select name="categoryId" defaultValue="">
@@ -214,7 +214,7 @@ function CreateItemCard({
             )}
           </>
         ) : (
-          <div className="grid-3col">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div>
               <Input name="name" placeholder="Product name *" required />
               <p className="text-muted-foreground text-xs mt-1">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</p>
@@ -266,13 +266,13 @@ function CreateItemCard({
           </div>
         )}
 
-        <div className="flex-end gap-8 mt-14">
+        <div className="flex justify-end gap-2 mt-3.5">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={submitting}>
             {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
           </Button>
         </div>
-        {error && <div className="alert-error mt-8">{error}</div>}
+        {error && <div className="text-sm text-destructive border border-destructive/50 bg-destructive/10 rounded-md px-4 py-2.5 mt-2">{error}</div>}
       </form>
     </Card>
   );
@@ -297,7 +297,7 @@ function BulkActionBar({
   onClear: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--primary-bg,rgba(59,130,246,0.08))] border border-border rounded-md flex-wrap">
+    <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-border rounded-md flex-wrap">
       <span className="text-sm font-semibold">{count} selected</span>
       <Button variant="outline" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
       <div className="flex-1" />
@@ -309,10 +309,10 @@ function BulkActionBar({
         </PopoverTrigger>
         <PopoverContent align="end" className="w-auto min-w-[180px] max-h-[240px] overflow-y-auto p-1">
           {locations.map((l) => (
-            <button key={l.id} className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground"
+            <Button key={l.id} variant="ghost" size="sm" className="w-full justify-start font-normal"
               onClick={() => onAction("move_location", { locationId: l.id })}>
               {l.name}
-            </button>
+            </Button>
           ))}
         </PopoverContent>
       </Popover>
@@ -323,15 +323,15 @@ function BulkActionBar({
           <Button variant="outline" size="sm" disabled={busy}>Change category</Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-auto min-w-[200px] max-h-[240px] overflow-y-auto p-1">
-          <button className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left italic outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground"
+          <Button variant="ghost" size="sm" className="w-full justify-start font-normal italic"
             onClick={() => onAction("change_category", { categoryId: null })}>
             None
-          </button>
+          </Button>
           {categoryOptions.map((c) => (
-            <button key={c.value} className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground"
+            <Button key={c.value} variant="ghost" size="sm" className="w-full justify-start font-normal"
               onClick={() => onAction("change_category", { categoryId: c.value })}>
               {c.label}
-            </button>
+            </Button>
           ))}
         </PopoverContent>
       </Popover>
@@ -344,7 +344,7 @@ function BulkActionBar({
       </Button>
 
       {busy && <span className="text-sm text-muted">Processing...</span>}
-      {error && <span className="text-sm text-red">{error}</span>}
+      {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
   );
 }
@@ -563,7 +563,7 @@ export default function ItemsPage() {
 
   return (
     <>
-      <div className="page-header">
+      <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
         <h1>Items</h1>
         {canEdit && (
           <div className="flex gap-2">

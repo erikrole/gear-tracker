@@ -4480,7 +4480,6 @@ tr.status-overdue .status-label,
 .items-center { align-items: center; }
 
 /* Grid */
-.grid-3col { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
 .grid-2col { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
 
 /* Responsive form grids */
@@ -4491,7 +4490,6 @@ tr.status-overdue .status-label,
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 
 @media (max-width: 768px) {
-  .grid-3col { grid-template-columns: 1fr; }
   .grid-2col { grid-template-columns: 1fr; }
   .form-grid-5 { grid-template-columns: 1fr; }
   .form-grid-3 { grid-template-columns: 1fr; }

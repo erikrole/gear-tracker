@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
-import type { UserDetail, Location, Role } from "../types";
+import type { UserDetail, Location } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import RoleBadge from "../RoleBadge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -15,10 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SaveableField, useSaveField } from "@/components/SaveableField";
 
-/* ── Editable Text Field ───────────────────────────────── */
+/* ── Text Input Field ─────────────────────────────────── */
 
-function EditableField({
+function TextInputField({
   label,
   value,
   placeholder,
@@ -33,75 +35,46 @@ function EditableField({
   onSave: (v: string) => Promise<void>;
   type?: "text" | "email" | "tel";
 }) {
-  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { status, save } = useSaveField(onSave);
+  const id = useId();
 
-  useEffect(() => { setDraft(value); }, [value]);
-  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
 
-  async function commit() {
+  const commit = useCallback(() => {
     const trimmed = draft.trim();
-    if (trimmed === value) { setEditing(false); return; }
-    setSaving(true);
-    try {
-      await onSave(trimmed);
-      setEditing(false);
-    } catch {
-      setDraft(value);
-      setEditing(false);
-    }
-    setSaving(false);
-  }
-
-  const isEmpty = !value;
-  const displayText = isEmpty && placeholder ? placeholder : (value || "\u2014");
-  const displayStyle = isEmpty && placeholder
-    ? { color: "var(--text-muted)", fontStyle: "italic" as const, cursor: canEdit ? "pointer" : "default" }
-    : { cursor: canEdit ? "pointer" : "default", borderBottom: canEdit ? "1px dashed var(--border)" : "none", padding: "0 2px" };
+    if (trimmed === value) return;
+    save(trimmed);
+  }, [draft, value, save]);
 
   return (
-    <div className="data-list-row">
-      <dt className="data-list-label">{label}</dt>
-      <dd className="data-list-value">
-        {editing ? (
-          <input
-            ref={inputRef}
-            type={type}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commit();
-              if (e.key === "Escape") { setDraft(value); setEditing(false); }
-            }}
-            disabled={saving}
-            className="inline-edit-input"
-          />
-        ) : (
-          <span
-            onClick={() => canEdit && setEditing(true)}
-            onKeyDown={(e) => { if (canEdit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setEditing(true); } }}
-            style={displayStyle}
-            title={canEdit ? "Click to edit" : undefined}
-            role={canEdit ? "button" : undefined}
-            tabIndex={canEdit ? 0 : undefined}
-          >
-            {displayText}
-          </span>
-        )}
-      </dd>
-    </div>
+    <SaveableField label={label} status={status} htmlFor={id}>
+      <Input
+        id={id}
+        type={type}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          }
+        }}
+        placeholder={placeholder}
+        disabled={!canEdit}
+        className="h-8 text-sm text-right"
+      />
+    </SaveableField>
   );
 }
 
-/* ── Select Field ──────────────────────────────────────── */
+/* ── Select Input Field ───────────────────────────────── */
 
-function SelectField({
+function SelectInputField({
   label,
   value,
-  displayValue,
   options,
   canEdit,
   onSave,
@@ -110,54 +83,39 @@ function SelectField({
 }: {
   label: string;
   value: string;
-  displayValue?: string;
   options: { value: string; label: string }[];
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
   allowEmpty?: boolean;
   emptyLabel?: string;
 }) {
-  const [editing, setEditing] = useState(false);
+  const { status, save } = useSaveField(onSave);
 
   return (
-    <div className="data-list-row">
-      <dt className="data-list-label">{label}</dt>
-      <dd className="data-list-value">
-        {editing ? (
-          <Select
-            value={value}
-            onValueChange={async (v) => { try { await onSave(v); } finally { setEditing(false); } }}
-            open={editing}
-            onOpenChange={(open) => { if (!open) setEditing(false); }}
-          >
-            <SelectTrigger size="sm">
-              <SelectValue placeholder={emptyLabel || "None"} />
-            </SelectTrigger>
-            <SelectContent>
-              {allowEmpty && <SelectItem value="">{emptyLabel || "None"}</SelectItem>}
-              {options.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <span
-            onClick={() => canEdit && setEditing(true)}
-            onKeyDown={(e) => { if (canEdit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setEditing(true); } }}
-            style={{
-              cursor: canEdit ? "pointer" : "default",
-              borderBottom: canEdit ? "1px dashed var(--border)" : "none",
-              padding: "0 2px",
-            }}
-            title={canEdit ? "Click to edit" : undefined}
-            role={canEdit ? "button" : undefined}
-            tabIndex={canEdit ? 0 : undefined}
-          >
-            {displayValue || value || "\u2014"}
-          </span>
-        )}
-      </dd>
-    </div>
+    <SaveableField label={label} status={status}>
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          if (v === value) return;
+          save(v);
+        }}
+        disabled={!canEdit}
+      >
+        <SelectTrigger className="h-8 text-sm">
+          <SelectValue placeholder={emptyLabel || "None"} />
+        </SelectTrigger>
+        <SelectContent>
+          {allowEmpty && (
+            <SelectItem value="">{emptyLabel || "None"}</SelectItem>
+          )}
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </SaveableField>
   );
 }
 
@@ -184,10 +142,8 @@ export default function UserInfoTab({
     });
     const json = await res.json();
     if (!res.ok) {
-      toast(json.error || "Failed to update user", "error");
-      throw new Error(json.error);
+      throw new Error(json.error || "Failed to update user");
     }
-    toast("Updated", "success");
     onUpdated();
   }
 
@@ -202,11 +158,13 @@ export default function UserInfoTab({
       toast(json.error || "Failed to change role", "error");
       throw new Error(json.error);
     }
-    toast("Role updated", "success");
     onUpdated();
   }
 
-  const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
+  const locationOptions = locations.map((l) => ({
+    value: l.id,
+    label: l.name,
+  }));
 
   return (
     <div className="details-grid mt-14">
@@ -216,20 +174,20 @@ export default function UserInfoTab({
           <CardTitle>Profile</CardTitle>
         </CardHeader>
         <CardContent className="p-0 py-1">
-          <EditableField
+          <TextInputField
             label="Name"
             value={user.name}
             canEdit={canEdit}
             onSave={(v) => patchUser({ name: v })}
           />
-          <EditableField
+          <TextInputField
             label="Email"
             value={user.email}
             canEdit={canEdit}
             onSave={(v) => patchUser({ email: v })}
             type="email"
           />
-          <EditableField
+          <TextInputField
             label="Phone"
             value={user.phone || ""}
             placeholder="Add phone number"
@@ -237,28 +195,25 @@ export default function UserInfoTab({
             onSave={(v) => patchUser({ phone: v || null })}
             type="tel"
           />
-          <SelectField
+          <SelectInputField
             label="Role"
             value={user.role}
-            displayValue={user.role.charAt(0) + user.role.slice(1).toLowerCase()}
             options={ROLE_OPTIONS}
             canEdit={canEdit}
             onSave={changeRole}
           />
-          <SelectField
+          <SelectInputField
             label="Location"
             value={user.locationId || ""}
-            displayValue={user.location || undefined}
             options={locationOptions}
             canEdit={canEdit}
             onSave={(v) => patchUser({ locationId: v || null })}
             allowEmpty
             emptyLabel="No location"
           />
-          <SelectField
+          <SelectInputField
             label="Primary Area"
             value={user.primaryArea || ""}
-            displayValue={user.primaryArea ? AREA_LABELS[user.primaryArea] || user.primaryArea : undefined}
             options={AREA_OPTIONS}
             canEdit={canEdit}
             onSave={(v) => patchUser({ primaryArea: v || null })}
@@ -295,7 +250,11 @@ export default function UserInfoTab({
           ) : (
             <div className="assignment-chips">
               {user.areaAssignments.map((aa) => (
-                <Badge key={aa.id} variant={aa.isPrimary ? "purple" : "gray"} size="sm">
+                <Badge
+                  key={aa.id}
+                  variant={aa.isPrimary ? "purple" : "gray"}
+                  size="sm"
+                >
                   {AREA_LABELS[aa.area] || aa.area}
                   {aa.isPrimary && " (Primary)"}
                 </Badge>
