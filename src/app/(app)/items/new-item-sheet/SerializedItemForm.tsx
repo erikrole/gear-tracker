@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import QrScanner from "@/components/QrScanner";
 
-import type { CategoryOption, Department, Location, ParentSearchResult } from "./types";
+import type { Department, Location, ParentSearchResult } from "./types";
+import type { CategoryOption } from "@/types/category";
 import { generateQrCode, useIsMobile, useParentSearch, FISCAL_YEARS } from "./helpers";
-import { FormRow, FormRow2Col, SectionHeading } from "./layout";
-import { FormCombobox, CategoryCombobox } from "./FormCombobox";
+import { FormRow, FormRow2Col, SectionHeading } from "@/components/form-layout";
+import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
 
 export interface SerializedFormHandle {
   validate(): string | null;

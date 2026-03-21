@@ -22,15 +22,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandSeparator,
-} from "@/components/ui/command";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -40,7 +31,6 @@ import { Calendar } from "@/components/ui/calendar";
 import {
   CalendarIcon,
   Check,
-  ChevronsUpDown,
   ChevronDown,
   ExternalLink,
   Copy,
@@ -54,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { format, parse, isValid } from "date-fns";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
+import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
 
 /* ── Constants ─────────────────────────────────────────── */
 
@@ -398,9 +389,9 @@ function DatePickerField({
   );
 }
 
-/* ── Combobox Field (generic) ──────────────────────────── */
+/* ── Saveable Combobox (wraps FormCombobox with inline save) ── */
 
-function ComboboxField({
+function SaveableComboboxField({
   label,
   value,
   options,
@@ -412,105 +403,52 @@ function ComboboxField({
 }: {
   label: string;
   value: string;
-  options: string[];
+  options: { value: string; label: string }[];
   placeholder?: string;
   searchPlaceholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
   emptyLabel?: string;
 }) {
-  const [open, setOpen] = useState(false);
   const saveField = useSaveField(onSave);
 
   return (
     <SaveableField label={label} status={saveField.status}>
-      {canEdit ? (
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="h-8 w-full justify-between text-sm font-normal"
-            >
-              {value || (
-                <span className="text-muted-foreground">{placeholder || "Select..."}</span>
-              )}
-              <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[220px] p-0" align="end">
-            <Command>
-              <CommandInput placeholder={searchPlaceholder || "Search..."} />
-              <CommandList>
-                <CommandEmpty>{emptyLabel || "No results."}</CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value=" "
-                    onSelect={async () => {
-                      if (!value) { setOpen(false); return; }
-                      await saveField.save("");
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-4",
-                        !value ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    <span className="text-muted-foreground">&mdash;</span>
-                  </CommandItem>
-                  {options.map((opt) => (
-                    <CommandItem
-                      key={opt}
-                      value={opt}
-                      onSelect={async () => {
-                        if (value === opt) { setOpen(false); return; }
-                        await saveField.save(opt);
-                        setOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 size-4",
-                          value === opt ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      {opt}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      ) : (
-        <span className="text-sm">{value || "\u2014"}</span>
-      )}
+      <FormCombobox
+        value={value}
+        onValueChange={async (v) => {
+          if (v === value) return;
+          await saveField.save(v);
+        }}
+        options={options}
+        placeholder={placeholder}
+        searchPlaceholder={searchPlaceholder}
+        emptyLabel={emptyLabel}
+        allowClear
+        disabled={!canEdit}
+      />
     </SaveableField>
   );
 }
 
-/* ── Category Field (with grouped parents) ─────────────── */
+/* ── Saveable Category Field (wraps CategoryCombobox with inline save + create) ── */
 
-function CategoryField({
-  value,
+function SaveableCategoryField({
   currentId,
   canEdit,
   categories,
   onSave,
   onCategoriesChanged,
+  displayName,
 }: {
-  value: string;
   currentId: string;
   canEdit: boolean;
   categories: CategoryOption[];
   onSave: (id: string) => Promise<void>;
   onCategoriesChanged: () => void;
+  displayName: string;
 }) {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -520,26 +458,6 @@ function CategoryField({
   useEffect(() => {
     if (creating) inputRef.current?.focus();
   }, [creating]);
-
-  // Group categories by parent
-  const parentMap = new Map<string, CategoryOption[]>();
-  const topLevel: CategoryOption[] = [];
-
-  for (const cat of categories) {
-    if (cat.parentId) {
-      const children = parentMap.get(cat.parentId) || [];
-      children.push(cat);
-      parentMap.set(cat.parentId, children);
-    }
-  }
-
-  for (const cat of categories) {
-    if (!cat.parentId && !parentMap.has(cat.id)) {
-      topLevel.push(cat);
-    }
-  }
-
-  const parentCategories = categories.filter((c) => !c.parentId && parentMap.has(c.id));
 
   async function handleCreateCategory() {
     if (!newCatName.trim()) {
@@ -591,111 +509,20 @@ function CategoryField({
           }}
           className="h-8 text-sm"
         />
-      ) : canEdit ? (
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={open}
-              className="h-8 w-full justify-between text-sm font-normal"
-            >
-              {value || (
-                <span className="text-muted-foreground">Select category</span>
-              )}
-              <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[240px] p-0" align="end">
-            <Command>
-              <CommandInput placeholder="Search categories..." />
-              <CommandList>
-                <CommandEmpty>No category found.</CommandEmpty>
-                {/* Clear option */}
-                <CommandGroup>
-                  <CommandItem
-                    value=" "
-                    onSelect={async () => {
-                      if (!currentId) { setOpen(false); return; }
-                      await saveField.save("");
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-4",
-                        !currentId ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    <span className="text-muted-foreground">&mdash;</span>
-                  </CommandItem>
-                </CommandGroup>
-                <CommandSeparator />
-                {/* Top-level categories (no children) */}
-                {topLevel.length > 0 && (
-                  <CommandGroup heading="Categories">
-                    {topLevel.map((cat) => (
-                      <CommandItem
-                        key={cat.id}
-                        value={cat.name}
-                        onSelect={async () => {
-                          if (currentId === cat.id) { setOpen(false); return; }
-                          await saveField.save(cat.id);
-                          setOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 size-4",
-                            currentId === cat.id ? "opacity-100" : "opacity-0",
-                          )}
-                        />
-                        {cat.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-                {/* Grouped categories (parent → children) */}
-                {parentCategories.map((parent) => (
-                  <CommandGroup key={parent.id} heading={parent.name}>
-                    {(parentMap.get(parent.id) || []).map((child) => (
-                      <CommandItem
-                        key={child.id}
-                        value={`${parent.name} ${child.name}`}
-                        onSelect={async () => {
-                          if (currentId === child.id) { setOpen(false); return; }
-                          await saveField.save(child.id);
-                          setOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 size-4",
-                            currentId === child.id ? "opacity-100" : "opacity-0",
-                          )}
-                        />
-                        {child.name}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ))}
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={() => {
-                      setOpen(false);
-                      setCreating(true);
-                    }}
-                  >
-                    + Create new category
-                  </CommandItem>
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
       ) : (
-        <span className="text-sm">{value || "\u2014"}</span>
+        <CategoryCombobox
+          value={currentId}
+          onValueChange={async (id) => {
+            if (id === currentId) return;
+            await saveField.save(id);
+          }}
+          categories={categories}
+          allowClear
+          allowCreate
+          onCreateRequested={() => setCreating(true)}
+          disabled={!canEdit}
+          disabledLabel={displayName}
+        />
       )}
     </SaveableField>
   );
@@ -1112,10 +939,10 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("warrantyDate", v)}
                 />
-                <ComboboxField
+                <SaveableComboboxField
                   label="Fiscal Year"
                   value={asset.metadata?.fiscalYearPurchased || ""}
-                  options={fiscalYearOptions}
+                  options={fiscalYearOptions.map((y) => ({ value: y, label: y }))}
                   placeholder="Select fiscal year"
                   searchPlaceholder="Search years..."
                   canEdit={canEdit}
@@ -1149,10 +976,10 @@ export default function ItemInfoCard({
                 canEdit={canEdit}
                 onSave={(v) => saveField("metadata.owner", v)}
               />
-              <ComboboxField
+              <SaveableComboboxField
                 label="Department"
                 value={asset.department?.name || ""}
-                options={departments.map((d) => d.name)}
+                options={departments.map((d) => ({ value: d.name, label: d.name }))}
                 placeholder="Select department"
                 searchPlaceholder="Search departments..."
                 canEdit={canEdit}
@@ -1166,9 +993,9 @@ export default function ItemInfoCard({
                 onSave={(v) => saveField("metadata.uwAssetTag", v)}
               />
               <div className="sm:col-span-2">
-                <CategoryField
-                  value={asset.category?.name || ""}
+                <SaveableCategoryField
                   currentId={asset.category?.id || ""}
+                  displayName={asset.category?.name || ""}
                   canEdit={canEdit}
                   categories={categories}
                   onSave={saveCategory}

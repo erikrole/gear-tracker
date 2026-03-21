@@ -18,6 +18,7 @@ import {
   CommandItem,
   CommandSeparator,
 } from "@/components/ui/command";
+import type { CategoryOption } from "@/types/category";
 
 // ── Simple flat combobox ──
 
@@ -35,6 +36,8 @@ interface FormComboboxProps {
   emptyLabel?: string;
   /** Whether to show a clear/none option */
   allowClear?: boolean;
+  /** Whether the combobox is disabled (renders plain text) */
+  disabled?: boolean;
 }
 
 export function FormCombobox({
@@ -45,9 +48,14 @@ export function FormCombobox({
   searchPlaceholder = "Search...",
   emptyLabel = "No results.",
   allowClear = false,
+  disabled = false,
 }: FormComboboxProps) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
+
+  if (disabled) {
+    return <span className="text-sm">{selected?.label || "\u2014"}</span>;
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -107,23 +115,60 @@ export function FormCombobox({
 
 // ── Grouped category combobox ──
 
-import type { CategoryOption } from "./types";
-
 interface CategoryComboboxProps {
   value: string;
   onValueChange: (value: string) => void;
   categories: CategoryOption[];
+  /** Whether to show a clear/none option */
+  allowClear?: boolean;
+  /** Whether to show a "+ Create new category" option */
+  allowCreate?: boolean;
+  /** Callback when user clicks create — parent handles the creation flow */
+  onCreateRequested?: () => void;
+  /** Whether the combobox is disabled (renders plain text) */
+  disabled?: boolean;
+  /** Display label when disabled and no value is selected */
+  disabledLabel?: string;
 }
 
 export function CategoryCombobox({
   value,
   onValueChange,
   categories,
+  allowClear = false,
+  allowCreate = false,
+  onCreateRequested,
+  disabled = false,
+  disabledLabel,
 }: CategoryComboboxProps) {
   const [open, setOpen] = useState(false);
 
   const parents = categories.filter((c) => !c.parentId);
   const selectedCat = categories.find((c) => c.id === value);
+
+  if (disabled) {
+    return <span className="text-sm">{disabledLabel || selectedCat?.name || "\u2014"}</span>;
+  }
+
+  // Build grouped structure
+  const parentMap = new Map<string, CategoryOption[]>();
+  const topLevel: CategoryOption[] = [];
+
+  for (const cat of categories) {
+    if (cat.parentId) {
+      const children = parentMap.get(cat.parentId) || [];
+      children.push(cat);
+      parentMap.set(cat.parentId, children);
+    }
+  }
+
+  for (const cat of categories) {
+    if (!cat.parentId && !parentMap.has(cat.id)) {
+      topLevel.push(cat);
+    }
+  }
+
+  const parentCategories = categories.filter((c) => !c.parentId && parentMap.has(c.id));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -137,7 +182,7 @@ export function CategoryCombobox({
           {selectedCat ? (
             selectedCat.name
           ) : (
-            <span className="text-muted-foreground">Select a category</span>
+            <span className="text-muted-foreground">Select category</span>
           )}
           <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
         </Button>
@@ -147,43 +192,89 @@ export function CategoryCombobox({
           <CommandInput placeholder="Search categories..." />
           <CommandList>
             <CommandEmpty>No category found.</CommandEmpty>
-            {parents.map((parent) => {
-              const children = categories.filter((c) => c.parentId === parent.id);
-              if (children.length === 0) {
-                // Standalone category (no children)
-                return (
-                  <CommandGroup key={parent.id}>
-                    <CommandItem
-                      value={parent.name}
-                      onSelect={() => {
-                        onValueChange(parent.id);
-                        setOpen(false);
-                      }}
-                    >
-                      <Check className={cn("mr-2 size-4", value === parent.id ? "opacity-100" : "opacity-0")} />
-                      {parent.name}
-                    </CommandItem>
-                  </CommandGroup>
-                );
-              }
-              return (
-                <CommandGroup key={parent.id} heading={parent.name}>
-                  {children.map((child) => (
-                    <CommandItem
-                      key={child.id}
-                      value={`${parent.name} ${child.name}`}
-                      onSelect={() => {
-                        onValueChange(child.id);
-                        setOpen(false);
-                      }}
-                    >
-                      <Check className={cn("mr-2 size-4", value === child.id ? "opacity-100" : "opacity-0")} />
-                      {child.name}
-                    </CommandItem>
-                  ))}
+            {allowClear && (
+              <>
+                <CommandGroup>
+                  <CommandItem
+                    value=" "
+                    onSelect={() => {
+                      onValueChange("");
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 size-4",
+                        !value ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <span className="text-muted-foreground">&mdash;</span>
+                  </CommandItem>
                 </CommandGroup>
-              );
-            })}
+                <CommandSeparator />
+              </>
+            )}
+            {/* Top-level categories (no children) */}
+            {topLevel.length > 0 && (
+              <CommandGroup heading={parentCategories.length > 0 ? "Categories" : undefined}>
+                {topLevel.map((cat) => (
+                  <CommandItem
+                    key={cat.id}
+                    value={cat.name}
+                    onSelect={() => {
+                      onValueChange(cat.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 size-4",
+                        value === cat.id ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {cat.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {/* Grouped categories (parent → children) */}
+            {parentCategories.map((parent) => (
+              <CommandGroup key={parent.id} heading={parent.name}>
+                {(parentMap.get(parent.id) || []).map((child) => (
+                  <CommandItem
+                    key={child.id}
+                    value={`${parent.name} ${child.name}`}
+                    onSelect={() => {
+                      onValueChange(child.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 size-4",
+                        value === child.id ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {child.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+            {allowCreate && onCreateRequested && (
+              <>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => {
+                      setOpen(false);
+                      onCreateRequested();
+                    }}
+                  >
+                    + Create new category
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -193,7 +284,13 @@ export function CategoryCombobox({
 
 // ── Bulk SKU combobox ──
 
-import type { BulkSkuOption } from "./types";
+export type BulkSkuOption = {
+  id: string;
+  name: string;
+  location: { name: string };
+  balances: { onHandQuantity: number }[];
+  categoryRel: { name: string } | null;
+};
 
 interface BulkSkuComboboxProps {
   value: string;

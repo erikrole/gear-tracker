@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-import type { BulkMode, BulkSkuOption, CategoryOption, Location } from "./types";
+import type { BulkMode, Location } from "./types";
+import type { CategoryOption } from "@/types/category";
 import { generateQrCode } from "./helpers";
-import { FormRow, SectionHeading } from "./layout";
-import { FormCombobox, CategoryCombobox, BulkSkuCombobox } from "./FormCombobox";
+import { FormRow, SectionHeading } from "@/components/form-layout";
+import { FormCombobox, CategoryCombobox, BulkSkuCombobox, type BulkSkuOption } from "@/components/FormCombobox";
 
 export interface BulkFormHandle {
   validate(): string | null;
