@@ -4,13 +4,19 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { Download } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -334,6 +340,14 @@ function BulkActionBar({
   );
 }
 
+const TOGGLEABLE_COLUMNS = [
+  { id: "thumbnail", label: "Thumbnail" },
+  { id: "category", label: "Category" },
+  { id: "location", label: "Location" },
+  { id: "brand", label: "Brand" },
+  { id: "model", label: "Model" },
+];
+
 const STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "Available" },
   { value: "CHECKED_OUT", label: "Checked out" },
@@ -541,36 +555,14 @@ export default function ItemsPage() {
     <>
       <div className="page-header">
         <h1>Items</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              const params = new URLSearchParams();
-              params.set("format", "csv");
-              params.set("limit", "10000");
-              if (debouncedSearch) params.set("q", debouncedSearch);
-              if (statusFilter) params.set("status", statusFilter);
-              if (locationFilter) params.set("location_id", locationFilter);
-              if (categoryFilter) params.set("category_id", categoryFilter);
-              if (brandFilter) params.set("brand", brandFilter);
-              if (departmentFilter) params.set("department_id", departmentFilter);
-              window.open(`/api/assets/export?${params}`, "_blank");
-            }}
-          >
-            <Download className="size-4" />
-            Export
-          </Button>
-          {canEdit && (
-            <>
-              <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
-              <Button onClick={() => setShowCreate((v) => !v)}>
-                {showCreate ? "Close" : "New item"}
-              </Button>
-            </>
-          )}
-        </div>
+        {canEdit && (
+          <div className="flex gap-2">
+            <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
+            <Button onClick={() => setShowCreate((v) => !v)}>
+              {showCreate ? "Close" : "New item"}
+            </Button>
+          </div>
+        )}
       </div>
 
       {showCreate && (
@@ -637,6 +629,27 @@ export default function ItemsPage() {
                 Clear all
               </button>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="ml-auto gap-1">
+                  Columns
+                  <ChevronDown className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[180px]">
+                {TOGGLEABLE_COLUMNS.map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    checked={columnVisibility[col.id] !== false}
+                    onCheckedChange={(checked) =>
+                      setColumnVisibility((prev) => ({ ...prev, [col.id]: !!checked }))
+                    }
+                  >
+                    {col.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
 
@@ -669,36 +682,36 @@ export default function ItemsPage() {
               onColumnVisibilityChange={setColumnVisibility}
               onRowAction={handleRowAction}
               canEdit={canEdit}
+              selectedCount={selectedCount}
+              total={total}
             />
-            <div className="flex items-center justify-between px-3 py-3 border-t text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
-                <Select
-                  value={String(limit)}
-                  onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
-                >
-                  <SelectTrigger className="h-8 w-[70px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[10, 25, 50, 100].map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-xs">per page</span>
-              </div>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(0)}>First</Button>
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
-                  <span className="px-2 text-xs">
-                    Page {page + 1} of {totalPages}
-                  </span>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}>Last</Button>
+            <div className="flex items-center justify-between px-4 py-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-4">
+                <span>{selectedCount} of {total} row(s) selected.</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">Rows per page</span>
+                  <Select
+                    value={String(limit)}
+                    onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[10, 25, 50, 100].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs">
+                  Page {page + 1} of {totalPages || 1}
+                </span>
+                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
+              </div>
             </div>
           </>
         )}
