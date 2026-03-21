@@ -10,6 +10,7 @@ const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false 
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,7 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PencilIcon, ImageIcon } from "lucide-react";
+import { PencilIcon, ImageIcon, Copy, Check } from "lucide-react";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -95,6 +96,40 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
     return <Badge variant="gray">Retired</Badge>;
   }
   return <Badge variant="gray">{s}</Badge>;
+}
+
+/* ── Serial Number Badge ───────────────────────────────── */
+
+function SerialBadge({ serialNumber }: { serialNumber: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(serialNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className="font-mono cursor-pointer select-none gap-1.5"
+            onClick={handleCopy}
+          >
+            {copied ? (
+              <Check className="size-3 text-green-600 dark:text-green-400" />
+            ) : (
+              <Copy className="size-3" />
+            )}
+            {serialNumber}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>{copied ? "Copied!" : "Click to copy serial number"}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 /* ── Actions Dropdown ───────────────────────────────────── */
@@ -254,7 +289,76 @@ export default function ItemDetailsPage() {
   }
 
   if (!asset) {
-    return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
+    return (
+      <div>
+        {/* Breadcrumb skeleton */}
+        <div className="mb-4 flex gap-2">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        {/* Header skeleton */}
+        <div className="page-header mb-0">
+          <div className="flex gap-16 items-center">
+            <Skeleton className="size-[80px] rounded-lg shrink-0" />
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+          <div className="header-actions">
+            <Skeleton className="h-9 w-[100px]" />
+            <Skeleton className="h-9 w-[100px]" />
+            <Skeleton className="h-9 w-[100px]" />
+          </div>
+        </div>
+        {/* Status badge skeleton */}
+        <div className="mb-16 mt-8 flex gap-2">
+          <Skeleton className="h-5 w-24 rounded-full" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+        {/* Tabs skeleton */}
+        <Skeleton className="h-9 w-full max-w-[500px] mb-14" />
+        {/* Content skeleton */}
+        <div className="details-grid mt-0">
+          <Card className="details-card">
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <div className="space-y-0">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between px-4 py-3 border-b border-border/50"
+                >
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-40" />
+                </div>
+              ))}
+            </div>
+          </Card>
+          <div className="space-y-5">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-3">
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-40" />
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -333,8 +437,9 @@ export default function ItemDetailsPage() {
       </div>
 
       {/* Status line */}
-      <div className="mb-16 mt-8">
+      <div className="mb-16 mt-8 flex items-center gap-2 flex-wrap">
         <StatusLine asset={asset} />
+        {asset.serialNumber && <SerialBadge serialNumber={asset.serialNumber} />}
       </div>
 
       {/* Parent banner — shown when this item is an accessory */}
