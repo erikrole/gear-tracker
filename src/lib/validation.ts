@@ -72,7 +72,7 @@ export const createBulkSkuSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
   categoryId: z.string().cuid().nullable().optional(),
-  unit: z.string().min(1),
+  unit: z.string().min(1).default("ea"),
   locationId: z.string().cuid(),
   binQrCodeValue: z.string().min(1),
   minThreshold: z.number().int().min(0).default(0),

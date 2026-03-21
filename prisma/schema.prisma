@@ -178,7 +178,7 @@ model Asset {
   type             String
   brand            String
   model            String
-  serialNumber     String                   @unique @map("serial_number")
+  serialNumber     String?                  @unique @map("serial_number")
   qrCodeValue      String                   @unique @map("qr_code_value")
   primaryScanCode  String?                  @unique @map("primary_scan_code")
   purchaseDate     DateTime?                @map("purchase_date")
