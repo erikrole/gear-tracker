@@ -133,7 +133,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       cell: ({ row }) => {
         const item = row.original;
         return (
-          <div className="item-thumb">
+          <div className="size-12 rounded-md overflow-hidden flex items-center justify-center shrink-0">
             {item.imageUrl ? (
               <Image
                 src={item.imageUrl}
@@ -142,12 +142,13 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
                 height={96}
                 sizes="48px"
                 loading="lazy"
+                className="w-full h-full object-contain"
                 unoptimized={
                   !item.imageUrl.includes(".public.blob.vercel-storage.com")
                 }
               />
             ) : (
-              <ImageIcon className="size-5 text-[var(--text-tertiary)]" />
+              <ImageIcon className="size-5 text-muted-foreground" />
             )}
           </div>
         );
@@ -159,16 +160,16 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       accessorKey: "assetTag",
       header: ({ column }) => <SortableHeader column={column} label="Name" />,
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <div className="flex flex-col gap-1">
-            <span className="font-semibold text-sm">{item.assetTag}</span>
-            {statusBadge(item)}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <span className="font-medium">{row.original.assetTag}</span>
+      ),
       enableHiding: false,
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => statusBadge(row.original),
+      enableSorting: false,
     },
     {
       id: "category",

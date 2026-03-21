@@ -45,8 +45,6 @@ interface DataTableProps {
   onColumnVisibilityChange: OnChangeFn<VisibilityState>;
   onRowAction?: (action: string, asset: Asset) => void;
   canEdit: boolean;
-  selectedCount: number;
-  total: number;
 }
 
 export function DataTable({
@@ -58,8 +56,6 @@ export function DataTable({
   onColumnVisibilityChange,
   onRowAction,
   canEdit,
-  selectedCount,
-  total,
 }: DataTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -78,102 +74,100 @@ export function DataTable({
   });
 
   return (
-    <div className="overflow-auto">
-      <Table>
-        <TableHeader className="sticky top-0 z-10 bg-background">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const meta = header.column.columnDef.meta as
-                  | { className?: string }
-                  | undefined;
-                return (
-                  <TableHead
-                    key={header.id}
-                    className={meta?.className}
-                    style={
-                      header.column.columnDef.size
-                        ? { width: header.column.columnDef.size }
-                        : undefined
-                    }
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.length ? (
-            table.getRowModel().rows.map((row) => {
-              const asset = row.original;
-              const rowContent = (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/items/${asset.id}`)}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const meta = cell.column.columnDef.meta as
-                      | { className?: string }
-                      | undefined;
-                    return (
-                      <TableCell key={cell.id} className={meta?.className}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              );
-
-              if (!canEdit || !onRowAction) return rowContent;
-
+    <Table>
+      <TableHeader className="sticky top-0 z-10 bg-background">
+        {table.getHeaderGroups().map((headerGroup) => (
+          <TableRow key={headerGroup.id}>
+            {headerGroup.headers.map((header) => {
+              const meta = header.column.columnDef.meta as
+                | { className?: string }
+                | undefined;
               return (
-                <ContextMenu key={row.id}>
-                  <ContextMenuTrigger asChild>
-                    {rowContent}
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem onClick={() => router.push(`/items/${asset.id}`)}>
-                      <ExternalLink className="mr-2 size-4" />
-                      Open
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={() => onRowAction("duplicate", asset)}>
-                      <Copy className="mr-2 size-4" />
-                      Duplicate
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => onRowAction("maintenance", asset)}>
-                      <Wrench className="mr-2 size-4" />
-                      Maintenance
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      className="text-destructive"
-                      onClick={() => onRowAction("retire", asset)}
-                    >
-                      <Archive className="mr-2 size-4" />
-                      Retire
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
+                <TableHead
+                  key={header.id}
+                  className={meta?.className}
+                  style={
+                    header.column.columnDef.size
+                      ? { width: header.column.columnDef.size }
+                      : undefined
+                  }
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
               );
-            })
-          ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No results.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+            })}
+          </TableRow>
+        ))}
+      </TableHeader>
+      <TableBody>
+        {table.getRowModel().rows.length ? (
+          table.getRowModel().rows.map((row) => {
+            const asset = row.original;
+            const rowContent = (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+                className="cursor-pointer"
+                onClick={() => router.push(`/items/${asset.id}`)}
+              >
+                {row.getVisibleCells().map((cell) => {
+                  const meta = cell.column.columnDef.meta as
+                    | { className?: string }
+                    | undefined;
+                  return (
+                    <TableCell key={cell.id} className={meta?.className}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            );
+
+            if (!canEdit || !onRowAction) return rowContent;
+
+            return (
+              <ContextMenu key={row.id}>
+                <ContextMenuTrigger asChild>
+                  {rowContent}
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem onClick={() => router.push(`/items/${asset.id}`)}>
+                    <ExternalLink className="mr-2 size-4" />
+                    Open
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => onRowAction("duplicate", asset)}>
+                    <Copy className="mr-2 size-4" />
+                    Duplicate
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={() => onRowAction("maintenance", asset)}>
+                    <Wrench className="mr-2 size-4" />
+                    Maintenance
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    className="text-destructive"
+                    onClick={() => onRowAction("retire", asset)}
+                  >
+                    <Archive className="mr-2 size-4" />
+                    Retire
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            );
+          })
+        ) : (
+          <TableRow>
+            <TableCell colSpan={columns.length} className="h-24 text-center">
+              No results.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
   );
 }
