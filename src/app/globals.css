@@ -4708,11 +4708,7 @@ tr.status-overdue .status-label,
 
 /* ===== Touch Target Audit ===== */
 
-/* Minimum 44px touch target on interactive elements */
-button,
-[role="button"] {
-  min-height: 44px;
-}
+/* Touch targets: only apply min-height to nav/action buttons, not UI primitives */
 /* Links in nav / lists get touch padding */
 .sidebar-nav a,
 .bottom-nav a {
