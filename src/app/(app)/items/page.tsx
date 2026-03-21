@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { AlertCircleIcon, SearchIcon, XIcon } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SearchIcon, XIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,9 +18,7 @@ import {
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Table,
   TableBody,
@@ -38,15 +35,14 @@ import {
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { type Asset, getColumns } from "./columns";
 import { DataTable } from "./data-table";
 import { FacetedFilter } from "./faceted-filter";
+import { NewItemSheet } from "./new-item-sheet";
 
 type CategoryOption = { id: string; name: string; parentId: string | null };
 type Location = { id: string; name: string };
@@ -57,234 +53,6 @@ type Response = {
   limit: number;
   offset: number;
 };
-
-type ItemKind = "serialized" | "bulk";
-
-function CreateItemCard({
-  locations,
-  categories,
-  onCreated,
-  onClose,
-}: {
-  locations: Location[];
-  categories: CategoryOption[];
-  onCreated: () => void;
-  onClose: () => void;
-}) {
-  const [kind, setKind] = useState<ItemKind>("serialized");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [showMeta, setShowMeta] = useState(false);
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError("");
-    const form = new FormData(e.currentTarget);
-
-    try {
-      let res: globalThis.Response;
-      if (kind === "serialized") {
-        const notes: Record<string, string> = {};
-        const desc = String(form.get("description") || "").trim();
-        const owner = String(form.get("owner") || "").trim();
-        if (desc) notes.description = desc;
-        if (owner) notes.owner = owner;
-
-        const rawCategoryId = String(form.get("categoryId") || "");
-        const categoryId = rawCategoryId === "__none__" ? "" : rawCategoryId;
-        const itemName = String(form.get("itemName") || "").trim();
-        res = await fetch("/api/assets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assetTag: String(form.get("assetTag") || ""),
-            type: String(form.get("type") || "equipment"),
-            brand: String(form.get("brand") || ""),
-            model: String(form.get("model") || ""),
-            serialNumber: String(form.get("serialNumber") || ""),
-            qrCodeValue: String(form.get("qrCodeValue") || ""),
-            locationId: String(form.get("locationId") || ""),
-            ...(categoryId ? { categoryId } : {}),
-            ...(itemName ? { name: itemName } : {}),
-            ...(Object.keys(notes).length ? { notes: JSON.stringify(notes) } : {}),
-          }),
-        });
-      } else {
-        const rawBulkCategoryId = String(form.get("categoryId") || "");
-        const bulkCategoryId = rawBulkCategoryId === "__none__" ? "" : rawBulkCategoryId;
-        res = await fetch("/api/bulk-skus", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: String(form.get("name") || ""),
-            category: String(form.get("category") || "general"),
-            ...(bulkCategoryId ? { categoryId: bulkCategoryId } : {}),
-            unit: String(form.get("unit") || ""),
-            locationId: String(form.get("locationId") || ""),
-            binQrCodeValue: String(form.get("binQrCodeValue") || ""),
-            initialQuantity: parseInt(String(form.get("initialQuantity") || "0"), 10),
-            minThreshold: parseInt(String(form.get("minThreshold") || "0"), 10),
-          }),
-        });
-      }
-
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error || "Failed to create item");
-        setSubmitting(false);
-        return;
-      }
-
-      setSubmitting(false);
-      onClose();
-      onCreated();
-    } catch {
-      setError("Network error");
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Card className="mb-4">
-      <CardHeader className="flex items-center justify-between">
-        <CardTitle>New item</CardTitle>
-        <ToggleGroup
-          type="single"
-          value={kind}
-          onValueChange={(v) => { if (v) { setKind(v as ItemKind); setError(""); } }}
-        >
-          <ToggleGroupItem value="serialized">Serialized</ToggleGroupItem>
-          <ToggleGroupItem value="bulk">Bulk</ToggleGroupItem>
-        </ToggleGroup>
-      </CardHeader>
-
-      <form onSubmit={handleSubmit} className="px-6 pb-6">
-        {kind === "serialized" ? (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <Input name="assetTag" placeholder="Tag name *" required />
-              <Input name="itemName" placeholder="Product name" />
-              <Select name="categoryId" defaultValue="__none__">
-                <SelectTrigger>
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Category</SelectItem>
-                  {categories.filter((c) => !c.parentId).map((parent) => (
-                    <SelectGroup key={parent.id}>
-                      <SelectLabel>{parent.name}</SelectLabel>
-                      {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                        <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                      ))}
-                      {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                        <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                      )}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
-              <input name="type" type="hidden" defaultValue="equipment" />
-              <Select name="locationId" required defaultValue="">
-                <SelectTrigger>
-                  <SelectValue placeholder="Location *" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Input name="brand" placeholder="Brand *" required />
-              <Input name="model" placeholder="Model *" required />
-              <Input name="serialNumber" placeholder="Serial number *" required />
-              <Input name="qrCodeValue" placeholder="QR code value *" required />
-            </div>
-
-            <Button
-              type="button"
-              variant="link"
-              onClick={() => setShowMeta((v) => !v)}
-              className="mt-3"
-            >
-              {showMeta ? "Hide" : "Show"} optional fields
-            </Button>
-
-            {showMeta && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-3">
-                <Input name="description" placeholder="Description" />
-                <Input name="owner" placeholder="Owner" />
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div>
-              <Input name="name" placeholder="Product name *" required />
-              <p className="text-muted-foreground text-xs mt-1">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</p>
-            </div>
-            <Select name="categoryId" defaultValue="__none__">
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Category</SelectItem>
-                {categories.filter((c) => !c.parentId).map((parent) => (
-                  <SelectGroup key={parent.id}>
-                    <SelectLabel>{parent.name}</SelectLabel>
-                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
-                      <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
-                    ))}
-                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
-                      <SelectItem value={parent.id}>{parent.name}</SelectItem>
-                    )}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-            <input name="category" type="hidden" defaultValue="general" />
-            <div>
-              <Input name="unit" placeholder="Unit (e.g. ea, box) *" required />
-              <p className="text-muted-foreground text-xs mt-1">How you count them: ea, box, pack, pair, roll</p>
-            </div>
-            <Select name="locationId" required defaultValue="">
-              <SelectTrigger>
-                <SelectValue placeholder="Location *" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <div>
-              <Input name="binQrCodeValue" placeholder="Bin QR code *" required />
-              <p className="text-muted-foreground text-xs mt-1">Scan or type the QR code on the storage bin</p>
-            </div>
-            <div>
-              <Input name="initialQuantity" type="number" min="0" defaultValue="0" placeholder="Initial qty" />
-              <p className="text-muted-foreground text-xs mt-1">How many are on hand right now</p>
-            </div>
-            <div>
-              <Input name="minThreshold" type="number" min="0" defaultValue="0" placeholder="Min threshold" />
-              <p className="text-muted-foreground text-xs mt-1">Alert when stock falls below this</p>
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 mt-3.5">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
-          </Button>
-        </div>
-        {error && (
-          <Alert variant="destructive" className="mt-2">
-            <AlertCircleIcon className="size-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-      </form>
-    </Card>
-  );
-}
-
 
 function BulkActionBar({
   count,
@@ -416,6 +184,7 @@ export default function ItemsPage() {
     return new Set(vals);
   });
   const [showCreate, setShowCreate] = useState(false);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
@@ -492,6 +261,7 @@ export default function ItemsPage() {
       .then((json) => {
         if (json) {
           setLocations(json.data?.locations || []);
+          setDepartments(json.data?.departments || []);
         }
       })
       .catch(() => {});
@@ -618,21 +388,19 @@ export default function ItemsPage() {
         {canEdit && (
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
-            <Button onClick={() => setShowCreate((v) => !v)}>
-              {showCreate ? "Close" : "New item"}
-            </Button>
+            <Button onClick={() => setShowCreate(true)}>New item</Button>
           </div>
         )}
       </div>
 
-      {showCreate && (
-        <CreateItemCard
-          locations={locations}
-          categories={categories}
-          onCreated={reload}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
+      <NewItemSheet
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        locations={locations}
+        departments={departments}
+        categories={categories}
+        onCreated={reload}
+      />
 
       <div className="space-y-4">
         {/* Table */}

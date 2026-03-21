@@ -17,9 +17,13 @@ const createAssetSchema = z.object({
   qrCodeValue: z.string().min(1),
   purchaseDate: z.string().optional(),
   purchasePrice: z.number().positive().optional(),
+  warrantyDate: z.string().optional(),
+  residualValue: z.number().nonnegative().optional(),
   locationId: z.string().cuid(),
   categoryId: z.string().cuid().optional(),
+  departmentId: z.string().cuid().optional(),
   linkUrl: z.string().url().max(2000).optional(),
+  uwAssetTag: z.string().max(200).optional(),
   status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).default("AVAILABLE"),
   notes: z.string().max(10000).optional()
 });
@@ -195,9 +199,13 @@ export const POST = withAuth(async (req, { user }) => {
       qrCodeValue: body.qrCodeValue,
       purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
       purchasePrice: body.purchasePrice,
+      warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null,
+      residualValue: body.residualValue,
       locationId: body.locationId,
       categoryId: body.categoryId ?? null,
+      departmentId: body.departmentId ?? null,
       linkUrl: body.linkUrl ?? null,
+      uwAssetTag: body.uwAssetTag ?? null,
       status: body.status,
       notes: body.notes
     },
