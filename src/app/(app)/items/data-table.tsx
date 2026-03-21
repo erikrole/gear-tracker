@@ -63,15 +63,17 @@ export function DataTable({
   return (
     <div className="rounded-md border">
       {(filterBar || bulkActionBar) && (
-        <div className="relative">
-          <div className={`flex flex-wrap items-end gap-3 px-4 py-3 ${bulkActionBar ? "invisible" : ""}`}>
-            {filterBar}
-          </div>
-          {bulkActionBar && (
-            <div className="absolute inset-0 flex items-center px-4">
-              {bulkActionBar}
+        <div className="sticky top-0 z-10 bg-background rounded-t-md">
+          <div className="relative">
+            <div className={`flex flex-wrap items-end gap-3 px-4 py-3 ${bulkActionBar ? "invisible" : ""}`}>
+              {filterBar}
             </div>
-          )}
+            {bulkActionBar && (
+              <div className="absolute inset-0 flex items-center px-4">
+                {bulkActionBar}
+              </div>
+            )}
+          </div>
         </div>
       )}
       <Table>
@@ -79,7 +81,11 @@ export function DataTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="bg-muted/50">
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id} className="relative h-10 border-t select-none">
+                <TableHead
+                  key={header.id}
+                  className="relative h-10 border-t select-none"
+                  style={header.column.getSize() !== 150 ? { width: header.column.getSize() } : undefined}
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -97,7 +103,7 @@ export function DataTable({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="cursor-pointer"
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => router.push(`/items/${row.original.id}`)}
               >
                 {row.getVisibleCells().map((cell) => (

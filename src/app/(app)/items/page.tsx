@@ -566,8 +566,8 @@ export default function ItemsPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
-        <h1>Items</h1>
+      <div className="flex items-center justify-between mb-6 gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Items</h1>
         {canEdit && (
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
@@ -698,7 +698,9 @@ export default function ItemsPage() {
         {!loading && !loadError && items.length > 0 && (
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex-1">
-              {selectedCount} of {items.length} row(s) selected.
+              {selectedCount > 0
+                ? `${selectedCount} of ${total} selected`
+                : `${total} items`}
             </div>
             <div className="flex items-center gap-6 lg:gap-8">
               <div className="flex items-center gap-2">
