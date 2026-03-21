@@ -229,6 +229,13 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       cell: ({ row }) => row.original.category?.name || row.original.type,
     },
     {
+      header: "Department",
+      id: "department",
+      size: 140,
+      accessorFn: (row) => row.department?.name ?? "",
+      cell: ({ row }) => row.original.department?.name ?? "—",
+    },
+    {
       header: "Location",
       id: "location",
       size: 160,
