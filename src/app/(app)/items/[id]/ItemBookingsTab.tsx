@@ -17,7 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { Switch } from "@/components/ui/switch";
+import { Spinner } from "@/components/ui/spinner";
 import { Label } from "@/components/ui/label";
+import { Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -166,18 +169,27 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
 
 /* ── Settings Card (sidebar) ───────────────────────────── */
 
+type ToggleStatus = "idle" | "saving" | "saved" | "error";
+
 function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const [saving, setSaving] = useState(false);
+  const [savingField, setSavingField] = useState<Record<string, ToggleStatus>>({});
 
   async function toggleSetting(field: string, currentValue: boolean) {
-    setSaving(true);
-    await fetch(`/api/assets/${asset.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: !currentValue }),
-    });
-    setSaving(false);
-    onRefresh();
+    setSavingField((prev) => ({ ...prev, [field]: "saving" }));
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: !currentValue }),
+      });
+      if (!res.ok) throw new Error();
+      setSavingField((prev) => ({ ...prev, [field]: "saved" }));
+      setTimeout(() => setSavingField((prev) => ({ ...prev, [field]: "idle" })), 2000);
+      onRefresh();
+    } catch {
+      setSavingField((prev) => ({ ...prev, [field]: "error" }));
+      setTimeout(() => setSavingField((prev) => ({ ...prev, [field]: "idle" })), 3000);
+    }
   }
 
   const toggles = [
@@ -191,21 +203,35 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
       <CardHeader>
         <CardTitle>Settings</CardTitle>
       </CardHeader>
-      <CardContent className="p-16 pt-0">
-        {toggles.map((t) => (
-          <div key={t.field} className="flex items-center justify-between gap-3 mb-4 last:mb-0">
-            <div className="min-w-0">
-              <Label className="text-sm font-medium">{t.label}</Label>
-              <p className="text-xs text-muted-foreground mt-0.5 m-0">{t.help}</p>
+      <CardContent className="px-4 pb-4 pt-0 space-y-2">
+        {toggles.map((t) => {
+          const status = savingField[t.field] || "idle";
+          return (
+            <div
+              key={t.field}
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors",
+                t.value && "border-primary/30 bg-primary/5",
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium">{t.label}</Label>
+                  {status === "saving" && <Spinner className="size-3" />}
+                  {status === "saved" && <Check className="size-3 text-green-600 dark:text-green-400" />}
+                  {status === "error" && <X className="size-3 text-destructive" />}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 m-0">{t.help}</p>
+              </div>
+              <Switch
+                checked={t.value}
+                onCheckedChange={() => canEdit && toggleSetting(t.field, t.value)}
+                disabled={status === "saving" || !canEdit}
+                className="shrink-0"
+              />
             </div>
-            <Switch
-              checked={t.value}
-              onCheckedChange={() => canEdit && toggleSetting(t.field, t.value)}
-              disabled={saving || !canEdit}
-              className="shrink-0"
-            />
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
