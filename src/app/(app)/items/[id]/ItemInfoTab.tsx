@@ -58,7 +58,11 @@ import { SaveableField, useSaveField } from "./SaveableField";
 /* ── Constants ─────────────────────────────────────────── */
 
 const DEPARTMENTS = [
-  "TODO: Add departments",
+  "Creative",
+  "Football",
+  "Men's Basketball",
+  "Brand Comm",
+  "Live Production",
 ] as const;
 
 function getFiscalYearOptions(): string[] {
