@@ -4,11 +4,10 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,12 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -351,12 +344,6 @@ function BulkActionBar({
   );
 }
 
-const TOGGLEABLE_COLUMNS = [
-  { id: "category", label: "Category" },
-  { id: "status", label: "Status" },
-  { id: "location", label: "Location" },
-];
-
 const STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "Available" },
   { value: "CHECKED_OUT", label: "Checked out" },
@@ -398,7 +385,6 @@ export default function ItemsPage() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
   const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter;
-  const activeFilterCount = [statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter].filter(Boolean).length;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -522,11 +508,6 @@ export default function ItemsPage() {
     }
   }
 
-  // Resolve display values for active filters
-  const locationName = locations.find((l) => l.id === locationFilter)?.name;
-  const categoryName = categoryOptions.find((c) => c.value === categoryFilter)?.label;
-  const departmentName = departments.find((d) => d.id === departmentFilter)?.name;
-
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     switch (action) {
       case "open":
@@ -584,170 +565,6 @@ export default function ItemsPage() {
       )}
 
       <div className="space-y-4">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-2">
-          <Input
-            type="text"
-            placeholder="Search items..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="h-8 max-w-sm"
-          />
-          <div className="flex items-center gap-2">
-            {/* Filters popover */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1">
-                  <SlidersHorizontal className="size-3.5" />
-                  Filters
-                  {activeFilterCount > 0 && (
-                    <Badge variant="secondary" className="px-1 py-0 text-[10px] min-w-4 h-4 flex items-center justify-center rounded-full">
-                      {activeFilterCount}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-[260px] space-y-3 p-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Status</Label>
-                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "__all__" ? "" : v); setPage(0); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All statuses</SelectItem>
-                      {STATUS_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Location</Label>
-                  <Select value={locationFilter} onValueChange={(v) => { setLocationFilter(v === "__all__" ? "" : v); setPage(0); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All locations" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All locations</SelectItem>
-                      {locations.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Category</Label>
-                  <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v === "__all__" ? "" : v); setPage(0); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All categories</SelectItem>
-                      {categoryOptions.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Brand</Label>
-                  <Select value={brandFilter} onValueChange={(v) => { setBrandFilter(v === "__all__" ? "" : v); setPage(0); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All brands" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__all__">All brands</SelectItem>
-                      {brands.map((b) => (
-                        <SelectItem key={b} value={b}>{b}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {departments.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Department</Label>
-                    <Select value={departmentFilter} onValueChange={(v) => { setDepartmentFilter(v === "__all__" ? "" : v); setPage(0); }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All departments" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">All departments</SelectItem>
-                        {departments.map((d) => (
-                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="w-full">
-                    Clear all filters
-                  </Button>
-                )}
-              </PopoverContent>
-            </Popover>
-
-            {/* Columns dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8">
-                  Columns
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[180px]">
-                {TOGGLEABLE_COLUMNS.map((col) => (
-                  <DropdownMenuCheckboxItem
-                    key={col.id}
-                    checked={columnVisibility[col.id] !== false}
-                    onCheckedChange={(checked) =>
-                      setColumnVisibility((prev) => ({ ...prev, [col.id]: !!checked }))
-                    }
-                  >
-                    {col.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Active filter chips */}
-        {hasActiveFilters && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {statusFilter && (
-              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setStatusFilter(""); setPage(0); }}>
-                Status: {STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}
-                <X className="size-3" />
-              </Button>
-            )}
-            {locationFilter && (
-              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setLocationFilter(""); setPage(0); }}>
-                Location: {locationName}
-                <X className="size-3" />
-              </Button>
-            )}
-            {categoryFilter && (
-              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setCategoryFilter(""); setPage(0); }}>
-                Category: {categoryName}
-                <X className="size-3" />
-              </Button>
-            )}
-            {brandFilter && (
-              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setBrandFilter(""); setPage(0); }}>
-                Brand: {brandFilter}
-                <X className="size-3" />
-              </Button>
-            )}
-            {departmentFilter && (
-              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setDepartmentFilter(""); setPage(0); }}>
-                Department: {departmentName}
-                <X className="size-3" />
-              </Button>
-            )}
-          </div>
-        )}
-
         {/* Bulk action bar */}
         {canEdit && selectedCount > 0 && (
           <BulkActionBar
@@ -766,9 +583,9 @@ export default function ItemsPage() {
           <div className="rounded-md border">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/50">
                   {Array.from({ length: 5 }, (_, i) => (
-                    <TableHead key={i}>
+                    <TableHead key={i} className="border-t">
                       <Skeleton className="h-4 w-20" />
                     </TableHead>
                   ))}
@@ -799,6 +616,67 @@ export default function ItemsPage() {
             onRowSelectionChange={setRowSelection}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
+            filterBar={
+              <>
+                <div className="w-48">
+                  <Label className="text-xs">Name</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      className="peer pl-9"
+                      value={search}
+                      onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                      placeholder="Search items"
+                      type="text"
+                    />
+                    <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
+                      <SearchIcon size={16} />
+                    </div>
+                  </div>
+                </div>
+                <div className="w-40">
+                  <Label className="text-xs">Category</Label>
+                  <Select value={categoryFilter || "all"} onValueChange={(v) => { setCategoryFilter(v === "all" ? "" : v); setPage(0); }}>
+                    <SelectTrigger className="mt-1 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {categoryOptions.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-40">
+                  <Label className="text-xs">Status</Label>
+                  <Select value={statusFilter || "all"} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(0); }}>
+                    <SelectTrigger className="mt-1 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {STATUS_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-40">
+                  <Label className="text-xs">Location</Label>
+                  <Select value={locationFilter || "all"} onValueChange={(v) => { setLocationFilter(v === "all" ? "" : v); setPage(0); }}>
+                    <SelectTrigger className="mt-1 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {locations.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            }
           />
         )}
 
