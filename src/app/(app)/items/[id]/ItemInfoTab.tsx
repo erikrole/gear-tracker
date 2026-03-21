@@ -3,11 +3,11 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +44,7 @@ import { cn } from "@/lib/utils";
 import { format, parse, isValid } from "date-fns";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
-import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
+import { CategoryCombobox } from "@/components/FormCombobox";
 
 /* ── Constants ─────────────────────────────────────────── */
 
@@ -389,44 +389,50 @@ function DatePickerField({
   );
 }
 
-/* ── Saveable Combobox (wraps FormCombobox with inline save) ── */
+/* ── Saveable Native Select (wraps NativeSelect with inline save) ── */
 
-function SaveableComboboxField({
+function SaveableNativeSelectField({
   label,
   value,
   options,
   placeholder,
-  searchPlaceholder,
   canEdit,
   onSave,
-  emptyLabel,
 }: {
   label: string;
   value: string;
   options: { value: string; label: string }[];
   placeholder?: string;
-  searchPlaceholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
-  emptyLabel?: string;
 }) {
   const saveField = useSaveField(onSave);
 
+  if (!canEdit) {
+    const selected = options.find((o) => o.value === value);
+    return (
+      <SaveableField label={label} status={saveField.status}>
+        <span className="text-sm">{selected?.label || "\u2014"}</span>
+      </SaveableField>
+    );
+  }
+
   return (
     <SaveableField label={label} status={saveField.status}>
-      <FormCombobox
+      <NativeSelect
         value={value}
-        onValueChange={async (v) => {
+        onChange={async (e) => {
+          const v = e.target.value;
           if (v === value) return;
           await saveField.save(v);
         }}
-        options={options}
-        placeholder={placeholder}
-        searchPlaceholder={searchPlaceholder}
-        emptyLabel={emptyLabel}
-        allowClear
-        disabled={!canEdit}
-      />
+        className="h-8 text-sm"
+      >
+        <option value="">{placeholder || "Select..."}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </NativeSelect>
     </SaveableField>
   );
 }
@@ -703,7 +709,7 @@ const SectionHeader = React.forwardRef<
   { title: string; open: boolean } & React.HTMLAttributes<HTMLDivElement>
 >(function SectionHeader({ title, open, ...props }, ref) {
   return (
-    <div ref={ref} className="col-span-full px-4 pt-4 pb-1" {...props}>
+    <div ref={ref} className="col-span-full px-4 pt-4 pb-2" {...props}>
       <div className="flex items-center gap-1.5 w-full text-left group cursor-pointer">
         <ChevronDown
           className={cn(
@@ -715,7 +721,6 @@ const SectionHeader = React.forwardRef<
           {title}
         </Label>
       </div>
-      <Separator className="mt-1.5" />
     </div>
   );
 });
@@ -836,7 +841,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Identity" open={identityOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
               <TextInputField
                 label="Asset tag"
                 value={asset.assetTag}
@@ -891,7 +896,7 @@ export default function ItemInfoCard({
               <SectionHeader title="Procurement" open={procurementOpen} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
                 <TextInputField
                   label="Purchase price"
                   value={
@@ -939,12 +944,11 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("warrantyDate", v)}
                 />
-                <SaveableComboboxField
+                <SaveableNativeSelectField
                   label="Fiscal Year"
                   value={asset.metadata?.fiscalYearPurchased || ""}
                   options={fiscalYearOptions.map((y) => ({ value: y, label: y }))}
                   placeholder="Select fiscal year"
-                  searchPlaceholder="Search years..."
                   canEdit={canEdit}
                   onSave={(v) =>
                     saveField("metadata.fiscalYearPurchased", v)
@@ -961,7 +965,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Administrative" open={adminOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
               <TextInputField
                 label="Location"
                 value={asset.location.name}
@@ -976,12 +980,11 @@ export default function ItemInfoCard({
                 canEdit={canEdit}
                 onSave={(v) => saveField("metadata.owner", v)}
               />
-              <SaveableComboboxField
+              <SaveableNativeSelectField
                 label="Department"
                 value={asset.department?.name || ""}
                 options={departments.map((d) => ({ value: d.name, label: d.name }))}
                 placeholder="Select department"
-                searchPlaceholder="Search departments..."
                 canEdit={canEdit}
                 onSave={saveDepartment}
               />

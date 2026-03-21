@@ -100,7 +100,7 @@ export function SaveableField({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border/50 last:border-b-0",
+        "flex items-center justify-between gap-3 px-4 py-3",
         className,
       )}
     >

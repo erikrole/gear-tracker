@@ -146,7 +146,7 @@ function ActionsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="header-action-btn">Actions</Button>
+        <Button variant="outline">Actions</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => onAction("duplicate")}>
@@ -315,10 +315,10 @@ export default function ItemDetailsPage() {
               <Skeleton className="h-4 w-32" />
             </div>
           </div>
-          <div className="header-actions">
-            <Skeleton className="h-9 w-[100px]" />
-            <Skeleton className="h-9 w-[100px]" />
-            <Skeleton className="h-9 w-[100px]" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-24" />
           </div>
         </div>
         {/* Status badge skeleton */}
@@ -418,12 +418,12 @@ export default function ItemDetailsPage() {
             )}
           </div>
         </div>
-        <div className="header-actions">
+        <div className="flex items-center gap-2">
           <TooltipProvider>
             {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant={asset.availableForReservation ? "default" : "outline"} className="header-action-btn" asChild>
+                <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
                   <Link href={`/reservations?newFor=${asset.id}`} className="no-underline">Reserve</Link>
                 </Button>
               </TooltipTrigger>
@@ -433,7 +433,7 @@ export default function ItemDetailsPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} className="header-action-btn" asChild>
+                <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} asChild>
                   <Link href={`/checkouts?newFor=${asset.id}`} className="no-underline">Check out</Link>
                 </Button>
               </TooltipTrigger>
