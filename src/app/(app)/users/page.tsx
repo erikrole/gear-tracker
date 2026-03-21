@@ -1,20 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
 import CreateUserCard from "./CreateUserCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ArrowUpDown } from "lucide-react";
 
 const LIMIT = 50;
 
 /* ── Sort Header ───────────────────────────────────────── */
 
-function SortTh({
+function SortableHead({
   label,
   sortKey,
   currentSort,
@@ -38,19 +47,21 @@ function SortTh({
   }
 
   return (
-    <th className={className || ""}>
-      <button
-        type="button"
-        className="sort-header-btn"
+    <TableHead className={className}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3 h-8"
         onClick={handleClick}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : undefined}
       >
-        <span className="sort-header-inner">
-          {label}
-          {isActive && <span className="sort-arrow">{isAsc ? "\u2191" : "\u2193"}</span>}
-        </span>
-      </button>
-    </th>
+        {label}
+        {isActive ? (
+          <span className="ml-1 text-xs">{isAsc ? "\u2191" : "\u2193"}</span>
+        ) : (
+          <ArrowUpDown className="ml-1 size-3.5 opacity-50" />
+        )}
+      </Button>
+    </TableHead>
   );
 }
 
@@ -139,7 +150,6 @@ export default function UsersPage() {
       <div className="page-header">
         <div className="flex items-center gap-2">
           <h1>Users</h1>
-          {total > 0 && <span className="section-count">{total}</span>}
         </div>
         {canEdit && !showCreate && (
           <Button onClick={() => setShowCreate(true)}>
@@ -159,87 +169,119 @@ export default function UsersPage() {
 
       {/* Users List */}
       <Card>
-        <UserFilters
-          search={search}
-          onSearchChange={setSearch}
-          roleFilter={roleFilter}
-          onRoleChange={setRoleFilter}
-          locationFilter={locationFilter}
-          onLocationChange={setLocationFilter}
-          locations={locations}
-          onClearAll={() => {
-            setRoleFilter("");
-            setLocationFilter("");
-          }}
-        />
-
-        {loading ? (
-          <SkeletonTable rows={8} cols={5} />
-        ) : loadError ? (
-          <EmptyState
-            icon="users"
-            title="Failed to load users"
-            description="Something went wrong. Please try again."
-          />
-        ) : users.length === 0 ? (
-          <EmptyState
-            icon="users"
-            title={hasFilters ? "No users match your filters" : "No users yet"}
-            description={
-              hasFilters
-                ? "Try adjusting your search or filters."
-                : canEdit
-                  ? "Click \"Add user\" to get started."
-                  : undefined
-            }
-          />
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className="data-table-wrap hide-mobile-only">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <SortTh label="Name" sortKey="name" currentSort={sort} onSort={setSort} />
-                    <SortTh label="Email" sortKey="email" currentSort={sort} onSort={setSort} className="hide-mobile" />
-                    <SortTh label="Role" sortKey="role" currentSort={sort} onSort={setSort} />
-                    <th className="hide-mobile">Location</th>
-                    <th className="hide-mobile">Area</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <UserTableRow key={user.id} user={user} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="show-mobile-only">
-              {users.map((user) => (
-                <UserMobileCard key={user.id} user={user} />
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="pagination">
-            <span>
-              Showing {page * LIMIT + 1}&ndash;{Math.min((page + 1) * LIMIT, total)} of {total}
-            </span>
-            <div className="pagination-btns">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
-                Next
-              </Button>
-            </div>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle>Team Members</CardTitle>
+            <CardDescription>
+              {total > 0 ? `${total} user${total !== 1 ? "s" : ""} in your organization.` : "Manage your team members."}
+            </CardDescription>
           </div>
-        )}
+        </CardHeader>
+
+        <CardContent className="space-y-4 px-6 pb-6 pt-0">
+          <UserFilters
+            search={search}
+            onSearchChange={setSearch}
+            roleFilter={roleFilter}
+            onRoleChange={setRoleFilter}
+            locationFilter={locationFilter}
+            onLocationChange={setLocationFilter}
+            locations={locations}
+            onClearAll={() => {
+              setRoleFilter("");
+              setLocationFilter("");
+            }}
+          />
+
+          {loading ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <TableHead key={i}>
+                      <Skeleton className="h-4 w-20" />
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 8 }, (_, r) => (
+                  <TableRow key={r}>
+                    {Array.from({ length: 5 }, (_, c) => (
+                      <TableCell key={c}>
+                        <Skeleton className="h-4" style={{ width: `${50 + ((r + c) % 4) * 12}%` }} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : loadError ? (
+            <EmptyState
+              icon="users"
+              title="Failed to load users"
+              description="Something went wrong. Please try again."
+            />
+          ) : users.length === 0 ? (
+            <EmptyState
+              icon="users"
+              title={hasFilters ? "No users match your filters" : "No users yet"}
+              description={
+                hasFilters
+                  ? "Try adjusting your search or filters."
+                  : canEdit
+                    ? "Click \"Add user\" to get started."
+                    : undefined
+              }
+            />
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hide-mobile-only">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <SortableHead label="Name" sortKey="name" currentSort={sort} onSort={setSort} />
+                      <SortableHead label="Email" sortKey="email" currentSort={sort} onSort={setSort} className="hidden md:table-cell" />
+                      <SortableHead label="Role" sortKey="role" currentSort={sort} onSort={setSort} />
+                      <TableHead className="hidden md:table-cell">Location</TableHead>
+                      <TableHead className="hidden md:table-cell">Area</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <UserTableRow key={user.id} user={user} />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="show-mobile-only">
+                {users.map((user) => (
+                  <UserMobileCard key={user.id} user={user} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
+              <span>
+                Showing {page * LIMIT + 1}&ndash;{Math.min((page + 1) * LIMIT, total)} of {total}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
       </Card>
     </>
   );

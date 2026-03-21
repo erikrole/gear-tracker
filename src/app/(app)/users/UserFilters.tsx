@@ -1,6 +1,5 @@
 import { FilterChip } from "@/components/FilterChip";
 import { Input } from "@/components/ui/input";
-import { CardHeader } from "@/components/ui/card";
 import type { Location, Role } from "./types";
 import { ROLE_OPTIONS } from "./types";
 
@@ -27,16 +26,16 @@ export default function UserFilters({
   const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
 
   return (
-    <CardHeader className="filter-chip-bar">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
       <Input
-        className="filter-chip-search"
+        className="max-w-sm"
         type="text"
         placeholder="Search by name or email..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
         aria-label="Search users"
       />
-      <div className="filter-chips">
+      <div className="flex items-center gap-2 flex-wrap">
         <FilterChip
           label="Role"
           value={roleFilter}
@@ -58,6 +57,6 @@ export default function UserFilters({
           </button>
         )}
       </div>
-    </CardHeader>
+    </div>
   );
 }
