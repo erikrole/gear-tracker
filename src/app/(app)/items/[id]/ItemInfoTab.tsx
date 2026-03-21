@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -17,19 +18,12 @@ import {
   DialogCloseButton,
 } from "@/components/ui/dialog";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar } from "@/components/ui/calendar";
 import {
-  CalendarIcon,
   Check,
   ChevronDown,
   ExternalLink,
@@ -41,7 +35,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { format, parse, isValid } from "date-fns";
+import { format } from "date-fns";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { CategoryCombobox } from "@/components/FormCombobox";
@@ -257,134 +251,33 @@ function LinkField({
   );
 }
 
-/* ── Date Picker Input Field ───────────────────────────── */
+/* ── Saveable Date Picker (wraps DatePicker with inline save) ── */
 
-const DATE_FORMATS = [
-  "MM/dd/yyyy",
-  "M/d/yyyy",
-  "MM-dd-yyyy",
-  "M-d-yyyy",
-  "MMM d, yyyy",
-  "MMMM d, yyyy",
-  "yyyy-MM-dd",
-];
-
-function parseDateInput(input: string): Date | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  for (const fmt of DATE_FORMATS) {
-    const parsed = parse(trimmed, fmt, new Date());
-    if (isValid(parsed) && parsed.getFullYear() > 1900 && parsed.getFullYear() < 2100) {
-      return parsed;
-    }
-  }
-  return null;
-}
-
-function DatePickerField({
+function SaveableDatePickerField({
   label,
   value,
-  placeholder,
   canEdit,
   onSave,
 }: {
   label: string;
   value: string;
-  placeholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
   const saveField = useSaveField(onSave);
-  const fieldId = useId();
-
   const dateValue = value ? new Date(value + "T00:00:00") : undefined;
 
-  useEffect(() => {
-    setDraft(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
-  }, [value]);
-
-  async function commitTyped() {
-    const trimmed = draft.trim();
-    if (!trimmed) {
-      if (value) await saveField.save("");
-      return;
-    }
-    const parsed = parseDateInput(trimmed);
-    if (!parsed) {
-      setDraft(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
-      return;
-    }
-    const iso = format(parsed, "yyyy-MM-dd");
-    if (iso === value) return;
-    await saveField.save(iso);
-  }
-
-  async function handleCalendarSelect(day: Date | undefined) {
-    if (!day) return;
-    const iso = format(day, "yyyy-MM-dd");
-    if (iso === value) {
-      setOpen(false);
-      return;
-    }
-    await saveField.save(iso);
-    setOpen(false);
-  }
-
-  async function handleClear() {
-    await saveField.save("");
-    setOpen(false);
-  }
-
   return (
-    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
-      <div className="flex items-center gap-1">
-        <Input
-          id={fieldId}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitTyped}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setDraft(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
-            }
-          }}
-          placeholder={placeholder || "MM/DD/YYYY"}
-          disabled={!canEdit}
-          className="h-8 text-sm flex-1"
-        />
-        {canEdit && (
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 shrink-0">
-                <CalendarIcon className="size-3.5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={dateValue}
-                onSelect={handleCalendarSelect}
-                defaultMonth={dateValue}
-              />
-              {value && (
-                <div className="border-t px-3 py-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-muted-foreground"
-                    onClick={handleClear}
-                  >
-                    Clear date
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
+    <SaveableField label={label} status={saveField.status}>
+      <DatePicker
+        value={dateValue}
+        onChange={async (day) => {
+          const iso = day ? format(day, "yyyy-MM-dd") : "";
+          if (iso === value) return;
+          await saveField.save(iso);
+        }}
+        disabled={!canEdit}
+      />
     </SaveableField>
   );
 }
@@ -924,7 +817,7 @@ export default function ItemInfoCard({
                     onSave={(v) => saveField("linkUrl", v)}
                   />
                 </div>
-                <DatePickerField
+                <SaveableDatePickerField
                   label="Purchase date"
                   value={
                     asset.purchaseDate
@@ -934,7 +827,7 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("purchaseDate", v)}
                 />
-                <DatePickerField
+                <SaveableDatePickerField
                   label="Warranty date"
                   value={
                     asset.warrantyDate
