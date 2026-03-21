@@ -45,6 +45,15 @@ interface NewItemSheetProps {
 }
 
 type ItemKind = "serialized" | "bulk";
+type BulkMode = "new" | "existing";
+
+type BulkSkuOption = {
+  id: string;
+  name: string;
+  location: { name: string };
+  balances: { onHandQuantity: number }[];
+  categoryRel: { name: string } | null;
+};
 
 type ParentSearchResult = {
   id: string;
@@ -195,6 +204,27 @@ export function NewItemSheet({
   // Settings
   const [availableForBooking, setAvailableForBooking] = useState(true);
 
+  // Bulk mode
+  const [bulkMode, setBulkMode] = useState<BulkMode>("new");
+  const [existingBulkSkus, setExistingBulkSkus] = useState<BulkSkuOption[]>([]);
+  const [selectedBulkSkuId, setSelectedBulkSkuId] = useState("");
+  const [addQty, setAddQty] = useState(1);
+  const [bulkQrCode, setBulkQrCode] = useState("");
+
+  // Fetch existing bulk SKUs when bulk mode is selected
+  useEffect(() => {
+    if (kind !== "bulk" || !open) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/bulk-skus");
+        const json = await res.json();
+        if (res.ok) setExistingBulkSkus(json.data || []);
+      } catch {
+        // ignore
+      }
+    })();
+  }, [kind, open]);
+
   // Accessory / parent
   const [isAccessory, setIsAccessory] = useState(false);
   const [parentAsset, setParentAsset] = useState<ParentSearchResult | null>(null);
@@ -217,6 +247,10 @@ export function NewItemSheet({
     setIsAccessory(false);
     setParentAsset(null);
     parentSearch.clear();
+    setBulkMode("new");
+    setSelectedBulkSkuId("");
+    setAddQty(1);
+    setBulkQrCode("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -243,8 +277,11 @@ export function NewItemSheet({
       if (!categoryId || categoryId === "__none__") return "Please select a category.";
       if (!departmentId || departmentId === "__none__") return "Please select a department.";
       if (isAccessory && !parentAsset) return "Please select a parent item for this accessory.";
+      if (!locationId) return "Please select a location.";
+    } else if (kind === "bulk" && bulkMode === "new") {
+      if (!categoryId || categoryId === "__none__") return "Please select a category.";
+      if (!locationId) return "Please select a location.";
     }
-    if (!locationId) return "Please select a location.";
     return null;
   }
 
@@ -309,7 +346,25 @@ export function NewItemSheet({
           }),
         });
         createdLabel = assetTag || itemName || "Asset";
+      } else if (bulkMode === "existing") {
+        // Add quantity to an existing bulk SKU
+        if (!selectedBulkSkuId || addQty < 1) {
+          setError("Select a bulk item and enter a quantity to add.");
+          setSubmitting(false);
+          return;
+        }
+        res = await fetch(`/api/bulk-skus/${selectedBulkSkuId}/adjust`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            quantityDelta: addQty,
+            reason: "Added via New Item sheet",
+          }),
+        });
+        const sku = existingBulkSkus.find((s) => s.id === selectedBulkSkuId);
+        createdLabel = sku?.name || "Bulk item";
       } else {
+        // Create new bulk SKU
         const resolvedCategoryId = categoryId === "__none__" ? "" : categoryId;
         const bulkName = String(form.get("bulkName") || "");
         res = await fetch("/api/bulk-skus", {
@@ -319,11 +374,9 @@ export function NewItemSheet({
             name: bulkName,
             category: "general",
             ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
-            unit: String(form.get("unit") || ""),
             locationId,
-            binQrCodeValue: String(form.get("binQrCodeValue") || ""),
+            binQrCodeValue: bulkQrCode,
             initialQuantity: parseInt(String(form.get("initialQuantity") || "0"), 10),
-            minThreshold: parseInt(String(form.get("minThreshold") || "0"), 10),
           }),
         });
         createdLabel = bulkName || "Bulk item";
@@ -682,41 +735,133 @@ export function NewItemSheet({
               </>
             ) : (
               <>
-                {/* ── Bulk item details ── */}
-                <section className="space-y-4">
-                  <SectionHeading>Item details</SectionHeading>
-
-                  <FormRow label="Product name" required>
-                    <Input name="bulkName" placeholder="e.g. AA Batteries" required />
-                  </FormRow>
-
-                  <FormRow label="Category">
-                    {categorySelect}
-                  </FormRow>
-
-                  <FormRow label="Location" required>
-                    {locationSelect}
-                  </FormRow>
-
-                  <FormRow label="Unit" required>
-                    <Input name="unit" placeholder="ea, box, pack" required />
-                  </FormRow>
-
-                  <FormRow label="Bin QR code" required>
-                    <Input name="binQrCodeValue" placeholder="QR code on storage bin" required />
-                  </FormRow>
-
-                  <FormRow2Col label="Stock">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Initial quantity</Label>
-                      <Input name="initialQuantity" type="number" min="0" defaultValue="0" />
+                {/* ── Bulk sub-mode: add new vs add to existing ── */}
+                <section className="space-y-3">
+                  <SectionHeading>Bulk option</SectionHeading>
+                  <RadioGroup value={bulkMode} onValueChange={(v) => setBulkMode(v as BulkMode)}>
+                    <div className="flex items-start gap-3">
+                      <RadioGroupItem value="new" id="bulk-new" className="mt-0.5" />
+                      <div>
+                        <Label htmlFor="bulk-new" className="font-medium cursor-pointer">Create new bulk item</Label>
+                        <p className="text-xs text-muted-foreground">Add a new product to track in bulk</p>
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Min threshold</Label>
-                      <Input name="minThreshold" type="number" min="0" defaultValue="0" />
+                    <div className="flex items-start gap-3">
+                      <RadioGroupItem value="existing" id="bulk-existing" className="mt-0.5" />
+                      <div>
+                        <Label htmlFor="bulk-existing" className="font-medium cursor-pointer">Add to existing</Label>
+                        <p className="text-xs text-muted-foreground">Add more stock to an item you already track</p>
+                      </div>
                     </div>
-                  </FormRow2Col>
+                  </RadioGroup>
                 </section>
+
+                <Separator />
+
+                {bulkMode === "new" ? (
+                  <section className="space-y-4">
+                    <SectionHeading>New bulk item</SectionHeading>
+
+                    <FormRow label="Item name" required>
+                      <Input name="bulkName" placeholder="e.g. AA Batteries" required />
+                    </FormRow>
+
+                    <FormRow label="Category" required>
+                      {categorySelect}
+                    </FormRow>
+
+                    <FormRow label="Location" required>
+                      {locationSelect}
+                    </FormRow>
+
+                    <FormRow label="QR code" required>
+                      <div className="flex gap-2">
+                        <Input
+                          value={bulkQrCode}
+                          onChange={(e) => setBulkQrCode(e.target.value)}
+                          placeholder="Bin QR code"
+                          required
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title="Generate QR code"
+                          onClick={() => setBulkQrCode(generateQrCode())}
+                        >
+                          <Dices className="size-4" />
+                        </Button>
+                      </div>
+                    </FormRow>
+
+                    <FormRow label="Initial quantity">
+                      <Input name="initialQuantity" type="number" min="0" defaultValue="0" />
+                    </FormRow>
+                  </section>
+                ) : (
+                  <section className="space-y-4">
+                    <SectionHeading>Add to existing</SectionHeading>
+
+                    {existingBulkSkus.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No bulk items found. Create one first.</p>
+                    ) : (
+                      <>
+                        <FormRow label="Bulk item" required>
+                          <Select value={selectedBulkSkuId} onValueChange={setSelectedBulkSkuId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a bulk item" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {existingBulkSkus.map((sku) => {
+                                const qty = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+                                return (
+                                  <SelectItem key={sku.id} value={sku.id}>
+                                    {sku.name} — {qty} on hand ({sku.location.name})
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        </FormRow>
+
+                        {selectedBulkSkuId && (() => {
+                          const sku = existingBulkSkus.find((s) => s.id === selectedBulkSkuId);
+                          if (!sku) return null;
+                          const qty = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+                          return (
+                            <div className="rounded-md border bg-muted/30 px-4 py-3 space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Current stock</span>
+                                <span className="font-medium">{qty}</span>
+                              </div>
+                              {sku.categoryRel && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Category</span>
+                                  <span>{sku.categoryRel.name}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Location</span>
+                                <span>{sku.location.name}</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        <FormRow label="Add quantity" required>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={addQty}
+                            onChange={(e) => setAddQty(parseInt(e.target.value) || 1)}
+                            required
+                          />
+                        </FormRow>
+                      </>
+                    )}
+                  </section>
+                )}
               </>
             )}
 
