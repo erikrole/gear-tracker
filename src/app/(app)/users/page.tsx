@@ -7,7 +7,6 @@ import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
 import CreateUserCard from "./CreateUserCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -147,10 +146,8 @@ export default function UsersPage() {
   return (
     <>
       {/* Header */}
-      <div className="page-header">
-        <div className="flex items-center gap-2">
-          <h1>Users</h1>
-        </div>
+      <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
+        <h1>Users</h1>
         {canEdit && !showCreate && (
           <Button onClick={() => setShowCreate(true)}>
             Add user
@@ -168,36 +165,27 @@ export default function UsersPage() {
       )}
 
       {/* Users List */}
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
-          <div>
-            <CardTitle>Team Members</CardTitle>
-            <CardDescription>
-              {total > 0 ? `${total} user${total !== 1 ? "s" : ""} in your organization.` : "Manage your team members."}
-            </CardDescription>
-          </div>
-        </CardHeader>
+      <div className="space-y-4">
+        <UserFilters
+          search={search}
+          onSearchChange={setSearch}
+          roleFilter={roleFilter}
+          onRoleChange={setRoleFilter}
+          locationFilter={locationFilter}
+          onLocationChange={setLocationFilter}
+          locations={locations}
+          onClearAll={() => {
+            setRoleFilter("");
+            setLocationFilter("");
+          }}
+        />
 
-        <CardContent className="space-y-4 px-6 pb-6 pt-0">
-          <UserFilters
-            search={search}
-            onSearchChange={setSearch}
-            roleFilter={roleFilter}
-            onRoleChange={setRoleFilter}
-            locationFilter={locationFilter}
-            onLocationChange={setLocationFilter}
-            locations={locations}
-            onClearAll={() => {
-              setRoleFilter("");
-              setLocationFilter("");
-            }}
-          />
-
-          {loading ? (
+        {loading ? (
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  {Array.from({ length: 5 }, (_, i) => (
+                  {Array.from({ length: 4 }, (_, i) => (
                     <TableHead key={i}>
                       <Skeleton className="h-4 w-20" />
                     </TableHead>
@@ -207,7 +195,7 @@ export default function UsersPage() {
               <TableBody>
                 {Array.from({ length: 8 }, (_, r) => (
                   <TableRow key={r}>
-                    {Array.from({ length: 5 }, (_, c) => (
+                    {Array.from({ length: 4 }, (_, c) => (
                       <TableCell key={c}>
                         <Skeleton className="h-4" style={{ width: `${50 + ((r + c) % 4) * 12}%` }} />
                       </TableCell>
@@ -216,28 +204,30 @@ export default function UsersPage() {
                 ))}
               </TableBody>
             </Table>
-          ) : loadError ? (
-            <EmptyState
-              icon="users"
-              title="Failed to load users"
-              description="Something went wrong. Please try again."
-            />
-          ) : users.length === 0 ? (
-            <EmptyState
-              icon="users"
-              title={hasFilters ? "No users match your filters" : "No users yet"}
-              description={
-                hasFilters
-                  ? "Try adjusting your search or filters."
-                  : canEdit
-                    ? "Click \"Add user\" to get started."
-                    : undefined
-              }
-            />
-          ) : (
-            <>
-              {/* Desktop table */}
-              <div className="hide-mobile-only">
+          </div>
+        ) : loadError ? (
+          <EmptyState
+            icon="users"
+            title="Failed to load users"
+            description="Something went wrong. Please try again."
+          />
+        ) : users.length === 0 ? (
+          <EmptyState
+            icon="users"
+            title={hasFilters ? "No users match your filters" : "No users yet"}
+            description={
+              hasFilters
+                ? "Try adjusting your search or filters."
+                : canEdit
+                  ? "Click \"Add user\" to get started."
+                  : undefined
+            }
+          />
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden sm:block">
+              <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -254,34 +244,34 @@ export default function UsersPage() {
                   </TableBody>
                 </Table>
               </div>
-
-              {/* Mobile cards */}
-              <div className="show-mobile-only">
-                {users.map((user) => (
-                  <UserMobileCard key={user.id} user={user} />
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
-              <span>
-                Showing {page * LIMIT + 1}&ndash;{Math.min((page + 1) * LIMIT, total)} of {total}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
-                  Next
-                </Button>
-              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Mobile cards */}
+            <div className="block sm:hidden space-y-2">
+              {users.map((user) => (
+                <UserMobileCard key={user.id} user={user} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              Showing {page * LIMIT + 1}&ndash;{Math.min((page + 1) * LIMIT, total)} of {total}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+                Previous
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

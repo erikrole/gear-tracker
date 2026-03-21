@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { MoreHorizontal, SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -141,7 +141,7 @@ function CreateItemCard({
   }
 
   return (
-    <Card className="mb-16">
+    <Card className="mb-4">
       <CardHeader className="flex items-center justify-between">
         <CardTitle>New item</CardTitle>
         <div className="flex gap-4">
@@ -159,7 +159,7 @@ function CreateItemCard({
         </div>
       </CardHeader>
 
-      <form onSubmit={handleSubmit} className="p-16">
+      <form onSubmit={handleSubmit} className="px-6 pb-6">
         {kind === "serialized" ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -203,13 +203,13 @@ function CreateItemCard({
               type="button"
               variant="link"
               onClick={() => setShowMeta((v) => !v)}
-              className="mt-12"
+              className="mt-3"
             >
               {showMeta ? "Hide" : "Show"} optional fields
             </Button>
 
             {showMeta && (
-              <div className="grid-3col mt-12">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-3">
                 <Input name="description" placeholder="Description" />
                 <Input name="owner" placeholder="Owner" />
               </div>
@@ -352,9 +352,8 @@ function BulkActionBar({
 }
 
 const TOGGLEABLE_COLUMNS = [
-  { id: "thumbnail", label: "Thumbnail" },
-  { id: "status", label: "Status" },
   { id: "category", label: "Category" },
+  { id: "status", label: "Status" },
   { id: "location", label: "Location" },
 ];
 
@@ -584,23 +583,25 @@ export default function ItemsPage() {
         />
       )}
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
-          <div>
-            <CardTitle>Inventory</CardTitle>
-            <CardDescription>
-              {total > 0 ? `${total} item${total !== 1 ? "s" : ""} in your inventory.` : "Manage your gear and equipment."}
-            </CardDescription>
-          </div>
+      <div className="space-y-4">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between gap-2">
+          <Input
+            type="text"
+            placeholder="Search items..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            className="h-8 max-w-sm"
+          />
           <div className="flex items-center gap-2">
             {/* Filters popover */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="size-8">
-                  <SlidersHorizontal className="size-4" />
-                  <span className="sr-only">Filters</span>
+                <Button variant="outline" size="sm" className="h-8 gap-1">
+                  <SlidersHorizontal className="size-3.5" />
+                  Filters
                   {activeFilterCount > 0 && (
-                    <Badge variant="secondary" className="absolute -top-1.5 -right-1.5 px-1 py-0 text-[10px] min-w-4 h-4 flex items-center justify-center">
+                    <Badge variant="secondary" className="px-1 py-0 text-[10px] min-w-4 h-4 flex items-center justify-center rounded-full">
                       {activeFilterCount}
                     </Badge>
                   )}
@@ -690,9 +691,8 @@ export default function ItemsPage() {
             {/* Columns dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="size-8">
-                  <MoreHorizontal className="size-4" />
-                  <span className="sr-only">View options</span>
+                <Button variant="outline" size="sm" className="h-8">
+                  Columns
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[180px]">
@@ -710,73 +710,64 @@ export default function ItemsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="space-y-4 px-6 pb-6 pt-0">
-          {/* Search bar */}
-          <Input
-            type="text"
-            placeholder="Search items..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="max-w-sm"
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {statusFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setStatusFilter(""); setPage(0); }}>
+                Status: {STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}
+                <X className="size-3" />
+              </Button>
+            )}
+            {locationFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setLocationFilter(""); setPage(0); }}>
+                Location: {locationName}
+                <X className="size-3" />
+              </Button>
+            )}
+            {categoryFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setCategoryFilter(""); setPage(0); }}>
+                Category: {categoryName}
+                <X className="size-3" />
+              </Button>
+            )}
+            {brandFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setBrandFilter(""); setPage(0); }}>
+                Brand: {brandFilter}
+                <X className="size-3" />
+              </Button>
+            )}
+            {departmentFilter && (
+              <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setDepartmentFilter(""); setPage(0); }}>
+                Department: {departmentName}
+                <X className="size-3" />
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Bulk action bar */}
+        {canEdit && selectedCount > 0 && (
+          <BulkActionBar
+            count={selectedCount}
+            locations={locations}
+            categoryOptions={categoryOptions}
+            busy={bulkBusy}
+            error={bulkError}
+            onAction={executeBulkAction}
+            onClear={() => setRowSelection({})}
           />
+        )}
 
-          {/* Active filter chips */}
-          {hasActiveFilters && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {statusFilter && (
-                <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setStatusFilter(""); setPage(0); }}>
-                  Status: {STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}
-                  <X className="size-3" />
-                </Button>
-              )}
-              {locationFilter && (
-                <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setLocationFilter(""); setPage(0); }}>
-                  Location: {locationName}
-                  <X className="size-3" />
-                </Button>
-              )}
-              {categoryFilter && (
-                <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setCategoryFilter(""); setPage(0); }}>
-                  Category: {categoryName}
-                  <X className="size-3" />
-                </Button>
-              )}
-              {brandFilter && (
-                <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setBrandFilter(""); setPage(0); }}>
-                  Brand: {brandFilter}
-                  <X className="size-3" />
-                </Button>
-              )}
-              {departmentFilter && (
-                <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => { setDepartmentFilter(""); setPage(0); }}>
-                  Department: {departmentName}
-                  <X className="size-3" />
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Bulk action bar */}
-          {canEdit && selectedCount > 0 && (
-            <BulkActionBar
-              count={selectedCount}
-              locations={locations}
-              categoryOptions={categoryOptions}
-              busy={bulkBusy}
-              error={bulkError}
-              onAction={executeBulkAction}
-              onClear={() => setRowSelection({})}
-            />
-          )}
-
-          {/* Table */}
-          {loading ? (
+        {/* Table */}
+        {loading ? (
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  {Array.from({ length: 6 }, (_, i) => (
+                  {Array.from({ length: 5 }, (_, i) => (
                     <TableHead key={i}>
                       <Skeleton className="h-4 w-20" />
                     </TableHead>
@@ -786,7 +777,7 @@ export default function ItemsPage() {
               <TableBody>
                 {Array.from({ length: 8 }, (_, r) => (
                   <TableRow key={r}>
-                    {Array.from({ length: 6 }, (_, c) => (
+                    {Array.from({ length: 5 }, (_, c) => (
                       <TableCell key={c}>
                         <Skeleton className="h-4" style={{ width: `${50 + ((r + c) % 4) * 12}%` }} />
                       </TableCell>
@@ -795,58 +786,56 @@ export default function ItemsPage() {
                 ))}
               </TableBody>
             </Table>
-          ) : loadError ? (
-            <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={reload} />
-          ) : items.length === 0 ? (
-            <EmptyState icon="search" title="No items found" description="Try adjusting your search or filters." />
-          ) : (
-            <DataTable
-              columns={columns}
-              data={items}
-              rowSelection={rowSelection}
-              onRowSelectionChange={setRowSelection}
-              columnVisibility={columnVisibility}
-              onColumnVisibilityChange={setColumnVisibility}
-              onRowAction={handleRowAction}
-              canEdit={canEdit}
-            />
-          )}
+          </div>
+        ) : loadError ? (
+          <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={reload} />
+        ) : items.length === 0 ? (
+          <EmptyState icon="search" title="No items found" description="Try adjusting your search or filters." />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={items}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+          />
+        )}
 
-          {/* Pagination footer */}
-          {!loading && !loadError && items.length > 0 && (
-            <div className="flex items-center justify-between text-sm text-muted-foreground pt-2">
-              <div className="flex-1">
-                {selectedCount} of {items.length} row(s) selected.
+        {/* Pagination footer */}
+        {!loading && !loadError && items.length > 0 && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex-1">
+              {selectedCount} of {items.length} row(s) selected.
+            </div>
+            <div className="flex items-center gap-6 lg:gap-8">
+              <div className="flex items-center gap-2">
+                <p className="text-sm">Rows per page</p>
+                <Select
+                  value={String(limit)}
+                  onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
+                >
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex items-center gap-6 lg:gap-8">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm">Rows per page</p>
-                  <Select
-                    value={String(limit)}
-                    onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
-                  >
-                    <SelectTrigger className="h-8 w-[70px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[10, 25, 50, 100].map((n) => (
-                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="text-sm">
-                  Page {page + 1} of {totalPages || 1}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
-                </div>
+              <div className="text-sm">
+                Page {page + 1} of {totalPages || 1}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
     </>
   );
 }

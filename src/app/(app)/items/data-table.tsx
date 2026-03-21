@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  ColumnDef,
-  SortingState,
-  VisibilityState,
+  type ColumnDef,
+  type SortingState,
+  type VisibilityState,
+  type RowSelectionState,
+  type OnChangeFn,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
-  RowSelectionState,
-  OnChangeFn,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -20,19 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import {
-  ExternalLink,
-  Copy,
-  Wrench,
-  Archive,
-} from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Asset } from "./columns";
 
@@ -43,8 +30,6 @@ interface DataTableProps {
   onRowSelectionChange: OnChangeFn<RowSelectionState>;
   columnVisibility: VisibilityState;
   onColumnVisibilityChange: OnChangeFn<VisibilityState>;
-  onRowAction?: (action: string, asset: Asset) => void;
-  canEdit: boolean;
 }
 
 export function DataTable({
@@ -54,8 +39,6 @@ export function DataTable({
   onRowSelectionChange,
   columnVisibility,
   onColumnVisibilityChange,
-  onRowAction,
-  canEdit,
 }: DataTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -74,24 +57,13 @@ export function DataTable({
   });
 
   return (
-    <Table>
-      <TableHeader className="sticky top-0 z-10 bg-card">
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => {
-              const meta = header.column.columnDef.meta as
-                | { className?: string }
-                | undefined;
-              return (
-                <TableHead
-                  key={header.id}
-                  className={meta?.className}
-                  style={
-                    header.column.columnDef.size
-                      ? { width: header.column.columnDef.size }
-                      : undefined
-                  }
-                >
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -99,75 +71,35 @@ export function DataTable({
                         header.getContext()
                       )}
                 </TableHead>
-              );
-            })}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.length ? (
-          table.getRowModel().rows.map((row) => {
-            const asset = row.original;
-            const rowContent = (
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
                 className="cursor-pointer"
-                onClick={() => router.push(`/items/${asset.id}`)}
+                onClick={() => router.push(`/items/${row.original.id}`)}
               >
-                {row.getVisibleCells().map((cell) => {
-                  const meta = cell.column.columnDef.meta as
-                    | { className?: string }
-                    | undefined;
-                  return (
-                    <TableCell key={cell.id} className={meta?.className}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  );
-                })}
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
               </TableRow>
-            );
-
-            if (!canEdit || !onRowAction) return rowContent;
-
-            return (
-              <ContextMenu key={row.id}>
-                <ContextMenuTrigger asChild>
-                  {rowContent}
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem onClick={() => router.push(`/items/${asset.id}`)}>
-                    <ExternalLink className="mr-2 size-4" />
-                    Open
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => onRowAction("duplicate", asset)}>
-                    <Copy className="mr-2 size-4" />
-                    Duplicate
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem onClick={() => onRowAction("maintenance", asset)}>
-                    <Wrench className="mr-2 size-4" />
-                    Maintenance
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    className="text-destructive"
-                    onClick={() => onRowAction("retire", asset)}
-                  >
-                    <Archive className="mr-2 size-4" />
-                    Retire
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            );
-          })
-        ) : (
-          <TableRow>
-            <TableCell colSpan={columns.length} className="h-24 text-center">
-              No results.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No results.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
