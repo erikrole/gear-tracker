@@ -1,5 +1,6 @@
 import { memo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -8,25 +9,32 @@ import { TableRow, TableCell } from "@/components/ui/table";
 /* ── Desktop Table Row ─────────────────────────────────── */
 
 export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRowType }) {
+  const router = useRouter();
+
   return (
-    <TableRow>
+    <TableRow
+      className="cursor-pointer"
+      onClick={() => router.push(`/users/${user.id}`)}
+    >
       <TableCell>
-        <Link href={`/users/${user.id}`} className="flex items-center gap-3 no-underline">
+        <div className="flex items-center gap-3 min-w-0">
           <Avatar className="size-8 shrink-0">
             {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
             <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-semibold">
               {user.name.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="font-medium">{user.name}</span>
-        </Link>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-medium leading-tight truncate">{user.name}</span>
+            <span className="text-xs text-muted-foreground leading-tight truncate">{user.email}</span>
+          </div>
+        </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell text-muted-foreground">{user.email}</TableCell>
       <TableCell>
         <RoleBadge role={user.role} />
       </TableCell>
-      <TableCell className="hidden md:table-cell">{user.location || "\u2014"}</TableCell>
-      <TableCell className="hidden md:table-cell">{user.primaryArea || "\u2014"}</TableCell>
+      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{user.location || "\u2014"}</TableCell>
+      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{user.primaryArea || "\u2014"}</TableCell>
     </TableRow>
   );
 });
