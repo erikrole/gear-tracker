@@ -86,7 +86,8 @@ function CreateItemCard({
         if (desc) notes.description = desc;
         if (owner) notes.owner = owner;
 
-        const categoryId = String(form.get("categoryId") || "");
+        const rawCategoryId = String(form.get("categoryId") || "");
+        const categoryId = rawCategoryId === "__none__" ? "" : rawCategoryId;
         const itemName = String(form.get("itemName") || "").trim();
         res = await fetch("/api/assets", {
           method: "POST",
@@ -105,7 +106,8 @@ function CreateItemCard({
           }),
         });
       } else {
-        const bulkCategoryId = String(form.get("categoryId") || "");
+        const rawBulkCategoryId = String(form.get("categoryId") || "");
+        const bulkCategoryId = rawBulkCategoryId === "__none__" ? "" : rawBulkCategoryId;
         res = await fetch("/api/bulk-skus", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -163,12 +165,12 @@ function CreateItemCard({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <Input name="assetTag" placeholder="Tag name *" required />
               <Input name="itemName" placeholder="Product name" />
-              <Select name="categoryId" defaultValue="">
+              <Select name="categoryId" defaultValue="__none__">
                 <SelectTrigger>
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Category</SelectItem>
+                  <SelectItem value="__none__">Category</SelectItem>
                   {categories.filter((c) => !c.parentId).map((parent) => (
                     <SelectGroup key={parent.id}>
                       <SelectLabel>{parent.name}</SelectLabel>
@@ -219,12 +221,12 @@ function CreateItemCard({
               <Input name="name" placeholder="Product name *" required />
               <p className="text-muted-foreground text-xs mt-1">e.g. &ldquo;AA Batteries&rdquo;, &ldquo;USB-C Cables&rdquo;</p>
             </div>
-            <Select name="categoryId" defaultValue="">
+            <Select name="categoryId" defaultValue="__none__">
               <SelectTrigger>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Category</SelectItem>
+                <SelectItem value="__none__">Category</SelectItem>
                 {categories.filter((c) => !c.parentId).map((parent) => (
                   <SelectGroup key={parent.id}>
                     <SelectLabel>{parent.name}</SelectLabel>

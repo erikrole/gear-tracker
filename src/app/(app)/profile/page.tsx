@@ -109,7 +109,7 @@ export default function ProfilePage() {
       const form = new FormData(e.currentTarget);
       const payload = {
         name: String(form.get("name") || ""),
-        locationId: String(form.get("locationId") || "") || null
+        locationId: (String(form.get("locationId") || "") === "__none__" ? null : String(form.get("locationId") || "")) || null
       };
 
       const res = await fetch("/api/profile", {
@@ -253,12 +253,12 @@ export default function ProfilePage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="profile-location">Default location</Label>
-            <Select name="locationId" defaultValue={profile.location?.id || ""}>
+            <Select name="locationId" defaultValue={profile.location?.id || "__none__"}>
               <SelectTrigger id="profile-location" className="w-full">
                 <SelectValue placeholder="None" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None</SelectItem>
                 {locations.map((location) => <SelectItem key={location.id} value={location.id}>{location.name}</SelectItem>)}
               </SelectContent>
             </Select>
