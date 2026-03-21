@@ -111,7 +111,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         />
       ),
       cell: ({ row }) => (
-        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+        <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center h-full">
           <Checkbox
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(!!value)}
@@ -121,7 +121,8 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       ),
       enableSorting: false,
       enableHiding: false,
-      size: 36,
+      size: 40,
+      meta: { className: "p-0 align-middle" },
     });
   }
 
@@ -137,9 +138,9 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <Image
                 src={item.imageUrl}
                 alt=""
-                width={72}
-                height={72}
-                sizes="36px"
+                width={96}
+                height={96}
+                sizes="48px"
                 loading="lazy"
                 unoptimized={
                   !item.imageUrl.includes(".public.blob.vercel-storage.com")
@@ -152,7 +153,8 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         );
       },
       enableSorting: false,
-      size: 44,
+      size: 56,
+      meta: { className: "p-1" },
     },
     {
       accessorKey: "assetTag",
