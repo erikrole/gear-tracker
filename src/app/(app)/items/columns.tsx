@@ -111,18 +111,16 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         />
       ),
       cell: ({ row }) => (
-        <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center h-full">
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-          />
-        </div>
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Select row"
+        />
       ),
       enableSorting: false,
       enableHiding: false,
       size: 40,
-      meta: { className: "p-0 align-middle" },
     });
   }
 
