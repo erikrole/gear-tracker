@@ -3,11 +3,12 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -17,19 +18,12 @@ import {
   DialogCloseButton,
 } from "@/components/ui/dialog";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar } from "@/components/ui/calendar";
 import {
-  CalendarIcon,
   Check,
   ChevronDown,
   ExternalLink,
@@ -41,10 +35,10 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { format, parse, isValid } from "date-fns";
+import { format } from "date-fns";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
-import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
+import { CategoryCombobox } from "@/components/FormCombobox";
 
 /* ── Constants ─────────────────────────────────────────── */
 
@@ -257,176 +251,81 @@ function LinkField({
   );
 }
 
-/* ── Date Picker Input Field ───────────────────────────── */
+/* ── Saveable Date Picker (wraps DatePicker with inline save) ── */
 
-const DATE_FORMATS = [
-  "MM/dd/yyyy",
-  "M/d/yyyy",
-  "MM-dd-yyyy",
-  "M-d-yyyy",
-  "MMM d, yyyy",
-  "MMMM d, yyyy",
-  "yyyy-MM-dd",
-];
-
-function parseDateInput(input: string): Date | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  for (const fmt of DATE_FORMATS) {
-    const parsed = parse(trimmed, fmt, new Date());
-    if (isValid(parsed) && parsed.getFullYear() > 1900 && parsed.getFullYear() < 2100) {
-      return parsed;
-    }
-  }
-  return null;
-}
-
-function DatePickerField({
+function SaveableDatePickerField({
   label,
   value,
-  placeholder,
   canEdit,
   onSave,
 }: {
   label: string;
   value: string;
-  placeholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
   const saveField = useSaveField(onSave);
-  const fieldId = useId();
-
   const dateValue = value ? new Date(value + "T00:00:00") : undefined;
 
-  useEffect(() => {
-    setDraft(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
-  }, [value]);
-
-  async function commitTyped() {
-    const trimmed = draft.trim();
-    if (!trimmed) {
-      if (value) await saveField.save("");
-      return;
-    }
-    const parsed = parseDateInput(trimmed);
-    if (!parsed) {
-      setDraft(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
-      return;
-    }
-    const iso = format(parsed, "yyyy-MM-dd");
-    if (iso === value) return;
-    await saveField.save(iso);
-  }
-
-  async function handleCalendarSelect(day: Date | undefined) {
-    if (!day) return;
-    const iso = format(day, "yyyy-MM-dd");
-    if (iso === value) {
-      setOpen(false);
-      return;
-    }
-    await saveField.save(iso);
-    setOpen(false);
-  }
-
-  async function handleClear() {
-    await saveField.save("");
-    setOpen(false);
-  }
-
   return (
-    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
-      <div className="flex items-center gap-1">
-        <Input
-          id={fieldId}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitTyped}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setDraft(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
-            }
-          }}
-          placeholder={placeholder || "MM/DD/YYYY"}
-          disabled={!canEdit}
-          className="h-8 text-sm flex-1"
-        />
-        {canEdit && (
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 shrink-0">
-                <CalendarIcon className="size-3.5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={dateValue}
-                onSelect={handleCalendarSelect}
-                defaultMonth={dateValue}
-              />
-              {value && (
-                <div className="border-t px-3 py-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-muted-foreground"
-                    onClick={handleClear}
-                  >
-                    Clear date
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
+    <SaveableField label={label} status={saveField.status}>
+      <DatePicker
+        value={dateValue}
+        onChange={async (day) => {
+          const iso = day ? format(day, "yyyy-MM-dd") : "";
+          if (iso === value) return;
+          await saveField.save(iso);
+        }}
+        disabled={!canEdit}
+      />
     </SaveableField>
   );
 }
 
-/* ── Saveable Combobox (wraps FormCombobox with inline save) ── */
+/* ── Saveable Native Select (wraps NativeSelect with inline save) ── */
 
-function SaveableComboboxField({
+function SaveableNativeSelectField({
   label,
   value,
   options,
   placeholder,
-  searchPlaceholder,
   canEdit,
   onSave,
-  emptyLabel,
 }: {
   label: string;
   value: string;
   options: { value: string; label: string }[];
   placeholder?: string;
-  searchPlaceholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
-  emptyLabel?: string;
 }) {
   const saveField = useSaveField(onSave);
 
+  if (!canEdit) {
+    const selected = options.find((o) => o.value === value);
+    return (
+      <SaveableField label={label} status={saveField.status}>
+        <span className="text-sm">{selected?.label || "\u2014"}</span>
+      </SaveableField>
+    );
+  }
+
   return (
     <SaveableField label={label} status={saveField.status}>
-      <FormCombobox
+      <NativeSelect
         value={value}
-        onValueChange={async (v) => {
+        onChange={async (e) => {
+          const v = e.target.value;
           if (v === value) return;
           await saveField.save(v);
         }}
-        options={options}
-        placeholder={placeholder}
-        searchPlaceholder={searchPlaceholder}
-        emptyLabel={emptyLabel}
-        allowClear
-        disabled={!canEdit}
-      />
+        className="h-8 text-sm"
+      >
+        <option value="">{placeholder || "Select..."}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </NativeSelect>
     </SaveableField>
   );
 }
@@ -703,7 +602,7 @@ const SectionHeader = React.forwardRef<
   { title: string; open: boolean } & React.HTMLAttributes<HTMLDivElement>
 >(function SectionHeader({ title, open, ...props }, ref) {
   return (
-    <div ref={ref} className="col-span-full px-4 pt-4 pb-1" {...props}>
+    <div ref={ref} className="col-span-full px-4 pt-4 pb-2" {...props}>
       <div className="flex items-center gap-1.5 w-full text-left group cursor-pointer">
         <ChevronDown
           className={cn(
@@ -715,7 +614,6 @@ const SectionHeader = React.forwardRef<
           {title}
         </Label>
       </div>
-      <Separator className="mt-1.5" />
     </div>
   );
 });
@@ -836,7 +734,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Identity" open={identityOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
               <TextInputField
                 label="Asset tag"
                 value={asset.assetTag}
@@ -891,7 +789,7 @@ export default function ItemInfoCard({
               <SectionHeader title="Procurement" open={procurementOpen} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
                 <TextInputField
                   label="Purchase price"
                   value={
@@ -919,7 +817,7 @@ export default function ItemInfoCard({
                     onSave={(v) => saveField("linkUrl", v)}
                   />
                 </div>
-                <DatePickerField
+                <SaveableDatePickerField
                   label="Purchase date"
                   value={
                     asset.purchaseDate
@@ -929,7 +827,7 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("purchaseDate", v)}
                 />
-                <DatePickerField
+                <SaveableDatePickerField
                   label="Warranty date"
                   value={
                     asset.warrantyDate
@@ -939,12 +837,11 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("warrantyDate", v)}
                 />
-                <SaveableComboboxField
+                <SaveableNativeSelectField
                   label="Fiscal Year"
                   value={asset.metadata?.fiscalYearPurchased || ""}
                   options={fiscalYearOptions.map((y) => ({ value: y, label: y }))}
                   placeholder="Select fiscal year"
-                  searchPlaceholder="Search years..."
                   canEdit={canEdit}
                   onSave={(v) =>
                     saveField("metadata.fiscalYearPurchased", v)
@@ -961,7 +858,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Administrative" open={adminOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
               <TextInputField
                 label="Location"
                 value={asset.location.name}
@@ -976,12 +873,11 @@ export default function ItemInfoCard({
                 canEdit={canEdit}
                 onSave={(v) => saveField("metadata.owner", v)}
               />
-              <SaveableComboboxField
+              <SaveableNativeSelectField
                 label="Department"
                 value={asset.department?.name || ""}
                 options={departments.map((d) => ({ value: d.name, label: d.name }))}
                 placeholder="Select department"
-                searchPlaceholder="Search departments..."
                 canEdit={canEdit}
                 onSave={saveDepartment}
               />
