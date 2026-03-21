@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -106,51 +105,6 @@ function TextInputField({
         placeholder={placeholder}
         disabled={!canEdit || readOnly}
         className={cn("h-8 text-right text-sm", mono && "font-mono")}
-      />
-    </SaveableField>
-  );
-}
-
-/* ── Textarea Field (Description) ──────────────────────── */
-
-function TextareaField({
-  label,
-  value,
-  placeholder,
-  canEdit,
-  onSave,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  canEdit: boolean;
-  onSave: (v: string) => Promise<void>;
-}) {
-  const [draft, setDraft] = useState(value);
-  const saveField = useSaveField(onSave);
-  const fieldId = useId();
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  async function commit() {
-    const trimmed = draft.trim();
-    if (trimmed === value) return;
-    await saveField.save(trimmed);
-  }
-
-  return (
-    <SaveableField label={label} status={saveField.status} htmlFor={fieldId} className="items-start">
-      <Textarea
-        id={fieldId}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        placeholder={placeholder}
-        disabled={!canEdit}
-        className="min-h-[60px] text-sm resize-none"
-        rows={2}
       />
     </SaveableField>
   );
@@ -734,7 +688,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Identity" open={identityOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
+            <div className="grid grid-cols-1 gap-y-1">
               <TextInputField
                 label="Asset tag"
                 value={asset.assetTag}
@@ -769,15 +723,6 @@ export default function ItemInfoCard({
                 onSave={(v) => saveField("serialNumber", v)}
                 mono
               />
-              <div className="sm:col-span-2">
-                <TextareaField
-                  label="Description"
-                  value={asset.metadata?.description || ""}
-                  placeholder="Add description"
-                  canEdit={canEdit}
-                  onSave={(v) => saveField("metadata.description", v)}
-                />
-              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -789,7 +734,7 @@ export default function ItemInfoCard({
               <SectionHeader title="Procurement" open={procurementOpen} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
+              <div className="grid grid-cols-1 gap-y-1">
                 <TextInputField
                   label="Purchase price"
                   value={
@@ -799,24 +744,13 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("purchasePrice", v)}
                 />
-                <TextInputField
-                  label="Residual value"
-                  value={
-                    asset.residualValue ? String(asset.residualValue) : ""
-                  }
-                  placeholder="Add residual value"
-                  canEdit={canEdit}
-                  onSave={(v) => saveField("residualValue", v)}
-                />
-                <div className="sm:col-span-2">
-                  <LinkField
+                <LinkField
                     label="Link"
                     value={asset.linkUrl || ""}
                     placeholder="Add product link"
                     canEdit={canEdit}
                     onSave={(v) => saveField("linkUrl", v)}
                   />
-                </div>
                 <SaveableDatePickerField
                   label="Purchase date"
                   value={
@@ -826,16 +760,6 @@ export default function ItemInfoCard({
                   }
                   canEdit={canEdit}
                   onSave={(v) => saveField("purchaseDate", v)}
-                />
-                <SaveableDatePickerField
-                  label="Warranty date"
-                  value={
-                    asset.warrantyDate
-                      ? String(asset.warrantyDate).slice(0, 10)
-                      : ""
-                  }
-                  canEdit={canEdit}
-                  onSave={(v) => saveField("warrantyDate", v)}
                 />
                 <SaveableNativeSelectField
                   label="Fiscal Year"
@@ -858,7 +782,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Administrative" open={adminOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
+            <div className="grid grid-cols-1 gap-y-1">
               <TextInputField
                 label="Location"
                 value={asset.location.name}
@@ -888,8 +812,7 @@ export default function ItemInfoCard({
                 canEdit={canEdit}
                 onSave={(v) => saveField("metadata.uwAssetTag", v)}
               />
-              <div className="sm:col-span-2">
-                <SaveableCategoryField
+              <SaveableCategoryField
                   currentId={asset.category?.id || ""}
                   displayName={asset.category?.name || ""}
                   canEdit={canEdit}
@@ -897,7 +820,6 @@ export default function ItemInfoCard({
                   onSave={saveCategory}
                   onCategoriesChanged={onCategoriesChanged}
                 />
-              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>
