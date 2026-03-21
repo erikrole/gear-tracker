@@ -180,6 +180,9 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Name",
       accessorKey: "assetTag",
+      size: 280,
+      minSize: 200,
+      maxSize: 360,
       cell: ({ row }) => {
         const item = row.original;
         const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
@@ -200,9 +203,9 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               </div>
             )}
             <div className="flex flex-col min-w-0">
-              <div className="font-medium">{item.assetTag}</div>
+              <div className="font-medium truncate">{item.assetTag}</div>
               {subtitle && (
-                <div className="text-xs text-muted-foreground">{subtitle}</div>
+                <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
               )}
             </div>
           </div>
@@ -213,18 +216,22 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Status",
       id: "status",
+      size: 200,
+      minSize: 140,
       cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
     },
     {
       header: "Category",
       id: "category",
+      size: 140,
       accessorFn: (row) => row.category?.name || row.type,
       cell: ({ row }) => row.original.category?.name || row.original.type,
     },
     {
       header: "Location",
       id: "location",
+      size: 160,
       accessorFn: (row) => row.location.name,
       cell: ({ row }) => row.original.location.name,
     },

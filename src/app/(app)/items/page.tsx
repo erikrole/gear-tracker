@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { SearchIcon, XIcon } from "lucide-react";
+import { AlertCircleIcon, SearchIcon, XIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -268,7 +269,12 @@ function CreateItemCard({
             {submitting ? "Saving..." : kind === "serialized" ? "Create asset" : "Create bulk item"}
           </Button>
         </div>
-        {error && <div className="text-sm text-destructive border border-destructive/50 bg-destructive/10 rounded-md px-4 py-2.5 mt-2">{error}</div>}
+        {error && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertCircleIcon className="size-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
       </form>
     </Card>
   );
@@ -566,8 +572,8 @@ export default function ItemsPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
-        <h1>Items</h1>
+      <div className="flex items-center justify-between mb-6 gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Items</h1>
         {canEdit && (
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
@@ -641,13 +647,15 @@ export default function ItemsPage() {
                     <SearchIcon size={16} />
                   </div>
                   {search && (
-                    <button
+                    <Button
                       type="button"
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground/80 hover:text-foreground"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
                       onClick={() => { setSearch(""); setPage(0); }}
                     >
                       <XIcon size={14} />
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -698,7 +706,9 @@ export default function ItemsPage() {
         {!loading && !loadError && items.length > 0 && (
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <div className="flex-1">
-              {selectedCount} of {items.length} row(s) selected.
+              {selectedCount > 0
+                ? `${selectedCount} of ${total} selected`
+                : `${total} items`}
             </div>
             <div className="flex items-center gap-6 lg:gap-8">
               <div className="flex items-center gap-2">
