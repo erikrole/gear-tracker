@@ -618,9 +618,9 @@ export default function ItemsPage() {
             onColumnVisibilityChange={setColumnVisibility}
             filterBar={
               <>
-                <div className="w-48">
-                  <Label className="text-xs">Name</Label>
-                  <div className="relative mt-1">
+                <div className="w-48 *:not-first:mt-2">
+                  <Label>Name</Label>
+                  <div className="relative">
                     <Input
                       className="peer pl-9"
                       value={search}
@@ -633,10 +633,10 @@ export default function ItemsPage() {
                     </div>
                   </div>
                 </div>
-                <div className="w-40">
-                  <Label className="text-xs">Category</Label>
+                <div className="w-40 *:not-first:mt-2">
+                  <Label>Category</Label>
                   <Select value={categoryFilter || "all"} onValueChange={(v) => { setCategoryFilter(v === "all" ? "" : v); setPage(0); }}>
-                    <SelectTrigger className="mt-1 w-full">
+                    <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -647,10 +647,10 @@ export default function ItemsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-40">
-                  <Label className="text-xs">Status</Label>
+                <div className="w-40 *:not-first:mt-2">
+                  <Label>Status</Label>
                   <Select value={statusFilter || "all"} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(0); }}>
-                    <SelectTrigger className="mt-1 w-full">
+                    <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -661,10 +661,10 @@ export default function ItemsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-40">
-                  <Label className="text-xs">Location</Label>
+                <div className="w-40 *:not-first:mt-2">
+                  <Label>Location</Label>
                   <Select value={locationFilter || "all"} onValueChange={(v) => { setLocationFilter(v === "all" ? "" : v); setPage(0); }}>
-                    <SelectTrigger className="mt-1 w-full">
+                    <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
