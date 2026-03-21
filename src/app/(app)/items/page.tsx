@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { StarIcon } from "lucide-react";
-import { RowSelectionState } from "@tanstack/react-table";
+import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
+import { Download } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
@@ -16,7 +16,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -37,7 +36,6 @@ type Response = {
   total: number;
   limit: number;
   offset: number;
-  favoriteIds?: string[];
 };
 
 type ItemKind = "serialized" | "bulk";
@@ -362,21 +360,21 @@ export default function ItemsPage() {
   const [categoryFilter, setCategoryFilter] = useState(() => searchParams.get("category") ?? "");
   const [brandFilter, setBrandFilter] = useState(() => searchParams.get("brand") ?? "");
   const [departmentFilter, setDepartmentFilter] = useState(() => searchParams.get("department") ?? "");
-  const [favoriteFilter, setFavoriteFilter] = useState(() => searchParams.get("favorite") === "true");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState("");
-  const limit = 25;
+  const [limit, setLimit] = useState(25);
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const router = useRouter();
 
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
-  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter || favoriteFilter;
+  const hasActiveFilters = statusFilter || locationFilter || categoryFilter || brandFilter || departmentFilter;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -393,12 +391,11 @@ export default function ItemsPage() {
     if (categoryFilter) params.set("category", categoryFilter);
     if (brandFilter) params.set("brand", brandFilter);
     if (departmentFilter) params.set("department", departmentFilter);
-    if (favoriteFilter) params.set("favorite", "true");
     if (page > 0) params.set("page", String(page));
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter, page]);
+  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, page]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -412,7 +409,6 @@ export default function ItemsPage() {
     if (categoryFilter) params.set("category_id", categoryFilter);
     if (brandFilter) params.set("brand", brandFilter);
     if (departmentFilter) params.set("department_id", departmentFilter);
-    if (favoriteFilter) params.set("favorite", "true");
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -420,12 +416,11 @@ export default function ItemsPage() {
       const json: Response = await res.json();
       setItems(json.data ?? []);
       setTotal(json.total ?? 0);
-      if (json.favoriteIds) setFavoriteIds(new Set(json.favoriteIds));
     } catch {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
+  }, [page, limit, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -472,27 +467,11 @@ export default function ItemsPage() {
     setCategoryFilter("");
     setBrandFilter("");
     setDepartmentFilter("");
-    setFavoriteFilter(false);
     setPage(0);
   }
 
   // Clear selection when page/filters change
-  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, favoriteFilter]);
-
-  async function toggleFavorite(e: React.MouseEvent, assetId: string) {
-    e.stopPropagation();
-    try {
-      const res = await fetch(`/api/assets/${assetId}/favorite`, { method: "POST" });
-      if (!res.ok) return;
-      const json = await res.json();
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        if (json.data?.favorited) next.add(assetId);
-        else next.delete(assetId);
-        return next;
-      });
-    } catch { /* ignore */ }
-  }
+  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter]);
 
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
   const selectedCount = selectedIds.length;
@@ -525,24 +504,73 @@ export default function ItemsPage() {
   const locationName = locations.find((l) => l.id === locationFilter)?.name;
   const categoryName = categoryOptions.find((c) => c.value === categoryFilter)?.label;
 
+  const handleRowAction = useCallback(async (action: string, asset: Asset) => {
+    switch (action) {
+      case "open":
+        router.push(`/items/${asset.id}`);
+        break;
+      case "duplicate":
+        try {
+          const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
+          if (res.ok) reload();
+        } catch { /* ignore */ }
+        break;
+      case "maintenance":
+        try {
+          const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
+          if (res.ok) reload();
+        } catch { /* ignore */ }
+        break;
+      case "retire":
+        if (confirm(`Retire ${asset.assetTag}?`)) {
+          try {
+            const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
+            if (res.ok) reload();
+          } catch { /* ignore */ }
+        }
+        break;
+    }
+  }, [reload, router]);
+
   const columns = useMemo(
-    () => getColumns({ favoriteIds, onToggleFavorite: toggleFavorite, canEdit }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [favoriteIds, canEdit]
+    () => getColumns({ canEdit, onRowAction: handleRowAction }),
+    [canEdit, handleRowAction]
   );
 
   return (
     <>
       <div className="page-header">
         <h1>Items</h1>
-        {canEdit && (
-          <div className="flex gap-8">
-            <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
-            <Button onClick={() => setShowCreate((v) => !v)}>
-              {showCreate ? "Close" : "New item"}
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              const params = new URLSearchParams();
+              params.set("format", "csv");
+              params.set("limit", "10000");
+              if (debouncedSearch) params.set("q", debouncedSearch);
+              if (statusFilter) params.set("status", statusFilter);
+              if (locationFilter) params.set("location_id", locationFilter);
+              if (categoryFilter) params.set("category_id", categoryFilter);
+              if (brandFilter) params.set("brand", brandFilter);
+              if (departmentFilter) params.set("department_id", departmentFilter);
+              window.open(`/api/assets/export?${params}`, "_blank");
+            }}
+          >
+            <Download className="size-4" />
+            Export
+          </Button>
+          {canEdit && (
+            <>
+              <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
+              <Button onClick={() => setShowCreate((v) => !v)}>
+                {showCreate ? "Close" : "New item"}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {showCreate && (
@@ -604,21 +632,6 @@ export default function ItemsPage() {
                 onClear={() => { setDepartmentFilter(""); setPage(0); }}
               />
             )}
-            <Tooltip>
-            <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant={favoriteFilter ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setFavoriteFilter((v) => !v); setPage(0); }}
-              className="text-sm px-2.5 py-1 gap-1 inline-flex items-center"
-            >
-              <StarIcon className="size-3.5" fill={favoriteFilter ? "currentColor" : "none"} />
-              Favorites
-            </Button>
-            </TooltipTrigger>
-            <TooltipContent>Show favorites only</TooltipContent>
-            </Tooltip>
             {hasActiveFilters && (
               <button type="button" className="filter-chip-clear-all" onClick={clearAllFilters}>
                 Clear all
@@ -652,13 +665,38 @@ export default function ItemsPage() {
               data={items}
               rowSelection={rowSelection}
               onRowSelectionChange={setRowSelection}
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
+              onRowAction={handleRowAction}
+              canEdit={canEdit}
             />
             <div className="flex items-center justify-between px-3 py-3 border-t text-sm text-muted-foreground">
-              <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
+              <div className="flex items-center gap-2">
+                <span>Showing {rangeStart} to {rangeEnd} of {total}</span>
+                <Select
+                  value={String(limit)}
+                  onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
+                >
+                  <SelectTrigger className="h-8 w-[70px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs">per page</span>
+              </div>
               {totalPages > 1 && (
-                <div className="flex gap-1">
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(0)}>First</Button>
                   <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+                  <span className="px-2 text-xs">
+                    Page {page + 1} of {totalPages}
+                  </span>
                   <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}>Last</Button>
                 </div>
               )}
             </div>

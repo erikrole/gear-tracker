@@ -24,7 +24,14 @@ const createAssetSchema = z.object({
   notes: z.string().max(10000).optional()
 });
 
-export const GET = withAuth(async (req, { user }) => {
+const assetInclude = {
+  location: { select: { id: true, name: true } },
+  category: { select: { id: true, name: true } },
+  department: { select: { id: true, name: true } },
+  _count: { select: { accessories: true } },
+};
+
+export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const statusParam = searchParams.get("status");
@@ -33,7 +40,6 @@ export const GET = withAuth(async (req, { user }) => {
   const brand = searchParams.get("brand")?.trim();
   const departmentId = searchParams.get("department_id");
   const showAccessories = searchParams.get("show_accessories") === "true";
-  const favoritesOnly = searchParams.get("favorite") === "true";
 
   // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
   // post-enrichment filtering. Stored statuses filter at the DB level.
@@ -41,28 +47,9 @@ export const GET = withAuth(async (req, { user }) => {
   const isDerivedFilter = statusParam && derivedStatuses.includes(statusParam);
   const isStoredFilter = statusParam && !isDerivedFilter;
 
-  // Fetch user's favorite asset IDs (single query, used for filtering + response)
-  let favoriteAssetIds: string[] = [];
-  if (favoritesOnly) {
-    try {
-      const favs = await db.favoriteItem.findMany({
-        where: { userId: user.id },
-        select: { assetId: true },
-      });
-      favoriteAssetIds = favs.map((f) => f.assetId);
-      if (favoriteAssetIds.length === 0) {
-        return ok({ data: [], total: 0, limit: 0, offset: 0, favoriteIds: [] });
-      }
-    } catch {
-      // favorite_items table may not exist yet — skip favorites filtering
-      return ok({ data: [], total: 0, limit: 0, offset: 0, favoriteIds: [] });
-    }
-  }
-
   const where = {
     // By default, hide accessories (child items) from the main list
     ...(!showAccessories ? { parentAssetId: null } : {}),
-    ...(favoritesOnly ? { id: { in: favoriteAssetIds } } : {}),
     ...(locationId ? { locationId } : {}),
     ...(categoryId ? { categoryId } : {}),
     ...(departmentId ? { departmentId } : {}),
@@ -90,12 +77,7 @@ export const GET = withAuth(async (req, { user }) => {
     // then paginate in-memory. Capped at 2000 to prevent memory issues on large inventories.
     const rawAll = await db.asset.findMany({
       where,
-      include: {
-        location: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } },
-        _count: { select: { accessories: true } },
-      },
+      include: assetInclude,
       orderBy: { assetTag: "asc" },
       take: 2000,
     });
@@ -111,30 +93,14 @@ export const GET = withAuth(async (req, { user }) => {
     const total = filtered.length;
     const data = filtered.slice(offset, offset + limit);
     const dataWithBookings = await attachActiveBookings(data);
-    const pageIds = dataWithBookings.map((a) => a.id);
-    let favoriteIds: string[] = [];
-    try {
-      const pageFavs = await db.favoriteItem.findMany({
-        where: { userId: user.id, assetId: { in: pageIds } },
-        select: { assetId: true },
-      });
-      favoriteIds = pageFavs.map((f) => f.assetId);
-    } catch {
-      // favorite_items table may not exist yet if migration hasn't run
-    }
 
-    return ok({ data: dataWithBookings, total, limit, offset, favoriteIds });
+    return ok({ data: dataWithBookings, total, limit, offset });
   }
 
   const [rawData, total] = await Promise.all([
     db.asset.findMany({
       where,
-      include: {
-        location: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } },
-        _count: { select: { accessories: true } },
-      },
+      include: assetInclude,
       orderBy: { assetTag: "asc" },
       take: limit,
       skip: offset
@@ -151,18 +117,7 @@ export const GET = withAuth(async (req, { user }) => {
   }
 
   const enrichedWithBookings = await attachActiveBookings(data);
-  const pageIds = enrichedWithBookings.map((a) => a.id);
-  let favoriteIds: string[] = [];
-  try {
-    const pageFavs = await db.favoriteItem.findMany({
-      where: { userId: user.id, assetId: { in: pageIds } },
-      select: { assetId: true },
-    });
-    favoriteIds = pageFavs.map((f) => f.assetId);
-  } catch {
-    // favorite_items table may not exist yet if migration hasn't run
-  }
-  return ok({ data: enrichedWithBookings, total, limit, offset, favoriteIds });
+  return ok({ data: enrichedWithBookings, total, limit, offset });
 });
 
 /** Attach activeBooking (id, kind, title, requester) for CHECKED_OUT / RESERVED assets. */
