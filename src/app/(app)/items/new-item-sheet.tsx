@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2Icon, Dices, ScanLine } from "lucide-react";
+import { CheckCircle2Icon, Dices, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +45,14 @@ interface NewItemSheetProps {
 }
 
 type ItemKind = "serialized" | "bulk";
+
+type ParentSearchResult = {
+  id: string;
+  assetTag: string;
+  name: string | null;
+  brand: string;
+  model: string;
+};
 
 // --- Layout helpers ---
 
@@ -102,20 +110,60 @@ function useIsMobile() {
   return isMobile;
 }
 
-/** Build fiscal year options: current FY ± 5 years. */
 function getFiscalYearOptions(): string[] {
   const now = new Date();
-  // UW fiscal year runs Jul–Jun. If we're past July, current FY = next calendar year's 2-digit.
   const calYear = now.getFullYear();
   const currentFY = now.getMonth() >= 6 ? calYear + 1 : calYear;
   const options: string[] = [];
   for (let y = currentFY - 5; y <= currentFY + 2; y++) {
     options.push(`FY${String(y).slice(-2)}`);
   }
-  return options.reverse(); // most recent first
+  return options.reverse();
 }
 
 const FISCAL_YEARS = getFiscalYearOptions();
+
+// --- Parent asset search hook ---
+
+function useParentSearch() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<ParentSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    if (query.length < 2) {
+      setResults([]);
+      return;
+    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/assets?q=${encodeURIComponent(query)}&limit=5`);
+        const json = await res.json();
+        if (res.ok) {
+          setResults(
+            (json.data || []).map((a: Record<string, unknown>) => ({
+              id: a.id,
+              assetTag: a.assetTag,
+              name: a.name,
+              brand: a.brand,
+              model: a.model,
+            }))
+          );
+        }
+      } catch {
+        // ignore
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
+
+  return { query, setQuery, results, searching, clear: () => { setQuery(""); setResults([]); } };
+}
 
 // --- Component ---
 
@@ -144,10 +192,13 @@ export function NewItemSheet({
   const [qrCodeValue, setQrCodeValue] = useState("");
   const [showScanner, setShowScanner] = useState(false);
 
-  // Settings toggles (default all true, matching schema defaults)
-  const [availableForReservation, setAvailableForReservation] = useState(true);
-  const [availableForCheckout, setAvailableForCheckout] = useState(true);
-  const [availableForCustody, setAvailableForCustody] = useState(true);
+  // Settings
+  const [availableForBooking, setAvailableForBooking] = useState(true);
+
+  // Accessory / parent
+  const [isAccessory, setIsAccessory] = useState(false);
+  const [parentAsset, setParentAsset] = useState<ParentSearchResult | null>(null);
+  const parentSearch = useParentSearch();
 
   const isMobile = useIsMobile();
   const formRef = useRef<HTMLFormElement>(null);
@@ -162,18 +213,21 @@ export function NewItemSheet({
     setQrCodeValue("");
     setShowScanner(false);
     setKind("serialized");
-    setAvailableForReservation(true);
-    setAvailableForCheckout(true);
-    setAvailableForCustody(true);
+    setAvailableForBooking(true);
+    setIsAccessory(false);
+    setParentAsset(null);
+    parentSearch.clear();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function resetForAnother() {
     setError("");
     setQrCodeValue("");
     setShowScanner(false);
-    setAvailableForReservation(true);
-    setAvailableForCheckout(true);
-    setAvailableForCustody(true);
+    setAvailableForBooking(true);
+    setIsAccessory(false);
+    setParentAsset(null);
+    parentSearch.clear();
   }
 
   function showSuccessMsg(msg: string) {
@@ -188,6 +242,7 @@ export function NewItemSheet({
     if (kind === "serialized") {
       if (!categoryId || categoryId === "__none__") return "Please select a category.";
       if (!departmentId || departmentId === "__none__") return "Please select a department.";
+      if (isAccessory && !parentAsset) return "Please select a parent item for this accessory.";
     }
     if (!locationId) return "Please select a location.";
     return null;
@@ -223,6 +278,9 @@ export function NewItemSheet({
         const assetTag = String(form.get("assetTag") || "");
         const serialNumber = String(form.get("serialNumber") || "").trim();
 
+        // Accessories get booking disabled (matches existing attach behavior)
+        const bookingEnabled = isAccessory ? false : availableForBooking;
+
         res = await fetch("/api/assets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -233,9 +291,10 @@ export function NewItemSheet({
             model: String(form.get("model") || ""),
             qrCodeValue,
             locationId,
-            availableForReservation,
-            availableForCheckout,
-            availableForCustody,
+            availableForReservation: bookingEnabled,
+            availableForCheckout: bookingEnabled,
+            availableForCustody: bookingEnabled,
+            ...(isAccessory && parentAsset ? { parentAssetId: parentAsset.id } : {}),
             ...(serialNumber ? { serialNumber } : {}),
             ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
             ...(resolvedDepartmentId ? { departmentId: resolvedDepartmentId } : {}),
@@ -376,6 +435,10 @@ export function NewItemSheet({
                 <section className="space-y-4">
                   <SectionHeading>Identity</SectionHeading>
 
+                  <FormRow label="Asset tag" required>
+                    <Input name="assetTag" placeholder="Unique tag name" required />
+                  </FormRow>
+
                   <FormRow label="Name" required>
                     <Input name="itemName" placeholder="e.g. Sony A7III Camera" required />
                   </FormRow>
@@ -420,10 +483,6 @@ export function NewItemSheet({
                 {/* ── Tracking ── */}
                 <section className="space-y-4">
                   <SectionHeading>Tracking</SectionHeading>
-
-                  <FormRow label="Asset tag" required>
-                    <Input name="assetTag" placeholder="Unique tag name" required />
-                  </FormRow>
 
                   <FormRow label="QR code" required>
                     <div className="flex gap-2">
@@ -533,27 +592,91 @@ export function NewItemSheet({
                   <SectionHeading>Settings</SectionHeading>
 
                   <div className="space-y-3">
+                    {/* Accessory toggle */}
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <Label className="text-sm font-medium">Available for reservation</Label>
-                        <p className="text-xs text-muted-foreground">Item can be used in reservations</p>
+                        <Label className="text-sm font-medium">Item is an accessory</Label>
+                        <p className="text-xs text-muted-foreground">Attach to a parent item (e.g. lens → camera body)</p>
                       </div>
-                      <Switch checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
+                      <Switch
+                        checked={isAccessory}
+                        onCheckedChange={(v) => {
+                          setIsAccessory(v);
+                          if (!v) {
+                            setParentAsset(null);
+                            parentSearch.clear();
+                          }
+                        }}
+                      />
                     </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <Label className="text-sm font-medium">Available for check out</Label>
-                        <p className="text-xs text-muted-foreground">Item can be used in check-outs</p>
+
+                    {/* Parent asset search (shown when accessory is toggled on) */}
+                    {isAccessory && (
+                      <div className="pl-0 space-y-2">
+                        {parentAsset ? (
+                          <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                            <span className="flex-1 truncate">
+                              <span className="font-medium">{parentAsset.assetTag}</span>
+                              {" — "}
+                              {parentAsset.name || `${parentAsset.brand} ${parentAsset.model}`}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-6"
+                              onClick={() => { setParentAsset(null); parentSearch.clear(); }}
+                            >
+                              <X className="size-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <Input
+                              value={parentSearch.query}
+                              onChange={(e) => parentSearch.setQuery(e.target.value)}
+                              placeholder="Search parent item by tag, brand, or model..."
+                            />
+                            {parentSearch.searching && (
+                              <p className="text-xs text-muted-foreground px-1">Searching...</p>
+                            )}
+                            {parentSearch.results.length > 0 && (
+                              <div className="rounded-md border divide-y text-sm">
+                                {parentSearch.results.map((item) => (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors"
+                                    onClick={() => {
+                                      setParentAsset(item);
+                                      parentSearch.clear();
+                                    }}
+                                  >
+                                    <span className="font-medium">{item.assetTag}</span>
+                                    {" — "}
+                                    {item.name || `${item.brand} ${item.model}`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Accessories are not available for independent booking.
+                        </p>
                       </div>
-                      <Switch checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <Label className="text-sm font-medium">Available for custody</Label>
-                        <p className="text-xs text-muted-foreground">Item can be taken into custody by a user</p>
+                    )}
+
+                    {/* Booking availability (hidden for accessories — they auto-disable) */}
+                    {!isAccessory && (
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <Label className="text-sm font-medium">Available for booking</Label>
+                          <p className="text-xs text-muted-foreground">Item can be reserved and checked out</p>
+                        </div>
+                        <Switch checked={availableForBooking} onCheckedChange={setAvailableForBooking} />
                       </div>
-                      <Switch checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
-                    </div>
+                    )}
                   </div>
                 </section>
               </>
