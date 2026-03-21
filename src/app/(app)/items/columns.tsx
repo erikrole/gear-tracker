@@ -1,9 +1,7 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import Image from "next/image";
 import {
-  ImageIcon,
   ArrowDown,
   ArrowUp,
   ChevronsUpDown,
@@ -150,33 +148,13 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         const item = row.original;
         const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
         return (
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-md overflow-hidden flex items-center justify-center shrink-0 bg-muted">
-              {item.imageUrl ? (
-                <Image
-                  src={item.imageUrl}
-                  alt=""
-                  width={72}
-                  height={72}
-                  sizes="36px"
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                  unoptimized={
-                    !item.imageUrl.includes(".public.blob.vercel-storage.com")
-                  }
-                />
-              ) : (
-                <ImageIcon className="size-3.5 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="font-medium truncate max-w-[300px]">{item.assetTag}</span>
-              {subtitle && (
-                <span className="text-xs text-muted-foreground truncate max-w-[300px]">
-                  {subtitle}
-                </span>
-              )}
-            </div>
+          <div className="flex flex-col min-w-0">
+            <span className="font-medium truncate max-w-[300px]">{item.assetTag}</span>
+            {subtitle && (
+              <span className="text-xs text-muted-foreground truncate max-w-[300px]">
+                {subtitle}
+              </span>
+            )}
           </div>
         );
       },
