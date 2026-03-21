@@ -734,7 +734,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Identity" open={identityOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
+            <div className="grid grid-cols-1 gap-y-1">
               <TextInputField
                 label="Asset tag"
                 value={asset.assetTag}
@@ -769,15 +769,13 @@ export default function ItemInfoCard({
                 onSave={(v) => saveField("serialNumber", v)}
                 mono
               />
-              <div className="sm:col-span-2">
-                <TextareaField
+              <TextareaField
                   label="Description"
                   value={asset.metadata?.description || ""}
                   placeholder="Add description"
                   canEdit={canEdit}
                   onSave={(v) => saveField("metadata.description", v)}
                 />
-              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -789,7 +787,7 @@ export default function ItemInfoCard({
               <SectionHeader title="Procurement" open={procurementOpen} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
+              <div className="grid grid-cols-1 gap-y-1">
                 <TextInputField
                   label="Purchase price"
                   value={
@@ -808,15 +806,13 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("residualValue", v)}
                 />
-                <div className="sm:col-span-2">
-                  <LinkField
+                <LinkField
                     label="Link"
                     value={asset.linkUrl || ""}
                     placeholder="Add product link"
                     canEdit={canEdit}
                     onSave={(v) => saveField("linkUrl", v)}
                   />
-                </div>
                 <SaveableDatePickerField
                   label="Purchase date"
                   value={
@@ -858,7 +854,7 @@ export default function ItemInfoCard({
             <SectionHeader title="Administrative" open={adminOpen} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1">
+            <div className="grid grid-cols-1 gap-y-1">
               <TextInputField
                 label="Location"
                 value={asset.location.name}
@@ -888,8 +884,7 @@ export default function ItemInfoCard({
                 canEdit={canEdit}
                 onSave={(v) => saveField("metadata.uwAssetTag", v)}
               />
-              <div className="sm:col-span-2">
-                <SaveableCategoryField
+              <SaveableCategoryField
                   currentId={asset.category?.id || ""}
                   displayName={asset.category?.name || ""}
                   canEdit={canEdit}
@@ -897,7 +892,6 @@ export default function ItemInfoCard({
                   onSave={saveCategory}
                   onCategoriesChanged={onCategoriesChanged}
                 />
-              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>
