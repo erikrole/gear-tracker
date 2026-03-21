@@ -58,8 +58,10 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     const [qrCodeValue, setQrCodeValue] = useState("");
     const [showScanner, setShowScanner] = useState(false);
 
-    // Settings
-    const [availableForBooking, setAvailableForBooking] = useState(true);
+    // Settings — three independent booking toggles matching detail page
+    const [availableForReservation, setAvailableForReservation] = useState(true);
+    const [availableForCheckout, setAvailableForCheckout] = useState(true);
+    const [availableForCustody, setAvailableForCustody] = useState(true);
     const [isAccessory, setIsAccessory] = useState(false);
     const [parentAsset, setParentAsset] = useState<ParentSearchResult | null>(null);
     const parentSearch = useParentSearch();
@@ -86,7 +88,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
         const resolvedCategoryId = categoryId === "__none__" ? "" : categoryId;
         const resolvedDepartmentId = departmentId === "__none__" ? "" : departmentId;
-        const bookingEnabled = isAccessory ? false : availableForBooking;
 
         return {
           assetTag: assetTag.trim(),
@@ -95,9 +96,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           model: model.trim(),
           qrCodeValue: qrCodeValue.trim(),
           locationId,
-          availableForReservation: bookingEnabled,
-          availableForCheckout: bookingEnabled,
-          availableForCustody: bookingEnabled,
+          availableForReservation: isAccessory ? false : availableForReservation,
+          availableForCheckout: isAccessory ? false : availableForCheckout,
+          availableForCustody: isAccessory ? false : availableForCustody,
           ...(isAccessory && parentAsset ? { parentAssetId: parentAsset.id } : {}),
           ...(serialNumber.trim() ? { serialNumber: serialNumber.trim() } : {}),
           ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
@@ -132,7 +133,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setUwAssetTag("");
         setQrCodeValue("");
         setShowScanner(false);
-        setAvailableForBooking(true);
+        setAvailableForReservation(true);
+        setAvailableForCheckout(true);
+        setAvailableForCustody(true);
         setIsAccessory(false);
         setParentAsset(null);
         parentSearch.clear();
@@ -339,9 +342,16 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                 checked={isAccessory}
                 onCheckedChange={(v) => {
                   setIsAccessory(v);
-                  if (!v) {
+                  if (v) {
+                    setAvailableForReservation(false);
+                    setAvailableForCheckout(false);
+                    setAvailableForCustody(false);
+                  } else {
                     setParentAsset(null);
                     parentSearch.clear();
+                    setAvailableForReservation(true);
+                    setAvailableForCheckout(true);
+                    setAvailableForCustody(true);
                   }
                 }}
               />
@@ -404,14 +414,30 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               </div>
             )}
 
-            {/* Booking availability */}
+            {/* Booking availability — three independent toggles matching detail page */}
             {!isAccessory && (
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <Label className="text-sm font-medium">Available for booking</Label>
-                  <p className="text-xs text-muted-foreground">Item can be reserved and checked out</p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Available for reservation</Label>
+                    <p className="text-xs text-muted-foreground">Item is available to be used in reservations</p>
+                  </div>
+                  <Switch checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
                 </div>
-                <Switch checked={availableForBooking} onCheckedChange={setAvailableForBooking} />
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Available for check out</Label>
+                    <p className="text-xs text-muted-foreground">Item is available to be used in check-outs</p>
+                  </div>
+                  <Switch checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label className="text-sm font-medium">Available for custody</Label>
+                    <p className="text-xs text-muted-foreground">Item can be taken into custody by a user</p>
+                  </div>
+                  <Switch checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
+                </div>
               </div>
             )}
           </div>
