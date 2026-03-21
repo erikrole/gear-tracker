@@ -6,12 +6,22 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
 import { AlertCircleIcon, SearchIcon, XIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Table,
   TableBody,
@@ -139,19 +149,14 @@ function CreateItemCard({
     <Card className="mb-4">
       <CardHeader className="flex items-center justify-between">
         <CardTitle>New item</CardTitle>
-        <div className="flex gap-4">
-          {(["serialized", "bulk"] as const).map((k) => (
-            <Button
-              key={k}
-              type="button"
-              variant={kind === k ? "default" : "outline"}
-              size="sm"
-              onClick={() => { setKind(k); setError(""); }}
-            >
-              {k === "serialized" ? "Serialized" : "Bulk"}
-            </Button>
-          ))}
-        </div>
+        <ToggleGroup
+          type="single"
+          value={kind}
+          onValueChange={(v) => { if (v) { setKind(v as ItemKind); setError(""); } }}
+        >
+          <ToggleGroupItem value="serialized">Serialized</ToggleGroupItem>
+          <ToggleGroupItem value="bulk">Bulk</ToggleGroupItem>
+        </ToggleGroup>
       </CardHeader>
 
       <form onSubmit={handleSubmit} className="px-6 pb-6">
@@ -298,6 +303,8 @@ function BulkActionBar({
   onAction: (action: string, payload?: Record<string, string | null>) => void;
   onClear: () => void;
 }) {
+  const [retireOpen, setRetireOpen] = useState(false);
+
   return (
     <div className="flex items-center gap-2 w-full flex-wrap">
       <span className="text-sm font-semibold">{count} selected</span>
@@ -341,9 +348,29 @@ function BulkActionBar({
       <Button variant="outline" size="sm" onClick={() => onAction("maintenance")} disabled={busy}>
         Maintenance
       </Button>
-      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (confirm(`Retire ${count} item${count > 1 ? "s" : ""}?`)) onAction("retire"); }} disabled={busy}>
-        Retire
-      </Button>
+
+      <AlertDialog open={retireOpen} onOpenChange={setRetireOpen}>
+        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setRetireOpen(true)} disabled={busy}>
+          Retire
+        </Button>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retire {count} item{count > 1 ? "s" : ""}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark {count === 1 ? "this item" : `these ${count} items`} as retired. Retired items are hidden from active inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => onAction("retire")}
+            >
+              Retire
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {busy && <span className="text-sm text-muted">Processing...</span>}
       {error && <span className="text-sm text-destructive">{error}</span>}
@@ -388,10 +415,6 @@ export default function ItemsPage() {
     const vals = searchParams.getAll("brand").filter(Boolean);
     return new Set(vals);
   });
-  const [departmentFilter, setDepartmentFilter] = useState<Set<string>>(() => {
-    const vals = searchParams.getAll("department").filter(Boolean);
-    return new Set(vals);
-  });
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -401,12 +424,11 @@ export default function ItemsPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const [limit, setLimit] = useState(25);
+  const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
   const router = useRouter();
 
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-
-  const hasActiveFilters = statusFilter.size > 0 || locationFilter.size > 0 || categoryFilter.size > 0 || brandFilter.size > 0 || departmentFilter.size > 0;
+  const hasActiveFilters = statusFilter.size > 0 || locationFilter.size > 0 || categoryFilter.size > 0 || brandFilter.size > 0;
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -422,19 +444,17 @@ export default function ItemsPage() {
     locationFilter.forEach((v) => params.append("location", v));
     categoryFilter.forEach((v) => params.append("category", v));
     brandFilter.forEach((v) => params.append("brand", v));
-    departmentFilter.forEach((v) => params.append("department", v));
     if (page > 0) params.set("page", String(page));
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, page]);
+  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, page]);
 
   // Serialize a Set to stable string for dependency tracking
   const statusKey = [...statusFilter].sort().join(",");
   const locationKey = [...locationFilter].sort().join(",");
   const categoryKey = [...categoryFilter].sort().join(",");
   const brandKey = [...brandFilter].sort().join(",");
-  const departmentKey = [...departmentFilter].sort().join(",");
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -447,7 +467,6 @@ export default function ItemsPage() {
     locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
     categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
     brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
-    departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
 
     try {
       const res = await fetch(`/api/assets?${params}`);
@@ -459,7 +478,7 @@ export default function ItemsPage() {
       setLoadError(true);
     }
     setLoading(false);
-  }, [page, limit, debouncedSearch, statusKey, locationKey, categoryKey, brandKey, departmentKey]);
+  }, [page, limit, debouncedSearch, statusKey, locationKey, categoryKey, brandKey]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -473,7 +492,6 @@ export default function ItemsPage() {
       .then((json) => {
         if (json) {
           setLocations(json.data?.locations || []);
-          setDepartments(json.data?.departments || []);
         }
       })
       .catch(() => {});
@@ -503,12 +521,11 @@ export default function ItemsPage() {
     setLocationFilter(new Set());
     setCategoryFilter(new Set());
     setBrandFilter(new Set());
-    setDepartmentFilter(new Set());
     setPage(0);
   }
 
   // Clear selection when page/filters change
-  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusKey, locationKey, categoryKey, brandKey, departmentKey]);
+  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusKey, locationKey, categoryKey, brandKey]);
 
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
   const selectedCount = selectedIds.length;
@@ -555,15 +572,19 @@ export default function ItemsPage() {
         } catch { /* ignore */ }
         break;
       case "retire":
-        if (confirm(`Retire ${asset.assetTag}?`)) {
-          try {
-            const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
-            if (res.ok) reload();
-          } catch { /* ignore */ }
-        }
+        setRetireTarget(asset);
         break;
     }
   }, [reload, router]);
+
+  async function confirmRetireTarget() {
+    if (!retireTarget) return;
+    try {
+      const res = await fetch(`/api/assets/${retireTarget.id}/retire`, { method: "POST" });
+      if (res.ok) reload();
+    } catch { /* ignore */ }
+    setRetireTarget(null);
+  }
 
   const columns = useMemo(
     () => getColumns({ canEdit, onRowAction: handleRowAction }),
@@ -572,6 +593,26 @@ export default function ItemsPage() {
 
   return (
     <>
+      {/* Single-item retire confirmation */}
+      <AlertDialog open={!!retireTarget} onOpenChange={(open) => { if (!open) setRetireTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retire {retireTarget?.assetTag}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark this item as retired. Retired items are hidden from active inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={confirmRetireTarget}
+            >
+              Retire
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex items-center justify-between mb-6 gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Items</h1>
         {canEdit && (
@@ -678,6 +719,14 @@ export default function ItemsPage() {
                   selected={locationFilter}
                   onSelectionChange={(s) => { setLocationFilter(s); setPage(0); }}
                 />
+                {brands.length > 0 && (
+                  <FacetedFilter
+                    title="Brand"
+                    options={brands.map((b) => ({ value: b, label: b }))}
+                    selected={brandFilter}
+                    onSelectionChange={(s) => { setBrandFilter(s); setPage(0); }}
+                  />
+                )}
                 {hasActiveFilters && (
                   <Button variant="ghost" size="sm" className="h-9" onClick={clearAllFilters}>
                     Clear filters
