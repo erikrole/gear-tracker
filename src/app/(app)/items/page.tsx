@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { Download } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
@@ -541,36 +540,14 @@ export default function ItemsPage() {
     <>
       <div className="page-header">
         <h1>Items</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => {
-              const params = new URLSearchParams();
-              params.set("format", "csv");
-              params.set("limit", "10000");
-              if (debouncedSearch) params.set("q", debouncedSearch);
-              if (statusFilter) params.set("status", statusFilter);
-              if (locationFilter) params.set("location_id", locationFilter);
-              if (categoryFilter) params.set("category_id", categoryFilter);
-              if (brandFilter) params.set("brand", brandFilter);
-              if (departmentFilter) params.set("department_id", departmentFilter);
-              window.open(`/api/assets/export?${params}`, "_blank");
-            }}
-          >
-            <Download className="size-4" />
-            Export
-          </Button>
-          {canEdit && (
-            <>
-              <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
-              <Button onClick={() => setShowCreate((v) => !v)}>
-                {showCreate ? "Close" : "New item"}
-              </Button>
-            </>
-          )}
-        </div>
+        {canEdit && (
+          <div className="flex gap-2">
+            <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
+            <Button onClick={() => setShowCreate((v) => !v)}>
+              {showCreate ? "Close" : "New item"}
+            </Button>
+          </div>
+        )}
       </div>
 
       {showCreate && (

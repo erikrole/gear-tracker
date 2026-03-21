@@ -4,9 +4,6 @@ import { ColumnDef } from "@tanstack/react-table";
 import Image from "next/image";
 import {
   ImageIcon,
-  Barcode,
-  Hash,
-  CalendarDays,
   ArrowUpDown,
   MoreHorizontal,
   ExternalLink,
@@ -30,6 +27,7 @@ export type ActiveBooking = {
   kind: string;
   title: string;
   requesterName: string;
+  isOverdue?: boolean;
 };
 
 export type Asset = {
@@ -51,31 +49,29 @@ export type Asset = {
   _count?: { accessories: number };
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  AVAILABLE: "Available",
-  CHECKED_OUT: "Checked out",
-  RESERVED: "Reserved",
-  MAINTENANCE: "Maintenance",
-  RETIRED: "Retired",
-};
+function statusBadge(asset: Asset) {
+  const { computedStatus, activeBooking } = asset;
 
-const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: "bg-emerald-500",
-  CHECKED_OUT: "bg-red-500",
-  RESERVED: "bg-purple-500",
-  MAINTENANCE: "bg-orange-500",
-  RETIRED: "bg-gray-400",
-};
-
-function formatDate(dateStr: string) {
-  try {
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "numeric",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return "";
+  switch (computedStatus) {
+    case "AVAILABLE":
+      return <Badge variant="green">Available</Badge>;
+    case "CHECKED_OUT": {
+      const name = activeBooking?.requesterName;
+      const isOverdue = activeBooking?.isOverdue;
+      const label = name ? `Checked out by ${name}` : "Checked out";
+      return <Badge variant={isOverdue ? "red" : "blue"}>{label}</Badge>;
+    }
+    case "RESERVED": {
+      const name = activeBooking?.requesterName;
+      const label = name ? `Reserved by ${name}` : "Reserved";
+      return <Badge variant="purple">{label}</Badge>;
+    }
+    case "MAINTENANCE":
+      return <Badge variant="orange">Maintenance</Badge>;
+    case "RETIRED":
+      return <Badge variant="gray">Retired</Badge>;
+    default:
+      return <Badge variant="gray">{computedStatus}</Badge>;
   }
 }
 
@@ -115,12 +111,13 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         />
       ),
       cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Select row"
-        />
+        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        </div>
       ),
       enableSorting: false,
       enableHiding: false,
@@ -162,48 +159,10 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       header: ({ column }) => <SortableHeader column={column} label="Name" />,
       cell: ({ row }) => {
         const item = row.original;
-        const statusLabel = STATUS_LABELS[item.computedStatus] || item.computedStatus;
-        const statusColor = STATUS_COLORS[item.computedStatus] || "bg-gray-400";
-        const shortSerial = item.serialNumber.length > 8
-          ? item.serialNumber.slice(0, 8)
-          : item.serialNumber;
-
         return (
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">
-                {item.assetTag}
-              </span>
-              {(item._count?.accessories ?? 0) > 0 && (
-                <Badge
-                  variant="gray"
-                  size="sm"
-                  title={`${item._count!.accessories} accessories`}
-                >
-                  +{item._count!.accessories}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <span className={`inline-block size-2 rounded-full ${statusColor}`} />
-                {statusLabel}
-              </span>
-              <span className="inline-flex items-center gap-0.5">
-                <Barcode className="size-3" />
-                {item.assetTag}
-              </span>
-              <span className="inline-flex items-center gap-0.5">
-                <Hash className="size-3" />
-                {shortSerial}
-              </span>
-              {item.createdAt && (
-                <span className="inline-flex items-center gap-0.5">
-                  <CalendarDays className="size-3" />
-                  {formatDate(item.createdAt)}
-                </span>
-              )}
-            </div>
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold text-sm">{item.assetTag}</span>
+            {statusBadge(item)}
           </div>
         );
       },
