@@ -24,6 +24,9 @@ const createAssetSchema = z.object({
   departmentId: z.string().cuid().optional(),
   linkUrl: z.string().url().max(2000).optional(),
   uwAssetTag: z.string().max(200).optional(),
+  availableForReservation: z.boolean().optional(),
+  availableForCheckout: z.boolean().optional(),
+  availableForCustody: z.boolean().optional(),
   status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).default("AVAILABLE"),
   notes: z.string().max(10000).optional()
 });
@@ -206,6 +209,9 @@ export const POST = withAuth(async (req, { user }) => {
       departmentId: body.departmentId ?? null,
       linkUrl: body.linkUrl ?? null,
       uwAssetTag: body.uwAssetTag ?? null,
+      availableForReservation: body.availableForReservation ?? true,
+      availableForCheckout: body.availableForCheckout ?? true,
+      availableForCustody: body.availableForCustody ?? true,
       status: body.status,
       notes: body.notes
     },

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircleIcon } from "lucide-react";
 import {
@@ -45,6 +46,8 @@ interface NewItemSheetProps {
 
 type ItemKind = "serialized" | "bulk";
 
+// --- Layout helpers ---
+
 function FormRow({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[140px_1fr] items-start gap-4">
@@ -69,7 +72,12 @@ function FormRow2Col({ label, required, children }: { label?: string; required?:
   );
 }
 
-/** Brief success flash shown after "Add another" creates an item. */
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{children}</h3>;
+}
+
+// --- Utilities ---
+
 function SuccessFlash({ message }: { message: string }) {
   return (
     <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
@@ -79,7 +87,6 @@ function SuccessFlash({ message }: { message: string }) {
   );
 }
 
-/** Generate a random QR code value matching the app's format: QR-XXXXXXXX */
 function generateQrCode(): string {
   const array = new Uint8Array(8);
   crypto.getRandomValues(array);
@@ -87,7 +94,6 @@ function generateQrCode(): string {
   return `QR-${hex}`;
 }
 
-/** Detect if the user is likely on a mobile device with a camera. */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -95,6 +101,23 @@ function useIsMobile() {
   }, []);
   return isMobile;
 }
+
+/** Build fiscal year options: current FY ± 5 years. */
+function getFiscalYearOptions(): string[] {
+  const now = new Date();
+  // UW fiscal year runs Jul–Jun. If we're past July, current FY = next calendar year's 2-digit.
+  const calYear = now.getFullYear();
+  const currentFY = now.getMonth() >= 6 ? calYear + 1 : calYear;
+  const options: string[] = [];
+  for (let y = currentFY - 5; y <= currentFY + 2; y++) {
+    options.push(`FY${String(y).slice(-2)}`);
+  }
+  return options.reverse(); // most recent first
+}
+
+const FISCAL_YEARS = getFiscalYearOptions();
+
+// --- Component ---
 
 export function NewItemSheet({
   open,
@@ -111,35 +134,46 @@ export function NewItemSheet({
   const [successMsg, setSuccessMsg] = useState("");
   const successTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Controlled select values (Select doesn't work with native FormData)
+  // Controlled selects
   const [categoryId, setCategoryId] = useState("__none__");
   const [locationId, setLocationId] = useState("");
   const [departmentId, setDepartmentId] = useState("__none__");
+  const [fiscalYear, setFiscalYear] = useState("__none__");
 
-  // QR code field — controlled so generate/scan can populate it
+  // QR code
   const [qrCodeValue, setQrCodeValue] = useState("");
   const [showScanner, setShowScanner] = useState(false);
+
+  // Settings toggles (default all true, matching schema defaults)
+  const [availableForReservation, setAvailableForReservation] = useState(true);
+  const [availableForCheckout, setAvailableForCheckout] = useState(true);
+  const [availableForCustody, setAvailableForCustody] = useState(true);
 
   const isMobile = useIsMobile();
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Full reset — closing the sheet
   const resetAll = useCallback(() => {
     setError("");
     setSuccessMsg("");
     setCategoryId("__none__");
     setLocationId("");
     setDepartmentId("__none__");
+    setFiscalYear("__none__");
     setQrCodeValue("");
     setShowScanner(false);
     setKind("serialized");
+    setAvailableForReservation(true);
+    setAvailableForCheckout(true);
+    setAvailableForCustody(true);
   }, []);
 
-  // Partial reset — "add another" keeps location, category, department, kind
   function resetForAnother() {
     setError("");
     setQrCodeValue("");
     setShowScanner(false);
+    setAvailableForReservation(true);
+    setAvailableForCheckout(true);
+    setAvailableForCustody(true);
   }
 
   function showSuccessMsg(msg: string) {
@@ -148,10 +182,8 @@ export function NewItemSheet({
     successTimer.current = setTimeout(() => setSuccessMsg(""), 3000);
   }
 
-  // Cleanup timer on unmount
   useEffect(() => () => clearTimeout(successTimer.current), []);
 
-  // Validate controlled selects that HTML5 validation can't reach
   function validateSelects(): string | null {
     if (kind === "serialized") {
       if (!categoryId || categoryId === "__none__") return "Please select a category.";
@@ -180,10 +212,8 @@ export function NewItemSheet({
 
       if (kind === "serialized") {
         const notes: Record<string, string> = {};
-        const desc = String(form.get("description") || "").trim();
-        const fiscalYear = String(form.get("fiscalYear") || "").trim();
-        if (desc) notes.description = desc;
-        if (fiscalYear) notes.fiscalYear = fiscalYear;
+        const fy = fiscalYear !== "__none__" ? fiscalYear : "";
+        if (fy) notes.fiscalYear = fy;
 
         const resolvedCategoryId = categoryId === "__none__" ? "" : categoryId;
         const resolvedDepartmentId = departmentId === "__none__" ? "" : departmentId;
@@ -203,6 +233,9 @@ export function NewItemSheet({
             model: String(form.get("model") || ""),
             qrCodeValue,
             locationId,
+            availableForReservation,
+            availableForCheckout,
+            availableForCustody,
             ...(serialNumber ? { serialNumber } : {}),
             ...(resolvedCategoryId ? { categoryId: resolvedCategoryId } : {}),
             ...(resolvedDepartmentId ? { departmentId: resolvedDepartmentId } : {}),
@@ -261,13 +294,15 @@ export function NewItemSheet({
     }
   }
 
+  // --- Shared select fragments ---
+
   const categorySelect = (
     <Select value={categoryId} onValueChange={setCategoryId}>
       <SelectTrigger>
         <SelectValue placeholder="Select a category" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="__none__">No category</SelectItem>
+        <SelectItem value="__none__">Select a category</SelectItem>
         {categories.filter((c) => !c.parentId).map((parent) => (
           <SelectGroup key={parent.id}>
             <SelectLabel>{parent.name}</SelectLabel>
@@ -305,11 +340,10 @@ export function NewItemSheet({
         </SheetHeader>
 
         <SheetBody className="px-6 py-6">
-          <form id="new-item-form" ref={formRef} onSubmit={handleSubmit} className="space-y-8">
-            {/* Section 1: Item type */}
-            <section className="space-y-4">
-              <h3 className="text-base font-semibold">How do you want this item to be added?</h3>
-
+          <form id="new-item-form" ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+            {/* ── Item type ── */}
+            <section className="space-y-3">
+              <SectionHeading>Item type</SectionHeading>
               <RadioGroup value={kind} onValueChange={(v) => setKind(v as ItemKind)}>
                 <div className="flex items-start gap-3">
                   <RadioGroupItem value="serialized" id="kind-serialized" className="mt-0.5" />
@@ -334,14 +368,14 @@ export function NewItemSheet({
 
             <Separator />
 
-            {/* Section 2: Item details */}
-            <section className="space-y-4">
-              <h3 className="text-base font-semibold">Item details</h3>
+            {successMsg && <SuccessFlash message={successMsg} />}
 
-              {successMsg && <SuccessFlash message={successMsg} />}
+            {kind === "serialized" ? (
+              <>
+                {/* ── Identity ── */}
+                <section className="space-y-4">
+                  <SectionHeading>Identity</SectionHeading>
 
-              {kind === "serialized" ? (
-                <>
                   <FormRow label="Name" required>
                     <Input name="itemName" placeholder="e.g. Sony A7III Camera" required />
                   </FormRow>
@@ -350,6 +384,15 @@ export function NewItemSheet({
                     <Input name="brand" placeholder="e.g. Sony" required />
                     <Input name="model" placeholder="e.g. A7III" required />
                   </FormRow2Col>
+
+                  <FormRow label="Serial number">
+                    <Input name="serialNumber" placeholder="Manufacturer serial (optional)" />
+                  </FormRow>
+                </section>
+
+                {/* ── Organization ── */}
+                <section className="space-y-4">
+                  <SectionHeading>Organization</SectionHeading>
 
                   <FormRow label="Category" required>
                     {categorySelect}
@@ -372,13 +415,14 @@ export function NewItemSheet({
                   <FormRow label="Location" required>
                     {locationSelect}
                   </FormRow>
+                </section>
+
+                {/* ── Tracking ── */}
+                <section className="space-y-4">
+                  <SectionHeading>Tracking</SectionHeading>
 
                   <FormRow label="Asset tag" required>
                     <Input name="assetTag" placeholder="Unique tag name" required />
-                  </FormRow>
-
-                  <FormRow label="Serial number">
-                    <Input name="serialNumber" placeholder="Serial number (optional)" />
                   </FormRow>
 
                   <FormRow label="QR code" required>
@@ -434,7 +478,14 @@ export function NewItemSheet({
                     )}
                   </FormRow>
 
-                  <Separator />
+                  <FormRow label="UW Asset Tag">
+                    <Input name="uwAssetTag" placeholder="Asset tag number" />
+                  </FormRow>
+                </section>
+
+                {/* ── Procurement ── */}
+                <section className="space-y-4">
+                  <SectionHeading>Procurement</SectionHeading>
 
                   <FormRow2Col label="Purchase">
                     <div className="space-y-1.5">
@@ -458,24 +509,60 @@ export function NewItemSheet({
                     </div>
                   </FormRow2Col>
 
+                  <FormRow label="Fiscal year">
+                    <Select value={fiscalYear} onValueChange={setFiscalYear}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select fiscal year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        {FISCAL_YEARS.map((fy) => (
+                          <SelectItem key={fy} value={fy}>{fy}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormRow>
+
                   <FormRow label="Link">
                     <Input name="linkUrl" type="url" placeholder="https://..." />
                   </FormRow>
+                </section>
 
-                  <FormRow label="UW Asset Tag">
-                    <Input name="uwAssetTag" placeholder="0" />
-                  </FormRow>
+                {/* ── Settings ── */}
+                <section className="space-y-4">
+                  <SectionHeading>Settings</SectionHeading>
 
-                  <FormRow label="Fiscal Year">
-                    <Input name="fiscalYear" placeholder="e.g. 2025" />
-                  </FormRow>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Available for reservation</Label>
+                        <p className="text-xs text-muted-foreground">Item can be used in reservations</p>
+                      </div>
+                      <Switch checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Available for check out</Label>
+                        <p className="text-xs text-muted-foreground">Item can be used in check-outs</p>
+                      </div>
+                      <Switch checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Available for custody</Label>
+                        <p className="text-xs text-muted-foreground">Item can be taken into custody by a user</p>
+                      </div>
+                      <Switch checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
+                    </div>
+                  </div>
+                </section>
+              </>
+            ) : (
+              <>
+                {/* ── Bulk item details ── */}
+                <section className="space-y-4">
+                  <SectionHeading>Item details</SectionHeading>
 
-                  <FormRow label="Description">
-                    <Input name="description" placeholder="Optional notes" />
-                  </FormRow>
-                </>
-              ) : (
-                <>
                   <FormRow label="Product name" required>
                     <Input name="bulkName" placeholder="e.g. AA Batteries" required />
                   </FormRow>
@@ -491,9 +578,11 @@ export function NewItemSheet({
                   <FormRow label="Unit" required>
                     <Input name="unit" placeholder="ea, box, pack" required />
                   </FormRow>
+
                   <FormRow label="Bin QR code" required>
                     <Input name="binQrCodeValue" placeholder="QR code on storage bin" required />
                   </FormRow>
+
                   <FormRow2Col label="Stock">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">Initial quantity</Label>
@@ -504,9 +593,9 @@ export function NewItemSheet({
                       <Input name="minThreshold" type="number" min="0" defaultValue="0" />
                     </div>
                   </FormRow2Col>
-                </>
-              )}
-            </section>
+                </section>
+              </>
+            )}
 
             {error && (
               <Alert variant="destructive">
