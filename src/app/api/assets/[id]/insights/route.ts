@@ -2,24 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { NextResponse } from "next/server";
-
-/* ── Types ──────────────────────────────────────────────── */
-
-type WindowStats = {
-  totalBookings: number;
-  utilizationPct: number;
-  monthly: Array<{ month: string; checkouts: number; reservations: number }>;
-  bySport: Array<{ sport: string; days: number }>;
-  topBorrowers: Array<{ name: string; count: number }>;
-  byKind: { CHECKOUT: number; RESERVATION: number };
-  byDayOfWeek: number[]; // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
-  punctuality: { onTime: number; late: number };
-  avgDurationDays: number;
-  longestDurationDays: number;
-  costPerUse: number | null;
-  idleStreakDays: number | null;
-  ageDays: number | null;
-};
+import type { WindowStats } from "@/app/(app)/items/[id]/types";
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -56,6 +39,7 @@ function computeWindow(
     status: string;
     startsAt: Date;
     endsAt: Date;
+    updatedAt: Date;
     sportCode: string | null;
     requesterName: string;
   }>,
@@ -141,12 +125,16 @@ function computeWindow(
   let late = 0;
   for (const b of checkouts) {
     if (b.status === "COMPLETED") {
-      onTime++;
+      // If the booking was completed (updatedAt) after its scheduled end, it was late
+      if (b.updatedAt > b.endsAt) {
+        late++;
+      } else {
+        onTime++;
+      }
     } else if (b.status === "OPEN" && b.endsAt < now) {
       late++;
-    } else if (b.status === "OPEN") {
-      onTime++; // still active, not yet late
     }
+    // OPEN bookings not yet past endsAt are still active — don't count either way
   }
 
   // --- Duration ---
@@ -217,6 +205,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
             status: true,
             startsAt: true,
             endsAt: true,
+            updatedAt: true,
             sportCode: true,
             requester: { select: { name: true } },
           },
@@ -236,6 +225,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
       status: r.booking.status,
       startsAt: r.booking.startsAt,
       endsAt: r.booking.endsAt,
+      updatedAt: r.booking.updatedAt,
       sportCode: r.booking.sportCode,
       requesterName: r.booking.requester.name,
     }))
