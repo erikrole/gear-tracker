@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   MoreHorizontal,
@@ -7,6 +8,7 @@ import {
   Copy,
   Wrench,
   Archive,
+  Package,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -114,27 +116,43 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         const item = row.original;
         const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
         return (
-          <div className="flex flex-col min-w-0">
-            <div className="font-medium">{item.assetTag}</div>
-            {subtitle && (
-              <div className="text-xs text-muted-foreground">{subtitle}</div>
+          <div className="flex items-center gap-3 min-w-0">
+            {item.imageUrl ? (
+              <Image
+                src={item.imageUrl}
+                alt={item.assetTag}
+                width={36}
+                height={36}
+                className="size-9 rounded-md object-cover shrink-0"
+                unoptimized={!item.imageUrl.includes(".public.blob.vercel-storage.com")}
+              />
+            ) : (
+              <div className="size-9 rounded-md bg-muted flex items-center justify-center shrink-0">
+                <Package className="size-4 text-muted-foreground" />
+              </div>
             )}
+            <div className="flex flex-col min-w-0">
+              <div className="font-medium">{item.assetTag}</div>
+              {subtitle && (
+                <div className="text-xs text-muted-foreground">{subtitle}</div>
+              )}
+            </div>
           </div>
         );
       },
       enableHiding: false,
     },
     {
-      header: "Category",
-      id: "category",
-      accessorFn: (row) => row.category?.name || row.type,
-      cell: ({ row }) => row.original.category?.name || row.original.type,
-    },
-    {
       header: "Status",
       id: "status",
       cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
+    },
+    {
+      header: "Category",
+      id: "category",
+      accessorFn: (row) => row.category?.name || row.type,
+      cell: ({ row }) => row.original.category?.name || row.original.type,
     },
     {
       header: "Location",
