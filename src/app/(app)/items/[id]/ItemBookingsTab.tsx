@@ -12,6 +12,7 @@ import {
 } from "@/lib/format";
 import type { AssetDetail, ActiveBookingDetail, UpcomingReservation } from "./types";
 import { QRCodeCanvas, QRModal } from "./ItemInfoTab";
+import type { SaveStatus } from "./SaveableField";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -169,10 +170,8 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
 
 /* ── Settings Card (sidebar) ───────────────────────────── */
 
-type ToggleStatus = "idle" | "saving" | "saved" | "error";
-
 function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const [savingField, setSavingField] = useState<Record<string, ToggleStatus>>({});
+  const [savingField, setSavingField] = useState<Record<string, SaveStatus>>({});
 
   async function toggleSetting(field: string, currentValue: boolean) {
     setSavingField((prev) => ({ ...prev, [field]: "saving" }));

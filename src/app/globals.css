@@ -4490,15 +4490,12 @@ tr.status-overdue .status-label,
 
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 
-.data-list-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
-
 @media (max-width: 768px) {
   .grid-3col { grid-template-columns: 1fr; }
   .grid-2col { grid-template-columns: 1fr; }
   .form-grid-5 { grid-template-columns: 1fr; }
   .form-grid-3 { grid-template-columns: 1fr; }
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
-  .data-list-2col { grid-template-columns: 1fr; }
 }
 
 /* Positioning */

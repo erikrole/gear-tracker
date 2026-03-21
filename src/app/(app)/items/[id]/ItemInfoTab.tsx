@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,11 +36,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Calendar } from "@/components/ui/calendar";
 import {
   CalendarIcon,
@@ -98,6 +93,7 @@ function TextInputField({
 }) {
   const [draft, setDraft] = useState(value);
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   useEffect(() => {
     setDraft(value);
@@ -110,8 +106,9 @@ function TextInputField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <Input
+        id={fieldId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -149,6 +146,7 @@ function TextareaField({
 }) {
   const [draft, setDraft] = useState(value);
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   useEffect(() => {
     setDraft(value);
@@ -161,8 +159,9 @@ function TextareaField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status} className="items-start">
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId} className="items-start">
       <Textarea
+        id={fieldId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -193,6 +192,7 @@ function LinkField({
   const [draft, setDraft] = useState(value);
   const [copied, setCopied] = useState(false);
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   useEffect(() => {
     setDraft(value);
@@ -212,9 +212,10 @@ function LinkField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <div className="flex items-center gap-1">
         <Input
+          id={fieldId}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
@@ -308,6 +309,7 @@ function DatePickerField({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value ? format(new Date(value + "T00:00:00"), "MM/dd/yyyy") : "");
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   const dateValue = value ? new Date(value + "T00:00:00") : undefined;
 
@@ -348,9 +350,10 @@ function DatePickerField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <div className="flex items-center gap-1">
         <Input
+          id={fieldId}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitTyped}
@@ -448,6 +451,7 @@ function ComboboxField({
                   <CommandItem
                     value=" "
                     onSelect={async () => {
+                      if (!value) { setOpen(false); return; }
                       await saveField.save("");
                       setOpen(false);
                     }}
@@ -465,6 +469,7 @@ function ComboboxField({
                       key={opt}
                       value={opt}
                       onSelect={async () => {
+                        if (value === opt) { setOpen(false); return; }
                         await saveField.save(opt);
                         setOpen(false);
                       }}
@@ -614,6 +619,7 @@ function CategoryField({
                   <CommandItem
                     value=" "
                     onSelect={async () => {
+                      if (!currentId) { setOpen(false); return; }
                       await saveField.save("");
                       setOpen(false);
                     }}
@@ -636,6 +642,7 @@ function CategoryField({
                         key={cat.id}
                         value={cat.name}
                         onSelect={async () => {
+                          if (currentId === cat.id) { setOpen(false); return; }
                           await saveField.save(cat.id);
                           setOpen(false);
                         }}
@@ -659,6 +666,7 @@ function CategoryField({
                         key={child.id}
                         value={`${parent.name} ${child.name}`}
                         onSelect={async () => {
+                          if (currentId === child.id) { setOpen(false); return; }
                           await saveField.save(child.id);
                           setOpen(false);
                         }}
@@ -870,15 +878,19 @@ function SectionHeader({
   title,
   open,
   onToggle,
+  sectionId,
 }: {
   title: string;
   open: boolean;
   onToggle: () => void;
+  sectionId: string;
 }) {
   return (
     <div className="col-span-full px-4 pt-4 pb-1">
       <button
         onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={sectionId}
         className="flex items-center gap-1.5 w-full text-left group"
       >
         <ChevronDown
@@ -915,7 +927,6 @@ export default function ItemInfoCard({
   onRefresh: () => void;
   onCategoriesChanged: () => void;
 }) {
-  const { toast } = useToast();
   const [identityOpen, setIdentityOpen] = useState(true);
   const [procurementOpen, setProcurementOpen] = useState(true);
   const [adminOpen, setAdminOpen] = useState(true);
@@ -991,9 +1002,10 @@ export default function ItemInfoCard({
           title="Identity"
           open={identityOpen}
           onToggle={() => setIdentityOpen(!identityOpen)}
+          sectionId="section-identity"
         />
         {identityOpen && (
-          <div className="grid grid-cols-1 sm:grid-cols-2">
+          <div id="section-identity" className="grid grid-cols-1 sm:grid-cols-2">
             <TextInputField
               label="Asset tag"
               value={asset.assetTag}
@@ -1047,9 +1059,10 @@ export default function ItemInfoCard({
               title="Procurement"
               open={procurementOpen}
               onToggle={() => setProcurementOpen(!procurementOpen)}
+              sectionId="section-procurement"
             />
             {procurementOpen && (
-              <div className="grid grid-cols-1 sm:grid-cols-2">
+              <div id="section-procurement" className="grid grid-cols-1 sm:grid-cols-2">
                 <TextInputField
                   label="Purchase price"
                   value={
@@ -1118,9 +1131,10 @@ export default function ItemInfoCard({
           title="Administrative"
           open={adminOpen}
           onToggle={() => setAdminOpen(!adminOpen)}
+          sectionId="section-admin"
         />
         {adminOpen && (
-          <div className="grid grid-cols-1 sm:grid-cols-2">
+          <div id="section-admin" className="grid grid-cols-1 sm:grid-cols-2">
             <TextInputField
               label="Location"
               value={asset.location.name}
