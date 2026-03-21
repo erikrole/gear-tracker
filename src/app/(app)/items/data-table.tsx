@@ -31,6 +31,7 @@ interface DataTableProps {
   columnVisibility: VisibilityState;
   onColumnVisibilityChange: OnChangeFn<VisibilityState>;
   filterBar?: ReactNode;
+  bulkActionBar?: ReactNode;
 }
 
 export function DataTable({
@@ -41,6 +42,7 @@ export function DataTable({
   columnVisibility,
   onColumnVisibilityChange,
   filterBar,
+  bulkActionBar,
 }: DataTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -60,9 +62,16 @@ export function DataTable({
 
   return (
     <div className="rounded-md border">
-      {filterBar && (
-        <div className="flex flex-wrap gap-3 px-4 py-4">
-          {filterBar}
+      {(filterBar || bulkActionBar) && (
+        <div className="relative">
+          <div className={`flex flex-wrap items-end gap-3 px-4 py-3 ${bulkActionBar ? "invisible" : ""}`}>
+            {filterBar}
+          </div>
+          {bulkActionBar && (
+            <div className="absolute inset-0 flex items-center px-4">
+              {bulkActionBar}
+            </div>
+          )}
         </div>
       )}
       <Table>

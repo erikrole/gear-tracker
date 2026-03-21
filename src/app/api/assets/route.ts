@@ -34,30 +34,46 @@ const assetInclude = {
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
-  const statusParam = searchParams.get("status");
-  const locationId = searchParams.get("location_id");
-  const categoryId = searchParams.get("category_id");
-  const brand = searchParams.get("brand")?.trim();
-  const departmentId = searchParams.get("department_id");
   const showAccessories = searchParams.get("show_accessories") === "true";
+
+  // Support multi-value filters: ?status=A&status=B or single ?status=A
+  const statusParams = searchParams.getAll("status").filter(Boolean);
+  const locationIds = searchParams.getAll("location_id").filter(Boolean);
+  const categoryIds = searchParams.getAll("category_id").filter(Boolean);
+  const brandParams = searchParams.getAll("brand").map((b) => b.trim()).filter(Boolean);
+  const departmentIds = searchParams.getAll("department_id").filter(Boolean);
 
   // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
   // post-enrichment filtering. Stored statuses filter at the DB level.
   const derivedStatuses = ["CHECKED_OUT", "RESERVED"];
-  const isDerivedFilter = statusParam && derivedStatuses.includes(statusParam);
-  const isStoredFilter = statusParam && !isDerivedFilter;
+  const derivedFilters = statusParams.filter((s) => derivedStatuses.includes(s));
+  const storedFilters = statusParams.filter((s) => !derivedStatuses.includes(s));
+  const hasDerived = derivedFilters.length > 0;
+  const hasStored = storedFilters.length > 0;
+  // If mixing derived + stored, we need post-enrichment filtering for derived.
+  // DB-level: filter to stored statuses + AVAILABLE (source for derived).
+  const dbStatusFilter = hasDerived && hasStored
+    ? [...storedFilters, "AVAILABLE"]
+    : hasDerived
+      ? ["AVAILABLE"]
+      : storedFilters;
 
   const where = {
     // By default, hide accessories (child items) from the main list
     ...(!showAccessories ? { parentAssetId: null } : {}),
-    ...(locationId ? { locationId } : {}),
-    ...(categoryId ? { categoryId } : {}),
-    ...(departmentId ? { departmentId } : {}),
-    ...(brand ? { brand: { equals: brand, mode: "insensitive" as const } } : {}),
-    // For derived status filters, only look at AVAILABLE assets (those are
-    // the only ones that can be CHECKED_OUT or RESERVED after enrichment).
-    ...(isStoredFilter ? { status: statusParam as never } : {}),
-    ...(isDerivedFilter ? { status: "AVAILABLE" as never } : {}),
+    ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
+    ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
+    ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),
+    ...(categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
+    ...(departmentIds.length === 1 ? { departmentId: departmentIds[0] } : {}),
+    ...(departmentIds.length > 1 ? { departmentId: { in: departmentIds } } : {}),
+    ...(brandParams.length === 1
+      ? { brand: { equals: brandParams[0], mode: "insensitive" as const } }
+      : brandParams.length > 1
+        ? { brand: { in: brandParams, mode: "insensitive" as const } }
+        : {}),
+    ...(dbStatusFilter.length === 1 ? { status: dbStatusFilter[0] as never } : {}),
+    ...(dbStatusFilter.length > 1 ? { status: { in: dbStatusFilter } as never } : {}),
     ...(q
       ? {
           OR: [
@@ -72,7 +88,7 @@ export const GET = withAuth(async (req) => {
 
   const { limit, offset } = parsePagination(searchParams);
 
-  if (isDerivedFilter) {
+  if (hasDerived) {
     // For derived status filters, fetch matching assets, enrich, filter,
     // then paginate in-memory. Capped at 2000 to prevent memory issues on large inventories.
     const rawAll = await db.asset.findMany({
@@ -89,7 +105,8 @@ export const GET = withAuth(async (req) => {
       enriched = rawAll.map((a) => ({ ...a, computedStatus: a.status as string }));
     }
 
-    const filtered = enriched.filter((a) => a.computedStatus === statusParam);
+    const allowedStatuses = new Set(statusParams);
+    const filtered = enriched.filter((a) => allowedStatuses.has(a.computedStatus));
     const total = filtered.length;
     const data = filtered.slice(offset, offset + limit);
     const dataWithBookings = await attachActiveBookings(data);

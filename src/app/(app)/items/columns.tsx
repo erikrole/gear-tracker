@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   MoreHorizontal,
@@ -7,6 +8,7 @@ import {
   Copy,
   Wrench,
   Archive,
+  Package,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -46,29 +48,97 @@ export type Asset = {
   _count?: { accessories: number };
 };
 
+/** Status badge color map — dot + tinted background pattern (badge-18 style) */
+const STATUS_STYLES = {
+  green: {
+    badge: "border-none bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400",
+    dot: "bg-green-600 dark:bg-green-400",
+  },
+  blue: {
+    badge: "border-none bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400",
+    dot: "bg-blue-600 dark:bg-blue-400",
+  },
+  red: {
+    badge: "border-none bg-red-600/10 text-red-600 dark:bg-red-400/10 dark:text-red-400",
+    dot: "bg-red-600 dark:bg-red-400",
+  },
+  purple: {
+    badge: "border-none bg-purple-600/10 text-purple-600 dark:bg-purple-400/10 dark:text-purple-400",
+    dot: "bg-purple-600 dark:bg-purple-400",
+  },
+  orange: {
+    badge: "border-none bg-amber-600/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400",
+    dot: "bg-amber-600 dark:bg-amber-400",
+  },
+  gray: {
+    badge: "border-none bg-muted text-muted-foreground",
+    dot: "bg-muted-foreground",
+  },
+} as const;
+
+function StatusDot({ color }: { color: keyof typeof STATUS_STYLES }) {
+  return (
+    <span
+      className={`size-1.5 rounded-full ${STATUS_STYLES[color].dot}`}
+      aria-hidden="true"
+    />
+  );
+}
+
 function statusBadge(asset: Asset) {
   const { computedStatus, activeBooking } = asset;
 
   switch (computedStatus) {
     case "AVAILABLE":
-      return <Badge variant="green">Available</Badge>;
+      return (
+        <Badge className={STATUS_STYLES.green.badge}>
+          <StatusDot color="green" />
+          Available
+        </Badge>
+      );
     case "CHECKED_OUT": {
       const name = activeBooking?.requesterName;
       const isOverdue = activeBooking?.isOverdue;
-      const label = name ? `Checked out — ${name}` : "Checked out";
-      return <Badge variant={isOverdue ? "red" : "blue"}>{label}</Badge>;
+      const label = name ? `Checked out by ${name}` : "Checked out";
+      const color = isOverdue ? "red" : "blue";
+      return (
+        <Badge className={STATUS_STYLES[color].badge}>
+          <StatusDot color={color} />
+          {label}
+        </Badge>
+      );
     }
     case "RESERVED": {
       const name = activeBooking?.requesterName;
-      const label = name ? `Reserved — ${name}` : "Reserved";
-      return <Badge variant="purple">{label}</Badge>;
+      const label = name ? `Reserved by ${name}` : "Reserved";
+      return (
+        <Badge className={STATUS_STYLES.purple.badge}>
+          <StatusDot color="purple" />
+          {label}
+        </Badge>
+      );
     }
     case "MAINTENANCE":
-      return <Badge variant="orange">Maintenance</Badge>;
+      return (
+        <Badge className={STATUS_STYLES.orange.badge}>
+          <StatusDot color="orange" />
+          Maintenance
+        </Badge>
+      );
     case "RETIRED":
-      return <Badge variant="gray">Retired</Badge>;
+      return (
+        <Badge className={STATUS_STYLES.gray.badge}>
+          <StatusDot color="gray" />
+          Retired
+        </Badge>
+      );
     default:
-      return <Badge variant="gray">{computedStatus}</Badge>;
+      return (
+        <Badge className={STATUS_STYLES.gray.badge}>
+          <StatusDot color="gray" />
+          {computedStatus}
+        </Badge>
+      );
   }
 }
 
@@ -114,27 +184,43 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         const item = row.original;
         const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
         return (
-          <div className="flex flex-col min-w-0">
-            <div className="font-medium">{item.assetTag}</div>
-            {subtitle && (
-              <div className="text-xs text-muted-foreground">{subtitle}</div>
+          <div className="flex items-center gap-3 min-w-0">
+            {item.imageUrl ? (
+              <Image
+                src={item.imageUrl}
+                alt={item.assetTag}
+                width={36}
+                height={36}
+                className="size-9 rounded-md object-cover shrink-0"
+                unoptimized={!item.imageUrl.includes(".public.blob.vercel-storage.com")}
+              />
+            ) : (
+              <div className="size-9 rounded-md bg-muted flex items-center justify-center shrink-0">
+                <Package className="size-4 text-muted-foreground" />
+              </div>
             )}
+            <div className="flex flex-col min-w-0">
+              <div className="font-medium">{item.assetTag}</div>
+              {subtitle && (
+                <div className="text-xs text-muted-foreground">{subtitle}</div>
+              )}
+            </div>
           </div>
         );
       },
       enableHiding: false,
     },
     {
-      header: "Category",
-      id: "category",
-      accessorFn: (row) => row.category?.name || row.type,
-      cell: ({ row }) => row.original.category?.name || row.original.type,
-    },
-    {
       header: "Status",
       id: "status",
       cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
+    },
+    {
+      header: "Category",
+      id: "category",
+      accessorFn: (row) => row.category?.name || row.type,
+      cell: ({ row }) => row.original.category?.name || row.original.type,
     },
     {
       header: "Location",
