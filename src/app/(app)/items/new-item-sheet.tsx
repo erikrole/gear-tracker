@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2Icon, Dices, ScanLine, X } from "lucide-react";
+import { Dices, ScanLine, X } from "lucide-react";
+import { AlertCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircleIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -31,150 +31,9 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import QrScanner from "@/components/QrScanner";
 
-type CategoryOption = { id: string; name: string; parentId: string | null };
-type Location = { id: string; name: string };
-type Department = { id: string; name: string };
-
-interface NewItemSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  locations: Location[];
-  departments: Department[];
-  categories: CategoryOption[];
-  onCreated: () => void;
-}
-
-type ItemKind = "serialized" | "bulk";
-type BulkMode = "new" | "existing";
-
-type BulkSkuOption = {
-  id: string;
-  name: string;
-  location: { name: string };
-  balances: { onHandQuantity: number }[];
-  categoryRel: { name: string } | null;
-};
-
-type ParentSearchResult = {
-  id: string;
-  assetTag: string;
-  name: string | null;
-  brand: string;
-  model: string;
-};
-
-// --- Layout helpers ---
-
-function FormRow({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[140px_1fr] items-start gap-4">
-      <Label className="pt-2.5 text-sm font-medium">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
-      <div>{children}</div>
-    </div>
-  );
-}
-
-function FormRow2Col({ label, required, children }: { label?: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[140px_1fr] items-start gap-4">
-      <Label className="pt-2.5 text-sm font-medium">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
-      <div className="grid grid-cols-2 gap-3">{children}</div>
-    </div>
-  );
-}
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{children}</h3>;
-}
-
-// --- Utilities ---
-
-function SuccessFlash({ message }: { message: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
-      <CheckCircle2Icon className="size-4 shrink-0" />
-      {message}
-    </div>
-  );
-}
-
-function generateQrCode(): string {
-  const array = new Uint8Array(8);
-  crypto.getRandomValues(array);
-  const hex = Array.from(array).map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
-  return `QR-${hex}`;
-}
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-  }, []);
-  return isMobile;
-}
-
-function getFiscalYearOptions(): string[] {
-  const now = new Date();
-  const calYear = now.getFullYear();
-  const currentFY = now.getMonth() >= 6 ? calYear + 1 : calYear;
-  const options: string[] = [];
-  for (let y = currentFY - 5; y <= currentFY + 2; y++) {
-    options.push(`FY${String(y).slice(-2)}`);
-  }
-  return options.reverse();
-}
-
-const FISCAL_YEARS = getFiscalYearOptions();
-
-// --- Parent asset search hook ---
-
-function useParentSearch() {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ParentSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => {
-    if (query.length < 2) {
-      setResults([]);
-      return;
-    }
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await fetch(`/api/assets?q=${encodeURIComponent(query)}&limit=5`);
-        const json = await res.json();
-        if (res.ok) {
-          setResults(
-            (json.data || []).map((a: Record<string, unknown>) => ({
-              id: a.id,
-              assetTag: a.assetTag,
-              name: a.name,
-              brand: a.brand,
-              model: a.model,
-            }))
-          );
-        }
-      } catch {
-        // ignore
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
-
-  return { query, setQuery, results, searching, clear: () => { setQuery(""); setResults([]); } };
-}
-
-// --- Component ---
+import type { NewItemSheetProps, ItemKind, BulkMode, BulkSkuOption } from "./new-item-sheet/types";
+import { generateQrCode, useIsMobile, useParentSearch, FISCAL_YEARS } from "./new-item-sheet/helpers";
+import { FormRow, FormRow2Col, SectionHeading, SuccessFlash } from "./new-item-sheet/layout";
 
 export function NewItemSheet({
   open,
@@ -227,7 +86,7 @@ export function NewItemSheet({
 
   // Accessory / parent
   const [isAccessory, setIsAccessory] = useState(false);
-  const [parentAsset, setParentAsset] = useState<ParentSearchResult | null>(null);
+  const [parentAsset, setParentAsset] = useState<import("./new-item-sheet/types").ParentSearchResult | null>(null);
   const parentSearch = useParentSearch();
 
   const isMobile = useIsMobile();
@@ -264,7 +123,7 @@ export function NewItemSheet({
     parentSearch.clear();
   }
 
-  function showSuccessMsg(msg: string) {
+  function showSuccessMessage(msg: string) {
     setSuccessMsg(msg);
     clearTimeout(successTimer.current);
     successTimer.current = setTimeout(() => setSuccessMsg(""), 3000);
@@ -395,7 +254,7 @@ export function NewItemSheet({
       if (addAnother) {
         formRef.current?.reset();
         resetForAnother();
-        showSuccessMsg(`"${createdLabel}" created — ready for next item`);
+        showSuccessMessage(`"${createdLabel}" created — ready for next item`);
       } else {
         onOpenChange(false);
         resetAll();
