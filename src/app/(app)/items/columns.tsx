@@ -10,6 +10,7 @@ import {
   Copy,
   Wrench,
   Archive,
+  Pencil,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -101,66 +102,81 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     columns.push({
       id: "select",
       header: ({ table }) => (
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Select all"
+          />
+        </div>
       ),
       cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Select row"
-        />
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Select row"
+          />
+        </div>
       ),
       enableSorting: false,
       enableHiding: false,
       size: 40,
+      meta: { className: "w-10 px-0" },
     });
   }
 
   columns.push(
     {
       id: "thumbnail",
-      header: () => null,
+      header: "Image",
       cell: ({ row }) => {
         const item = row.original;
         return (
-          <div className="size-12 rounded-md overflow-hidden flex items-center justify-center shrink-0">
+          <div className="size-10 rounded-md overflow-hidden flex items-center justify-center shrink-0 bg-muted">
             {item.imageUrl ? (
               <Image
                 src={item.imageUrl}
                 alt=""
-                width={96}
-                height={96}
-                sizes="48px"
+                width={80}
+                height={80}
+                sizes="40px"
                 loading="lazy"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
                 unoptimized={
                   !item.imageUrl.includes(".public.blob.vercel-storage.com")
                 }
               />
             ) : (
-              <ImageIcon className="size-5 text-muted-foreground" />
+              <ImageIcon className="size-4 text-muted-foreground" />
             )}
           </div>
         );
       },
       enableSorting: false,
       size: 56,
-      meta: { className: "p-1" },
+      meta: { className: "w-14 py-2 px-3" },
     },
     {
       accessorKey: "assetTag",
       header: ({ column }) => <SortableHeader column={column} label="Name" />,
-      cell: ({ row }) => (
-        <span className="font-medium">{row.original.assetTag}</span>
-      ),
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium truncate max-w-[200px]">{item.assetTag}</span>
+            {item.brand && item.model && (
+              <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                {item.brand} {item.model}
+              </span>
+            )}
+          </div>
+        );
+      },
       enableHiding: false,
     },
     {
@@ -213,10 +229,10 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                className="size-8 text-muted-foreground hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
               >
-                <MoreHorizontal className="size-4" />
+                <Pencil className="size-4" />
                 <span className="sr-only">Open menu</span>
               </Button>
             </DropdownMenuTrigger>

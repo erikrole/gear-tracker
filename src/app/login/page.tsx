@@ -127,8 +127,9 @@ export default function LoginPage() {
             id="rememberMe"
             checked={rememberMe}
             onCheckedChange={(checked) => setRememberMe(checked === true)}
+            className="shrink-0"
           />
-          <Label htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer font-normal">
+          <Label htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer font-normal leading-none">
             Remember me for 30 days
           </Label>
         </div>

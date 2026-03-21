@@ -253,7 +253,7 @@ export default function EventDetailPage() {
       {/* Shift coverage */}
       {shiftGroup && (
         <Card style={{ marginTop: 16 }}>
-          <CardHeader className="flex-between">
+          <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Shift Coverage</CardTitle>
             <Button variant="outline" size="sm" onClick={() => setSelectedGroupId(shiftGroup.id)}>
               Manage shifts

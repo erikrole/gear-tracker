@@ -669,7 +669,7 @@ export default function EventsPage() {
       {/* Calendar view */}
       {viewMode === "calendar" && (
         <Card className="mb-16">
-          <CardHeader className="flex-between">
+          <CardHeader className="flex-row items-center justify-between">
             <div className="flex-center gap-8">
               <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
               <CardTitle className="text-center min-w-[160px]">

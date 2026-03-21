@@ -3,24 +3,31 @@ import Link from "next/link";
 import type { UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { TableRow, TableCell } from "@/components/ui/table";
 
 /* ── Desktop Table Row ─────────────────────────────────── */
 
 export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRowType }) {
   return (
-    <tr>
-      <td>
-        <Link href={`/users/${user.id}`} className="row-link">
-          {user.name}
+    <TableRow>
+      <TableCell>
+        <Link href={`/users/${user.id}`} className="flex items-center gap-3 no-underline">
+          <Avatar className="size-8 shrink-0">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-semibold">
+              {user.name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-medium">{user.name}</span>
         </Link>
-      </td>
-      <td className="hide-mobile">{user.email}</td>
-      <td>
+      </TableCell>
+      <TableCell className="hidden md:table-cell text-muted-foreground">{user.email}</TableCell>
+      <TableCell>
         <RoleBadge role={user.role} />
-      </td>
-      <td className="hide-mobile">{user.location || "\u2014"}</td>
-      <td className="hide-mobile">{user.primaryArea || "\u2014"}</td>
-    </tr>
+      </TableCell>
+      <TableCell className="hidden md:table-cell">{user.location || "\u2014"}</TableCell>
+      <TableCell className="hidden md:table-cell">{user.primaryArea || "\u2014"}</TableCell>
+    </TableRow>
   );
 });
 
