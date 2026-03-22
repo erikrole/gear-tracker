@@ -36,6 +36,24 @@ export const statusBadgeVariant: Record<string, "gray" | "blue" | "green" | "pur
   CANCELLED: "red",
 };
 
+/** Universal user-facing status labels — DB enum stays unchanged */
+export function statusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): string {
+  switch (status) {
+    case "DRAFT":
+      return "Draft";
+    case "BOOKED":
+      return kind === "CHECKOUT" ? "Booked" : "Confirmed";
+    case "OPEN":
+      return "Checked out";
+    case "COMPLETED":
+      return "Completed";
+    case "CANCELLED":
+      return "Cancelled";
+    default:
+      return status.charAt(0) + status.slice(1).toLowerCase();
+  }
+}
+
 /** Audit log fields to never display in the history tab */
 export const HIDDEN_AUDIT_FIELDS = new Set([
   "_actorRole", "_actorId", "_actorEmail", "_actorName",
@@ -54,13 +72,17 @@ export const EQUIPMENT_ACTIONS = new Set([
 ]);
 
 export const actionLabels: Record<string, string> = {
-  created: "Created",
-  updated: "Updated",
-  extended: "Extended",
-  cancelled: "Cancelled",
-  checkin_completed: "Check in completed",
-  cancelled_by_checkout_conversion: "Converted to checkout",
-  "booking.items_added": "Items added",
-  "booking.items_removed": "Items removed",
-  "booking.items_qty_changed": "Item quantities changed",
+  create: "created booking",
+  created: "created booking",
+  update: "updated",
+  updated: "updated",
+  extend: "extended",
+  extended: "extended",
+  cancel: "cancelled",
+  cancelled: "cancelled",
+  checkin_completed: "completed check in",
+  cancelled_by_checkout_conversion: "converted to checkout",
+  "booking.items_added": "added items",
+  "booking.items_removed": "removed items",
+  "booking.items_qty_changed": "changed item quantities",
 };

@@ -17,24 +17,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { InlineTitle } from "@/components/InlineTitle";
 import {
-  Breadcrumb as BreadcrumbNav,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { Clock, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Clock, ChevronDown } from "lucide-react";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
 import {
   statusBadgeVariant,
+  statusLabel,
   toLocalDateTimeValue,
   actionLabels,
   formatRelative,
@@ -203,24 +196,7 @@ export default function BookingDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* ── Breadcrumb ── */}
-      <BreadcrumbNav>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href="/">Home</Link></BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href={listPath}>{kindLabelPlural}</Link></BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage className="truncate max-w-[200px]">
-              {booking.title}
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </BreadcrumbNav>
+      {/* Breadcrumb handled by global PageBreadcrumb in AppShell */}
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -237,80 +213,25 @@ export default function BookingDetailPage({
           />
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
-          {/* Primary CTA */}
-          {canConvert && (
-            <Button onClick={actions.convert} disabled={!!actions.actionLoading}>
-              {actions.actionLoading === "convert" ? "Converting..." : "Start checkout"}
-            </Button>
-          )}
-
-          {/* Scan buttons for checkouts */}
-          {kind === "CHECKOUT" && isOpen && (
-            <Button asChild>
-              <Link href={`/scan?checkout=${id}&phase=CHECKOUT`}>Scan Items Out</Link>
-            </Button>
-          )}
-          {kind === "CHECKOUT" && canCheckin && (
-            <Button variant="outline" asChild>
-              <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan Items In</Link>
-            </Button>
-          )}
-
-          {/* Edit + Extend visible on md+, collapsed into dropdown on mobile */}
-          {canEdit && (
-            <Button
-              variant="outline"
-              className="hidden md:inline-flex"
-              onClick={() => router.push(`/${kindLabel}s?editId=${id}`)}
-            >
-              Edit
-            </Button>
-          )}
-          {canExtend && (
-            <Button
-              variant="outline"
-              className="hidden md:inline-flex"
-              onClick={() => {
-                setShowExtend((v) => {
-                  if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
-                  return !v;
-                });
-              }}
-            >
-              Extend
-            </Button>
-          )}
-
-          {/* Actions dropdown — includes Edit/Extend on mobile */}
-          {(canEdit || canExtend || canDuplicate || canCancel || (kind === "CHECKOUT" && canCheckin)) && (
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Actions dropdown — secondary/less-common actions */}
+          {(canDuplicate || canCancel || (kind === "CHECKOUT" && isOpen) || (kind === "CHECKOUT" && canCheckin)) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="size-9">
-                  <MoreHorizontal className="size-4" />
-                  <span className="sr-only">Actions</span>
+                <Button variant="outline" className="gap-1.5">
+                  Actions
+                  <ChevronDown className="size-3.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {canEdit && (
-                  <DropdownMenuItem
-                    className="md:hidden"
-                    onSelect={() => router.push(`/${kindLabel}s?editId=${id}`)}
-                  >
-                    Edit
+                {kind === "CHECKOUT" && isOpen && (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/scan?checkout=${id}&phase=CHECKOUT`}>Scan items out</Link>
                   </DropdownMenuItem>
                 )}
-                {canExtend && (
-                  <DropdownMenuItem
-                    className="md:hidden"
-                    onSelect={() => {
-                      setShowExtend((v) => {
-                        if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
-                        return !v;
-                      });
-                    }}
-                  >
-                    Extend
+                {kind === "CHECKOUT" && canCheckin && (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan items in</Link>
                   </DropdownMenuItem>
                 )}
                 {canDuplicate && (
@@ -341,13 +262,48 @@ export default function BookingDetailPage({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+          {/* Promoted action buttons */}
+          {canEdit && (
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/${kindLabel}s?editId=${id}`)}
+            >
+              Edit
+            </Button>
+          )}
+          {canExtend && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowExtend((v) => {
+                  if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
+                  return !v;
+                });
+              }}
+            >
+              Extend
+            </Button>
+          )}
+
+          {/* Primary CTA — rightmost, most prominent */}
+          {canConvert && (
+            <Button onClick={actions.convert} disabled={!!actions.actionLoading}>
+              {actions.actionLoading === "convert" ? "Converting..." : "Start checkout"}
+            </Button>
+          )}
+          {kind === "CHECKOUT" && canCheckin && (
+            <Button onClick={() => router.push(`/scan?checkout=${id}&phase=CHECKIN`)}>
+              Check in
+            </Button>
+          )}
         </div>
       </div>
 
       {/* ── Status strip ── */}
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={statusBadgeVariant[booking.status] || "gray"}>
-          {booking.status.toLowerCase()}
+          {statusLabel(booking.status, kind)}
         </Badge>
         {booking.refNumber && (
           <Badge variant="outline" className="font-mono">
@@ -355,18 +311,21 @@ export default function BookingDetailPage({
           </Badge>
         )}
         {countdown && (
-          <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${
-            urgency === "overdue"
-              ? "text-red-600 dark:text-red-400"
-              : urgency === "critical"
-                ? "text-orange-600 dark:text-orange-400"
-                : urgency === "warning"
-                  ? "text-yellow-600 dark:text-yellow-500"
-                  : "text-muted-foreground"
-          }`}>
-            <Clock className="size-3.5" />
+          <Badge
+            variant="outline"
+            className={`gap-1.5 font-medium ${
+              urgency === "overdue"
+                ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400"
+                : urgency === "critical"
+                  ? "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-400"
+                  : urgency === "warning"
+                    ? "border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-500"
+                    : ""
+            }`}
+          >
+            <Clock className="size-3" />
             {countdown}
-          </span>
+          </Badge>
         )}
         {reloading && (
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
