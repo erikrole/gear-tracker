@@ -132,8 +132,8 @@ export default function BookingDetailPage({
   async function handleBulkReturn(bulkItemId: string) {
     const qty = bulkReturnQty[bulkItemId];
     if (!qty || qty <= 0) return;
-    await actions.checkinBulk(bulkItemId, qty);
-    setBulkReturnQty((prev) => ({ ...prev, [bulkItemId]: 0 }));
+    const ok = await actions.checkinBulk(bulkItemId, qty);
+    if (ok) setBulkReturnQty((prev) => ({ ...prev, [bulkItemId]: 0 }));
   }
 
   // Derived
@@ -252,7 +252,12 @@ export default function BookingDetailPage({
                 </DropdownMenuItem>
               )}
               {canExtend && (
-                <DropdownMenuItem onSelect={() => setShowExtend((v) => !v)}>
+                <DropdownMenuItem onSelect={() => {
+                  setShowExtend((v) => {
+                    if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
+                    return !v;
+                  });
+                }}>
                   Extend
                 </DropdownMenuItem>
               )}
@@ -310,19 +315,6 @@ export default function BookingDetailPage({
           </span>
         )}
       </div>
-
-      {/* ── Action error ── */}
-      {actions.actionError && (
-        <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {actions.actionError}
-          <button
-            className="ml-2 underline text-xs"
-            onClick={actions.clearError}
-          >
-            dismiss
-          </button>
-        </div>
-      )}
 
       {/* ── Extend panel ── */}
       {showExtend && (

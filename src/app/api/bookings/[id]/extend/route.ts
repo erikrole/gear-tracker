@@ -1,9 +1,8 @@
 import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
-import { extendBooking } from "@/lib/services/bookings";
-import { requireBookingAction } from "@/lib/services/booking-rules";
+import { extendBooking, getBookingDetail } from "@/lib/services/bookings";
+import { requireBookingAction, getAllowedBookingActions } from "@/lib/services/booking-rules";
 import { extendBookingSchema } from "@/lib/validation";
-import { createAuditEntry } from "@/lib/audit";
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
@@ -11,14 +10,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   await requireBookingAction(id, user, "extend");
 
-  const updated = await extendBooking(id, user.id, new Date(body.endsAt));
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "booking",
-    entityId: id,
-    action: "extend",
-    after: { endsAt: body.endsAt },
-  });
-  return ok({ data: updated });
+  // Service creates audit entry with proper before/after snapshots
+  await extendBooking(id, user.id, new Date(body.endsAt));
+
+  // Re-fetch enriched detail so UI has full state (auditLogs, allowedActions, etc.)
+  const refreshed = await getBookingDetail(id);
+  const allowedActions = getAllowedBookingActions(user, refreshed);
+  return ok({ data: { ...refreshed, allowedActions } });
 });

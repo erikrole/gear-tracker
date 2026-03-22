@@ -26,7 +26,7 @@ export type AuditEntry = {
   createdAt: string;
   beforeJson: Record<string, unknown> | null;
   afterJson: Record<string, unknown> | null;
-  actor: { id: string; name: string };
+  actor: { id: string; name: string } | null;
 };
 
 export type LocationInfo = { id: string; name: string };
