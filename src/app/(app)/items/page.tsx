@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { SearchIcon, XIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +15,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import EmptyState from "@/components/EmptyState";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,302 +25,66 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { type Asset, getColumns } from "./columns";
 import { DataTable } from "./data-table";
-import { FacetedFilter } from "./faceted-filter";
 import { NewItemSheet } from "./new-item-sheet";
-
-import type { CategoryOption } from "@/types/category";
-type Location = { id: string; name: string };
-
-type Response = {
-  data: Asset[];
-  total: number;
-  limit: number;
-  offset: number;
-};
-
-function BulkActionBar({
-  count,
-  locations,
-  categoryOptions,
-  busy,
-  error,
-  onAction,
-  onClear,
-}: {
-  count: number;
-  locations: Location[];
-  categoryOptions: { value: string; label: string }[];
-  busy: boolean;
-  error: string;
-  onAction: (action: string, payload?: Record<string, string | null>) => void;
-  onClear: () => void;
-}) {
-  const [retireOpen, setRetireOpen] = useState(false);
-
-  return (
-    <div className="flex items-center gap-2 w-full flex-wrap">
-      <span className="text-sm font-semibold">{count} selected</span>
-      <Button variant="ghost" size="sm" onClick={onClear} disabled={busy}>Clear</Button>
-      <div className="flex-1" />
-
-      {/* Move location */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" disabled={busy}>Move location</Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto min-w-[180px] max-h-[240px] overflow-y-auto p-1">
-          {locations.map((l) => (
-            <Button key={l.id} variant="ghost" size="sm" className="w-full justify-start font-normal"
-              onClick={() => onAction("move_location", { locationId: l.id })}>
-              {l.name}
-            </Button>
-          ))}
-        </PopoverContent>
-      </Popover>
-
-      {/* Change category */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" disabled={busy}>Change category</Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto min-w-[200px] max-h-[240px] overflow-y-auto p-1">
-          <Button variant="ghost" size="sm" className="w-full justify-start font-normal italic"
-            onClick={() => onAction("change_category", { categoryId: null })}>
-            None
-          </Button>
-          {categoryOptions.map((c) => (
-            <Button key={c.value} variant="ghost" size="sm" className="w-full justify-start font-normal"
-              onClick={() => onAction("change_category", { categoryId: c.value })}>
-              {c.label}
-            </Button>
-          ))}
-        </PopoverContent>
-      </Popover>
-
-      <Button variant="outline" size="sm" onClick={() => onAction("maintenance")} disabled={busy}>
-        Maintenance
-      </Button>
-
-      <AlertDialog open={retireOpen} onOpenChange={setRetireOpen}>
-        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setRetireOpen(true)} disabled={busy}>
-          Retire
-        </Button>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Retire {count} item{count > 1 ? "s" : ""}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will mark {count === 1 ? "this item" : `these ${count} items`} as retired. Retired items are hidden from active inventory.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => onAction("retire")}
-            >
-              Retire
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {busy && <span className="text-sm text-muted">Processing...</span>}
-      {error && <span className="text-sm text-destructive">{error}</span>}
-    </div>
-  );
-}
-
-const STATUS_OPTIONS = [
-  { value: "AVAILABLE", label: "Available" },
-  { value: "CHECKED_OUT", label: "Checked out" },
-  { value: "RESERVED", label: "Reserved" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "RETIRED", label: "Retired" },
-];
+import { useUrlFilters } from "./hooks/use-url-filters";
+import { useItemsQuery } from "./hooks/use-items-query";
+import { useFilterOptions } from "./hooks/use-filter-options";
+import { useBulkActions } from "./hooks/use-bulk-actions";
+import { BulkActionBar } from "./components/bulk-action-bar";
+import { ItemsToolbar } from "./components/items-toolbar";
+import { ItemsPagination } from "./components/items-pagination";
+import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+import { useIsMobile } from "./hooks/use-media-query";
 
 export default function ItemsPage() {
-  const searchParams = useSearchParams();
-  const [items, setItems] = useState<Asset[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(() => {
-    const p = parseInt(searchParams.get("page") ?? "", 10);
-    return Number.isFinite(p) && p > 0 ? p : 0;
+  const router = useRouter();
+  const filters = useUrlFilters();
+  const options = useFilterOptions();
+
+  const query = useItemsQuery({
+    debouncedSearch: filters.debouncedSearch,
+    statusKey: filters.statusKey,
+    locationKey: filters.locationKey,
+    categoryKey: filters.categoryKey,
+    brandKey: filters.brandKey,
+    departmentKey: filters.departmentKey,
+    showAccessories: filters.showAccessories,
+    sorting: filters.sorting,
+    sortKey: filters.sortKey,
   });
-  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
-  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") ?? "");
-  const [statusFilter, setStatusFilter] = useState<Set<string>>(() => {
-    const vals = searchParams.getAll("status").filter(Boolean);
-    return new Set(vals);
-  });
-  const [locationFilter, setLocationFilter] = useState<Set<string>>(() => {
-    const vals = searchParams.getAll("location").filter(Boolean);
-    return new Set(vals);
-  });
-  const [categoryFilter, setCategoryFilter] = useState<Set<string>>(() => {
-    const vals = searchParams.getAll("category").filter(Boolean);
-    return new Set(vals);
-  });
-  const [brandFilter, setBrandFilter] = useState<Set<string>>(() => {
-    const vals = searchParams.getAll("brand").filter(Boolean);
-    return new Set(vals);
-  });
+
+  const isMobile = useIsMobile();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkError, setBulkError] = useState("");
-  const [limit, setLimit] = useState(25);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
-  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
-  const router = useRouter();
-
-  const hasActiveFilters = statusFilter.size > 0 || locationFilter.size > 0 || categoryFilter.size > 0 || brandFilter.size > 0;
-
-  // Debounce search input by 300ms
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  // Sync filters to URL search params
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (debouncedSearch) params.set("q", debouncedSearch);
-    statusFilter.forEach((v) => params.append("status", v));
-    locationFilter.forEach((v) => params.append("location", v));
-    categoryFilter.forEach((v) => params.append("category", v));
-    brandFilter.forEach((v) => params.append("brand", v));
-    if (page > 0) params.set("page", String(page));
-    const qs = params.toString();
-    const newUrl = qs ? `?${qs}` : window.location.pathname;
-    window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, page]);
-
-  // Serialize a Set to stable string for dependency tracking
-  const statusKey = [...statusFilter].sort().join(",");
-  const locationKey = [...locationFilter].sort().join(",");
-  const categoryKey = [...categoryFilter].sort().join(",");
-  const brandKey = [...brandFilter].sort().join(",");
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
-    const params = new URLSearchParams();
-    params.set("limit", String(limit));
-    params.set("offset", String(page * limit));
-    if (debouncedSearch) params.set("q", debouncedSearch);
-    statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
-    locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
-    categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
-    brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
-
-    try {
-      const res = await fetch(`/api/assets?${params}`);
-      if (!res.ok) { setLoadError(true); setLoading(false); return; }
-      const json: Response = await res.json();
-      setItems(json.data ?? []);
-      setTotal(json.total ?? 0);
-    } catch {
-      setLoadError(true);
-    }
-    setLoading(false);
-  }, [page, limit, debouncedSearch, statusKey, locationKey, categoryKey, brandKey]);
-
-  useEffect(() => { reload(); }, [reload]);
-
-  useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); })
-      .catch(() => {});
-    fetch("/api/form-options")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        if (json) {
-          setLocations(json.data?.locations || []);
-          setDepartments(json.data?.departments || []);
-        }
-      })
-      .catch(() => {});
-    fetch("/api/categories")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setCategories(json.data || []); })
-      .catch(() => {});
-    fetch("/api/assets/brands")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data) setBrands(json.data); })
-      .catch(() => {});
-  }, []);
-
-  const totalPages = Math.ceil(total / limit);
-
-  // Build flat category options for the chip dropdown
-  const categoryOptions = categories
-    .filter((c) => !c.parentId)
-    .flatMap((parent) => {
-      const children = categories.filter((c) => c.parentId === parent.id);
-      if (children.length === 0) return [{ value: parent.id, label: parent.name }];
-      return children.map((child) => ({ value: child.id, label: `${parent.name} / ${child.name}` }));
-    });
-
-  function clearAllFilters() {
-    setStatusFilter(new Set());
-    setLocationFilter(new Set());
-    setCategoryFilter(new Set());
-    setBrandFilter(new Set());
-    setPage(0);
-  }
 
   // Clear selection when page/filters change
-  useEffect(() => { setRowSelection({}); }, [page, debouncedSearch, statusKey, locationKey, categoryKey, brandKey]);
+  useEffect(() => {
+    setRowSelection({});
+  }, [query.page, filters.debouncedSearch, filters.statusKey, filters.locationKey, filters.categoryKey, filters.brandKey, filters.departmentKey]);
 
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
   const selectedCount = selectedIds.length;
 
-  async function executeBulkAction(action: string, payload?: Record<string, string | null>) {
-    setBulkBusy(true);
-    setBulkError("");
-    try {
-      const res = await fetch("/api/assets/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds, action, ...payload }),
-      });
-      if (!res.ok) {
-        const json = await res.json();
-        setBulkError(json.error || "Bulk action failed");
-        setBulkBusy(false);
-        return;
-      }
-      setRowSelection({});
-      setBulkBusy(false);
-      reload();
-    } catch {
-      setBulkError("Network error");
-      setBulkBusy(false);
-    }
-  }
+  useKeyboardShortcuts({
+    searchInputRef,
+    onClearSearch: () => filters.setSearch(""),
+    onClearSelection: () => setRowSelection({}),
+    onPreviousPage: () => query.setPage(Math.max(0, query.page - 1)),
+    onNextPage: () => query.setPage(Math.min(query.totalPages - 1, query.page + 1)),
+    hasSelection: selectedCount > 0,
+    canGoBack: query.page > 0,
+    canGoForward: query.page < query.totalPages - 1,
+  });
+
+  const bulk = useBulkActions(
+    () => selectedIds,
+    () => { setRowSelection({}); query.reload(); }
+  );
 
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     switch (action) {
@@ -332,34 +94,40 @@ export default function ItemsPage() {
       case "duplicate":
         try {
           const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
-          if (res.ok) reload();
+          if (res.ok) query.reload();
         } catch { /* ignore */ }
         break;
       case "maintenance":
         try {
           const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
-          if (res.ok) reload();
+          if (res.ok) query.reload();
         } catch { /* ignore */ }
         break;
       case "retire":
         setRetireTarget(asset);
         break;
     }
-  }, [reload, router]);
+  }, [query.reload, router]);
 
   async function confirmRetireTarget() {
     if (!retireTarget) return;
     try {
       const res = await fetch(`/api/assets/${retireTarget.id}/retire`, { method: "POST" });
-      if (res.ok) reload();
+      if (res.ok) query.reload();
     } catch { /* ignore */ }
     setRetireTarget(null);
   }
 
   const columns = useMemo(
-    () => getColumns({ canEdit, onRowAction: handleRowAction }),
-    [canEdit, handleRowAction]
+    () => getColumns({ canEdit: options.canEdit, onRowAction: handleRowAction }),
+    [options.canEdit, handleRowAction]
   );
+
+  // Helper to set filter and reset page
+  const withPageReset = <T,>(setter: (v: T) => void) => (v: T) => {
+    setter(v);
+    query.setPage(0);
+  };
 
   return (
     <>
@@ -383,9 +151,10 @@ export default function ItemsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       <div className="flex items-center justify-between mb-6 gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Items</h1>
-        {canEdit && (
+        {options.canEdit && (
           <div className="flex gap-2">
             <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
             <Button onClick={() => setShowCreate(true)}>New item</Button>
@@ -396,15 +165,14 @@ export default function ItemsPage() {
       <NewItemSheet
         open={showCreate}
         onOpenChange={setShowCreate}
-        locations={locations}
-        departments={departments}
-        categories={categories}
-        onCreated={reload}
+        locations={options.locations}
+        departments={options.departments}
+        categories={options.categories}
+        onCreated={query.reload}
       />
 
       <div className="space-y-4">
-        {/* Table */}
-        {loading ? (
+        {query.loading ? (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -429,89 +197,71 @@ export default function ItemsPage() {
               </TableBody>
             </Table>
           </div>
-        ) : loadError ? (
-          <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={reload} />
-        ) : items.length === 0 ? (
-          <EmptyState icon="search" title="No items found" description="Try adjusting your search or filters." />
+        ) : query.loadError ? (
+          <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={query.reload} />
+        ) : query.items.length === 0 && !filters.hasActiveFilters && !filters.debouncedSearch ? (
+          <EmptyState
+            icon="box"
+            title="No items in inventory yet"
+            description={options.canEdit ? "Create your first item to get started." : "No items have been added yet."}
+            actionLabel={options.canEdit ? "New item" : undefined}
+            onAction={options.canEdit ? () => setShowCreate(true) : undefined}
+          />
+        ) : query.items.length === 0 ? (
+          <EmptyState
+            icon="search"
+            title="No items match your filters"
+            description="Try adjusting your search or filters."
+            actionLabel="Clear filters"
+            onAction={() => { filters.clearAllFilters(); filters.setSearch(""); }}
+          />
         ) : (
           <DataTable
             columns={columns}
-            data={items}
+            data={query.items}
             rowSelection={rowSelection}
             onRowSelectionChange={setRowSelection}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
+            sorting={filters.sorting}
+            onSortingChange={(next) => { filters.setSorting(next); query.setPage(0); }}
+            viewMode={isMobile ? "cards" : "table"}
+            canEdit={options.canEdit}
+            onRowAction={handleRowAction}
             filterBar={
-              <>
-                {/* Input Group: search with icon */}
-                <div className="relative w-48">
-                  <Input
-                    className="peer pl-9"
-                    value={search}
-                    onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                    placeholder="Search items"
-                    type="text"
-                  />
-                  <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
-                    <SearchIcon size={16} />
-                  </div>
-                  {search && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
-                      onClick={() => { setSearch(""); setPage(0); }}
-                    >
-                      <XIcon size={14} />
-                    </Button>
-                  )}
-                </div>
-
-                {/* Faceted multi-select filters */}
-                <FacetedFilter
-                  title="Category"
-                  options={categoryOptions}
-                  selected={categoryFilter}
-                  onSelectionChange={(s) => { setCategoryFilter(s); setPage(0); }}
-                />
-                <FacetedFilter
-                  title="Status"
-                  options={STATUS_OPTIONS}
-                  selected={statusFilter}
-                  onSelectionChange={(s) => { setStatusFilter(s); setPage(0); }}
-                />
-                <FacetedFilter
-                  title="Location"
-                  options={locations.map((l) => ({ value: l.id, label: l.name }))}
-                  selected={locationFilter}
-                  onSelectionChange={(s) => { setLocationFilter(s); setPage(0); }}
-                />
-                {brands.length > 0 && (
-                  <FacetedFilter
-                    title="Brand"
-                    options={brands.map((b) => ({ value: b, label: b }))}
-                    selected={brandFilter}
-                    onSelectionChange={(s) => { setBrandFilter(s); setPage(0); }}
-                  />
-                )}
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" className="h-9" onClick={clearAllFilters}>
-                    Clear filters
-                    <XIcon className="ml-2 size-4" />
-                  </Button>
-                )}
-              </>
+              <ItemsToolbar
+                searchInputRef={searchInputRef}
+                search={filters.search}
+                onSearchChange={withPageReset(filters.setSearch)}
+                statusFilter={filters.statusFilter}
+                onStatusFilterChange={withPageReset(filters.setStatusFilter)}
+                locationFilter={filters.locationFilter}
+                onLocationFilterChange={withPageReset(filters.setLocationFilter)}
+                categoryFilter={filters.categoryFilter}
+                onCategoryFilterChange={withPageReset(filters.setCategoryFilter)}
+                brandFilter={filters.brandFilter}
+                onBrandFilterChange={withPageReset(filters.setBrandFilter)}
+                departmentFilter={filters.departmentFilter}
+                onDepartmentFilterChange={withPageReset(filters.setDepartmentFilter)}
+                showAccessories={filters.showAccessories}
+                onShowAccessoriesChange={(v) => { filters.setShowAccessories(v); query.setPage(0); }}
+                hasActiveFilters={filters.hasActiveFilters}
+                onClearAllFilters={() => { filters.clearAllFilters(); query.setPage(0); }}
+                locations={options.locations}
+                departments={options.departments}
+                categoryOptions={options.categoryOptions}
+                brands={options.brands}
+              />
             }
             bulkActionBar={
-              canEdit && selectedCount > 0 ? (
+              options.canEdit && selectedCount > 0 ? (
                 <BulkActionBar
                   count={selectedCount}
-                  locations={locations}
-                  categoryOptions={categoryOptions}
-                  busy={bulkBusy}
-                  error={bulkError}
-                  onAction={executeBulkAction}
+                  locations={options.locations}
+                  categoryOptions={options.categoryOptions}
+                  busy={bulk.busy}
+                  error={bulk.error}
+                  onAction={bulk.execute}
                   onClear={() => setRowSelection({})}
                 />
               ) : undefined
@@ -520,39 +270,17 @@ export default function ItemsPage() {
         )}
 
         {/* Pagination footer */}
-        {!loading && !loadError && items.length > 0 && (
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div className="flex-1">
-              {selectedCount > 0
-                ? `${selectedCount} of ${total} selected`
-                : `${total} items`}
-            </div>
-            <div className="flex items-center gap-6 lg:gap-8">
-              <div className="flex items-center gap-2">
-                <p className="text-sm">Rows per page</p>
-                <Select
-                  value={String(limit)}
-                  onValueChange={(v) => { setLimit(Number(v)); setPage(0); }}
-                >
-                  <SelectTrigger className="h-8 w-[70px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[10, 25, 50, 100].map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="text-sm">
-                Page {page + 1} of {totalPages || 1}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
-              </div>
-            </div>
-          </div>
+        {!query.loading && !query.loadError && query.items.length > 0 && (
+          <ItemsPagination
+            total={query.total}
+            page={query.page}
+            totalPages={query.totalPages}
+            limit={query.limit}
+            offset={query.page * query.limit}
+            selectedCount={selectedCount}
+            onPageChange={query.setPage}
+            onLimitChange={(v) => { query.setLimit(v); query.setPage(0); }}
+          />
         )}
       </div>
     </>

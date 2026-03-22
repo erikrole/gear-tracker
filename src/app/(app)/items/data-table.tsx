@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import {
   type ColumnDef,
   type SortingState,
@@ -9,7 +9,6 @@ import {
   type OnChangeFn,
   flexRender,
   getCoreRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -20,8 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Asset } from "./columns";
+import { ItemCard } from "./components/item-card";
 
 interface DataTableProps {
   columns: ColumnDef<Asset>[];
@@ -30,8 +31,13 @@ interface DataTableProps {
   onRowSelectionChange: OnChangeFn<RowSelectionState>;
   columnVisibility: VisibilityState;
   onColumnVisibilityChange: OnChangeFn<VisibilityState>;
+  sorting: SortingState;
+  onSortingChange: (sorting: SortingState) => void;
   filterBar?: ReactNode;
   bulkActionBar?: ReactNode;
+  viewMode?: "table" | "cards";
+  canEdit?: boolean;
+  onRowAction?: (action: string, asset: Asset) => void;
 }
 
 export function DataTable({
@@ -41,18 +47,25 @@ export function DataTable({
   onRowSelectionChange,
   columnVisibility,
   onColumnVisibilityChange,
+  sorting,
+  onSortingChange,
   filterBar,
   bulkActionBar,
+  viewMode = "table",
+  canEdit = false,
+  onRowAction,
 }: DataTableProps) {
   const router = useRouter();
-  const [sorting, setSorting] = useState<SortingState>([]);
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
+    manualSorting: true,
+    onSortingChange: (updater) => {
+      const next = typeof updater === "function" ? updater(sorting) : updater;
+      onSortingChange(next);
+    },
     onRowSelectionChange,
     onColumnVisibilityChange,
     state: { sorting, rowSelection, columnVisibility },
@@ -76,52 +89,87 @@ export function DataTable({
           </div>
         </div>
       )}
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="bg-muted/50">
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  className="relative h-10 border-t select-none"
-                  style={header.column.getSize() !== 150 ? { width: header.column.getSize() } : undefined}
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => router.push(`/items/${row.original.id}`)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
+
+      {viewMode === "cards" ? (
+        <div>
+          {data.length ? (
+            data.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                selected={!!rowSelection[item.id]}
+                onSelectChange={(checked) => {
+                  const next = { ...rowSelection, [item.id]: checked };
+                  if (!checked) delete next[item.id];
+                  onRowSelectionChange(next);
+                }}
+                canEdit={canEdit}
+                onRowAction={onRowAction}
+              />
             ))
           ) : (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                No results.
-              </TableCell>
-            </TableRow>
+            <div className="py-12 text-center text-muted-foreground">
+              No results.
+            </div>
           )}
-        </TableBody>
-      </Table>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="bg-muted/50">
+                {headerGroup.headers.map((header) => {
+                  const canSort = header.column.getCanSort();
+                  const sorted = header.column.getIsSorted();
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={`relative h-10 border-t select-none ${canSort ? "cursor-pointer hover:bg-muted/80" : ""}`}
+                      style={header.column.getSize() !== 150 ? { width: header.column.getSize() } : undefined}
+                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <div className="flex items-center gap-1">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {canSort && (
+                            sorted === "asc" ? <ArrowUp className="size-3.5 text-foreground" /> :
+                            sorted === "desc" ? <ArrowDown className="size-3.5 text-foreground" /> :
+                            <ArrowUpDown className="size-3.5 text-muted-foreground/50" />
+                          )}
+                        </div>
+                      )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => router.push(`/items/${row.original.id}`)}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }

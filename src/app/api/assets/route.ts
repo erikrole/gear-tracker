@@ -4,8 +4,8 @@ import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { enrichAssetsWithStatus } from "@/lib/services/status";
-import { BookingStatus } from "@prisma/client";
+import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
+import { BookingStatus, type Prisma } from "@prisma/client";
 
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
@@ -39,6 +39,24 @@ const assetInclude = {
   _count: { select: { accessories: true } },
 };
 
+/** Map sort param to Prisma orderBy clause. */
+const SORT_MAP: Record<string, Prisma.AssetOrderByWithRelationInput> = {
+  assetTag: { assetTag: "asc" },
+  "-assetTag": { assetTag: "desc" },
+  brand: { brand: "asc" },
+  "-brand": { brand: "desc" },
+  model: { model: "asc" },
+  "-model": { model: "desc" },
+  createdAt: { createdAt: "asc" },
+  "-createdAt": { createdAt: "desc" },
+  category: { category: { name: "asc" } },
+  "-category": { category: { name: "desc" } },
+  location: { location: { name: "asc" } },
+  "-location": { location: { name: "desc" } },
+  department: { department: { name: "asc" } },
+  "-department": { department: { name: "desc" } },
+};
+
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
@@ -51,23 +69,16 @@ export const GET = withAuth(async (req) => {
   const brandParams = searchParams.getAll("brand").map((b) => b.trim()).filter(Boolean);
   const departmentIds = searchParams.getAll("department_id").filter(Boolean);
 
-  // Derived statuses (CHECKED_OUT, RESERVED) aren't stored — they need
-  // post-enrichment filtering. Stored statuses filter at the DB level.
-  const derivedStatuses = ["CHECKED_OUT", "RESERVED"];
-  const derivedFilters = statusParams.filter((s) => derivedStatuses.includes(s));
-  const storedFilters = statusParams.filter((s) => !derivedStatuses.includes(s));
-  const hasDerived = derivedFilters.length > 0;
-  const hasStored = storedFilters.length > 0;
-  // If mixing derived + stored, we need post-enrichment filtering for derived.
-  // DB-level: filter to stored statuses + AVAILABLE (source for derived).
-  const dbStatusFilter = hasDerived && hasStored
-    ? [...storedFilters, "AVAILABLE"]
-    : hasDerived
-      ? ["AVAILABLE"]
-      : storedFilters;
+  // Server-side sorting: ?sort=brand&order=desc or ?sort=-brand
+  const sortParam = searchParams.get("sort") ?? "";
+  const orderParam = searchParams.get("order") ?? "";
+  const sortKey = orderParam === "desc" && sortParam && !sortParam.startsWith("-")
+    ? `-${sortParam}`
+    : sortParam || "assetTag";
+  const orderBy = SORT_MAP[sortKey] ?? SORT_MAP["assetTag"];
 
-  const where = {
-    // By default, hide accessories (child items) from the main list
+  // Build base where clause (non-status filters)
+  const baseWhere: Prisma.AssetWhereInput = {
     ...(!showAccessories ? { parentAssetId: null } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
@@ -80,65 +91,55 @@ export const GET = withAuth(async (req) => {
       : brandParams.length > 1
         ? { brand: { in: brandParams, mode: "insensitive" as const } }
         : {}),
-    ...(dbStatusFilter.length === 1 ? { status: dbStatusFilter[0] as never } : {}),
-    ...(dbStatusFilter.length > 1 ? { status: { in: dbStatusFilter } as never } : {}),
     ...(q
       ? {
           OR: [
             { assetTag: { contains: q, mode: "insensitive" as const } },
             { brand: { contains: q, mode: "insensitive" as const } },
             { model: { contains: q, mode: "insensitive" as const } },
-            { serialNumber: { contains: q, mode: "insensitive" as const } }
+            { serialNumber: { contains: q, mode: "insensitive" as const } },
+            { name: { contains: q, mode: "insensitive" as const } },
+            { notes: { contains: q, mode: "insensitive" as const } },
+            { category: { name: { contains: q, mode: "insensitive" as const } } },
+            { location: { name: { contains: q, mode: "insensitive" as const } } },
+            { department: { name: { contains: q, mode: "insensitive" as const } } },
           ]
         }
       : {})
   };
 
-  const { limit, offset } = parsePagination(searchParams);
-
-  if (hasDerived) {
-    // For derived status filters, fetch matching assets, enrich, filter,
-    // then paginate in-memory. Capped at 2000 to prevent memory issues on large inventories.
-    const rawAll = await db.asset.findMany({
-      where,
-      include: assetInclude,
-      orderBy: { assetTag: "asc" },
-      take: 2000,
-    });
-
-    let enriched;
-    try {
-      enriched = await enrichAssetsWithStatus(rawAll);
-    } catch {
-      enriched = rawAll.map((a) => ({ ...a, computedStatus: a.status as string }));
-    }
-
-    const allowedStatuses = new Set(statusParams);
-    const filtered = enriched.filter((a) => allowedStatuses.has(a.computedStatus));
-    const total = filtered.length;
-    const data = filtered.slice(offset, offset + limit);
-    const dataWithBookings = await attachActiveBookings(data);
-
-    return ok({ data: dataWithBookings, total, limit, offset });
+  // Build status filter using DB-level derived status clauses
+  let where: Prisma.AssetWhereInput;
+  if (statusParams.length > 0) {
+    const statusClauses = buildDerivedStatusWhere(statusParams);
+    where = {
+      AND: [
+        baseWhere,
+        { OR: statusClauses },
+      ],
+    };
+  } else {
+    where = baseWhere;
   }
+
+  const { limit, offset } = parsePagination(searchParams);
 
   const [rawData, total] = await Promise.all([
     db.asset.findMany({
       where,
       include: assetInclude,
-      orderBy: { assetTag: "asc" },
+      orderBy,
       take: limit,
-      skip: offset
+      skip: offset,
     }),
-    db.asset.count({ where })
+    db.asset.count({ where }),
   ]);
 
   let data;
   try {
-    data = await enrichAssetsWithStatus(rawData);
+    data = await enrichAssetsWithStatusFromLoaded(rawData);
   } catch {
-    // If status enrichment fails (e.g. missing tables), return raw data
-    data = rawData.map((a) => ({ ...a, computedStatus: a.status }));
+    data = rawData.map((a) => ({ ...a, computedStatus: a.status as string }));
   }
 
   const enrichedWithBookings = await attachActiveBookings(data);
