@@ -406,3 +406,14 @@ Always use shadcn Empty component:
 - **Always test detail page headers at 390px width**: If title + buttons share a flex row, iPhone will force ugly wrapping. Default to `flex-col` on mobile for any header with more than 2 buttons.
 - **Global `-webkit-tap-highlight-color: transparent`**: Apply to all interactive elements (`a, button, [role="button"], label, select, summary, [tabindex]`), not just individual components. Prevents the gray flash on tap that makes iOS web apps feel non-native.
 - **`overscroll-behavior-y: none` on body**: Prevents rubber-band overscroll on iOS which makes the app feel like a webpage instead of a native app.
+
+## Session 2026-03-22 (Round 4): Dashboard UX Hardening
+
+### Patterns
+- **Destructive actions need confirmation + feedback**: Draft discard was a silent DELETE with no confirmation dialog and no toast. Any single-click destructive action on the dashboard should use `useConfirm` + `useToast` pattern from `BookingDetailsSheet`.
+- **Differentiate error types in fetch handlers**: A 401 (session expired) should redirect to `/login`, not show "Something went wrong." Check `res.status` before throwing generic errors. Network errors (`TypeError`) vs server errors need different user-facing messages.
+- **Show refresh state on re-fetch, not skeleton replacement**: After a sheet mutation triggers `loadData()`, show a thin progress bar — don't replace content with skeletons (jarring) or show nothing (stale data anxiety). Use a `refreshing` boolean state.
+- **Inline due dates on action rows**: Checkout rows showed status colors (red/amber borders) but not the actual date. The data was already fetched — just not rendered. Always surface time-critical data inline when it's already in the payload.
+- **Keep API-provided computed fields consistent**: Overdue banner computed initials client-side while all other sections used `requesterInitials` from the API. Always derive computed display values in one place (API) and pass them through.
+- **Section ordering should match temporal urgency**: Shifts (upcoming obligations) were below Drafts (abandoned work). Order sections by "what needs action soonest" not by "what was built first."
+- **Welcome banner compound conditions**: If the dashboard has N data sections, the welcome banner condition must check all N — not just the first 3 that existed at V1 launch.
