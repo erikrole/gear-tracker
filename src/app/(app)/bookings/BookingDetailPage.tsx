@@ -231,8 +231,8 @@ export default function BookingDetailPage({
       {/* Breadcrumb handled by global PageBreadcrumb in AppShell */}
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <InlineTitle
             value={booking.title}
             canEdit={canEdit}
@@ -245,7 +245,7 @@ export default function BookingDetailPage({
           />
         </div>
 
-        {hasAnyAction && <div className="flex items-center gap-2 shrink-0">
+        {hasAnyAction && <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
           {/* Actions dropdown — secondary/less-common actions */}
           {(canDuplicate || canCancel || (kind === "CHECKOUT" && isOpen) || (kind === "CHECKOUT" && canCheckin)) && (
             <DropdownMenu>
