@@ -359,3 +359,9 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
   - UX polish: differentiated empty states (no inventory vs no matches), first/last page buttons, "Showing X–Y of Z" range display, keyboard shortcuts (/ to search, Escape to clear, arrow keys for pagination).
   - Mobile card view: responsive card layout on <768px with 44px+ tap targets, status badges, kebab menu.
   - Consolidated fetch: single `/api/items-page-init` endpoint replaces 4 separate mount-time fetches.
+- 2026-03-22: Items list page hardening (5-pass audit):
+  - Design system: accessories count badge migrated to shadcn Badge, bulk action spinner uses Spinner component.
+  - Data flow: AbortController prevents race conditions on rapid filter changes, unmount cleanup aborts in-flight requests. Silent failures on row actions (duplicate, maintenance, retire) replaced with toast feedback. Double-click guard via actionBusy state.
+  - Resilience: refresh failures preserve visible data (toast error instead of replacing table with error screen). Initial load vs refresh distinguished — skeleton only on first load, shimmer progress bar on subsequent refreshes.
+  - UX polish: loading skeleton matches actual table layout (image placeholder + two-line text, pill-shaped status badge, varied widths). Retire confirmation names the specific item and states consequences. Bulk actions toast success/failure with action type and count. Retire button shows "Retiring…" during in-flight action.
+  - Bulk action hook now toasts success/failure messages.

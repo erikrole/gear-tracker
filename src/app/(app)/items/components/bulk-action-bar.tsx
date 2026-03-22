@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -130,9 +131,9 @@ export function BulkActionBar({
               Retire {count} item{count > 1 ? "s" : ""}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will mark{" "}
-              {count === 1 ? "this item" : `these ${count} items`} as retired.
-              Retired items are hidden from active inventory.
+              This will permanently retire{" "}
+              {count === 1 ? "1 item" : `${count} items`}.
+              Retired items are hidden from active inventory and cannot be checked out or reserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -147,7 +148,7 @@ export function BulkActionBar({
         </AlertDialogContent>
       </AlertDialog>
 
-      {busy && <span className="text-sm text-muted">Processing...</span>}
+      {busy && <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><Spinner className="size-3.5" /> Processing…</span>}
       {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
   );
