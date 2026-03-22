@@ -131,7 +131,7 @@ export default function BookingHistoryTab({
 
             return (
               <div
-                className="flex gap-3 items-start px-3 py-3 first:pt-3 last:pb-3"
+                className="flex gap-2.5 items-start px-3 py-2 first:pt-2 last:pb-2"
                 key={entry.id}
               >
                 <Avatar

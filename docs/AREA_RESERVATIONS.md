@@ -53,22 +53,26 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 - **Old routes**: `GET/PATCH /api/reservations/[id]` redirect (308) to `/api/bookings/[id]`
 
 ### Reservation-Specific Behavior
+- Status badge shows "Confirmed" (not "BOOKED") via `statusLabel()` helper
 - "Start checkout" primary CTA when `convert` action is allowed
-- "Duplicate" action in dropdown menu (clones reservation)
+- Action buttons: `[Actions ▼] [Edit] [Extend] [Start checkout]` — Start checkout is primary CTA
+- Actions dropdown contains: Duplicate, Cancel
 - No checkin checkboxes or scan buttons (those are checkout-only)
 - Equipment tab shows Serial and Location columns (instead of checkout's Status column)
-- Properties strip shows status, ref number, location, requester
+- Equipment rows show hover-reveal "..." menu (View item)
+- Breadcrumb handled by global `PageBreadcrumb` in AppShell (no duplicate)
 
 ### Tabs
-1. **Info** — SaveableField rows: title (editable), location, from/to dates, requester, creator, notes (editable)
-2. **Equipment** — shadcn Table with search, item count, serial/location columns
-3. **History** — Activity log with filter chips (All / Equipment / Status), before/after diffs
+1. **Info** — Card with "Reservation details" heading. SaveableField rows: title (editable), location, from/to dates, requester (with avatar), creator (with avatar), notes (editable), created. Mixed-location Alert if applicable.
+2. **Equipment** — Card with search (3+ items), serialized rows with context menu, item count
+3. **History** — Collapsible section with one-line preview when collapsed, ToggleGroup filters (All / Booking changes / Equipment changes), natural-language action labels
 
 ### Inline Editing
-- Title: `InlineTitle` component (shared from `src/components/InlineTitle.tsx`)
+- Title: `InlineTitle` component with save status indicator (spinner/check/error)
 - Notes: blur-save via `useSaveField` pattern
 - PATCH `/api/bookings/[id]` with single-field partial update
 - Audit entries capture before-snapshot for field-level diffs
+- "Refreshing…" spinner shown during data reload after actions
 
 ## Reservations List Surface (V1)
 
@@ -241,3 +245,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-03-14: Shipped duplicate/clone action — detail page button + list context menu entry. API endpoint at POST /api/reservations/[id]/duplicate.
 - 2026-03-16: Booking reference numbers (D-024) — RV-XXXX format, global sequence, searchable, monospace badge in list/detail.
 - 2026-03-22: **Unified detail page** — Reservation and checkout detail pages unified via shared `BookingDetailPage` component. Extracted `useBookingDetail` + `useBookingActions` hooks. Old `/api/reservations/[id]` GET/PATCH redirects to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit. Shared `InlineTitle` component. Reservation-specific: "Start checkout" CTA, duplicate action, serial/location equipment columns.
+- 2026-03-22: **Detail page UX polish (3 rounds)** — Same changes as AREA_CHECKOUTS.md. Status vocabulary: BOOKED→"Confirmed". Action buttons redesigned. Equipment row context menus. Avatar initials. shadcn component replacements (Breadcrumb, Collapsible, ToggleGroup, Alert). InlineTitle save feedback. Collapsible history with preview.

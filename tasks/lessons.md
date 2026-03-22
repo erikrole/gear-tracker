@@ -365,3 +365,34 @@ Always use shadcn Empty component:
 - [ ] `min-h-[44px]` on all interactive rows
 - [ ] Loading state uses `Skeleton` components matching the layout
 - [ ] Self-audit against items page before declaring done
+- [ ] Status labels use `statusLabel(status, kind)` — never show raw enum
+- [ ] Action buttons: `[Actions ▼] [Edit] [Extend] [Primary CTA]` — primary rightmost
+- [ ] Equipment rows have `group/row` class + hover-reveal "..." menu
+- [ ] People fields (requester, creator) show Avatar initials
+- [ ] Countdown/due-back uses urgency-colored Badge (not plain text)
+- [ ] Info card has heading: "Checkout details" / "Reservation details"
+- [ ] Auto-select all returnable items on checkin-eligible pages
+- [ ] Reset `checkinIdsInitialised.current` after partial return for re-selection
+- [ ] All actions toast on success AND error (not just error)
+- [ ] Quick extend offsets from picker value when already set (not always booking.endsAt)
+- [ ] Optimistic UI: patch local state before API call, reload confirms truth
+- [ ] Collapsible sections use shadcn `Collapsible` (not manual useState + button)
+- [ ] Filter chips use shadcn `ToggleGroup` (not Button with manual variant toggling)
+- [ ] Warnings/alerts use shadcn `Alert` with icon (not styled div)
+
+## Session 2026-03-22 (Round 2): Detail Page UX Audit Patterns
+
+### Multi-Pass Audit Process
+1. **First pass**: Visual audit against reference (Cheqroom) — find 9 low-level polish issues
+2. **Second pass**: Flow-trace every user journey end-to-end — find architectural issues (stale state, missing feedback, dead code)
+3. **Third pass**: Component audit against shadcn library — find hand-rolled patterns that have shadcn equivalents
+4. **Fourth pass**: User feedback on screenshot — reveals UX hierarchy issues (status labels, action prominence, information density)
+
+### Key Patterns Discovered
+- **Optimistic UI for bulk actions**: Patch local state immediately, then reload for truth. Prevents the "blank flash" between clearing selection and data reload.
+- **Auto-select with re-init**: Use a ref flag to track initialization, but reset it after partial operations so auto-select re-fires on the next data load.
+- **Status is a UX decision, not a DB decision**: Raw enum values are technical. User-facing labels should be meaningful ("Checked out" > "OPEN"). Keep enum stable, map in display layer only.
+- **Action button hierarchy**: Primary CTA rightmost. Secondary actions grouped in dropdown leftmost. Middle = promoted but non-primary. Mobile collapses everything into dropdown.
+- **Row-level actions via hover menu**: `group/row` on container + `opacity-0 group-hover/row:opacity-100` on trigger. Clean and discoverable without cluttering the default view.
+- **Success toasts are as important as error toasts**: Users need confirmation that their action worked. Silent success erodes confidence.
+- **Quick-extend should offset from picker value**: When the date picker already has a value, "+1 week" should add to that, not reset to original booking end date.

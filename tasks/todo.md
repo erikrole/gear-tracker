@@ -6,6 +6,19 @@ Last updated: 2026-03-22
 
 ## Active Work
 
+### Booking Detail Page Redesign — Round 3 (Shipped 2026-03-22)
+
+- [x] **1. Fix double breadcrumb** — removed duplicate, global PageBreadcrumb handles it
+- [x] **2. Status vocabulary** — D-025: `statusLabel()` helper. OPEN→"Checked out", BOOKED→"Confirmed"
+- [x] **3. Status strip** — Due-back as urgency-colored Badge with clock icon
+- ~~**4. Remove Title from info card**~~ — keeping per user preference
+- [x] **5. Avatars on people fields** — Avatar initials on Requester and Created by
+- [x] **6. Action buttons redesign** — `[Actions ▼] [Edit] [Extend] [Check in]`
+- [x] **7. Equipment rows: context menu** — hover-reveal "..." with View item, Select for return
+- [x] **8. Equipment: hide qty "1"** — only show status for serialized items
+- [x] **9. Activity formatting** — tighter spacing, natural-language labels
+- [ ] **10. Date range grouping** — deferred (From/To as connected range)
+
 ### shadcn/ui Final Migration
 
 - [x] **Slice A**: CommandDialog — replace search overlay with live fuzzy command palette (2026-03-20)

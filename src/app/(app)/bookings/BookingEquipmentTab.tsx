@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { Progress } from "@/components/ui/progress";
-import { Check, ImageIcon, Search } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 
 export default function BookingEquipmentTab({
@@ -227,7 +233,7 @@ function SerializedRow({
   const returned = item.allocationStatus === "returned";
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-md ${returned ? "opacity-60" : "hover:bg-muted/50"}`}>
+    <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${returned ? "opacity-60" : "hover:bg-muted/50"}`}>
       {/* Checkbox / returned indicator */}
       {isCheckout && canCheckin && (
         <div className="shrink-0">
@@ -260,15 +266,31 @@ function SerializedRow({
         </div>
       </div>
 
-      {/* Status / qty */}
-      <div className="shrink-0 text-right">
-        {returned ? (
+      {/* Status + row actions */}
+      <div className="shrink-0 flex items-center gap-1.5">
+        {returned && (
           <span className="text-xs font-medium text-green-600 dark:text-green-400">
             Returned
           </span>
-        ) : (
-          <span className="text-sm text-muted-foreground tabular-nums">1</span>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="size-7 flex items-center justify-center rounded-md hover:bg-muted/80 text-muted-foreground opacity-0 group-hover/row:opacity-100 focus:opacity-100 transition-opacity">
+              <MoreHorizontal className="size-4" />
+              <span className="sr-only">Item actions</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/items/${item.asset.id}`}>View item</Link>
+            </DropdownMenuItem>
+            {isCheckout && canCheckin && !returned && (
+              <DropdownMenuItem onSelect={onToggle}>
+                {checked ? "Deselect for return" : "Select for return"}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -298,7 +320,7 @@ function BulkRow({
   const allReturned = isCheckout && inQty >= outQty;
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
+    <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
       {/* Spacer for checkbox column */}
       {isCheckout && canCheckin && (
         <div className="shrink-0 w-5">

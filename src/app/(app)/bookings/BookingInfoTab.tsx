@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
@@ -75,8 +76,11 @@ export default function BookingInfoTab({
 
       {/* Requester */}
       <SaveableField label="Requester">
-        <span className="text-sm">
-          {booking.requester?.name ?? "Unknown"}{" "}
+        <span className="inline-flex items-center gap-2 text-sm">
+          <Avatar className="size-5 text-[10px]">
+            <AvatarFallback>{(booking.requester?.name ?? "U").charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          {booking.requester?.name ?? "Unknown"}
           <span className="text-muted-foreground">({booking.requester?.email ?? ""})</span>
         </span>
       </SaveableField>
@@ -84,7 +88,12 @@ export default function BookingInfoTab({
       {/* Creator */}
       {booking.creator && (
         <SaveableField label="Created by">
-          <span className="text-sm">{booking.creator.name}</span>
+          <span className="inline-flex items-center gap-2 text-sm">
+            <Avatar className="size-5 text-[10px]">
+              <AvatarFallback>{booking.creator.name.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            {booking.creator.name}
+          </span>
         </SaveableField>
       )}
 
