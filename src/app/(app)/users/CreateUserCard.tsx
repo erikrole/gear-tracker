@@ -44,6 +44,7 @@ export default function CreateUserCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const json = await res.json();
 
       if (!res.ok) {
@@ -63,15 +64,15 @@ export default function CreateUserCard({
   }
 
   return (
-    <Card style={{ marginBottom: 16 }}>
+    <Card className="mb-4">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Add user</CardTitle>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>
           Cancel
         </Button>
       </CardHeader>
-      <form onSubmit={handleSubmit} className="p-16">
-        <div className="form-grid form-grid-3">
+      <form onSubmit={handleSubmit} className="px-6 pb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <Input
             name="name"
             placeholder="Full name"
@@ -118,7 +119,7 @@ export default function CreateUserCard({
             </SelectContent>
           </Select>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+        <div className="flex justify-end mt-3">
           <Button type="submit" disabled={submitting}>
             {submitting ? "Adding..." : "Add user"}
           </Button>

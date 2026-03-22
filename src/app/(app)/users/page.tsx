@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Loader2 } from "lucide-react";
 
 const LIMIT = 50;
 
@@ -92,7 +92,13 @@ export default function UsersPage() {
 
   // ── Data fetching ──
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const reload = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setLoadError(false);
     try {
@@ -104,7 +110,11 @@ export default function UsersPage() {
       if (roleFilter) params.set("role", roleFilter);
       if (locationFilter) params.set("locationId", locationFilter);
 
-      const res = await fetch(`/api/users?${params}`);
+      const res = await fetch(`/api/users?${params}`, { signal: controller.signal });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
       if (res.ok) {
         const json: ListResponse = await res.json();
         setUsers(json.data ?? []);
@@ -112,19 +122,23 @@ export default function UsersPage() {
       } else {
         setLoadError(true);
       }
-    } catch {
-      setLoadError(true);
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") setLoadError(true);
     }
-    setLoading(false);
+    if (!controller.signal.aborted) setLoading(false);
   }, [page, search, sort, roleFilter, locationFilter]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    return () => { abortRef.current?.abort(); };
+  }, [reload]);
 
   // Load form options + current user role once
   useEffect(() => {
+    const controller = new AbortController();
     Promise.all([
-      fetch("/api/form-options"),
-      fetch("/api/me"),
+      fetch("/api/form-options", { signal: controller.signal }),
+      fetch("/api/me", { signal: controller.signal }),
     ]).then(async ([optionsRes, meRes]) => {
       if (optionsRes.ok) {
         const j = await optionsRes.json();
@@ -134,7 +148,8 @@ export default function UsersPage() {
         const j = await meRes.json();
         if (j?.user?.role) setCurrentUserRole(j.user.role);
       }
-    }).catch(() => { setLoadError(true); });
+    }).catch(() => { /* auxiliary data — don't block the page */ });
+    return () => { controller.abort(); };
   }, []);
 
   // Reset page when filters change
@@ -142,12 +157,17 @@ export default function UsersPage() {
 
   const totalPages = Math.ceil(total / LIMIT);
   const hasFilters = !!search || !!roleFilter || !!locationFilter;
+  const isInitialLoad = loading && users.length === 0 && !loadError;
+  const isRefreshing = loading && users.length > 0;
 
   return (
     <>
       {/* Header */}
       <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
-        <h1>Users</h1>
+        <div className="flex items-center gap-2">
+          <h1>Users</h1>
+          {isRefreshing && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+        </div>
         {canEdit && !showCreate && (
           <Button onClick={() => setShowCreate(true)}>
             Add user
@@ -180,26 +200,32 @@ export default function UsersPage() {
           }}
         />
 
-        {loading ? (
+        {isInitialLoad ? (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  {Array.from({ length: 4 }, (_, i) => (
-                    <TableHead key={i}>
-                      <Skeleton className="h-4 w-20" />
-                    </TableHead>
-                  ))}
+                  <TableHead><Skeleton className="h-4 w-16" /></TableHead>
+                  <TableHead><Skeleton className="h-4 w-12" /></TableHead>
+                  <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
+                  <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-14" /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Array.from({ length: 8 }, (_, r) => (
                   <TableRow key={r}>
-                    {Array.from({ length: 4 }, (_, c) => (
-                      <TableCell key={c}>
-                        <Skeleton className="h-4" style={{ width: `${50 + ((r + c) % 4) * 12}%` }} />
-                      </TableCell>
-                    ))}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-8 rounded-full shrink-0" />
+                        <div className="space-y-1.5 flex-1">
+                          <Skeleton className="h-3.5" style={{ width: `${55 + (r % 3) * 15}%` }} />
+                          <Skeleton className="h-3" style={{ width: `${40 + (r % 4) * 10}%` }} />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${50 + (r % 3) * 20}%` }} /></TableCell>
+                    <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${40 + (r % 4) * 15}%` }} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -210,6 +236,8 @@ export default function UsersPage() {
             icon="users"
             title="Failed to load users"
             description="Something went wrong. Please try again."
+            actionLabel="Retry"
+            onAction={reload}
           />
         ) : users.length === 0 ? (
           <EmptyState
@@ -255,20 +283,25 @@ export default function UsersPage() {
           </>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
+        {/* Pagination / Count */}
+        {!isInitialLoad && !loadError && users.length > 0 && (
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              Showing {page * LIMIT + 1}&ndash;{Math.min((page + 1) * LIMIT, total)} of {total}
+              {totalPages > 1
+                ? <>Showing {page * LIMIT + 1}&ndash;{Math.min((page + 1) * LIMIT, total)} of {total}</>
+                : <>{total} {total === 1 ? "user" : "users"}{hasFilters ? " found" : ""}</>
+              }
             </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
-                Next
-              </Button>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+                  Previous
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

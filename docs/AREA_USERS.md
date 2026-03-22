@@ -3,9 +3,9 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-02
+- Last Updated: 2026-03-22
 - Status: Active
-- Version: V1
+- Version: V1.1
 
 ## Direction
 Use a simple tiered permission model with inheritance so behavior is predictable in UI and backend authorization.
@@ -114,3 +114,8 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-03-14: Shipped enhanced Users page — API access widened per spec (GET: all roles, POST/PATCH: ADMIN+STAFF), inline role/location editing, user detail editing, search/filter, audit logging for all user mutations, role-aware UI gating. Acceptance criteria 1-5 now met.
 - 2026-03-14: RBAC hardening — centralized permission policy map (src/lib/permissions.ts), requirePermission added to all mutation endpoints app-wide, audit logs now include actor role via createAuditEntry helper. Acceptance criterion 6 now met.
 - 2026-03-17: Users page architectural redesign — component extraction (RoleBadge, UserRow, UserFilters, CreateUserCard), server-side pagination/search/sort/filter on GET /api/users, dedicated /users/[id] detail page with Info and Activity tabs, mobile card layout, role badges (ADMIN=purple, STAFF=blue, STUDENT=gray), inline editing in detail page (name, email, phone, primaryArea, location, role), sport/area assignment display, user activity timeline via new GET /api/users/[id]/activity endpoint, toggleable create form, location filter.
+- 2026-03-22: Users page hardening (5-pass audit):
+  - **Design system**: Migrated to shadcn/ui tokens (text-muted-foreground, Tailwind grid/flex). Fixed broken spacing (p-16→px-6 pb-6, gap-12→gap-3, mb-8→mb-2). Removed 50 lines dead CSS. Removed dead ROLE_BADGE export.
+  - **Data flow**: AbortController on all fetches (race condition prevention + unmount cleanup). Form-options/me fetch failure no longer blocks page. Stale response overwrite prevention.
+  - **Resilience**: Retry buttons on all error states (list, detail, activity). 401 redirect to /login on all fetches and mutations (list, detail, create, patch, role change, activity).
+  - **UX polish**: High-fidelity skeletons matching real row layout (avatar circle, name/email lines, badge pill). Refresh shows spinner instead of replacing data with skeletons. Result count always visible below list.

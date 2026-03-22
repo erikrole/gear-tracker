@@ -5,7 +5,6 @@ import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
 import type { UserDetail, Location } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
-import RoleBadge from "../RoleBadge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 
 /* ── Text Input Field ─────────────────────────────────── */
@@ -141,6 +141,7 @@ export default function UserInfoTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (res.status === 401) { window.location.href = "/login"; return; }
     const json = await res.json();
     if (!res.ok) {
       throw new Error(json.error || "Failed to update user");
@@ -154,6 +155,7 @@ export default function UserInfoTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: newRole }),
     });
+    if (res.status === 401) { window.location.href = "/login"; return; }
     const json = await res.json();
     if (!res.ok) {
       toast(json.error || "Failed to change role", "error");
@@ -168,7 +170,7 @@ export default function UserInfoTab({
   }));
 
   return (
-    <div className="details-grid mt-14">
+    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
       {/* Profile Card */}
       <Card>
         <CardHeader>
@@ -231,11 +233,11 @@ export default function UserInfoTab({
         </CardHeader>
         <CardContent>
           {/* Sport Assignments */}
-          <h3 className="text-sm font-semibold text-secondary mb-8">Sports</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
           {user.sportAssignments.length === 0 ? (
-            <p className="text-sm text-muted mb-16">No sport assignments</p>
+            <p className="text-sm text-muted-foreground mb-4">No sport assignments</p>
           ) : (
-            <div className="assignment-chips mb-16">
+            <div className="flex flex-wrap gap-1.5 mb-4">
               {user.sportAssignments.map((sa) => (
                 <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}
@@ -244,12 +246,14 @@ export default function UserInfoTab({
             </div>
           )}
 
+          <Separator className="my-2" />
+
           {/* Area Assignments */}
-          <h3 className="text-sm font-semibold text-secondary mb-8">Areas</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
           {user.areaAssignments.length === 0 ? (
-            <p className="text-sm text-muted">No area assignments</p>
+            <p className="text-sm text-muted-foreground">No area assignments</p>
           ) : (
-            <div className="assignment-chips">
+            <div className="flex flex-wrap gap-1.5">
               {user.areaAssignments.map((aa) => (
                 <Badge
                   key={aa.id}

@@ -24,17 +24,26 @@ Ensure this page fully aligns with shadcn/ui and a consistent design system.
 
 ### TASKS
 
-#### Red — Replace Immediately
+#### Red — Replace Immediately (shadcn-first, non-negotiable)
 - Custom CSS class components that have direct shadcn equivalents (`.badge-green` -> `Badge variant="green"`, `.user-avatar` -> `Avatar` + `AvatarFallback`)
 - Raw styled `<span>`, `<div>`, `<img>` elements doing the job of Badge, Avatar, AvatarGroup, Skeleton, Progress, Separator
 - Custom loading skeletons or spinner components when shadcn `Skeleton` exists
 - Inconsistent card headers — some using `CardHeader`/`CardTitle`, others using raw `<div>` + `<h2>`
+- **Breadcrumbs**: Any custom `.breadcrumb` CSS or raw `<div>` breadcrumbs → shadcn `Breadcrumb` + `BreadcrumbList` + `BreadcrumbItem` + `BreadcrumbLink` + `BreadcrumbPage`
+- **Error states**: Raw `<div>` error messages → shadcn `Alert` with `variant="destructive"` + `AlertTitle` + `AlertDescription`
+- **Empty states**: Raw `<div>` "no data" messages → `EmptyState` component (wraps shadcn `Empty`)
+- **Loading states**: `Spinner` or raw loaders → shadcn `Skeleton` layouts matching the actual page structure (vary widths per row)
+- **Timeline/feed dots**: Custom CSS circles (`.history-dot`) → shadcn `Avatar` + `AvatarFallback`
+- **Mobile cards**: Raw `<Link>` or `<div>` with `border` → shadcn `Card` + `CardContent`
+- **Section dividers**: Raw `<hr>` or margin gaps between sections → shadcn `Separator`
+- **Layout CSS classes**: Custom `.details-grid`, `.page-header`, `.header-actions` → Tailwind grid/flex utilities
 
 #### Yellow — Inconsistencies
 - Spacing values that don't match design system tokens (e.g., `padding: 10px 20px` in CSS vs `px-5 py-2.5` in Tailwind)
 - Typography that bypasses the type scale (raw `font-size: 13px` vs `text-sm`)
 - Mixed patterns: inline Tailwind classes duplicating what a CSS class already provides
 - Color values hardcoded as hex instead of using CSS variables or variant props
+- Custom `.muted` CSS class → `text-muted-foreground` Tailwind utility
 
 #### Green — Enhancements
 - Sub-components that could compose shadcn primitives more cleanly
@@ -43,8 +52,10 @@ Ensure this page fully aligns with shadcn/ui and a consistent design system.
 
 #### Cleanup (non-negotiable)
 - After every component replacement, grep the CSS file for the now-dead class
-- Grep the entire `src/` directory to confirm no other file uses it
+- Grep the entire `src/` directory to confirm no other file uses it before removing
 - Delete dead CSS. Do not leave commented-out rules.
+- Check every modified file for dead imports (removed components, unused type imports)
+- Verify no orphaned shadcn imports (e.g., importing `Spinner` after replacing with `Skeleton`)
 
 ### RULES
 - Do not replace UI without clear benefit — if a custom component works and has no shadcn equivalent, leave it

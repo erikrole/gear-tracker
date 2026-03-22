@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
-import { Spinner } from "@/components/ui/spinner";
+import EmptyState from "@/components/EmptyState";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -58,33 +63,71 @@ export default function UserActivityTab({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  useEffect(() => {
-    fetch(`/api/users/${userId}/activity`)
+  const loadActivity = useCallback(() => {
+    setLoading(true);
+    setFetchError(false);
+    const controller = new AbortController();
+    fetch(`/api/users/${userId}/activity`, { signal: controller.signal })
       .then((res) => {
+        if (res.status === 401) { window.location.href = "/login"; return null; }
         if (!res.ok) { setFetchError(true); return null; }
         return res.json();
       })
       .then((json) => { if (json?.data) setEntries(json.data); })
-      .catch(() => setFetchError(true))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if ((err as Error).name !== "AbortError") setFetchError(true);
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return controller;
   }, [userId]);
 
-  if (loading) return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
+  useEffect(() => {
+    const controller = loadActivity();
+    return () => { controller?.abort(); };
+  }, [loadActivity]);
+
+  if (loading) {
+    return (
+      <div className="mt-6 space-y-4">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="grid grid-cols-[28px_1fr] gap-3 items-start">
+            <Skeleton className="size-7 rounded-full" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4" style={{ width: `${50 + (i % 3) * 15}%` }} />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (fetchError) {
-    return <div className="py-10 px-5 text-center text-muted-foreground">Failed to load activity history.</div>;
+    return (
+      <div className="py-10 px-5 flex justify-center">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="size-4" />
+          <AlertTitle>Failed to load activity</AlertTitle>
+          <AlertDescription className="mt-2">
+            <p className="mb-3">Something went wrong loading the activity history.</p>
+            <Button variant="outline" size="sm" onClick={() => loadActivity()}>Retry</Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   }
 
   if (entries.length === 0) {
-    return <div className="py-10 px-5 text-center text-muted-foreground">No activity recorded yet.</div>;
+    return <EmptyState icon="clipboard" title="No activity recorded yet" description="Activity will appear here as changes are made to this user." />;
   }
 
   return (
-    <div className="history-feed mt-14">
+    <div className="mt-6 grid gap-3.5">
       {entries.map((entry) => {
         const actorName = entry.actor?.name || "System";
         const initial = actorName.slice(0, 1).toUpperCase();
         const actionLabel = ACTION_LABELS[entry.action] || entry.action;
+        const isBooking = entry.entityType === "booking";
 
         const isUpdate =
           (entry.action === "updated" || entry.action === "role_changed") &&
@@ -110,10 +153,12 @@ export default function UserActivityTab({ userId }: { userId: string }) {
             : null;
 
         return (
-          <div className="history-row" key={entry.id}>
-            <div className={`history-dot${entry.entityType === "booking" ? " history-dot-booking" : ""}`}>
-              {initial}
-            </div>
+          <div className="grid grid-cols-[28px_1fr] gap-3 items-start" key={entry.id}>
+            <Avatar className="size-7 text-[10px]">
+              <AvatarFallback className={isBooking ? "bg-blue-500 text-white" : "bg-secondary text-secondary-foreground"}>
+                {initial}
+              </AvatarFallback>
+            </Avatar>
             <div>
               <div>
                 <strong>{actorName}</strong>{" "}
@@ -123,7 +168,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
                 )}
               </div>
               {isUpdate && changes.length > 0 && (
-                <div className="text-xs text-secondary mt-4">
+                <div className="text-xs text-muted-foreground mt-1">
                   {changes.map((key) => (
                     <div key={key} className="py-1">
                       {describeFieldChange(
@@ -135,7 +180,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
                   ))}
                 </div>
               )}
-              <div className="muted mt-2">{formatDateTime(entry.createdAt)}</div>
+              <div className="text-muted-foreground text-xs mt-2">{formatDateTime(entry.createdAt)}</div>
             </div>
           </div>
         );
