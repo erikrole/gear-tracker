@@ -114,15 +114,15 @@ export default function UtilizationPage() {
   if (loading) {
     return (
       <>
-        <div className="summary-grid mb-16">
+        <div className="summary-grid mb-1">
           {Array.from({ length: 4 }, (_, i) => (
-            <Card key={i} className="p-16 text-center">
+            <Card key={i} className="p-4 text-center">
               <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
               <Skeleton className="skeleton-text-sm mx-auto w-[80px]" />
             </Card>
           ))}
         </div>
-        <div className="grid-2col gap-16">
+        <div className="grid-2col gap-4">
           <Card><SkeletonTable rows={4} cols={2} /></Card>
           <Card><SkeletonTable rows={4} cols={2} /></Card>
         </div>
@@ -132,8 +132,8 @@ export default function UtilizationPage() {
 
   if (error || !data) {
     return (
-      <Card className="p-16 text-center">
-        <p className="text-secondary mb-8">Failed to load utilization report.</p>
+      <Card className="p-4 text-center">
+        <p className="text-secondary mb-2">Failed to load utilization report.</p>
         <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
       </Card>
     );
@@ -141,12 +141,12 @@ export default function UtilizationPage() {
 
   return (
     <>
-      <div className="flex-center mb-16" style={{ justifyContent: "flex-end" }}>
+      <div className="flex-center mb-1" style={{ justifyContent: "flex-end" }}>
         <Button variant="outline" size="sm" onClick={() => downloadCsv(data)}>
           Export CSV
         </Button>
       </div>
-      <div className="summary-grid mb-16">
+      <div className="summary-grid mb-1">
         {Object.entries(data.statusCounts).map(([status, count]) => {
           const meta = STATUS_META[status];
           return (
@@ -161,7 +161,7 @@ export default function UtilizationPage() {
         <MetricCard value={data.totalAssets} label="Total assets" />
       </div>
 
-      <div className="grid-2col gap-16">
+      <div className="grid-2col gap-4">
         <BreakdownCard
           title="By location"
           labelKey="Location"

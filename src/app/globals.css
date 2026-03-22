@@ -523,18 +523,7 @@ textarea:focus-visible {
   border-radius: var(--radius);
 }
 
-/* Screen reader only */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
+/* .sr-only removed — Tailwind provides this natively */
 
 /* Skip to content link */
 .skip-link {
@@ -2410,14 +2399,8 @@ textarea:focus-visible {
   letter-spacing: 0.05em;
 }
 
-.text-center { text-align: center; }
-.justify-center { justify-content: center; }
-.items-baseline { align-items: baseline; }
-.items-start { align-items: flex-start; }
-.m-0 { margin: 0; }
-.mb-0 { margin-bottom: 0; }
-.mt-2 { margin-top: 2px; }
-.py-1 { padding-top: 1px; padding-bottom: 1px; }
+/* text-center, justify-center, items-baseline, items-start, m-0, mb-0,
+   mt-2, py-1 removed — Tailwind v4 provides all of these natively */
 
 .qr-canvas {
   display: block;
@@ -4205,48 +4188,32 @@ tr.status-overdue .status-label,
 }
 
 /* ===== Utility Classes ===== */
+/* Layout, spacing, gap, and font-weight classes REMOVED —
+   Tailwind v4 provides these natively. Custom rules were unlayered,
+   which broke responsive variants (e.g. hidden sm:block).
+   Spacing classes also had wrong values (pixel-based vs Tailwind rem-based)
+   and were renamed to correct Tailwind equivalents in all usages. */
 
-/* Layout */
-.flex { display: flex; }
-.flex-col { display: flex; flex-direction: column; }
-.flex-center { display: flex; align-items: center; }
-.flex-between { display: flex; align-items: center; justify-content: space-between; }
-.flex-wrap { flex-wrap: wrap; }
-.gap-4 { gap: 4px; }
-.gap-6 { gap: 6px; }
-.gap-8 { gap: 8px; }
-.gap-10 { gap: 10px; }
-.gap-12 { gap: 12px; }
-.gap-16 { gap: 16px; }
+/* Custom layout helpers (no Tailwind equivalent) */
+@layer utilities {
+  .flex-center { display: flex; align-items: center; }
+  .flex-between { display: flex; align-items: center; justify-content: space-between; }
+}
 
-/* Spacing */
-.mt-4 { margin-top: 4px; }
-.mt-8 { margin-top: 8px; }
-.mt-12 { margin-top: 12px; }
-.mt-16 { margin-top: 16px; }
-.mb-8 { margin-bottom: 8px; }
-.mb-12 { margin-bottom: 12px; }
-.mb-16 { margin-bottom: 16px; }
-.p-12 { padding: 12px; }
-.p-16 { padding: 16px; }
-.px-16 { padding-left: 16px; padding-right: 16px; }
-.py-12 { padding-top: 12px; padding-bottom: 12px; }
-
-/* Typography */
-.text-xs { font-size: var(--text-xs); }
-.text-sm { font-size: var(--text-sm); }
-.text-base { font-size: var(--text-base); }
-.text-lg { font-size: var(--text-lg); }
-.text-xl { font-size: var(--text-xl); }
-.font-medium { font-weight: var(--weight-medium); }
-.font-semibold { font-weight: var(--weight-semibold); }
-.font-bold { font-weight: var(--weight-bold); }
-.font-mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
-.text-secondary { color: var(--text-secondary); }
-.text-muted { color: var(--text-muted); }
-.text-red { color: var(--red); }
-.text-green { color: var(--green); }
-.text-blue { color: var(--blue); }
+/* Typography — custom scale (13/14/16/18px vs Tailwind 12/14/16/18/20px).
+   Wrapped in @layer so responsive variants (sm:text-sm) work correctly. */
+@layer utilities {
+  .text-xs { font-size: var(--text-xs); }
+  .text-sm { font-size: var(--text-sm); }
+  .text-base { font-size: var(--text-base); }
+  .text-lg { font-size: var(--text-lg); }
+  .text-xl { font-size: var(--text-xl); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted { color: var(--text-muted); }
+  .text-red { color: var(--red); }
+  .text-green { color: var(--green); }
+  .text-blue { color: var(--blue); }
+}
 
 /* Status dot colors */
 .status-dot {
@@ -4284,17 +4251,13 @@ tr.status-overdue .status-label,
 .bg-success { background: var(--green-bg); }
 .bg-info { background: var(--purple-bg); }
 
-/* Borders */
-.border-b { border-bottom: 1px solid var(--border); }
-.border-t { border-top: 1px solid var(--border); }
-.rounded { border-radius: var(--radius); }
-.rounded-sm { border-radius: 6px; }
+/* border-b, border-t, rounded, rounded-sm, flex-1, inline-flex,
+   items-center removed — Tailwind provides these natively */
 
-/* Flex extras */
-.flex-1 { flex: 1; }
-.flex-end { display: flex; justify-content: flex-end; }
-.inline-flex { display: inline-flex; }
-.items-center { align-items: center; }
+/* Custom layout helpers */
+@layer utilities {
+  .flex-end { display: flex; justify-content: flex-end; }
+}
 
 /* Grid */
 .grid-2col { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
@@ -4313,46 +4276,16 @@ tr.status-overdue .status-label,
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* Positioning */
-.relative { position: relative; }
-.absolute { position: absolute; }
+/* relative, absolute, cursor-pointer, cursor-default, ml-auto,
+   text-right, text-left, w-full, overflow-x-auto, col-span-full,
+   mb-4, mt-14, gap-2, p-24, p-48, mb-24, mt-10, gap-24, mr-4, ml-4, ml-8
+   removed — Tailwind provides these (spacing classes renamed in usages) */
 
-/* Cursor */
-.cursor-pointer { cursor: pointer; }
-.cursor-default { cursor: default; }
-
-/* Additional spacing */
-.mb-4 { margin-bottom: 4px; }
-.mt-14 { margin-top: 14px; }
-.ml-auto { margin-left: auto; }
-.gap-2 { gap: 2px; }
-
-/* Additional colors */
-.text-orange { color: var(--orange); }
-.text-purple { color: var(--purple); }
-
-/* Text alignment */
-.text-right { text-align: right; }
-.text-left { text-align: left; }
-
-/* Additional spacing */
-.p-24 { padding: 24px; }
-.p-48 { padding: 48px; }
-.mb-24 { margin-bottom: 24px; }
-.mt-10 { margin-top: 10px; }
-.gap-24 { gap: 24px; }
-.mr-4 { margin-right: 4px; }
-.ml-4 { margin-left: 4px; }
-.ml-8 { margin-left: 8px; }
-
-/* Width */
-.w-full { width: 100%; }
-
-/* Overflow */
-.overflow-x-auto { overflow-x: auto; }
-
-/* Grid span */
-.col-span-full { grid-column: 1 / -1; }
+/* Custom color utilities (no Tailwind equivalent) */
+@layer utilities {
+  .text-orange { color: var(--orange); }
+  .text-purple { color: var(--purple); }
+}
 
 /* Metric display (summary cards) */
 .metric-value { font-size: 28px; font-weight: var(--weight-bold); }

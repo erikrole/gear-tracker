@@ -217,7 +217,7 @@ export default function SchedulePage() {
     <>
       <div className="page-header">
         <h1>Schedule</h1>
-        <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+        <div className="flex gap-1 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <Button
             variant={pageTab === "schedule" ? "default" : "outline"}
             size="sm"
@@ -243,8 +243,8 @@ export default function SchedulePage() {
       <>
 
       {/* View toggle + filters */}
-      <div className="filter-chip-bar mb-16">
-        <div className="flex gap-4 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
+      <div className="filter-chip-bar mb-1">
+        <div className="flex gap-1 rounded" style={{ border: "1px solid var(--border)", overflow: "hidden" }}>
           <Button
             variant={viewMode === "list" ? "default" : "outline"}
             size="sm"
@@ -304,9 +304,9 @@ export default function SchedulePage() {
 
       {/* Calendar view */}
       {viewMode === "calendar" && (
-        <Card className="mb-16">
+        <Card className="mb-1">
           <CardHeader className="flex-row items-center justify-between">
-            <div className="flex-center gap-8">
+            <div className="flex-center gap-2">
               <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
               <CardTitle className="text-center" style={{ minWidth: 160 }}>
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
@@ -315,7 +315,7 @@ export default function SchedulePage() {
             </div>
             <Button variant="outline" size="sm" onClick={goCalToday}>Today</Button>
           </CardHeader>
-          <div className="p-16">
+          <div className="p-4">
             <div className="cal-mobile-notice hidden">
               Switch to List view for the best mobile experience.
             </div>
@@ -374,8 +374,8 @@ export default function SchedulePage() {
           {loading ? (
             <SkeletonTable rows={6} cols={7} />
           ) : loadError ? (
-            <div className="p-16 text-center">
-              <p className="text-secondary mb-8">Failed to load shifts.</p>
+            <div className="p-4 text-center">
+              <p className="text-secondary mb-2">Failed to load shifts.</p>
               <Button variant="outline" size="sm" onClick={loadGroups}>Retry</Button>
             </div>
           ) : filteredGroups.length === 0 ? (
@@ -407,7 +407,7 @@ export default function SchedulePage() {
                           {g.event.summary}
                         </span>
                         {g.isPremier && (
-                          <Badge variant="blue" size="sm" className="ml-4">Premier</Badge>
+                          <Badge variant="blue" size="sm" className="ml-1">Premier</Badge>
                         )}
                       </td>
                       <td className="text-nowrap">
@@ -457,18 +457,18 @@ export default function SchedulePage() {
               <div className="schedule-mobile-list">
                 {filteredGroups.map((g) => (
                   <div key={g.id} className="schedule-mobile-card" onClick={() => setSelectedGroupId(g.id)} style={{ cursor: "pointer" }}>
-                    <div className="flex-between mb-4">
+                    <div className="flex-between mb-1">
                       <span className="font-semibold">{g.event.summary}</span>
                       <Badge variant={coverageVariant(g.coverage.percentage)}>
                         {g.coverage.filled}/{g.coverage.total}
                       </Badge>
                     </div>
-                    <div className="text-xs text-secondary flex gap-8">
+                    <div className="text-xs text-secondary flex gap-2">
                       <span>{formatDateShort(g.event.startsAt)} {formatTimeShort(g.event.startsAt)}</span>
                       {g.event.sportCode && <Badge variant="gray">{g.event.sportCode}</Badge>}
                       {g.isPremier && <Badge variant="blue">Premier</Badge>}
                     </div>
-                    <div className="flex gap-8 mt-4">
+                    <div className="flex gap-2 mt-1">
                       {AREAS.map((area) => {
                         const ac = areaCoverage(g.shifts, area);
                         if (ac.total === 0) return null;

@@ -64,7 +64,7 @@ export default function CreateUserCard({
   }
 
   return (
-    <Card className="mb-4">
+    <Card className="mb-1">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Add user</CardTitle>
         <Button type="button" variant="outline" size="sm" onClick={onClose}>

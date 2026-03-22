@@ -86,8 +86,8 @@ export default function AuditReportPage() {
 
   if (error || !data) {
     return (
-      <Card className="p-16 text-center">
-        <p className="text-secondary mb-8">Failed to load audit report.</p>
+      <Card className="p-4 text-center">
+        <p className="text-secondary mb-2">Failed to load audit report.</p>
         <Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); setPage(0); }}>Retry</Button>
       </Card>
     );
@@ -98,7 +98,7 @@ export default function AuditReportPage() {
   return (
     <>
       {/* Filters */}
-      <div className="flex-center gap-12 mb-16" style={{ flexWrap: "wrap" }}>
+      <div className="flex-center gap-3 mb-1" style={{ flexWrap: "wrap" }}>
         <span className="text-sm text-muted">Period:</span>
         {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
           <Button

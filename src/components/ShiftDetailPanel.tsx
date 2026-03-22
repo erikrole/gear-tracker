@@ -316,14 +316,14 @@ export default function ShiftDetailPanel({
         </SheetHeader>
 
         {loading ? (
-          <div className="p-16 text-secondary">Loading shift details...</div>
+          <div className="p-4 text-secondary">Loading shift details...</div>
         ) : loadError ? (
-          <div className="p-16 text-center">
-            <p className="text-secondary mb-8">Failed to load shift details.</p>
+          <div className="p-4 text-center">
+            <p className="text-secondary mb-2">Failed to load shift details.</p>
             <Button variant="outline" size="sm" onClick={fetchGroup}>Retry</Button>
           </div>
         ) : !group ? (
-          <div className="p-16 text-secondary">Shift group not found.</div>
+          <div className="p-4 text-secondary">Shift group not found.</div>
         ) : (
           <SheetBody className="px-6 py-4">
             {/* Event info */}
@@ -336,7 +336,7 @@ export default function ShiftDetailPanel({
                 {
                   label: "Premier",
                   value: (
-                    <span className="flex-center gap-4">
+                    <span className="flex-center gap-1">
                       <Badge variant={group.isPremier ? "blue" : "gray"}>
                         {group.isPremier ? "Yes" : "No"}
                       </Badge>
@@ -359,8 +359,8 @@ export default function ShiftDetailPanel({
 
             {/* Shifts by area */}
             {Object.entries(shiftsByArea).map(([area, shifts]) => (
-              <div key={area} className="mt-16">
-                <h3 className="text-sm font-semibold mb-8" style={{ color: "var(--text-secondary)" }}>
+              <div key={area} className="mt-4">
+                <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>
                   {AREA_LABELS[area] ?? area}
                 </h3>
                 {shifts.map((shift) => {
@@ -378,7 +378,7 @@ export default function ShiftDetailPanel({
                   return (
                     <div
                       key={shift.id}
-                      className="p-12 mb-8 rounded"
+                      className="p-3 mb-2 rounded"
                       style={{
                         border: "1px solid var(--border-light)",
                         background: isAssigned
@@ -386,7 +386,7 @@ export default function ShiftDetailPanel({
                           : "var(--bg-surface, var(--bg-card))",
                       }}
                     >
-                      <div className="flex-between mb-4">
+                      <div className="flex-between mb-1">
                         <span className="text-sm font-semibold">
                           {WORKER_LABELS[shift.workerType] ?? shift.workerType}
                         </span>
@@ -412,7 +412,7 @@ export default function ShiftDetailPanel({
                             </Avatar>
                             {activeAssignment.user.name}
                           </span>
-                          <div className="flex gap-4">
+                          <div className="flex gap-1">
                             <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">
                               {activeAssignment.status.replace("_", " ")}
                             </Badge>
@@ -434,9 +434,9 @@ export default function ShiftDetailPanel({
 
                       {/* Pending requests */}
                       {pendingRequests.length > 0 && (
-                        <div className="mt-8">
+                        <div className="mt-2">
                           {pendingRequests.map((req) => (
-                            <div key={req.id} className="flex-between mb-4">
+                            <div key={req.id} className="flex-between mb-1">
                               <span className="text-sm text-secondary flex items-center gap-2">
                                 <Avatar className="size-6">
                                   <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
@@ -446,7 +446,7 @@ export default function ShiftDetailPanel({
                                 {req.user.name}
                               </span>
                               {isStaff && (
-                                <div className="flex gap-4">
+                                <div className="flex gap-1">
                                   <Button
                                     size="sm"
                                     onClick={() => handleApprove(req.id)}
@@ -474,7 +474,7 @@ export default function ShiftDetailPanel({
 
                       {/* Actions */}
                       {!isAssigned && (
-                        <div className="flex gap-4 mt-8">
+                        <div className="flex gap-1 mt-2">
                           {isStaff && (
                             <Button
                               size="sm"
@@ -503,7 +503,7 @@ export default function ShiftDetailPanel({
 
                       {/* Inline user picker for staff assignment */}
                       {assigningShiftId === shift.id && (
-                        <div className="mt-8 p-8 rounded" style={{ border: "1px solid var(--border)", background: "var(--bg-card)" }}>
+                        <div className="mt-2 p-8 rounded" style={{ border: "1px solid var(--border)", background: "var(--bg-card)" }}>
                           <Input
                             type="text"
                             className="mb-2"
@@ -539,7 +539,7 @@ export default function ShiftDetailPanel({
                                   style={{ fontSize: "var(--text-xs)", justifyContent: "flex-start" }}
                                 >
                                   {u.name}
-                                  <span className="text-xs text-secondary ml-4">
+                                  <span className="text-xs text-secondary ml-1">
                                     {u.role === "STUDENT" ? "ST" : "FT"}
                                     {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
                                   </span>
@@ -550,7 +550,7 @@ export default function ShiftDetailPanel({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="mt-4"
+                            className="mt-1"
                             onClick={() => setAssigningShiftId(null)}
                             style={{ fontSize: "var(--text-3xs)" }}
                           >
@@ -565,7 +565,7 @@ export default function ShiftDetailPanel({
             ))}
 
             {group.notes && (
-              <div className="mt-16 p-12 rounded text-sm" style={{ background: "var(--bg-surface)" }}>
+              <div className="mt-4 p-3 rounded text-sm" style={{ background: "var(--bg-surface)" }}>
                 <strong>Notes:</strong> {group.notes}
               </div>
             )}

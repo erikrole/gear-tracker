@@ -62,7 +62,7 @@ export default function DatabasePage() {
         </div>
 
         {error && (
-          <Card className="mb-16">
+          <Card className="mb-1">
             <CardContent className="text-red">
               {error}
             </CardContent>
@@ -72,8 +72,8 @@ export default function DatabasePage() {
         {result && (
           <>
             {/* Overall status */}
-            <Card className="mb-16">
-              <CardContent className="flex-center gap-12">
+            <Card className="mb-1">
+              <CardContent className="flex-center gap-3">
                 <span
                   className="shrink-0"
                   style={{
@@ -92,11 +92,11 @@ export default function DatabasePage() {
 
             {/* Remediation steps */}
             {result.remediation.length > 0 && (
-              <Card className="mb-16">
+              <Card className="mb-1">
                 <CardHeader>
                   <span className="font-semibold text-sm">Remediation</span>
                 </CardHeader>
-                <CardContent className="flex-col gap-8">
+                <CardContent className="flex flex-col gap-2">
                   {result.remediation.map((step, i) => (
                     <div
                       key={i}
@@ -116,7 +116,7 @@ export default function DatabasePage() {
             )}
 
             {/* Migration table */}
-            <Card className="mb-16">
+            <Card className="mb-1">
               <CardHeader>
                 <span className="font-semibold text-sm">Migrations</span>
                 <StatusBadge ok={result.checks.migrationTable.exists} label={result.checks.migrationTable.exists ? "Table exists" : "Table missing"} />
@@ -146,7 +146,7 @@ export default function DatabasePage() {
             </Card>
 
             {/* Tables */}
-            <Card className="mb-16">
+            <Card className="mb-1">
               <CardHeader>
                 <span className="font-semibold text-sm">Tables</span>
                 <StatusBadge
@@ -164,7 +164,7 @@ export default function DatabasePage() {
             </Card>
 
             {/* Enums */}
-            <Card className="mb-16">
+            <Card className="mb-1">
               <CardHeader>
                 <span className="font-semibold text-sm">Enums</span>
                 <StatusBadge
@@ -182,7 +182,7 @@ export default function DatabasePage() {
             </Card>
 
             {/* Extensions */}
-            <Card className="mb-16">
+            <Card className="mb-1">
               <CardHeader>
                 <span className="font-semibold text-sm">Extensions</span>
                 <StatusBadge
@@ -201,7 +201,7 @@ export default function DatabasePage() {
 
             {/* Column drift */}
             {result.checks.columns.drift.length > 0 && (
-              <Card className="mb-16">
+              <Card className="mb-1">
                 <CardHeader>
                   <span className="font-semibold text-sm">Column Drift</span>
                   <StatusBadge ok={false} label={`${result.checks.columns.drift.length} missing`} />
@@ -257,7 +257,7 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
 
 function TagList({ items, variant }: { items: string[]; variant: "danger" | "info" }) {
   return (
-    <div className="flex flex-wrap gap-6">
+    <div className="flex flex-wrap gap-1.5">
       {items.map((item) => (
         <Badge key={item} variant={variant === "danger" ? "red" : "blue"} size="sm">
           {item}

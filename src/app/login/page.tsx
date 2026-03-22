@@ -81,7 +81,7 @@ export default function LoginPage() {
         <h1>Creative</h1>
         <p className="login-subtitle">Sign in to your account</p>
 
-        <div className="mb-4 space-y-1.5">
+        <div className="mb-1 space-y-1.5">
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
@@ -97,7 +97,7 @@ export default function LoginPage() {
           {fieldErrors.email && <p className="text-destructive text-xs mt-1">{fieldErrors.email}</p>}
         </div>
 
-        <div className="mb-4 space-y-1.5">
+        <div className="mb-1 space-y-1.5">
           <Label htmlFor="password">Password</Label>
           <div className="password-wrapper">
             <Input
@@ -122,7 +122,7 @@ export default function LoginPage() {
           {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
         </div>
 
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-1">
           <Checkbox
             id="rememberMe"
             checked={rememberMe}

@@ -101,8 +101,8 @@ export default function ScanHistoryPage() {
   if (loading) {
     return (
       <>
-        <div className="summary-grid mb-16">
-          <Card className="p-16 text-center">
+        <div className="summary-grid mb-1">
+          <Card className="p-4 text-center">
             <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
             <Skeleton className="skeleton-text-sm mx-auto w-[80px]" />
           </Card>
@@ -134,8 +134,8 @@ export default function ScanHistoryPage() {
 
   if (error || !data) {
     return (
-      <Card className="p-16 text-center">
-        <p className="text-secondary mb-8">Failed to load scan report.</p>
+      <Card className="p-4 text-center">
+        <p className="text-secondary mb-2">Failed to load scan report.</p>
         <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
       </Card>
     );
@@ -146,7 +146,7 @@ export default function ScanHistoryPage() {
   return (
     <>
       {/* Filters */}
-      <div className="flex-center gap-12 mb-16" style={{ flexWrap: "wrap" }}>
+      <div className="flex-center gap-3 mb-1" style={{ flexWrap: "wrap" }}>
         <span className="text-sm text-muted">Period:</span>
         {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
           <Button
@@ -174,7 +174,7 @@ export default function ScanHistoryPage() {
         )}
       </div>
 
-      <div className="summary-grid mb-16">
+      <div className="summary-grid mb-1">
         <MetricCard value={data.total} label="Total scans" />
         <MetricCard
           value={`${data.successRate}%`}

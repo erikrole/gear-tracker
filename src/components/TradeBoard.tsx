@@ -182,7 +182,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   return (
     <>
       {/* Filters */}
-      <div className="filter-chip-bar mb-16">
+      <div className="filter-chip-bar mb-1">
         <div className="filter-chips">
           <FilterChip
             label="Area"
@@ -225,8 +225,8 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         {loading ? (
           <SkeletonTable rows={4} cols={6} />
         ) : loadError ? (
-          <div className="p-16 text-center">
-            <p className="text-secondary mb-8">Failed to load trades.</p>
+          <div className="p-4 text-center">
+            <p className="text-secondary mb-2">Failed to load trades.</p>
             <Button variant="outline" size="sm" onClick={loadTrades}>Retry</Button>
           </div>
         ) : filteredTrades.length === 0 ? (
@@ -275,7 +275,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                         )}
                       </td>
                       <td>
-                        <div className="flex gap-4">
+                        <div className="flex gap-1">
                           {/* Student can claim open trades (not their own) */}
                           {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
                             <Button
@@ -338,21 +338,21 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                 const area = t.shiftAssignment.shift.area;
                 return (
                   <div key={t.id} className="schedule-mobile-card">
-                    <div className="flex-between mb-4">
+                    <div className="flex-between mb-1">
                       <span className="font-semibold">{ev.summary}</span>
                       <Badge variant={(STATUS_BADGES[t.status] ?? "gray") as BadgeProps["variant"]}>
                         {t.status}
                       </Badge>
                     </div>
-                    <div className="text-xs text-secondary flex gap-8 mb-4">
+                    <div className="text-xs text-secondary flex gap-2 mb-1">
                       <span>{formatDateShort(ev.startsAt)} {formatTimeShort(ev.startsAt)}</span>
                       <Badge variant="gray">{AREA_LABELS[area] ?? area}</Badge>
                     </div>
-                    <div className="text-xs mb-4">Posted by {t.postedBy.name}</div>
+                    <div className="text-xs mb-1">Posted by {t.postedBy.name}</div>
                     {t.claimedBy && (
-                      <div className="text-xs text-secondary mb-4">Claimed by {t.claimedBy.name}</div>
+                      <div className="text-xs text-secondary mb-1">Claimed by {t.claimedBy.name}</div>
                     )}
-                    <div className="flex gap-4">
+                    <div className="flex gap-1">
                       {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
                         <Button
                           size="sm"

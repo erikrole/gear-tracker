@@ -11,7 +11,7 @@ export function FormRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-start gap-4">
+    <div className="grid grid-cols-[140px_1fr] items-start gap-1">
       <Label className="pt-2.5 text-sm font-medium">
         {label}
         {required && <span className="text-destructive ml-0.5">*</span>}
@@ -31,7 +31,7 @@ export function FormRow2Col({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-start gap-4">
+    <div className="grid grid-cols-[140px_1fr] items-start gap-1">
       <Label className="pt-2.5 text-sm font-medium">
         {label}
         {required && <span className="text-destructive ml-0.5">*</span>}

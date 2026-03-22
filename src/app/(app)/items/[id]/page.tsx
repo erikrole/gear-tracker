@@ -346,7 +346,7 @@ export default function ItemDetailsPage() {
       <div>
         {/* Header skeleton */}
         <div className="page-header mb-0">
-          <div className="flex gap-16 items-center">
+          <div className="flex gap-4 items-center">
             <Skeleton className="size-[80px] rounded-lg shrink-0" />
             <div className="space-y-2">
               <Skeleton className="h-8 w-48" />
@@ -360,7 +360,7 @@ export default function ItemDetailsPage() {
           </div>
         </div>
         {/* Status badge skeleton */}
-        <div className="mb-16 mt-8 flex gap-2">
+        <div className="mb-1 mt-2 flex gap-2">
           <Skeleton className="h-5 w-24 rounded-full" />
           <Skeleton className="h-5 w-20 rounded-full" />
         </div>
@@ -411,7 +411,7 @@ export default function ItemDetailsPage() {
   return (
     <>
       <div className="page-header mb-0">
-        <div className="flex gap-16 items-center">
+        <div className="flex gap-4 items-center">
           {/* Hero image — larger square */}
           {asset.imageUrl ? (
             <button
@@ -433,7 +433,7 @@ export default function ItemDetailsPage() {
             </button>
           ) : null}
           <div className="min-w-0 flex-1">
-            <div className="flex gap-12 items-baseline">
+            <div className="flex gap-3 items-baseline">
               <InlineTitle
                 value={asset.assetTag}
                 canEdit={canEdit}
@@ -482,7 +482,7 @@ export default function ItemDetailsPage() {
 
       {/* Parent banner — shown when this item is an accessory */}
       {asset.parentAsset && (
-        <div className="mb-4 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
+        <div className="mb-1 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
           Accessory of{" "}
           <Link href={`/items/${asset.parentAsset.id}`} className="font-medium">
             {asset.parentAsset.assetTag}
@@ -506,7 +506,7 @@ export default function ItemDetailsPage() {
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
         <>
-          <div className="details-grid mt-14">
+          <div className="details-grid mt-3.5">
             <ItemInfoCard
               asset={asset}
               canEdit={canEdit}
@@ -546,7 +546,7 @@ export default function ItemDetailsPage() {
 
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
-        <Card className="mt-14 border-border/40 shadow-none max-w-3xl">
+        <Card className="mt-3.5 border-border/40 shadow-none max-w-3xl">
           <CardHeader><CardTitle>Activity Log</CardTitle></CardHeader>
           <CardContent className="p-4">
             <ActivityFeed assetId={asset.id} />

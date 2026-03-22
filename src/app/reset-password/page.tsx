@@ -105,7 +105,7 @@ function ResetPasswordForm() {
     <>
       <p className="login-subtitle">Set a new password</p>
       <form onSubmit={handleSubmit}>
-        <div className="mb-4 space-y-1.5">
+        <div className="mb-1 space-y-1.5">
           <Label htmlFor="password">New password</Label>
           <div className="password-wrapper">
             <Input
@@ -132,7 +132,7 @@ function ResetPasswordForm() {
           {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
         </div>
 
-        <div className="mb-4 space-y-1.5">
+        <div className="mb-1 space-y-1.5">
           <Label htmlFor="confirmPassword">Confirm password</Label>
           <Input
             id="confirmPassword"

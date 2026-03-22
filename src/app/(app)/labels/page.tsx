@@ -81,7 +81,7 @@ export default function LabelsPage() {
       </div>
 
       {/* Selection UI (hidden when printing) */}
-      <Card className="no-print mb-4">
+      <Card className="no-print mb-1">
         <CardHeader className="gap-3">
           <Input
             type="text"

@@ -178,7 +178,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
         </DialogHeader>
         <DialogBody className="pb-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "url" | "upload")}>
-            <TabsList className="mb-4">
+            <TabsList className="mb-1">
               <TabsTrigger value="url">Paste URL</TabsTrigger>
               <TabsTrigger value="upload">Upload</TabsTrigger>
             </TabsList>
@@ -193,7 +193,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                 style={{ width: "100%" }}
               />
               {urlPreview && (
-                <div className="image-preview-container mt-16">
+                <div className="image-preview-container mt-4">
                   <img
                     src={urlPreview}
                     alt="Preview"
@@ -202,8 +202,8 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                   />
                 </div>
               )}
-              {urlError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
-              <div className="flex-end gap-8 mt-16">
+              {urlError && <p className="text-sm mt-2" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
+              <div className="flex-end gap-2 mt-4">
                 {currentImageUrl && (
                   <Button variant="destructive" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
                     Remove
@@ -230,7 +230,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                 ) : (
                   <div className="text-center">
                     <ImageIcon className="size-12 text-[var(--text-tertiary)] mb-2" />
-                    <p className="text-sm text-secondary mb-8">Drop an image here</p>
+                    <p className="text-sm text-secondary mb-2">Drop an image here</p>
                     <Button variant="outline" size="sm" asChild><span>Pick from computer</span></Button>
                   </div>
                 )}
@@ -245,8 +245,8 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
                   if (f) handleFileSelect(f);
                 }}
               />
-              {fileError && <p className="text-sm mt-8" style={{ color: "var(--red)" }}>{fileError}</p>}
-              <div className="flex-end gap-8 mt-16">
+              {fileError && <p className="text-sm mt-2" style={{ color: "var(--red)" }}>{fileError}</p>}
+              <div className="flex-end gap-2 mt-4">
                 {currentImageUrl && (
                   <Button variant="destructive" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
                     Remove

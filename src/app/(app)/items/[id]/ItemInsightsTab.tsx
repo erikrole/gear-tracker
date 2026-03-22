@@ -98,7 +98,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
 
   if (error || !data) {
     return (
-      <Empty className="py-8 mt-14">
+      <Empty className="py-8 mt-3.5">
         <EmptyDescription>Failed to load insights.</EmptyDescription>
       </Empty>
     );
@@ -110,8 +110,8 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
 
   if (!allHasData) {
     return (
-      <div className="mt-14">
-        <Empty className="py-12">
+      <div className="mt-3.5">
+        <Empty className="py-3">
           <EmptyDescription>No booking history yet. Insights will appear after this item is checked out or reserved.</EmptyDescription>
         </Empty>
       </div>
@@ -120,9 +120,9 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
 
   if (stats.totalBookings === 0) {
     return (
-      <div className="mt-14">
+      <div className="mt-3.5">
         {/* Time window toggle */}
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-1">
           <ToggleGroup type="single" value={window} onValueChange={(v) => v && setWindow(v as WindowKey)}>
             <ToggleGroupItem value="30d">30d</ToggleGroupItem>
             <ToggleGroupItem value="90d">90d</ToggleGroupItem>
@@ -130,7 +130,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
             <ToggleGroupItem value="all">All</ToggleGroupItem>
           </ToggleGroup>
         </div>
-        <Empty className="py-12">
+        <Empty className="py-3">
           <EmptyDescription>No bookings in this time window. Try a longer period or switch to &ldquo;All&rdquo;.</EmptyDescription>
         </Empty>
       </div>
@@ -169,9 +169,9 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
   };
 
   return (
-    <div className="mt-14">
+    <div className="mt-3.5">
       {/* Time window toggle */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-1">
         <ToggleGroup type="single" value={window} onValueChange={(v) => v && setWindow(v as WindowKey)}>
           <ToggleGroupItem value="30d">30d</ToggleGroupItem>
           <ToggleGroupItem value="90d">90d</ToggleGroupItem>
@@ -180,7 +180,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
         </ToggleGroup>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
 
         {/* 1. Utilization Rate — Radial Gauge */}
         <Card>
@@ -198,7 +198,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
                 <RadialBar dataKey="value" cornerRadius={6} background angleAxisId={0} />
               </RadialBarChart>
             </ChartContainer>
-            <div className="text-center -mt-8">
+            <div className="text-center -mt-2">
               <div className="text-3xl font-bold tabular-nums">{stats.utilizationPct}%</div>
               <div className="text-sm text-muted-foreground">
                 {stats.totalBookings} booking{stats.totalBookings !== 1 ? "s" : ""} in period
@@ -366,7 +366,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
         <Card>
           <CardHeader><CardTitle>Item Health</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 text-center py-4">
+            <div className="grid grid-cols-2 gap-1 text-center py-4">
               <div>
                 <div className="text-3xl font-bold tabular-nums">
                   {stats.idleStreakDays != null ? `${stats.idleStreakDays}d` : "\u2014"}

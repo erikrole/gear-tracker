@@ -116,7 +116,7 @@ export function DataTable({
               />
             ))
           ) : (
-            <div className="py-12 text-center text-muted-foreground">
+            <div className="py-3 text-center text-muted-foreground">
               No results.
             </div>
           )}

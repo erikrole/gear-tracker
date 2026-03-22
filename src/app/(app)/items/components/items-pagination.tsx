@@ -39,7 +39,7 @@ export function ItemsPagination({
           ? `${selectedCount} of ${total} selected`
           : `Showing ${rangeStart}\u2013${rangeEnd} of ${total} items`}
       </div>
-      <div className="flex items-center gap-6 lg:gap-8">
+      <div className="flex items-center gap-1.5 lg:gap-8">
         <div className="flex items-center gap-2">
           <p className="text-sm">Rows per page</p>
           <Select
