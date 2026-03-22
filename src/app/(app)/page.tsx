@@ -214,6 +214,10 @@ export default function DashboardPage() {
   const confirm = useConfirm();
   const { toast } = useToast();
   const abortRef = useRef<AbortController | null>(null);
+  // Ref for toast so loadData has zero hook deps — prevents infinite re-fetch
+  // if useToast() ever returns an unstable reference.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const loadData = useCallback((isRefresh = false) => {
     // Cancel any in-flight request to prevent race conditions
@@ -229,19 +233,37 @@ export default function DashboardPage() {
         return res.json();
       })
       .then((json) => {
-        if (json?.data) { setData(json.data); setFetchError(false); }
-        // Only show error screen on initial load — don't wipe visible data on refresh failure
-        else if (json !== null && !isRefresh) setFetchError("server");
+        if (!json?.data) {
+          // Only show error screen on initial load — don't wipe visible data on refresh failure
+          if (!isRefresh) setFetchError("server");
+          return;
+        }
+        // Defensive: ensure arrays exist even if API returns partial data
+        const d = json.data as DashboardData;
+        d.myCheckouts = d.myCheckouts ?? { total: 0, items: [] };
+        d.myCheckouts.items = d.myCheckouts.items ?? [];
+        d.teamCheckouts = d.teamCheckouts ?? { total: 0, overdue: 0, items: [] };
+        d.teamCheckouts.items = d.teamCheckouts.items ?? [];
+        d.teamReservations = d.teamReservations ?? { total: 0, items: [] };
+        d.teamReservations.items = d.teamReservations.items ?? [];
+        d.upcomingEvents = d.upcomingEvents ?? [];
+        d.myReservations = d.myReservations ?? [];
+        d.overdueItems = d.overdueItems ?? [];
+        d.drafts = d.drafts ?? [];
+        d.myShifts = d.myShifts ?? [];
+        d.stats = d.stats ?? { checkedOut: 0, overdue: 0, reserved: 0, dueToday: 0 };
+        setData(d);
+        setFetchError(false);
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
         // On refresh: toast the error but keep existing data visible
-        if (isRefresh) { toast("Failed to refresh dashboard", "error"); return; }
+        if (isRefresh) { toastRef.current("Failed to refresh dashboard", "error"); return; }
         if (err instanceof TypeError) setFetchError("network");
         else setFetchError("server");
       })
       .finally(() => setRefreshing(false));
-  }, [toast]);
+  }, []);
 
   useEffect(() => { loadData(); return () => { abortRef.current?.abort(); }; }, [loadData]);
 
@@ -573,7 +595,7 @@ export default function DashboardPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={deletingDraftId === d.id}
+                        disabled={deletingDraftId !== null}
                         onClick={async () => {
                           const ok = await confirm({
                             title: "Delete draft",
@@ -585,6 +607,7 @@ export default function DashboardPage() {
                           setDeletingDraftId(d.id);
                           try {
                             const res = await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
+                            if (res.status === 401) { window.location.href = "/login?returnTo=/"; return; }
                             if (res.ok) {
                               toast("Draft deleted", "success");
                               loadData(true);
@@ -592,7 +615,7 @@ export default function DashboardPage() {
                               toast("Failed to delete draft", "error");
                             }
                           } catch {
-                            toast("Network error — couldn\u2019t delete draft", "error");
+                            toast("Network error \u2014 couldn\u2019t delete draft", "error");
                           } finally {
                             setDeletingDraftId(null);
                           }
