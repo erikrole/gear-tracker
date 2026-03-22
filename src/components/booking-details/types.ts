@@ -8,6 +8,7 @@ export type SerializedItem = {
     model: string;
     serialNumber: string;
     type: string;
+    imageUrl?: string | null;
     location?: { id: string; name: string };
   };
 };
