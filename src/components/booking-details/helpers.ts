@@ -27,6 +27,26 @@ export const statusBadge: Record<string, string> = {
   CANCELLED: "red",
 };
 
+/** Status → shadcn Badge variant mapping (typed for BadgeProps) */
+export const statusBadgeVariant: Record<string, "gray" | "blue" | "green" | "purple" | "red"> = {
+  DRAFT: "gray",
+  BOOKED: "blue",
+  OPEN: "green",
+  COMPLETED: "purple",
+  CANCELLED: "red",
+};
+
+/** Audit log fields to never display in the history tab */
+export const HIDDEN_AUDIT_FIELDS = new Set([
+  "_actorRole", "_actorId", "_actorEmail", "_actorName",
+  "updatedAt", "createdAt", "id", "organizationId",
+]);
+
+/** Audit log fields that contain IDs — show "set"/"removed"/"changed" instead of raw values */
+export const ID_AUDIT_FIELDS = new Set([
+  "categoryId", "departmentId", "locationId", "requesterUserId",
+]);
+
 export const EQUIPMENT_ACTIONS = new Set([
   "booking.items_added",
   "booking.items_removed",
