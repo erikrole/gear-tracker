@@ -41,12 +41,6 @@ export type ListResponse = {
 
 export type SortKey = "name" | "name_desc" | "role" | "role_desc" | "email" | "email_desc" | "";
 
-export const ROLE_BADGE: Record<Role, string> = {
-  ADMIN: "badge-purple",
-  STAFF: "badge-blue",
-  STUDENT: "badge-gray",
-};
-
 export const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: "ADMIN", label: "Admin" },
   { value: "STAFF", label: "Staff" },

@@ -168,7 +168,7 @@ export default function UserInfoTab({
   }));
 
   return (
-    <div className="details-grid mt-14">
+    <div className="details-grid mt-6">
       {/* Profile Card */}
       <Card>
         <CardHeader>
@@ -231,11 +231,11 @@ export default function UserInfoTab({
         </CardHeader>
         <CardContent>
           {/* Sport Assignments */}
-          <h3 className="text-sm font-semibold text-secondary mb-8">Sports</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
           {user.sportAssignments.length === 0 ? (
-            <p className="text-sm text-muted mb-16">No sport assignments</p>
+            <p className="text-sm text-muted-foreground mb-4">No sport assignments</p>
           ) : (
-            <div className="assignment-chips mb-16">
+            <div className="flex flex-wrap gap-1.5 mb-4">
               {user.sportAssignments.map((sa) => (
                 <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}
@@ -245,11 +245,11 @@ export default function UserInfoTab({
           )}
 
           {/* Area Assignments */}
-          <h3 className="text-sm font-semibold text-secondary mb-8">Areas</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
           {user.areaAssignments.length === 0 ? (
-            <p className="text-sm text-muted">No area assignments</p>
+            <p className="text-sm text-muted-foreground">No area assignments</p>
           ) : (
-            <div className="assignment-chips">
+            <div className="flex flex-wrap gap-1.5">
               {user.areaAssignments.map((aa) => (
                 <Badge
                   key={aa.id}

@@ -88,7 +88,7 @@ export default function UserDetailPage() {
       {/* Header */}
       <div className="page-header mb-0">
         <div>
-          <div className="flex gap-12 items-center">
+          <div className="flex gap-3 items-center">
             <Avatar className="size-12" aria-hidden="true">
               {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
               <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
@@ -97,7 +97,7 @@ export default function UserDetailPage() {
             </Avatar>
             <div>
               <h1 className="mb-0">{user.name}</h1>
-              <div className="text-sm text-secondary mt-2">{user.email}</div>
+              <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
             </div>
           </div>
         </div>

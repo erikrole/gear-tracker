@@ -80,7 +80,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="history-feed mt-14">
+    <div className="history-feed mt-6">
       {entries.map((entry) => {
         const actorName = entry.actor?.name || "System";
         const initial = actorName.slice(0, 1).toUpperCase();
@@ -123,7 +123,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
                 )}
               </div>
               {isUpdate && changes.length > 0 && (
-                <div className="text-xs text-secondary mt-4">
+                <div className="text-xs text-muted-foreground mt-1">
                   {changes.map((key) => (
                     <div key={key} className="py-1">
                       {describeFieldChange(
