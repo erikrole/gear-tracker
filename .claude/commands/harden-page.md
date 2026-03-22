@@ -172,10 +172,8 @@ Make this page feel complete, fast, and trustworthy. Focus on feel, not structur
 - **Confirmation clarity**: Destructive actions should name what's being destroyed and state it's irreversible
 - **System transparency**: After mutations, confirm what happened ("Draft deleted", "Checkout extended to Mar 25")
 
-### DECISION POINTS — Ask the user (product decisions only)
-1. **Empty state personality**: When sections have zero items, present 2-3 copy options with different tones (e.g., "No checkouts right now" vs "All clear — nothing checked out" vs "You have no gear checked out"). Ask which tone matches the product voice.
-2. **Error copy tone**: Present the user with 2-3 options for error messaging (e.g., "Couldn't load dashboard" vs "Something went wrong" vs "We hit a snag"). The right tone depends on the product personality.
-3. **Confirmation dialog copy**: For destructive actions, present the proposed confirmation text (title, body, button label) and ask if it reads right. This is user-facing copy the user should approve.
+### ESCALATION RULE
+Only ask the user if a decision would **change the page's information architecture, add/remove a feature, or alter a user workflow**. Copy, tone, component choices, error handling patterns, and engineering tradeoffs are yours to own — match existing patterns in the codebase.
 
 ### RULES
 - Focus on feel, not structure
