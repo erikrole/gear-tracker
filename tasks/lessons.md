@@ -420,3 +420,19 @@ Always use shadcn Empty component:
 - **shadcn Badge replaces most custom badge CSS**: Any inline colored label (status badges, sport tags, ref numbers, count pills, due-date labels) should use `Badge variant="green|red|orange|gray|sport" size="sm"` — not custom CSS classes. This eliminates one-off `.badge-green`, `.section-count`, `.ref-badge` classes and keeps dark mode safe.
 - **shadcn Avatar/AvatarGroup replaces custom avatar stacks**: `AvatarGroup` with `Avatar size="sm"` + `ring-2 ring-background` handles the overlapping stack layout. Empty slots use `AvatarFallback` with `border-dashed`. Overflow uses `AvatarFallback` with count text. No custom CSS needed.
 - **Target shadcn data-slot attributes for contextual overrides**: When a shadcn component needs different styling inside a specific parent (e.g. avatar inside red overdue banner), use `[data-slot="avatar-fallback"]` selector instead of adding custom className props.
+
+## Session 2026-03-22 (Round 5): Dashboard Reliability + UX Polish
+
+### Reliability Patterns
+- **`useCallback` deps on hook returns = ticking time bomb**: If `loadData` depends on `[toast]` from `useToast()`, and that hook ever returns an unstable reference, the `useEffect` runs every render: abort → refetch → re-render → abort... infinite loop. Fix: use a ref (`toastRef.current = toast`) and call `toastRef.current()` inside the callback with `[]` deps.
+- **Refresh errors must not wipe visible data**: If `loadData(true)` fails, setting `fetchError` replaces the entire dashboard with an error screen — even though valid data is still in state. Fix: on refresh failures, toast the error and keep existing data visible. Only show the error screen on initial load (`!isRefresh`).
+- **Null-safe API response guards**: The backend runs 16 parallel queries via `Promise.all`. If one fails, the entire response is 500. But if the backend ever changes to return partial data, the frontend would crash on `.map()` of undefined arrays. Fix: `d.myCheckouts = d.myCheckouts ?? { total: 0, items: [] }` for every array/object before `setData`.
+- **AbortController on all fetches**: Every `loadData` call should abort the previous in-flight request. Also abort on component unmount via the `useEffect` cleanup. This prevents stale responses from overwriting fresh data during rapid interactions.
+- **Guard all mutation buttons, not just the active one**: `disabled={deletingDraftId === d.id}` only disables the button being deleted. A user can click delete on draft B while draft A is in-flight. Fix: `disabled={deletingDraftId !== null}` blocks all delete buttons.
+- **Handle 401 on every mutation, not just the main fetch**: If the session expires between page load and a draft delete, the DELETE returns 401. Without explicit handling, it shows a generic "Failed" toast instead of redirecting to login.
+
+### UX Polish Patterns
+- **Optimistic deletes with rollback**: Remove the item from state immediately after confirmation, before the network round-trip. Capture `prevDrafts` before the mutation. On failure, restore via `setData(prev => ({ ...prev, drafts: prevDrafts }))`. This eliminates the jarring full-page reload on success.
+- **Manual refresh button with freshness tooltip**: A spinning `RefreshCwIcon` next to the page title with `formatRelativeTime(lastRefreshed, now)` in the tooltip. Users can see data age and refresh manually. The `animate-spin` class on the icon provides feedback during refresh.
+- **Skeleton width variation**: Identical `w-3/4` skeletons look like a test pattern. Vary widths per row (`70 + (j % 3) * 10` percent for titles, `40 + (j % 2) * 15` percent for meta) to look like real content being loaded.
+- **Differentiate error icons by type**: Network errors (offline) get a bell icon with "You're offline" copy. Server errors get a box icon with "usually temporary" language. Small changes that signal the system knows what went wrong.
