@@ -15,14 +15,6 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -35,19 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  PencilIcon,
-  ImageIcon,
-  Copy,
-  Check,
-  InfoIcon,
-  ArrowRightLeftIcon,
-  CalendarClockIcon,
-  CalendarIcon,
-  ChartAreaIcon,
-  HistoryIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { PencilIcon, ImageIcon, Copy, Check } from "lucide-react";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -61,13 +41,13 @@ import { AccessoriesSection } from "./ItemSettingsTab";
 
 type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "insights" | "history";
 
-const tabDefs: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
-  { key: "info", label: "Info", icon: InfoIcon },
-  { key: "checkouts", label: "Checkouts", icon: ArrowRightLeftIcon },
-  { key: "reservations", label: "Reservations", icon: CalendarClockIcon },
-  { key: "calendar", label: "Calendar", icon: CalendarIcon },
-  { key: "insights", label: "Insights", icon: ChartAreaIcon },
-  { key: "history", label: "History", icon: HistoryIcon },
+const tabDefs: Array<{ key: TabKey; label: string }> = [
+  { key: "info", label: "Info" },
+  { key: "checkouts", label: "Checkouts" },
+  { key: "reservations", label: "Reservations" },
+  { key: "calendar", label: "Calendar" },
+  { key: "insights", label: "Insights" },
+  { key: "history", label: "History" },
 ];
 
 /* ── Status Line ────────────────────────────────────────── */
@@ -197,6 +177,7 @@ export default function ItemDetailsPage() {
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   const [fetchError, setFetchError] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -222,6 +203,13 @@ export default function ItemDetailsPage() {
       .catch(() => {});
   }, []);
 
+  const loadLocations = useCallback(() => {
+    fetch("/api/locations")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setLocations(json.data || []); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     loadAsset();
     fetch("/api/me")
@@ -230,7 +218,8 @@ export default function ItemDetailsPage() {
       .catch(() => {});
     loadCategories();
     loadDepartments();
-  }, [loadAsset, loadCategories, loadDepartments]);
+    loadLocations();
+  }, [loadAsset, loadCategories, loadDepartments, loadLocations]);
 
   // Live countdown tick every 60 seconds + refresh on tab focus
   useEffect(() => {
@@ -312,12 +301,6 @@ export default function ItemDetailsPage() {
   if (!asset) {
     return (
       <div>
-        {/* Breadcrumb skeleton */}
-        <div className="mb-4 flex gap-2">
-          <Skeleton className="h-4 w-12" />
-          <Skeleton className="h-4 w-4" />
-          <Skeleton className="h-4 w-20" />
-        </div>
         {/* Header skeleton */}
         <div className="page-header mb-0">
           <div className="flex gap-16 items-center">
@@ -384,17 +367,6 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <Breadcrumb className="mb-4">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href="/items">Items</Link></BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{asset.assetTag}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
       <div className="page-header mb-0">
         <div className="flex gap-16 items-center">
           {/* Hero image — kept square */}
@@ -431,29 +403,13 @@ export default function ItemDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <TooltipProvider>
-            {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
-                  <Link href={`/reservations?newFor=${asset.id}`} className="no-underline">Reserve</Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {asset.availableForReservation ? "Create a reservation for this item" : "Reservations disabled for this item"}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} asChild>
-                  <Link href={`/checkouts?newFor=${asset.id}`} className="no-underline">Check out</Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {asset.availableForCheckout ? "Check out this item" : "Check out disabled for this item"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
+          <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
+            <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>
+          </Button>
+          <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} asChild>
+            <Link href={`/checkouts?newFor=${asset.id}`}>Check out</Link>
+          </Button>
         </div>
       </div>
 
@@ -477,10 +433,9 @@ export default function ItemDetailsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
         <TabsList>
-          {tabDefs.map(({ key, label, icon: Icon }) => (
-            <TabsTrigger key={key} value={key} className="flex items-center gap-1 px-2.5 sm:px-3">
-              <Icon />
-              {label}
+          {tabDefs.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -498,6 +453,7 @@ export default function ItemDetailsPage() {
               departments={departments}
               onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
               onRefresh={loadAsset}
+              locations={locations}
               onCategoriesChanged={loadCategories}
               onDepartmentsChanged={loadDepartments}
             />

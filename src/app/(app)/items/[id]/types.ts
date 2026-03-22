@@ -37,7 +37,7 @@ export type AssetDetail = {
   notes: string | null;
   linkUrl: string | null;
   imageUrl: string | null;
-  location: { name: string };
+  location: { id: string; name: string };
   department: { id: string; name: string } | null;
   category: { id: string; name: string } | null;
   availableForReservation: boolean;

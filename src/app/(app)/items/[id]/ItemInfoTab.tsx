@@ -297,6 +297,7 @@ function SaveableCategoryField({
   onSave,
   onCategoriesChanged,
   displayName,
+  ghost,
 }: {
   currentId: string;
   canEdit: boolean;
@@ -304,6 +305,7 @@ function SaveableCategoryField({
   onSave: (id: string) => Promise<void>;
   onCategoriesChanged: () => void;
   displayName: string;
+  ghost?: boolean;
 }) {
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
@@ -379,6 +381,7 @@ function SaveableCategoryField({
           onCreateRequested={() => setCreating(true)}
           disabled={!canEdit}
           disabledLabel={displayName}
+          variant={ghost ? "ghost" : "outline"}
         />
       )}
     </SaveableField>
@@ -578,6 +581,7 @@ const SectionHeader = React.forwardRef<
 
 /* ── Item Info Card (tab entry point) ───────────────────── */
 
+export type LocationOption = { id: string; name: string };
 export type DepartmentOption = { id: string; name: string };
 
 export default function ItemInfoCard({
@@ -586,6 +590,7 @@ export default function ItemInfoCard({
   currentUserRole,
   categories,
   departments,
+  locations,
   onFieldSaved,
   onRefresh,
   onCategoriesChanged,
@@ -596,6 +601,7 @@ export default function ItemInfoCard({
   currentUserRole: string;
   categories: CategoryOption[];
   departments: DepartmentOption[];
+  locations: LocationOption[];
   onFieldSaved: (updated: Partial<AssetDetail>) => void;
   onRefresh: () => void;
   onCategoriesChanged: () => void;
@@ -678,7 +684,27 @@ export default function ItemInfoCard({
     onRefresh();
   }
 
-  const fiscalYearOptions = getFiscalYearOptions();
+  async function saveLocation(locationId: string) {
+    const res = await fetch(`/api/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locationId }),
+    });
+    if (!res.ok) {
+      throw new Error("Failed to save location");
+    }
+    onRefresh();
+  }
+
+  /** Compute fiscal year from a date string (FY begins July 1) */
+  function computeFiscalYear(dateStr: string): string {
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return "";
+    const month = d.getMonth(); // 0-indexed
+    const year = d.getFullYear();
+    // FY begins July 1: dates in Jul-Dec belong to FY (year+1), Jan-Jun belong to FY (year)
+    return String(month >= 6 ? year + 1 : year);
+  }
 
   return (
     <Card className="details-card border-border/40 shadow-none">
@@ -724,6 +750,13 @@ export default function ItemInfoCard({
                 onSave={(v) => saveField("serialNumber", v)}
                 mono
               />
+              <TextInputField
+                label="UW Asset Tag"
+                value={asset.metadata?.uwAssetTag || ""}
+                placeholder="Add UW asset tag"
+                canEdit={canEdit}
+                onSave={(v) => saveField("metadata.uwAssetTag", v)}
+              />
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -736,6 +769,30 @@ export default function ItemInfoCard({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="grid grid-cols-1 gap-y-1">
+                <SaveableDatePickerField
+                  label="Purchase date"
+                  value={
+                    asset.purchaseDate
+                      ? asset.purchaseDate.slice(0, 10)
+                      : ""
+                  }
+                  canEdit={canEdit}
+                  onSave={async (v) => {
+                    await saveField("purchaseDate", v);
+                    // Auto-fill fiscal year based on purchase date
+                    if (v) {
+                      const fy = computeFiscalYear(v);
+                      if (fy) await saveField("metadata.fiscalYearPurchased", fy);
+                    }
+                  }}
+                />
+                <LinkField
+                  label="Link"
+                  value={asset.linkUrl || ""}
+                  placeholder="Add product link"
+                  canEdit={canEdit}
+                  onSave={(v) => saveField("linkUrl", v)}
+                />
                 <TextInputField
                   label="Purchase price"
                   value={
@@ -745,32 +802,13 @@ export default function ItemInfoCard({
                   canEdit={canEdit}
                   onSave={(v) => saveField("purchasePrice", v)}
                 />
-                <LinkField
-                    label="Link"
-                    value={asset.linkUrl || ""}
-                    placeholder="Add product link"
-                    canEdit={canEdit}
-                    onSave={(v) => saveField("linkUrl", v)}
-                  />
-                <SaveableDatePickerField
-                  label="Purchase date"
-                  value={
-                    asset.purchaseDate
-                      ? asset.purchaseDate.slice(0, 10)
-                      : ""
-                  }
-                  canEdit={canEdit}
-                  onSave={(v) => saveField("purchaseDate", v)}
-                />
-                <SaveableNativeSelectField
+                <TextInputField
                   label="Fiscal Year"
                   value={asset.metadata?.fiscalYearPurchased || ""}
-                  options={fiscalYearOptions.map((y) => ({ value: y, label: y }))}
-                  placeholder="Select fiscal year"
-                  canEdit={canEdit}
-                  onSave={(v) =>
-                    saveField("metadata.fiscalYearPurchased", v)
-                  }
+                  placeholder="Auto-filled from purchase date"
+                  canEdit={false}
+                  readOnly
+                  onSave={async () => {}}
                 />
               </div>
             </CollapsibleContent>
@@ -784,19 +822,13 @@ export default function ItemInfoCard({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="grid grid-cols-1 gap-y-1">
-              <TextInputField
+              <SaveableNativeSelectField
                 label="Location"
-                value={asset.location.name}
-                canEdit={false}
-                readOnly
-                onSave={async () => {}}
-              />
-              <TextInputField
-                label="Owner"
-                value={asset.metadata?.owner || ""}
-                placeholder="Add owner"
+                value={asset.location.id}
+                options={locations.map((l) => ({ value: l.id, label: l.name }))}
+                placeholder="Select location"
                 canEdit={canEdit}
-                onSave={(v) => saveField("metadata.owner", v)}
+                onSave={saveLocation}
               />
               <SaveableNativeSelectField
                 label="Department"
@@ -806,21 +838,15 @@ export default function ItemInfoCard({
                 canEdit={canEdit}
                 onSave={saveDepartment}
               />
-              <TextInputField
-                label="UW Asset Tag"
-                value={asset.metadata?.uwAssetTag || ""}
-                placeholder="Add UW asset tag"
-                canEdit={canEdit}
-                onSave={(v) => saveField("metadata.uwAssetTag", v)}
-              />
               <SaveableCategoryField
-                  currentId={asset.category?.id || ""}
-                  displayName={asset.category?.name || ""}
-                  canEdit={canEdit}
-                  categories={categories}
-                  onSave={saveCategory}
-                  onCategoriesChanged={onCategoriesChanged}
-                />
+                currentId={asset.category?.id || ""}
+                displayName={asset.category?.name || ""}
+                canEdit={canEdit}
+                categories={categories}
+                onSave={saveCategory}
+                onCategoriesChanged={onCategoriesChanged}
+                ghost
+              />
             </div>
           </CollapsibleContent>
         </Collapsible>

@@ -129,6 +129,8 @@ interface CategoryComboboxProps {
   disabled?: boolean;
   /** Display label when disabled and no value is selected */
   disabledLabel?: string;
+  /** Button variant for the trigger */
+  variant?: "outline" | "ghost";
 }
 
 export function CategoryCombobox({
@@ -140,6 +142,7 @@ export function CategoryCombobox({
   onCreateRequested,
   disabled = false,
   disabledLabel,
+  variant = "outline",
 }: CategoryComboboxProps) {
   const [open, setOpen] = useState(false);
 
@@ -174,7 +177,7 @@ export function CategoryCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
+          variant={variant}
           role="combobox"
           aria-expanded={open}
           className="h-9 w-full justify-between text-sm font-normal"
