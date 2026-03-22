@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -147,7 +148,7 @@ export function BulkActionBar({
         </AlertDialogContent>
       </AlertDialog>
 
-      {busy && <span className="text-sm text-muted">Processing...</span>}
+      {busy && <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><Spinner className="size-3.5" /> Processing…</span>}
       {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
   );
