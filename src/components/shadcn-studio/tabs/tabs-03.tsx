@@ -37,7 +37,7 @@ const tabs = [
   }
 ]
 
-const TabsWithIconDemo = () => {
+const TabsWithIcon = () => {
   return (
     <div className='w-full max-w-md'>
       <Tabs defaultValue='explore' className='gap-4'>
@@ -59,4 +59,4 @@ const TabsWithIconDemo = () => {
   )
 }
 
-export default TabsWithIconDemo
+export default TabsWithIcon
