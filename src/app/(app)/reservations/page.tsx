@@ -14,6 +14,11 @@ export default function ReservationsPage() {
     apiBase: "/api/reservations",
     label: "reservation",
     labelPlural: "Reservations",
+    actionLabel: "Reserve equipment",
+    actionLabelProgress: "Reserving\u2026",
+    requesterLabel: "Reserved for",
+    startLabel: "Start",
+    endLabel: "End",
     statusBadge: {
       DRAFT: "badge-gray",
       BOOKED: "badge-blue",

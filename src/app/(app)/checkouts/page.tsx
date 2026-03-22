@@ -14,6 +14,11 @@ export default function CheckoutsPage() {
     apiBase: "/api/checkouts",
     label: "checkout",
     labelPlural: "Checkouts",
+    actionLabel: "Check out equipment",
+    actionLabelProgress: "Checking out\u2026",
+    requesterLabel: "Checked out to",
+    startLabel: "Pickup",
+    endLabel: "Return by",
     statusBadge: {
       DRAFT: "badge-gray",
       OPEN: "badge-green",

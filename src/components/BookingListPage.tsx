@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ConfirmBookingDialog } from "./booking-list/ConfirmBookingDialog";
 
 import {
   SortHeader,
@@ -106,6 +107,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [extendingId, setExtendingId] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const limit = 20;
 
@@ -168,7 +170,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           }
         }
       })
-      .catch(() => { /* auth unavailable */ });
+      .catch(() => { toast("Couldn\u2019t verify your session \u2014 some features may be limited", "error"); });
   }, []);
 
   // Load draft data when draftId is present
@@ -194,7 +196,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           })));
         }
       })
-      .catch(() => { /* draft load failed */ });
+      .catch(() => { toast("Couldn\u2019t load your draft \u2014 starting fresh", "error"); });
   }, [draftId]);
 
   // Fetch events when sport selected
@@ -218,7 +220,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         setEvents(json?.data || []);
         setEventsLoading(false);
       })
-      .catch(() => setEventsLoading(false));
+      .catch(() => { setEventsLoading(false); toast("Couldn\u2019t load events \u2014 try again", "error"); });
   }, [createSport, tieToEvent]);
 
   // Fetch shift context when event changes
@@ -297,7 +299,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         toast("Draft saved", "info");
       }
     } catch {
-      /* draft save is best-effort */
+      toast("Draft couldn\u2019t be saved \u2014 your changes may be lost", "error");
     }
   }
 
@@ -318,11 +320,15 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
   // ── Create booking ──
 
-  async function handleCreate() {
-    if (!createTitle.trim()) { setCreateError("Title is required"); return; }
-    if (!createRequester) { setCreateError("User is required"); return; }
-    if (!createLocationId) { setCreateError("Location is required"); return; }
+  function handleCreateClick() {
+    if (!createTitle.trim()) { setCreateError("Give this booking a name"); return; }
+    if (!createRequester) { setCreateError("Select who this is for"); return; }
+    if (!createLocationId) { setCreateError("Choose a pickup location"); return; }
+    setCreateError("");
+    setShowConfirm(true);
+  }
 
+  async function handleCreateConfirm() {
     setSubmitting(true);
     setCreateError("");
 
@@ -375,15 +381,17 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           }
           setCreateError(msgs.length > 0 ? msgs.join(". ") : (json.error || "Availability conflict"));
         } else {
-          setCreateError(json.error || `Failed to create ${config.label}`);
+          setCreateError(json.error || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
         }
         setSubmitting(false);
+        setShowConfirm(false);
         return;
       }
 
       await deleteDraft();
 
       // Reset form
+      setShowConfirm(false);
       setShowCreate(false);
       setCreateTitle("");
       setCreateSport("");
@@ -399,8 +407,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setSelectedBookingId(json.data.id);
       await reload();
     } catch {
-      setCreateError(`Failed to create ${config.label}`);
+      setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
       setSubmitting(false);
+      setShowConfirm(false);
     }
   }
 
@@ -484,7 +493,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           onSelectedBulkItemsChange={setSelectedBulkItems}
           createError={createError}
           submitting={submitting}
-          onCreate={handleCreate}
+          onCreate={handleCreateClick}
           onClose={handleCloseCreate}
         />
       )}
@@ -589,6 +598,24 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         onClose={() => setSelectedBookingId(null)}
         onUpdated={reload}
         currentUserRole={currentUserRole}
+      />
+
+      {/* ════════ Confirm booking dialog ════════ */}
+      <ConfirmBookingDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        onConfirm={handleCreateConfirm}
+        config={config}
+        title={createTitle}
+        startsAt={new Date(createStartsAt).toISOString()}
+        endsAt={new Date(createEndsAt).toISOString()}
+        locationName={locations.find((l) => l.id === createLocationId)?.name || ""}
+        requesterName={users.find((u) => u.id === createRequester)?.name || ""}
+        selectedAssetIds={selectedAssetIds}
+        availableAssets={availableAssets}
+        selectedBulkItems={selectedBulkItems}
+        bulkSkus={bulkSkus}
+        submitting={submitting}
       />
     </>
   );

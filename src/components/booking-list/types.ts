@@ -56,6 +56,16 @@ export type BookingListConfig = {
   cancelApiBase?: string;
   label: string;
   labelPlural: string;
+  /** Intent-driven button label, e.g. "Check out equipment" */
+  actionLabel: string;
+  /** Progressive form for loading state, e.g. "Checking out…" */
+  actionLabelProgress: string;
+  /** Label for the requester field, e.g. "Checked out to" */
+  requesterLabel: string;
+  /** Label for start date, e.g. "Pickup" */
+  startLabel: string;
+  /** Label for end date, e.g. "Return by" */
+  endLabel: string;
   statusBadge: Record<string, string>;
   statusOptions: StatusOption[];
   defaultTieToEvent: boolean;
