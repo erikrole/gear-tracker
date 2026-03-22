@@ -406,3 +406,33 @@ Always use shadcn Empty component:
 - **Always test detail page headers at 390px width**: If title + buttons share a flex row, iPhone will force ugly wrapping. Default to `flex-col` on mobile for any header with more than 2 buttons.
 - **Global `-webkit-tap-highlight-color: transparent`**: Apply to all interactive elements (`a, button, [role="button"], label, select, summary, [tabindex]`), not just individual components. Prevents the gray flash on tap that makes iOS web apps feel non-native.
 - **`overscroll-behavior-y: none` on body**: Prevents rubber-band overscroll on iOS which makes the app feel like a webpage instead of a native app.
+
+## Session 2026-03-22 (Round 4): Dashboard UX Hardening
+
+### Patterns
+- **Destructive actions need confirmation + feedback**: Draft discard was a silent DELETE with no confirmation dialog and no toast. Any single-click destructive action on the dashboard should use `useConfirm` + `useToast` pattern from `BookingDetailsSheet`.
+- **Differentiate error types in fetch handlers**: A 401 (session expired) should redirect to `/login`, not show "Something went wrong." Check `res.status` before throwing generic errors. Network errors (`TypeError`) vs server errors need different user-facing messages.
+- **Show refresh state on re-fetch, not skeleton replacement**: After a sheet mutation triggers `loadData()`, show a thin progress bar — don't replace content with skeletons (jarring) or show nothing (stale data anxiety). Use a `refreshing` boolean state.
+- **Inline due dates on action rows**: Checkout rows showed status colors (red/amber borders) but not the actual date. The data was already fetched — just not rendered. Always surface time-critical data inline when it's already in the payload.
+- **Keep API-provided computed fields consistent**: Overdue banner computed initials client-side while all other sections used `requesterInitials` from the API. Always derive computed display values in one place (API) and pass them through.
+- **Section ordering should match temporal urgency**: Shifts (upcoming obligations) were below Drafts (abandoned work). Order sections by "what needs action soonest" not by "what was built first."
+- **Welcome banner compound conditions**: If the dashboard has N data sections, the welcome banner condition must check all N — not just the first 3 that existed at V1 launch.
+- **shadcn Badge replaces most custom badge CSS**: Any inline colored label (status badges, sport tags, ref numbers, count pills, due-date labels) should use `Badge variant="green|red|orange|gray|sport" size="sm"` — not custom CSS classes. This eliminates one-off `.badge-green`, `.section-count`, `.ref-badge` classes and keeps dark mode safe.
+- **shadcn Avatar/AvatarGroup replaces custom avatar stacks**: `AvatarGroup` with `Avatar size="sm"` + `ring-2 ring-background` handles the overlapping stack layout. Empty slots use `AvatarFallback` with `border-dashed`. Overflow uses `AvatarFallback` with count text. No custom CSS needed.
+- **Target shadcn data-slot attributes for contextual overrides**: When a shadcn component needs different styling inside a specific parent (e.g. avatar inside red overdue banner), use `[data-slot="avatar-fallback"]` selector instead of adding custom className props.
+
+## Session 2026-03-22 (Round 5): Dashboard Reliability + UX Polish
+
+### Reliability Patterns
+- **`useCallback` deps on hook returns = ticking time bomb**: If `loadData` depends on `[toast]` from `useToast()`, and that hook ever returns an unstable reference, the `useEffect` runs every render: abort → refetch → re-render → abort... infinite loop. Fix: use a ref (`toastRef.current = toast`) and call `toastRef.current()` inside the callback with `[]` deps.
+- **Refresh errors must not wipe visible data**: If `loadData(true)` fails, setting `fetchError` replaces the entire dashboard with an error screen — even though valid data is still in state. Fix: on refresh failures, toast the error and keep existing data visible. Only show the error screen on initial load (`!isRefresh`).
+- **Null-safe API response guards**: The backend runs 16 parallel queries via `Promise.all`. If one fails, the entire response is 500. But if the backend ever changes to return partial data, the frontend would crash on `.map()` of undefined arrays. Fix: `d.myCheckouts = d.myCheckouts ?? { total: 0, items: [] }` for every array/object before `setData`.
+- **AbortController on all fetches**: Every `loadData` call should abort the previous in-flight request. Also abort on component unmount via the `useEffect` cleanup. This prevents stale responses from overwriting fresh data during rapid interactions.
+- **Guard all mutation buttons, not just the active one**: `disabled={deletingDraftId === d.id}` only disables the button being deleted. A user can click delete on draft B while draft A is in-flight. Fix: `disabled={deletingDraftId !== null}` blocks all delete buttons.
+- **Handle 401 on every mutation, not just the main fetch**: If the session expires between page load and a draft delete, the DELETE returns 401. Without explicit handling, it shows a generic "Failed" toast instead of redirecting to login.
+
+### UX Polish Patterns
+- **Optimistic deletes with rollback**: Remove the item from state immediately after confirmation, before the network round-trip. Capture `prevDrafts` before the mutation. On failure, restore via `setData(prev => ({ ...prev, drafts: prevDrafts }))`. This eliminates the jarring full-page reload on success.
+- **Manual refresh button with freshness tooltip**: A spinning `RefreshCwIcon` next to the page title with `formatRelativeTime(lastRefreshed, now)` in the tooltip. Users can see data age and refresh manually. The `animate-spin` class on the icon provides feedback during refresh.
+- **Skeleton width variation**: Identical `w-3/4` skeletons look like a test pattern. Vary widths per row (`70 + (j % 3) * 10` percent for titles, `40 + (j % 2) * 15` percent for meta) to look like real content being loaded.
+- **Differentiate error icons by type**: Network errors (offline) get a bell icon with "You're offline" copy. Server errors get a box icon with "usually temporary" language. Small changes that signal the system knows what went wrong.

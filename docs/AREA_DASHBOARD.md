@@ -3,9 +3,9 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-02
-- Status: Active
-- Version: V1
+- Last Updated: 2026-03-22
+- Status: Active — V3 shipped, reliability + UX polish complete
+- Version: V3
 
 ## Direction
 Make dashboard an action console for daily operations, not a reporting screen.
@@ -127,12 +127,16 @@ Make dashboard an action console for daily operations, not a reporting screen.
 3. Keyboard shortcut layer.
 
 ## Acceptance Criteria
-1. User can reach a checkout or reservation action in one click/tap from dashboard.
-2. Overdue banner and overdue list counts remain consistent.
-3. Check-outs and Reservations lanes each show max 5 rows plus `View all`.
-4. Reservations lane only includes records within next 7 days.
-5. Permission-restricted actions are hidden or disabled correctly.
-6. Drafts can be resumed without losing entered data.
+1. [x] User can reach a checkout or reservation action in one click/tap from dashboard.
+2. [x] Overdue banner and overdue list counts remain consistent.
+3. [x] Check-outs and Reservations lanes each show max 5 rows plus `View all`.
+4. [x] Reservations lane only includes records within next 7 days.
+5. [x] Permission-restricted actions are hidden or disabled correctly.
+6. [x] Drafts can be resumed without losing entered data.
+7. [x] Refresh failures preserve visible data (toast, no error screen wipe).
+8. [x] Concurrent fetch races are prevented (AbortController).
+9. [x] Draft delete is optimistic with rollback on failure.
+10. [x] Manual refresh button shows data freshness ("Updated X ago").
 
 ## Edge Cases
 - No overdue items: banner hidden.
@@ -169,3 +173,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-03-16: **Drafts section shipped** — DRAFT booking persistence via `/api/drafts` CRUD. Dashboard shows Drafts card in My Gear column with Resume/Discard actions. Create flow auto-saves as draft on cancel. Draft pre-fills form on resume via `?draftId=` param. Draft deleted on successful booking creation. Closes GAP-2.
 - 2026-03-16: Booking reference numbers (D-024) — refNumber badge shown on all dashboard booking rows (my checkouts, my reservations, team checkouts, team reservations).
 - 2026-03-17: **My Shifts widget** — shows upcoming shift assignments with gear status (none/reserved/checked out) in left column. "Reserve gear" action links to checkout creation pre-filled with event context.
+- 2026-03-22: **shadcn/ui migration** — Replaced all custom CSS avatar/badge/skeleton components with shadcn equivalents (Avatar, AvatarGroup, Badge, Skeleton, Progress). Removed 140 lines dead CSS. Section count badges, ref number badges, sport badges, gear status badges, due-date labels all now use shadcn Badge variants. Card headers standardized.
+- 2026-03-22: **Dashboard UX hardening** — Draft discard requires confirmation dialog + toast feedback. Error state differentiates 401 (redirect to login) from network/server errors. Refresh indicator (progress bar) after sheet mutations. Due date labels inline on all checkout rows. Ref numbers shown as badges. My Shifts reordered above Drafts. My Reservations gets "View all" overflow. Welcome banner condition patched (checks reservations/drafts/shifts). Overdue banner uses API-provided initials. Microcopy pass: personalized empty states, "Prep gear" label, "Resolve all overdue" CTA.
+- 2026-03-22: **Reliability hardening** — AbortController on dashboard fetch prevents race conditions and cancels on unmount. Refresh failures show toast instead of replacing visible data with error screen. Null-safe array guards on API response prevent crashes from partial backend data. Draft delete has try/catch for network errors, disabled state to prevent double-click, and 401 handling for expired sessions. `toast` dependency removed from `useCallback` deps via ref pattern to prevent infinite re-fetch loops.
+- 2026-03-22: **UX polish** — Manual refresh button (spinning RefreshCw icon) with "Updated X ago" tooltip for data freshness visibility. Optimistic draft delete (instant removal + rollback on failure, no full-page reload). Skeleton loading uses varied widths per row to look like real content. Error states differentiated by icon (bell for offline, box for server) with reassuring copy ("usually temporary"). `lastRefreshed` timestamp tracks data age.

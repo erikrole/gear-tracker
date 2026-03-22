@@ -310,6 +310,7 @@ export const GET = withAuth(async (_req, { user }) => {
     bookingId: b.id,
     bookingTitle: b.title,
     requesterName: b.requester.name,
+    requesterInitials: getInitials(b.requester.name),
     assetTags: b.serializedItems.map((si) => si.asset.assetTag),
     endsAt: b.endsAt.toISOString(),
   }));

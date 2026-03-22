@@ -45,6 +45,7 @@ Last updated: 2026-03-22
 
 ## Recently Shipped
 
+- [x] **Dashboard Reliability + UX Polish** — shadcn/ui component migration (Avatar, AvatarGroup, Badge, Skeleton, Progress; -140 lines CSS). AbortController fetch race prevention. Refresh-failure-preserves-data pattern. Null-safe API response guards. Optimistic draft delete with rollback. Manual refresh button with "Updated X ago" tooltip. Varied skeleton widths. Differentiated error states (offline vs server). Draft delete double-click guard + 401 handling. Toast ref pattern prevents infinite re-fetch loops. (2026-03-22)
 - [x] **Booking Detail Unification** — Unified checkout + reservation detail into single `BookingDetailPage` with `kind` prop. Extracted `useBookingDetail` + `useBookingActions` hooks. Shared `InlineTitle` component. Old GET/PATCH routes redirect to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit diffs. Accessibility + dark mode fixes. (2026-03-22)
 - [x] **MVP Polish Pass** — Audit logging gaps (departments, notifications/process), skeleton→shadcn, inline style→Tailwind, text-destructive (2026-03-21)
 - [x] **Item Detail Overhaul** — shadcn inputs, save feedback, department combobox, collapsible sections, UserInfoTab parity (2026-03-21)
