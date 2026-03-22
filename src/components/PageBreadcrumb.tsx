@@ -43,6 +43,14 @@ function formatSegment(segment: string): string {
   return LABEL_MAP[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function isDynamicSegment(segment: string): boolean {
+  // UUIDs (hex + hyphens, 8+ chars)
+  if (/^[0-9a-f-]{8,}$/i.test(segment)) return true;
+  // CUIDs (start with 'c', alphanumeric, 20+ chars)
+  if (/^c[a-z0-9]{20,}$/.test(segment)) return true;
+  return false;
+}
+
 export default function PageBreadcrumb() {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
@@ -50,14 +58,13 @@ export default function PageBreadcrumb() {
   // Don't show breadcrumb on the home page
   if (segments.length === 0) return null;
 
-  const crumbs = segments.map((segment, index) => {
-    const href = "/" + segments.slice(0, index + 1).join("/");
-    const isLast = index === segments.length - 1;
-    // Dynamic segments (UUIDs etc.) — show as "Details"
-    const label = segment.match(/^[0-9a-f-]{8,}$/i) ? "Details" : formatSegment(segment);
-
-    return { href, label, isLast };
-  });
+  // Build crumbs, filtering out dynamic segments (IDs)
+  const crumbs: Array<{ href: string; label: string }> = [];
+  for (let i = 0; i < segments.length; i++) {
+    if (isDynamicSegment(segments[i])) continue;
+    const href = "/" + segments.slice(0, i + 1).join("/");
+    crumbs.push({ href, label: formatSegment(segments[i]) });
+  }
 
   return (
     <Breadcrumb>
@@ -67,11 +74,11 @@ export default function PageBreadcrumb() {
             <Link href="/">Home</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
-        {crumbs.map((crumb) => (
+        {crumbs.map((crumb, i) => (
           <span key={crumb.href} className="contents">
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              {crumb.isLast ? (
+              {i === crumbs.length - 1 ? (
                 <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
