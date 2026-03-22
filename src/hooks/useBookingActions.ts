@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -13,7 +14,7 @@ async function callAction(
   body?: unknown,
 ): Promise<ActionResult> {
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method,
       ...(body
         ? {
@@ -28,7 +29,10 @@ async function callAction(
     }
     const json = await res.json().catch(() => ({}));
     return { ok: true, ...(json as object) };
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return { ok: false, error: "Request timed out \u2014 please try again." };
+    }
     return { ok: false, error: "Network error \u2014 please try again." };
   }
 }
@@ -184,7 +188,7 @@ export function useBookingActions(
 
   const saveField = useCallback(
     async (field: string, value: unknown) => {
-      const res = await fetch(`/api/bookings/${bookingId}`, {
+      const res = await fetchWithTimeout(`/api/bookings/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value }),

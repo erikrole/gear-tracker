@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { ConfirmBookingDialog } from "./booking-list/ConfirmBookingDialog";
 
 import {
@@ -156,10 +157,12 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   useEffect(() => { reload(); }, [reload]);
 
   useEffect(() => {
-    fetch("/api/form-options")
+    const controller = new AbortController();
+    const { signal } = controller;
+    fetch("/api/form-options", { signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
-        if (!json?.data) return;
+        if (signal.aborted || !json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
         const urlLocId = urlParams.get("locationId");
@@ -167,10 +170,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       })
-      .catch(() => { toast("Failed to load filter options", "error"); });
-    fetch("/api/me")
+      .catch((err) => { if (err?.name !== "AbortError") toast("Failed to load filter options", "error"); });
+    fetch("/api/me", { signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (signal.aborted) return;
         if (json?.user) {
           setCurrentUserId(json.user.id || "");
           setCurrentUserRole(json.user.role || "");
@@ -182,7 +186,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           }
         }
       })
-      .catch(() => { toast("Couldn\u2019t verify your session \u2014 some features may be limited", "error"); });
+      .catch((err) => { if (err?.name !== "AbortError") toast("Couldn\u2019t verify your session \u2014 some features may be limited", "error"); });
+    return () => controller.abort();
   }, []);
 
   // Load draft data when draftId is present
@@ -218,6 +223,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       return;
     }
     setEventsLoading(true);
+    const controller = new AbortController();
     const now = new Date();
     const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const params = new URLSearchParams({
@@ -226,13 +232,15 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       endDate: in30.toISOString(),
       limit: "50",
     });
-    fetch(`/api/calendar-events?${params}`)
+    fetch(`/api/calendar-events?${params}`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (controller.signal.aborted) return;
         setEvents(json?.data || []);
         setEventsLoading(false);
       })
-      .catch(() => { setEventsLoading(false); toast("Couldn\u2019t load events \u2014 try again", "error"); });
+      .catch((err) => { if (err?.name !== "AbortError") { setEventsLoading(false); toast("Couldn\u2019t load events \u2014 try again", "error"); } });
+    return () => controller.abort();
   }, [createSport, tieToEvent]);
 
   // Fetch shift context when event changes
@@ -241,9 +249,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setMyShiftForEvent(null);
       return;
     }
-    fetch(`/api/my-shifts?eventId=${selectedEvent.id}`)
+    const controller = new AbortController();
+    fetch(`/api/my-shifts?eventId=${selectedEvent.id}`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (controller.signal.aborted) return;
         const shifts = json?.data;
         if (shifts?.length > 0) {
           const s = shifts[0];
@@ -257,7 +267,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           setMyShiftForEvent(null);
         }
       })
-      .catch(() => setMyShiftForEvent(null));
+      .catch((err) => { if (err?.name !== "AbortError") setMyShiftForEvent(null); });
+    return () => controller.abort();
   }, [selectedEvent]);
 
   // ── Event selection auto-populate ──
@@ -364,7 +375,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     }
 
     try {
-      const res = await fetch(config.apiBase, {
+      const res = await fetchWithTimeout(config.apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -438,7 +449,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     extendingRef.current = true;
     setExtendingId(bookingId);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/extend`, {
+      const res = await fetchWithTimeout(`/api/bookings/${bookingId}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString() }),
