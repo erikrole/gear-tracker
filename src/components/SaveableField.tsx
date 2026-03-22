@@ -100,7 +100,7 @@ export function SaveableField({
   return (
     <div
       className={cn(
-        "group/row flex items-center gap-3 rounded-md px-3 py-2.5 min-h-[44px] transition-colors hover:bg-muted/50",
+        "group/row flex items-center gap-3 rounded-md px-3 py-2.5 min-h-[44px] transition-colors hover:bg-muted/60",
         className,
       )}
     >

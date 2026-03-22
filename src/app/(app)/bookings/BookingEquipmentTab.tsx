@@ -17,6 +17,8 @@ export default function BookingEquipmentTab({
   checkinIds,
   onToggleCheckin,
   onCheckinSelected,
+  onSelectAll,
+  onClearSelection,
   bulkReturnQty,
   onBulkReturnQtyChange,
   onBulkReturn,
@@ -27,6 +29,8 @@ export default function BookingEquipmentTab({
   checkinIds: Set<string>;
   onToggleCheckin: (assetId: string) => void;
   onCheckinSelected: () => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
   bulkReturnQty: Record<string, number>;
   onBulkReturnQtyChange: (id: string, qty: number) => void;
   onBulkReturn: (bulkItemId: string) => void;
@@ -36,6 +40,9 @@ export default function BookingEquipmentTab({
   const isCheckout = booking.kind === "CHECKOUT";
 
   const itemCount = booking.serializedItems.length + booking.bulkItems.length;
+  const returnableCount = booking.serializedItems.filter(
+    (i) => i.allocationStatus !== "returned",
+  ).length;
 
   const filteredSerialized = useMemo(() => {
     if (!search) return booking.serializedItems;
@@ -68,12 +75,27 @@ export default function BookingEquipmentTab({
               {itemCount} item{itemCount !== 1 ? "s" : ""}
             </span>
           </CardTitle>
-          {canCheckin && checkinIds.size > 0 && (
-            <Button size="sm" onClick={onCheckinSelected} disabled={!!actionLoading}>
-              {actionLoading === "checkin"
-                ? "Returning..."
-                : `Return ${checkinIds.size} item${checkinIds.size > 1 ? "s" : ""}`}
-            </Button>
+          {canCheckin && (
+            <div className="flex items-center gap-2">
+              {returnableCount > 0 && (
+                checkinIds.size === returnableCount ? (
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={onClearSelection}>
+                    Clear selection
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={onSelectAll}>
+                    Select all
+                  </Button>
+                )
+              )}
+              {checkinIds.size > 0 && (
+                <Button size="sm" onClick={onCheckinSelected} disabled={!!actionLoading}>
+                  {actionLoading === "checkin"
+                    ? "Returning..."
+                    : `Return ${checkinIds.size} item${checkinIds.size > 1 ? "s" : ""}`}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </CardHeader>
@@ -175,7 +197,7 @@ function SerializedRow({
   const returned = item.allocationStatus === "returned";
 
   return (
-    <div className={`flex items-center gap-3 px-2 py-2 rounded-md ${returned ? "opacity-60" : "hover:bg-muted/50"}`}>
+    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-md ${returned ? "opacity-60" : "hover:bg-muted/50"}`}>
       {/* Checkbox / returned indicator */}
       {isCheckout && canCheckin && (
         <div className="shrink-0">
@@ -246,7 +268,7 @@ function BulkRow({
   const allReturned = isCheckout && inQty >= outQty;
 
   return (
-    <div className={`flex items-center gap-3 px-2 py-2 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
+    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
       {/* Spacer for checkbox column */}
       {isCheckout && canCheckin && (
         <div className="shrink-0 w-5">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
@@ -35,6 +35,11 @@ export default function BookingInfoTab({
 
   return (
     <Card className="border-border/40 shadow-none divide-y divide-border/30">
+      <CardHeader className="pb-0">
+        <CardTitle className="text-base">
+          {booking.kind === "CHECKOUT" ? "Checkout details" : "Reservation details"}
+        </CardTitle>
+      </CardHeader>
       {/* Title */}
       <SaveableField label="Title" status={titleSave.status}>
         {canEdit ? (
