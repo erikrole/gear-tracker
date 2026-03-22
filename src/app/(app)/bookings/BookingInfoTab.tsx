@@ -44,7 +44,7 @@ export default function BookingInfoTab({
               const v = e.target.value.trim();
               if (v && v !== booking.title) titleSave.save(v);
             }}
-            className="h-8 border-0 bg-transparent shadow-none focus-visible:ring-1 px-1 -mx-1"
+            className="h-8 text-sm border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
           />
         ) : (
           <span className="text-sm">{booking.title}</span>
@@ -92,7 +92,7 @@ export default function BookingInfoTab({
               const v = e.target.value.trim();
               if (v !== (booking.notes ?? "")) notesSave.save(v);
             }}
-            className="min-h-[36px] border-0 bg-transparent shadow-none focus-visible:ring-1 px-1 -mx-1 resize-none"
+            className="min-h-[36px] text-sm border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs resize-none"
           />
         ) : (
           <span className="text-sm text-muted-foreground">

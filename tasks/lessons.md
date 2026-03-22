@@ -56,6 +56,17 @@
 - `SaveableField` + `useSaveField` is the canonical pattern for inline-editable fields. Any field with manual `useState` + `onBlur`/`onChange` save + `fetch(PATCH)` + status timeouts should be refactored to use it.
 - Future refactoring targets for SaveableField reuse: `CategoryRow.tsx` (rename + add subcategory inputs), `CategoriesPage.tsx` (add category input) — both in `/settings/categories/`. These have the exact same blur-save + fetch pattern.
 
+### Booking Detail Page Unification
+- **Shared `InlineTitle` component** (`src/components/InlineTitle.tsx`): Extracted from items page — reuse for ALL detail pages with editable titles. Has accessibility (aria-label, keyboard activation, role="button").
+- **Unified `BookingDetailPage`** (`src/app/(app)/bookings/BookingDetailPage.tsx`): Single component serves both checkout and reservation detail views via `kind` prop. Route files are 5-line thin wrappers.
+- **Hooks extracted**: `useBookingDetail` (fetch + reload + optimistic patch) and `useBookingActions` (cancel, extend, convert, duplicate, checkin, bulk return, saveField) eliminate ~400 lines of duplicated action handler code.
+- **Tab content spacing must be `mt-14`**, not `mt-6`. Items page established this spacing between sticky tabs and content — any smaller gap breaks visual hierarchy. This is a critical consistency rule.
+- **History tab wrapping pattern**: Parent page wraps history in `<Card className="mt-14 border-border/40 shadow-none max-w-3xl"><CardHeader><CardTitle>Activity Log</CardTitle></CardHeader><CardContent className="p-0">`. The history component itself renders NO Card — it's a renderless content block.
+- **Never hardcode colors** (e.g., `bg-green-50 text-green-700`) on buttons or interactive elements. Use Badge variants or Button variants which handle dark mode automatically. Hardcoded Tailwind color classes create dark mode maintenance burden.
+- **Input hover/focus styling must match items page**: `border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs`. This creates the "ghost input" feel — invisible until hovered, then subtly highlighted.
+- **Properties strip should include ref number** as a monospace badge — don't bury metadata in the header. The strip is the scannable summary line.
+- **Self-audit after building**: Always compare your new page against the gold standard before declaring done. Spacing, Card wrappers, input styling, dark mode colors — these are the details that make pages feel inconsistent.
+
 ### Items List Redesign
 - Derived status filtering (CHECKED_OUT, RESERVED) should use Prisma relation subqueries (`allocations: { some: { ... } }`) rather than fetching all rows, enriching in-memory, and filtering. The `@@index([assetId, active])` on `AssetAllocation` supports this pattern efficiently.
 - When the API caller already has full asset objects, pass them directly to a `FromLoaded` variant of the enrichment function to skip the redundant ID-based re-fetch.
@@ -120,6 +131,7 @@
 
 | Component | Location | Purpose |
 |---|---|---|
+| `InlineTitle` | `src/components/InlineTitle.tsx` | Inline-editable title with blur-save, keyboard, aria-label |
 | `SaveableField` | `src/components/SaveableField.tsx` | Flat row layout: label (120px) + content + save indicator |
 | `useSaveField` | `src/components/SaveableField.tsx` | Hook: manages saving/saved/error status with auto-reset |
 | `CategoryCombobox` | `src/components/FormCombobox.tsx` | Combobox with search, clear, inline create |
@@ -132,6 +144,9 @@
 | `BookingDetailsSheet` | `src/components/BookingDetailsSheet.tsx` | Side sheet for booking details |
 | `ConfirmDialog` / `useConfirm` | `src/components/ConfirmDialog.tsx` | Confirmation modal with danger variant |
 | `Toast` / `useToast` | `src/components/Toast.tsx` | Toast notifications (success/error) |
+| `useBookingDetail` | `src/hooks/useBookingDetail.ts` | Fetch + reload + optimistic patch for booking detail |
+| `useBookingActions` | `src/hooks/useBookingActions.ts` | All booking action handlers (cancel, extend, convert, etc.) |
+| `BookingDetailPage` | `src/app/(app)/bookings/BookingDetailPage.tsx` | Unified booking detail (pass `kind` prop) |
 
 ### shadcn Components Used Across Detail Pages
 
@@ -335,12 +350,18 @@ Always use shadcn Empty component:
 ### Checklist for New Detail Pages
 
 - [ ] Uses `SaveableField` + `useSaveField` for all editable fields
+- [ ] Uses shared `InlineTitle` from `src/components/InlineTitle.tsx` (never duplicate)
 - [ ] Card styling: `border-border/40 shadow-none` + `divide-y divide-border/30`
 - [ ] Tabs: URL-synced, keyboard shortcuts, sticky
+- [ ] Tab content spacing: `mt-14` (NOT mt-6) — matches items page hierarchy
 - [ ] Properties strip with badges + right-aligned "Updated [date]"
+- [ ] History tab wrapping: parent renders Card/CardHeader/CardTitle, history component is a renderless content block
 - [ ] History tab filters internal fields, resolves IDs to labels
+- [ ] Input styling: `border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs`
+- [ ] No hardcoded colors — use Badge/Button variants for dark mode safety
 - [ ] Empty states use shadcn `Empty` component
 - [ ] All UI primitives are from `src/components/ui/` (shadcn)
 - [ ] No double breadcrumbs (AppShell handles it)
 - [ ] `min-h-[44px]` on all interactive rows
 - [ ] Loading state uses `Skeleton` components matching the layout
+- [ ] Self-audit against items page before declaring done
