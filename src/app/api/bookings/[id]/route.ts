@@ -25,14 +25,21 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
   const body = updateBookingSchema.parse(await req.json());
 
-  // Fetch the booking to determine kind
+  // Fetch current state for before-snapshot and kind detection
   const detail = await getBookingDetail(id);
 
   await requireBookingAction(id, user, "edit");
 
-  let updated;
+  // Build before-snapshot from fields being changed
+  const beforeSnapshot: Record<string, unknown> = {};
+  for (const key of Object.keys(body) as Array<keyof typeof body>) {
+    if (body[key] !== undefined) {
+      beforeSnapshot[key] = (detail as Record<string, unknown>)[key];
+    }
+  }
+
   if (detail.kind === "RESERVATION") {
-    updated = await updateReservation(id, user.id, {
+    await updateReservation(id, user.id, {
       title: body.title,
       requesterUserId: body.requesterUserId,
       locationId: body.locationId,
@@ -43,7 +50,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       notes: body.notes
     });
   } else {
-    updated = await updateCheckout(id, user.id, {
+    await updateCheckout(id, user.id, {
       title: body.title,
       endsAt: body.endsAt ? new Date(body.endsAt) : undefined,
       serializedAssetIds: body.serializedAssetIds,
@@ -57,8 +64,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     actorRole: user.role,
     entityType: "booking",
     entityId: id,
-    action: "edit",
-    after: body,
+    action: "updated",
+    before: beforeSnapshot,
+    after: body as Record<string, unknown>,
   });
-  return ok({ data: updated });
+
+  // Re-fetch enriched detail so the UI has full state (auditLogs, allowedActions, etc.)
+  const refreshed = await getBookingDetail(id);
+  const allowedActions = getAllowedBookingActions(user, refreshed);
+  return ok({ data: { ...refreshed, allowedActions } });
 });
