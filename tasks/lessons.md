@@ -76,7 +76,7 @@
 **Field ordering matters:**
 - Lead with identity fields (name, product name, brand, model, serial), then organizational fields (department, category, location), then procurement (date, fiscal year, price, link). This matches how users think about items.
 - Date placeholders should say "Add date" not show a fake formatted date like "January 01, 2025".
-- Fiscal year should auto-compute from purchase date, not be a manual dropdown. Derived fields should be read-only.
+- Fiscal year should auto-compute from purchase date BUT remain independently editable. Users may need to override the computed value. Don't make derived fields read-only — auto-fill as a convenience, not a constraint.
 
 **UX polish that compounds:**
 - URL-synced tabs (`?tab=bookings`) via `useSearchParams` + `replaceState` — makes tabs shareable/bookmarkable. Apply to all detail pages.

@@ -688,7 +688,7 @@ export default function ItemInfoCard({
   return (
     <Card className="details-card border-border/40 shadow-none">
       <div className="py-1">
-        <div className="grid grid-cols-1 gap-y-0">
+        <div className="grid grid-cols-1 gap-y-0 divide-y divide-border/30">
           <TextInputField
             label="Name"
             value={asset.assetTag}
@@ -779,9 +779,8 @@ export default function ItemInfoCard({
                 label="Fiscal Year"
                 value={asset.metadata?.fiscalYearPurchased || ""}
                 placeholder="Auto-filled from purchase date"
-                canEdit={false}
-                readOnly
-                onSave={async () => {}}
+                canEdit={canEdit}
+                onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
               />
               <TextInputField
                 label="Purchase price"

@@ -66,6 +66,10 @@ export default function PageBreadcrumb() {
     crumbs.push({ href, label: formatSegment(segments[i]) });
   }
 
+  // If the URL has more segments than visible crumbs, we're on a detail page
+  // — make all visible crumbs clickable links (the page title serves as context)
+  const onDetailPage = segments.length > crumbs.length;
+
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -78,7 +82,7 @@ export default function PageBreadcrumb() {
           <span key={crumb.href} className="contents">
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              {i === crumbs.length - 1 ? (
+              {i === crumbs.length - 1 && !onDetailPage ? (
                 <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
