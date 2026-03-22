@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
@@ -210,25 +210,40 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
   const confirm = useConfirm();
   const { toast } = useToast();
+  const abortRef = useRef<AbortController | null>(null);
+
   const loadData = useCallback((isRefresh = false) => {
+    // Cancel any in-flight request to prevent race conditions
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     if (isRefresh) setRefreshing(true);
-    fetch("/api/dashboard")
+    fetch("/api/dashboard", { signal: controller.signal })
       .then((res) => {
         if (res.status === 401) { window.location.href = "/login?returnTo=/"; return null; }
         if (!res.ok) throw new Error("server");
         return res.json();
       })
-      .then((json) => { if (json?.data) { setData(json.data); setFetchError(false); } else if (json !== null) setFetchError("server"); })
+      .then((json) => {
+        if (json?.data) { setData(json.data); setFetchError(false); }
+        // Only show error screen on initial load — don't wipe visible data on refresh failure
+        else if (json !== null && !isRefresh) setFetchError("server");
+      })
       .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // On refresh: toast the error but keep existing data visible
+        if (isRefresh) { toast("Failed to refresh dashboard", "error"); return; }
         if (err instanceof TypeError) setFetchError("network");
         else setFetchError("server");
       })
       .finally(() => setRefreshing(false));
-  }, []);
+  }, [toast]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); return () => { abortRef.current?.abort(); }; }, [loadData]);
 
   // Live countdown tick every 60 seconds
   useEffect(() => {
@@ -558,6 +573,7 @@ export default function DashboardPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        disabled={deletingDraftId === d.id}
                         onClick={async () => {
                           const ok = await confirm({
                             title: "Delete draft",
@@ -566,16 +582,23 @@ export default function DashboardPage() {
                             variant: "danger",
                           });
                           if (!ok) return;
-                          const res = await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
-                          if (res.ok) {
-                            toast("Draft deleted", "success");
-                            loadData(true);
-                          } else {
-                            toast("Failed to delete draft", "error");
+                          setDeletingDraftId(d.id);
+                          try {
+                            const res = await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
+                            if (res.ok) {
+                              toast("Draft deleted", "success");
+                              loadData(true);
+                            } else {
+                              toast("Failed to delete draft", "error");
+                            }
+                          } catch {
+                            toast("Network error — couldn\u2019t delete draft", "error");
+                          } finally {
+                            setDeletingDraftId(null);
                           }
                         }}
                       >
-                        Delete draft
+                        {deletingDraftId === d.id ? "Deleting\u2026" : "Delete draft"}
                       </Button>
                     </div>
                   </div>
