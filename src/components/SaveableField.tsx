@@ -100,21 +100,19 @@ export function SaveableField({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 px-4 py-3",
+        "group/row flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-muted/50",
         className,
       )}
     >
       <Label
         htmlFor={htmlFor}
-        className="text-sm font-medium text-muted-foreground shrink-0 min-w-[100px]"
+        className="text-sm text-muted-foreground shrink-0 w-[120px]"
       >
         {label}
       </Label>
-      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         <div className="flex-1 min-w-0">{children}</div>
-        <div className="w-[60px] flex justify-end">
-          <SaveStatusIndicator status={status} />
-        </div>
+        <SaveStatusIndicator status={status} />
       </div>
     </div>
   );

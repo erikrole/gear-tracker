@@ -60,7 +60,7 @@ function DatePicker({
         <Input
           value={inputValue}
           placeholder={placeholder}
-          className="bg-background pr-10"
+          className="border-transparent bg-transparent shadow-none pr-10 hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
           disabled={disabled}
           onChange={(e) => {
             const date = new Date(e.target.value)
