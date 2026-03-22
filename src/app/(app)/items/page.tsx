@@ -170,7 +170,7 @@ export default function ItemsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Retire {retireTarget?.assetTag}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will mark this item as retired. Retired items are hidden from active inventory.
+              This will permanently mark &ldquo;{retireTarget?.assetTag}&rdquo; as retired. Retired items are hidden from active inventory and cannot be checked out or reserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -180,7 +180,7 @@ export default function ItemsPage() {
               onClick={confirmRetireTarget}
               disabled={actionBusy}
             >
-              Retire
+              {actionBusy ? "Retiring…" : "Retire"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -211,21 +211,29 @@ export default function ItemsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <TableHead key={i} className="border-t">
-                      <Skeleton className="h-4 w-20" />
-                    </TableHead>
-                  ))}
+                  <TableHead className="border-t w-[280px]"><Skeleton className="h-4 w-12" /></TableHead>
+                  <TableHead className="border-t w-[200px]"><Skeleton className="h-4 w-14" /></TableHead>
+                  <TableHead className="border-t w-[140px]"><Skeleton className="h-4 w-16" /></TableHead>
+                  <TableHead className="border-t w-[140px]"><Skeleton className="h-4 w-20" /></TableHead>
+                  <TableHead className="border-t w-[160px]"><Skeleton className="h-4 w-16" /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Array.from({ length: 8 }, (_, r) => (
                   <TableRow key={r}>
-                    {Array.from({ length: 5 }, (_, c) => (
-                      <TableCell key={c}>
-                        <Skeleton className="h-4" style={{ width: `${50 + ((r + c) % 4) * 12}%` }} />
-                      </TableCell>
-                    ))}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-9 rounded-md shrink-0" />
+                        <div className="space-y-1.5 flex-1">
+                          <Skeleton className="h-4" style={{ width: `${55 + (r % 3) * 15}%` }} />
+                          <Skeleton className="h-3" style={{ width: `${35 + (r % 4) * 10}%` }} />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4" style={{ width: `${50 + (r % 3) * 18}%` }} /></TableCell>
+                    <TableCell><Skeleton className="h-4" style={{ width: `${40 + (r % 4) * 15}%` }} /></TableCell>
+                    <TableCell><Skeleton className="h-4" style={{ width: `${45 + (r % 3) * 20}%` }} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

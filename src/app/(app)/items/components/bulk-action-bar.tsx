@@ -131,9 +131,9 @@ export function BulkActionBar({
               Retire {count} item{count > 1 ? "s" : ""}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will mark{" "}
-              {count === 1 ? "this item" : `these ${count} items`} as retired.
-              Retired items are hidden from active inventory.
+              This will permanently retire{" "}
+              {count === 1 ? "1 item" : `${count} items`}.
+              Retired items are hidden from active inventory and cannot be checked out or reserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
