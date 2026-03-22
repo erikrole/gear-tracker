@@ -5,7 +5,6 @@ import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
 import type { UserDetail, Location } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
-import RoleBadge from "../RoleBadge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
