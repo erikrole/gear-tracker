@@ -114,7 +114,7 @@ export function CreateBookingCard({
   return (
     <div className="create-card">
       <div className="create-card-header">
-        <h2>Create {config.label}</h2>
+        <h2>New {config.label}</h2>
       </div>
 
       <div className="create-card-body">
@@ -126,7 +126,7 @@ export function CreateBookingCard({
             onClick={() => onTieToEventChange(!tieToEvent)}
             aria-label="Tie to event"
           />
-          <span className="toggle-label">Tie to event</span>
+          <span className="toggle-label">Link to event</span>
         </div>
 
         {/* Event selection flow */}
@@ -219,7 +219,7 @@ export function CreateBookingCard({
 
         {/* Title */}
         <div className="mb-3 space-y-1">
-          <Label>Title {tieToEvent && selectedEvent ? "(auto-generated, editable)" : ""}</Label>
+          <Label>Booking name {tieToEvent && selectedEvent ? "(auto-filled from event)" : ""}</Label>
           <Input
             value={createTitle}
             onChange={(e) => onCreateTitleChange(e.target.value)}
@@ -249,7 +249,7 @@ export function CreateBookingCard({
         {/* Requester + Location */}
         <div className="field-row">
           <div className="mb-3 space-y-1">
-            <Label>User</Label>
+            <Label>{config.requesterLabel}</Label>
             <Select value={createRequester} onValueChange={onCreateRequesterChange} required>
               <SelectTrigger>
                 <SelectValue placeholder="Select..." />
@@ -275,7 +275,7 @@ export function CreateBookingCard({
         {/* Dates */}
         <div className="field-row">
           <div className="mb-3 space-y-1">
-            <Label>From</Label>
+            <Label>{config.startLabel}</Label>
             <DateTimePicker
               value={createStartsAt ? new Date(createStartsAt) : undefined}
               onChange={(d) => onCreateStartsAtChange(toLocalDateTimeValue(d))}
@@ -283,7 +283,7 @@ export function CreateBookingCard({
             />
           </div>
           <div className="mb-3 space-y-1">
-            <Label>To</Label>
+            <Label>{config.endLabel}</Label>
             <DateTimePicker
               value={createEndsAt ? new Date(createEndsAt) : undefined}
               onChange={(d) => onCreateEndsAtChange(toLocalDateTimeValue(d))}
@@ -314,12 +314,12 @@ export function CreateBookingCard({
       </div>
 
       <div className="create-card-footer">
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button variant="outline" onClick={onClose}>Discard</Button>
         <Button
           disabled={submitting}
           onClick={onCreate}
         >
-          {submitting ? "Creating..." : `Create ${config.label}`}
+          {submitting ? config.actionLabelProgress : config.actionLabel}
         </Button>
       </div>
     </div>

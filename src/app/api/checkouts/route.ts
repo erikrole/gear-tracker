@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
-import { createCheckoutSchema } from "@/lib/validation";
+import { createCheckoutSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
 export const GET = withAuth(async (req, { user }) => {
@@ -31,8 +31,8 @@ export const GET = withAuth(async (req, { user }) => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "checkout", "create");
-  const body = createCheckoutSchema.parse(await req.json());
-  const { start, end } = parseDateRange(body.startsAt, body.endsAt);
+  const body = sanitizeBookingFields(createCheckoutSchema.parse(await req.json()));
+  const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
 
   // Event-default prefill: if sportCode provided but no eventId,
   // look up next upcoming event and use as defaults (ad hoc fallback if none found)

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -13,6 +14,8 @@ import {
   SheetBody,
   SheetFooter,
 } from "@/components/ui/sheet";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -79,6 +82,7 @@ export default function BookingDetailsSheet({
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [equipSaving, setEquipSaving] = useState(false);
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
+  const [optionsError, setOptionsError] = useState(false);
 
   // History filter
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
@@ -126,13 +130,19 @@ export default function BookingDetailsSheet({
 
   const loadFormOptions = useCallback(async () => {
     try {
+      setOptionsError(false);
       const res = await fetch("/api/form-options");
       if (res.ok) {
         const json = await res.json();
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
+      } else {
+        setOptionsError(true);
       }
-    } catch { toast("Failed to load equipment options", "error"); }
+    } catch {
+      setOptionsError(true);
+      toast("Failed to load equipment options", "error");
+    }
   }, []);
 
   /* ───── Derived state ───── */
@@ -322,9 +332,11 @@ export default function BookingDetailsSheet({
     setConflictError(null);
 
     try {
-      const res = await fetch(`/api/bookings/${booking.id}`, {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           serializedAssetIds: editSerializedIds,
           bulkItems: editBulkItems,
@@ -337,11 +349,11 @@ export default function BookingDetailsSheet({
         await fetchBooking();
         onUpdated?.();
       } else {
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
         if (res.status === 409 && json.data) {
           setConflictError(json.data as ConflictData);
         }
-        toast(json.error || "Failed to save equipment changes", "error");
+        toast((json.error as string) || "Failed to save equipment changes", "error");
       }
     } catch {
       toast("Failed to save", "error");
@@ -366,9 +378,11 @@ export default function BookingDetailsSheet({
     }
 
     try {
-      const res = await fetch(`/api/bookings/${booking.id}`, {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -378,11 +392,11 @@ export default function BookingDetailsSheet({
         await fetchBooking();
         onUpdated?.();
       } else {
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
         if (res.status === 409 && json.data) {
           setConflictError(json.data as ConflictData);
         }
-        toast(json.error || "Failed to save", "error");
+        toast((json.error as string) || "Failed to save", "error");
       }
     } catch {
       toast("Failed to save", "error");
@@ -634,6 +648,16 @@ export default function BookingDetailsSheet({
                   onEnterEquipEditMode={enterEquipEditMode}
                   onCheckinItem={handleCheckinItem}
                 />
+              )}
+
+              {/* Equipment options error */}
+              {tab === "equipment" && equipEditMode && optionsError && (
+                <Alert variant="destructive" className="mb-3">
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Failed to load equipment options.</span>
+                    <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* Equipment Tab - Edit Mode */}

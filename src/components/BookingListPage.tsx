@@ -11,6 +11,8 @@ import EmptyState from "@/components/EmptyState";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { ConfirmBookingDialog } from "./booking-list/ConfirmBookingDialog";
 
 import {
   SortHeader,
@@ -106,8 +108,21 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [extendingId, setExtendingId] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const submittingRef = useRef(false);
+  const extendingRef = useRef(false);
 
   const limit = 20;
+
+  // ── Warn before unload when form has data ──
+  useEffect(() => {
+    if (!showCreate) return;
+    const hasData = createTitle.trim() || selectedAssetIds.length > 0 || selectedBulkItems.length > 0;
+    if (!hasData) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [showCreate, createTitle, selectedAssetIds.length, selectedBulkItems.length]);
 
   // ── Data fetching ──
 
@@ -142,10 +157,12 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   useEffect(() => { reload(); }, [reload]);
 
   useEffect(() => {
-    fetch("/api/form-options")
+    const controller = new AbortController();
+    const { signal } = controller;
+    fetch("/api/form-options", { signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
-        if (!json?.data) return;
+        if (signal.aborted || !json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
         const urlLocId = urlParams.get("locationId");
@@ -153,10 +170,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       })
-      .catch(() => { /* form-options unavailable */ });
-    fetch("/api/me")
+      .catch((err) => { if (err?.name !== "AbortError") toast("Failed to load filter options", "error"); });
+    fetch("/api/me", { signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (signal.aborted) return;
         if (json?.user) {
           setCurrentUserId(json.user.id || "");
           setCurrentUserRole(json.user.role || "");
@@ -168,7 +186,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           }
         }
       })
-      .catch(() => { /* auth unavailable */ });
+      .catch((err) => { if (err?.name !== "AbortError") toast("Couldn\u2019t verify your session \u2014 some features may be limited", "error"); });
+    return () => controller.abort();
   }, []);
 
   // Load draft data when draftId is present
@@ -194,7 +213,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           })));
         }
       })
-      .catch(() => { /* draft load failed */ });
+      .catch(() => { toast("Couldn\u2019t load your draft \u2014 starting fresh", "error"); });
   }, [draftId]);
 
   // Fetch events when sport selected
@@ -204,6 +223,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       return;
     }
     setEventsLoading(true);
+    const controller = new AbortController();
     const now = new Date();
     const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const params = new URLSearchParams({
@@ -212,13 +232,15 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       endDate: in30.toISOString(),
       limit: "50",
     });
-    fetch(`/api/calendar-events?${params}`)
+    fetch(`/api/calendar-events?${params}`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (controller.signal.aborted) return;
         setEvents(json?.data || []);
         setEventsLoading(false);
       })
-      .catch(() => setEventsLoading(false));
+      .catch((err) => { if (err?.name !== "AbortError") { setEventsLoading(false); toast("Couldn\u2019t load events \u2014 try again", "error"); } });
+    return () => controller.abort();
   }, [createSport, tieToEvent]);
 
   // Fetch shift context when event changes
@@ -227,9 +249,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setMyShiftForEvent(null);
       return;
     }
-    fetch(`/api/my-shifts?eventId=${selectedEvent.id}`)
+    const controller = new AbortController();
+    fetch(`/api/my-shifts?eventId=${selectedEvent.id}`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {
+        if (controller.signal.aborted) return;
         const shifts = json?.data;
         if (shifts?.length > 0) {
           const s = shifts[0];
@@ -243,7 +267,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           setMyShiftForEvent(null);
         }
       })
-      .catch(() => setMyShiftForEvent(null));
+      .catch((err) => { if (err?.name !== "AbortError") setMyShiftForEvent(null); });
+    return () => controller.abort();
   }, [selectedEvent]);
 
   // ── Event selection auto-populate ──
@@ -297,7 +322,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         toast("Draft saved", "info");
       }
     } catch {
-      /* draft save is best-effort */
+      toast("Draft couldn\u2019t be saved \u2014 your changes may be lost", "error");
     }
   }
 
@@ -311,18 +336,24 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     setDraftId(null);
   }
 
-  function handleCloseCreate() {
-    saveDraft();
+  async function handleCloseCreate() {
+    await saveDraft();
     setShowCreate(false);
   }
 
   // ── Create booking ──
 
-  async function handleCreate() {
-    if (!createTitle.trim()) { setCreateError("Title is required"); return; }
-    if (!createRequester) { setCreateError("User is required"); return; }
-    if (!createLocationId) { setCreateError("Location is required"); return; }
+  function handleCreateClick() {
+    if (!createTitle.trim()) { setCreateError("Give this booking a name"); return; }
+    if (!createRequester) { setCreateError("Select who this is for"); return; }
+    if (!createLocationId) { setCreateError("Choose a pickup location"); return; }
+    setCreateError("");
+    setShowConfirm(true);
+  }
 
+  async function handleCreateConfirm() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setCreateError("");
 
@@ -344,7 +375,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     }
 
     try {
-      const res = await fetch(config.apiBase, {
+      const res = await fetchWithTimeout(config.apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -375,15 +406,18 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           }
           setCreateError(msgs.length > 0 ? msgs.join(". ") : (json.error || "Availability conflict"));
         } else {
-          setCreateError(json.error || `Failed to create ${config.label}`);
+          setCreateError(json.error || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
         }
+        submittingRef.current = false;
         setSubmitting(false);
+        setShowConfirm(false);
         return;
       }
 
       await deleteDraft();
 
       // Reset form
+      setShowConfirm(false);
       setShowCreate(false);
       setCreateTitle("");
       setCreateSport("");
@@ -393,14 +427,17 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setSelectedAssetIds([]);
       setSelectedBulkItems([]);
       setShowEquipPicker(true);
+      submittingRef.current = false;
       setSubmitting(false);
       setDraftId(null);
 
       setSelectedBookingId(json.data.id);
       await reload();
     } catch {
-      setCreateError(`Failed to create ${config.label}`);
+      setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
+      submittingRef.current = false;
       setSubmitting(false);
+      setShowConfirm(false);
     }
   }
 
@@ -408,10 +445,11 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
   async function handleExtendFromMenu(bookingId: string, days: number) {
     const item = items.find((i) => i.id === bookingId);
-    if (!item || extendingId) return;
+    if (!item || extendingId || extendingRef.current) return;
+    extendingRef.current = true;
     setExtendingId(bookingId);
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/extend`, {
+      const res = await fetchWithTimeout(`/api/bookings/${bookingId}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString() }),
@@ -424,6 +462,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     } catch {
       toast("Network error \u2014 please try again.", "error");
     }
+    extendingRef.current = false;
     setExtendingId(null);
   }
 
@@ -484,7 +523,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           onSelectedBulkItemsChange={setSelectedBulkItems}
           createError={createError}
           submitting={submitting}
-          onCreate={handleCreate}
+          onCreate={handleCreateClick}
           onClose={handleCloseCreate}
         />
       )}
@@ -589,6 +628,24 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         onClose={() => setSelectedBookingId(null)}
         onUpdated={reload}
         currentUserRole={currentUserRole}
+      />
+
+      {/* ════════ Confirm booking dialog ════════ */}
+      <ConfirmBookingDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        onConfirm={handleCreateConfirm}
+        config={config}
+        title={createTitle}
+        startsAt={new Date(createStartsAt).toISOString()}
+        endsAt={new Date(createEndsAt).toISOString()}
+        locationName={locations.find((l) => l.id === createLocationId)?.name || ""}
+        requesterName={users.find((u) => u.id === createRequester)?.name || ""}
+        selectedAssetIds={selectedAssetIds}
+        availableAssets={availableAssets}
+        selectedBulkItems={selectedBulkItems}
+        bulkSkus={bulkSkus}
+        submitting={submitting}
       />
     </>
   );

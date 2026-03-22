@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth, type AuthUser } from "@/lib/auth";
-import { fail } from "@/lib/http";
+import { fail, HttpError } from "@/lib/http";
 
 type AuthCtx<P extends Record<string, string> = Record<string, string>> = {
   user: AuthUser;
@@ -26,6 +26,17 @@ export function withAuth<P extends Record<string, string> = Record<string, strin
 ) {
   return async (req: Request, context: { params: Promise<P> }): Promise<NextResponse> => {
     try {
+      // CSRF: validate Origin header on mutating requests
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        const origin = req.headers.get("origin");
+        if (origin) {
+          const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
+          const expected = host ? new URL(`https://${host}`).origin : null;
+          if (expected && origin !== expected) {
+            throw new HttpError(403, "Cross-origin request blocked");
+          }
+        }
+      }
       const user = await requireAuth();
       const params = (context?.params ? await context.params : {}) as P;
       return await handler(req, { user, params });

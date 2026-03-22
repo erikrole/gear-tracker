@@ -50,6 +50,8 @@ function makeOpenCheckout(serializedItems: { assetId: string; allocationStatus: 
 
 describe("checkinItems", () => {
   it("returns items and keeps checkout OPEN when items remain", async () => {
+    // 1 item remaining after returning a1
+    mockTx.bookingSerializedItem.count.mockResolvedValue(1);
     mockTx.booking.findUnique.mockResolvedValue(
       makeOpenCheckout([
         { assetId: "a1", allocationStatus: "active" },
@@ -65,15 +67,15 @@ describe("checkinItems", () => {
     expect(result.remainingActiveItems).toBe(1);
     expect(result.autoCompleted).toBe(false);
 
-    // Should mark item as returned
+    // Should mark items as returned (batched)
     expect(mockTx.bookingSerializedItem.updateMany).toHaveBeenCalledWith({
-      where: { bookingId: "booking-1", assetId: "a1" },
+      where: { bookingId: "booking-1", assetId: { in: ["a1"] } },
       data: { allocationStatus: "returned" },
     });
 
-    // Should deactivate allocation
+    // Should deactivate allocations (batched)
     expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith({
-      where: { bookingId: "booking-1", assetId: "a1", active: true },
+      where: { bookingId: "booking-1", assetId: { in: ["a1"] }, active: true },
       data: { active: false },
     });
 

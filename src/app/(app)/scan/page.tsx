@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ChevronLeftIcon, XIcon, ScanIcon } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,7 @@ export default function ScanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   // Determine mode from URL params
   const checkoutId = searchParams.get("checkout");
@@ -139,10 +141,6 @@ export default function ScanPage() {
   // Race condition guards
   const processingRef = useRef(false);
   const loadingStatusRef = useRef(false);
-
-  // Idempotency: generate a unique key per scan attempt
-  const genIdempotencyKey = useCallback(() =>
-    `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, []);
 
   // ── Load scan status for booking modes ──
   const loadScanStatus = useCallback(async () => {
@@ -274,13 +272,11 @@ export default function ScanPage() {
       ? `/api/checkouts/${checkoutId}/checkin-scan`
       : `/api/checkouts/${checkoutId}/scan`;
 
-    const idempotencyKey = genIdempotencyKey();
-
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase: phaseParam, idempotencyKey, ...payload }),
+        body: JSON.stringify({ phase: phaseParam, ...payload }),
       });
 
       if (res.ok) {
@@ -308,7 +304,7 @@ export default function ScanPage() {
       setLastScanResult({ message: "Network error \u2014 try again", success: false });
       return false;
     }
-  }, [checkoutId, phaseParam, loadScanStatus, genIdempotencyKey]);
+  }, [checkoutId, phaseParam, loadScanStatus]);
 
   // ── Booking scan: record scan event ──
   const handleBookingScan = useCallback(async (value: string) => {
@@ -474,6 +470,15 @@ export default function ScanPage() {
   const progressPct = totalItems > 0 ? Math.round((scannedItems / totalItems) * 100) : 0;
   const allComplete = progress?.allComplete ?? false;
 
+  // ── Guard against accidental navigation when items have been scanned ──
+  const hasScannedItems = scannedItems > 0 && !allComplete;
+  useEffect(() => {
+    if (!hasScannedItems) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasScannedItems]);
+
   // ── Status display helpers ──
   function statusLabel(s: string) {
     switch (s) {
@@ -502,7 +507,22 @@ export default function ScanPage() {
       {/* ══════ Sticky header with progress (booking modes) ══════ */}
       {mode !== "lookup" && scanStatus && (
         <div className="scan-sticky-header">
-          <Link href={`/checkouts/${checkoutId}`} className="scan-header-link">
+          <button
+            type="button"
+            className="scan-header-link"
+            onClick={async () => {
+              if (hasScannedItems) {
+                const ok = await confirm({
+                  title: "Leave scan page?",
+                  message: `You\u2019ve scanned ${scannedItems} of ${totalItems} items. Your progress is saved \u2014 you can resume later.`,
+                  confirmLabel: "Leave",
+                  cancelLabel: "Keep scanning",
+                });
+                if (!ok) return;
+              }
+              router.push(`/checkouts/${checkoutId}`);
+            }}
+          >
             <ChevronLeftIcon className="size-[18px]" />
             <div className="scan-header-info">
               <span className="scan-header-title">{scanStatus.title}</span>
@@ -510,7 +530,7 @@ export default function ScanPage() {
                 {scanStatus.requester.name} &middot; {scanStatus.location.name}
               </span>
             </div>
-          </Link>
+          </button>
           <div className={`scan-mode-pill scan-mode-${mode}`}>
             <div className="scan-mode-dot" />
             {mode === "checkout" ? "Out" : "In"}

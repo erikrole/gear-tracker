@@ -1,5 +1,14 @@
 import { BookingKind, BookingStatus, Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { z } from "zod";
+import { sanitizeText } from "./sanitize";
+
+/** Sanitize user-facing text fields in a booking payload */
+export function sanitizeBookingFields<T extends Record<string, unknown>>(data: T): T {
+  const d = data as Record<string, unknown>;
+  if (typeof d.title === "string") d.title = sanitizeText(d.title);
+  if (typeof d.notes === "string") d.notes = sanitizeText(d.notes);
+  return data;
+}
 
 const bulkItemSchema = z.object({
   bulkSkuId: z.string().cuid(),
@@ -16,7 +25,7 @@ export const availabilitySchema = z.object({
 });
 
 export const createReservationSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().trim().min(1).max(500),
   requesterUserId: z.string().cuid(),
   locationId: z.string().cuid(),
   startsAt: z.string(),
@@ -34,7 +43,7 @@ export const updateReservationSchema = createReservationSchema
   .extend({ status: z.nativeEnum(BookingStatus).optional() });
 
 export const createCheckoutSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().trim().min(1).max(500),
   requesterUserId: z.string().cuid(),
   locationId: z.string().cuid(),
   startsAt: z.string(),
@@ -59,8 +68,7 @@ export const scanSchema = z.object({
   scanValue: z.string().min(1),
   quantity: z.number().int().positive().optional(),
   unitNumbers: z.array(z.number().int().positive()).optional(),
-  deviceContext: z.string().max(500).optional(),
-  idempotencyKey: z.string().max(100).optional()
+  deviceContext: z.string().max(500).optional()
 });
 
 export const overrideSchema = z.object({
@@ -136,7 +144,7 @@ export const updateUserRoleSchema = z.object({
 });
 
 export const updateBookingSchema = z.object({
-  title: z.string().min(1).optional(),
+  title: z.string().trim().min(1).max(500).optional(),
   requesterUserId: z.string().cuid().optional(),
   locationId: z.string().cuid().optional(),
   startsAt: z.string().optional(),

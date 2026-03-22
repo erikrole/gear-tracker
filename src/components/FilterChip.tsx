@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ChevronDown, X } from "lucide-react";
 
 export function FilterChip({
   label,
@@ -28,21 +30,32 @@ export function FilterChip({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={`filter-chip ${active ? "filter-chip-active" : ""}`}
+        <Button
+          variant="outline"
+          size="sm"
+          className={`h-7 gap-1 text-xs rounded-full ${
+            active
+              ? "bg-muted/80 border-border"
+              : "text-muted-foreground"
+          }`}
         >
-          <span className="filter-chip-label">{label}{active && ":"}</span>
-          {active && <span className="filter-chip-value">{displayValue || value}</span>}
+          <span className="font-medium">{label}{active && ":"}</span>
+          {active && <span className="font-semibold text-foreground">{displayValue || value}</span>}
           {active ? (
             <span
-              className="filter-chip-clear"
+              role="button"
+              tabIndex={0}
+              aria-label={`Clear ${label} filter`}
+              className="ml-0.5 hover:text-foreground transition-colors"
               onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
-            >&times;</span>
+              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onClear(); setOpen(false); } }}
+            >
+              <X className="size-3" />
+            </span>
           ) : (
-            <span className="filter-chip-chevron">{"\u25BE"}</span>
+            <ChevronDown className="size-3 opacity-50" />
           )}
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent align="start" sideOffset={4} className="w-auto min-w-[140px] max-h-[240px] overflow-y-auto p-1">
         {options.map((opt) => (

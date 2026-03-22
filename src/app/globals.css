@@ -467,6 +467,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Prevent rubber-band overscroll on iOS */
+  overscroll-behavior-y: none;
+}
+
+/* Remove iOS tap highlight on all interactive elements */
+a, button, [role="button"], [tabindex], label, summary, select {
+  -webkit-tap-highlight-color: transparent;
 }
 
 button {

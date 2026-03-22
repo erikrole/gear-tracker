@@ -86,3 +86,16 @@ export const actionLabels: Record<string, string> = {
   "booking.items_removed": "removed items",
   "booking.items_qty_changed": "changed item quantities",
 };
+
+export function urgencyBadgeClassName(urgency: string): string {
+  switch (urgency) {
+    case "overdue":
+      return "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400";
+    case "critical":
+      return "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-400";
+    case "warning":
+      return "border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-500";
+    default:
+      return "";
+  }
+}

@@ -4,7 +4,6 @@ import { ok } from "@/lib/http";
 import { checkinItems } from "@/lib/services/bookings";
 import { BookingKind } from "@prisma/client";
 import { requireBookingAction } from "@/lib/services/booking-rules";
-import { createAuditEntry } from "@/lib/audit";
 
 const checkinItemsSchema = z.object({
   assetIds: z.array(z.string().cuid()).min(1),
@@ -16,16 +15,8 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   await requireBookingAction(id, user, "checkin", BookingKind.CHECKOUT);
 
+  // Audit entry is created inside checkinItems() within the SERIALIZABLE transaction
   const result = await checkinItems(id, user.id, body.assetIds);
-
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "booking",
-    entityId: id,
-    action: "checkin_items",
-    after: { assetIds: body.assetIds },
-  });
 
   return ok({ data: result });
 });

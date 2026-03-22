@@ -75,11 +75,19 @@ export default function BookingHistoryTab({
   const [filter, setFilter] = useState<HistoryFilter>("all");
 
   const filtered = useMemo(() => {
-    if (filter === "all") return auditLogs;
-    if (filter === "equipment") {
-      return auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
-    }
-    return auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    let entries: AuditEntry[];
+    if (filter === "all") entries = auditLogs;
+    else if (filter === "equipment") entries = auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
+    else entries = auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    // Pre-filter out update entries where all fields are hidden (would render as null)
+    return entries.filter((e) => {
+      if (e.action !== "updated" || !e.beforeJson || !e.afterJson) return true;
+      return Object.keys(e.afterJson).some((k) => {
+        const b = (e.beforeJson as Record<string, unknown>)?.[k];
+        const a = (e.afterJson as Record<string, unknown>)?.[k];
+        return describeFieldChange(k, b, a) !== null;
+      });
+    });
   }, [auditLogs, filter]);
 
   return (
@@ -126,9 +134,6 @@ export default function BookingHistoryTab({
                   .filter((c): c is NonNullable<typeof c> => c !== null)
               : [];
 
-            // Skip update entries where all changes were hidden
-            if (isUpdate && changes.length === 0) return null;
-
             return (
               <div
                 className="flex gap-2.5 items-start px-3 py-2 first:pt-2 last:pb-2"
@@ -157,6 +162,8 @@ export default function BookingHistoryTab({
                     <span className="text-sm text-muted-foreground">{label}</span>
                     <span className="text-xs text-muted-foreground/60 ml-auto shrink-0">
                       {formatRelative(entry.createdAt)}
+                      {" · "}
+                      {formatDateTime(entry.createdAt)}
                     </span>
                   </div>
 

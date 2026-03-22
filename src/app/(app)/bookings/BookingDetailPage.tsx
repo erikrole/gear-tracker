@@ -21,7 +21,9 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { Clock, ChevronDown } from "lucide-react";
+import { Clock, ChevronDown, Copy } from "lucide-react";
+import BookingDetailsSheet from "@/components/BookingDetailsSheet";
+import { useToast } from "@/components/Toast";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
@@ -31,8 +33,9 @@ import {
   toLocalDateTimeValue,
   actionLabels,
   formatRelative,
+  urgencyBadgeClassName,
 } from "@/components/booking-details/helpers";
-import { formatCountdown, getUrgency } from "@/lib/format";
+import { formatCountdown, formatDateTime, getUrgency } from "@/lib/format";
 
 import BookingInfoTab from "./BookingInfoTab";
 import BookingEquipmentTab from "./BookingEquipmentTab";
@@ -52,7 +55,7 @@ export default function BookingDetailPage({
   const { booking, loading, reloading, error, reload, patchLocal } = useBookingDetail(id);
 
   // Actions
-  const actions = useBookingActions(id, kind, reload);
+  const actions = useBookingActions(id, kind, reload, booking?.updatedAt);
 
   // Extend panel state
   const [showExtend, setShowExtend] = useState(false);
@@ -65,6 +68,10 @@ export default function BookingDetailPage({
 
   // History collapse state
   const [historyExpanded, setHistoryExpanded] = useState(false);
+
+  // Edit sheet state
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const { toast } = useToast();
 
   // Live countdown tick — faster for urgent/overdue bookings
   const [now, setNow] = useState(() => new Date());
@@ -86,6 +93,10 @@ export default function BookingDetailPage({
 
   async function handleExtend() {
     if (!extendDate) return;
+    if (new Date(extendDate) <= new Date()) {
+      toast("New end date must be in the future", "error");
+      return;
+    }
     const ok = await actions.extend(extendDate);
     if (ok) {
       setShowExtend(false);
@@ -106,17 +117,24 @@ export default function BookingDetailPage({
     const returning = Array.from(checkinIds);
     // Optimistically mark items as returned before API call
     const returningSet = new Set(returning);
+    const previousItems = booking!.serializedItems;
     patchLocal({
-      serializedItems: booking!.serializedItems.map((item) =>
+      serializedItems: previousItems.map((item) =>
         returningSet.has(item.asset.id)
           ? { ...item, allocationStatus: "returned" }
           : item,
       ),
     });
     setCheckinIds(new Set());
-    await actions.checkinItems(returning);
-    // Allow auto-select to re-fire on reload for remaining items
-    checkinIdsInitialised.current = false;
+    const ok = await actions.checkinItems(returning);
+    if (ok) {
+      // Allow auto-select to re-fire on reload for remaining items
+      checkinIdsInitialised.current = false;
+    } else {
+      // Rollback optimistic update on failure
+      patchLocal({ serializedItems: previousItems });
+      setCheckinIds(returningSet);
+    }
   }
 
   async function handleBulkReturn(bulkItemId: string) {
@@ -136,6 +154,7 @@ export default function BookingDetailPage({
   const canDuplicate = kind === "RESERVATION" && allowedActions.includes("duplicate");
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
+  const hasAnyAction = canEdit || canExtend || canConvert || canCancel || canDuplicate || canCheckin;
 
   // Auto-select all returnable serialized items on first load
   useEffect(() => {
@@ -148,6 +167,20 @@ export default function BookingDetailPage({
       checkinIdsInitialised.current = true;
     }
   }, [booking, canCheckin]);
+
+  // Keyboard shortcut: E to open edit sheet
+  useEffect(() => {
+    if (!canEdit) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === "e" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setEditSheetOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canEdit]);
 
   const listPath = kind === "CHECKOUT" ? "/checkouts" : "/reservations";
   const kindLabel = kind === "CHECKOUT" ? "checkout" : "reservation";
@@ -191,15 +224,14 @@ export default function BookingDetailPage({
     );
   }
 
-  const itemCount = booking.serializedItems.length + booking.bulkItems.length;
-  // unused const removed — history is fully collapsed or fully expanded now
+
 
   return (
     <div className="space-y-6">
       {/* Breadcrumb handled by global PageBreadcrumb in AppShell */}
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
           <InlineTitle
             value={booking.title}
@@ -208,12 +240,12 @@ export default function BookingDetailPage({
               await actions.saveField("title", v);
               patchLocal({ title: v });
             }}
-            className="text-2xl font-bold tracking-tight"
+            className="text-2xl font-semibold tracking-tight leading-tight"
             placeholder="Untitled booking"
           />
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        {hasAnyAction && <div className="flex items-center gap-2 shrink-0">
           {/* Actions dropdown — secondary/less-common actions */}
           {(canDuplicate || canCancel || (kind === "CHECKOUT" && isOpen) || (kind === "CHECKOUT" && canCheckin)) && (
             <DropdownMenu>
@@ -267,7 +299,7 @@ export default function BookingDetailPage({
           {canEdit && (
             <Button
               variant="outline"
-              onClick={() => router.push(`/${kindLabel}s?editId=${id}`)}
+              onClick={() => setEditSheetOpen(true)}
             >
               Edit
             </Button>
@@ -297,7 +329,7 @@ export default function BookingDetailPage({
               Check in
             </Button>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* ── Status strip ── */}
@@ -306,22 +338,27 @@ export default function BookingDetailPage({
           {statusLabel(booking.status, kind)}
         </Badge>
         {booking.refNumber && (
-          <Badge variant="outline" className="font-mono">
+          <Badge
+            variant="outline"
+            className="font-mono cursor-pointer hover:bg-muted/60 transition-colors gap-1"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(booking.refNumber!);
+                toast("Copied to clipboard", "success");
+              } catch {
+                toast("Failed to copy", "error");
+              }
+            }}
+            title="Click to copy"
+          >
             {booking.refNumber}
+            <Copy className="size-3 text-muted-foreground" />
           </Badge>
         )}
         {countdown && (
           <Badge
             variant="outline"
-            className={`gap-1.5 font-medium ${
-              urgency === "overdue"
-                ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400"
-                : urgency === "critical"
-                  ? "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-400"
-                  : urgency === "warning"
-                    ? "border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-500"
-                    : ""
-            }`}
+            className={`gap-1.5 font-medium ${urgencyBadgeClassName(urgency)}`}
           >
             <Clock className="size-3" />
             {countdown}
@@ -347,15 +384,15 @@ export default function BookingDetailPage({
 
       {/* ── Extend panel ── */}
       {showExtend && (
-        <Card className="p-4 border-border/40 shadow-none">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-semibold">New end date:</span>
-            <DateTimePicker
-              value={extendDate ? new Date(extendDate) : undefined}
-              onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
-              minDate={new Date(booking.endsAt)}
-              placeholder="Select new end date"
-            />
+        <Card className="p-4 border-border/40 shadow-none space-y-3">
+          <span className="text-sm font-medium">New end date</span>
+          <DateTimePicker
+            value={extendDate ? new Date(extendDate) : undefined}
+            onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
+            minDate={new Date(Math.max(new Date(booking.endsAt).getTime(), Date.now()))}
+            placeholder="Select new end date"
+          />
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
               onClick={handleExtend}
@@ -370,8 +407,7 @@ export default function BookingDetailPage({
             >
               Cancel
             </Button>
-          </div>
-          <div className="flex gap-2 mt-2">
+            <span className="border-l border-border/40 h-5 mx-1" />
             {[
               { label: "+1 day", days: 1 },
               { label: "+3 days", days: 3 },
@@ -447,7 +483,7 @@ export default function BookingDetailPage({
                 <p className="text-xs text-muted-foreground mt-1.5 ml-6 truncate">
                   {booking.auditLogs[0].actor?.name ?? "Unknown"}{" "}
                   {actionLabels[booking.auditLogs[0].action] || booking.auditLogs[0].action}{" "}
-                  — {formatRelative(booking.auditLogs[0].createdAt)}
+                  — {formatRelative(booking.auditLogs[0].createdAt)}{" · "}{formatDateTime(booking.auditLogs[0].createdAt)}
                 </p>
               )}
             </CardHeader>
@@ -459,6 +495,16 @@ export default function BookingDetailPage({
           </Card>
         </Collapsible>
       )}
+
+      {/* ── Edit sheet ── */}
+      <BookingDetailsSheet
+        bookingId={editSheetOpen ? id : null}
+        onClose={() => setEditSheetOpen(false)}
+        onUpdated={() => {
+          setEditSheetOpen(false);
+          reload();
+        }}
+      />
     </div>
   );
 }

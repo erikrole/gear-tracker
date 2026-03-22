@@ -52,9 +52,10 @@ export async function recordScan(args: {
   quantity?: number;
   unitNumbers?: number[];
   deviceContext?: string;
-  idempotencyKey?: string;
 }) {
   // Dedup: reject if an identical successful scan was recorded in the last 5 seconds
+  // TODO: implement proper idempotency key tracking via a dedicated DB column
+  // for stronger dedup than the time-window approach below
   const dedupeWindow = new Date(Date.now() - 5000);
   const recentDupe = await db.scanEvent.findFirst({
     where: {

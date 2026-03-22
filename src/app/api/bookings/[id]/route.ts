@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { ok } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import {
   getBookingDetail,
   updateReservation,
@@ -7,7 +7,7 @@ import {
 } from "@/lib/services/bookings";
 import { BookingKind } from "@prisma/client";
 import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
-import { updateBookingSchema } from "@/lib/validation";
+import { updateBookingSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
@@ -21,10 +21,20 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
-  const body = updateBookingSchema.parse(await req.json());
+  const body = sanitizeBookingFields(updateBookingSchema.parse(await req.json()));
 
   // Fetch current state for before-snapshot and kind detection
   const detail = await getBookingDetail(id);
+
+  // Optimistic locking: reject if client's snapshot is stale
+  const ifUnmodified = req.headers.get("if-unmodified-since");
+  if (ifUnmodified && detail.updatedAt) {
+    const clientTs = new Date(ifUnmodified).getTime();
+    const serverTs = new Date(detail.updatedAt).getTime();
+    if (!Number.isNaN(clientTs) && clientTs < serverTs) {
+      throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
+    }
+  }
 
   await requireBookingAction(id, user, "edit");
 
