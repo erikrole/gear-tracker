@@ -19,7 +19,7 @@ import {
   formatRelativeTime,
   isDueToday,
 } from "@/lib/format";
-import { ClipboardCheckIcon, CalendarCheckIcon, PackageIcon, CalendarIcon, InboxIcon, AlertTriangleIcon } from "lucide-react";
+import { ClipboardCheckIcon, CalendarCheckIcon, PackageIcon, CalendarIcon, InboxIcon, AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -211,6 +211,7 @@ export default function DashboardPage() {
   const [now, setNow] = useState(() => new Date());
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const confirm = useConfirm();
   const { toast } = useToast();
   const abortRef = useRef<AbortController | null>(null);
@@ -254,6 +255,7 @@ export default function DashboardPage() {
         d.stats = d.stats ?? { checkedOut: 0, overdue: 0, reserved: 0, dueToday: 0 };
         setData(d);
         setFetchError(false);
+        setLastRefreshed(new Date());
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -276,9 +278,11 @@ export default function DashboardPage() {
   if (fetchError) {
     return (
       <EmptyState
-        icon="box"
-        title="Couldn't load your dashboard"
-        description={fetchError === "network" ? "You appear to be offline. Check your connection and try again." : "Something went wrong on our end. Try again in a moment."}
+        icon={fetchError === "network" ? "bell" : "box"}
+        title={fetchError === "network" ? "You\u2019re offline" : "Couldn\u2019t load your dashboard"}
+        description={fetchError === "network"
+          ? "Check your connection and try again."
+          : "Something went wrong on our end. This is usually temporary."}
         actionLabel="Try again"
         onAction={() => { setFetchError(false); loadData(); }}
       />
@@ -306,10 +310,10 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-0 py-1">
                   {Array.from({ length: rows }).map((_, j) => (
-                    <div key={j} className="flex items-center gap-3 px-5 py-3">
+                    <div key={j} className="flex items-center gap-3 px-5 py-3" style={{ animationDelay: `${(i * rows + j) * 40}ms` }}>
                       <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
+                        <Skeleton className="h-4" style={{ width: `${70 + (j % 3) * 10}%` }} />
+                        <Skeleton className="h-3" style={{ width: `${40 + (j % 2) * 15}%` }} />
                       </div>
                       <Skeleton className="size-6 rounded-full" />
                     </div>
@@ -326,10 +330,10 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-0 py-1">
                   {Array.from({ length: rows }).map((_, j) => (
-                    <div key={j} className="flex items-center gap-3 px-5 py-3">
+                    <div key={j} className="flex items-center gap-3 px-5 py-3" style={{ animationDelay: `${(i * rows + j) * 40}ms` }}>
                       <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-3 w-1/2" />
+                        <Skeleton className="h-4" style={{ width: `${65 + (j % 3) * 12}%` }} />
+                        <Skeleton className="h-3" style={{ width: `${45 + (j % 2) * 10}%` }} />
                       </div>
                       <Skeleton className="size-6 rounded-full" />
                     </div>
@@ -347,7 +351,23 @@ export default function DashboardPage() {
     <>
       {/* ══════ Page Header + Quick Actions ══════ */}
       <div className="page-header">
-        <h1>Dashboard</h1>
+        <div className="flex items-center gap-3">
+          <h1>Dashboard</h1>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => loadData(true)}
+                disabled={refreshing}
+                className="text-muted-foreground"
+              >
+                <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
+          </Tooltip>
+        </div>
         <div className="quick-actions">
           <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
           <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
@@ -604,24 +624,29 @@ export default function DashboardPage() {
                             variant: "danger",
                           });
                           if (!ok) return;
+                          // Optimistic: remove from list immediately
                           setDeletingDraftId(d.id);
+                          const prevDrafts = data.drafts;
+                          setData((prev) => prev ? { ...prev, drafts: prev.drafts.filter((x) => x.id !== d.id) } : prev);
                           try {
                             const res = await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
                             if (res.status === 401) { window.location.href = "/login?returnTo=/"; return; }
                             if (res.ok) {
                               toast("Draft deleted", "success");
-                              loadData(true);
                             } else {
+                              // Rollback on failure
+                              setData((prev) => prev ? { ...prev, drafts: prevDrafts } : prev);
                               toast("Failed to delete draft", "error");
                             }
                           } catch {
+                            setData((prev) => prev ? { ...prev, drafts: prevDrafts } : prev);
                             toast("Network error \u2014 couldn\u2019t delete draft", "error");
                           } finally {
                             setDeletingDraftId(null);
                           }
                         }}
                       >
-                        {deletingDraftId === d.id ? "Deleting\u2026" : "Delete draft"}
+                        Delete draft
                       </Button>
                     </div>
                   </div>
