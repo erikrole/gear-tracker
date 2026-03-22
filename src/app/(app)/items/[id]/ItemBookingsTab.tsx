@@ -126,8 +126,8 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
         <CardHeader>
           <CardTitle>Tracking Codes</CardTitle>
         </CardHeader>
-        <CardContent className="p-16 pt-0">
-          <div className="flex gap-12 items-center">
+        <CardContent className="p-4 pt-0">
+          <div className="flex gap-4 items-center">
             <button
               className="asset-tag-label"
               onClick={() => setShowModal(true)}
@@ -142,15 +142,15 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
                 <QRCodeCanvas value={asset.qrCodeValue} size={96} margin={0} />
               </div>
             </button>
-            <div className="flex flex-col gap-2">
-              <Badge variant="outline" className="gap-1.5 font-mono text-xs">
-                <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">QR</span>
-                {asset.qrCodeValue}
+            <div className="flex flex-col gap-2 min-w-0">
+              <Badge variant="outline" className="gap-2 font-mono text-xs w-[180px] justify-start">
+                <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider shrink-0">QR</span>
+                <span className="truncate">{asset.qrCodeValue}</span>
               </Badge>
               {asset.serialNumber && (
-                <Badge variant="outline" className="gap-1.5 font-mono text-xs">
-                  <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">Serial</span>
-                  {asset.serialNumber}
+                <Badge variant="outline" className="gap-2 font-mono text-xs w-[180px] justify-start">
+                  <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider shrink-0">SN</span>
+                  <span className="truncate">{asset.serialNumber}</span>
                 </Badge>
               )}
             </div>
@@ -168,7 +168,7 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
   );
 }
 
-/* ── Saveable Toggle Row ───────────────────────────────── */
+/* ── Saveable Toggle Row (flat style matching SaveableField layout) ── */
 
 function SaveableToggle({
   label,
@@ -188,12 +188,7 @@ function SaveableToggle({
   });
 
   return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors",
-        checked && "border-primary/30 bg-primary/5",
-      )}
-    >
+    <div className="group/row flex items-center gap-3 rounded-md px-3 py-2.5 min-h-[44px] transition-colors hover:bg-muted/50">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium">{label}</Label>
@@ -213,7 +208,7 @@ function SaveableToggle({
   );
 }
 
-/* ── Settings Card (sidebar) ───────────────────────────── */
+/* ── Settings Card ───────────────────────────────────────── */
 
 function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
   const toggles = [
@@ -223,11 +218,11 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
   ];
 
   return (
-    <Card>
+    <Card className="border-border/40 shadow-none">
       <CardHeader>
-        <CardTitle>Settings</CardTitle>
+        <CardTitle>Availability</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-4 pt-0 space-y-2">
+      <div className="py-1 divide-y divide-border/30">
         {toggles.map((t) => (
           <SaveableToggle
             key={t.field}
@@ -246,7 +241,7 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
             }}
           />
         ))}
-      </CardContent>
+      </div>
     </Card>
   );
 }

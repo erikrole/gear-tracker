@@ -55,3 +55,285 @@
 ### Patterns
 - `SaveableField` + `useSaveField` is the canonical pattern for inline-editable fields. Any field with manual `useState` + `onBlur`/`onChange` save + `fetch(PATCH)` + status timeouts should be refactored to use it.
 - Future refactoring targets for SaveableField reuse: `CategoryRow.tsx` (rename + add subcategory inputs), `CategoriesPage.tsx` (add category input) — both in `/settings/categories/`. These have the exact same blur-save + fetch pattern.
+
+### Detail Page Architecture (Item Detail Overhaul)
+
+**Layout patterns:**
+- Global `a { color }` in CSS will override button text color when using `asChild` + `<Link>`. Always add a CSS rule: `[data-slot="button"] a { color: inherit; text-decoration: none; }`. Check this on ALL pages with button-wrapped links.
+- `TooltipTrigger asChild > Button asChild > Link` creates broken double-`asChild` nesting. Don't wrap buttons in tooltips when the button already uses `asChild`. Pick one: tooltip OR asChild link.
+- AppShell already renders a `<PageBreadcrumb />`. Pages should NOT render their own breadcrumbs — it causes double breadcrumb.
+- PageBreadcrumb must detect CUIDs (not just UUIDs) as dynamic segments. Regex: `/^c[a-z0-9]{20,}$/` in addition to the hex/UUID pattern.
+
+**Notion-style detail page principles:**
+- Title should be inline-editable in the header, not repeated as a field in the card below. Kill redundancy.
+- Key properties (status, location, category, department) belong as inline badges between the title and the tabs — visible without scrolling or expanding anything.
+- Flat property lists beat collapsible sections. Users almost never collapse them — the friction of expanding sections is worse than a longer list.
+- When two tabs share the same data shape with different filters (checkouts vs reservations), merge them into one tab with a filter toggle. Fewer tabs = less cognitive load.
+- Sidebar cards compete for attention. Settings toggles should live in their own tab, not the sidebar.
+- Accessories/sub-items also belong in their own tab rather than appended below the info card.
+- `updatedAt` is free metadata from Prisma — show "Last updated [date]" for context without needing the History tab.
+
+**Field ordering matters:**
+- Lead with identity fields (name, product name, brand, model, serial), then organizational fields (department, category, location), then procurement (date, fiscal year, price, link). This matches how users think about items.
+- Date placeholders should say "Add date" not show a fake formatted date like "January 01, 2025".
+- Fiscal year should auto-compute from purchase date BUT remain independently editable. Users may need to override the computed value. Don't make derived fields read-only — auto-fill as a convenience, not a constraint.
+
+**UX polish that compounds:**
+- URL-synced tabs (`?tab=bookings`) via `useSearchParams` + `replaceState` — makes tabs shareable/bookmarkable. Apply to all detail pages.
+- Keyboard shortcuts (1-N for tabs) with tiny `<kbd>` hints — power user speed. Apply everywhere tabs exist.
+- Sticky tab bars (`sticky top-0 z-10 bg-background/95 backdrop-blur-sm`) — essential for long content pages.
+- Duplicate detection on unique fields (serial number, asset tag) — warn on blur via search API before save.
+- Physical label layout in UI must exactly match the physical artifact. Always get a reference image.
+
+**Apply these to other detail pages:** User detail (`/users/[id]`), Reservation detail (`/reservations/[id]`), Checkout detail (`/checkouts/[id]`) — all should follow the same inline-title + badge-strip + flat-list + URL-synced-tabs pattern.
+
+---
+
+## Detail Page Playbook (Reference for All Detail Pages)
+
+> This is a complete blueprint for building any `[entity]/[id]` detail page.
+> Replicate patterns from `src/app/(app)/items/[id]/` — treat it as the gold standard.
+
+### Page Structure (top to bottom)
+
+```
+1. PageBreadcrumb (auto-rendered by AppShell — do NOT add your own)
+2. Page header (`.page-header`)
+   - Hero image (optional) with edit overlay
+   - InlineTitle (primary name, editable)
+   - Subtitle (secondary name, editable)
+   - Action buttons: Actions dropdown + primary CTAs (Reserve / Check out)
+3. Properties strip (badges: status, location, category, etc.)
+   - "Updated [date]" right-aligned with `ml-auto`
+4. Tabs (sticky, keyboard shortcuts, URL-synced)
+5. Tab content area
+```
+
+### Shared Components (import these, don't rebuild)
+
+| Component | Location | Purpose |
+|---|---|---|
+| `SaveableField` | `src/components/SaveableField.tsx` | Flat row layout: label (120px) + content + save indicator |
+| `useSaveField` | `src/components/SaveableField.tsx` | Hook: manages saving/saved/error status with auto-reset |
+| `CategoryCombobox` | `src/components/FormCombobox.tsx` | Combobox with search, clear, inline create |
+| `Badge` | `src/components/ui/badge.tsx` | Variants: green/blue/purple/orange/red/gray/outline |
+| `DatePicker` | `src/components/ui/date-picker.tsx` | Calendar popup date selector |
+| `NativeSelect` | `src/components/ui/native-select.tsx` | Styled native `<select>` dropdown |
+| `Empty` / `EmptyDescription` | `src/components/ui/empty.tsx` | Centered empty state with message |
+| `Spinner` | `src/components/ui/spinner.tsx` | Loading indicator |
+| `ChooseImageModal` | `src/components/ChooseImageModal.tsx` | Upload/URL image picker modal |
+| `BookingDetailsSheet` | `src/components/BookingDetailsSheet.tsx` | Side sheet for booking details |
+| `ConfirmDialog` / `useConfirm` | `src/components/ConfirmDialog.tsx` | Confirmation modal with danger variant |
+| `Toast` / `useToast` | `src/components/Toast.tsx` | Toast notifications (success/error) |
+
+### shadcn Components Used Across Detail Pages
+
+```tsx
+// Always use these from src/components/ui/:
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogCloseButton } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { NativeSelect } from "@/components/ui/native-select";
+```
+
+### Card Styling Standard
+
+```tsx
+// Info/property cards: subtle border, no shadow
+<Card className="border-border/40 shadow-none">
+  <div className="py-1 divide-y divide-border/30">
+    {/* SaveableField rows go here */}
+  </div>
+</Card>
+
+// Sidebar/operational cards: default card styling
+<Card>
+  <CardHeader><CardTitle>Title</CardTitle></CardHeader>
+  <CardContent className="p-4 pt-0">...</CardContent>
+</Card>
+```
+
+### Field Patterns
+
+**Text field (inline-editable, blur-save):**
+```tsx
+<SaveableField label="Field Name" status={saveField.status}>
+  <Input
+    value={draft}
+    onChange={(e) => setDraft(e.target.value)}
+    onBlur={commit}
+    className="h-8 text-sm border-transparent bg-transparent shadow-none
+               hover:bg-muted/60 hover:border-border/50
+               focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
+  />
+</SaveableField>
+```
+
+**Dropdown field (native select, save-on-change):**
+```tsx
+<SaveableField label="Field Name" status={saveField.status}>
+  <NativeSelect value={value} onChange={handleChange}
+    className="h-8 text-sm border-transparent bg-transparent shadow-none ..." />
+</SaveableField>
+```
+
+**Toggle field (flat row, no bordered card):**
+```tsx
+<div className="group/row flex items-center gap-3 rounded-md px-3 py-2.5 min-h-[44px] hover:bg-muted/50">
+  <div className="min-w-0 flex-1">
+    <Label>Toggle name</Label>
+    <p className="text-xs text-muted-foreground">Help text</p>
+  </div>
+  <Switch checked={value} onCheckedChange={toggle} />
+</div>
+```
+
+### Tab Setup (URL-synced + keyboard shortcuts)
+
+```tsx
+type TabKey = "info" | "bookings" | "history" | "settings";
+const tabDefs = [
+  { key: "info", label: "Info" },
+  { key: "bookings", label: "Bookings" },
+  // ...
+];
+
+// Read initial tab from URL
+const initialTab = (searchParams.get("tab") as TabKey) || "info";
+
+// Sync tab changes to URL
+function switchTab(tab: TabKey) {
+  setActiveTab(tab);
+  const url = new URL(window.location.href);
+  if (tab === "info") url.searchParams.delete("tab");
+  else url.searchParams.set("tab", tab);
+  window.history.replaceState({}, "", url.toString());
+}
+
+// Keyboard shortcuts
+useEffect(() => {
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.target instanceof HTMLInputElement || ...) return;
+    const num = parseInt(e.key);
+    if (num >= 1 && num <= tabDefs.length) switchTab(tabDefs[num - 1].key);
+  }
+  document.addEventListener("keydown", handleKeyDown);
+  return () => document.removeEventListener("keydown", handleKeyDown);
+}, []);
+
+// Render
+<Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
+  <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
+    {tabDefs.map((tab, i) => (
+      <TabsTrigger key={tab.key} value={tab.key}>
+        {tab.label}
+        <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">{i + 1}</kbd>
+      </TabsTrigger>
+    ))}
+  </TabsList>
+</Tabs>
+```
+
+### API Patterns
+
+**PATCH for inline saves:**
+```tsx
+const res = await fetch(`/api/[entity]/${id}`, {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ [fieldName]: value || null }),
+});
+if (!res.ok) throw new Error("Save failed");
+```
+
+**Optimistic local state update:**
+```tsx
+onFieldSaved({ [patchKey]: value } as Partial<EntityDetail>);
+// OR for full refresh:
+onRefresh(); // re-fetches the entity
+```
+
+**Activity feed API:**
+```tsx
+fetch(`/api/[entity]/${id}/activity`)  // returns { data: AuditEntry[] }
+```
+
+### History Tab: Field Display Rules
+
+- **HIDDEN_FIELDS**: `_actorRole`, `_actorId`, `_actorEmail`, `_actorName`, `updatedAt`, `createdAt`, `id`, `organizationId` — never show these
+- **ID_FIELDS**: `categoryId`, `departmentId`, `locationId` — show "set" / "removed" / "changed" instead of raw CUIDs
+- **Boolean fields**: Show "enabled" / "disabled" instead of true/false
+- **Skip entries** where all changes are hidden fields (don't show empty diff rows)
+- **Layout**: timestamp right-aligned, changes as labeled key-value pairs
+
+### Spacing & Row Standards
+
+- `SaveableField` rows: `px-3 py-2.5 min-h-[44px]` — consistent across ALL field types
+- Row dividers: `divide-y divide-border/30` on the grid container
+- Label width: `w-[120px]` (set in SaveableField)
+- Input height: `h-8` (32px)
+- Card content padding: `p-4 pt-0` for most cards
+- Tab content top margin: `mt-14` (gap between tabs bar and content)
+
+### Breadcrumb Behavior
+
+`PageBreadcrumb` automatically:
+- Builds crumbs from the URL path
+- Filters out dynamic segments (UUIDs and CUIDs)
+- On detail pages (where segments were filtered), keeps all visible crumbs as clickable links
+- Uses `LABEL_MAP` for known segment names
+- Falls back to title-casing for unknown segments
+
+### Grid Layout
+
+```css
+.details-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;  /* main column + sidebar */
+  gap: 20px;
+}
+/* Collapses to single column below 1000px */
+```
+
+### Empty States
+
+Always use shadcn Empty component:
+```tsx
+<Empty className="py-6 border-0">
+  <EmptyDescription>No items to display.</EmptyDescription>
+</Empty>
+```
+
+### Status Badge Mapping
+
+| Status | Variant | Label |
+|---|---|---|
+| AVAILABLE | green | Available |
+| CHECKED_OUT | blue | Checked out by [name] |
+| RESERVED | purple | Reserved by [name] |
+| MAINTENANCE | orange | Needs Maintenance |
+| RETIRED | gray | Retired |
+
+### Checklist for New Detail Pages
+
+- [ ] Uses `SaveableField` + `useSaveField` for all editable fields
+- [ ] Card styling: `border-border/40 shadow-none` + `divide-y divide-border/30`
+- [ ] Tabs: URL-synced, keyboard shortcuts, sticky
+- [ ] Properties strip with badges + right-aligned "Updated [date]"
+- [ ] History tab filters internal fields, resolves IDs to labels
+- [ ] Empty states use shadcn `Empty` component
+- [ ] All UI primitives are from `src/components/ui/` (shadcn)
+- [ ] No double breadcrumbs (AppShell handles it)
+- [ ] `min-h-[44px]` on all interactive rows
+- [ ] Loading state uses `Skeleton` components matching the layout

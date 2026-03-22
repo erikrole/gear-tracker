@@ -45,19 +45,48 @@ const ACTION_LABELS: Record<string, string> = {
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
-function describeFieldChange(key: string, before: unknown, after: unknown): string {
+/** Fields that are internal/system and should not be shown in the UI */
+const HIDDEN_FIELDS = new Set([
+  "_actorRole", "_actorId", "_actorEmail", "_actorName",
+  "updatedAt", "createdAt", "id", "organizationId",
+]);
+
+/** Fields whose values are opaque IDs — show "changed" instead of raw value */
+const ID_FIELDS = new Set([
+  "categoryId", "departmentId", "locationId", "parentAssetId",
+]);
+
+function describeFieldChange(key: string, before: unknown, after: unknown): { label: string; from: string; to: string } | null {
+  if (HIDDEN_FIELDS.has(key)) return null;
+
   const labels: Record<string, string> = {
     name: "Item name", brand: "Brand", model: "Model", assetTag: "Asset tag",
     serialNumber: "Serial number", status: "Status", purchasePrice: "Purchase price",
     purchaseDate: "Purchase date", warrantyDate: "Warranty date", residualValue: "Residual value",
     linkUrl: "Link", notes: "Notes", categoryId: "Category", qrCodeValue: "QR code",
+    departmentId: "Department", locationId: "Location", parentAssetId: "Parent item",
     availableForReservation: "Reservation availability", availableForCheckout: "Checkout availability",
-    availableForCustody: "Custody availability",
+    availableForCustody: "Custody availability", imageUrl: "Image",
   };
   const label = labels[key] || key;
+
+  // For ID fields, show "set" / "removed" / "changed" instead of raw IDs
+  if (ID_FIELDS.has(key)) {
+    const hadBefore = before != null && before !== "";
+    const hasAfter = after != null && after !== "";
+    if (!hadBefore && hasAfter) return { label, from: "", to: "set" };
+    if (hadBefore && !hasAfter) return { label, from: "", to: "removed" };
+    return { label, from: "", to: "changed" };
+  }
+
+  // Boolean fields
+  if (typeof after === "boolean" || after === "true" || after === "false") {
+    return { label, from: "", to: String(after) === "true" ? "enabled" : "disabled" };
+  }
+
   const from = before == null || before === "" ? "empty" : String(before);
   const to = after == null || after === "" ? "empty" : String(after);
-  return `${label}: ${from} \u2192 ${to}`;
+  return { label, from, to };
 }
 
 /* ── Activity Feed Component ────────────────────────────── */
@@ -94,7 +123,7 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col divide-y divide-border/40">
       {entries.map((entry) => {
         const actorName = entry.actor?.name || "System";
         const initial = actorName.slice(0, 1).toUpperCase();
@@ -102,48 +131,61 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
         const isUpdate = entry.action === "updated" && entry.beforeJson && entry.afterJson;
         const isBookingEvent = entry.entityType === "booking";
         const changes = isUpdate
-          ? Object.keys(entry.afterJson!).filter((k) => {
-              const b = (entry.beforeJson as Record<string, unknown>)?.[k];
-              const a = (entry.afterJson as Record<string, unknown>)?.[k];
-              return String(b ?? "") !== String(a ?? "");
-            })
+          ? Object.keys(entry.afterJson!)
+              .map((k) => {
+                const b = (entry.beforeJson as Record<string, unknown>)?.[k];
+                const a = (entry.afterJson as Record<string, unknown>)?.[k];
+                if (String(b ?? "") === String(a ?? "")) return null;
+                return describeFieldChange(k, b, a);
+              })
+              .filter((c): c is NonNullable<typeof c> => c !== null)
           : [];
 
+        // Skip update entries where all changes were hidden internal fields
+        if (isUpdate && changes.length === 0) return null;
+
         return (
-          <div className="flex gap-3 items-start" key={entry.id}>
-            <Avatar className={`size-7 text-xs shrink-0 ${isBookingEvent ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : ""}`}>
+          <div className="flex gap-3 items-start py-3 first:pt-0 last:pb-0" key={entry.id}>
+            <Avatar className={`size-7 text-xs shrink-0 mt-0.5 ${isBookingEvent ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : ""}`}>
               <AvatarFallback className={isBookingEvent ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : ""}>
                 {initial}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <div className="text-sm">
-                <strong>{actorName}</strong>{" "}
-                {isBookingEvent ? (
-                  <span>
-                    {actionLabel}
-                    {entry.afterJson && typeof entry.afterJson === "object" && "title" in entry.afterJson && (
-                      <> &mdash; <em>{String(entry.afterJson.title)}</em></>
-                    )}
-                  </span>
-                ) : (
-                  <span>{actionLabel}</span>
-                )}
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-sm font-medium">{actorName}</span>
+                <span className="text-sm text-muted-foreground">
+                  {isBookingEvent ? (
+                    <>
+                      {actionLabel}
+                      {entry.afterJson && typeof entry.afterJson === "object" && "title" in entry.afterJson && (
+                        <> &mdash; <em>{String(entry.afterJson.title)}</em></>
+                      )}
+                    </>
+                  ) : (
+                    actionLabel
+                  )}
+                </span>
+                <span className="text-xs text-muted-foreground/60 ml-auto shrink-0">{formatDateTime(entry.createdAt)}</span>
               </div>
-              {isUpdate && changes.length > 0 && (
-                <div className="mt-1.5 space-y-0.5">
-                  {changes.map((key) => (
-                    <div key={key} className="text-xs text-muted-foreground font-mono">
-                      {describeFieldChange(
-                        key,
-                        (entry.beforeJson as Record<string, unknown>)?.[key],
-                        (entry.afterJson as Record<string, unknown>)?.[key],
+              {changes.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-1">
+                  {changes.map((change) => (
+                    <div key={change.label} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <span className="font-medium text-foreground/70">{change.label}</span>
+                      {change.from ? (
+                        <>
+                          <span className="line-through opacity-50">{change.from}</span>
+                          <span className="text-muted-foreground/50">{"\u2192"}</span>
+                          <span>{change.to}</span>
+                        </>
+                      ) : (
+                        <span>{change.to}</span>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="text-xs text-muted-foreground mt-1">{formatDateTime(entry.createdAt)}</div>
             </div>
           </div>
         );

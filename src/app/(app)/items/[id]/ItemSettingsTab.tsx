@@ -108,80 +108,82 @@ export function AccessoriesSection({
   if (isChild) return null;
 
   return (
-    <Card className="mt-14">
-      <CardHeader className="flex justify-between items-center">
-        <CardTitle>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</CardTitle>
-        {canEdit && !attaching && (
-          <Button variant="outline" size="sm" onClick={() => setAttaching(true)}>
-            + Attach
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent className="p-16">
-        {attaching && (
-          <div className="mb-16">
-            <Input
-              type="text"
-              placeholder="Search by asset tag, brand, or model..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              autoFocus
-            />
-            {searching && <div className="text-sm text-muted-foreground mt-2">Searching...</div>}
-            {searchResults.length > 0 && (
-              <div className="mt-2 rounded-md border divide-y">
-                {searchResults.map((r) => (
-                  <button
-                    key={r.id}
-                    className="w-full text-left px-3 py-2 hover:bg-muted/50 flex justify-between items-center text-sm transition-colors"
-                    onClick={() => attachAccessory(r.id)}
-                  >
-                    <span className="font-mono font-medium">{r.assetTag}</span>
-                    <span className="text-muted-foreground">{r.brand} {r.model}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-              <div className="text-sm text-muted-foreground mt-2">No matching items found</div>
-            )}
-            <Button variant="outline" size="sm" className="mt-3" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
-              Cancel
+    <div className="mt-14 max-w-2xl">
+      <Card className="border-border/40 shadow-none">
+        <CardHeader>
+          <CardTitle>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</CardTitle>
+          {canEdit && !attaching && (
+            <Button variant="outline" size="sm" onClick={() => setAttaching(true)}>
+              Attach accessory
             </Button>
-          </div>
-        )}
-
-        {accessories.length === 0 && !attaching && (
-          <Empty className="py-8 border-0">
-            <EmptyDescription>No accessories attached to this item.</EmptyDescription>
-          </Empty>
-        )}
-
-        {accessories.length > 0 && (
-          <div className="data-list">
-            {accessories.map((acc) => (
-              <div key={acc.id} className="data-list-row flex justify-between items-center">
-                <div>
-                  <Link href={`/items/${acc.id}`} className="font-mono text-sm font-medium">
-                    {acc.assetTag}
-                  </Link>
-                  <span className="text-sm text-muted-foreground ml-2">{acc.brand} {acc.model}</span>
+          )}
+        </CardHeader>
+        <CardContent className="p-4 pt-0">
+          {attaching && (
+            <div className="mb-4">
+              <Input
+                type="text"
+                placeholder="Search by asset tag, brand, or model..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                autoFocus
+              />
+              {searching && <div className="text-sm text-muted-foreground mt-2">Searching...</div>}
+              {searchResults.length > 0 && (
+                <div className="mt-2 rounded-md border divide-y">
+                  {searchResults.map((r) => (
+                    <button
+                      key={r.id}
+                      className="w-full text-left px-3 py-2 hover:bg-muted/50 flex justify-between items-center text-sm transition-colors"
+                      onClick={() => attachAccessory(r.id)}
+                    >
+                      <span className="font-mono font-medium">{r.assetTag}</span>
+                      <span className="text-muted-foreground">{r.brand} {r.model}</span>
+                    </button>
+                  ))}
                 </div>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => detachAccessory(acc.id, acc.assetTag)}
-                    title="Detach accessory"
-                  >
-                    Detach
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              )}
+              {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
+                <div className="text-sm text-muted-foreground mt-2">No matching items found</div>
+              )}
+              <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setAttaching(false); setSearchQuery(""); setSearchResults([]); }}>
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {accessories.length === 0 && !attaching && (
+            <Empty className="py-6 border-0">
+              <EmptyDescription>No accessories attached to this item.</EmptyDescription>
+            </Empty>
+          )}
+
+          {accessories.length > 0 && (
+            <div className="divide-y divide-border/30">
+              {accessories.map((acc) => (
+                <div key={acc.id} className="flex justify-between items-center py-2.5 min-h-[44px]">
+                  <div>
+                    <Link href={`/items/${acc.id}`} className="font-mono text-sm font-medium">
+                      {acc.assetTag}
+                    </Link>
+                    <span className="text-sm text-muted-foreground ml-2">{acc.brand} {acc.model}</span>
+                  </div>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => detachAccessory(acc.id, acc.assetTag)}
+                      title="Detach accessory"
+                    >
+                      Detach
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

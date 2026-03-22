@@ -171,12 +171,13 @@ function SerialBadge({ serialNumber }: { serialNumber: string }) {
             className="font-mono cursor-pointer select-none gap-1.5"
             onClick={handleCopy}
           >
+            <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">SN</span>
+            {serialNumber}
             {copied ? (
               <Check className="size-3 text-green-600 dark:text-green-400" />
             ) : (
-              <Copy className="size-3" />
+              <Copy className="size-3 text-muted-foreground" />
             )}
-            {serialNumber}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>{copied ? "Copied!" : "Click to copy serial number"}</TooltipContent>
@@ -531,14 +532,12 @@ export default function ItemDetailsPage() {
         {asset.category && <Badge variant="outline">{asset.category.name}</Badge>}
         {asset.department && <Badge variant="outline">{asset.department.name}</Badge>}
         {asset.serialNumber && <SerialBadge serialNumber={asset.serialNumber} />}
+        {asset.updatedAt && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            Updated {new Date(asset.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </span>
+        )}
       </div>
-
-      {/* Last edited */}
-      {asset.updatedAt && (
-        <div className="text-xs text-muted-foreground mb-6">
-          Last updated {new Date(asset.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-        </div>
-      )}
 
       {/* Parent banner — shown when this item is an accessory */}
       {asset.parentAsset && (
@@ -606,9 +605,9 @@ export default function ItemDetailsPage() {
 
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
-        <Card className="mt-14">
+        <Card className="mt-14 border-border/40 shadow-none max-w-3xl">
           <CardHeader><CardTitle>Activity Log</CardTitle></CardHeader>
-          <CardContent className="p-16">
+          <CardContent className="p-4">
             <ActivityFeed assetId={asset.id} />
           </CardContent>
         </Card>
