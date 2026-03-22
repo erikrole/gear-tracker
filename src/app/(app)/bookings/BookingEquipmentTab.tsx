@@ -44,6 +44,22 @@ export default function BookingEquipmentTab({
     (i) => i.allocationStatus !== "returned",
   ).length;
 
+  // Checkin progress for checkouts
+  const returnedSerialized = booking.serializedItems.filter(
+    (i) => i.allocationStatus === "returned",
+  ).length;
+  const totalBulkOut = booking.bulkItems.reduce(
+    (sum, i) => sum + (i.checkedOutQuantity ?? i.plannedQuantity),
+    0,
+  );
+  const totalBulkIn = booking.bulkItems.reduce(
+    (sum, i) => sum + (i.checkedInQuantity ?? 0),
+    0,
+  );
+  const totalOut = booking.serializedItems.length + totalBulkOut;
+  const totalReturned = returnedSerialized + totalBulkIn;
+  const showProgress = isCheckout && totalReturned > 0 && totalOut > 0;
+
   const filteredSerialized = useMemo(() => {
     if (!search) return booking.serializedItems;
     const q = search.toLowerCase();
@@ -69,12 +85,27 @@ export default function BookingEquipmentTab({
       {/* Header */}
       <CardHeader className="pb-0">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">
-            Equipment
-            <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-              {itemCount} item{itemCount !== 1 ? "s" : ""}
-            </span>
-          </CardTitle>
+          <div>
+            <CardTitle className="text-base">
+              Equipment
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                {itemCount} item{itemCount !== 1 ? "s" : ""}
+              </span>
+            </CardTitle>
+            {showProgress && (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-green-500 transition-all duration-300"
+                    style={{ width: `${Math.round((totalReturned / totalOut) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {totalReturned}/{totalOut} returned
+                </span>
+              </div>
+            )}
+          </div>
           {canCheckin && (
             <div className="flex items-center gap-2">
               {returnableCount > 0 && (

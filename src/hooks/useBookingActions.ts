@@ -55,6 +55,7 @@ export function useBookingActions(
     setActionLoading("cancel");
     const result = await callAction(`/api/bookings/${bookingId}/cancel`);
     if (result.ok) {
+      toast(`${label.charAt(0).toUpperCase() + label.slice(1)} cancelled`, "success");
       onSuccess();
     } else {
       toast(result.error!, "error");
@@ -69,6 +70,7 @@ export function useBookingActions(
         endsAt: new Date(endsAt).toISOString(),
       });
       if (result.ok) {
+        toast("Booking extended", "success");
         onSuccess();
       } else {
         toast(result.error!, "error");
@@ -118,6 +120,7 @@ export function useBookingActions(
         assetIds,
       });
       if (result.ok) {
+        toast(`${assetIds.length} item${assetIds.length > 1 ? "s" : ""} returned`, "success");
         onSuccess();
       } else {
         toast(result.error!, "error");
@@ -136,6 +139,7 @@ export function useBookingActions(
         quantity,
       });
       if (result.ok) {
+        toast("Bulk items returned", "success");
         onSuccess();
       } else {
         toast(result.error!, "error");
@@ -156,6 +160,7 @@ export function useBookingActions(
     setActionLoading("complete-checkin");
     const result = await callAction(`/api/checkouts/${bookingId}/complete-checkin`);
     if (result.ok) {
+      toast("Check in completed", "success");
       onSuccess();
     } else {
       toast(result.error!, "error");

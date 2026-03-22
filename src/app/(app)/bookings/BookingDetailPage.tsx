@@ -89,15 +89,28 @@ export default function BookingDetailPage({
 
   function handleQuickExtend(days: number) {
     if (!booking) return;
-    const current = new Date(booking.endsAt);
-    current.setDate(current.getDate() + days);
-    setExtendDate(toLocalDateTimeValue(current));
+    // Offset from the currently picked date if set, otherwise from booking end
+    const base = extendDate ? new Date(extendDate) : new Date(booking.endsAt);
+    base.setDate(base.getDate() + days);
+    setExtendDate(toLocalDateTimeValue(base));
     setShowExtend(true);
   }
 
   async function handleCheckinSelected() {
-    await actions.checkinItems(Array.from(checkinIds));
+    const returning = Array.from(checkinIds);
+    // Optimistically mark items as returned before API call
+    const returningSet = new Set(returning);
+    patchLocal({
+      serializedItems: booking!.serializedItems.map((item) =>
+        returningSet.has(item.asset.id)
+          ? { ...item, allocationStatus: "returned" }
+          : item,
+      ),
+    });
     setCheckinIds(new Set());
+    await actions.checkinItems(returning);
+    // Allow auto-select to re-fire on reload for remaining items
+    checkinIdsInitialised.current = false;
   }
 
   async function handleBulkReturn(bulkItemId: string) {
@@ -115,7 +128,6 @@ export default function BookingDetailPage({
   const canCheckin = allowedActions.includes("checkin");
   const canConvert = kind === "RESERVATION" && allowedActions.includes("convert");
   const canDuplicate = kind === "RESERVATION" && allowedActions.includes("duplicate");
-  const canOpen = allowedActions.includes("open");
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
 
