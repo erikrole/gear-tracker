@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -23,34 +23,14 @@ import {
 } from "@/components/ui/tooltip";
 import {
   Check,
-  ChevronDown,
   ExternalLink,
   Copy,
 } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { CategoryCombobox } from "@/components/FormCombobox";
-
-/* ── Constants ─────────────────────────────────────────── */
-
-function getFiscalYearOptions(): string[] {
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  const currentFY = month >= 6 ? year + 1 : year;
-  const options: string[] = [];
-  for (let fy = currentFY + 1; fy >= currentFY - 10; fy--) {
-    options.push(String(fy));
-  }
-  return options;
-}
 
 /* ── Text Input Field ──────────────────────────────────── */
 
@@ -62,6 +42,7 @@ function TextInputField({
   onSave,
   mono,
   readOnly,
+  warnDuplicate,
 }: {
   label: string;
   value: string;
@@ -70,8 +51,11 @@ function TextInputField({
   onSave: (v: string) => Promise<void>;
   mono?: boolean;
   readOnly?: boolean;
+  /** If set, checks for duplicate values on blur via search API */
+  warnDuplicate?: { field: "assetTag" | "serialNumber"; assetId: string };
 }) {
   const [draft, setDraft] = useState(value);
+  const [dupWarning, setDupWarning] = useState("");
   const saveField = useSaveField(onSave);
   const fieldId = useId();
 
@@ -79,37 +63,59 @@ function TextInputField({
     setDraft(value);
   }, [value]);
 
+  async function checkDuplicate(val: string) {
+    if (!warnDuplicate || !val || val === value) { setDupWarning(""); return; }
+    try {
+      const res = await fetch(`/api/assets?q=${encodeURIComponent(val)}&limit=5`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const matches = (json.data || []).filter(
+        (a: { id: string; assetTag: string; serialNumber: string }) =>
+          a.id !== warnDuplicate.assetId &&
+          (warnDuplicate.field === "assetTag" ? a.assetTag === val : a.serialNumber === val)
+      );
+      setDupWarning(matches.length > 0 ? `Duplicate found: ${matches[0].assetTag}` : "");
+    } catch { /* ignore */ }
+  }
+
   async function commit() {
     const trimmed = draft.trim();
     if (trimmed === value) return;
+    await checkDuplicate(trimmed);
     await saveField.save(trimmed);
   }
 
   return (
     <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
-      <Input
-        id={fieldId}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.currentTarget.blur();
-          }
-          if (e.key === "Escape") {
-            setDraft(value);
-            saveField.reset();
-          }
-        }}
-        placeholder={placeholder}
-        disabled={!canEdit || readOnly}
-        className={cn(
-          "h-8 text-sm border-transparent bg-transparent shadow-none",
-          "hover:bg-muted/60 hover:border-border/50",
-          "focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs",
-          mono && "font-mono",
+      <div className="flex-1 min-w-0">
+        <Input
+          id={fieldId}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+            if (e.key === "Escape") {
+              setDraft(value);
+              saveField.reset();
+              setDupWarning("");
+            }
+          }}
+          placeholder={placeholder}
+          disabled={!canEdit || readOnly}
+          className={cn(
+            "h-8 text-sm border-transparent bg-transparent shadow-none",
+            "hover:bg-muted/60 hover:border-border/50",
+            "focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs",
+            mono && "font-mono",
+          )}
+        />
+        {dupWarning && (
+          <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5 px-1">{dupWarning}</p>
         )}
-      />
+      </div>
     </SaveableField>
   );
 }
@@ -556,29 +562,6 @@ export function QRModal({
   );
 }
 
-/* ── Collapsible Section Header ────────────────────────── */
-
-const SectionHeader = React.forwardRef<
-  HTMLDivElement,
-  { title: string; open: boolean } & React.HTMLAttributes<HTMLDivElement>
->(function SectionHeader({ title, open, ...props }, ref) {
-  return (
-    <div ref={ref} className="col-span-full px-3 pt-5 pb-1" {...props}>
-      <div className="flex items-center gap-1.5 w-full text-left group cursor-pointer border-b border-border/40 pb-1.5">
-        <ChevronDown
-          className={cn(
-            "size-3 text-muted-foreground/60 transition-transform duration-200",
-            !open && "-rotate-90",
-          )}
-        />
-        <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60 cursor-pointer group-hover:text-muted-foreground transition-colors">
-          {title}
-        </span>
-      </div>
-    </div>
-  );
-});
-
 /* ── Item Info Card (tab entry point) ───────────────────── */
 
 export type LocationOption = { id: string; name: string };
@@ -607,10 +590,6 @@ export default function ItemInfoCard({
   onCategoriesChanged: () => void;
   onDepartmentsChanged: () => void;
 }) {
-  const [identityOpen, setIdentityOpen] = useState(true);
-  const [procurementOpen, setProcurementOpen] = useState(true);
-  const [adminOpen, setAdminOpen] = useState(true);
-
   const saveField = useCallback(
     async (patchKey: string, value: string) => {
       const body: Record<string, unknown> = {};
@@ -709,147 +688,107 @@ export default function ItemInfoCard({
   return (
     <Card className="details-card border-border/40 shadow-none">
       <div className="py-1">
-        {/* ── Identity Section ── */}
-        <Collapsible open={identityOpen} onOpenChange={setIdentityOpen}>
-          <CollapsibleTrigger asChild>
-            <SectionHeader title="Identity" open={identityOpen} />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="grid grid-cols-1 gap-y-1">
-              <TextInputField
-                label="Asset tag"
-                value={asset.assetTag}
+        <div className="grid grid-cols-1 gap-y-0">
+          <TextInputField
+            label="Brand"
+            value={asset.brand}
+            placeholder="Add brand"
+            canEdit={canEdit}
+            onSave={(v) => saveField("brand", v)}
+          />
+          <TextInputField
+            label="Model"
+            value={asset.model}
+            placeholder="Add model"
+            canEdit={canEdit}
+            onSave={(v) => saveField("model", v)}
+          />
+          <TextInputField
+            label="Serial number"
+            value={asset.serialNumber}
+            canEdit={canEdit}
+            onSave={(v) => saveField("serialNumber", v)}
+            mono
+            warnDuplicate={{ field: "serialNumber", assetId: asset.id }}
+          />
+          <TextInputField
+            label="UW Asset Tag"
+            value={asset.metadata?.uwAssetTag || ""}
+            placeholder="Add UW asset tag"
+            canEdit={canEdit}
+            onSave={(v) => saveField("metadata.uwAssetTag", v)}
+          />
+          <SaveableNativeSelectField
+            label="Location"
+            value={asset.location.id}
+            options={locations.map((l) => ({ value: l.id, label: l.name }))}
+            placeholder="Select location"
+            canEdit={canEdit}
+            onSave={saveLocation}
+          />
+          <SaveableNativeSelectField
+            label="Department"
+            value={asset.department?.name || ""}
+            options={departments.map((d) => ({ value: d.name, label: d.name }))}
+            placeholder="Select department"
+            canEdit={canEdit}
+            onSave={saveDepartment}
+          />
+          <SaveableCategoryField
+            currentId={asset.category?.id || ""}
+            displayName={asset.category?.name || ""}
+            canEdit={canEdit}
+            categories={categories}
+            onSave={saveCategory}
+            onCategoriesChanged={onCategoriesChanged}
+            ghost
+          />
+          {/* ── Procurement fields (hidden from students) ── */}
+          {currentUserRole !== "STUDENT" && (
+            <>
+              <SaveableDatePickerField
+                label="Purchase date"
+                value={
+                  asset.purchaseDate
+                    ? asset.purchaseDate.slice(0, 10)
+                    : ""
+                }
                 canEdit={canEdit}
-                onSave={(v) => saveField("assetTag", v)}
-              />
-              <TextInputField
-                label="Item name"
-                value={asset.name || ""}
-                placeholder="Add item name"
-                canEdit={canEdit}
-                onSave={(v) => saveField("name", v)}
-              />
-              <TextInputField
-                label="Brand"
-                value={asset.brand}
-                placeholder="Add brand"
-                canEdit={canEdit}
-                onSave={(v) => saveField("brand", v)}
-              />
-              <TextInputField
-                label="Model"
-                value={asset.model}
-                placeholder="Add model"
-                canEdit={canEdit}
-                onSave={(v) => saveField("model", v)}
-              />
-              <TextInputField
-                label="Serial number"
-                value={asset.serialNumber}
-                canEdit={canEdit}
-                onSave={(v) => saveField("serialNumber", v)}
-                mono
-              />
-              <TextInputField
-                label="UW Asset Tag"
-                value={asset.metadata?.uwAssetTag || ""}
-                placeholder="Add UW asset tag"
-                canEdit={canEdit}
-                onSave={(v) => saveField("metadata.uwAssetTag", v)}
-              />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* ── Procurement Section ── */}
-        {currentUserRole !== "STUDENT" && (
-          <Collapsible open={procurementOpen} onOpenChange={setProcurementOpen}>
-            <CollapsibleTrigger asChild>
-              <SectionHeader title="Procurement" open={procurementOpen} />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="grid grid-cols-1 gap-y-1">
-                <SaveableDatePickerField
-                  label="Purchase date"
-                  value={
-                    asset.purchaseDate
-                      ? asset.purchaseDate.slice(0, 10)
-                      : ""
+                onSave={async (v) => {
+                  await saveField("purchaseDate", v);
+                  if (v) {
+                    const fy = computeFiscalYear(v);
+                    if (fy) await saveField("metadata.fiscalYearPurchased", fy);
                   }
-                  canEdit={canEdit}
-                  onSave={async (v) => {
-                    await saveField("purchaseDate", v);
-                    // Auto-fill fiscal year based on purchase date
-                    if (v) {
-                      const fy = computeFiscalYear(v);
-                      if (fy) await saveField("metadata.fiscalYearPurchased", fy);
-                    }
-                  }}
-                />
-                <LinkField
-                  label="Link"
-                  value={asset.linkUrl || ""}
-                  placeholder="Add product link"
-                  canEdit={canEdit}
-                  onSave={(v) => saveField("linkUrl", v)}
-                />
-                <TextInputField
-                  label="Purchase price"
-                  value={
-                    asset.purchasePrice ? String(asset.purchasePrice) : ""
-                  }
-                  placeholder="Add purchase price"
-                  canEdit={canEdit}
-                  onSave={(v) => saveField("purchasePrice", v)}
-                />
-                <TextInputField
-                  label="Fiscal Year"
-                  value={asset.metadata?.fiscalYearPurchased || ""}
-                  placeholder="Auto-filled from purchase date"
-                  canEdit={false}
-                  readOnly
-                  onSave={async () => {}}
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {/* ── Administrative Section ── */}
-        <Collapsible open={adminOpen} onOpenChange={setAdminOpen}>
-          <CollapsibleTrigger asChild>
-            <SectionHeader title="Administrative" open={adminOpen} />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="grid grid-cols-1 gap-y-1">
-              <SaveableNativeSelectField
-                label="Location"
-                value={asset.location.id}
-                options={locations.map((l) => ({ value: l.id, label: l.name }))}
-                placeholder="Select location"
-                canEdit={canEdit}
-                onSave={saveLocation}
+                }}
               />
-              <SaveableNativeSelectField
-                label="Department"
-                value={asset.department?.name || ""}
-                options={departments.map((d) => ({ value: d.name, label: d.name }))}
-                placeholder="Select department"
+              <LinkField
+                label="Link"
+                value={asset.linkUrl || ""}
+                placeholder="Add product link"
                 canEdit={canEdit}
-                onSave={saveDepartment}
+                onSave={(v) => saveField("linkUrl", v)}
               />
-              <SaveableCategoryField
-                currentId={asset.category?.id || ""}
-                displayName={asset.category?.name || ""}
+              <TextInputField
+                label="Purchase price"
+                value={
+                  asset.purchasePrice ? String(asset.purchasePrice) : ""
+                }
+                placeholder="Add purchase price"
                 canEdit={canEdit}
-                categories={categories}
-                onSave={saveCategory}
-                onCategoriesChanged={onCategoriesChanged}
-                ghost
+                onSave={(v) => saveField("purchasePrice", v)}
               />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+              <TextInputField
+                label="Fiscal Year"
+                value={asset.metadata?.fiscalYearPurchased || ""}
+                placeholder="Auto-filled from purchase date"
+                canEdit={false}
+                readOnly
+                onSave={async () => {}}
+              />
+            </>
+          )}
+        </div>
       </div>
     </Card>
   );

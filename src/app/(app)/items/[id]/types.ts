@@ -21,6 +21,7 @@ export type UpcomingReservation = {
 
 export type AssetDetail = {
   id: string;
+  updatedAt: string;
   assetTag: string;
   name: string | null;
   type: string;
