@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { InlineTitle } from "@/components/InlineTitle";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
@@ -50,66 +51,6 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "accessories", label: "Accessories" },
   { key: "settings", label: "Settings" },
 ];
-
-/* ── Inline Editable Title ──────────────────────────────── */
-
-function InlineTitle({
-  value,
-  canEdit,
-  onSave,
-  className,
-  placeholder,
-}: {
-  value: string;
-  canEdit: boolean;
-  onSave: (v: string) => Promise<void>;
-  className?: string;
-  placeholder?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setDraft(value); }, [value]);
-  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
-
-  async function commit() {
-    setEditing(false);
-    const trimmed = draft.trim();
-    if (!trimmed || trimmed === value) { setDraft(value); return; }
-    try { await onSave(trimmed); } catch { setDraft(value); }
-  }
-
-  if (!canEdit) {
-    return <span className={className}>{value || placeholder}</span>;
-  }
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") { setDraft(value); setEditing(false); }
-        }}
-        className={`${className} bg-transparent border-none outline-none ring-1 ring-ring rounded px-1 -mx-1`}
-      />
-    );
-  }
-
-  return (
-    <span
-      className={`${className} cursor-pointer hover:bg-muted/60 rounded px-1 -mx-1 transition-colors`}
-      onClick={() => setEditing(true)}
-      title="Click to edit"
-    >
-      {value || <span className="text-muted-foreground">{placeholder}</span>}
-    </span>
-  );
-}
 
 /* ── Status Line ────────────────────────────────────────── */
 

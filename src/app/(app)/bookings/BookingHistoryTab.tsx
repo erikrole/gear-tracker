@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
@@ -84,7 +83,7 @@ export default function BookingHistoryTab({
   }, [auditLogs, filter]);
 
   return (
-    <Card className="border-border/40 shadow-none">
+    <div>
       {/* Filter chips */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/30">
         {FILTER_OPTIONS.map(({ key, label }) => (
@@ -232,6 +231,6 @@ export default function BookingHistoryTab({
           })}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

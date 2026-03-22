@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { InlineTitle } from "@/components/InlineTitle";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
@@ -27,66 +28,6 @@ import type { TabKey } from "@/components/booking-details/types";
 import BookingInfoTab from "./BookingInfoTab";
 import BookingEquipmentTab from "./BookingEquipmentTab";
 import BookingHistoryTab from "./BookingHistoryTab";
-
-/* ── Inline Editable Title ── */
-
-function InlineTitle({
-  value,
-  canEdit,
-  onSave,
-  className,
-  placeholder,
-}: {
-  value: string;
-  canEdit: boolean;
-  onSave: (v: string) => Promise<void>;
-  className?: string;
-  placeholder?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setDraft(value); }, [value]);
-  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
-
-  async function commit() {
-    setEditing(false);
-    const trimmed = draft.trim();
-    if (!trimmed || trimmed === value) { setDraft(value); return; }
-    try { await onSave(trimmed); } catch { setDraft(value); }
-  }
-
-  if (!canEdit) {
-    return <span className={className}>{value || placeholder}</span>;
-  }
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") { setDraft(value); setEditing(false); }
-        }}
-        className={`${className} bg-transparent border-none outline-none ring-1 ring-ring rounded px-1 -mx-1`}
-      />
-    );
-  }
-
-  return (
-    <span
-      className={`${className} cursor-pointer hover:bg-muted/60 rounded px-1 -mx-1 transition-colors`}
-      onClick={() => setEditing(true)}
-      title="Click to edit"
-    >
-      {value || <span className="text-muted-foreground">{placeholder}</span>}
-    </span>
-  );
-}
 
 /* ── Tab Definitions ── */
 
@@ -267,11 +208,6 @@ export default function BookingDetailPage({
             className="text-2xl font-bold tracking-tight"
             placeholder="Untitled booking"
           />
-          {booking.refNumber && (
-            <span className="ml-3 text-sm text-muted-foreground font-mono">
-              {booking.refNumber}
-            </span>
-          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -291,7 +227,7 @@ export default function BookingDetailPage({
                 </Button>
               )}
               {canCheckin && (
-                <Button size="sm" variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-950/30 dark:text-green-400" asChild>
+                <Button size="sm" variant="outline" asChild>
                   <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan Items In</Link>
                 </Button>
               )}
@@ -354,6 +290,11 @@ export default function BookingDetailPage({
           {booking.status.toLowerCase()}
         </Badge>
         {isOverdue && <Badge variant="red">overdue</Badge>}
+        {booking.refNumber && (
+          <Badge variant="outline" className="font-mono">
+            {booking.refNumber}
+          </Badge>
+        )}
         {booking.location && <Badge variant="outline">{booking.location.name}</Badge>}
         <Badge variant="outline">{booking.requester?.name ?? "Unknown"}</Badge>
         {booking.updatedAt && (
@@ -442,17 +383,19 @@ export default function BookingDetailPage({
       </Tabs>
 
       {/* ── Tab content ── */}
-      <div className="mt-6">
-        {activeTab === "info" && (
+      {activeTab === "info" && (
+        <div className="mt-14 max-w-3xl">
           <BookingInfoTab
             booking={booking}
             canEdit={canEdit}
             onSave={actions.saveField}
             onPatch={patchLocal}
           />
-        )}
+        </div>
+      )}
 
-        {activeTab === "equipment" && (
+      {activeTab === "equipment" && (
+        <div className="mt-14">
           <BookingEquipmentTab
             booking={booking}
             canCheckin={kind === "CHECKOUT" && canCheckin}
@@ -466,12 +409,19 @@ export default function BookingDetailPage({
             onBulkReturn={handleBulkReturn}
             actionLoading={actions.actionLoading}
           />
-        )}
+        </div>
+      )}
 
-        {activeTab === "history" && (
-          <BookingHistoryTab auditLogs={booking.auditLogs} />
-        )}
-      </div>
+      {activeTab === "history" && (
+        <Card className="mt-14 border-border/40 shadow-none max-w-3xl">
+          <CardHeader>
+            <CardTitle>Activity Log</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <BookingHistoryTab auditLogs={booking.auditLogs} />
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }
