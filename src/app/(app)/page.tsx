@@ -11,6 +11,7 @@ import { SkeletonCard } from "@/components/Skeleton";
 import {
   formatDateShort,
   formatDateRange,
+  formatDueLabel,
   formatEventDateTime,
   formatOverdueElapsed,
   formatRelativeTime,
@@ -24,6 +25,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
 
 /* ───── Types ───── */
 
@@ -82,6 +85,7 @@ type OverdueItem = {
   bookingId: string;
   bookingTitle: string;
   requesterName: string;
+  requesterInitials: string;
   assetTags: string[];
   endsAt: string;
 };
@@ -196,14 +200,26 @@ function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers: EventS
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
-  const [fetchError, setFetchError] = useState(false);
+  const [fetchError, setFetchError] = useState<false | "auth" | "network" | "server">(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const loadData = useCallback(() => {
+  const confirm = useConfirm();
+  const { toast } = useToast();
+  const loadData = useCallback((isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     fetch("/api/dashboard")
-      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
-      .then((json) => { if (json?.data) setData(json.data); else setFetchError(true); })
-      .catch(() => setFetchError(true));
+      .then((res) => {
+        if (res.status === 401) { window.location.href = "/login?returnTo=/"; return null; }
+        if (!res.ok) throw new Error("server");
+        return res.json();
+      })
+      .then((json) => { if (json?.data) { setData(json.data); setFetchError(false); } else if (json !== null) setFetchError("server"); })
+      .catch((err) => {
+        if (err instanceof TypeError) setFetchError("network");
+        else setFetchError("server");
+      })
+      .finally(() => setRefreshing(false));
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -218,10 +234,10 @@ export default function DashboardPage() {
     return (
       <EmptyState
         icon="box"
-        title="Failed to load dashboard"
-        description="Something went wrong. Please refresh the page."
-        actionLabel="Retry"
-        onAction={loadData}
+        title="Couldn't load your dashboard"
+        description={fetchError === "network" ? "You appear to be offline. Check your connection and try again." : "Something went wrong on our end. Try again in a moment."}
+        actionLabel="Try again"
+        onAction={() => { setFetchError(false); loadData(); }}
       />
     );
   }
@@ -256,6 +272,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ══════ Stat Strip ══════ */}
+      {refreshing && <div className="dashboard-refresh-bar" />}
       <div className="stat-strip">
         <a href="/checkouts?filter=overdue" className={`stat-strip-item stat-strip-clickable ${data.stats.overdue > 0 ? "stat-strip-danger" : ""}`}>
           <span className="stat-strip-value">{data.stats.overdue}</span>
@@ -267,7 +284,7 @@ export default function DashboardPage() {
         </a>
         <a href="/checkouts" className="stat-strip-item stat-strip-clickable">
           <span className="stat-strip-value">{data.stats.checkedOut}</span>
-          <span className="stat-strip-label">Checked out</span>
+          <span className="stat-strip-label">Active checkouts</span>
         </a>
         <a href="/reservations" className="stat-strip-item stat-strip-clickable">
           <span className="stat-strip-value">{data.stats.reserved}</span>
@@ -277,14 +294,15 @@ export default function DashboardPage() {
 
       {/* ══════ Welcome Banner (first-run) ══════ */}
       {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
-        && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0 && (
+        && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0
+        && data.myReservations.length === 0 && data.drafts.length === 0 && data.myShifts.length === 0 && (
         <div className="welcome-banner">
           <h2>Welcome to Gear Tracker</h2>
           <p>Get started by setting up your equipment inventory.</p>
           <div className="welcome-steps">
             <Link href="/items" className="welcome-step">
               <span className="welcome-step-num">1</span>
-              <span>Add your first item</span>
+              <span>Add equipment</span>
             </Link>
             <Link href="/import" className="welcome-step">
               <span className="welcome-step-num">2</span>
@@ -307,7 +325,7 @@ export default function DashboardPage() {
               <span className="pulse-dot" />
               <strong>{data.overdueCount} overdue checkout{data.overdueCount !== 1 ? "s" : ""}</strong>
             </div>
-            <a href="/checkouts?filter=overdue" className="overdue-banner-viewall">View all overdue &rarr;</a>
+            <a href="/checkouts?filter=overdue" className="overdue-banner-viewall">Resolve all overdue &rarr;</a>
           </div>
           <div className="overdue-banner-list">
             {data.overdueItems.map((item) => (
@@ -319,7 +337,7 @@ export default function DashboardPage() {
                 <div className="overdue-banner-item-main">
                   <span className="overdue-banner-item-title">{item.bookingTitle}</span>
                   <span className="overdue-banner-item-meta">
-                    <UserInitialsAvatar initials={item.requesterName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)} />
+                    <UserInitialsAvatar initials={item.requesterInitials} />
                     {item.requesterName} &middot; {item.assetTags.length > 0 && <>{item.assetTags.join(", ")} &middot; </>}
                     <span className="overdue-elapsed">{formatOverdueElapsed(item.endsAt, now)}</span>
                   </span>
@@ -344,25 +362,34 @@ export default function DashboardPage() {
               <span className="section-count">{data.myCheckouts.total}</span>
             </a>
             {data.myCheckouts.items.length === 0 ? (
-              <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />No open checkouts</div>
+              <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />You have no gear checked out</div>
             ) : (
               <CardContent className="p-0 py-1">
-                {data.myCheckouts.items.map((c) => (
-                  <button
-                    key={c.id}
-                    className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
-                    onClick={() => setSelectedBookingId(c.id)}
-                  >
-                    <div className="ops-row-main">
-                      <span className="ops-row-title-bold">{c.title}</span>
-                      <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
-                        {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <GearAvatarStack items={c.items} totalCount={c.itemCount} />
-                  </button>
-                ))}
+                {data.myCheckouts.items.map((c) => {
+                  const dueLabel = formatDueLabel(c.endsAt, now);
+                  return (
+                    <button
+                      key={c.id}
+                      className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
+                      onClick={() => setSelectedBookingId(c.id)}
+                    >
+                      <div className="ops-row-main">
+                        <span className="ops-row-title-bold">
+                          {c.refNumber && <span className="ref-badge">{c.refNumber}</span>}
+                          {c.title}
+                        </span>
+                        <span className="ops-row-meta">
+                          <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
+                          {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="ops-row-right">
+                        <span className={`due-label ${c.isOverdue ? "due-label-overdue" : isDueToday(c.endsAt, now) ? "due-label-due-today" : ""}`}>{dueLabel}</span>
+                        <GearAvatarStack items={c.items} totalCount={c.itemCount} />
+                      </div>
+                    </button>
+                  );
+                })}
                 {data.myCheckouts.total > data.myCheckouts.items.length && (
                   <a href="/checkouts?mine=true" className="view-all-link">View all {data.myCheckouts.total} &rarr;</a>
                 )}
@@ -377,7 +404,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.myReservations.length}</span>
             </a>
             {data.myReservations.length === 0 ? (
-              <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />No upcoming reservations</div>
+              <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />No reservations coming up</div>
             ) : (
               <CardContent className="p-0 py-1">
                 {data.myReservations.map((r) => (
@@ -387,7 +414,10 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title-bold">{r.title}</span>
+                      <span className="ops-row-title-bold">
+                        {r.refNumber && <span className="ref-badge">{r.refNumber}</span>}
+                        {r.title}
+                      </span>
                       <span className="ops-row-meta">
                         <UserInitialsAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
                         {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
@@ -396,53 +426,14 @@ export default function DashboardPage() {
                     <GearAvatarStack items={r.items} totalCount={r.itemCount} />
                   </button>
                 ))}
+                {data.myReservations.length >= 5 && (
+                  <a href="/reservations?mine=true" className="view-all-link">View all &rarr;</a>
+                )}
               </CardContent>
             )}
           </Card>
 
-          {/* Drafts */}
-          {data.drafts.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Drafts</CardTitle>
-                <span className="section-count">{data.drafts.length}</span>
-              </CardHeader>
-              <CardContent className="p-0 py-1">
-                {data.drafts.map((d) => (
-                  <div key={d.id} className="ops-row draft-row">
-                    <div className="ops-row-main">
-                      <span className="ops-row-title">
-                        <span className="draft-kind-badge">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</span>
-                        {d.title || "Untitled"}
-                      </span>
-                      <span className="ops-row-meta">
-                        {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
-                        Edited {formatRelativeTime(d.updatedAt, now)}
-                      </span>
-                    </div>
-                    <div className="draft-actions">
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
-                          Resume
-                        </a>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
-                          loadData();
-                        }}
-                      >
-                        Discard
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-          {/* My Shifts */}
+          {/* My Shifts (above drafts — higher temporal urgency) */}
           {data.myShifts.length > 0 && (
             <Card>
               <a href="/schedule" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
@@ -480,7 +471,7 @@ export default function DashboardPage() {
                         ) : (
                           <Button variant="outline" size="sm" asChild>
                             <a href={`/checkouts?create=true&title=${encodeURIComponent(eventTitle)}&startsAt=${encodeURIComponent(s.event.startsAt)}&endsAt=${encodeURIComponent(s.event.endsAt)}${s.event.locationId ? `&locationId=${s.event.locationId}` : ""}`}>
-                              Reserve gear
+                              Prep gear
                             </a>
                           </Button>
                         )}
@@ -488,6 +479,61 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Drafts (below shifts — lower urgency, recovery of abandoned work) */}
+          {data.drafts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Drafts</CardTitle>
+                <span className="section-count">{data.drafts.length}</span>
+              </CardHeader>
+              <CardContent className="p-0 py-1">
+                {data.drafts.map((d) => (
+                  <div key={d.id} className="ops-row draft-row">
+                    <div className="ops-row-main">
+                      <span className="ops-row-title">
+                        <span className="draft-kind-badge">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</span>
+                        {d.title || "Untitled"}
+                      </span>
+                      <span className="ops-row-meta">
+                        {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
+                        Edited {formatRelativeTime(d.updatedAt, now)}
+                      </span>
+                    </div>
+                    <div className="draft-actions">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
+                          Resume
+                        </a>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: "Delete draft",
+                            message: `Delete this ${d.kind === "CHECKOUT" ? "checkout" : "reservation"} draft? This can\u2019t be undone.`,
+                            confirmLabel: "Delete draft",
+                            variant: "danger",
+                          });
+                          if (!ok) return;
+                          const res = await fetch(`/api/drafts/${d.id}`, { method: "DELETE" });
+                          if (res.ok) {
+                            toast("Draft deleted", "success");
+                            loadData(true);
+                          } else {
+                            toast("Failed to delete draft", "error");
+                          }
+                        }}
+                      >
+                        Delete draft
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
@@ -504,25 +550,34 @@ export default function DashboardPage() {
               <span className="section-count">{data.teamCheckouts.total}</span>
             </a>
             {data.teamCheckouts.items.length === 0 ? (
-              <div className="empty-section"><InboxIcon className="empty-section-icon" />No open checkouts</div>
+              <div className="empty-section"><InboxIcon className="empty-section-icon" />No team checkouts right now</div>
             ) : (
               <CardContent className="p-0 py-1">
-                {data.teamCheckouts.items.map((c) => (
-                  <button
-                    key={c.id}
-                    className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
-                    onClick={() => setSelectedBookingId(c.id)}
-                  >
-                    <div className="ops-row-main">
-                      <span className="ops-row-title-bold">{c.title}</span>
-                      <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
-                        {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <GearAvatarStack items={c.items} totalCount={c.itemCount} />
-                  </button>
-                ))}
+                {data.teamCheckouts.items.map((c) => {
+                  const dueLabel = formatDueLabel(c.endsAt, now);
+                  return (
+                    <button
+                      key={c.id}
+                      className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
+                      onClick={() => setSelectedBookingId(c.id)}
+                    >
+                      <div className="ops-row-main">
+                        <span className="ops-row-title-bold">
+                          {c.refNumber && <span className="ref-badge">{c.refNumber}</span>}
+                          {c.title}
+                        </span>
+                        <span className="ops-row-meta">
+                          <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
+                          {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="ops-row-right">
+                        <span className={`due-label ${c.isOverdue ? "due-label-overdue" : isDueToday(c.endsAt, now) ? "due-label-due-today" : ""}`}>{dueLabel}</span>
+                        <GearAvatarStack items={c.items} totalCount={c.itemCount} />
+                      </div>
+                    </button>
+                  );
+                })}
                 {data.teamCheckouts.total > data.teamCheckouts.items.length && (
                   <a href="/checkouts" className="view-all-link">View all {data.teamCheckouts.total} &rarr;</a>
                 )}
@@ -537,7 +592,7 @@ export default function DashboardPage() {
               <span className="section-count">{data.teamReservations.total}</span>
             </a>
             {data.teamReservations.items.length === 0 ? (
-              <div className="empty-section"><InboxIcon className="empty-section-icon" />No active reservations</div>
+              <div className="empty-section"><InboxIcon className="empty-section-icon" />No team reservations right now</div>
             ) : (
               <CardContent className="p-0 py-1">
                 {data.teamReservations.items.map((r) => (
@@ -547,7 +602,10 @@ export default function DashboardPage() {
                     onClick={() => setSelectedBookingId(r.id)}
                   >
                     <div className="ops-row-main">
-                      <span className="ops-row-title-bold">{r.title}</span>
+                      <span className="ops-row-title-bold">
+                        {r.refNumber && <span className="ref-badge">{r.refNumber}</span>}
+                        {r.title}
+                      </span>
                       <span className="ops-row-meta">
                         <UserInitialsAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
                         {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
@@ -605,7 +663,7 @@ export default function DashboardPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                             </TooltipTrigger>
-                            <TooltipContent>Gear for this event</TooltipContent>
+                            <TooltipContent>Create booking for this event</TooltipContent>
                           </Tooltip>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild>
@@ -637,7 +695,7 @@ export default function DashboardPage() {
       <BookingDetailsSheet
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
-        onUpdated={loadData}
+        onUpdated={() => loadData(true)}
       />
     </>
   );

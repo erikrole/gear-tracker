@@ -143,6 +143,22 @@ export function formatRelativeTime(iso: string, now: Date): string {
   return formatDateShort(iso);
 }
 
+/** Compact due label: "2d overdue", "Due in 3h", "Due Mar 24" */
+export function formatDueLabel(endsAt: string, now: Date): string {
+  const end = new Date(endsAt);
+  const diff = end.getTime() - now.getTime();
+  if (diff < 0) return formatOverdueElapsed(endsAt, now);
+  if (isDueToday(endsAt, now)) {
+    const hours = Math.floor(diff / (60 * 60 * 1000));
+    if (hours > 0) return `Due in ${hours}h`;
+    const minutes = Math.floor(diff / 60_000);
+    return `Due in ${minutes}m`;
+  }
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+  if (days <= 7) return `Due in ${days}d`;
+  return `Due ${formatDateShort(endsAt)}`;
+}
+
 /** Human-readable duration: "2 days", "5 hours", "30 minutes" */
 export function formatDuration(startsAt: string, endsAt: string): string {
   const diff = new Date(endsAt).getTime() - new Date(startsAt).getTime();

@@ -1296,6 +1296,57 @@ textarea:focus-visible {
   margin-left: 4px;
 }
 
+/* Right-side column for checkout rows: due label + gear avatars */
+.ops-row-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Due date labels on checkout rows */
+.due-label {
+  font-size: var(--text-2xs, 0.75rem);
+  font-weight: var(--weight-medium, 500);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.due-label-overdue {
+  color: #dc2626;
+  font-weight: var(--weight-bold, 600);
+}
+.due-label-due-today {
+  color: #d97706;
+  font-weight: var(--weight-bold, 600);
+}
+
+/* Reference number badge on booking rows */
+.ref-badge {
+  display: inline-block;
+  font-size: var(--text-3xs, 0.65rem);
+  font-weight: var(--weight-medium, 500);
+  color: var(--text-muted);
+  background: var(--panel-hover, rgba(0, 0, 0, 0.04));
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+
+/* Thin progress bar for dashboard refresh */
+.dashboard-refresh-bar {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent, #3b82f6) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: refresh-slide 1.2s ease-in-out infinite;
+  margin-bottom: 4px;
+  border-radius: 1px;
+}
+@keyframes refresh-slide {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
 .due-today-badge {
   color: #d97706;
   font-weight: var(--weight-bold);
