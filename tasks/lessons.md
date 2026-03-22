@@ -421,6 +421,22 @@ Always use shadcn Empty component:
 - **shadcn Avatar/AvatarGroup replaces custom avatar stacks**: `AvatarGroup` with `Avatar size="sm"` + `ring-2 ring-background` handles the overlapping stack layout. Empty slots use `AvatarFallback` with `border-dashed`. Overflow uses `AvatarFallback` with count text. No custom CSS needed.
 - **Target shadcn data-slot attributes for contextual overrides**: When a shadcn component needs different styling inside a specific parent (e.g. avatar inside red overdue banner), use `[data-slot="avatar-fallback"]` selector instead of adding custom className props.
 
+## Session 2026-03-22 (Round 6): Users Page Hardening
+
+### Design System Patterns
+- **`text-secondary` is wrong for text color**: In shadcn with CSS variables, `text-secondary` maps to `--secondary` which is a background color token (`var(--accent-soft)`). The correct class for secondary/muted text is `text-muted-foreground`. This is a codebase-wide anti-pattern — check every page during hardening.
+- **Tailwind spacing values ≠ pixel values**: `p-16` = 64px (4rem), not 16px. `gap-12` = 48px, not 12px. `mb-8` = 32px, not 8px. When porting from CSS `padding: 16px` to Tailwind, use `p-4` (16px) not `p-16` (64px). This was a real bug in CreateUserCard.
+- **Dead CSS accumulates after component rewrites**: When a page is rewritten from custom CSS to Tailwind/shadcn, the old CSS classes become dead code but stay in globals.css. Always grep `src/` for every class in the page's CSS section after a rewrite. Remove what's unused.
+
+### Reliability Patterns
+- **Form-options/me fetch failures shouldn't block the page**: Auxiliary data fetches (locations dropdown, current user role) failing should not set `loadError = true` which replaces the entire content with an error state. Only the primary data fetch failure should show the error state. Auxiliary failures should be silent.
+- **Every mutation needs 401 handling**: Session can expire between page load and user action. Check `res.status === 401` on PATCH, POST, DELETE — not just the initial GET. Redirect to `/login` on 401.
+- **Distinguish initial load from refresh**: `loading && data.length === 0` = initial load (show skeletons). `loading && data.length > 0` = refresh (show spinner, keep existing data visible). Never replace visible data with skeletons on refresh.
+
+### UX Patterns
+- **Skeleton fidelity matters**: Identical-width skeleton rows look like a test pattern. Match real row layout: avatar circles, varied text widths per row (`55 + (row % 3) * 15`%), badge-shaped pills (`rounded-full`). Each column should have a distinct skeleton shape.
+- **Retry buttons on every error state**: A dead-end error screen with no recovery action is poor UX. Always add a Retry button alongside the error message. EmptyState supports `actionLabel` + `onAction` props for this.
+
 ## Session 2026-03-22 (Round 5): Dashboard Reliability + UX Polish
 
 ### Reliability Patterns
