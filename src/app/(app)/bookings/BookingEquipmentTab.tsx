@@ -91,7 +91,7 @@ export default function BookingEquipmentTab({
     <Card className="border-border/40 shadow-none">
       {/* Header */}
       <CardHeader className="pb-0">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <CardTitle className="text-base">
               Equipment
@@ -112,7 +112,7 @@ export default function BookingEquipmentTab({
             )}
           </div>
           {canCheckin && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {returnableCount > 0 && (
                 checkinIds.size === returnableCount ? (
                   <Button variant="ghost" size="sm" className="text-xs" onClick={onClearSelection}>
@@ -275,7 +275,7 @@ function SerializedRow({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="size-7 flex items-center justify-center rounded-md hover:bg-muted/80 text-muted-foreground opacity-0 group-hover/row:opacity-100 focus:opacity-100 transition-opacity">
+            <button className="size-7 flex items-center justify-center rounded-md hover:bg-muted/80 text-muted-foreground sm:opacity-0 sm:group-hover/row:opacity-100 focus:opacity-100 transition-opacity">
               <MoreHorizontal className="size-4" />
               <span className="sr-only">Item actions</span>
             </button>
