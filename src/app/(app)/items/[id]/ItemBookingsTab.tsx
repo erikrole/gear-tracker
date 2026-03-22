@@ -115,7 +115,7 @@ export function ActiveBookingCard({
 function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
   const [showModal, setShowModal] = useState(false);
   const rawParts = asset.assetTag.split(/[\s]+/).filter(Boolean);
-  const isFootball = rawParts.length === 3 && rawParts[0] === "FB";
+  // Always 3 lines — pad with blank lines at the top if fewer than 3 parts
   const tagLines = rawParts.length >= 3
     ? rawParts.slice(0, 3)
     : [...Array(3 - rawParts.length).fill(""), ...rawParts];
@@ -133,7 +133,7 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
               onClick={() => setShowModal(true)}
               title="Click to enlarge QR code"
             >
-              <div className={`asset-tag-label-text ${isFootball ? "" : "asset-tag-label-text-left"}`}>
+              <div className="asset-tag-label-text">
                 {tagLines.map((line, i) => (
                   <div key={i} className="asset-tag-label-line">{line || "\u00A0"}</div>
                 ))}

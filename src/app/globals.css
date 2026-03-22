@@ -489,6 +489,17 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Links inside buttons inherit the button's text color */
+[data-slot="button"] a,
+a[data-slot="button"] {
+  color: inherit;
+  text-decoration: none;
+}
+[data-slot="button"] a:hover,
+a[data-slot="button"]:hover {
+  text-decoration: none;
+}
+
 /* ===== Focus & Accessibility ===== */
 :focus-visible {
   outline: none;
@@ -4126,10 +4137,6 @@ textarea:focus-visible {
   gap: 0;
   padding: 4px 12px;
   min-width: 64px;
-}
-
-.asset-tag-label-text-left {
-  align-items: flex-end;
 }
 
 .asset-tag-label-line {

@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PencilIcon, ImageIcon, Copy, Check, SettingsIcon } from "lucide-react";
+import { PencilIcon, ImageIcon, Copy, Check } from "lucide-react";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -39,7 +39,7 @@ import { AccessoriesSection } from "./ItemSettingsTab";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
-type TabKey = "info" | "bookings" | "calendar" | "insights" | "history" | "settings";
+type TabKey = "info" | "bookings" | "calendar" | "insights" | "history" | "accessories" | "settings";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
@@ -47,6 +47,7 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "calendar", label: "Calendar" },
   { key: "insights", label: "Insights" },
   { key: "history", label: "History" },
+  { key: "accessories", label: "Accessories" },
   { key: "settings", label: "Settings" },
 ];
 
@@ -526,10 +527,10 @@ export default function ItemDetailsPage() {
       {/* Properties strip — Notion-style inline badges below title */}
       <div className="mt-6 mb-6 flex items-center gap-2 flex-wrap">
         <StatusLine asset={asset} />
-        {asset.serialNumber && <SerialBadge serialNumber={asset.serialNumber} />}
         {asset.location && <Badge variant="outline">{asset.location.name}</Badge>}
         {asset.category && <Badge variant="outline">{asset.category.name}</Badge>}
         {asset.department && <Badge variant="outline">{asset.department.name}</Badge>}
+        {asset.serialNumber && <SerialBadge serialNumber={asset.serialNumber} />}
       </div>
 
       {/* Last edited */}
@@ -555,7 +556,6 @@ export default function ItemDetailsPage() {
         <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
           {tabDefs.map((tab, i) => (
             <TabsTrigger key={tab.key} value={tab.key}>
-              {tab.key === "settings" && <SettingsIcon className="size-3.5" />}
               {tab.label}
               <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">{i + 1}</kbd>
             </TabsTrigger>
@@ -581,7 +581,6 @@ export default function ItemDetailsPage() {
             />
             <OperationalOverview asset={asset} now={now} canEdit={canEdit} onSelectBooking={setSelectedBookingId} onRefresh={loadAsset} />
           </div>
-          <AccessoriesSection asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
         </>
       )}
 
@@ -613,6 +612,11 @@ export default function ItemDetailsPage() {
             <ActivityFeed assetId={asset.id} />
           </CardContent>
         </Card>
+      )}
+
+      {/* Accessories tab */}
+      {activeTab === "accessories" && (
+        <AccessoriesSection asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
       )}
 
       {/* Settings tab */}

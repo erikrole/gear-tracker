@@ -690,6 +690,19 @@ export default function ItemInfoCard({
       <div className="py-1">
         <div className="grid grid-cols-1 gap-y-0">
           <TextInputField
+            label="Name"
+            value={asset.assetTag}
+            canEdit={canEdit}
+            onSave={(v) => saveField("assetTag", v)}
+          />
+          <TextInputField
+            label="Product Name"
+            value={asset.name || ""}
+            placeholder="Add product name"
+            canEdit={canEdit}
+            onSave={(v) => saveField("name", v)}
+          />
+          <TextInputField
             label="Brand"
             value={asset.brand}
             placeholder="Add brand"
@@ -704,7 +717,7 @@ export default function ItemInfoCard({
             onSave={(v) => saveField("model", v)}
           />
           <TextInputField
-            label="Serial number"
+            label="Serial"
             value={asset.serialNumber}
             canEdit={canEdit}
             onSave={(v) => saveField("serialNumber", v)}
@@ -717,14 +730,6 @@ export default function ItemInfoCard({
             placeholder="Add UW asset tag"
             canEdit={canEdit}
             onSave={(v) => saveField("metadata.uwAssetTag", v)}
-          />
-          <SaveableNativeSelectField
-            label="Location"
-            value={asset.location.id}
-            options={locations.map((l) => ({ value: l.id, label: l.name }))}
-            placeholder="Select location"
-            canEdit={canEdit}
-            onSave={saveLocation}
           />
           <SaveableNativeSelectField
             label="Department"
@@ -742,6 +747,14 @@ export default function ItemInfoCard({
             onSave={saveCategory}
             onCategoriesChanged={onCategoriesChanged}
             ghost
+          />
+          <SaveableNativeSelectField
+            label="Location"
+            value={asset.location.id}
+            options={locations.map((l) => ({ value: l.id, label: l.name }))}
+            placeholder="Select location"
+            canEdit={canEdit}
+            onSave={saveLocation}
           />
           {/* ── Procurement fields (hidden from students) ── */}
           {currentUserRole !== "STUDENT" && (
@@ -762,12 +775,13 @@ export default function ItemInfoCard({
                   }
                 }}
               />
-              <LinkField
-                label="Link"
-                value={asset.linkUrl || ""}
-                placeholder="Add product link"
-                canEdit={canEdit}
-                onSave={(v) => saveField("linkUrl", v)}
+              <TextInputField
+                label="Fiscal Year"
+                value={asset.metadata?.fiscalYearPurchased || ""}
+                placeholder="Auto-filled from purchase date"
+                canEdit={false}
+                readOnly
+                onSave={async () => {}}
               />
               <TextInputField
                 label="Purchase price"
@@ -778,13 +792,12 @@ export default function ItemInfoCard({
                 canEdit={canEdit}
                 onSave={(v) => saveField("purchasePrice", v)}
               />
-              <TextInputField
-                label="Fiscal Year"
-                value={asset.metadata?.fiscalYearPurchased || ""}
-                placeholder="Auto-filled from purchase date"
-                canEdit={false}
-                readOnly
-                onSave={async () => {}}
+              <LinkField
+                label="Link"
+                value={asset.linkUrl || ""}
+                placeholder="Add product link"
+                canEdit={canEdit}
+                onSave={(v) => saveField("linkUrl", v)}
               />
             </>
           )}
