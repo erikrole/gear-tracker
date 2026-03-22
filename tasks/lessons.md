@@ -55,3 +55,34 @@
 ### Patterns
 - `SaveableField` + `useSaveField` is the canonical pattern for inline-editable fields. Any field with manual `useState` + `onBlur`/`onChange` save + `fetch(PATCH)` + status timeouts should be refactored to use it.
 - Future refactoring targets for SaveableField reuse: `CategoryRow.tsx` (rename + add subcategory inputs), `CategoriesPage.tsx` (add category input) — both in `/settings/categories/`. These have the exact same blur-save + fetch pattern.
+
+### Detail Page Architecture (Item Detail Overhaul)
+
+**Layout patterns:**
+- Global `a { color }` in CSS will override button text color when using `asChild` + `<Link>`. Always add a CSS rule: `[data-slot="button"] a { color: inherit; text-decoration: none; }`. Check this on ALL pages with button-wrapped links.
+- `TooltipTrigger asChild > Button asChild > Link` creates broken double-`asChild` nesting. Don't wrap buttons in tooltips when the button already uses `asChild`. Pick one: tooltip OR asChild link.
+- AppShell already renders a `<PageBreadcrumb />`. Pages should NOT render their own breadcrumbs — it causes double breadcrumb.
+- PageBreadcrumb must detect CUIDs (not just UUIDs) as dynamic segments. Regex: `/^c[a-z0-9]{20,}$/` in addition to the hex/UUID pattern.
+
+**Notion-style detail page principles:**
+- Title should be inline-editable in the header, not repeated as a field in the card below. Kill redundancy.
+- Key properties (status, location, category, department) belong as inline badges between the title and the tabs — visible without scrolling or expanding anything.
+- Flat property lists beat collapsible sections. Users almost never collapse them — the friction of expanding sections is worse than a longer list.
+- When two tabs share the same data shape with different filters (checkouts vs reservations), merge them into one tab with a filter toggle. Fewer tabs = less cognitive load.
+- Sidebar cards compete for attention. Settings toggles should live in their own tab, not the sidebar.
+- Accessories/sub-items also belong in their own tab rather than appended below the info card.
+- `updatedAt` is free metadata from Prisma — show "Last updated [date]" for context without needing the History tab.
+
+**Field ordering matters:**
+- Lead with identity fields (name, product name, brand, model, serial), then organizational fields (department, category, location), then procurement (date, fiscal year, price, link). This matches how users think about items.
+- Date placeholders should say "Add date" not show a fake formatted date like "January 01, 2025".
+- Fiscal year should auto-compute from purchase date, not be a manual dropdown. Derived fields should be read-only.
+
+**UX polish that compounds:**
+- URL-synced tabs (`?tab=bookings`) via `useSearchParams` + `replaceState` — makes tabs shareable/bookmarkable. Apply to all detail pages.
+- Keyboard shortcuts (1-N for tabs) with tiny `<kbd>` hints — power user speed. Apply everywhere tabs exist.
+- Sticky tab bars (`sticky top-0 z-10 bg-background/95 backdrop-blur-sm`) — essential for long content pages.
+- Duplicate detection on unique fields (serial number, asset tag) — warn on blur via search API before save.
+- Physical label layout in UI must exactly match the physical artifact. Always get a reference image.
+
+**Apply these to other detail pages:** User detail (`/users/[id]`), Reservation detail (`/reservations/[id]`), Checkout detail (`/checkouts/[id]`) — all should follow the same inline-title + badge-strip + flat-list + URL-synced-tabs pattern.
