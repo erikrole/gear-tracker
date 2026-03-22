@@ -1,6 +1,6 @@
 # Current Task Queue
 
-Last updated: 2026-03-21
+Last updated: 2026-03-22
 
 ---
 
@@ -32,6 +32,7 @@ Last updated: 2026-03-21
 
 ## Recently Shipped
 
+- [x] **Booking Detail Unification** — Unified checkout + reservation detail into single `BookingDetailPage` with `kind` prop. Extracted `useBookingDetail` + `useBookingActions` hooks. Shared `InlineTitle` component. Old GET/PATCH routes redirect to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit diffs. Accessibility + dark mode fixes. (2026-03-22)
 - [x] **MVP Polish Pass** — Audit logging gaps (departments, notifications/process), skeleton→shadcn, inline style→Tailwind, text-destructive (2026-03-21)
 - [x] **Item Detail Overhaul** — shadcn inputs, save feedback, department combobox, collapsible sections, UserInfoTab parity (2026-03-21)
 - [x] **Items Page DataTable Rebuild** — Sorting, row actions, context menu, column visibility, enhanced pagination, department FK filter (2026-03-21)

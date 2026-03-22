@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-11
+- Last Updated: 2026-03-22
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -110,3 +110,4 @@
 - 2026-03-20: Full shadcn/ui migration (Slices 1–5.4 + Deep Integration A–F). Replaced all custom primitives with shadcn components across 20+ pages.
 - 2026-03-21: Items page rebuilt with shadcn DataTable — sorting, row actions, context menu, column visibility, enhanced pagination. Department FK + combobox filter. Insights tab with legends, empty states, punctuality accuracy. Item detail page overhauled with shadcn inputs and save feedback.
 - 2026-03-21: MVP polish pass — audit logging added to departments and notifications/process routes, skeleton components standardized to shadcn, inline styles replaced with Tailwind utilities.
+- 2026-03-22: Unified booking detail page — checkout and reservation detail pages merged into single `BookingDetailPage` component. Old GET/PATCH API routes redirect to `/api/bookings/[id]`. Extracted shared hooks and `InlineTitle` component. PATCH returns enriched detail with before-snapshot audit diffs. Dark mode and accessibility hardening.

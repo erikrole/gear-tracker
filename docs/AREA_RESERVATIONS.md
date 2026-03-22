@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-15
+- Last Updated: 2026-03-22
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -41,32 +41,34 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 2. Transition: `BOOKED` -> `CANCELLED`.
 3. Canceled reservations remain visible for operations and audit.
 
-## Reservation Detail Surface (V1)
+## Reservation Detail Page (Unified with Checkouts)
 
-### Header and Status Context
-1. Show reservation title as primary heading.
-2. Show state chip and reservation id.
-3. Show due-to-checkout countdown when still `BOOKED`.
-4. Primary CTA is `Proceed to check-out` when transition is valid.
+The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetailPage` component with `kind="RESERVATION"`. See `src/app/(app)/bookings/BookingDetailPage.tsx`.
+
+### Architecture
+- **Route**: `src/app/(app)/reservations/[id]/page.tsx` — thin wrapper passing `kind="RESERVATION"`
+- **Shared component**: `BookingDetailPage` serves both checkout and reservation detail
+- **Hooks**: `useBookingDetail` (fetch + reload + optimistic patch), `useBookingActions` (all action handlers)
+- **API**: All reads and inline field saves go to `/api/bookings/[id]` (GET + PATCH)
+- **Old routes**: `GET/PATCH /api/reservations/[id]` redirect (308) to `/api/bookings/[id]`
+
+### Reservation-Specific Behavior
+- "Start checkout" primary CTA when `convert` action is allowed
+- "Duplicate" action in dropdown menu (clones reservation)
+- No checkin checkboxes or scan buttons (those are checkout-only)
+- Equipment tab shows Serial and Location columns (instead of checkout's Status column)
+- Properties strip shows status, ref number, location, requester
 
 ### Tabs
-1. `Info`: canonical reservation details and equipment.
-2. `Attachments`: linked files relevant to reservation execution.
-3. `History`: immutable event timeline from audit log.
+1. **Info** — SaveableField rows: title (editable), location, from/to dates, requester, creator, notes (editable)
+2. **Equipment** — shadcn Table with search, item count, serial/location columns
+3. **History** — Activity log with filter chips (All / Equipment / Status), before/after diffs
 
-### Info Panel Fields
-1. Name
-2. Location
-3. From
-4. To
-5. User (owner)
-
-### Equipment Panel
-1. Show count and searchable list of reserved items.
-2. Use `tagName` as primary item label.
-3. Show quantity and key identity metadata.
-4. Show inline conflict badge when item becomes unavailable, for example `Already reserved`.
-5. Conflict badges must include reason and actionable next step.
+### Inline Editing
+- Title: `InlineTitle` component (shared from `src/components/InlineTitle.tsx`)
+- Notes: blur-save via `useSaveField` pattern
+- PATCH `/api/bookings/[id]` with single-field partial update
+- Audit entries capture before-snapshot for field-level diffs
 
 ## Reservations List Surface (V1)
 
@@ -238,3 +240,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-03-11: Docs hardening — synced action matrix to shipped `booking-rules.ts`. Removed Cheqroom action mapping. Replaced "Reserve again"/"Repeat reservation" with deferred duplicate action. Added DRAFT state. Marked V1 as shipped.
 - 2026-03-14: Shipped duplicate/clone action — detail page button + list context menu entry. API endpoint at POST /api/reservations/[id]/duplicate.
 - 2026-03-16: Booking reference numbers (D-024) — RV-XXXX format, global sequence, searchable, monospace badge in list/detail.
+- 2026-03-22: **Unified detail page** — Reservation and checkout detail pages unified via shared `BookingDetailPage` component. Extracted `useBookingDetail` + `useBookingActions` hooks. Old `/api/reservations/[id]` GET/PATCH redirects to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit. Shared `InlineTitle` component. Reservation-specific: "Start checkout" CTA, duplicate action, serial/location equipment columns.

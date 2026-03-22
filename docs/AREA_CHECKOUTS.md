@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-15
+- Last Updated: 2026-03-22
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -157,6 +157,35 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 5. Event badge is informational only and must not block operations if source event changes.
 6. Mobile list cards and quick actions follow `AREA_MOBILE.md`.
 
+## Checkout Detail Page (Unified with Reservations)
+
+The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage` component with `kind="CHECKOUT"`. See `src/app/(app)/bookings/BookingDetailPage.tsx`.
+
+### Architecture
+- **Route**: `src/app/(app)/checkouts/[id]/page.tsx` — thin wrapper passing `kind="CHECKOUT"`
+- **Shared component**: `BookingDetailPage` serves both checkout and reservation detail
+- **Hooks**: `useBookingDetail` (fetch + reload + optimistic patch), `useBookingActions` (all action handlers)
+- **API**: All reads and inline field saves go to `/api/bookings/[id]` (GET + PATCH)
+- **Old route**: `GET /api/checkouts/[id]` redirects (308) to `/api/bookings/[id]`
+
+### Checkout-Specific Behavior
+- "Scan Items Out" and "Scan Items In" buttons visible for OPEN/check-in-eligible checkouts
+- Equipment tab shows checkin checkboxes per serialized item + bulk return quantity inputs
+- "Complete check in" action in dropdown menu
+- Returned items show green checkmark and muted row background
+- Properties strip shows status, overdue badge, ref number, location, requester
+
+### Tabs
+1. **Info** — SaveableField rows: title (editable), location, from/to dates, requester, creator, notes (editable)
+2. **Equipment** — shadcn Table with search, checkin checkboxes, bulk return controls
+3. **History** — Activity log with filter chips (All / Equipment / Status), before/after diffs
+
+### Inline Editing
+- Title: `InlineTitle` component (shared from `src/components/InlineTitle.tsx`)
+- Notes: blur-save via `useSaveField` pattern
+- PATCH `/api/bookings/[id]` with single-field partial update
+- Audit entries capture before-snapshot for field-level diffs
+
 ## Bug Traps and Mitigations
 
 ### Trap: Double submit creates duplicate checkouts
@@ -229,3 +258,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 - 2026-03-15: Equipment Picker V2 — extracted into standalone component. Added checkbox multi-select, per-section search, availability preview badges, and scan-to-add QR overlay.
 - 2026-03-16: Booking reference numbers (D-024) — CO-XXXX format, global sequence, searchable, monospace badge in list/detail.
 - 2026-03-17: **Shift context banner** — when creating a checkout tied to an event, shows "Your shift: AREA time–time" banner with gear status if user has a shift assignment for that event.
+- 2026-03-22: **Unified detail page** — Checkout and reservation detail pages unified via shared `BookingDetailPage` component. Extracted `useBookingDetail` + `useBookingActions` hooks. Old `/api/checkouts/[id]` GET redirects to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit. Shared `InlineTitle` component. Accessibility + dark mode hardening.
