@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-03-11
+- Last Updated: 2026-03-22
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -55,9 +55,17 @@
   - Separate entities increase workflow friction and reconciliation risk.
 - Decision:
   - Booking remains the single lifecycle container with states `BOOKED`, `OPEN`, `COMPLETED`, `CANCELLED`.
+- Implementation (2026-03-22 — UI layer):
+  - Detail page unified: single `BookingDetailPage` component with `kind` prop at `src/app/(app)/bookings/BookingDetailPage.tsx`
+  - Route files `/checkouts/[id]/page.tsx` and `/reservations/[id]/page.tsx` are thin wrappers
+  - API unified: `/api/bookings/[id]` serves GET + PATCH for both kinds; old routes redirect (308)
+  - Shared hooks: `useBookingDetail` (fetch + reload + patch), `useBookingActions` (all actions)
+  - Shared `InlineTitle` component at `src/components/InlineTitle.tsx`
+  - Kind-specific behavior handled via conditional rendering (scan buttons, checkin UX, convert CTA)
 - Consequences:
   - Simpler user mental model.
   - State transition policy must be explicit and validated.
+  - UI parity enforced by sharing one component — no feature drift between checkout and reservation detail.
 
 ## D-003: Event-Centric Checkout with Default Linkage
 - Date: 2026-03-01
@@ -441,3 +449,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-15: Withdrew D-005 (B&H enrichment) — scraping blocked by source, feature removed.
 - 2026-03-16: Shipped D-017 (DRAFT booking lifecycle). Shipped D-018 (asset financial fields — Procurement section in item detail).
 - 2026-03-16: Added D-024 (booking reference numbers — CO/RV kind prefix + global sequence).
+- 2026-03-22: Updated D-002 — UI layer now unified. Checkout and reservation detail pages share single `BookingDetailPage` component. API routes consolidated to `/api/bookings/[id]`.

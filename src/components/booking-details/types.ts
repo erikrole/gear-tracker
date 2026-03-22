@@ -41,6 +41,7 @@ export type BookingDetail = {
   endsAt: string;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
   location: LocationInfo;
   requester: { id: string; name: string; email: string };
   creator?: { id: string; name: string; email: string };

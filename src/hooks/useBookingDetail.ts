@@ -1,0 +1,36 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { BookingDetail } from "@/components/booking-details/types";
+
+export function useBookingDetail(id: string) {
+  const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const reload = useCallback(() => {
+    setError(false);
+    fetch(`/api/bookings/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((json) => {
+        if (json?.data) setBooking(json.data);
+        else setError(true);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  /** Optimistically patch local booking state (e.g. after inline save) */
+  const patchLocal = useCallback((patch: Partial<BookingDetail>) => {
+    setBooking((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
+  return { booking, loading, error, reload, patchLocal };
+}
