@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
@@ -92,7 +92,13 @@ export default function UsersPage() {
 
   // ── Data fetching ──
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const reload = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setLoadError(false);
     try {
@@ -104,7 +110,7 @@ export default function UsersPage() {
       if (roleFilter) params.set("role", roleFilter);
       if (locationFilter) params.set("locationId", locationFilter);
 
-      const res = await fetch(`/api/users?${params}`);
+      const res = await fetch(`/api/users?${params}`, { signal: controller.signal });
       if (res.ok) {
         const json: ListResponse = await res.json();
         setUsers(json.data ?? []);
@@ -112,19 +118,23 @@ export default function UsersPage() {
       } else {
         setLoadError(true);
       }
-    } catch {
-      setLoadError(true);
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") setLoadError(true);
     }
-    setLoading(false);
+    if (!controller.signal.aborted) setLoading(false);
   }, [page, search, sort, roleFilter, locationFilter]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    return () => { abortRef.current?.abort(); };
+  }, [reload]);
 
   // Load form options + current user role once
   useEffect(() => {
+    const controller = new AbortController();
     Promise.all([
-      fetch("/api/form-options"),
-      fetch("/api/me"),
+      fetch("/api/form-options", { signal: controller.signal }),
+      fetch("/api/me", { signal: controller.signal }),
     ]).then(async ([optionsRes, meRes]) => {
       if (optionsRes.ok) {
         const j = await optionsRes.json();
@@ -134,7 +144,8 @@ export default function UsersPage() {
         const j = await meRes.json();
         if (j?.user?.role) setCurrentUserRole(j.user.role);
       }
-    }).catch(() => { setLoadError(true); });
+    }).catch(() => { /* auxiliary data — don't block the page */ });
+    return () => { controller.abort(); };
   }, []);
 
   // Reset page when filters change

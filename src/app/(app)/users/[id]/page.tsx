@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { UserDetail, Location, Role } from "../types";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
@@ -25,18 +24,22 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("info");
   const [currentUserRole, setCurrentUserRole] = useState<Role | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [fetchError, setFetchError] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   const loadUser = useCallback(() => {
-    fetch(`/api/users/${id}`)
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    fetch(`/api/users/${id}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -45,14 +48,17 @@ export default function UserDetailPage() {
         if (json?.data) setUser(json.data);
         else setFetchError(true);
       })
-      .catch(() => setFetchError(true));
+      .catch((err) => {
+        if ((err as Error).name !== "AbortError") setFetchError(true);
+      });
   }, [id]);
 
   useEffect(() => {
     loadUser();
+    const controller = new AbortController();
     Promise.all([
-      fetch("/api/me"),
-      fetch("/api/form-options"),
+      fetch("/api/me", { signal: controller.signal }),
+      fetch("/api/form-options", { signal: controller.signal }),
     ]).then(async ([meRes, optionsRes]) => {
       if (meRes.ok) {
         const j = await meRes.json();
@@ -62,7 +68,11 @@ export default function UserDetailPage() {
         const j = await optionsRes.json();
         setLocations(j.data?.locations || []);
       }
-    }).catch(() => { setFetchError(true); });
+    }).catch(() => { /* auxiliary data — don't block the page */ });
+    return () => {
+      abortRef.current?.abort();
+      controller.abort();
+    };
   }, [loadUser]);
 
   if (fetchError) {

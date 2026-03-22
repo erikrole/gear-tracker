@@ -59,14 +59,18 @@ export default function UserActivityTab({ userId }: { userId: string }) {
   const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/users/${userId}/activity`)
+    const controller = new AbortController();
+    fetch(`/api/users/${userId}/activity`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) { setFetchError(true); return null; }
         return res.json();
       })
       .then((json) => { if (json?.data) setEntries(json.data); })
-      .catch(() => setFetchError(true))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if ((err as Error).name !== "AbortError") setFetchError(true);
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => { controller.abort(); };
   }, [userId]);
 
   if (loading) return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
