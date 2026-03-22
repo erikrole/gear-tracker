@@ -140,7 +140,7 @@ export default function AuditReportPage() {
               <tbody>
                 {data.data.map((entry) => (
                   <tr key={entry.id}>
-                    <td className="nowrap text-sm">{formatDateTime(entry.createdAt)}</td>
+                    <td className="whitespace-nowrap text-sm">{formatDateTime(entry.createdAt)}</td>
                     <td>{entry.actor}</td>
                     <td><Badge variant="gray">{entry.action}</Badge></td>
                     <td className="text-sm font-mono">{entry.entityType}:{entry.entityId.slice(0, 8)}</td>

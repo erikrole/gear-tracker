@@ -209,7 +209,7 @@ export default function ScanHistoryPage() {
                 <tbody>
                   {data.data.map((s) => (
                     <tr key={s.id}>
-                      <td className="nowrap text-sm">{formatDateTime(s.createdAt)}</td>
+                      <td className="whitespace-nowrap text-sm">{formatDateTime(s.createdAt)}</td>
                       <td>{s.actor}</td>
                       <td className="font-mono text-sm">{s.item}</td>
                       <td>
