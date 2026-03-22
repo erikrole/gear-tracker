@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import { Check, ImageIcon, Search } from "lucide-react";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 
@@ -94,12 +95,10 @@ export default function BookingEquipmentTab({
             </CardTitle>
             {showProgress && (
               <div className="flex items-center gap-2 mt-1">
-                <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-green-500 transition-all duration-300"
-                    style={{ width: `${Math.round((totalReturned / totalOut) * 100)}%` }}
-                  />
-                </div>
+                <Progress
+                  value={Math.round((totalReturned / totalOut) * 100)}
+                  className="h-1.5 bg-muted [&>[data-slot=progress-indicator]]:bg-green-500"
+                />
                 <span className="text-xs text-muted-foreground shrink-0">
                   {totalReturned}/{totalOut} returned
                 </span>
