@@ -16,7 +16,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InlineTitle } from "@/components/InlineTitle";
-import { Clock, ChevronRight, ChevronDown, MoreHorizontal } from "lucide-react";
+import {
+  Breadcrumb as BreadcrumbNav,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import { Clock, ChevronDown, MoreHorizontal } from "lucide-react";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
@@ -191,19 +204,23 @@ export default function BookingDetailPage({
   return (
     <div className="space-y-6">
       {/* ── Breadcrumb ── */}
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground transition-colors">
-          Home
-        </Link>
-        <ChevronRight className="size-3.5" />
-        <Link href={listPath} className="hover:text-foreground transition-colors">
-          {kindLabelPlural}
-        </Link>
-        <ChevronRight className="size-3.5" />
-        <span className="text-foreground font-medium truncate max-w-[200px]">
-          {booking.title}
-        </span>
-      </nav>
+      <BreadcrumbNav>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild><Link href="/">Home</Link></BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild><Link href={listPath}>{kindLabelPlural}</Link></BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="truncate max-w-[200px]">
+              {booking.title}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </BreadcrumbNav>
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -454,33 +471,34 @@ export default function BookingDetailPage({
 
       {/* ── History section (inline, collapsible) ── */}
       {booking.auditLogs.length > 0 && (
-        <Card className="border-border/40 shadow-none">
-          <CardHeader className="pb-0">
-            <button
-              onClick={() => setHistoryExpanded((v) => !v)}
-              className="flex items-center gap-2 w-full text-left"
-            >
-              <ChevronDown className={`size-4 transition-transform ${historyExpanded ? "" : "-rotate-90"}`} />
-              <CardTitle className="text-base">
-                Activity
-                <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-                  ({booking.auditLogs.length})
-                </span>
-              </CardTitle>
-            </button>
-            {/* Collapsed preview: show latest entry */}
-            {!historyExpanded && booking.auditLogs[0] && (
-              <p className="text-xs text-muted-foreground mt-1.5 ml-6 truncate">
-                {booking.auditLogs[0].actor?.name ?? "Unknown"}{" "}
-                {actionLabels[booking.auditLogs[0].action] || booking.auditLogs[0].action}{" "}
-                — {formatRelative(booking.auditLogs[0].createdAt)}
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className={`p-0 ${historyExpanded ? "pt-2" : ""}`}>
-            {historyExpanded && <BookingHistoryTab auditLogs={booking.auditLogs} />}
-          </CardContent>
-        </Card>
+        <Collapsible open={historyExpanded} onOpenChange={setHistoryExpanded}>
+          <Card className="border-border/40 shadow-none">
+            <CardHeader className="pb-0">
+              <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+                <ChevronDown className={`size-4 transition-transform ${historyExpanded ? "" : "-rotate-90"}`} />
+                <CardTitle className="text-base">
+                  Activity
+                  <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                    ({booking.auditLogs.length})
+                  </span>
+                </CardTitle>
+              </CollapsibleTrigger>
+              {/* Collapsed preview: show latest entry */}
+              {!historyExpanded && booking.auditLogs[0] && (
+                <p className="text-xs text-muted-foreground mt-1.5 ml-6 truncate">
+                  {booking.auditLogs[0].actor?.name ?? "Unknown"}{" "}
+                  {actionLabels[booking.auditLogs[0].action] || booking.auditLogs[0].action}{" "}
+                  — {formatRelative(booking.auditLogs[0].createdAt)}
+                </p>
+              )}
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="p-0 pt-2">
+                <BookingHistoryTab auditLogs={booking.auditLogs} />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
     </div>
   );
