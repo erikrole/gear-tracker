@@ -208,9 +208,9 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="font-medium truncate">{item.assetTag}</span>
                 {(item._count?.accessories ?? 0) > 0 && (
-                  <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
+                  <Badge variant="secondary" size="sm" className="shrink-0 rounded-sm px-1 font-normal">
                     +{item._count!.accessories}
-                  </span>
+                  </Badge>
                 )}
               </div>
               {subtitle && (

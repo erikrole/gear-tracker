@@ -35,6 +35,7 @@ interface DataTableProps {
   onSortingChange: (sorting: SortingState) => void;
   filterBar?: ReactNode;
   bulkActionBar?: ReactNode;
+  refreshing?: boolean;
   viewMode?: "table" | "cards";
   canEdit?: boolean;
   onRowAction?: (action: string, asset: Asset) => void;
@@ -51,6 +52,7 @@ export function DataTable({
   onSortingChange,
   filterBar,
   bulkActionBar,
+  refreshing = false,
   viewMode = "table",
   canEdit = false,
   onRowAction,
@@ -74,7 +76,13 @@ export function DataTable({
   });
 
   return (
-    <div className="rounded-md border">
+    <div className="relative rounded-md border">
+      {refreshing && (
+        <div className="absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden rounded-t-md">
+          <div className="h-full w-1/3 animate-pulse bg-primary/40" style={{ animation: "shimmer 1.5s ease-in-out infinite", translate: "0%" }} />
+          <style>{`@keyframes shimmer { 0% { translate: -100%; } 100% { translate: 400%; } }`}</style>
+        </div>
+      )}
       {(filterBar || bulkActionBar) && (
         <div className="sticky top-0 z-10 bg-background rounded-t-md">
           <div className="relative">

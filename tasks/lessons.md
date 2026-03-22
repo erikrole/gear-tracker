@@ -421,6 +421,24 @@ Always use shadcn Empty component:
 - **shadcn Avatar/AvatarGroup replaces custom avatar stacks**: `AvatarGroup` with `Avatar size="sm"` + `ring-2 ring-background` handles the overlapping stack layout. Empty slots use `AvatarFallback` with `border-dashed`. Overflow uses `AvatarFallback` with count text. No custom CSS needed.
 - **Target shadcn data-slot attributes for contextual overrides**: When a shadcn component needs different styling inside a specific parent (e.g. avatar inside red overdue banner), use `[data-slot="avatar-fallback"]` selector instead of adding custom className props.
 
+## Session 2026-03-22 (Round 5): Items List Page Hardening
+
+### Reliability Patterns
+- **AbortController is mandatory for any filter-driven fetch**: Rapid filter changes (typing in search, toggling multiple facets) fire multiple concurrent requests. Without `AbortRef.current?.abort()` before each new fetch, stale responses can overwrite fresh data — the second request may resolve before the first.
+- **Distinguish initial load from refresh**: First load should show full skeleton. Subsequent refreshes should show a subtle shimmer/progress bar and keep existing data visible. Use a `hasLoadedOnce` ref to track this — NOT a state variable (avoids extra renders).
+- **Refresh failure must NOT replace visible data**: Anti-pattern: `if (!res.ok) setLoadError(true)` on every fetch. This replaces the entire table with an error screen even when valid data is in state. Fix: only set `loadError` on initial load failure. On refresh failure, toast the error and keep existing items visible.
+- **Every mutation needs toast feedback**: Silent `catch { /* ignore */ }` blocks are never acceptable. Users get zero indication their action failed. Always toast success AND failure for every async user action.
+- **actionBusy guard prevents duplicate requests**: Row-level actions (duplicate, maintenance, retire) need a shared `actionBusy` state that prevents concurrent mutations. Unlike bulk actions which have their own `busy` state, single-row actions share the page's `actionBusy` flag.
+
+### UX Polish Patterns
+- **Skeleton fidelity matters**: Uniform-width skeletons look like a test pattern. Match the actual table layout — image placeholder + two-line text for the Name column, pill-shaped for Status badges, varied widths per row using `(rowIndex % N) * step` formulas.
+- **Confirmation dialogs should name what they destroy**: "This will mark this item as retired" is vague. "This will permanently mark 'FB-CAM-001' as retired" is specific. Include the item identifier and state the consequences (hidden from inventory, cannot be checked out).
+- **Bulk action toasts should include count + action type**: "Updated" is vague. "Retired 3 items" is clear. Use an `ACTION_LABELS` map to provide human-readable action names.
+
+### Design System Patterns
+- **Raw `<span>` badges should use shadcn Badge**: Any inline colored label with padding/rounded/font-size styling is a Badge in disguise. Use `Badge variant="secondary" size="sm"` with `className="rounded-sm px-1 font-normal"` to match the faceted-filter pattern established in the codebase.
+- **Loading spinners should use the Spinner component**: The project has `src/components/ui/spinner.tsx` — use it instead of text-only "Processing..." indicators.
+
 ## Session 2026-03-22 (Round 5): Dashboard Reliability + UX Polish
 
 ### Reliability Patterns

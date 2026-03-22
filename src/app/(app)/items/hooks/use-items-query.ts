@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import type { SortingState } from "@tanstack/react-table";
 import type { Asset } from "../columns";
 
@@ -34,13 +35,27 @@ export function useItemsQuery(deps: QueryDeps) {
   });
   const [limit, setLimit] = useState(25);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const hasLoadedOnce = useRef(false);
 
   const totalPages = Math.ceil(total / limit);
 
   const reload = useCallback(async () => {
-    setLoading(true);
+    // Cancel any in-flight request to prevent stale data overwrites
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const isRefresh = hasLoadedOnce.current;
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setLoadError(false);
+
     const params = new URLSearchParams();
     params.set("limit", String(limit));
     params.set("offset", String(page * limit));
@@ -57,19 +72,40 @@ export function useItemsQuery(deps: QueryDeps) {
     }
 
     try {
-      const res = await fetch(`/api/assets?${params}`);
-      if (!res.ok) { setLoadError(true); setLoading(false); return; }
+      const res = await fetch(`/api/assets?${params}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (!res.ok) {
+        if (isRefresh) {
+          // Keep existing data visible, toast the error
+          toast.error("Failed to refresh items");
+        } else {
+          setLoadError(true);
+        }
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
       const json: AssetsResponse = await res.json();
       setItems(json.data ?? []);
       setTotal(json.total ?? 0);
-    } catch {
-      setLoadError(true);
+      hasLoadedOnce.current = true;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (isRefresh) {
+        toast.error("Network error — could not refresh items");
+      } else {
+        setLoadError(true);
+      }
     }
     setLoading(false);
+    setRefreshing(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, limit, deps.debouncedSearch, deps.statusKey, deps.locationKey, deps.categoryKey, deps.brandKey, deps.departmentKey, deps.showAccessories, deps.sortKey]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    return () => { abortRef.current?.abort(); };
+  }, [reload]);
 
   return {
     items,
@@ -80,6 +116,7 @@ export function useItemsQuery(deps: QueryDeps) {
     setLimit,
     totalPages,
     loading,
+    refreshing,
     loadError,
     reload,
   };

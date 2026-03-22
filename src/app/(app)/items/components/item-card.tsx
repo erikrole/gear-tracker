@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import type { Asset } from "../columns";
 import { statusBadge } from "../columns";
 
@@ -67,9 +68,9 @@ export function ItemCard({
             <div className="flex items-center gap-1.5">
               <span className="font-medium text-sm truncate">{item.assetTag}</span>
               {(item._count?.accessories ?? 0) > 0 && (
-                <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
+                <Badge variant="secondary" size="sm" className="shrink-0 rounded-sm px-1 font-normal">
                   +{item._count!.accessories}
-                </span>
+                </Badge>
               )}
             </div>
             {subtitle && (
