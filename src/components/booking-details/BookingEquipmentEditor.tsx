@@ -107,16 +107,23 @@ export default function BookingEquipmentEditor({
                 {resolveSkuName(item.bulkSkuId)}
               </span>
               <div className="qty-stepper">
-                <button onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity - 1)}>
+                <button
+                  aria-label={`Decrease quantity for ${resolveSkuName(item.bulkSkuId)}`}
+                  onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity - 1)}
+                >
                   &minus;
                 </button>
                 <input
                   type="number"
                   min={1}
                   value={item.quantity}
+                  aria-label={`Quantity for ${resolveSkuName(item.bulkSkuId)}`}
                   onChange={(e) => onUpdateBulkQty(item.bulkSkuId, parseInt(e.target.value) || 1)}
                 />
-                <button onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity + 1)}>
+                <button
+                  aria-label={`Increase quantity for ${resolveSkuName(item.bulkSkuId)}`}
+                  onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity + 1)}
+                >
                   +
                 </button>
               </div>

@@ -140,10 +140,6 @@ export default function ScanPage() {
   const processingRef = useRef(false);
   const loadingStatusRef = useRef(false);
 
-  // Idempotency: generate a unique key per scan attempt
-  const genIdempotencyKey = useCallback(() =>
-    `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, []);
-
   // ── Load scan status for booking modes ──
   const loadScanStatus = useCallback(async () => {
     if (!checkoutId || !phaseParam) return;
@@ -274,13 +270,11 @@ export default function ScanPage() {
       ? `/api/checkouts/${checkoutId}/checkin-scan`
       : `/api/checkouts/${checkoutId}/scan`;
 
-    const idempotencyKey = genIdempotencyKey();
-
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase: phaseParam, idempotencyKey, ...payload }),
+        body: JSON.stringify({ phase: phaseParam, ...payload }),
       });
 
       if (res.ok) {
@@ -308,7 +302,7 @@ export default function ScanPage() {
       setLastScanResult({ message: "Network error \u2014 try again", success: false });
       return false;
     }
-  }, [checkoutId, phaseParam, loadScanStatus, genIdempotencyKey]);
+  }, [checkoutId, phaseParam, loadScanStatus]);
 
   // ── Booking scan: record scan event ──
   const handleBookingScan = useCallback(async (value: string) => {

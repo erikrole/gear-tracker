@@ -13,6 +13,8 @@ import {
   SheetBody,
   SheetFooter,
 } from "@/components/ui/sheet";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -79,6 +81,7 @@ export default function BookingDetailsSheet({
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [equipSaving, setEquipSaving] = useState(false);
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
+  const [optionsError, setOptionsError] = useState(false);
 
   // History filter
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
@@ -126,13 +129,19 @@ export default function BookingDetailsSheet({
 
   const loadFormOptions = useCallback(async () => {
     try {
+      setOptionsError(false);
       const res = await fetch("/api/form-options");
       if (res.ok) {
         const json = await res.json();
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
+      } else {
+        setOptionsError(true);
       }
-    } catch { toast("Failed to load equipment options", "error"); }
+    } catch {
+      setOptionsError(true);
+      toast("Failed to load equipment options", "error");
+    }
   }, []);
 
   /* ───── Derived state ───── */
@@ -634,6 +643,16 @@ export default function BookingDetailsSheet({
                   onEnterEquipEditMode={enterEquipEditMode}
                   onCheckinItem={handleCheckinItem}
                 />
+              )}
+
+              {/* Equipment options error */}
+              {tab === "equipment" && equipEditMode && optionsError && (
+                <Alert variant="destructive" className="mb-3">
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Failed to load equipment options.</span>
+                    <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* Equipment Tab - Edit Mode */}

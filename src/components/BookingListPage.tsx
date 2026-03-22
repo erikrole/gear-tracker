@@ -153,7 +153,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       })
-      .catch(() => { /* form-options unavailable */ });
+      .catch(() => { toast("Failed to load filter options", "error"); });
     fetch("/api/me")
       .then((res) => res.ok ? res.json() : null)
       .then((json) => {

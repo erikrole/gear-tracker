@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
+import { Prisma } from "@prisma/client";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -21,6 +22,17 @@ export function fail(error: unknown) {
     return NextResponse.json(
       { error: error.message, ...(error.data ? { data: error.data } : {}) },
       { status: error.status }
+    );
+  }
+
+  // Serialization conflict (SERIALIZABLE isolation) — retryable by client
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2034"
+  ) {
+    return NextResponse.json(
+      { error: "Concurrent modification detected — please retry" },
+      { status: 409 }
     );
   }
 

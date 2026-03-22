@@ -33,6 +33,7 @@ import {
   toLocalDateTimeValue,
   actionLabels,
   formatRelative,
+  urgencyBadgeClassName,
 } from "@/components/booking-details/helpers";
 import { formatCountdown, formatDateTime, getUrgency } from "@/lib/format";
 
@@ -92,6 +93,10 @@ export default function BookingDetailPage({
 
   async function handleExtend() {
     if (!extendDate) return;
+    if (new Date(extendDate) <= new Date()) {
+      toast("New end date must be in the future", "error");
+      return;
+    }
     const ok = await actions.extend(extendDate);
     if (ok) {
       setShowExtend(false);
@@ -353,15 +358,7 @@ export default function BookingDetailPage({
         {countdown && (
           <Badge
             variant="outline"
-            className={`gap-1.5 font-medium ${
-              urgency === "overdue"
-                ? "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400"
-                : urgency === "critical"
-                  ? "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-400"
-                  : urgency === "warning"
-                    ? "border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-500"
-                    : ""
-            }`}
+            className={`gap-1.5 font-medium ${urgencyBadgeClassName(urgency)}`}
           >
             <Clock className="size-3" />
             {countdown}
@@ -392,7 +389,7 @@ export default function BookingDetailPage({
           <DateTimePicker
             value={extendDate ? new Date(extendDate) : undefined}
             onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
-            minDate={new Date(booking.endsAt)}
+            minDate={new Date(Math.max(new Date(booking.endsAt).getTime(), Date.now()))}
             placeholder="Select new end date"
           />
           <div className="flex items-center gap-2 flex-wrap">

@@ -24,8 +24,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     scanValue: body.scanValue,
     quantity: body.quantity,
     unitNumbers: body.unitNumbers,
-    deviceContext: body.deviceContext,
-    idempotencyKey: body.idempotencyKey
+    deviceContext: body.deviceContext
   });
 
   return ok({ data: result });

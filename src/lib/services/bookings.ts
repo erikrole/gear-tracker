@@ -1000,6 +1000,71 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
 }
 
 /**
+ * Shared auto-complete check for checkinItems and checkinBulkItem.
+ * Completes the booking if all serialized items are returned and all bulk items
+ * are fully checked in. Returns true if booking was completed.
+ */
+async function maybeAutoComplete(
+  tx: Prisma.TransactionClient,
+  bookingId: string,
+  locationId: string,
+  actorUserId: string,
+  opts: {
+    bulkStockReturn?: Array<{ bulkSkuId: string; quantity: number }>;
+    auditAction: string;
+  }
+): Promise<boolean> {
+  const remainingActive = await tx.bookingSerializedItem.count({
+    where: { bookingId, allocationStatus: "active" }
+  });
+
+  const currentBulkItems = await tx.bookingBulkItem.findMany({
+    where: { bookingId }
+  });
+  const bulkRemaining = currentBulkItems.some(
+    (item) => (item.checkedInQuantity ?? 0) < (item.checkedOutQuantity ?? item.plannedQuantity)
+  );
+
+  if (remainingActive > 0 || bulkRemaining) return false;
+
+  // Deactivate remaining allocations
+  await tx.assetAllocation.updateMany({
+    where: { bookingId, active: true },
+    data: { active: false }
+  });
+
+  // Return bulk stock if provided (used by checkinItems path where bulk hasn't been incrementally returned)
+  if (opts.bulkStockReturn && opts.bulkStockReturn.length > 0) {
+    await upsertBulkBalancesAndMovements(tx, {
+      bookingId,
+      locationId,
+      actorUserId,
+      kind: BulkMovementKind.CHECKIN,
+      items: opts.bulkStockReturn
+    });
+  }
+
+  // Complete booking
+  await tx.booking.update({
+    where: { id: bookingId },
+    data: { status: BookingStatus.COMPLETED }
+  });
+
+  // Close scan session
+  await tx.scanSession.updateMany({
+    where: { bookingId, phase: ScanPhase.CHECKIN, status: ScanSessionStatus.OPEN },
+    data: { status: ScanSessionStatus.COMPLETED, completedAt: new Date() }
+  });
+
+  // Audit
+  await tx.auditLog.create({
+    data: { actorUserId, entityType: "booking", entityId: bookingId, action: opts.auditAction }
+  });
+
+  return true;
+}
+
+/**
  * Partial check-in: return individual serialized items from a checkout.
  * Marks each item's allocationStatus as "returned" and deactivates its allocation.
  * If all serialized items are returned (and bulk items fully checked in),
@@ -1043,18 +1108,16 @@ export async function checkinItems(
         throw new HttpError(400, `Assets already returned: ${alreadyReturned.join(", ")}`);
       }
 
-      // Mark items as returned
-      for (const assetId of assetIds) {
-        await tx.bookingSerializedItem.updateMany({
-          where: { bookingId, assetId },
-          data: { allocationStatus: "returned" }
-        });
+      // Mark items as returned (batched — avoids N+1 sequential queries)
+      await tx.bookingSerializedItem.updateMany({
+        where: { bookingId, assetId: { in: assetIds } },
+        data: { allocationStatus: "returned" }
+      });
 
-        await tx.assetAllocation.updateMany({
-          where: { bookingId, assetId, active: true },
-          data: { active: false }
-        });
-      }
+      await tx.assetAllocation.updateMany({
+        where: { bookingId, assetId: { in: assetIds }, active: true },
+        data: { active: false }
+      });
 
       await tx.auditLog.create({
         data: {
@@ -1066,68 +1129,26 @@ export async function checkinItems(
         }
       });
 
-      // Check if all serialized items are now returned
-      const remainingActive = await tx.bookingSerializedItem.count({
-        where: { bookingId, allocationStatus: "active" }
+      // Return bulk stock if all items are now returned (auto-complete path)
+      const checkinBulkItems = booking.bulkItems.map((item) => ({
+        bulkSkuId: item.bulkSkuId,
+        quantity: item.checkedOutQuantity ?? item.plannedQuantity
+      }));
+
+      const autoCompleted = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {
+        bulkStockReturn: checkinBulkItems.length > 0 ? checkinBulkItems : undefined,
+        auditAction: "auto_completed_by_partial_checkin"
       });
 
-      // Re-fetch bulk items to get current checkedInQuantity (may have been updated by scan flow)
-      const currentBulkItems = await tx.bookingBulkItem.findMany({
-        where: { bookingId }
-      });
-      const bulkRemaining = currentBulkItems.some(
-        (item) => (item.checkedInQuantity ?? 0) < (item.checkedOutQuantity ?? item.plannedQuantity)
-      );
-
-      const allReturned = remainingActive === 0 && !bulkRemaining;
-
-      if (allReturned) {
-        await tx.assetAllocation.updateMany({
-          where: { bookingId, active: true },
-          data: { active: false }
-        });
-
-        // Return bulk stock
-        const checkinBulkItems = booking.bulkItems.map((item) => ({
-          bulkSkuId: item.bulkSkuId,
-          quantity: item.checkedOutQuantity ?? item.plannedQuantity
-        }));
-
-        if (checkinBulkItems.length > 0) {
-          await upsertBulkBalancesAndMovements(tx, {
-            bookingId,
-            locationId: booking.locationId,
-            actorUserId,
-            kind: BulkMovementKind.CHECKIN,
-            items: checkinBulkItems
-          });
-        }
-
-        await tx.booking.update({
-          where: { id: bookingId },
-          data: { status: BookingStatus.COMPLETED }
-        });
-
-        await tx.scanSession.updateMany({
-          where: { bookingId, phase: ScanPhase.CHECKIN, status: ScanSessionStatus.OPEN },
-          data: { status: ScanSessionStatus.COMPLETED, completedAt: new Date() }
-        });
-
-        await tx.auditLog.create({
-          data: {
-            actorUserId,
-            entityType: "booking",
-            entityId: bookingId,
-            action: "auto_completed_by_partial_checkin"
-          }
-        });
-      }
+      const remainingActive = autoCompleted
+        ? 0
+        : await tx.bookingSerializedItem.count({ where: { bookingId, allocationStatus: "active" } });
 
       return {
         success: true,
         returnedAssetIds: assetIds,
         remainingActiveItems: remainingActive,
-        autoCompleted: allReturned
+        autoCompleted
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
@@ -1199,52 +1220,16 @@ export async function checkinBulkItem(
         }
       });
 
-      // Check auto-complete: all serialized returned + all bulk returned
-      const remainingActive = await tx.bookingSerializedItem.count({
-        where: { bookingId, allocationStatus: "active" }
+      const autoCompleted = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {
+        auditAction: "auto_completed_by_bulk_checkin"
       });
-
-      const currentBulkItems = await tx.bookingBulkItem.findMany({
-        where: { bookingId }
-      });
-      const bulkRemaining = currentBulkItems.some(
-        (item) => (item.checkedInQuantity ?? 0) < (item.checkedOutQuantity ?? item.plannedQuantity)
-      );
-
-      const allReturned = remainingActive === 0 && !bulkRemaining;
-
-      if (allReturned) {
-        await tx.assetAllocation.updateMany({
-          where: { bookingId, active: true },
-          data: { active: false }
-        });
-
-        await tx.booking.update({
-          where: { id: bookingId },
-          data: { status: BookingStatus.COMPLETED }
-        });
-
-        await tx.scanSession.updateMany({
-          where: { bookingId, phase: ScanPhase.CHECKIN, status: ScanSessionStatus.OPEN },
-          data: { status: ScanSessionStatus.COMPLETED, completedAt: new Date() }
-        });
-
-        await tx.auditLog.create({
-          data: {
-            actorUserId,
-            entityType: "booking",
-            entityId: bookingId,
-            action: "auto_completed_by_bulk_checkin"
-          }
-        });
-      }
 
       return {
         success: true,
         bulkItemId,
         checkedInQuantity: newCheckedIn,
         totalQuantity: outQty,
-        autoCompleted: allReturned
+        autoCompleted
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
