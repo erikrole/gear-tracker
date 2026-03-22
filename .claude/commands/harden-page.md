@@ -46,11 +46,6 @@ Ensure this page fully aligns with shadcn/ui and a consistent design system.
 - Grep the entire `src/` directory to confirm no other file uses it
 - Delete dead CSS. Do not leave commented-out rules.
 
-### DECISION POINTS — Ask the user
-1. **Variant mapping**: When a custom CSS class could map to multiple shadcn variants (e.g., `.ref-badge` could be `Badge variant="gray"` or `variant="outline"`), show the user both options and ask which feels right for the page's visual hierarchy.
-2. **Keep vs replace hybrid patterns**: If a component mixes shadcn (e.g., `Card`) with custom CSS internals (e.g., `.card-header-link` for interactive headers), ask whether to fully migrate to Tailwind or keep the CSS class for its hover/transition behavior.
-3. **Skeleton layout shape**: Before building the loading skeleton, describe the proposed layout (number of cards, rows per card, which elements get skeleton treatment) and ask if it matches the user's expectation.
-
 ### RULES
 - Do not replace UI without clear benefit — if a custom component works and has no shadcn equivalent, leave it
 - Prioritize consistency over creativity
@@ -101,11 +96,6 @@ Audit and fix every logic path, state transition, and data flow on this page.
 - [ ] **Double-action prevention**: Can destructive buttons (delete, cancel) be clicked multiple times before the first resolves? Add `disabled` state or loading guard.
 - [ ] **Loading feedback**: Is every async operation visible to the user? (spinner, disabled state, progress bar)
 
-### DECISION POINTS — Ask the user
-1. **Refresh error behavior**: When a background refresh fails, present the options: (a) toast the error and keep stale data visible, (b) show a subtle inline warning banner above the content, (c) silently retry once then toast on second failure. Ask which approach fits the product's tolerance for stale data.
-2. **Mutation feedback pattern**: When a destructive action (delete, cancel) is in-flight, ask the user's preference: (a) disable only the active button, (b) disable all related buttons to prevent concurrent mutations, (c) optimistic removal (handled in Pass 4, flag here). Different pages may warrant different answers.
-3. **Null-guard scope**: After identifying which API arrays could theoretically be null, ask whether to guard defensively at the frontend (belt-and-suspenders) or fix the API contract to guarantee non-null (cleaner but requires backend change).
-
 ### RULES
 - Fix bugs. Don't refactor working code that isn't broken.
 - Don't over-validate — trust internal APIs, guard at system boundaries
@@ -146,11 +136,6 @@ For every user-facing flow on this page, simulate these failure scenarios and ev
 3. Implement the fix
 4. Verify the fix handles the scenario
 
-### DECISION POINTS — Ask the user
-1. **Error screen vs inline error**: When the page fails to load entirely, ask: (a) full-page empty state with retry button (current pattern), (b) inline error card within the page layout preserving the header/nav, (c) auto-retry with backoff before showing the error. Different pages have different expectations.
-2. **Stale tab behavior**: When the user returns to a tab that's been idle for 30+ minutes, ask: (a) auto-refresh silently in the background, (b) show a "Data may be outdated — click to refresh" banner, (c) do nothing and let the user manually refresh. This affects whether to add a visibility change listener.
-3. **Toast stacking on spam-click**: If rapid clicks cause multiple toasts, ask: (a) deduplicate toasts (only show one "Failed" toast), (b) let them stack (user sees the volume of failures), (c) debounce the action itself so only one request fires. Each has different UX tradeoffs.
-
 ### RULES
 - Think like a chaotic real user, not a careful developer
 - Prioritize preventing **silent** failures — a visible error is better than wrong data
@@ -187,11 +172,10 @@ Make this page feel complete, fast, and trustworthy. Focus on feel, not structur
 - **Confirmation clarity**: Destructive actions should name what's being destroyed and state it's irreversible
 - **System transparency**: After mutations, confirm what happened ("Draft deleted", "Checkout extended to Mar 25")
 
-### DECISION POINTS — Ask the user
-1. **Optimistic vs confirmed mutations**: For each write operation on the page, present the tradeoff: (a) optimistic (instant UI update, rollback on failure — feels fast, but briefly shows possibly-wrong state), (b) confirmed (wait for server response, then update — slower but always accurate). Ask per-operation; deletes and toggles are good optimistic candidates, but creates and complex edits may not be.
-2. **Refresh affordance placement**: Present options for where the manual refresh control lives: (a) icon button next to the page title, (b) pull-to-refresh gesture (mobile), (c) subtle "Updated X ago" text that's clickable, (d) no manual refresh — auto-refresh on an interval. Ask what fits the page's usage pattern.
-3. **Empty state personality**: When sections have zero items, present 2-3 copy options with different tones (e.g., "No checkouts right now" vs "All clear — nothing checked out" vs "You have no gear checked out"). Ask which tone matches the product voice.
-4. **Error copy tone**: Present the user with 2-3 options for error messaging (e.g., "Couldn't load dashboard" vs "Something went wrong" vs "We hit a snag"). The right tone depends on the product personality.
+### DECISION POINTS — Ask the user (product decisions only)
+1. **Empty state personality**: When sections have zero items, present 2-3 copy options with different tones (e.g., "No checkouts right now" vs "All clear — nothing checked out" vs "You have no gear checked out"). Ask which tone matches the product voice.
+2. **Error copy tone**: Present the user with 2-3 options for error messaging (e.g., "Couldn't load dashboard" vs "Something went wrong" vs "We hit a snag"). The right tone depends on the product personality.
+3. **Confirmation dialog copy**: For destructive actions, present the proposed confirmation text (title, body, button label) and ask if it reads right. This is user-facing copy the user should approve.
 
 ### RULES
 - Focus on feel, not structure
@@ -232,10 +216,6 @@ Update all project documentation to reflect the work done in passes 1-4.
 
 5. **`tasks/[feature]-plan.md`**
    - If all slices of a related plan are now shipped, move the file to `tasks/archive/`
-
-### DECISION POINTS — Ask the user
-1. **Changelog granularity**: After drafting the changelog entries for all passes, present them and ask: (a) keep them as separate entries per pass (more detailed history), (b) merge into a single "hardening" entry (cleaner changelog), (c) something in between. Different area docs have different conventions.
-2. **Lessons scope**: After drafting the lessons learned, present the full list and ask if any should be promoted to CLAUDE.md rules (for things that should be enforced on every future session, not just remembered).
 
 ### RULES
 - Every shipped behavior must be reflected in the area doc's changelog
