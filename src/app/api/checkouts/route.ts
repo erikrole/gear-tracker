@@ -32,7 +32,7 @@ export const GET = withAuth(async (req, { user }) => {
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "checkout", "create");
   const body = createCheckoutSchema.parse(await req.json());
-  const { start, end } = parseDateRange(body.startsAt, body.endsAt);
+  const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
 
   // Event-default prefill: if sportCode provided but no eventId,
   // look up next upcoming event and use as defaults (ad hoc fallback if none found)

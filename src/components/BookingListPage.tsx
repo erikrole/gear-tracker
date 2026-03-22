@@ -108,8 +108,20 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const submittingRef = useRef(false);
+  const extendingRef = useRef(false);
 
   const limit = 20;
+
+  // ── Warn before unload when form has data ──
+  useEffect(() => {
+    if (!showCreate) return;
+    const hasData = createTitle.trim() || selectedAssetIds.length > 0 || selectedBulkItems.length > 0;
+    if (!hasData) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [showCreate, createTitle, selectedAssetIds.length, selectedBulkItems.length]);
 
   // ── Data fetching ──
 
@@ -313,8 +325,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     setDraftId(null);
   }
 
-  function handleCloseCreate() {
-    saveDraft();
+  async function handleCloseCreate() {
+    await saveDraft();
     setShowCreate(false);
   }
 
@@ -329,6 +341,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
   }
 
   async function handleCreateConfirm() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setCreateError("");
 
@@ -383,6 +397,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
         } else {
           setCreateError(json.error || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
         }
+        submittingRef.current = false;
         setSubmitting(false);
         setShowConfirm(false);
         return;
@@ -401,6 +416,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       setSelectedAssetIds([]);
       setSelectedBulkItems([]);
       setShowEquipPicker(true);
+      submittingRef.current = false;
       setSubmitting(false);
       setDraftId(null);
 
@@ -408,6 +424,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
       await reload();
     } catch {
       setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
+      submittingRef.current = false;
       setSubmitting(false);
       setShowConfirm(false);
     }
@@ -417,7 +434,8 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
   async function handleExtendFromMenu(bookingId: string, days: number) {
     const item = items.find((i) => i.id === bookingId);
-    if (!item || extendingId) return;
+    if (!item || extendingId || extendingRef.current) return;
+    extendingRef.current = true;
     setExtendingId(bookingId);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/extend`, {
@@ -433,6 +451,7 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
     } catch {
       toast("Network error \u2014 please try again.", "error");
     }
+    extendingRef.current = false;
     setExtendingId(null);
   }
 

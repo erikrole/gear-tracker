@@ -16,7 +16,7 @@ export const availabilitySchema = z.object({
 });
 
 export const createReservationSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().trim().min(1).max(500),
   requesterUserId: z.string().cuid(),
   locationId: z.string().cuid(),
   startsAt: z.string(),
@@ -34,7 +34,7 @@ export const updateReservationSchema = createReservationSchema
   .extend({ status: z.nativeEnum(BookingStatus).optional() });
 
 export const createCheckoutSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().trim().min(1).max(500),
   requesterUserId: z.string().cuid(),
   locationId: z.string().cuid(),
   startsAt: z.string(),
@@ -135,7 +135,7 @@ export const updateUserRoleSchema = z.object({
 });
 
 export const updateBookingSchema = z.object({
-  title: z.string().min(1).optional(),
+  title: z.string().trim().min(1).max(500).optional(),
   requesterUserId: z.string().cuid().optional(),
   locationId: z.string().cuid().optional(),
   startsAt: z.string().optional(),

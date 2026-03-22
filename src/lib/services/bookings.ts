@@ -905,6 +905,10 @@ export async function extendBooking(
         throw new HttpError(400, "New end date must be later than current end date");
       }
 
+      if (newEndsAt.getTime() < Date.now()) {
+        throw new HttpError(400, "New end date must be in the future");
+      }
+
       const serializedAssetIds = existing.serializedItems.map((i) => i.assetId);
       const bulkItems = existing.bulkItems.map((i) => ({
         bulkSkuId: i.bulkSkuId,

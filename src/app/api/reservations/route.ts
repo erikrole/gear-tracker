@@ -17,7 +17,7 @@ export const GET = withAuth(async (req, { user }) => {
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "create");
   const body = createReservationSchema.parse(await req.json());
-  const { start, end } = parseDateRange(body.startsAt, body.endsAt);
+  const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
 
   const reservation = await createBooking({
     kind: BookingKind.RESERVATION,
