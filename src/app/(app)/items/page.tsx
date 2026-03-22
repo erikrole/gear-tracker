@@ -259,6 +259,7 @@ export default function ItemsPage() {
             onColumnVisibilityChange={setColumnVisibility}
             sorting={filters.sorting}
             onSortingChange={(next) => { filters.setSorting(next); query.setPage(0); }}
+            refreshing={query.refreshing}
             viewMode={isMobile ? "cards" : "table"}
             canEdit={options.canEdit}
             onRowAction={handleRowAction}
