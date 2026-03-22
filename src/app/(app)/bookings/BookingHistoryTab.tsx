@@ -157,6 +157,8 @@ export default function BookingHistoryTab({
                     <span className="text-sm text-muted-foreground">{label}</span>
                     <span className="text-xs text-muted-foreground/60 ml-auto shrink-0">
                       {formatRelative(entry.createdAt)}
+                      {" · "}
+                      {formatDateTime(entry.createdAt)}
                     </span>
                   </div>
 

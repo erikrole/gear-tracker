@@ -74,14 +74,13 @@ export default function BookingInfoTab({
         <span className="text-sm">{formatDateTime(booking.endsAt)}</span>
       </SaveableField>
 
-      {/* Requester */}
-      <SaveableField label="Requester">
+      {/* User */}
+      <SaveableField label="User">
         <span className="inline-flex items-center gap-2 text-sm">
           <Avatar className="size-5 text-[10px]">
             <AvatarFallback>{(booking.requester?.name ?? "U").charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           {booking.requester?.name ?? "Unknown"}
-          <span className="text-muted-foreground">({booking.requester?.email ?? ""})</span>
         </span>
       </SaveableField>
 

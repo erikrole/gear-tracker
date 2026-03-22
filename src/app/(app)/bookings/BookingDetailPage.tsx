@@ -22,6 +22,7 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { Clock, ChevronDown } from "lucide-react";
+import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
@@ -32,7 +33,7 @@ import {
   actionLabels,
   formatRelative,
 } from "@/components/booking-details/helpers";
-import { formatCountdown, getUrgency } from "@/lib/format";
+import { formatCountdown, formatDateTime, getUrgency } from "@/lib/format";
 
 import BookingInfoTab from "./BookingInfoTab";
 import BookingEquipmentTab from "./BookingEquipmentTab";
@@ -65,6 +66,9 @@ export default function BookingDetailPage({
 
   // History collapse state
   const [historyExpanded, setHistoryExpanded] = useState(false);
+
+  // Edit sheet state
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
 
   // Live countdown tick — faster for urgent/overdue bookings
   const [now, setNow] = useState(() => new Date());
@@ -199,7 +203,7 @@ export default function BookingDetailPage({
       {/* Breadcrumb handled by global PageBreadcrumb in AppShell */}
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
           <InlineTitle
             value={booking.title}
@@ -208,7 +212,7 @@ export default function BookingDetailPage({
               await actions.saveField("title", v);
               patchLocal({ title: v });
             }}
-            className="text-2xl font-bold tracking-tight"
+            className="text-2xl font-semibold tracking-tight leading-tight"
             placeholder="Untitled booking"
           />
         </div>
@@ -267,7 +271,7 @@ export default function BookingDetailPage({
           {canEdit && (
             <Button
               variant="outline"
-              onClick={() => router.push(`/${kindLabel}s?editId=${id}`)}
+              onClick={() => setEditSheetOpen(true)}
             >
               Edit
             </Button>
@@ -347,15 +351,15 @@ export default function BookingDetailPage({
 
       {/* ── Extend panel ── */}
       {showExtend && (
-        <Card className="p-4 border-border/40 shadow-none">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-semibold">New end date:</span>
-            <DateTimePicker
-              value={extendDate ? new Date(extendDate) : undefined}
-              onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
-              minDate={new Date(booking.endsAt)}
-              placeholder="Select new end date"
-            />
+        <Card className="p-4 border-border/40 shadow-none space-y-3">
+          <span className="text-sm font-medium">New end date</span>
+          <DateTimePicker
+            value={extendDate ? new Date(extendDate) : undefined}
+            onChange={(d) => setExtendDate(toLocalDateTimeValue(d))}
+            minDate={new Date(booking.endsAt)}
+            placeholder="Select new end date"
+          />
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
               onClick={handleExtend}
@@ -370,8 +374,7 @@ export default function BookingDetailPage({
             >
               Cancel
             </Button>
-          </div>
-          <div className="flex gap-2 mt-2">
+            <span className="border-l border-border/40 h-5 mx-1" />
             {[
               { label: "+1 day", days: 1 },
               { label: "+3 days", days: 3 },
@@ -447,7 +450,7 @@ export default function BookingDetailPage({
                 <p className="text-xs text-muted-foreground mt-1.5 ml-6 truncate">
                   {booking.auditLogs[0].actor?.name ?? "Unknown"}{" "}
                   {actionLabels[booking.auditLogs[0].action] || booking.auditLogs[0].action}{" "}
-                  — {formatRelative(booking.auditLogs[0].createdAt)}
+                  — {formatRelative(booking.auditLogs[0].createdAt)}{" · "}{formatDateTime(booking.auditLogs[0].createdAt)}
                 </p>
               )}
             </CardHeader>
@@ -459,6 +462,16 @@ export default function BookingDetailPage({
           </Card>
         </Collapsible>
       )}
+
+      {/* ── Edit sheet ── */}
+      <BookingDetailsSheet
+        bookingId={editSheetOpen ? id : null}
+        onClose={() => setEditSheetOpen(false)}
+        onUpdated={() => {
+          setEditSheetOpen(false);
+          reload();
+        }}
+      />
     </div>
   );
 }
