@@ -396,3 +396,13 @@ Always use shadcn Empty component:
 - **Row-level actions via hover menu**: `group/row` on container + `opacity-0 group-hover/row:opacity-100` on trigger. Clean and discoverable without cluttering the default view.
 - **Success toasts are as important as error toasts**: Users need confirmation that their action worked. Silent success erodes confidence.
 - **Quick-extend should offset from picker value**: When the date picker already has a value, "+1 week" should add to that, not reset to original booking end date.
+
+## Session 2026-03-22 (Round 3): iPhone Mobile Polish
+
+### Patterns
+- **iOS auto-zoom on inputs < 16px**: iOS Safari zooms the viewport when focusing inputs with `font-size < 16px`. Fix: `text-base md:text-sm` on Input, Textarea, and SelectTrigger — 16px on mobile, 13px on desktop. This is a global fix affecting every form in the app.
+- **Hover-reveal patterns fail on touch**: `opacity-0 group-hover:opacity-100` is invisible on mobile (no hover). Fix: prefix with `sm:` so items are always visible on small screens — `sm:opacity-0 sm:group-hover/row:opacity-100`.
+- **`flex items-center justify-between` breaks on mobile when content is wide**: Title + action buttons side-by-side causes title to wrap to 3+ lines while buttons are squeezed right. Fix: `flex-col sm:flex-row sm:items-center sm:justify-between` — stack vertically on mobile, inline on desktop.
+- **Always test detail page headers at 390px width**: If title + buttons share a flex row, iPhone will force ugly wrapping. Default to `flex-col` on mobile for any header with more than 2 buttons.
+- **Global `-webkit-tap-highlight-color: transparent`**: Apply to all interactive elements (`a, button, [role="button"], label, select, summary, [tabindex]`), not just individual components. Prevents the gray flash on tap that makes iOS web apps feel non-native.
+- **`overscroll-behavior-y: none` on body**: Prevents rubber-band overscroll on iOS which makes the app feel like a webpage instead of a native app.
