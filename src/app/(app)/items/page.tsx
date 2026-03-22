@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +62,7 @@ export default function ItemsPage() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   // Clear selection when page/filters change
   useEffect(() => {
@@ -87,35 +89,66 @@ export default function ItemsPage() {
   );
 
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
+    if (actionBusy) return;
     switch (action) {
       case "open":
         router.push(`/items/${asset.id}`);
         break;
       case "duplicate":
+        setActionBusy(true);
         try {
           const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
-          if (res.ok) query.reload();
-        } catch { /* ignore */ }
+          if (res.ok) {
+            toast.success(`Duplicated ${asset.assetTag}`);
+            query.reload();
+          } else {
+            const body = await res.json().catch(() => null);
+            toast.error(body?.error || "Failed to duplicate item");
+          }
+        } catch {
+          toast.error("Network error — could not duplicate item");
+        }
+        setActionBusy(false);
         break;
       case "maintenance":
+        setActionBusy(true);
         try {
           const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
-          if (res.ok) query.reload();
-        } catch { /* ignore */ }
+          if (res.ok) {
+            toast.success(`Updated ${asset.assetTag} maintenance status`);
+            query.reload();
+          } else {
+            const body = await res.json().catch(() => null);
+            toast.error(body?.error || "Failed to update maintenance status");
+          }
+        } catch {
+          toast.error("Network error — could not update item");
+        }
+        setActionBusy(false);
         break;
       case "retire":
         setRetireTarget(asset);
         break;
     }
-  }, [query.reload, router]);
+  }, [actionBusy, query.reload, router]);
 
   async function confirmRetireTarget() {
-    if (!retireTarget) return;
+    if (!retireTarget || actionBusy) return;
+    setActionBusy(true);
     try {
       const res = await fetch(`/api/assets/${retireTarget.id}/retire`, { method: "POST" });
-      if (res.ok) query.reload();
-    } catch { /* ignore */ }
+      if (res.ok) {
+        toast.success(`Retired ${retireTarget.assetTag}`);
+        query.reload();
+      } else {
+        const body = await res.json().catch(() => null);
+        toast.error(body?.error || "Failed to retire item");
+      }
+    } catch {
+      toast.error("Network error — could not retire item");
+    }
     setRetireTarget(null);
+    setActionBusy(false);
   }
 
   const columns = useMemo(
@@ -145,6 +178,7 @@ export default function ItemsPage() {
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={confirmRetireTarget}
+              disabled={actionBusy}
             >
               Retire
             </AlertDialogAction>
