@@ -41,6 +41,7 @@ export function useBookingActions(
   bookingId: string,
   kind: "CHECKOUT" | "RESERVATION",
   onSuccess: () => void,
+  updatedAt?: string | null,
 ) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -188,14 +189,19 @@ export function useBookingActions(
 
   const saveField = useCallback(
     async (field: string, value: unknown) => {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (updatedAt) headers["If-Unmodified-Since"] = new Date(updatedAt).toUTCString();
       const res = await fetchWithTimeout(`/api/bookings/${bookingId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ [field]: value }),
       });
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) {
+        if (res.status === 409) throw new Error("This booking was modified by someone else. Please refresh.");
+        throw new Error("Save failed");
+      }
     },
-    [bookingId],
+    [bookingId, updatedAt],
   );
 
   return {

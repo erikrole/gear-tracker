@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { parseDateRange } from "@/lib/time";
 import { createAuditEntry } from "@/lib/audit";
-import { createReservationSchema } from "@/lib/validation";
+import { createReservationSchema, sanitizeBookingFields } from "@/lib/validation";
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "view");
@@ -16,7 +16,7 @@ export const GET = withAuth(async (req, { user }) => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "create");
-  const body = createReservationSchema.parse(await req.json());
+  const body = sanitizeBookingFields(createReservationSchema.parse(await req.json()));
   const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
 
   const reservation = await createBooking({

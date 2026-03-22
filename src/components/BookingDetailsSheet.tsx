@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -331,9 +332,11 @@ export default function BookingDetailsSheet({
     setConflictError(null);
 
     try {
-      const res = await fetch(`/api/bookings/${booking.id}`, {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           serializedAssetIds: editSerializedIds,
           bulkItems: editBulkItems,
@@ -346,11 +349,11 @@ export default function BookingDetailsSheet({
         await fetchBooking();
         onUpdated?.();
       } else {
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
         if (res.status === 409 && json.data) {
           setConflictError(json.data as ConflictData);
         }
-        toast(json.error || "Failed to save equipment changes", "error");
+        toast((json.error as string) || "Failed to save equipment changes", "error");
       }
     } catch {
       toast("Failed to save", "error");
@@ -375,9 +378,11 @@ export default function BookingDetailsSheet({
     }
 
     try {
-      const res = await fetch(`/api/bookings/${booking.id}`, {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -387,11 +392,11 @@ export default function BookingDetailsSheet({
         await fetchBooking();
         onUpdated?.();
       } else {
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
         if (res.status === 409 && json.data) {
           setConflictError(json.data as ConflictData);
         }
-        toast(json.error || "Failed to save", "error");
+        toast((json.error as string) || "Failed to save", "error");
       }
     } catch {
       toast("Failed to save", "error");

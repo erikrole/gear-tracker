@@ -55,7 +55,7 @@ export default function BookingDetailPage({
   const { booking, loading, reloading, error, reload, patchLocal } = useBookingDetail(id);
 
   // Actions
-  const actions = useBookingActions(id, kind, reload);
+  const actions = useBookingActions(id, kind, reload, booking?.updatedAt);
 
   // Extend panel state
   const [showExtend, setShowExtend] = useState(false);

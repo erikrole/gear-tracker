@@ -1,5 +1,14 @@
 import { BookingKind, BookingStatus, Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { z } from "zod";
+import { sanitizeText } from "./sanitize";
+
+/** Sanitize user-facing text fields in a booking payload */
+export function sanitizeBookingFields<T extends Record<string, unknown>>(data: T): T {
+  const d = data as Record<string, unknown>;
+  if (typeof d.title === "string") d.title = sanitizeText(d.title);
+  if (typeof d.notes === "string") d.notes = sanitizeText(d.notes);
+  return data;
+}
 
 const bulkItemSchema = z.object({
   bulkSkuId: z.string().cuid(),
