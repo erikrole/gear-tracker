@@ -42,9 +42,6 @@ export function useBookingActions(
   const confirm = useConfirm();
   const { toast } = useToast();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [actionError, setActionError] = useState("");
-
-  const clearError = useCallback(() => setActionError(""), []);
 
   const cancel = useCallback(async () => {
     const label = kind === "CHECKOUT" ? "checkout" : "reservation";
@@ -56,9 +53,9 @@ export function useBookingActions(
     });
     if (!ok) return;
     setActionLoading("cancel");
-    setActionError("");
     const result = await callAction(`/api/bookings/${bookingId}/cancel`);
     if (result.ok) {
+      toast(`${label.charAt(0).toUpperCase() + label.slice(1)} cancelled`, "success");
       onSuccess();
     } else {
       toast(result.error!, "error");
@@ -69,19 +66,19 @@ export function useBookingActions(
   const extend = useCallback(
     async (endsAt: string) => {
       setActionLoading("extend");
-      setActionError("");
       const result = await callAction(`/api/bookings/${bookingId}/extend`, "POST", {
         endsAt: new Date(endsAt).toISOString(),
       });
       if (result.ok) {
+        toast("Booking extended", "success");
         onSuccess();
       } else {
-        setActionError(result.error!);
+        toast(result.error!, "error");
       }
       setActionLoading(null);
       return result.ok;
     },
-    [bookingId, onSuccess],
+    [bookingId, toast, onSuccess],
   );
 
   const convert = useCallback(async () => {
@@ -93,7 +90,6 @@ export function useBookingActions(
     });
     if (!ok) return;
     setActionLoading("convert");
-    setActionError("");
     const result = await callAction(`/api/reservations/${bookingId}/convert`);
     if (result.ok) {
       const checkoutId = (result as { data?: { id?: string } }).data?.id;
@@ -106,7 +102,6 @@ export function useBookingActions(
 
   const duplicate = useCallback(async () => {
     setActionLoading("duplicate");
-    setActionError("");
     const result = await callAction(`/api/reservations/${bookingId}/duplicate`);
     if (result.ok) {
       const newId = (result as { data?: { id?: string } }).data?.id;
@@ -121,37 +116,38 @@ export function useBookingActions(
     async (assetIds: string[]) => {
       if (assetIds.length === 0) return;
       setActionLoading("checkin");
-      setActionError("");
       const result = await callAction(`/api/checkouts/${bookingId}/checkin-items`, "POST", {
         assetIds,
       });
       if (result.ok) {
+        toast(`${assetIds.length} item${assetIds.length > 1 ? "s" : ""} returned`, "success");
         onSuccess();
       } else {
-        setActionError(result.error!);
+        toast(result.error!, "error");
       }
       setActionLoading(null);
     },
-    [bookingId, onSuccess],
+    [bookingId, toast, onSuccess],
   );
 
   const checkinBulk = useCallback(
-    async (bulkItemId: string, quantity: number) => {
-      if (quantity <= 0) return;
+    async (bulkItemId: string, quantity: number): Promise<boolean> => {
+      if (quantity <= 0) return false;
       setActionLoading(`bulk-${bulkItemId}`);
-      setActionError("");
       const result = await callAction(`/api/checkouts/${bookingId}/checkin-bulk`, "POST", {
         bulkItemId,
         quantity,
       });
       if (result.ok) {
+        toast("Bulk items returned", "success");
         onSuccess();
       } else {
-        setActionError(result.error!);
+        toast(result.error!, "error");
       }
       setActionLoading(null);
+      return result.ok;
     },
-    [bookingId, onSuccess],
+    [bookingId, toast, onSuccess],
   );
 
   const completeCheckin = useCallback(async () => {
@@ -162,15 +158,15 @@ export function useBookingActions(
     });
     if (!ok) return;
     setActionLoading("complete-checkin");
-    setActionError("");
     const result = await callAction(`/api/checkouts/${bookingId}/complete-checkin`);
     if (result.ok) {
+      toast("Check in completed", "success");
       onSuccess();
     } else {
-      setActionError(result.error!);
+      toast(result.error!, "error");
     }
     setActionLoading(null);
-  }, [bookingId, confirm, onSuccess]);
+  }, [bookingId, confirm, toast, onSuccess]);
 
   const saveField = useCallback(
     async (field: string, value: unknown) => {
@@ -186,8 +182,6 @@ export function useBookingActions(
 
   return {
     actionLoading,
-    actionError,
-    clearError,
     cancel,
     extend,
     convert,

@@ -6,10 +6,12 @@ import type { BookingDetail } from "@/components/booking-details/types";
 export function useBookingDetail(id: string) {
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
   const [error, setError] = useState(false);
 
   const reload = useCallback(() => {
     setError(false);
+    setReloading(true);
     fetch(`/api/bookings/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error();
@@ -20,7 +22,7 @@ export function useBookingDetail(id: string) {
         else setError(true);
       })
       .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setReloading(false); });
   }, [id]);
 
   useEffect(() => {
@@ -32,5 +34,5 @@ export function useBookingDetail(id: string) {
     setBooking((prev) => (prev ? { ...prev, ...patch } : prev));
   }, []);
 
-  return { booking, loading, error, reload, patchLocal };
+  return { booking, loading, reloading, error, reload, patchLocal };
 }

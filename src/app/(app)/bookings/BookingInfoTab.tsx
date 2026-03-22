@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
+import { TriangleAlert } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import type { BookingDetail } from "@/components/booking-details/types";
 
@@ -35,6 +37,11 @@ export default function BookingInfoTab({
 
   return (
     <Card className="border-border/40 shadow-none divide-y divide-border/30">
+      <CardHeader className="pb-0">
+        <CardTitle className="text-base">
+          {booking.kind === "CHECKOUT" ? "Checkout details" : "Reservation details"}
+        </CardTitle>
+      </CardHeader>
       {/* Title */}
       <SaveableField label="Title" status={titleSave.status}>
         {canEdit ? (
@@ -108,10 +115,13 @@ export default function BookingInfoTab({
 
       {/* Mixed location warning */}
       {booking.locationMode === "MIXED" && booking.itemLocations.length > 1 && (
-        <div className="px-3 py-2.5 text-sm text-muted-foreground bg-muted/50 rounded-b-lg">
-          Equipment spans multiple locations:{" "}
-          {booking.itemLocations.map((l) => l.name).join(", ")}
-        </div>
+        <Alert className="rounded-t-none border-x-0 border-b-0">
+          <TriangleAlert className="size-4" />
+          <AlertDescription>
+            Equipment spans multiple locations:{" "}
+            {booking.itemLocations.map((l) => l.name).join(", ")}
+          </AlertDescription>
+        </Alert>
       )}
     </Card>
   );

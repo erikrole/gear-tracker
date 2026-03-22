@@ -49,7 +49,7 @@ export default function BookingHistory({
                 {actionLabels[entry.action] || entry.action}
               </div>
               <div className="timeline-meta">
-                {entry.actor.name} {"\u00b7"} {formatRelative(entry.createdAt)}
+                {entry.actor?.name ?? "Unknown user"} {"\u00b7"} {formatRelative(entry.createdAt)}
               </div>
 
               {/* Extended detail */}

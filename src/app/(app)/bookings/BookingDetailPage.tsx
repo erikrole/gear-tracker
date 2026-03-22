@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
   DropdownMenu,
@@ -16,26 +16,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InlineTitle } from "@/components/InlineTitle";
+import {
+  Breadcrumb as BreadcrumbNav,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import { Clock, ChevronDown, MoreHorizontal } from "lucide-react";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
 import {
   statusBadgeVariant,
   toLocalDateTimeValue,
+  actionLabels,
+  formatRelative,
 } from "@/components/booking-details/helpers";
-import type { TabKey } from "@/components/booking-details/types";
+import { formatCountdown, getUrgency } from "@/lib/format";
 
 import BookingInfoTab from "./BookingInfoTab";
 import BookingEquipmentTab from "./BookingEquipmentTab";
 import BookingHistoryTab from "./BookingHistoryTab";
-
-/* ── Tab Definitions ── */
-
-const tabDefs: Array<{ key: TabKey; label: string }> = [
-  { key: "info", label: "Info" },
-  { key: "equipment", label: "Equipment" },
-  { key: "history", label: "History" },
-];
 
 /* ── Main Component ── */
 
@@ -46,57 +54,33 @@ export default function BookingDetailPage({
 }) {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Data fetching
-  const { booking, loading, error, reload, patchLocal } = useBookingDetail(id);
+  const { booking, loading, reloading, error, reload, patchLocal } = useBookingDetail(id);
 
   // Actions
   const actions = useBookingActions(id, kind, reload);
-
-  // Tabs
-  const initialTab = (searchParams.get("tab") as TabKey) || "info";
-  const [activeTab, setActiveTab] = useState<TabKey>(
-    tabDefs.some((t) => t.key === initialTab) ? initialTab : "info",
-  );
-
-  function switchTab(tab: TabKey) {
-    setActiveTab(tab);
-    const url = new URL(window.location.href);
-    if (tab === "info") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", tab);
-    window.history.replaceState({}, "", url.toString());
-    // Silently refresh data when switching to history (picks up new audit entries)
-    if (tab === "history") reload();
-  }
-
-  // Keyboard shortcuts: 1-3 to switch tabs
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
-      )
-        return;
-      const num = parseInt(e.key);
-      if (num >= 1 && num <= tabDefs.length) {
-        e.preventDefault();
-        switchTab(tabDefs[num - 1].key);
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Extend panel state
   const [showExtend, setShowExtend] = useState(false);
   const [extendDate, setExtendDate] = useState("");
 
-  // Checkout-specific: checkin state
+  // Checkout-specific: checkin state — select all returnable items by default
   const [checkinIds, setCheckinIds] = useState<Set<string>>(new Set());
   const [bulkReturnQty, setBulkReturnQty] = useState<Record<string, number>>({});
+  const checkinIdsInitialised = useRef(false);
+
+  // History collapse state
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+
+  // Live countdown tick — faster for urgent/overdue bookings
+  const [now, setNow] = useState(() => new Date());
+  const liveUrgency = booking ? getUrgency(booking.startsAt, booking.endsAt, now) : "normal";
+  useEffect(() => {
+    const interval = liveUrgency === "overdue" || liveUrgency === "critical" ? 10_000 : 30_000;
+    const timer = setInterval(() => setNow(new Date()), interval);
+    return () => clearInterval(timer);
+  }, [liveUrgency]);
 
   const toggleCheckin = useCallback((assetId: string) => {
     setCheckinIds((prev) => {
@@ -118,22 +102,35 @@ export default function BookingDetailPage({
 
   function handleQuickExtend(days: number) {
     if (!booking) return;
-    const current = new Date(booking.endsAt);
-    current.setDate(current.getDate() + days);
-    setExtendDate(toLocalDateTimeValue(current));
+    // Offset from the currently picked date if set, otherwise from booking end
+    const base = extendDate ? new Date(extendDate) : new Date(booking.endsAt);
+    base.setDate(base.getDate() + days);
+    setExtendDate(toLocalDateTimeValue(base));
     setShowExtend(true);
   }
 
   async function handleCheckinSelected() {
-    await actions.checkinItems(Array.from(checkinIds));
+    const returning = Array.from(checkinIds);
+    // Optimistically mark items as returned before API call
+    const returningSet = new Set(returning);
+    patchLocal({
+      serializedItems: booking!.serializedItems.map((item) =>
+        returningSet.has(item.asset.id)
+          ? { ...item, allocationStatus: "returned" }
+          : item,
+      ),
+    });
     setCheckinIds(new Set());
+    await actions.checkinItems(returning);
+    // Allow auto-select to re-fire on reload for remaining items
+    checkinIdsInitialised.current = false;
   }
 
   async function handleBulkReturn(bulkItemId: string) {
     const qty = bulkReturnQty[bulkItemId];
     if (!qty || qty <= 0) return;
-    await actions.checkinBulk(bulkItemId, qty);
-    setBulkReturnQty((prev) => ({ ...prev, [bulkItemId]: 0 }));
+    const ok = await actions.checkinBulk(bulkItemId, qty);
+    if (ok) setBulkReturnQty((prev) => ({ ...prev, [bulkItemId]: 0 }));
   }
 
   // Derived
@@ -144,37 +141,45 @@ export default function BookingDetailPage({
   const canCheckin = allowedActions.includes("checkin");
   const canConvert = kind === "RESERVATION" && allowedActions.includes("convert");
   const canDuplicate = kind === "RESERVATION" && allowedActions.includes("duplicate");
-  const canOpen = allowedActions.includes("open");
   const isOpen = booking?.status === "OPEN";
-  const isOverdue = booking
-    ? kind === "CHECKOUT"
-      ? isOpen && new Date(booking.endsAt) < new Date()
-      : booking.status === "BOOKED" && new Date(booking.endsAt) < new Date()
-    : false;
+  const isActive = isOpen || booking?.status === "BOOKED";
+
+  // Auto-select all returnable serialized items on first load
+  useEffect(() => {
+    if (checkinIdsInitialised.current || !booking || !canCheckin) return;
+    const returnable = booking.serializedItems
+      .filter((i) => i.allocationStatus !== "returned")
+      .map((i) => i.asset.id);
+    if (returnable.length > 0) {
+      setCheckinIds(new Set(returnable));
+      checkinIdsInitialised.current = true;
+    }
+  }, [booking, canCheckin]);
 
   const listPath = kind === "CHECKOUT" ? "/checkouts" : "/reservations";
   const kindLabel = kind === "CHECKOUT" ? "checkout" : "reservation";
+  const kindLabelPlural = kind === "CHECKOUT" ? "Checkouts" : "Reservations";
+
+  // Countdown for active bookings
+  const countdown = booking && isActive ? formatCountdown(booking.endsAt, now) : null;
+  const urgency = isActive ? liveUrgency : "normal";
 
   /* ── Loading state ── */
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-6 w-16 rounded-full" />
-        </div>
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-8 w-64" />
         <div className="flex items-center gap-2">
           <Skeleton className="h-5 w-20 rounded-full" />
           <Skeleton className="h-5 w-24 rounded-full" />
-          <Skeleton className="h-5 w-32 rounded-full" />
+          <Skeleton className="h-5 w-48 rounded-full" />
         </div>
-        <div className="flex gap-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-9 w-24" />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
+          <Skeleton className="h-72 rounded-lg" />
+          <Skeleton className="h-72 rounded-lg" />
         </div>
-        <Skeleton className="h-64 w-full rounded-lg" />
       </div>
     );
   }
@@ -187,19 +192,39 @@ export default function BookingDetailPage({
         {kindLabel.charAt(0).toUpperCase() + kindLabel.slice(1)} not found or failed to
         load.{" "}
         <Link href={listPath} className="text-blue-600 hover:underline">
-          Back to {kindLabel}s
+          Back to {kindLabelPlural.toLowerCase()}
         </Link>
       </div>
     );
   }
 
   const itemCount = booking.serializedItems.length + booking.bulkItems.length;
+  // unused const removed — history is fully collapsed or fully expanded now
 
   return (
-    <>
+    <div className="space-y-6">
+      {/* ── Breadcrumb ── */}
+      <BreadcrumbNav>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild><Link href="/">Home</Link></BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild><Link href={listPath}>{kindLabelPlural}</Link></BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="truncate max-w-[200px]">
+              {booking.title}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </BreadcrumbNav>
+
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
+        <div className="min-w-0 flex-1">
           <InlineTitle
             value={booking.title}
             canEdit={canEdit}
@@ -212,94 +237,144 @@ export default function BookingDetailPage({
           />
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           {/* Primary CTA */}
           {canConvert && (
-            <Button size="sm" onClick={actions.convert} disabled={!!actions.actionLoading}>
+            <Button onClick={actions.convert} disabled={!!actions.actionLoading}>
               {actions.actionLoading === "convert" ? "Converting..." : "Start checkout"}
             </Button>
           )}
 
           {/* Scan buttons for checkouts */}
-          {kind === "CHECKOUT" && (isOpen || canOpen) && (
-            <>
-              {isOpen && (
-                <Button size="sm" asChild>
-                  <Link href={`/scan?checkout=${id}&phase=CHECKOUT`}>Scan Items Out</Link>
-                </Button>
-              )}
-              {canCheckin && (
-                <Button size="sm" variant="outline" asChild>
-                  <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan Items In</Link>
-                </Button>
-              )}
-            </>
+          {kind === "CHECKOUT" && isOpen && (
+            <Button asChild>
+              <Link href={`/scan?checkout=${id}&phase=CHECKOUT`}>Scan Items Out</Link>
+            </Button>
+          )}
+          {kind === "CHECKOUT" && canCheckin && (
+            <Button variant="outline" asChild>
+              <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan Items In</Link>
+            </Button>
           )}
 
-          {/* Secondary actions dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                Actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canEdit && (
-                <DropdownMenuItem
-                  onSelect={() => router.push(`/${kindLabel}s?editId=${id}`)}
-                >
-                  Edit
-                </DropdownMenuItem>
-              )}
-              {canExtend && (
-                <DropdownMenuItem onSelect={() => setShowExtend((v) => !v)}>
-                  Extend
-                </DropdownMenuItem>
-              )}
-              {canDuplicate && (
-                <DropdownMenuItem
-                  onSelect={actions.duplicate}
-                  disabled={!!actions.actionLoading}
-                >
-                  {actions.actionLoading === "duplicate" ? "Duplicating..." : "Duplicate"}
-                </DropdownMenuItem>
-              )}
-              {kind === "CHECKOUT" && canCheckin && (
-                <DropdownMenuItem
-                  onSelect={actions.completeCheckin}
-                  disabled={!!actions.actionLoading}
-                >
-                  {actions.actionLoading === "complete-checkin" ? "Completing..." : "Complete check in"}
-                </DropdownMenuItem>
-              )}
-              {canCancel && (
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={actions.cancel}
-                  disabled={!!actions.actionLoading}
-                >
-                  {actions.actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Edit + Extend visible on md+, collapsed into dropdown on mobile */}
+          {canEdit && (
+            <Button
+              variant="outline"
+              className="hidden md:inline-flex"
+              onClick={() => router.push(`/${kindLabel}s?editId=${id}`)}
+            >
+              Edit
+            </Button>
+          )}
+          {canExtend && (
+            <Button
+              variant="outline"
+              className="hidden md:inline-flex"
+              onClick={() => {
+                setShowExtend((v) => {
+                  if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
+                  return !v;
+                });
+              }}
+            >
+              Extend
+            </Button>
+          )}
+
+          {/* Actions dropdown — includes Edit/Extend on mobile */}
+          {(canEdit || canExtend || canDuplicate || canCancel || (kind === "CHECKOUT" && canCheckin)) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="size-9">
+                  <MoreHorizontal className="size-4" />
+                  <span className="sr-only">Actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEdit && (
+                  <DropdownMenuItem
+                    className="md:hidden"
+                    onSelect={() => router.push(`/${kindLabel}s?editId=${id}`)}
+                  >
+                    Edit
+                  </DropdownMenuItem>
+                )}
+                {canExtend && (
+                  <DropdownMenuItem
+                    className="md:hidden"
+                    onSelect={() => {
+                      setShowExtend((v) => {
+                        if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
+                        return !v;
+                      });
+                    }}
+                  >
+                    Extend
+                  </DropdownMenuItem>
+                )}
+                {canDuplicate && (
+                  <DropdownMenuItem
+                    onSelect={actions.duplicate}
+                    disabled={!!actions.actionLoading}
+                  >
+                    {actions.actionLoading === "duplicate" ? "Duplicating..." : "Duplicate"}
+                  </DropdownMenuItem>
+                )}
+                {kind === "CHECKOUT" && canCheckin && (
+                  <DropdownMenuItem
+                    onSelect={actions.completeCheckin}
+                    disabled={!!actions.actionLoading}
+                  >
+                    {actions.actionLoading === "complete-checkin" ? "Completing..." : "Complete check in"}
+                  </DropdownMenuItem>
+                )}
+                {canCancel && (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={actions.cancel}
+                    disabled={!!actions.actionLoading}
+                  >
+                    {actions.actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
-      {/* ── Properties strip ── */}
-      <div className="mt-4 mb-6 flex items-center gap-2 flex-wrap">
+      {/* ── Status strip ── */}
+      <div className="flex items-center gap-2 flex-wrap">
         <Badge variant={statusBadgeVariant[booking.status] || "gray"}>
           {booking.status.toLowerCase()}
         </Badge>
-        {isOverdue && <Badge variant="red">overdue</Badge>}
         {booking.refNumber && (
           <Badge variant="outline" className="font-mono">
             {booking.refNumber}
           </Badge>
         )}
-        {booking.location && <Badge variant="outline">{booking.location.name}</Badge>}
-        <Badge variant="outline">{booking.requester?.name ?? "Unknown"}</Badge>
-        {booking.updatedAt && (
+        {countdown && (
+          <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${
+            urgency === "overdue"
+              ? "text-red-600 dark:text-red-400"
+              : urgency === "critical"
+                ? "text-orange-600 dark:text-orange-400"
+                : urgency === "warning"
+                  ? "text-yellow-600 dark:text-yellow-500"
+                  : "text-muted-foreground"
+          }`}>
+            <Clock className="size-3.5" />
+            {countdown}
+          </span>
+        )}
+        {reloading && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
+            <Spinner className="size-3" />
+            Refreshing…
+          </span>
+        )}
+        {!reloading && booking.updatedAt && (
           <span className="text-xs text-muted-foreground ml-auto">
             Updated{" "}
             {new Date(booking.updatedAt).toLocaleDateString("en-US", {
@@ -311,22 +386,9 @@ export default function BookingDetailPage({
         )}
       </div>
 
-      {/* ── Action error ── */}
-      {actions.actionError && (
-        <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {actions.actionError}
-          <button
-            className="ml-2 underline text-xs"
-            onClick={actions.clearError}
-          >
-            dismiss
-          </button>
-        </div>
-      )}
-
       {/* ── Extend panel ── */}
       {showExtend && (
-        <Card className="mb-4 p-4 border-border/40 shadow-none">
+        <Card className="p-4 border-border/40 shadow-none">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm font-semibold">New end date:</span>
             <DateTimePicker
@@ -370,23 +432,10 @@ export default function BookingDetailPage({
         </Card>
       )}
 
-      {/* ── Tabs ── */}
-      <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
-        <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
-          {tabDefs.map((tab, i) => (
-            <TabsTrigger key={tab.key} value={tab.key}>
-              {tab.key === "equipment" ? `${tab.label} (${itemCount})` : tab.label}
-              <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">
-                {i + 1}
-              </kbd>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {/* ── Tab content ── */}
-      {activeTab === "info" && (
-        <div className="mt-14 max-w-3xl">
+      {/* ── Two-column layout: Info + Equipment ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
+        {/* Left: Info card */}
+        <div>
           <BookingInfoTab
             booking={booking}
             canEdit={canEdit}
@@ -394,16 +443,22 @@ export default function BookingDetailPage({
             onPatch={patchLocal}
           />
         </div>
-      )}
 
-      {activeTab === "equipment" && (
-        <div className="mt-14">
+        {/* Right: Equipment card */}
+        <div>
           <BookingEquipmentTab
             booking={booking}
             canCheckin={kind === "CHECKOUT" && canCheckin}
             checkinIds={checkinIds}
             onToggleCheckin={toggleCheckin}
             onCheckinSelected={handleCheckinSelected}
+            onSelectAll={() => {
+              const all = booking.serializedItems
+                .filter((i) => i.allocationStatus !== "returned")
+                .map((i) => i.asset.id);
+              setCheckinIds(new Set(all));
+            }}
+            onClearSelection={() => setCheckinIds(new Set())}
             bulkReturnQty={bulkReturnQty}
             onBulkReturnQtyChange={(itemId, qty) =>
               setBulkReturnQty((prev) => ({ ...prev, [itemId]: qty }))
@@ -412,18 +467,39 @@ export default function BookingDetailPage({
             actionLoading={actions.actionLoading}
           />
         </div>
-      )}
+      </div>
 
-      {activeTab === "history" && (
-        <Card className="mt-14 border-border/40 shadow-none max-w-3xl">
-          <CardHeader>
-            <CardTitle>Activity Log</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <BookingHistoryTab auditLogs={booking.auditLogs} />
-          </CardContent>
-        </Card>
+      {/* ── History section (inline, collapsible) ── */}
+      {booking.auditLogs.length > 0 && (
+        <Collapsible open={historyExpanded} onOpenChange={setHistoryExpanded}>
+          <Card className="border-border/40 shadow-none">
+            <CardHeader className="pb-0">
+              <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+                <ChevronDown className={`size-4 transition-transform ${historyExpanded ? "" : "-rotate-90"}`} />
+                <CardTitle className="text-base">
+                  Activity
+                  <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                    ({booking.auditLogs.length})
+                  </span>
+                </CardTitle>
+              </CollapsibleTrigger>
+              {/* Collapsed preview: show latest entry */}
+              {!historyExpanded && booking.auditLogs[0] && (
+                <p className="text-xs text-muted-foreground mt-1.5 ml-6 truncate">
+                  {booking.auditLogs[0].actor?.name ?? "Unknown"}{" "}
+                  {actionLabels[booking.auditLogs[0].action] || booking.auditLogs[0].action}{" "}
+                  — {formatRelative(booking.auditLogs[0].createdAt)}
+                </p>
+              )}
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="p-0 pt-2">
+                <BookingHistoryTab auditLogs={booking.auditLogs} />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       )}
-    </>
+    </div>
   );
 }

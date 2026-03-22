@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -85,18 +85,19 @@ export default function BookingHistoryTab({
   return (
     <div>
       {/* Filter chips */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/30">
-        {FILTER_OPTIONS.map(({ key, label }) => (
-          <Button
-            key={key}
-            variant={filter === key ? "default" : "outline"}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setFilter(key)}
-          >
-            {label}
-          </Button>
-        ))}
+      <div className="px-3 py-2.5 border-b border-border/30">
+        <ToggleGroup
+          type="single"
+          value={filter}
+          onValueChange={(v) => { if (v) setFilter(v as HistoryFilter); }}
+          className="h-7"
+        >
+          {FILTER_OPTIONS.map(({ key, label }) => (
+            <ToggleGroupItem key={key} value={key} className="h-6 text-xs px-2.5">
+              {label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
       {filtered.length === 0 ? (
@@ -108,7 +109,7 @@ export default function BookingHistoryTab({
       ) : (
         <div className="flex flex-col divide-y divide-border/40">
           {filtered.map((entry) => {
-            const actorName = entry.actor?.name || "System";
+            const actorName = entry.actor?.name ?? "Unknown user";
             const initial = actorName.slice(0, 1).toUpperCase();
             const label = actionLabels[entry.action] || entry.action;
             const isUpdate = entry.action === "updated" && entry.beforeJson && entry.afterJson;

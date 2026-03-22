@@ -2,20 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Check } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Check, ImageIcon, Search } from "lucide-react";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 
 export default function BookingEquipmentTab({
@@ -24,6 +18,8 @@ export default function BookingEquipmentTab({
   checkinIds,
   onToggleCheckin,
   onCheckinSelected,
+  onSelectAll,
+  onClearSelection,
   bulkReturnQty,
   onBulkReturnQtyChange,
   onBulkReturn,
@@ -34,6 +30,8 @@ export default function BookingEquipmentTab({
   checkinIds: Set<string>;
   onToggleCheckin: (assetId: string) => void;
   onCheckinSelected: () => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
   bulkReturnQty: Record<string, number>;
   onBulkReturnQtyChange: (id: string, qty: number) => void;
   onBulkReturn: (bulkItemId: string) => void;
@@ -43,6 +41,25 @@ export default function BookingEquipmentTab({
   const isCheckout = booking.kind === "CHECKOUT";
 
   const itemCount = booking.serializedItems.length + booking.bulkItems.length;
+  const returnableCount = booking.serializedItems.filter(
+    (i) => i.allocationStatus !== "returned",
+  ).length;
+
+  // Checkin progress for checkouts
+  const returnedSerialized = booking.serializedItems.filter(
+    (i) => i.allocationStatus === "returned",
+  ).length;
+  const totalBulkOut = booking.bulkItems.reduce(
+    (sum, i) => sum + (i.checkedOutQuantity ?? i.plannedQuantity),
+    0,
+  );
+  const totalBulkIn = booking.bulkItems.reduce(
+    (sum, i) => sum + (i.checkedInQuantity ?? 0),
+    0,
+  );
+  const totalOut = booking.serializedItems.length + totalBulkOut;
+  const totalReturned = returnedSerialized + totalBulkIn;
+  const showProgress = isCheckout && totalReturned > 0 && totalOut > 0;
 
   const filteredSerialized = useMemo(() => {
     if (!search) return booking.serializedItems;
@@ -66,47 +83,79 @@ export default function BookingEquipmentTab({
 
   return (
     <Card className="border-border/40 shadow-none">
-      {/* Header with search and bulk action */}
-      <div className="flex items-center gap-3 px-3 py-2.5 border-b border-border/30">
-        {itemCount > 3 && (
-          <Input
-            placeholder="Search equipment..."
-            aria-label="Search equipment"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 max-w-xs"
-          />
-        )}
-        <span className="text-sm text-muted-foreground ml-auto">
-          {itemCount} item{itemCount !== 1 ? "s" : ""}
-        </span>
-        {canCheckin && checkinIds.size > 0 && (
-          <Button size="sm" onClick={onCheckinSelected} disabled={!!actionLoading}>
-            {actionLoading === "checkin"
-              ? "Returning..."
-              : `Return ${checkinIds.size} item${checkinIds.size > 1 ? "s" : ""}`}
-          </Button>
-        )}
-      </div>
+      {/* Header */}
+      <CardHeader className="pb-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">
+              Equipment
+              <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                {itemCount} item{itemCount !== 1 ? "s" : ""}
+              </span>
+            </CardTitle>
+            {showProgress && (
+              <div className="flex items-center gap-2 mt-1">
+                <Progress
+                  value={Math.round((totalReturned / totalOut) * 100)}
+                  className="h-1.5 bg-muted [&>[data-slot=progress-indicator]]:bg-green-500"
+                />
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {totalReturned}/{totalOut} returned
+                </span>
+              </div>
+            )}
+          </div>
+          {canCheckin && (
+            <div className="flex items-center gap-2">
+              {returnableCount > 0 && (
+                checkinIds.size === returnableCount ? (
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={onClearSelection}>
+                    Clear selection
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={onSelectAll}>
+                    Select all
+                  </Button>
+                )
+              )}
+              {checkinIds.size > 0 && (
+                <Button size="sm" onClick={onCheckinSelected} disabled={!!actionLoading}>
+                  {actionLoading === "checkin"
+                    ? "Returning..."
+                    : `Return ${checkinIds.size} item${checkinIds.size > 1 ? "s" : ""}`}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </CardHeader>
 
-      {filteredSerialized.length === 0 && filteredBulk.length === 0 ? (
-        <Empty className="py-8 border-0">
-          <EmptyDescription>
-            {search ? "No items match your search." : "No items in this booking."}
-          </EmptyDescription>
-        </Empty>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {isCheckout && canCheckin && <TableHead className="w-10" />}
-              <TableHead>Item</TableHead>
-              <TableHead>Brand / Model</TableHead>
-              <TableHead>{isCheckout ? "Status" : "Serial"}</TableHead>
-              {!isCheckout && <TableHead>Location</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      {/* Search */}
+      {itemCount > 3 && (
+        <div className="px-4 pt-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search equipment..."
+              aria-label="Search equipment"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 pl-8"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Item list */}
+      <div className="p-2 pt-3">
+        {filteredSerialized.length === 0 && filteredBulk.length === 0 ? (
+          <Empty className="py-8 border-0">
+            <EmptyDescription>
+              {search ? "No items match your search." : "No items in this booking."}
+            </EmptyDescription>
+          </Empty>
+        ) : (
+          <div className="flex flex-col gap-0.5">
             {filteredSerialized.map((item) => (
               <SerializedRow
                 key={item.id}
@@ -129,10 +178,34 @@ export default function BookingEquipmentTab({
                 actionLoading={actionLoading}
               />
             ))}
-          </TableBody>
-        </Table>
-      )}
+          </div>
+        )}
+      </div>
     </Card>
+  );
+}
+
+/* ── Thumbnail helper ── */
+
+function ItemThumbnail({ src, alt }: { src?: string | null; alt: string }) {
+  if (src) {
+    return (
+      <div className="size-10 rounded-md overflow-hidden bg-muted shrink-0">
+        <Image
+          src={src}
+          alt={alt}
+          width={40}
+          height={40}
+          className="size-full object-cover"
+          unoptimized={!src.includes(".public.blob.vercel-storage.com")}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+      <ImageIcon className="size-4 text-muted-foreground/50" />
+    </div>
   );
 }
 
@@ -154,9 +227,10 @@ function SerializedRow({
   const returned = item.allocationStatus === "returned";
 
   return (
-    <TableRow className={returned ? "bg-muted/50" : ""}>
+    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-md ${returned ? "opacity-60" : "hover:bg-muted/50"}`}>
+      {/* Checkbox / returned indicator */}
       {isCheckout && canCheckin && (
-        <TableCell>
+        <div className="shrink-0">
           {returned ? (
             <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
               <Check className="size-3" />
@@ -164,42 +238,39 @@ function SerializedRow({
           ) : (
             <Checkbox checked={checked} onCheckedChange={onToggle} aria-label={`Select ${item.asset.assetTag} for return`} />
           )}
-        </TableCell>
+        </div>
       )}
-      <TableCell>
+
+      {/* Thumbnail */}
+      <ItemThumbnail src={item.asset.imageUrl} alt={item.asset.assetTag} />
+
+      {/* Info */}
+      <div className="min-w-0 flex-1">
         <Link
           href={`/items/${item.asset.id}`}
-          className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+          className="font-medium text-sm hover:underline truncate block"
         >
           {item.asset.assetTag}
         </Link>
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {item.asset.brand} {item.asset.model}
-      </TableCell>
-      {isCheckout ? (
-        <TableCell>
-          {returned ? (
-            <span className="text-xs font-semibold text-green-600 dark:text-green-400">
-              Returned
-            </span>
-          ) : (
-            <span className="text-xs font-mono text-muted-foreground">
-              {item.asset.serialNumber}
-            </span>
+        <div className="text-xs text-muted-foreground truncate">
+          {item.asset.brand} {item.asset.model}
+          {item.asset.serialNumber && (
+            <span className="ml-1.5 font-mono">{item.asset.serialNumber}</span>
           )}
-        </TableCell>
-      ) : (
-        <>
-          <TableCell className="font-mono text-xs text-muted-foreground">
-            {item.asset.serialNumber}
-          </TableCell>
-          <TableCell className="text-muted-foreground">
-            {item.asset.location?.name ?? "\u2014"}
-          </TableCell>
-        </>
-      )}
-    </TableRow>
+        </div>
+      </div>
+
+      {/* Status / qty */}
+      <div className="shrink-0 text-right">
+        {returned ? (
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">
+            Returned
+          </span>
+        ) : (
+          <span className="text-sm text-muted-foreground tabular-nums">1</span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -227,30 +298,44 @@ function BulkRow({
   const allReturned = isCheckout && inQty >= outQty;
 
   return (
-    <TableRow className={allReturned ? "bg-muted/50" : ""}>
+    <div className={`flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
+      {/* Spacer for checkbox column */}
       {isCheckout && canCheckin && (
-        <TableCell>
+        <div className="shrink-0 w-5">
           {allReturned && (
             <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
               <Check className="size-3" />
             </div>
           )}
-        </TableCell>
+        </div>
       )}
-      <TableCell className="font-semibold">{item.bulkSku?.name ?? "Unknown"}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {isCheckout && inQty > 0
-          ? `${inQty} / ${outQty} returned`
-          : `Qty: ${isCheckout ? outQty : item.plannedQuantity}`}{" "}
-        <span className="text-muted-foreground/60">{item.bulkSku.unit}</span>
-      </TableCell>
-      <TableCell>
+
+      {/* Placeholder thumbnail */}
+      <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+        <ImageIcon className="size-4 text-muted-foreground/50" />
+      </div>
+
+      {/* Info */}
+      <div className="min-w-0 flex-1">
+        <span className="font-medium text-sm truncate block">
+          {item.bulkSku?.name ?? "Unknown"}
+        </span>
+        <div className="text-xs text-muted-foreground">
+          {isCheckout && inQty > 0
+            ? `${inQty} / ${outQty} returned`
+            : `Qty: ${isCheckout ? outQty : item.plannedQuantity}`}{" "}
+          <span className="text-muted-foreground/60">{item.bulkSku.unit}</span>
+        </div>
+      </div>
+
+      {/* Return controls / status */}
+      <div className="shrink-0 text-right">
         {allReturned ? (
-          <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">
             Returned
           </span>
         ) : isCheckout && canCheckin ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Input
               type="number"
               min={1}
@@ -259,20 +344,24 @@ function BulkRow({
               onChange={(e) => onQtyChange(parseInt(e.target.value) || 0)}
               placeholder={String(outQty - inQty)}
               aria-label={`Return quantity for ${item.bulkSku?.name}`}
-              className="h-7 w-16 text-center"
+              className="h-7 w-14 text-center text-xs"
             />
             <Button
               variant="outline"
               size="sm"
+              className="h-7 text-xs"
               disabled={!returnQty || actionLoading === `bulk-${item.id}`}
               onClick={onReturn}
             >
               {actionLoading === `bulk-${item.id}` ? "..." : "Return"}
             </Button>
           </div>
-        ) : null}
-      </TableCell>
-      {!isCheckout && <TableCell />}
-    </TableRow>
+        ) : (
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {isCheckout ? outQty : item.plannedQuantity}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

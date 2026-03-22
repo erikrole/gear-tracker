@@ -14,9 +14,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
   const detail = await getBookingDetail(id);
 
-  const allowedActions = detail.kind === "CHECKOUT" || detail.kind === "RESERVATION"
-    ? getAllowedBookingActions(user, detail)
-    : undefined;
+  const allowedActions = getAllowedBookingActions(user, detail);
 
   return ok({ data: { ...detail, allowedActions } });
 });
