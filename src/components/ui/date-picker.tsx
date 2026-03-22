@@ -37,7 +37,7 @@ type DatePickerProps = {
 function DatePicker({
   value,
   onChange,
-  placeholder = "January 01, 2025",
+  placeholder = "Add date",
   disabled = false,
   className,
 }: DatePickerProps) {

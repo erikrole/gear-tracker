@@ -293,8 +293,6 @@ export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRe
       {/* Tracking Codes */}
       <TrackingCodesCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
 
-      {/* Settings */}
-      <SettingsCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );
 }
@@ -538,6 +536,146 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
           <Badge variant="purple" size="sm">Reservation</Badge>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Merged Bookings Tab ──────────────────────────────────── */
+
+type BookingFilter = "all" | "checkouts" | "reservations";
+
+export function BookingsTab({
+  history, asset, now, onSelectBooking,
+}: {
+  history: AssetDetail["history"];
+  asset: AssetDetail;
+  now: Date;
+  onSelectBooking: (id: string) => void;
+}) {
+  const [filter, setFilter] = useState<BookingFilter>("all");
+
+  const allEntries = useMemo(() => {
+    const seen = new Set<string>();
+    const entries: AssetDetail["history"] = [];
+    for (const e of history) {
+      if (!seen.has(e.booking.id)) {
+        seen.add(e.booking.id);
+        if (filter === "all" || (filter === "checkouts" && e.booking.kind === "CHECKOUT") || (filter === "reservations" && e.booking.kind === "RESERVATION")) {
+          entries.push(e);
+        }
+      }
+    }
+    entries.sort((a, b) => new Date(b.booking.startsAt).getTime() - new Date(a.booking.startsAt).getTime());
+    return entries;
+  }, [history, filter]);
+
+  const activeBooking = asset.activeBooking;
+  const showUpcoming = asset.upcomingReservations.length > 0;
+
+  return (
+    <div className="flex-col gap-16 mt-14">
+      {/* Active booking card */}
+      {activeBooking && (
+        <ActiveBookingCard booking={activeBooking} kind={activeBooking.kind} now={now} onSelectBooking={onSelectBooking} />
+      )}
+
+      {/* Upcoming reservations */}
+      {showUpcoming && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Reservations</CardTitle>
+            <Badge variant="gray" size="sm">{asset.upcomingReservations.length}</Badge>
+          </CardHeader>
+          <CardContent className="p-0 py-1">
+            <UpcomingReservationsList reservations={asset.upcomingReservations} now={now} onSelectBooking={onSelectBooking} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* All bookings with filter toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Booking History</CardTitle>
+          <div className="flex items-center gap-1">
+            {(["all", "checkouts", "reservations"] as const).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setFilter(f)}
+                className="text-xs capitalize"
+              >
+                {f === "all" ? "All" : f === "checkouts" ? "Checkouts" : "Reservations"}
+              </Button>
+            ))}
+          </div>
+        </CardHeader>
+        {allEntries.length === 0 ? (
+          <Empty className="py-8 border-0">
+            <EmptyDescription>No bookings for this item.</EmptyDescription>
+          </Empty>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>From</TableHead>
+                <TableHead>To</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Location</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allEntries.map((entry) => {
+                const b = entry.booking;
+                const from = formatDateWithDayTime(b.startsAt);
+                const to = formatDateWithDayTime(b.endsAt);
+                const dur = formatDuration(b.startsAt, b.endsAt);
+                const st = bookingStatusLabel(b.status);
+                return (
+                  <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(b.id)}>
+                    <TableCell>
+                      <div className="font-medium text-primary">{b.title}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-gray-400"}`} />
+                        <span className="text-xs text-muted-foreground">{st.label}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={b.kind === "CHECKOUT" ? "blue" : "purple"} size="sm">
+                        {b.kind === "CHECKOUT" ? "CO" : "Res"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{from.date}</div>
+                      <div className="text-xs text-muted-foreground">{from.dayTime}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{to.date}</div>
+                      <div className="text-xs text-muted-foreground">{to.dayTime}</div>
+                    </TableCell>
+                    <TableCell className="text-sm">{dur}</TableCell>
+                    <TableCell className="text-sm">{b.requester.name}</TableCell>
+                    <TableCell className="text-sm">{b.location.name}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ── Settings Tab ──────────────────────────────────────────── */
+
+export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  return (
+    <div className="mt-14 max-w-lg">
+      <SettingsCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
@@ -14,14 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import {
   Tooltip,
   TooltipContent,
@@ -35,40 +27,88 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  PencilIcon,
-  ImageIcon,
-  Copy,
-  Check,
-  InfoIcon,
-  ArrowRightLeftIcon,
-  CalendarClockIcon,
-  CalendarIcon,
-  ChartAreaIcon,
-  HistoryIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { PencilIcon, ImageIcon, Copy, Check, SettingsIcon } from "lucide-react";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
 import type { DepartmentOption } from "./ItemInfoTab";
-import { OperationalOverview, BookingKindTab, CalendarTab } from "./ItemBookingsTab";
+import { OperationalOverview, BookingsTab, CalendarTab, SettingsTab } from "./ItemBookingsTab";
 import ActivityFeed from "./ItemHistoryTab";
 import { AccessoriesSection } from "./ItemSettingsTab";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
-type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "insights" | "history";
+type TabKey = "info" | "bookings" | "calendar" | "insights" | "history" | "settings";
 
-const tabDefs: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
-  { key: "info", label: "Info", icon: InfoIcon },
-  { key: "checkouts", label: "Checkouts", icon: ArrowRightLeftIcon },
-  { key: "reservations", label: "Reservations", icon: CalendarClockIcon },
-  { key: "calendar", label: "Calendar", icon: CalendarIcon },
-  { key: "insights", label: "Insights", icon: ChartAreaIcon },
-  { key: "history", label: "History", icon: HistoryIcon },
+const tabDefs: Array<{ key: TabKey; label: string }> = [
+  { key: "info", label: "Info" },
+  { key: "bookings", label: "Bookings" },
+  { key: "calendar", label: "Calendar" },
+  { key: "insights", label: "Insights" },
+  { key: "history", label: "History" },
+  { key: "settings", label: "Settings" },
 ];
+
+/* ── Inline Editable Title ──────────────────────────────── */
+
+function InlineTitle({
+  value,
+  canEdit,
+  onSave,
+  className,
+  placeholder,
+}: {
+  value: string;
+  canEdit: boolean;
+  onSave: (v: string) => Promise<void>;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(value); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  async function commit() {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === value) { setDraft(value); return; }
+    try { await onSave(trimmed); } catch { setDraft(value); }
+  }
+
+  if (!canEdit) {
+    return <span className={className}>{value || placeholder}</span>;
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        className={`${className} bg-transparent border-none outline-none ring-1 ring-ring rounded px-1 -mx-1`}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`${className} cursor-pointer hover:bg-muted/60 rounded px-1 -mx-1 transition-colors`}
+      onClick={() => setEditing(true)}
+      title="Click to edit"
+    >
+      {value || <span className="text-muted-foreground">{placeholder}</span>}
+    </span>
+  );
+}
 
 /* ── Status Line ────────────────────────────────────────── */
 
@@ -189,14 +229,19 @@ function ActionsMenu({
 export default function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const confirmDialog = useConfirm();
   const { toast } = useToast();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>("info");
+  const initialTab = (searchParams.get("tab") as TabKey) || "info";
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    tabDefs.some((t) => t.key === initialTab) ? initialTab : "info"
+  );
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
   const [fetchError, setFetchError] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -222,6 +267,13 @@ export default function ItemDetailsPage() {
       .catch(() => {});
   }, []);
 
+  const loadLocations = useCallback(() => {
+    fetch("/api/locations")
+      .then((res) => res.ok ? res.json() : null)
+      .then((json) => { if (json) setLocations(json.data || []); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     loadAsset();
     fetch("/api/me")
@@ -230,7 +282,8 @@ export default function ItemDetailsPage() {
       .catch(() => {});
     loadCategories();
     loadDepartments();
-  }, [loadAsset, loadCategories, loadDepartments]);
+    loadLocations();
+  }, [loadAsset, loadCategories, loadDepartments, loadLocations]);
 
   // Live countdown tick every 60 seconds + refresh on tab focus
   useEffect(() => {
@@ -246,6 +299,42 @@ export default function ItemDetailsPage() {
   }, []);
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+
+  // URL-synced tab switching
+  function switchTab(tab: TabKey) {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    if (tab === "info") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", tab);
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  // Keyboard shortcuts: 1-6 to switch tabs
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= tabDefs.length) {
+        e.preventDefault();
+        switchTab(tabDefs[num - 1].key);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function saveHeaderField(field: string, value: string) {
+    if (!asset) return;
+    const body: Record<string, unknown> = { [field]: value || null };
+    const res = await fetch(`/api/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("Save failed");
+    setAsset((prev) => prev ? { ...prev, [field]: value } : prev);
+  }
 
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -312,12 +401,6 @@ export default function ItemDetailsPage() {
   if (!asset) {
     return (
       <div>
-        {/* Breadcrumb skeleton */}
-        <div className="mb-4 flex gap-2">
-          <Skeleton className="h-4 w-12" />
-          <Skeleton className="h-4 w-4" />
-          <Skeleton className="h-4 w-20" />
-        </div>
         {/* Header skeleton */}
         <div className="page-header mb-0">
           <div className="flex gap-16 items-center">
@@ -384,27 +467,17 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <Breadcrumb className="mb-4">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href="/items">Items</Link></BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{asset.assetTag}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
       <div className="page-header mb-0">
         <div className="flex gap-16 items-center">
-          {/* Hero image — kept square */}
+          {/* Hero image — larger square */}
           {asset.imageUrl ? (
             <button
               className={`asset-hero-image aspect-square ${canEdit ? "cursor-pointer" : "cursor-default"}`}
+              style={{ width: 120, height: 120 }}
               onClick={() => canEdit && setImageModalOpen(true)}
               title={canEdit ? "Change image" : undefined}
             >
-              <Image src={asset.imageUrl} alt={asset.assetTag} width={200} height={200} sizes="100px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
+              <Image src={asset.imageUrl} alt={asset.assetTag} width={240} height={240} sizes="120px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
               {canEdit && (
                 <div className="asset-hero-image-overlay">
                   <PencilIcon className="size-5" />
@@ -412,56 +485,59 @@ export default function ItemDetailsPage() {
               )}
             </button>
           ) : canEdit ? (
-            <button className="asset-hero-image asset-hero-image-empty aspect-square" onClick={() => setImageModalOpen(true)} title="Add image">
+            <button className="asset-hero-image asset-hero-image-empty aspect-square" style={{ width: 120, height: 120 }} onClick={() => setImageModalOpen(true)} title="Add image">
               <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
             </button>
           ) : null}
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex gap-12 items-baseline">
-              <h1 className="mb-0">{asset.assetTag}</h1>
+              <InlineTitle
+                value={asset.assetTag}
+                canEdit={canEdit}
+                onSave={(v) => saveHeaderField("assetTag", v)}
+                className="text-2xl font-bold tracking-tight"
+              />
               {asset.metadata?.uwAssetTag && (
                 <span className="text-base text-secondary font-medium">
                   UW {asset.metadata.uwAssetTag}
                 </span>
               )}
             </div>
-            {asset.name && (
-              <div className="text-base text-secondary mt-2">{asset.name}</div>
-            )}
+            <InlineTitle
+              value={asset.name || ""}
+              canEdit={canEdit}
+              onSave={(v) => saveHeaderField("name", v)}
+              className="text-base text-secondary mt-2 block"
+              placeholder="Add item name"
+            />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <TooltipProvider>
-            {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
-                  <Link href={`/reservations?newFor=${asset.id}`} className="no-underline">Reserve</Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {asset.availableForReservation ? "Create a reservation for this item" : "Reservations disabled for this item"}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} asChild>
-                  <Link href={`/checkouts?newFor=${asset.id}`} className="no-underline">Check out</Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {asset.availableForCheckout ? "Check out this item" : "Check out disabled for this item"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
+          <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
+            <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>
+          </Button>
+          <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} asChild>
+            <Link href={`/checkouts?newFor=${asset.id}`}>Check out</Link>
+          </Button>
         </div>
       </div>
 
-      {/* Status line */}
-      <div className="mb-16 mt-8 flex items-center gap-2 flex-wrap">
+      {/* Properties strip — Notion-style inline badges below title */}
+      <div className="mt-6 mb-6 flex items-center gap-2 flex-wrap">
         <StatusLine asset={asset} />
         {asset.serialNumber && <SerialBadge serialNumber={asset.serialNumber} />}
+        {asset.location && <Badge variant="outline">{asset.location.name}</Badge>}
+        {asset.category && <Badge variant="outline">{asset.category.name}</Badge>}
+        {asset.department && <Badge variant="outline">{asset.department.name}</Badge>}
       </div>
+
+      {/* Last edited */}
+      {asset.updatedAt && (
+        <div className="text-xs text-muted-foreground mb-6">
+          Last updated {new Date(asset.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        </div>
+      )}
 
       {/* Parent banner — shown when this item is an accessory */}
       {asset.parentAsset && (
@@ -474,13 +550,14 @@ export default function ItemDetailsPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
-        <TabsList>
-          {tabDefs.map(({ key, label, icon: Icon }) => (
-            <TabsTrigger key={key} value={key} className="flex items-center gap-1 px-2.5 sm:px-3">
-              <Icon />
-              {label}
+      {/* Tabs — sticky on scroll */}
+      <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
+        <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
+          {tabDefs.map((tab, i) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.key === "settings" && <SettingsIcon className="size-3.5" />}
+              {tab.label}
+              <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">{i + 1}</kbd>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -498,6 +575,7 @@ export default function ItemDetailsPage() {
               departments={departments}
               onFieldSaved={(partial) => setAsset((prev) => prev ? { ...prev, ...partial } : prev)}
               onRefresh={loadAsset}
+              locations={locations}
               onCategoriesChanged={loadCategories}
               onDepartmentsChanged={loadDepartments}
             />
@@ -507,10 +585,9 @@ export default function ItemDetailsPage() {
         </>
       )}
 
-      {/* Checkouts / Reservations tabs */}
-      {(activeTab === "checkouts" || activeTab === "reservations") && (
-        <BookingKindTab
-          kind={activeTab === "checkouts" ? "CHECKOUT" : "RESERVATION"}
+      {/* Bookings tab — merged checkouts + reservations */}
+      {activeTab === "bookings" && (
+        <BookingsTab
           history={asset.history}
           asset={asset}
           now={now}
@@ -536,6 +613,11 @@ export default function ItemDetailsPage() {
             <ActivityFeed assetId={asset.id} />
           </CardContent>
         </Card>
+      )}
+
+      {/* Settings tab */}
+      {activeTab === "settings" && (
+        <SettingsTab asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
       )}
 
       <BookingDetailsSheet
