@@ -71,6 +71,7 @@ export default function BookingEquipmentTab({
         {itemCount > 3 && (
           <Input
             placeholder="Search equipment..."
+            aria-label="Search equipment"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 max-w-xs"
@@ -153,7 +154,7 @@ function SerializedRow({
   const returned = item.allocationStatus === "returned";
 
   return (
-    <TableRow className={returned ? "bg-green-50 dark:bg-green-950/20" : ""}>
+    <TableRow className={returned ? "bg-muted/50" : ""}>
       {isCheckout && canCheckin && (
         <TableCell>
           {returned ? (
@@ -161,7 +162,7 @@ function SerializedRow({
               <Check className="size-3" />
             </div>
           ) : (
-            <Checkbox checked={checked} onCheckedChange={onToggle} />
+            <Checkbox checked={checked} onCheckedChange={onToggle} aria-label={`Select ${item.asset.assetTag} for return`} />
           )}
         </TableCell>
       )}
@@ -226,7 +227,7 @@ function BulkRow({
   const allReturned = isCheckout && inQty >= outQty;
 
   return (
-    <TableRow className={allReturned ? "bg-green-50 dark:bg-green-950/20" : ""}>
+    <TableRow className={allReturned ? "bg-muted/50" : ""}>
       {isCheckout && canCheckin && (
         <TableCell>
           {allReturned && (
@@ -257,6 +258,7 @@ function BulkRow({
               value={returnQty || ""}
               onChange={(e) => onQtyChange(parseInt(e.target.value) || 0)}
               placeholder={String(outQty - inQty)}
+              aria-label={`Return quantity for ${item.bulkSku?.name}`}
               className="h-7 w-16 text-center"
             />
             <Button

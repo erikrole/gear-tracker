@@ -66,6 +66,8 @@ export default function BookingDetailPage({
     if (tab === "info") url.searchParams.delete("tab");
     else url.searchParams.set("tab", tab);
     window.history.replaceState({}, "", url.toString());
+    // Silently refresh data when switching to history (picks up new audit entries)
+    if (tab === "history") reload();
   }
 
   // Keyboard shortcuts: 1-3 to switch tabs
