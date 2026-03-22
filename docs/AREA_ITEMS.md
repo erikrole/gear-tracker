@@ -352,3 +352,10 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-03-14: Added Numbered Bulk Item Tracking section — trackByNumber flag, unit picker scan flow, conversion endpoint, D-022 reference.
 - 2026-03-15: Removed B&H enrichment — scraping blocked by source. Removed all B&H references from rules, workflow, traps, and acceptance criteria.
 - 2026-03-16: Item Bundling (Accessories) V1 shipped — parent-child self-ref FK on Asset, accessories CRUD API, detail page accessories section with attach/detach, items list hides children by default with +N badge on parents, scan preview shows "Accessory of" banner. See D-023.
+- 2026-03-22: Items list page redesign — 6 slices shipped:
+  - API performance: derived status filtering pushed to DB via Prisma relation subqueries (eliminates 2000-row in-memory cap). Server-side sorting with `sort`/`order` query params.
+  - Page decomposition: 561-line monolithic page → 4 hooks (`use-url-filters`, `use-items-query`, `use-filter-options`, `use-bulk-actions`) + 4 components (`ItemsToolbar`, `ItemsPagination`, `BulkActionBar`, `ItemCard`).
+  - Search expansion: now covers 9 fields (assetTag, brand, model, serialNumber, name, notes, category name, location name, department name). Department filter added. Accessories toggle added. Accessory count badge on parent rows.
+  - UX polish: differentiated empty states (no inventory vs no matches), first/last page buttons, "Showing X–Y of Z" range display, keyboard shortcuts (/ to search, Escape to clear, arrow keys for pagination).
+  - Mobile card view: responsive card layout on <768px with 44px+ tap targets, status badges, kebab menu.
+  - Consolidated fetch: single `/api/items-page-init` endpoint replaces 4 separate mount-time fetches.

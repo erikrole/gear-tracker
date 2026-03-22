@@ -85,7 +85,7 @@ function StatusDot({ color }: { color: keyof typeof STATUS_STYLES }) {
   );
 }
 
-function statusBadge(asset: Asset) {
+export function statusBadge(asset: Asset) {
   const { computedStatus, activeBooking } = asset;
 
   switch (computedStatus) {
@@ -180,9 +180,11 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Name",
       accessorKey: "assetTag",
+      id: "assetTag",
       size: 280,
       minSize: 200,
       maxSize: 360,
+      enableSorting: true,
       cell: ({ row }) => {
         const item = row.original;
         const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
@@ -203,7 +205,14 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               </div>
             )}
             <div className="flex flex-col min-w-0">
-              <div className="font-medium truncate">{item.assetTag}</div>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-medium truncate">{item.assetTag}</span>
+                {(item._count?.accessories ?? 0) > 0 && (
+                  <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground leading-none">
+                    +{item._count!.accessories}
+                  </span>
+                )}
+              </div>
               {subtitle && (
                 <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
               )}
@@ -227,6 +236,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       size: 140,
       accessorFn: (row) => row.category?.name || row.type,
       cell: ({ row }) => row.original.category?.name || row.original.type,
+      enableSorting: true,
     },
     {
       header: "Department",
@@ -234,6 +244,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       size: 140,
       accessorFn: (row) => row.department?.name ?? "",
       cell: ({ row }) => row.original.department?.name ?? "—",
+      enableSorting: true,
     },
     {
       header: "Location",
@@ -241,6 +252,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       size: 160,
       accessorFn: (row) => row.location.name,
       cell: ({ row }) => row.original.location.name,
+      enableSorting: true,
     },
   );
 

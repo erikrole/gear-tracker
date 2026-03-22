@@ -158,6 +158,198 @@ export async function enrichAssetsWithStatus<
 }
 
 /**
+ * Build Prisma `where` clauses for filtering assets by derived status at the DB level.
+ * Pushes CHECKED_OUT/RESERVED filtering into SQL subqueries instead of in-memory enrichment.
+ * Returns a Prisma `OR` array suitable for use in `db.asset.findMany({ where: { OR: [...] } })`.
+ */
+export function buildDerivedStatusWhere(
+  statuses: string[]
+): Record<string, unknown>[] {
+  const now = new Date();
+  const clauses: Record<string, unknown>[] = [];
+
+  for (const status of statuses) {
+    switch (status) {
+      case "AVAILABLE":
+        // Stored AVAILABLE with NO active checkout AND NO active overlapping reservation.
+        // We need two `none` conditions: one for checkouts, one for reservations with time overlap.
+        clauses.push({
+          status: AssetStatus.AVAILABLE,
+          AND: [
+            {
+              allocations: {
+                none: {
+                  active: true,
+                  booking: {
+                    kind: BookingKind.CHECKOUT,
+                    status: BookingStatus.OPEN,
+                  },
+                },
+              },
+            },
+            {
+              allocations: {
+                none: {
+                  active: true,
+                  startsAt: { lte: now },
+                  endsAt: { gt: now },
+                  booking: {
+                    kind: BookingKind.RESERVATION,
+                    status: BookingStatus.BOOKED,
+                  },
+                },
+              },
+            },
+          ],
+        });
+        break;
+      case "CHECKED_OUT":
+        // Stored AVAILABLE with an active allocation on an OPEN checkout
+        clauses.push({
+          status: AssetStatus.AVAILABLE,
+          allocations: {
+            some: {
+              active: true,
+              booking: {
+                kind: BookingKind.CHECKOUT,
+                status: BookingStatus.OPEN,
+              },
+            },
+          },
+        });
+        break;
+      case "RESERVED":
+        // Stored AVAILABLE with an active allocation on a BOOKED reservation overlapping now
+        clauses.push({
+          status: AssetStatus.AVAILABLE,
+          allocations: {
+            some: {
+              active: true,
+              startsAt: { lte: now },
+              endsAt: { gt: now },
+              booking: {
+                kind: BookingKind.RESERVATION,
+                status: BookingStatus.BOOKED,
+              },
+            },
+          },
+        });
+        break;
+      case "MAINTENANCE":
+        clauses.push({ status: AssetStatus.MAINTENANCE });
+        break;
+      case "RETIRED":
+        clauses.push({ status: AssetStatus.RETIRED });
+        break;
+    }
+  }
+
+  return clauses;
+}
+
+/**
+ * Derive effective statuses for a batch of assets, accepting pre-loaded status data
+ * to avoid a redundant DB query when the caller already has asset objects.
+ */
+export async function deriveAssetStatusesFromLoaded(
+  assets: Array<{ id: string; status: AssetStatus }>,
+  client?: PrismaClient | Prisma.TransactionClient
+): Promise<Map<string, EffectiveStatus>> {
+  if (assets.length === 0) return new Map();
+
+  const tx = client ?? db;
+  const now = new Date();
+  const result = new Map<string, EffectiveStatus>();
+
+  const needsAllocationCheck: string[] = [];
+  for (const asset of assets) {
+    if (asset.status === AssetStatus.MAINTENANCE) {
+      result.set(asset.id, "MAINTENANCE");
+    } else if (asset.status === AssetStatus.RETIRED) {
+      result.set(asset.id, "RETIRED");
+    } else {
+      needsAllocationCheck.push(asset.id);
+    }
+  }
+
+  if (needsAllocationCheck.length === 0) return result;
+
+  const activeAllocations = await tx.assetAllocation.findMany({
+    where: {
+      assetId: { in: needsAllocationCheck },
+      active: true,
+      booking: {
+        status: { in: [BookingStatus.BOOKED, BookingStatus.OPEN] },
+      },
+    },
+    select: {
+      assetId: true,
+      startsAt: true,
+      endsAt: true,
+      booking: { select: { kind: true, status: true } },
+    },
+  });
+
+  const allocationsByAsset = new Map<string, typeof activeAllocations>();
+  for (const alloc of activeAllocations) {
+    const existing = allocationsByAsset.get(alloc.assetId) ?? [];
+    existing.push(alloc);
+    allocationsByAsset.set(alloc.assetId, existing);
+  }
+
+  for (const assetId of needsAllocationCheck) {
+    const allocations = allocationsByAsset.get(assetId);
+    if (!allocations || allocations.length === 0) {
+      result.set(assetId, "AVAILABLE");
+      continue;
+    }
+
+    const hasCheckout = allocations.some(
+      (a) => a.booking.kind === BookingKind.CHECKOUT && a.booking.status === BookingStatus.OPEN
+    );
+    if (hasCheckout) {
+      result.set(assetId, "CHECKED_OUT");
+      continue;
+    }
+
+    const hasActiveReservation = allocations.some(
+      (a) =>
+        a.booking.kind === BookingKind.RESERVATION &&
+        a.booking.status === BookingStatus.BOOKED &&
+        a.startsAt <= now &&
+        a.endsAt > now
+    );
+    if (hasActiveReservation) {
+      result.set(assetId, "RESERVED");
+      continue;
+    }
+
+    result.set(assetId, "AVAILABLE");
+  }
+
+  return result;
+}
+
+/**
+ * Enrich assets using pre-loaded data (skips redundant status re-fetch).
+ */
+export async function enrichAssetsWithStatusFromLoaded<
+  T extends { id: string; status: AssetStatus }
+>(
+  assets: T[],
+  client?: PrismaClient | Prisma.TransactionClient
+): Promise<Array<T & { computedStatus: EffectiveStatus }>> {
+  if (assets.length === 0) return [];
+
+  const statusMap = await deriveAssetStatusesFromLoaded(assets, client);
+
+  return assets.map((asset) => ({
+    ...asset,
+    computedStatus: statusMap.get(asset.id) ?? "AVAILABLE",
+  }));
+}
+
+/**
  * Count assets by effective status. Used by the dashboard.
  */
 export async function countAssetsByEffectiveStatus(

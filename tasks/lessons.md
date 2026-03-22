@@ -56,6 +56,13 @@
 - `SaveableField` + `useSaveField` is the canonical pattern for inline-editable fields. Any field with manual `useState` + `onBlur`/`onChange` save + `fetch(PATCH)` + status timeouts should be refactored to use it.
 - Future refactoring targets for SaveableField reuse: `CategoryRow.tsx` (rename + add subcategory inputs), `CategoriesPage.tsx` (add category input) — both in `/settings/categories/`. These have the exact same blur-save + fetch pattern.
 
+### Items List Redesign
+- Derived status filtering (CHECKED_OUT, RESERVED) should use Prisma relation subqueries (`allocations: { some: { ... } }`) rather than fetching all rows, enriching in-memory, and filtering. The `@@index([assetId, active])` on `AssetAllocation` supports this pattern efficiently.
+- When the API caller already has full asset objects, pass them directly to a `FromLoaded` variant of the enrichment function to skip the redundant ID-based re-fetch.
+- Client-side sorting on a paginated list is misleading — users think they're sorting the full dataset but only see the current page reordered. Always use server-side sorting with `manualSorting: true` in TanStack Table.
+- Consolidating multiple independent fetch calls into one endpoint saves round-trips and simplifies error handling. Create purpose-built init endpoints for page load rather than reusing generic CRUD endpoints.
+- Page components over ~200 lines with >10 useState calls are a maintenance signal. Extract into focused hooks (URL state, data fetching, bulk actions) and leaf components (toolbar, pagination, bulk bar).
+
 ### Detail Page Architecture (Item Detail Overhaul)
 
 **Layout patterns:**
