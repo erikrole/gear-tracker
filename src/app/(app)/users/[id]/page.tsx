@@ -7,10 +7,20 @@ import type { UserDetail, Location, Role } from "../types";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertCircle } from "lucide-react";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -79,48 +89,82 @@ export default function UserDetailPage() {
 
   if (fetchError) {
     return (
-      <div className="py-10 px-5 text-center text-muted-foreground space-y-2">
-        <p>User not found or failed to load.</p>
-        <div className="flex items-center justify-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => { setFetchError(false); loadUser(); }}>
-            Retry
-          </Button>
-          <Link href="/users" className="text-sm underline">Back to users</Link>
-        </div>
+      <div className="py-10 px-5 flex justify-center">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="size-4" />
+          <AlertTitle>Failed to load user</AlertTitle>
+          <AlertDescription className="mt-2 space-y-3">
+            <p>User not found or something went wrong.</p>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => { setFetchError(false); loadUser(); }}>
+                Retry
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/users">Back to users</Link>
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   if (!user) {
-    return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
+    return (
+      <div className="space-y-6">
+        {/* Breadcrumb skeleton */}
+        <Skeleton className="h-4 w-32" />
+        {/* Header skeleton */}
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-12 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-3.5 w-56" />
+          </div>
+        </div>
+        {/* Tabs skeleton */}
+        <Skeleton className="h-9 w-40" />
+        {/* Content skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
       {/* Breadcrumb */}
-      <div className="breadcrumb">
-        <Link href="/users">Users</Link> <span>{"\u203a"}</span> {user.name}
-      </div>
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/users">Users</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{user.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* Header */}
-      <div className="page-header mb-0">
-        <div>
-          <div className="flex gap-3 items-center">
-            <Avatar className="size-12" aria-hidden="true">
-              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-              <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
-                {user.name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="mb-0">{user.name}</h1>
-              <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
-            </div>
+      <div className="flex items-center justify-between flex-col sm:flex-row gap-3 mb-0">
+        <div className="flex gap-3 items-center">
+          <Avatar className="size-12" aria-hidden="true">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
+              {user.name.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="mb-0">{user.name}</h1>
+            <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
           </div>
         </div>
-        <div className="header-actions">
-          <RoleBadge role={user.role} />
-        </div>
+        <RoleBadge role={user.role} />
       </div>
 
       {/* Tabs */}

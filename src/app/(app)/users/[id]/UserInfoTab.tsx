@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 
 /* ── Text Input Field ─────────────────────────────────── */
@@ -170,7 +171,7 @@ export default function UserInfoTab({
   }));
 
   return (
-    <div className="details-grid mt-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
       {/* Profile Card */}
       <Card>
         <CardHeader>
@@ -245,6 +246,8 @@ export default function UserInfoTab({
               ))}
             </div>
           )}
+
+          <Separator className="my-2" />
 
           {/* Area Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
