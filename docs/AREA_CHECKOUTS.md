@@ -169,22 +169,29 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - **Old route**: `GET /api/checkouts/[id]` redirects (308) to `/api/bookings/[id]`
 
 ### Checkout-Specific Behavior
-- "Scan Items Out" and "Scan Items In" buttons visible for OPEN/check-in-eligible checkouts
-- Equipment tab shows checkin checkboxes per serialized item + bulk return quantity inputs
-- "Complete check in" action in dropdown menu
+- Status badge shows "Checked out" (not "OPEN") via `statusLabel()` helper
+- "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
+- Action buttons: `[Actions ▼] [Edit] [Extend] [Check in]` — Check in is primary CTA
+- Actions dropdown contains: Scan items out, Scan items in, Complete check in, Cancel
+- Equipment tab auto-selects all returnable items with Select all / Clear selection toggle
+- Equipment rows show hover-reveal "..." menu (View item, Select for return)
+- Checkin progress bar in equipment header: `████░░░░ 12/30 returned`
+- Optimistic UI: returned items show immediately before API confirms
+- Success toasts on all actions (extend, return, cancel, complete)
 - Returned items show green checkmark and muted row background
-- Properties strip shows status, overdue badge, ref number, location, requester
+- Breadcrumb handled by global `PageBreadcrumb` in AppShell (no duplicate)
 
 ### Tabs
-1. **Info** — SaveableField rows: title (editable), location, from/to dates, requester, creator, notes (editable)
-2. **Equipment** — shadcn Table with search, checkin checkboxes, bulk return controls
-3. **History** — Activity log with filter chips (All / Equipment / Status), before/after diffs
+1. **Info** — Card with "Checkout details" heading. SaveableField rows: title (editable), location, from/to dates, requester (with avatar), creator (with avatar), notes (editable), created. Mixed-location Alert if applicable.
+2. **Equipment** — Card with progress bar, search (3+ items), serialized rows with context menu, bulk rows with return controls
+3. **History** — Collapsible section with one-line preview when collapsed, ToggleGroup filters (All / Booking changes / Equipment changes), natural-language action labels
 
 ### Inline Editing
-- Title: `InlineTitle` component (shared from `src/components/InlineTitle.tsx`)
+- Title: `InlineTitle` component with save status indicator (spinner/check/error)
 - Notes: blur-save via `useSaveField` pattern
 - PATCH `/api/bookings/[id]` with single-field partial update
 - Audit entries capture before-snapshot for field-level diffs
+- "Refreshing…" spinner shown during data reload after actions
 
 ## Bug Traps and Mitigations
 
@@ -259,3 +266,4 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-03-16: Booking reference numbers (D-024) — CO-XXXX format, global sequence, searchable, monospace badge in list/detail.
 - 2026-03-17: **Shift context banner** — when creating a checkout tied to an event, shows "Your shift: AREA time–time" banner with gear status if user has a shift assignment for that event.
 - 2026-03-22: **Unified detail page** — Checkout and reservation detail pages unified via shared `BookingDetailPage` component. Extracted `useBookingDetail` + `useBookingActions` hooks. Old `/api/checkouts/[id]` GET redirects to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit. Shared `InlineTitle` component. Accessibility + dark mode hardening.
+- 2026-03-22: **Detail page UX polish (3 rounds)** — (1) Auto-select all returnable items, info card heading, mobile-friendly buttons, faster countdown tick, reload spinner, consistent padding, InlineTitle save feedback, collapsible history preview, hover consistency. (2) Optimistic checkin, progress bar, success toasts, quick-extend from picker value, re-select after partial return. (3) shadcn Breadcrumb/Collapsible/ToggleGroup/Alert replacements. Status vocabulary: OPEN→"Checked out". Action buttons redesigned: `[Actions ▼] [Edit] [Extend] [Check in]`. Equipment row context menus. Avatar initials on people fields. Due-back as urgency Badge. Natural-language activity labels.

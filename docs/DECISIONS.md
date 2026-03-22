@@ -32,6 +32,7 @@
 - D-022: Numbered bulk items — one QR, individually numbered units for loss tracking
 - D-023: Item Bundling via Parent-Child Accessories
 - D-024: Booking reference numbers use kind prefix (CO/RV) with global sequence
+- D-025: User-facing status labels are display-only — DB enum stays unchanged
 
 ---
 
@@ -428,6 +429,22 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. Major scope changes must update both this file and `PRODUCT_SCOPE.md` in the same PR.
 5. Any dashboard/list/scan UX change must also be reflected in `AREA_MOBILE.md`.
 
+## D-025: User-Facing Status Labels Are Display-Only
+- Date: 2026-03-22
+- Status: Accepted
+- Context: The raw `BookingStatus` enum values (DRAFT, BOOKED, OPEN, COMPLETED, CANCELLED) are technical and confusing in the UI. "OPEN" means nothing to an equipment manager checking out gear.
+- Decision: Introduce `statusLabel(status, kind)` helper in `src/components/booking-details/helpers.ts` that maps DB enum to user-facing labels. DB enum, API responses, and business logic remain unchanged.
+- Label mapping:
+  - DRAFT → "Draft"
+  - BOOKED → "Confirmed" (reservations) / "Booked" (checkouts)
+  - OPEN → "Checked out"
+  - COMPLETED → "Completed"
+  - CANCELLED → "Cancelled"
+- Constraint: All UI surfaces must use `statusLabel()` for display. Never show raw enum values to users.
+- Downstream: List pages, search results, and any future status references should adopt `statusLabel()`.
+
+---
+
 ## Active Risks and Mitigations
 - Risk: Event data staleness or malformed ICS input.
   - Mitigation: idempotent imports, observability, fallback ad hoc booking path.
@@ -450,3 +467,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-16: Shipped D-017 (DRAFT booking lifecycle). Shipped D-018 (asset financial fields — Procurement section in item detail).
 - 2026-03-16: Added D-024 (booking reference numbers — CO/RV kind prefix + global sequence).
 - 2026-03-22: Updated D-002 — UI layer now unified. Checkout and reservation detail pages share single `BookingDetailPage` component. API routes consolidated to `/api/bookings/[id]`.
+- 2026-03-22: Added D-025 — user-facing status labels (OPEN→"Checked out", BOOKED→"Confirmed") via `statusLabel()` helper. DB enum unchanged.
