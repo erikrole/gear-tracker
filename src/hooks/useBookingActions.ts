@@ -113,8 +113,8 @@ export function useBookingActions(
   }, [bookingId, toast, router]);
 
   const checkinItems = useCallback(
-    async (assetIds: string[]) => {
-      if (assetIds.length === 0) return;
+    async (assetIds: string[]): Promise<boolean> => {
+      if (assetIds.length === 0) return false;
       setActionLoading("checkin");
       const result = await callAction(`/api/checkouts/${bookingId}/checkin-items`, "POST", {
         assetIds,
@@ -126,6 +126,7 @@ export function useBookingActions(
         toast(result.error!, "error");
       }
       setActionLoading(null);
+      return result.ok;
     },
     [bookingId, toast, onSuccess],
   );

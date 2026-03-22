@@ -7,8 +7,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
-import { TriangleAlert } from "lucide-react";
-import { formatDateTime } from "@/lib/format";
+import { Copy, TriangleAlert } from "lucide-react";
+import { formatDateTime, formatDuration } from "@/lib/format";
+import { useToast } from "@/components/Toast";
 import type { BookingDetail } from "@/components/booking-details/types";
 
 export default function BookingInfoTab({
@@ -22,6 +23,8 @@ export default function BookingInfoTab({
   onSave: (field: string, value: unknown) => Promise<void>;
   onPatch: (patch: Partial<BookingDetail>) => void;
 }) {
+  const { toast } = useToast();
+
   const titleSave = useSaveField(
     useCallback(async (v: string) => {
       await onSave("title", v);
@@ -59,9 +62,27 @@ export default function BookingInfoTab({
         )}
       </SaveableField>
 
-      {/* Location (read-only) */}
+      {/* Location (read-only, click to copy) */}
       <SaveableField label="Location">
-        <span className="text-sm">{booking.location?.name ?? "\u2014"}</span>
+        {booking.location?.name ? (
+          <button
+            className="inline-flex items-center gap-1.5 text-sm group/loc hover:text-foreground transition-colors"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(booking.location.name);
+                toast("Location copied", "success");
+              } catch {
+                toast("Failed to copy", "error");
+              }
+            }}
+            title="Click to copy"
+          >
+            {booking.location.name}
+            <Copy className="size-3 text-muted-foreground opacity-0 group-hover/loc:opacity-100 transition-opacity" />
+          </button>
+        ) : (
+          <span className="text-sm">{"\u2014"}</span>
+        )}
       </SaveableField>
 
       {/* From */}
@@ -71,7 +92,12 @@ export default function BookingInfoTab({
 
       {/* To */}
       <SaveableField label="To">
-        <span className="text-sm">{formatDateTime(booking.endsAt)}</span>
+        <span className="text-sm">
+          {formatDateTime(booking.endsAt)}
+          <span className="ml-2 text-muted-foreground text-xs">
+            ({formatDuration(booking.startsAt, booking.endsAt)})
+          </span>
+        </span>
       </SaveableField>
 
       {/* User */}

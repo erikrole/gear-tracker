@@ -75,11 +75,19 @@ export default function BookingHistoryTab({
   const [filter, setFilter] = useState<HistoryFilter>("all");
 
   const filtered = useMemo(() => {
-    if (filter === "all") return auditLogs;
-    if (filter === "equipment") {
-      return auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
-    }
-    return auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    let entries: AuditEntry[];
+    if (filter === "all") entries = auditLogs;
+    else if (filter === "equipment") entries = auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
+    else entries = auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    // Pre-filter out update entries where all fields are hidden (would render as null)
+    return entries.filter((e) => {
+      if (e.action !== "updated" || !e.beforeJson || !e.afterJson) return true;
+      return Object.keys(e.afterJson).some((k) => {
+        const b = (e.beforeJson as Record<string, unknown>)?.[k];
+        const a = (e.afterJson as Record<string, unknown>)?.[k];
+        return describeFieldChange(k, b, a) !== null;
+      });
+    });
   }, [auditLogs, filter]);
 
   return (
@@ -125,9 +133,6 @@ export default function BookingHistoryTab({
                   })
                   .filter((c): c is NonNullable<typeof c> => c !== null)
               : [];
-
-            // Skip update entries where all changes were hidden
-            if (isUpdate && changes.length === 0) return null;
 
             return (
               <div
