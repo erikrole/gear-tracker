@@ -1001,6 +1001,11 @@ textarea:focus-visible {
 
 /* ── Clickable card headers ── */
 .card-header-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light, hsl(var(--border) / 0.5));
   text-decoration: none;
   color: inherit;
   cursor: pointer;
@@ -1039,19 +1044,6 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.draft-kind-badge {
-  display: inline-block;
-  font-size: var(--text-3xs);
-  font-weight: var(--weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
-  background: var(--surface-raised);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  margin-right: 6px;
 }
 
 .draft-actions {
@@ -1178,13 +1170,11 @@ textarea:focus-visible {
   font-size: var(--text-xs);
   opacity: 0.75;
 }
-
-.overdue-banner-item-meta .user-initials-avatar {
+.overdue-banner-item-meta [data-slot="avatar-fallback"] {
   background: rgba(255, 255, 255, 0.2);
   color: white;
 }
 
-/* ── Section Count Badge ── */
 /* ── Empty section placeholder ── */
 .empty-section {
   display: flex;
@@ -1201,17 +1191,6 @@ textarea:focus-visible {
   width: 24px;
   height: 24px;
   opacity: 0.4;
-}
-
-.section-count {
-  background: var(--accent-soft);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  padding: 2px 8px;
-  border-radius: 99px;
-  min-width: 24px;
-  text-align: center;
 }
 
 /* ── Ops Row (clickable list items) ── */
@@ -1304,53 +1283,6 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
-/* Due date labels on checkout rows */
-.due-label {
-  font-size: var(--text-2xs, 0.75rem);
-  font-weight: var(--weight-medium, 500);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-.due-label-overdue {
-  color: #dc2626;
-  font-weight: var(--weight-bold, 600);
-}
-.due-label-due-today {
-  color: #d97706;
-  font-weight: var(--weight-bold, 600);
-}
-
-/* Reference number badge on booking rows */
-.ref-badge {
-  display: inline-block;
-  font-size: var(--text-3xs, 0.65rem);
-  font-weight: var(--weight-medium, 500);
-  color: var(--text-muted);
-  background: var(--panel-hover, rgba(0, 0, 0, 0.04));
-  padding: 1px 5px;
-  border-radius: 4px;
-  margin-right: 6px;
-  vertical-align: baseline;
-}
-
-/* Thin progress bar for dashboard refresh */
-.dashboard-refresh-bar {
-  height: 2px;
-  background: linear-gradient(90deg, transparent 0%, var(--accent, #3b82f6) 50%, transparent 100%);
-  background-size: 200% 100%;
-  animation: refresh-slide 1.2s ease-in-out infinite;
-  margin-bottom: 4px;
-  border-radius: 1px;
-}
-@keyframes refresh-slide {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
-}
-
-.due-today-badge {
-  color: #d97706;
-  font-weight: var(--weight-bold);
-}
 
 .ops-row-main {
   display: flex;
@@ -1406,110 +1338,6 @@ textarea:focus-visible {
   text-overflow: ellipsis;
 }
 
-/* ── User initials avatar (inline, small) ── */
-.user-initials-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  color: var(--text-secondary);
-  font-size: 9px;
-  font-weight: var(--weight-bold);
-  flex-shrink: 0;
-  letter-spacing: -0.5px;
-  object-fit: cover;
-}
-
-/* ── Gear avatar stack (stacked item thumbnails) ── */
-.gear-avatar-stack {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.gear-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--panel);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-soft);
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: var(--weight-bold);
-  flex-shrink: 0;
-}
-
-.gear-avatar + .gear-avatar {
-  margin-left: -8px;
-}
-
-.gear-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.gear-avatar-overflow {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  font-size: 9px;
-  color: var(--text-muted);
-}
-
-/* ── Shift avatar stack (event assigned users) ── */
-.shift-avatar-stack {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.shift-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--panel);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  font-weight: var(--weight-bold);
-  flex-shrink: 0;
-}
-
-.shift-avatar + .shift-avatar {
-  margin-left: -6px;
-}
-
-.shift-avatar-filled {
-  background: var(--accent-soft);
-  color: var(--text-secondary);
-  overflow: hidden;
-}
-.shift-avatar-filled img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.shift-avatar-empty {
-  background: transparent;
-  border: 2px dashed var(--border);
-}
-
-.shift-avatar-overflow {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 9px;
-}
-
 /* ── Event row right section ── */
 .event-row-right {
   display: flex;
@@ -1518,20 +1346,6 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
-/* ── Event sport badge ── */
-.event-sport {
-  display: inline-block;
-  background: var(--accent-soft);
-  color: var(--text-secondary);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-bold);
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-right: 6px;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  vertical-align: middle;
-}
 
 /* ── Possession Card (right column items) ── */
 .possession-card {

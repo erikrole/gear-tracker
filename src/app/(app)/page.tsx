@@ -6,11 +6,13 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 import EmptyState from "@/components/EmptyState";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { SkeletonCard } from "@/components/Skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  formatDateShort,
-  formatDateRange,
   formatDueLabel,
   formatEventDateTime,
   formatOverdueElapsed,
@@ -140,34 +142,36 @@ type DashboardData = {
 
 /* ───── Shared sub-components ───── */
 
+function UserAvatar({ initials, avatarUrl, size = "sm" }: { initials: string; avatarUrl?: string | null; size?: "sm" | "default" }) {
+  return (
+    <Avatar size={size}>
+      {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
+      <AvatarFallback>{initials}</AvatarFallback>
+    </Avatar>
+  );
+}
+
 function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; totalCount: number }) {
   if (totalCount === 0) return null;
   const overflow = totalCount - items.length;
   return (
-    <div className="gear-avatar-stack">
+    <AvatarGroup max={99}>
       {items.map((item) => (
-        <div key={item.id} className="gear-avatar" title={item.name || undefined}>
+        <Avatar key={item.id} size="sm" className="ring-2 ring-background">
           {item.imageUrl ? (
-            <img src={item.imageUrl} alt={item.name || "Item"} />
+            <AvatarImage src={item.imageUrl} alt={item.name || "Item"} />
           ) : (
-            <span>{(item.name || "?")[0].toUpperCase()}</span>
+            <AvatarFallback className="text-[10px]">{(item.name || "?")[0].toUpperCase()}</AvatarFallback>
           )}
-        </div>
+        </Avatar>
       ))}
       {overflow > 0 && (
-        <div className="gear-avatar gear-avatar-overflow">
-          <span>+{overflow}</span>
-        </div>
+        <Avatar size="sm" className="ring-2 ring-background">
+          <AvatarFallback className="text-[10px] bg-muted">+{overflow}</AvatarFallback>
+        </Avatar>
       )}
-    </div>
+    </AvatarGroup>
   );
-}
-
-function UserInitialsAvatar({ initials, avatarUrl }: { initials: string; avatarUrl?: string | null }) {
-  if (avatarUrl) {
-    return <img className="user-initials-avatar" src={avatarUrl} alt="" />;
-  }
-  return <span className="user-initials-avatar">{initials}</span>;
 }
 
 function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers: EventSummary["assignedUsers"]; totalSlots: number }) {
@@ -178,21 +182,23 @@ function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers: EventS
   const showEmpty = Math.min(emptySlots, maxShow - showUsers.length);
   const overflow = assignedUsers.length + emptySlots - maxShow;
   return (
-    <div className="shift-avatar-stack">
+    <AvatarGroup max={99}>
       {showUsers.map((u) => (
-        <div key={u.id} className="shift-avatar shift-avatar-filled" title={u.name}>
-          {u.avatarUrl ? <img src={u.avatarUrl} alt="" /> : <span>{u.initials}</span>}
-        </div>
+        <Avatar key={u.id} size="sm" className="ring-2 ring-background" title={u.name}>
+          {u.avatarUrl ? <AvatarImage src={u.avatarUrl} alt="" /> : <AvatarFallback>{u.initials}</AvatarFallback>}
+        </Avatar>
       ))}
       {Array.from({ length: showEmpty }).map((_, i) => (
-        <div key={`empty-${i}`} className="shift-avatar shift-avatar-empty" />
+        <Avatar key={`empty-${i}`} size="sm" className="ring-2 ring-background">
+          <AvatarFallback className="border border-dashed border-muted-foreground/30 bg-transparent" />
+        </Avatar>
       ))}
       {overflow > 0 && (
-        <div className="shift-avatar shift-avatar-overflow">
-          <span>+{overflow}</span>
-        </div>
+        <Avatar size="sm" className="ring-2 ring-background">
+          <AvatarFallback className="text-[10px] bg-muted">+{overflow}</AvatarFallback>
+        </Avatar>
       )}
-    </div>
+    </AvatarGroup>
   );
 }
 
@@ -246,14 +252,54 @@ export default function DashboardPage() {
     return (
       <>
         <div className="page-header"><h1>Dashboard</h1></div>
+        <div className="stat-strip">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="stat-strip-item">
+              <Skeleton className="h-7 w-10 mb-1" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
         <div className="dashboard-split">
           <div className="dashboard-col dashboard-col-left">
-            <SkeletonCard rows={3} />
-            <SkeletonCard rows={3} />
+            {[3, 3].map((rows, i) => (
+              <Card key={i}>
+                <CardHeader className="border-b border-border/50">
+                  <Skeleton className="h-5 w-28" />
+                </CardHeader>
+                <CardContent className="p-0 py-1">
+                  {Array.from({ length: rows }).map((_, j) => (
+                    <div key={j} className="flex items-center gap-3 px-5 py-3">
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                      <Skeleton className="size-6 rounded-full" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
           </div>
           <div className="dashboard-col dashboard-col-right">
-            <SkeletonCard rows={4} />
-            <SkeletonCard rows={3} />
+            {[4, 3].map((rows, i) => (
+              <Card key={i}>
+                <CardHeader className="border-b border-border/50">
+                  <Skeleton className="h-5 w-24" />
+                </CardHeader>
+                <CardContent className="p-0 py-1">
+                  {Array.from({ length: rows }).map((_, j) => (
+                    <div key={j} className="flex items-center gap-3 px-5 py-3">
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                      <Skeleton className="size-6 rounded-full" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </>
@@ -272,7 +318,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ══════ Stat Strip ══════ */}
-      {refreshing && <div className="dashboard-refresh-bar" />}
+      {refreshing && <Progress className="h-0.5 mb-1" />}
       <div className="stat-strip">
         <a href="/checkouts?filter=overdue" className={`stat-strip-item stat-strip-clickable ${data.stats.overdue > 0 ? "stat-strip-danger" : ""}`}>
           <span className="stat-strip-value">{data.stats.overdue}</span>
@@ -337,7 +383,7 @@ export default function DashboardPage() {
                 <div className="overdue-banner-item-main">
                   <span className="overdue-banner-item-title">{item.bookingTitle}</span>
                   <span className="overdue-banner-item-meta">
-                    <UserInitialsAvatar initials={item.requesterInitials} />
+                    <UserAvatar initials={item.requesterInitials} />
                     {item.requesterName} &middot; {item.assetTags.length > 0 && <>{item.assetTags.join(", ")} &middot; </>}
                     <span className="overdue-elapsed">{formatOverdueElapsed(item.endsAt, now)}</span>
                   </span>
@@ -357,9 +403,9 @@ export default function DashboardPage() {
 
           {/* My Checkouts */}
           <Card>
-            <a href="/checkouts?mine=true" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
+            <a href="/checkouts?mine=true" className="card-header-link">
               <h2>My checkouts</h2>
-              <span className="section-count">{data.myCheckouts.total}</span>
+              <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
             </a>
             {data.myCheckouts.items.length === 0 ? (
               <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />You have no gear checked out</div>
@@ -375,16 +421,16 @@ export default function DashboardPage() {
                     >
                       <div className="ops-row-main">
                         <span className="ops-row-title-bold">
-                          {c.refNumber && <span className="ref-badge">{c.refNumber}</span>}
+                          {c.refNumber && <Badge variant="gray" size="sm" className="mr-1.5">{c.refNumber}</Badge>}
                           {c.title}
                         </span>
                         <span className="ops-row-meta">
-                          <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
+                          <UserAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
                           {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                         </span>
                       </div>
                       <div className="ops-row-right">
-                        <span className={`due-label ${c.isOverdue ? "due-label-overdue" : isDueToday(c.endsAt, now) ? "due-label-due-today" : ""}`}>{dueLabel}</span>
+                        <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm">{dueLabel}</Badge>
                         <GearAvatarStack items={c.items} totalCount={c.itemCount} />
                       </div>
                     </button>
@@ -399,9 +445,9 @@ export default function DashboardPage() {
 
           {/* My Reservations */}
           <Card>
-            <a href="/reservations?mine=true" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
+            <a href="/reservations?mine=true" className="card-header-link">
               <h2>My reservations</h2>
-              <span className="section-count">{data.myReservations.length}</span>
+              <Badge variant="gray" size="sm">{data.myReservations.length}</Badge>
             </a>
             {data.myReservations.length === 0 ? (
               <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />No reservations coming up</div>
@@ -415,11 +461,11 @@ export default function DashboardPage() {
                   >
                     <div className="ops-row-main">
                       <span className="ops-row-title-bold">
-                        {r.refNumber && <span className="ref-badge">{r.refNumber}</span>}
+                        {r.refNumber && <Badge variant="gray" size="sm" className="mr-1.5">{r.refNumber}</Badge>}
                         {r.title}
                       </span>
                       <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
+                        <UserAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
                         {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -436,9 +482,9 @@ export default function DashboardPage() {
           {/* My Shifts (above drafts — higher temporal urgency) */}
           {data.myShifts.length > 0 && (
             <Card>
-              <a href="/schedule" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
+              <a href="/schedule" className="card-header-link">
                 <h2>My shifts</h2>
-                <span className="section-count">{data.myShifts.length}</span>
+                <Badge variant="gray" size="sm">{data.myShifts.length}</Badge>
               </a>
               <CardContent className="p-0 py-1">
                 {data.myShifts.map((s) => {
@@ -450,7 +496,7 @@ export default function DashboardPage() {
                     <div key={s.id} className="ops-row">
                       <div className="ops-row-main">
                         <span className="ops-row-title">
-                          {s.event.sportCode && <span className="event-sport">{s.event.sportCode}</span>}
+                          {s.event.sportCode && <Badge variant="sport" size="sm" className="mr-1.5">{s.event.sportCode}</Badge>}
                           {eventTitle}
                         </span>
                         <span className="ops-row-meta">
@@ -464,9 +510,9 @@ export default function DashboardPage() {
                         {gearLabel ? (
                           <>
                             <GearAvatarStack items={s.gearItems} totalCount={s.gearItemCount} />
-                            <span className={`badge ${s.gearStatus === "checked_out" ? "badge-green" : s.gearStatus === "reserved" ? "badge-orange" : "badge-gray"}`}>
+                            <Badge variant={s.gearStatus === "checked_out" ? "green" : s.gearStatus === "reserved" ? "orange" : "gray"}>
                               {gearLabel}
-                            </span>
+                            </Badge>
                           </>
                         ) : (
                           <Button variant="outline" size="sm" asChild>
@@ -486,16 +532,16 @@ export default function DashboardPage() {
           {/* Drafts (below shifts — lower urgency, recovery of abandoned work) */}
           {data.drafts.length > 0 && (
             <Card>
-              <CardHeader>
+              <CardHeader className="border-b border-border/50">
                 <CardTitle>Drafts</CardTitle>
-                <span className="section-count">{data.drafts.length}</span>
+                <Badge variant="gray" size="sm">{data.drafts.length}</Badge>
               </CardHeader>
               <CardContent className="p-0 py-1">
                 {data.drafts.map((d) => (
                   <div key={d.id} className="ops-row draft-row">
                     <div className="ops-row-main">
                       <span className="ops-row-title">
-                        <span className="draft-kind-badge">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</span>
+                        <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
                         {d.title || "Untitled"}
                       </span>
                       <span className="ops-row-meta">
@@ -545,9 +591,9 @@ export default function DashboardPage() {
 
           {/* Team Checkouts */}
           <Card>
-            <a href="/checkouts" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
+            <a href="/checkouts" className="card-header-link">
               <h2>Checked out</h2>
-              <span className="section-count">{data.teamCheckouts.total}</span>
+              <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
             </a>
             {data.teamCheckouts.items.length === 0 ? (
               <div className="empty-section"><InboxIcon className="empty-section-icon" />No team checkouts right now</div>
@@ -563,16 +609,16 @@ export default function DashboardPage() {
                     >
                       <div className="ops-row-main">
                         <span className="ops-row-title-bold">
-                          {c.refNumber && <span className="ref-badge">{c.refNumber}</span>}
+                          {c.refNumber && <Badge variant="gray" size="sm" className="mr-1.5">{c.refNumber}</Badge>}
                           {c.title}
                         </span>
                         <span className="ops-row-meta">
-                          <UserInitialsAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
+                          <UserAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
                           {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                         </span>
                       </div>
                       <div className="ops-row-right">
-                        <span className={`due-label ${c.isOverdue ? "due-label-overdue" : isDueToday(c.endsAt, now) ? "due-label-due-today" : ""}`}>{dueLabel}</span>
+                        <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm">{dueLabel}</Badge>
                         <GearAvatarStack items={c.items} totalCount={c.itemCount} />
                       </div>
                     </button>
@@ -587,9 +633,9 @@ export default function DashboardPage() {
 
           {/* Team Reservations */}
           <Card>
-            <a href="/reservations" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
+            <a href="/reservations" className="card-header-link">
               <h2>Reserved</h2>
-              <span className="section-count">{data.teamReservations.total}</span>
+              <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
             </a>
             {data.teamReservations.items.length === 0 ? (
               <div className="empty-section"><InboxIcon className="empty-section-icon" />No team reservations right now</div>
@@ -603,11 +649,11 @@ export default function DashboardPage() {
                   >
                     <div className="ops-row-main">
                       <span className="ops-row-title-bold">
-                        {r.refNumber && <span className="ref-badge">{r.refNumber}</span>}
+                        {r.refNumber && <Badge variant="gray" size="sm" className="mr-1.5">{r.refNumber}</Badge>}
                         {r.title}
                       </span>
                       <span className="ops-row-meta">
-                        <UserInitialsAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
+                        <UserAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
                         {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -623,7 +669,7 @@ export default function DashboardPage() {
 
           {/* Upcoming Events */}
           <Card>
-            <a href="/events" className="card-header-link flex items-center justify-between px-5 py-4 border-b border-border/50">
+            <a href="/events" className="card-header-link">
               <h2>Upcoming events</h2>
             </a>
             {data.upcomingEvents.length === 0 ? (
@@ -639,7 +685,7 @@ export default function DashboardPage() {
                     <div key={e.id} className="ops-row event-row-clickable">
                       <a href={`/events/${e.id}`} className="ops-row-main no-underline">
                         <span className="ops-row-title">
-                          {e.sportCode && <span className="event-sport">{e.sportCode}</span>}
+                          {e.sportCode && <Badge variant="sport" size="sm" className="mr-1.5">{e.sportCode}</Badge>}
                           {e.opponent ? `vs ${e.opponent}` : e.title}
                         </span>
                         <span className="ops-row-meta">
@@ -650,9 +696,9 @@ export default function DashboardPage() {
                       <div className="event-row-right">
                         <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} />
                         {e.isHome !== null && (
-                          <span className={`badge ${e.isHome ? "badge-green" : "badge-gray"}`}>
+                          <Badge variant={e.isHome ? "green" : "gray"}>
                             {e.isHome ? "Home" : "Away"}
-                          </span>
+                          </Badge>
                         )}
                         <DropdownMenu>
                           <Tooltip>
