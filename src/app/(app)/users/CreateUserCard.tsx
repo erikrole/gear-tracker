@@ -44,6 +44,7 @@ export default function CreateUserCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const json = await res.json();
 
       if (!res.ok) {

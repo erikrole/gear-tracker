@@ -8,6 +8,7 @@ import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -41,12 +42,13 @@ export default function UserDetailPage() {
 
     fetch(`/api/users/${id}`, { signal: controller.signal })
       .then((res) => {
+        if (res.status === 401) { window.location.href = "/login"; return null; }
         if (!res.ok) throw new Error();
         return res.json();
       })
       .then((json) => {
         if (json?.data) setUser(json.data);
-        else setFetchError(true);
+        else if (json !== null) setFetchError(true);
       })
       .catch((err) => {
         if ((err as Error).name !== "AbortError") setFetchError(true);
@@ -77,9 +79,14 @@ export default function UserDetailPage() {
 
   if (fetchError) {
     return (
-      <div className="py-10 px-5 text-center text-muted-foreground">
-        User not found or failed to load.{" "}
-        <Link href="/users">Back to users</Link>
+      <div className="py-10 px-5 text-center text-muted-foreground space-y-2">
+        <p>User not found or failed to load.</p>
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => { setFetchError(false); loadUser(); }}>
+            Retry
+          </Button>
+          <Link href="/users" className="text-sm underline">Back to users</Link>
+        </div>
       </div>
     );
   }

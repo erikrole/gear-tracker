@@ -141,6 +141,7 @@ export default function UserInfoTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (res.status === 401) { window.location.href = "/login"; return; }
     const json = await res.json();
     if (!res.ok) {
       throw new Error(json.error || "Failed to update user");
@@ -154,6 +155,7 @@ export default function UserInfoTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: newRole }),
     });
+    if (res.status === 401) { window.location.href = "/login"; return; }
     const json = await res.json();
     if (!res.ok) {
       toast(json.error || "Failed to change role", "error");

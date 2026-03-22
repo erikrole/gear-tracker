@@ -111,6 +111,10 @@ export default function UsersPage() {
       if (locationFilter) params.set("locationId", locationFilter);
 
       const res = await fetch(`/api/users?${params}`, { signal: controller.signal });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
       if (res.ok) {
         const json: ListResponse = await res.json();
         setUsers(json.data ?? []);
@@ -221,6 +225,8 @@ export default function UsersPage() {
             icon="users"
             title="Failed to load users"
             description="Something went wrong. Please try again."
+            actionLabel="Retry"
+            onAction={reload}
           />
         ) : users.length === 0 ? (
           <EmptyState

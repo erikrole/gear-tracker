@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -58,10 +59,13 @@ export default function UserActivityTab({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  useEffect(() => {
+  const loadActivity = useCallback(() => {
+    setLoading(true);
+    setFetchError(false);
     const controller = new AbortController();
     fetch(`/api/users/${userId}/activity`, { signal: controller.signal })
       .then((res) => {
+        if (res.status === 401) { window.location.href = "/login"; return null; }
         if (!res.ok) { setFetchError(true); return null; }
         return res.json();
       })
@@ -70,13 +74,23 @@ export default function UserActivityTab({ userId }: { userId: string }) {
         if ((err as Error).name !== "AbortError") setFetchError(true);
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => { controller.abort(); };
+    return controller;
   }, [userId]);
+
+  useEffect(() => {
+    const controller = loadActivity();
+    return () => { controller?.abort(); };
+  }, [loadActivity]);
 
   if (loading) return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
 
   if (fetchError) {
-    return <div className="py-10 px-5 text-center text-muted-foreground">Failed to load activity history.</div>;
+    return (
+      <div className="py-10 px-5 text-center text-muted-foreground space-y-2">
+        <p>Failed to load activity history.</p>
+        <Button variant="outline" size="sm" onClick={() => loadActivity()}>Retry</Button>
+      </div>
+    );
   }
 
   if (entries.length === 0) {
