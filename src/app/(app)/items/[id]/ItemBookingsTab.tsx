@@ -12,7 +12,7 @@ import {
 } from "@/lib/format";
 import type { AssetDetail, ActiveBookingDetail, UpcomingReservation } from "./types";
 import { QRCodeCanvas, QRModal } from "./ItemInfoTab";
-import type { SaveStatus } from "@/components/SaveableField";
+import { useSaveField } from "@/components/SaveableField";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -168,29 +168,54 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
   );
 }
 
+/* ── Saveable Toggle Row ───────────────────────────────── */
+
+function SaveableToggle({
+  label,
+  help,
+  checked,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  help: string;
+  checked: boolean;
+  disabled: boolean;
+  onToggle: () => Promise<void>;
+}) {
+  const saveField = useSaveField(async () => {
+    await onToggle();
+  });
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors",
+        checked && "border-primary/30 bg-primary/5",
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-medium">{label}</Label>
+          {saveField.status === "saving" && <Spinner className="size-3" />}
+          {saveField.status === "saved" && <Check className="size-3 text-green-600 dark:text-green-400" />}
+          {saveField.status === "error" && <X className="size-3 text-destructive" />}
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5 m-0">{help}</p>
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={() => saveField.save("")}
+        disabled={saveField.status === "saving" || disabled}
+        className="shrink-0"
+      />
+    </div>
+  );
+}
+
 /* ── Settings Card (sidebar) ───────────────────────────── */
 
 function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const [savingField, setSavingField] = useState<Record<string, SaveStatus>>({});
-
-  async function toggleSetting(field: string, currentValue: boolean) {
-    setSavingField((prev) => ({ ...prev, [field]: "saving" }));
-    try {
-      const res = await fetch(`/api/assets/${asset.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: !currentValue }),
-      });
-      if (!res.ok) throw new Error();
-      setSavingField((prev) => ({ ...prev, [field]: "saved" }));
-      setTimeout(() => setSavingField((prev) => ({ ...prev, [field]: "idle" })), 2000);
-      onRefresh();
-    } catch {
-      setSavingField((prev) => ({ ...prev, [field]: "error" }));
-      setTimeout(() => setSavingField((prev) => ({ ...prev, [field]: "idle" })), 3000);
-    }
-  }
-
   const toggles = [
     { field: "availableForReservation", label: "Available for reservation", value: asset.availableForReservation, help: "Item is available to be used in reservations" },
     { field: "availableForCheckout", label: "Available for check out", value: asset.availableForCheckout, help: "Item is available to be used in check-outs" },
@@ -203,34 +228,24 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
         <CardTitle>Settings</CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4 pt-0 space-y-2">
-        {toggles.map((t) => {
-          const status = savingField[t.field] || "idle";
-          return (
-            <div
-              key={t.field}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors",
-                t.value && "border-primary/30 bg-primary/5",
-              )}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-medium">{t.label}</Label>
-                  {status === "saving" && <Spinner className="size-3" />}
-                  {status === "saved" && <Check className="size-3 text-green-600 dark:text-green-400" />}
-                  {status === "error" && <X className="size-3 text-destructive" />}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 m-0">{t.help}</p>
-              </div>
-              <Switch
-                checked={t.value}
-                onCheckedChange={() => canEdit && toggleSetting(t.field, t.value)}
-                disabled={status === "saving" || !canEdit}
-                className="shrink-0"
-              />
-            </div>
-          );
-        })}
+        {toggles.map((t) => (
+          <SaveableToggle
+            key={t.field}
+            label={t.label}
+            help={t.help}
+            checked={t.value}
+            disabled={!canEdit}
+            onToggle={async () => {
+              const res = await fetch(`/api/assets/${asset.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ [t.field]: !t.value }),
+              });
+              if (!res.ok) throw new Error();
+              onRefresh();
+            }}
+          />
+        ))}
       </CardContent>
     </Card>
   );

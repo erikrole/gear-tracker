@@ -35,7 +35,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PencilIcon, ImageIcon, Copy, Check } from "lucide-react";
+import {
+  PencilIcon,
+  ImageIcon,
+  Copy,
+  Check,
+  InfoIcon,
+  ArrowRightLeftIcon,
+  CalendarClockIcon,
+  CalendarIcon,
+  ChartAreaIcon,
+  HistoryIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -49,13 +61,13 @@ import { AccessoriesSection } from "./ItemSettingsTab";
 
 type TabKey = "info" | "checkouts" | "reservations" | "calendar" | "insights" | "history";
 
-const tabDefs: Array<{ key: TabKey; label: string }> = [
-  { key: "info", label: "Info" },
-  { key: "checkouts", label: "Checkouts" },
-  { key: "reservations", label: "Reservations" },
-  { key: "calendar", label: "Calendar" },
-  { key: "insights", label: "Insights" },
-  { key: "history", label: "History" },
+const tabDefs: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
+  { key: "info", label: "Info", icon: InfoIcon },
+  { key: "checkouts", label: "Checkouts", icon: ArrowRightLeftIcon },
+  { key: "reservations", label: "Reservations", icon: CalendarClockIcon },
+  { key: "calendar", label: "Calendar", icon: CalendarIcon },
+  { key: "insights", label: "Insights", icon: ChartAreaIcon },
+  { key: "history", label: "History", icon: HistoryIcon },
 ];
 
 /* ── Status Line ────────────────────────────────────────── */
@@ -465,9 +477,10 @@ export default function ItemDetailsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
         <TabsList>
-          {tabDefs.map((tab) => (
-            <TabsTrigger key={tab.key} value={tab.key}>
-              {tab.label}
+          {tabDefs.map(({ key, label, icon: Icon }) => (
+            <TabsTrigger key={key} value={key} className="flex items-center gap-1 px-2.5 sm:px-3">
+              <Icon />
+              {label}
             </TabsTrigger>
           ))}
         </TabsList>

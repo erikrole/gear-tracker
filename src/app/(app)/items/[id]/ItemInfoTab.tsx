@@ -5,8 +5,7 @@ import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -104,7 +103,12 @@ function TextInputField({
         }}
         placeholder={placeholder}
         disabled={!canEdit || readOnly}
-        className={cn("h-8 text-right text-sm", mono && "font-mono")}
+        className={cn(
+          "h-8 text-sm border-transparent bg-transparent shadow-none",
+          "hover:bg-muted/60 hover:border-border/50",
+          "focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs",
+          mono && "font-mono",
+        )}
       />
     </SaveableField>
   );
@@ -164,7 +168,7 @@ function LinkField({
           }}
           placeholder={placeholder}
           disabled={!canEdit}
-          className="h-8 text-sm flex-1"
+          className="h-8 text-sm flex-1 border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
         />
         {value && (
           <TooltipProvider>
@@ -273,7 +277,7 @@ function SaveableNativeSelectField({
           if (v === value) return;
           await saveField.save(v);
         }}
-        className="h-8 text-sm"
+        className="h-8 text-sm border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
       >
         <option value="">{placeholder || "Select..."}</option>
         {options.map((o) => (
@@ -360,7 +364,7 @@ function SaveableCategoryField({
               setNewCatName("");
             }
           }}
-          className="h-8 text-sm"
+          className="h-8 text-sm border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
         />
       ) : (
         <CategoryCombobox
@@ -556,17 +560,17 @@ const SectionHeader = React.forwardRef<
   { title: string; open: boolean } & React.HTMLAttributes<HTMLDivElement>
 >(function SectionHeader({ title, open, ...props }, ref) {
   return (
-    <div ref={ref} className="col-span-full px-4 pt-4 pb-2" {...props}>
-      <div className="flex items-center gap-1.5 w-full text-left group cursor-pointer">
+    <div ref={ref} className="col-span-full px-3 pt-5 pb-1" {...props}>
+      <div className="flex items-center gap-1.5 w-full text-left group cursor-pointer border-b border-border/40 pb-1.5">
         <ChevronDown
           className={cn(
-            "size-3.5 text-muted-foreground transition-transform duration-200",
+            "size-3 text-muted-foreground/60 transition-transform duration-200",
             !open && "-rotate-90",
           )}
         />
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer group-hover:text-foreground transition-colors">
+        <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60 cursor-pointer group-hover:text-muted-foreground transition-colors">
           {title}
-        </Label>
+        </span>
       </div>
     </div>
   );
@@ -677,11 +681,8 @@ export default function ItemInfoCard({
   const fiscalYearOptions = getFiscalYearOptions();
 
   return (
-    <Card className="details-card">
-      <CardHeader>
-        <CardTitle>Item Information</CardTitle>
-      </CardHeader>
-      <div>
+    <Card className="details-card border-border/40 shadow-none">
+      <div className="py-1">
         {/* ── Identity Section ── */}
         <Collapsible open={identityOpen} onOpenChange={setIdentityOpen}>
           <CollapsibleTrigger asChild>
