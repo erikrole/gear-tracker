@@ -17,7 +17,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { formatRelativeTime } from "@/lib/format";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type OverdueBooking = {
   id: string;
@@ -122,7 +128,14 @@ export default function OverdueLeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | false>(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const loadData = useCallback(async () => {
     abortRef.current?.abort();
@@ -137,6 +150,7 @@ export default function OverdueLeaderboardPage() {
       if (!res.ok) { setError("Unable to load overdue report. Please try again."); return; }
       const json = await res.json();
       setData(json ?? null);
+      setLastRefreshed(new Date());
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setError("You appear to be offline. Check your connection and try again.");
@@ -201,20 +215,31 @@ export default function OverdueLeaderboardPage() {
 
   return (
     <>
-      {leaderboard.length > 0 && (
-        <div className="flex items-center mb-1 justify-end">
+      <div className="flex items-center mb-1 justify-end gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadData}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
+          </TooltipContent>
+        </Tooltip>
+        {leaderboard.length > 0 && (
           <Button variant="outline" size="sm" onClick={() => downloadCsv(leaderboard)}>
             Export CSV
           </Button>
-        </div>
-      )}
+        )}
+      </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
         <MetricCard
           value={data.totalOverdueBookings}
           label="Overdue checkouts"
           color={data.totalOverdueBookings > 0 ? "var(--red)" : undefined}
+          tooltip="Checkouts currently past their return date"
         />
-        <MetricCard value={leaderboard.length} label="People with overdue gear" />
+        <MetricCard value={leaderboard.length} label="People with overdue gear" tooltip="Number of people with at least one overdue checkout" />
       </div>
 
       {leaderboard.length === 0 ? (

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { formatDateFull } from "@/lib/format";
+import { useSearchParams } from "next/navigation";
+import { formatDateFull, formatRelativeTime } from "@/lib/format";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type CheckoutRow = {
   id: string;
@@ -75,11 +81,22 @@ function downloadCsv(rows: CheckoutRow[]) {
 }
 
 export default function CheckoutsReportPage() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<CheckoutData | null>(null);
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(() => {
+    const p = searchParams.get("days");
+    return p && [7, 30, 90].includes(Number(p)) ? Number(p) : 30;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | false>(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => new Date());
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const loadData = useCallback(async () => {
     abortRef.current?.abort();
@@ -94,6 +111,7 @@ export default function CheckoutsReportPage() {
       if (!res.ok) { setError("Unable to load checkout report. Please try again."); return; }
       const json = await res.json();
       setData(json ?? null);
+      setLastRefreshed(new Date());
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setError("You appear to be offline. Check your connection and try again.");
@@ -164,11 +182,26 @@ export default function CheckoutsReportPage() {
           <Button
             key={d}
             variant={days === d ? "default" : "outline"} size="sm"
-            onClick={() => setDays(d)}
+            onClick={() => {
+              setDays(d);
+              const url = new URL(window.location.href);
+              url.searchParams.set("days", String(d));
+              window.history.replaceState(null, "", url.toString());
+            }}
           >
             {d}d
           </Button>
         ))}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadData}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
+          </TooltipContent>
+        </Tooltip>
         {(data.recentCheckouts ?? []).length > 0 && (
           <Button variant="outline" size="sm" onClick={() => downloadCsv(data.recentCheckouts)} className="ml-auto">
             Export CSV
@@ -178,11 +211,12 @@ export default function CheckoutsReportPage() {
 
       {/* Summary metrics */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
-        <MetricCard value={data.totalCheckouts} label={`Checkouts (${days}d)`} />
+        <MetricCard value={data.totalCheckouts} label={`Checkouts (${days}d)`} tooltip="Checkouts created in the selected period" />
         <MetricCard
           value={data.overdueCheckouts}
           label="Currently overdue"
           color={data.overdueCheckouts > 0 ? "var(--red)" : undefined}
+          tooltip="Checkouts currently past their return date"
         />
       </div>
 
