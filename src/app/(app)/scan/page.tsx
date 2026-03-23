@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ChevronLeftIcon, XIcon, ScanIcon } from "lucide-react";
+import { ChevronLeftIcon, XIcon, ScanIcon, AlertCircleIcon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
@@ -490,6 +493,15 @@ export default function ScanPage() {
       default: return s;
     }
   }
+  function statusBadgeVariant(s: string): "green" | "blue" | "purple" | "orange" | "gray" {
+    switch (s) {
+      case "AVAILABLE": return "green";
+      case "CHECKED_OUT": return "blue";
+      case "RESERVED": return "purple";
+      case "MAINTENANCE": return "orange";
+      default: return "gray";
+    }
+  }
   function statusColor(s: string) {
     switch (s) {
       case "AVAILABLE": return { bg: "var(--green-bg)", text: "#16a34a" };
@@ -557,28 +569,34 @@ export default function ScanPage() {
             <span className="scan-progress-label">items scanned</span>
             <span className="scan-progress-pct">{progressPct}%</span>
           </div>
-          <div className="scan-progress-bar">
-            <div
-              className={`scan-progress-fill ${allComplete ? "scan-progress-complete" : ""}`}
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
+          <Progress
+            value={progressPct}
+            className={`h-2.5 ${allComplete ? "[&>[data-slot=progress-indicator]]:bg-green-500" : "[&>[data-slot=progress-indicator]]:bg-blue-500"}`}
+          />
         </div>
       )}
 
       {/* ══════ Loading / error states ══════ */}
       {mode !== "lookup" && statusLoading && (
-        <div className="scan-status-card">
-          <Spinner className="size-5" />
-          <span>Loading checkout details...</span>
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-3 w-full" />
+          <div className="flex flex-col gap-2 rounded-lg border border-border p-4">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
         </div>
       )}
 
       {mode !== "lookup" && loadError && (
-        <div className="scan-status-card scan-status-error">
-          Failed to load checkout details.{" "}
-          <Button variant="outline" size="sm" onClick={loadScanStatus}>Retry</Button>
-        </div>
+        <Alert variant="destructive">
+          <AlertCircleIcon className="size-4" />
+          <AlertDescription className="flex items-center gap-3">
+            Failed to load checkout details.
+            <Button variant="outline" size="sm" onClick={loadScanStatus}>Retry</Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* ══════ Camera + Manual entry ══════ */}
@@ -608,9 +626,10 @@ export default function ScanPage() {
         )}
 
         {cameraError && (
-          <div className="scan-camera-error">
-            Camera error: {cameraError}
-          </div>
+          <Alert variant="destructive" className="rounded-none border-x-0 border-b-0">
+            <AlertCircleIcon className="size-4" />
+            <AlertDescription>Camera error: {cameraError}</AlertDescription>
+          </Alert>
         )}
 
         {/* Manual entry */}
@@ -678,7 +697,7 @@ export default function ScanPage() {
                     <span className="scan-item-desc">{item.brand} {item.model}</span>
                   </div>
                   {item.scanned && (
-                    <span className="scan-item-badge">Scanned</span>
+                    <Badge variant="green" size="sm">Scanned</Badge>
                   )}
                 </div>
               ))}
@@ -698,7 +717,7 @@ export default function ScanPage() {
                       <span className="scan-item-tag">
                         {item.name}
                         {item.trackByNumber && (
-                          <span className="text-xs font-semibold px-1.5 py-px rounded bg-blue-50 text-blue-500 ml-1.5">#</span>
+                          <Badge variant="blue" size="sm" className="ml-1.5">#</Badge>
                         )}
                       </span>
                       <span className="scan-item-desc">{item.scanned} / {item.required} scanned</span>
@@ -708,9 +727,13 @@ export default function ScanPage() {
                     {item.trackByNumber && allocated.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2 ml-10">
                         {allocated.map((u) => (
-                          <span key={u.unitNumber} className={`text-xs font-semibold px-1.5 py-0.5 rounded ${u.checkedIn ? "bg-green-100 text-green-800" : u.checkedOut ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-500"}`}>
+                          <Badge
+                            key={u.unitNumber}
+                            variant={u.checkedIn ? "green" : u.checkedOut ? "blue" : "gray"}
+                            size="sm"
+                          >
                             #{u.unitNumber}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     )}
@@ -835,15 +858,9 @@ export default function ScanPage() {
                 </div>
               </div>
               {itemPreview && (
-                <span
-                  className="scan-status-badge"
-                  style={{
-                    background: statusColor(itemPreview.computedStatus).bg,
-                    color: statusColor(itemPreview.computedStatus).text,
-                  }}
-                >
+                <Badge variant={statusBadgeVariant(itemPreview.computedStatus)}>
                   {statusLabel(itemPreview.computedStatus)}
-                </span>
+                </Badge>
               )}
             </div>
           </SheetHeader>
