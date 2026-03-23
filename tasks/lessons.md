@@ -557,3 +557,8 @@ Always use shadcn Empty component:
 ### Reliability Patterns
 - **hasLoadedRef for refresh-preserves-data**: Use a ref (not state) to track whether initial data load completed. On subsequent loads (filter/view changes), skip `setLoading(true)` so existing data stays visible. Avoids skeleton flash on every filter change.
 - **Trade count refresh on sheet close**: The `onOpenChange` handler on the Sheet fires when closing — use it to re-fetch trade count since the user may have claimed or cancelled trades while the sheet was open.
+
+### Stress Test Patterns
+- **Per-item acting guards are insufficient**: `disabled={acting === t.id}` only blocks the button being acted on. Users can spam-click buttons on DIFFERENT items, firing concurrent mutations. Fix: `disabled={acting !== null}` blocks ALL mutation buttons while any mutation is in-flight.
+- **401 handling is per-component, not per-page**: The schedule page has 401 handling on its own fetches, but ShiftDetailPanel and TradeBoard are rendered inside it as child components with their own fetch calls. Each component needs its own 401 handling — a page-level guard doesn't protect child component mutations.
+- **Conditional render = auto-remount = fresh data**: `{open && <Component />}` unmounts on close and remounts on open, triggering useEffect data loads. No manual "reload on open" needed — the component lifecycle handles it.
