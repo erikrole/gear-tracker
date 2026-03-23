@@ -26,6 +26,7 @@ export type AreaAssignment = {
 };
 
 export type UserDetail = UserRow & {
+  createdAt: string | null;
   sportAssignments: SportAssignment[];
   areaAssignments: AreaAssignment[];
 };

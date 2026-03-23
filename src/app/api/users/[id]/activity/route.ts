@@ -3,7 +3,10 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 
-export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+
+export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
 
   const { id } = params;
@@ -16,9 +19,14 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const target = await db.user.findUnique({ where: { id }, select: { id: true } });
   if (!target) throw new HttpError(404, "User not found");
 
-  // Fetch audit logs where:
-  // 1. This user is the entity being acted on (entityType: "user", entityId: id)
-  // 2. This user performed an action (actorId: id)
+  const url = new URL(req.url);
+  const cursor = url.searchParams.get("cursor") || undefined;
+  const limit = Math.min(
+    Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT),
+    MAX_LIMIT,
+  );
+
+  // Fetch one extra to detect if there are more entries
   const logs = await db.auditLog.findMany({
     where: {
       OR: [
@@ -27,11 +35,16 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       ],
     },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: {
       actor: { select: { name: true, email: true } },
     },
   });
 
-  return ok({ data: logs });
+  const hasMore = logs.length > limit;
+  const data = hasMore ? logs.slice(0, limit) : logs;
+  const nextCursor = hasMore ? data[data.length - 1].id : null;
+
+  return ok({ data, nextCursor });
 });

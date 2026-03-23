@@ -4,7 +4,14 @@ import { FormEvent, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -14,14 +21,16 @@ import {
 } from "@/components/ui/select";
 import type { Location } from "./types";
 
-export default function CreateUserCard({
+export default function CreateUserDialog({
+  open,
+  onOpenChange,
   locations,
   onCreated,
-  onClose,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   locations: Location[];
   onCreated: () => void;
-  onClose: () => void;
 }) {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +64,7 @@ export default function CreateUserCard({
 
       toast(`${payload.name} added successfully`, "success");
       setSubmitting(false);
-      onClose();
+      onOpenChange(false);
       onCreated();
     } catch {
       toast("Network error", "error");
@@ -64,67 +73,65 @@ export default function CreateUserCard({
   }
 
   return (
-    <Card className="mb-1">
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle>Add user</CardTitle>
-        <Button type="button" variant="outline" size="sm" onClick={onClose}>
-          Cancel
-        </Button>
-      </CardHeader>
-      <form onSubmit={handleSubmit} className="px-6 pb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <Input
-            name="name"
-            placeholder="Full name"
-            required
-            aria-label="Full name"
-            autoFocus
-          />
-          <Input
-            name="email"
-            type="email"
-            placeholder="Email"
-            required
-            aria-label="Email"
-          />
-          <Input
-            name="password"
-            type="password"
-            minLength={8}
-            placeholder="Temporary password"
-            required
-            aria-label="Temporary password"
-          />
-          <Select name="role" defaultValue="STAFF" aria-label="Role">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ADMIN">Admin</SelectItem>
-              <SelectItem value="STAFF">Staff</SelectItem>
-              <SelectItem value="STUDENT">Student</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select name="locationId" defaultValue="__none__" aria-label="Location">
-            <SelectTrigger>
-              <SelectValue placeholder="No location" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">No location</SelectItem>
-              {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.id}>
-                  {loc.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex justify-end mt-3">
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Adding..." : "Add user"}
-          </Button>
-        </div>
-      </form>
-    </Card>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add user</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="create-name">Full name</Label>
+            <Input id="create-name" name="name" required autoFocus />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="create-email">Email</Label>
+            <Input id="create-email" name="email" type="email" required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="create-password">Temporary password</Label>
+            <Input id="create-password" name="password" type="password" minLength={8} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <Select name="role" defaultValue="STAFF">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="STAFF">Staff</SelectItem>
+                  <SelectItem value="STUDENT">Student</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Location</Label>
+              <Select name="locationId" defaultValue="__none__">
+                <SelectTrigger>
+                  <SelectValue placeholder="No location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No location</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="mt-1">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Adding..." : "Add user"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

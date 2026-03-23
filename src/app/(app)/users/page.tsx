@@ -5,7 +5,7 @@ import EmptyState from "@/components/EmptyState";
 import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
-import CreateUserCard from "./CreateUserCard";
+import CreateUserDialog from "./CreateUserCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -168,21 +168,20 @@ export default function UsersPage() {
           <h1>Users</h1>
           {isRefreshing && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
         </div>
-        {canEdit && !showCreate && (
+        {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
             Add user
           </Button>
         )}
       </div>
 
-      {/* Create Form (toggleable) */}
-      {canEdit && showCreate && (
-        <CreateUserCard
-          locations={locations}
-          onCreated={reload}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        locations={locations}
+        onCreated={reload}
+      />
 
       {/* Users List */}
       <div className="space-y-4">
