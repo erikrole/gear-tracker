@@ -46,23 +46,17 @@ This roadmap defines progressive enhancements that take it from a functional adm
 - API: add `active` filter param to `GET /api/users`; add `active` to `PATCH /api/users/[id]` schema
 - Audit: toggling status creates an audit entry with before/after
 
-**1.2 Activity tab pagination**
-- Replace the hard `take: 100` in `GET /api/users/[id]/activity` with cursor-based pagination
-- API: accept `cursor` (last entry ID) and `limit` (default 25) query params; return `nextCursor`
-- UI: "Load more" button at bottom of activity list (not full pagination — activity is a timeline)
-- Loading state: spinner while fetching next page
+**1.2 Activity tab pagination** ✅ Shipped 2026-03-23
+- Cursor-based pagination (50/page) with "Load more" button
+- API accepts `cursor` and `limit` params; returns `nextCursor`
 
-**1.3 Create user dialog refactor**
-- Replace `CreateUserCard` inline expansion with a `Dialog` (shadcn) triggered by "Add user" button
-- Same form fields, contained in Dialog/DialogContent/DialogHeader/DialogFooter
-- Eliminates visual displacement of user list when form opens
-- Mobile: use `Sheet` (bottom drawer) instead of dialog on small breakpoints
-- No backend changes — same `POST /api/users` API
+**1.3 Create user dialog refactor** ✅ Shipped 2026-03-23
+- Replaced inline `CreateUserCard` with Dialog component
+- Labeled form fields, DialogFooter with Cancel/Add buttons
 
-**1.4 "Created at" display**
-- Add `createdAt` to the `UserDetail` type and `GET /api/users/[id]` response (already in DB, just not selected)
-- Display "Member since {date}" in detail page header below email
-- Use `formatDateTime` from `@/lib/format`
+**1.4 "Created at" display** ✅ Shipped 2026-03-23
+- `createdAt` added to `UserDetail` type and API response
+- "Member since {date}" shown in detail page header with calendar icon
 
 **1.5 Admin-initiated password reset**
 - New API route: `POST /api/users/[id]/reset-password`

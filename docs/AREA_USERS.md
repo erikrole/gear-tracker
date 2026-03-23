@@ -125,3 +125,7 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **Resilience**: Retry now clears stale user data to prevent briefly showing wrong user. Null-safe avatar upload response.
   - **UX polish**: Optimistic avatar removal with rollback on failure. Breadcrumb shows "Profile" when viewing self. High-fidelity loading skeletons matching actual field rows and assignment badges.
 - 2026-03-23: Created Users page versioned roadmap (`tasks/users-roadmap.md`). Defines V1 (status field, activity pagination, dialog create, password reset), V2 (bulk operations, gear tab, assignment editing, login blocking, export), V3 (last-active tracking, auto-deactivation, heatmap, smart suggestions, notification prefs). Each version includes schema changes, API routes, RBAC, risks, and build order.
+- 2026-03-23: Users page improvements — 3 enhancements shipped:
+  - **Create user dialog**: Replaced inline CreateUserCard with Dialog component. Eliminates list displacement when creating users. Form uses labeled fields in structured layout with DialogFooter.
+  - **Activity tab pagination**: Replaced hard `take: 100` cap with cursor-based pagination (50 per page). API returns `nextCursor`; UI shows "Load more" button when more entries exist.
+  - **Member since date**: `createdAt` now returned by GET/PATCH `/api/users/[id]` and displayed as "Member since {date}" in user detail header.
