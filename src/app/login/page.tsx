@@ -42,10 +42,12 @@ export default function LoginPage() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     }
+    if (error) setError("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError("");
 
     const emailErr = validateEmail(email);
@@ -65,13 +67,23 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Invalid credentials");
+        let message = "Invalid credentials";
+        try {
+          const json = await res.json();
+          message = json.error || message;
+        } catch {
+          // Non-JSON response (e.g., proxy error page)
+        }
+        throw new Error(message);
       }
 
       router.replace("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      if (err instanceof TypeError) {
+        setError("Unable to connect — check your internet connection");
+      } else {
+        setError(err instanceof Error ? err.message : "Login failed");
+      }
     } finally {
       setLoading(false);
     }

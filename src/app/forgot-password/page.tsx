@@ -17,6 +17,7 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError("");
     setLoading(true);
 
@@ -28,13 +29,23 @@ export default function ForgotPasswordPage() {
       });
 
       if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Something went wrong");
+        let message = "Something went wrong";
+        try {
+          const json = await res.json();
+          message = json.error || message;
+        } catch {
+          // Non-JSON response
+        }
+        throw new Error(message);
       }
 
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof TypeError) {
+        setError("Unable to connect — check your internet connection");
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
     } finally {
       setLoading(false);
     }

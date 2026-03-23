@@ -42,10 +42,12 @@ function ResetPasswordForm() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     }
+    if (error) setError("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError("");
 
     const passErr = validatePassword(password);
@@ -64,15 +66,24 @@ function ResetPasswordForm() {
         body: JSON.stringify({ token, password }),
       });
 
-      const json = await res.json();
-
       if (!res.ok) {
-        throw new Error(json.error || "Reset failed");
+        let message = "Reset failed";
+        try {
+          const json = await res.json();
+          message = json.error || message;
+        } catch {
+          // Non-JSON response
+        }
+        throw new Error(message);
       }
 
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed");
+      if (err instanceof TypeError) {
+        setError("Unable to connect — check your internet connection");
+      } else {
+        setError(err instanceof Error ? err.message : "Reset failed");
+      }
     } finally {
       setLoading(false);
     }
