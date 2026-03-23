@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
 import type { UserDetail, Location } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -126,14 +128,17 @@ export default function UserInfoTab({
   user,
   locations,
   canEdit,
+  isSelf = false,
   onUpdated,
 }: {
   user: UserDetail;
   locations: Location[];
   canEdit: boolean;
+  isSelf?: boolean;
   onUpdated: () => void;
 }) {
   const { toast } = useToast();
+  const [savingPassword, setSavingPassword] = useState(false);
 
   async function patchUser(payload: Record<string, unknown>) {
     const res = await fetch(`/api/users/${user.id}`, {
@@ -162,6 +167,32 @@ export default function UserInfoTab({
       throw new Error(json.error);
     }
     onUpdated();
+  }
+
+  async function changePassword(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSavingPassword(true);
+    try {
+      const form = new FormData(e.currentTarget);
+      const currentPassword = String(form.get("currentPassword") || "");
+      const newPassword = String(form.get("newPassword") || "");
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "change_password", currentPassword, newPassword }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to update password", "error");
+      } else {
+        e.currentTarget.reset();
+        toast("Password updated", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setSavingPassword(false);
   }
 
   const locationOptions = locations.map((l) => ({
@@ -268,6 +299,30 @@ export default function UserInfoTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Password Change Card — only shown when viewing own profile */}
+      {isSelf && (
+        <Card className="lg:col-span-full">
+          <CardHeader>
+            <CardTitle>Change password</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={changePassword} className="grid gap-3 max-w-sm">
+              <div className="space-y-1.5">
+                <Label htmlFor="currentPassword">Current password</Label>
+                <Input id="currentPassword" name="currentPassword" type="password" required minLength={8} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassword">New password</Label>
+                <Input id="newPassword" name="newPassword" type="password" required minLength={8} />
+              </div>
+              <Button type="submit" disabled={savingPassword} className="w-fit">
+                {savingPassword ? "Updating..." : "Update password"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

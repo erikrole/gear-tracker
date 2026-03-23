@@ -7,6 +7,7 @@ import type { UserDetail, Location, Role } from "../types";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
+import { useToast } from "@/components/Toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -20,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CameraIcon, TrashIcon } from "lucide-react";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -35,15 +36,20 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("info");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<Role | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [fetchError, setFetchError] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const isSelf = currentUserId != null && currentUserId === id;
+  const canEdit = isSelf || currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   const loadUser = useCallback(() => {
     abortRef.current?.abort();
@@ -74,6 +80,7 @@ export default function UserDetailPage() {
     ]).then(async ([meRes, optionsRes]) => {
       if (meRes.ok) {
         const j = await meRes.json();
+        if (j?.user?.id) setCurrentUserId(j.user.id);
         if (j?.user?.role) setCurrentUserRole(j.user.role);
       }
       if (optionsRes.ok) {
@@ -86,6 +93,44 @@ export default function UserDetailPage() {
       controller.abort();
     };
   }, [loadUser]);
+
+  async function uploadAvatar(file: File) {
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to upload avatar", "error");
+      } else {
+        setUser((u) => u ? { ...u, avatarUrl: json.data.avatarUrl } : u);
+        toast("Avatar updated", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setUploadingAvatar(false);
+  }
+
+  async function removeAvatar() {
+    setUploadingAvatar(true);
+    try {
+      const res = await fetch("/api/profile/avatar", { method: "DELETE" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to remove avatar", "error");
+      } else {
+        setUser((u) => u ? { ...u, avatarUrl: null } : u);
+        toast("Avatar removed", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setUploadingAvatar(false);
+  }
 
   if (fetchError) {
     return (
@@ -162,6 +207,43 @@ export default function UserDetailPage() {
           <div>
             <h1 className="mb-0">{user.name}</h1>
             <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
+            {isSelf && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadAvatar(file);
+                    e.target.value = "";
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingAvatar}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <CameraIcon className="mr-1.5 size-3.5" />
+                  {uploadingAvatar ? "Uploading..." : user.avatarUrl ? "Change photo" : "Upload photo"}
+                </Button>
+                {user.avatarUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={uploadingAvatar}
+                    onClick={removeAvatar}
+                  >
+                    <TrashIcon className="mr-1.5 size-3.5" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <RoleBadge role={user.role} />
@@ -184,6 +266,7 @@ export default function UserDetailPage() {
           user={user}
           locations={locations}
           canEdit={canEdit}
+          isSelf={isSelf}
           onUpdated={loadUser}
         />
       )}
