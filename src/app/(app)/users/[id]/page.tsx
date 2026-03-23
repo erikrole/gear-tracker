@@ -13,6 +13,12 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AlertCircle, CalendarDays, CameraIcon, Loader2, TrashIcon } from "lucide-react";
 import { formatDateFull } from "@/lib/format";
 
@@ -197,12 +203,59 @@ export default function UserDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-col sm:flex-row gap-3 mb-0">
         <div className="flex gap-3 items-center">
-          <Avatar className="size-12" aria-hidden="true">
-            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-            <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
-              {user.name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          {isSelf ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadAvatar(file);
+                  e.target.value = "";
+                }}
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild disabled={uploadingAvatar}>
+                  <button type="button" className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <Avatar className="size-12 cursor-pointer">
+                      {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                      <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      {uploadingAvatar ? (
+                        <Loader2 className="size-5 text-white animate-spin" />
+                      ) : (
+                        <CameraIcon className="size-5 text-white" />
+                      )}
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                    <CameraIcon className="mr-2 size-4" />
+                    {user.avatarUrl ? "Change photo" : "Upload photo"}
+                  </DropdownMenuItem>
+                  {user.avatarUrl && (
+                    <DropdownMenuItem variant="destructive" onClick={removeAvatar}>
+                      <TrashIcon className="mr-2 size-4" />
+                      Remove photo
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <Avatar className="size-12" aria-hidden="true">
+              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+              <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
+                {user.name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          )}
           <div>
             <h1 className="mb-0">{isSelf ? "My profile" : user.name}</h1>
             <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
@@ -210,47 +263,6 @@ export default function UserDetailPage() {
               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                 <CalendarDays className="size-3" />
                 Member since {formatDateFull(user.createdAt)}
-              </div>
-            )}
-            {isSelf && (
-              <div className="flex items-center gap-2 mt-1.5">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadAvatar(file);
-                    e.target.value = "";
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={uploadingAvatar}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {uploadingAvatar ? (
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  ) : (
-                    <CameraIcon className="mr-1.5 size-3.5" />
-                  )}
-                  {user.avatarUrl ? "Change photo" : "Upload photo"}
-                </Button>
-                {user.avatarUrl && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={uploadingAvatar}
-                    onClick={removeAvatar}
-                  >
-                    <TrashIcon className="mr-1.5 size-3.5" />
-                    Remove
-                  </Button>
-                )}
               </div>
             )}
           </div>
@@ -274,7 +286,7 @@ export default function UserDetailPage() {
         <UserInfoTab
           user={user}
           locations={locations}
-          canEdit={isStaffOrAdmin}
+          currentUserRole={currentUserRole}
           isSelf={isSelf}
           onUpdated={loadUser}
         />

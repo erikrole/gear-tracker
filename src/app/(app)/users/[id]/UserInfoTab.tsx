@@ -3,14 +3,15 @@
 import { FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
-import type { UserDetail, Location } from "../types";
+import { SPORT_CODES } from "@/lib/sports";
+import type { UserDetail, Location, Role } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -123,30 +124,51 @@ function SelectInputField({
   );
 }
 
+/* ── Sport Options (for the add dropdown) ─────────────── */
+
+const SPORT_OPTIONS = SPORT_CODES.map((s) => ({
+  value: s.code,
+  label: s.label,
+}));
+
 /* ── User Info Tab ─────────────────────────────────────── */
 
 export default function UserInfoTab({
   user,
   locations,
-  canEdit,
+  currentUserRole,
   isSelf = false,
   onUpdated,
 }: {
   user: UserDetail;
   locations: Location[];
-  canEdit: boolean;
+  currentUserRole: Role | null;
   isSelf?: boolean;
   onUpdated: () => void;
 }) {
   const { toast } = useToast();
   const [savingPassword, setSavingPassword] = useState(false);
+  const [addingSport, setAddingSport] = useState(false);
+  const [addingArea, setAddingArea] = useState(false);
+
+  const isAdmin = currentUserRole === "ADMIN";
+  const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const targetIsStudent = user.role === "STUDENT";
+
+  // Permission logic:
+  // - Users can edit their own nominal details (name, phone, location)
+  // - Admins can edit everything for everyone
+  // - Staff can edit students' profiles but not admin profiles
+  const canEditProfile = isAdmin || (isStaffOrAdmin && targetIsStudent);
+  const canEditSelf = isSelf; // own name, phone, location
+  const canEditRole = isAdmin || (isStaffOrAdmin && !isSelf && user.role !== "ADMIN");
+  // Assignments: admin/staff can edit for self + students
+  const canEditAssignments = isStaffOrAdmin;
 
   async function patchUser(payload: Record<string, unknown>) {
-    // Self-edits for name/location go through /api/profile (works for all roles)
-    // Other fields require ADMIN/STAFF via /api/users/:id
     const isSelfProfileField =
       isSelf &&
-      Object.keys(payload).every((k) => k === "name" || k === "locationId");
+      Object.keys(payload).every((k) => k === "name" || k === "locationId" || k === "phone");
 
     const url = isSelfProfileField
       ? "/api/profile"
@@ -206,10 +228,111 @@ export default function UserInfoTab({
     setSavingPassword(false);
   }
 
+  async function addSport(sportCode: string) {
+    setAddingSport(true);
+    try {
+      const res = await fetch(`/api/sport-configs/${sportCode}/roster`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to add sport", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setAddingSport(false);
+  }
+
+  async function removeSport(assignmentId: string, sportCode: string) {
+    try {
+      const res = await fetch(`/api/sport-configs/${sportCode}/roster?assignmentId=${assignmentId}`, {
+        method: "DELETE",
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to remove sport", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+  }
+
+  async function addArea(area: string) {
+    setAddingArea(true);
+    try {
+      const res = await fetch("/api/student-areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, area, isPrimary: false }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to add area", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setAddingArea(false);
+  }
+
+  async function removeArea(assignmentId: string) {
+    try {
+      const res = await fetch(`/api/student-areas?id=${assignmentId}`, {
+        method: "DELETE",
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to remove area", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+  }
+
+  async function toggleAreaPrimary(area: string, isPrimary: boolean) {
+    try {
+      const res = await fetch("/api/student-areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, area, isPrimary }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to update area", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+  }
+
   const locationOptions = locations.map((l) => ({
     value: l.id,
     label: l.name,
   }));
+
+  const assignedSportCodes = new Set((user.sportAssignments ?? []).map((sa) => sa.sportCode));
+  const availableSports = SPORT_OPTIONS.filter((s) => !assignedSportCodes.has(s.value));
+
+  const assignedAreas = new Set((user.areaAssignments ?? []).map((aa) => aa.area));
+  const availableAreas = AREA_OPTIONS.filter((a) => !assignedAreas.has(a.value));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5 mt-6">
@@ -222,13 +345,13 @@ export default function UserInfoTab({
           <TextInputField
             label="Name"
             value={user.name}
-            canEdit={canEdit || isSelf}
+            canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ name: v })}
           />
           <TextInputField
             label="Email"
             value={user.email}
-            canEdit={canEdit}
+            canEdit={canEditProfile}
             onSave={(v) => patchUser({ email: v })}
             type="email"
           />
@@ -236,7 +359,7 @@ export default function UserInfoTab({
             label="Phone"
             value={user.phone || ""}
             placeholder="Add phone number"
-            canEdit={canEdit}
+            canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ phone: v || null })}
             type="tel"
           />
@@ -244,14 +367,14 @@ export default function UserInfoTab({
             label="Role"
             value={user.role}
             options={ROLE_OPTIONS}
-            canEdit={canEdit && !isSelf}
+            canEdit={canEditRole}
             onSave={changeRole}
           />
           <SelectInputField
             label="Location"
             value={user.locationId || ""}
             options={locationOptions}
-            canEdit={canEdit || isSelf}
+            canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ locationId: v || null })}
             allowEmpty
             emptyLabel="No location"
@@ -260,7 +383,7 @@ export default function UserInfoTab({
             label="Primary Area"
             value={user.primaryArea || ""}
             options={AREA_OPTIONS}
-            canEdit={canEdit}
+            canEdit={canEditProfile}
             onSave={(v) => patchUser({ primaryArea: v || null })}
             allowEmpty
             emptyLabel="Not assigned"
@@ -276,15 +399,65 @@ export default function UserInfoTab({
         <CardContent>
           {/* Sport Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
-          {(user.sportAssignments ?? []).length === 0 ? (
+          {(user.sportAssignments ?? []).length === 0 && !canEditAssignments ? (
             <p className="text-sm text-muted-foreground mb-1">No sport assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5 mb-1">
               {(user.sportAssignments ?? []).map((sa) => (
-                <Badge key={sa.id} variant="blue" size="sm">
+                <Badge key={sa.id} variant="blue" size="sm" className="gap-1">
                   {sportLabel(sa.sportCode)}
+                  {canEditAssignments && (
+                    <button
+                      type="button"
+                      className="ml-0.5 rounded-full hover:bg-blue-600/20 p-0.5"
+                      onClick={() => removeSport(sa.id, sa.sportCode)}
+                      aria-label={`Remove ${sportLabel(sa.sportCode)}`}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
                 </Badge>
               ))}
+              {canEditAssignments && availableSports.length > 0 && (
+                <Select
+                  value=""
+                  onValueChange={(v) => { if (v) addSport(v); }}
+                  disabled={addingSport}
+                >
+                  <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
+                    <Plus className="size-3" />
+                    <span>Add</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSports.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+          {(user.sportAssignments ?? []).length === 0 && canEditAssignments && availableSports.length > 0 && (
+            <div className="mb-1">
+              <Select
+                value=""
+                onValueChange={(v) => { if (v) addSport(v); }}
+                disabled={addingSport}
+              >
+                <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
+                  <Plus className="size-3" />
+                  <span>Add sport</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSports.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -292,7 +465,7 @@ export default function UserInfoTab({
 
           {/* Area Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
-          {(user.areaAssignments ?? []).length === 0 ? (
+          {(user.areaAssignments ?? []).length === 0 && !canEditAssignments ? (
             <p className="text-sm text-muted-foreground">No area assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
@@ -301,12 +474,69 @@ export default function UserInfoTab({
                   key={aa.id}
                   variant={aa.isPrimary ? "purple" : "gray"}
                   size="sm"
+                  className="gap-1 cursor-default"
                 >
-                  {AREA_LABELS[aa.area] || aa.area}
-                  {aa.isPrimary && " (Primary)"}
+                  <button
+                    type="button"
+                    className={canEditAssignments ? "hover:underline" : ""}
+                    disabled={!canEditAssignments}
+                    onClick={() => canEditAssignments && toggleAreaPrimary(aa.area, !aa.isPrimary)}
+                    title={canEditAssignments ? (aa.isPrimary ? "Remove as primary" : "Set as primary") : undefined}
+                  >
+                    {AREA_LABELS[aa.area] || aa.area}
+                    {aa.isPrimary && " (Primary)"}
+                  </button>
+                  {canEditAssignments && (
+                    <button
+                      type="button"
+                      className="ml-0.5 rounded-full hover:bg-black/10 p-0.5"
+                      onClick={() => removeArea(aa.id)}
+                      aria-label={`Remove ${AREA_LABELS[aa.area] || aa.area}`}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
                 </Badge>
               ))}
+              {canEditAssignments && availableAreas.length > 0 && (
+                <Select
+                  value=""
+                  onValueChange={(v) => { if (v) addArea(v); }}
+                  disabled={addingArea}
+                >
+                  <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
+                    <Plus className="size-3" />
+                    <span>Add</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableAreas.map((a) => (
+                      <SelectItem key={a.value} value={a.value}>
+                        {a.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+          )}
+          {(user.areaAssignments ?? []).length === 0 && canEditAssignments && availableAreas.length > 0 && (
+            <Select
+              value=""
+              onValueChange={(v) => { if (v) addArea(v); }}
+              disabled={addingArea}
+            >
+              <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
+                <Plus className="size-3" />
+                <span>Add area</span>
+              </SelectTrigger>
+              <SelectContent>
+                {availableAreas.map((a) => (
+                  <SelectItem key={a.value} value={a.value}>
+                    {a.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </CardContent>
       </Card>
