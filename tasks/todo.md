@@ -45,7 +45,7 @@ Last updated: 2026-03-22
 
 ## Recently Shipped
 
-- [x] **Users Page Improvements** — Create user dialog (replaces inline card), activity tab cursor pagination (50/page + Load more), member since date on detail header. (2026-03-23)
+- [x] **Users Page Improvements + Hardening** — Create user dialog, activity cursor pagination, member since date. Hardening: dead CSS removal, refresh-preserves-data, form reset on reopen, error differentiation, manual refresh with tooltip. (2026-03-23)
 - [x] **Schedule Page Hardening (4-pass)** — Design system (inline styles → Tailwind classes). Data flow (AbortController race prevention, 401 redirect on all fetches, trade count refreshes on sheet close). Resilience (network vs server error differentiation, refresh preserves existing data). UX polish (filtered "N of M" count indicator, skeleton column fix). (2026-03-23)
 - [x] **Schedule V2 Enhancements** — "My Shifts" filter (student-first, default ON for students, localStorage-persisted). Inline coverage expansion (click badge → per-area breakdown with avatars + assign button). Trade Board as Sheet overlay with open-trade count badge. View mode persistence in localStorage. Auto-scroll to today's date on list load. Shift status badges (Confirmed/Pending) on event rows. (2026-03-23)
 - [x] **Unified Schedule Page (V1)** — Merged `/events` + `/schedule` into single `/schedule` page. List view with date-grouped events + coverage badges. Calendar view with month grid + coverage dots. Unified filters (sport, area, coverage, past events). Trade Board tab. `/events` list page removed; detail page unchanged. Venue Mappings moved to `/settings/venue-mappings`. (2026-03-23)

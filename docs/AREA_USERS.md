@@ -129,3 +129,8 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **Create user dialog**: Replaced inline CreateUserCard with Dialog component. Eliminates list displacement when creating users. Form uses labeled fields in structured layout with DialogFooter.
   - **Activity tab pagination**: Replaced hard `take: 100` cap with cursor-based pagination (50 per page). API returns `nextCursor`; UI shows "Load more" button when more entries exist.
   - **Member since date**: `createdAt` now returned by GET/PATCH `/api/users/[id]` and displayed as "Member since {date}" in user detail header.
+- 2026-03-23: Users page hardening (5-pass audit):
+  - **Design system**: Removed 34 lines dead profile CSS (`.profile-grid`, `.profile-field-*`, `.form-success`). Fixed users page CSS comment.
+  - **Data flow**: List refresh failure now preserves existing data (hasDataRef pattern). Activity loadMore shows toast on failure instead of silent swallow.
+  - **Resilience**: Create user dialog resets form on reopen (Radix Dialog retains DOM state). Network vs server error differentiation.
+  - **UX polish**: Manual refresh button with "Updated Xm ago" tooltip. Wifi-off icon + distinct copy for offline errors. `wifi-off` icon added to shared EmptyState.
