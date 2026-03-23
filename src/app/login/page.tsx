@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 function validateEmail(email: string): string {
   if (!email) return "Email is required";
@@ -101,10 +102,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px] animate-in fade-in-0 zoom-in-95 duration-300">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Creative</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+      <Card className="w-full max-w-[400px] shadow-lg animate-in fade-in-0 zoom-in-95 duration-300">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold tracking-tight">Creative</CardTitle>
+          <CardDescription className="text-base">Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,18 +119,26 @@ export default function LoginPage() {
                 onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
                 onBlur={() => handleBlur("email")}
                 placeholder="you@example.com"
+                autoComplete="email"
                 required
                 autoFocus
                 disabled={loading}
                 aria-invalid={!!fieldErrors.email}
                 aria-describedby={fieldErrors.email ? "email-error" : undefined}
-                className="h-11 text-base"
+                className="h-11 text-base transition-colors"
               />
-              {fieldErrors.email && <p id="email-error" className="text-destructive text-xs">{fieldErrors.email}</p>}
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email}>
+                <p id="email-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || "\u00A0"}</p>
+              </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   ref={passwordRef}
@@ -139,25 +148,29 @@ export default function LoginPage() {
                   onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
                   onBlur={() => handleBlur("password")}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   required
                   disabled={loading}
                   aria-invalid={!!fieldErrors.password}
                   aria-describedby={fieldErrors.password ? "password-error" : undefined}
-                  className="h-11 text-base pr-11"
+                  className="h-11 text-base pr-11 transition-colors"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground"
+                  className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={loading}
+                  tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
                 </Button>
               </div>
-              {fieldErrors.password && <p id="password-error" className="text-destructive text-xs">{fieldErrors.password}</p>}
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
+                <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || "\u00A0"}</p>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -172,14 +185,18 @@ export default function LoginPage() {
               </Label>
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+              <div className="overflow-hidden">
+                {error && (
+                  <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                    {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </div>
 
-            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
+            <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
@@ -188,12 +205,11 @@ export default function LoginPage() {
               ) : "Sign in"}
             </Button>
 
-            <p className="text-center text-sm text-muted-foreground">
-              <Link href="/forgot-password" className="hover:underline">Forgot password?</Link>
-            </p>
+            <Separator />
+
             <p className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link href="/register" className="text-foreground hover:underline">Create one</Link>
+              <Link href="/register" className="font-medium text-foreground hover:underline transition-colors">Create one</Link>
             </p>
           </form>
         </CardContent>

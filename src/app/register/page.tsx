@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 function validateName(name: string): string {
   if (!name.trim()) return "Name is required";
@@ -113,10 +114,10 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px] animate-in fade-in-0 zoom-in-95 duration-300">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Creative</CardTitle>
-          <CardDescription>Create your account</CardDescription>
+      <Card className="w-full max-w-[400px] shadow-lg animate-in fade-in-0 zoom-in-95 duration-300">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold tracking-tight">Creative</CardTitle>
+          <CardDescription className="text-base">Create your account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -130,14 +131,17 @@ export default function RegisterPage() {
                 onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
                 onBlur={() => handleBlur("name")}
                 placeholder="Your full name"
+                autoComplete="name"
                 required
                 autoFocus
                 disabled={loading}
                 aria-invalid={!!fieldErrors.name}
                 aria-describedby={fieldErrors.name ? "name-error" : undefined}
-                className="h-11 text-base"
+                className="h-11 text-base transition-colors"
               />
-              {fieldErrors.name && <p id="name-error" className="text-destructive text-xs">{fieldErrors.name}</p>}
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.name}>
+                <p id="name-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.name || "\u00A0"}</p>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -150,13 +154,16 @@ export default function RegisterPage() {
                 onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
                 onBlur={() => handleBlur("email")}
                 placeholder="you@example.com"
+                autoComplete="email"
                 required
                 disabled={loading}
                 aria-invalid={!!fieldErrors.email}
                 aria-describedby={fieldErrors.email ? "email-error" : undefined}
-                className="h-11 text-base"
+                className="h-11 text-base transition-colors"
               />
-              {fieldErrors.email && <p id="email-error" className="text-destructive text-xs">{fieldErrors.email}</p>}
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email}>
+                <p id="email-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || "\u00A0"}</p>
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -170,36 +177,44 @@ export default function RegisterPage() {
                   onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
                   onBlur={() => handleBlur("password")}
                   placeholder="At least 8 characters"
+                  autoComplete="new-password"
                   required
                   minLength={8}
                   disabled={loading}
                   aria-invalid={!!fieldErrors.password}
                   aria-describedby={fieldErrors.password ? "password-error" : undefined}
-                  className="h-11 text-base pr-11"
+                  className="h-11 text-base pr-11 transition-colors"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground"
+                  className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={loading}
+                  tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
                 </Button>
               </div>
-              {fieldErrors.password && <p id="password-error" className="text-destructive text-xs">{fieldErrors.password}</p>}
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
+                <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || "\u00A0"}</p>
+              </div>
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+              <div className="overflow-hidden">
+                {error && (
+                  <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                    {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </div>
 
-            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
+            <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
@@ -208,9 +223,11 @@ export default function RegisterPage() {
               ) : "Create account"}
             </Button>
 
+            <Separator />
+
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-foreground hover:underline">Sign in</Link>
+              <Link href="/login" className="font-medium text-foreground hover:underline transition-colors">Sign in</Link>
             </p>
           </form>
         </CardContent>

@@ -3,7 +3,7 @@
 import { Suspense, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, EyeIcon, EyeOffIcon, Loader2, WifiOff } from "lucide-react";
+import { AlertCircle, CheckCircle2, EyeIcon, EyeOffIcon, Loader2, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -101,11 +101,16 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="space-y-4">
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertDescription>This password reset link is invalid or has expired.</AlertDescription>
-        </Alert>
+      <div className="space-y-4 text-center animate-in fade-in-0 duration-200">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10">
+          <AlertCircle className="size-6 text-destructive" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-medium">Invalid reset link</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            This password reset link is invalid or has expired.
+          </p>
+        </div>
         <Link href="/forgot-password">
           <Button type="button" className="w-full h-11 text-base font-semibold">Request a new link</Button>
         </Link>
@@ -115,10 +120,16 @@ function ResetPasswordForm() {
 
   if (success) {
     return (
-      <div className="space-y-4">
-        <p className="text-base leading-relaxed">
-          Your password has been reset. You can now sign in with your new password.
-        </p>
+      <div className="space-y-4 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
+          <CheckCircle2 className="size-6 text-primary" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-medium">Password updated</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Your password has been reset. You can now sign in with your new password.
+          </p>
+        </div>
         <Link href="/login">
           <Button type="button" className="w-full h-11 text-base font-semibold">Sign in</Button>
         </Link>
@@ -139,27 +150,31 @@ function ResetPasswordForm() {
             onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
             onBlur={() => handleBlur("password")}
             placeholder="At least 8 characters"
+            autoComplete="new-password"
             required
             minLength={8}
             autoFocus
             disabled={loading}
             aria-invalid={!!fieldErrors.password}
             aria-describedby={fieldErrors.password ? "password-error" : undefined}
-            className="h-11 text-base pr-11"
+            className="h-11 text-base pr-11 transition-colors"
           />
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground"
+            className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setShowPassword(!showPassword)}
             disabled={loading}
+            tabIndex={-1}
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
           </Button>
         </div>
-        {fieldErrors.password && <p id="password-error" className="text-destructive text-xs">{fieldErrors.password}</p>}
+        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
+          <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || "\u00A0"}</p>
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -172,24 +187,31 @@ function ResetPasswordForm() {
           onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
           onBlur={() => handleBlur("confirmPassword")}
           placeholder="Re-enter your password"
+          autoComplete="new-password"
           required
           minLength={8}
           disabled={loading}
           aria-invalid={!!fieldErrors.confirmPassword}
           aria-describedby={fieldErrors.confirmPassword ? "confirm-error" : undefined}
-          className="h-11 text-base"
+          className="h-11 text-base transition-colors"
         />
-        {fieldErrors.confirmPassword && <p id="confirm-error" className="text-destructive text-xs">{fieldErrors.confirmPassword}</p>}
+        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.confirmPassword}>
+          <p id="confirm-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.confirmPassword || "\u00A0"}</p>
+        </div>
       </div>
 
-      {error && (
-        <Alert variant="destructive">
-          {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+        <div className="overflow-hidden">
+          {error && (
+            <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
+              {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
 
-      <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
+      <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
         {loading ? (
           <>
             <Loader2 className="size-4 animate-spin" />
@@ -204,13 +226,13 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px] animate-in fade-in-0 zoom-in-95 duration-300">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Creative</CardTitle>
-          <CardDescription>Set a new password</CardDescription>
+      <Card className="w-full max-w-[400px] shadow-lg animate-in fade-in-0 zoom-in-95 duration-300">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold tracking-tight">Creative</CardTitle>
+          <CardDescription className="text-base">Set a new password</CardDescription>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={<div className="space-y-4"><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>}>
+          <Suspense fallback={<div className="space-y-4"><Skeleton className="h-5 w-24" /><Skeleton className="h-11 w-full" /><Skeleton className="h-5 w-32" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>}>
             <ResetPasswordForm />
           </Suspense>
         </CardContent>

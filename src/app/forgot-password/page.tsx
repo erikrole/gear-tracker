@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Loader2, WifiOff } from "lucide-react";
+import { AlertCircle, Loader2, MailCheck, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -56,19 +56,27 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px] animate-in fade-in-0 zoom-in-95 duration-300">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Creative</CardTitle>
-          <CardDescription>Reset your password</CardDescription>
+      <Card className="w-full max-w-[400px] shadow-lg animate-in fade-in-0 zoom-in-95 duration-300">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold tracking-tight">Creative</CardTitle>
+          <CardDescription className="text-base">Reset your password</CardDescription>
         </CardHeader>
         <CardContent>
           {submitted ? (
-            <div className="space-y-4">
-              <p className="text-base leading-relaxed">
-                If an account exists with that email, we&apos;ve sent a password reset link. Check your inbox.
-              </p>
+            <div className="space-y-4 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
+                <MailCheck className="size-6 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium">Check your email</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  If an account exists for <span className="font-medium text-foreground">{email}</span>, we&apos;ve sent a password reset link.
+                </p>
+              </div>
               <Link href="/login">
-                <Button type="button" className="w-full h-11 text-base font-semibold">Back to sign in</Button>
+                <Button type="button" variant="outline" className="w-full h-11 text-base font-semibold">
+                  Back to sign in
+                </Button>
               </Link>
             </div>
           ) : (
@@ -81,21 +89,26 @@ export default function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); if (error) { setError(""); setIsNetworkError(false); } }}
                   placeholder="you@example.com"
+                  autoComplete="email"
                   required
                   autoFocus
                   disabled={loading}
-                  className="h-11 text-base"
+                  className="h-11 text-base transition-colors"
                 />
               </div>
 
-              {error && (
-                <Alert variant="destructive">
-                  {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+                <div className="overflow-hidden">
+                  {error && (
+                    <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                      {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </div>
 
-              <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
+              <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
@@ -105,7 +118,7 @@ export default function ForgotPasswordPage() {
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
-                <Link href="/login" className="hover:underline">Back to sign in</Link>
+                <Link href="/login" className="font-medium text-foreground hover:underline transition-colors">Back to sign in</Link>
               </p>
             </form>
           )}
