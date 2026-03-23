@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatDateFull } from "@/lib/format";
-import { SkeletonTable } from "@/components/Skeleton";
-import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 type CheckoutRow = {
   id: string;
@@ -32,18 +42,18 @@ type CheckoutData = {
 };
 
 function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
-  const cls = isOverdue ? "badge-red" : status === "OPEN" ? "badge-green" : "badge-gray";
-  return <span className={`badge ${cls}`}>{isOverdue ? "overdue" : status.toLowerCase()}</span>;
+  const variant = isOverdue ? "red" : status === "OPEN" ? "green" : "gray";
+  return <Badge variant={variant}>{isOverdue ? "overdue" : status.toLowerCase()}</Badge>;
 }
 
 function CheckoutMobileCard({ c }: { c: CheckoutRow }) {
   return (
-    <Link href={`/checkouts/${c.id}`} className="report-mobile-card no-underline">
-      <div className="report-mobile-top">
-        <span className="row-link">{c.title}</span>
+    <Link href={`/checkouts/${c.id}`} className="flex flex-col gap-1 px-4 py-3 border-b last:border-b-0 no-underline">
+      <div className="flex items-center justify-between">
+        <span className="text-foreground font-medium">{c.title}</span>
         <StatusBadge status={c.status} isOverdue={c.isOverdue} />
       </div>
-      <div className="text-sm text-muted">
+      <div className="text-sm text-muted-foreground">
         {c.requester} &middot; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""} &middot; Due {formatDateFull(c.endsAt)}
       </div>
     </Link>
@@ -70,32 +80,46 @@ export default function CheckoutsReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  function loadData(d: number = days) {
     setLoading(true);
     setError(false);
-    fetch(`/api/reports?type=checkouts&days=${days}`)
+    fetch(`/api/reports?type=checkouts&days=${d}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((json) => setData(json ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [days]);
+  }
+
+  useEffect(() => { loadData(days); }, [days]);
 
   if (loading) {
     return (
       <>
-        <div className="summary-grid mb-1">
-          <Card className="p-4 text-center">
-            <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
-            <Skeleton className="skeleton-text-sm mx-auto w-[80px]" />
-          </Card>
-          <Card className="p-4 text-center">
-            <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
-            <Skeleton className="skeleton-text-sm mx-auto w-[80px]" />
-          </Card>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
+          {[0, 1].map((i) => (
+            <Card key={i} className="p-4 text-center">
+              <Skeleton className="h-8 mx-auto mb-2 w-[40px]" />
+              <Skeleton className="h-4 mx-auto w-[80px]" />
+            </Card>
+          ))}
         </div>
-        <div className="grid-2col gap-4">
-          <Card><SkeletonTable rows={5} cols={5} /></Card>
-          <Card><SkeletonTable rows={5} cols={2} /></Card>
+        <div className="grid md:grid-cols-2 gap-2.5">
+          <Card className="p-4">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="flex gap-4 py-2">
+                <Skeleton className="h-4" style={{ width: `${65 - i * 7}%` }} />
+                <Skeleton className="h-4 w-16 ml-auto" />
+              </div>
+            ))}
+          </Card>
+          <Card className="p-4">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="flex gap-4 py-2">
+                <Skeleton className="h-4" style={{ width: `${55 - i * 6}%` }} />
+                <Skeleton className="h-4 w-10 ml-auto" />
+              </div>
+            ))}
+          </Card>
         </div>
       </>
     );
@@ -103,18 +127,22 @@ export default function CheckoutsReportPage() {
 
   if (error || !data) {
     return (
-      <Card className="p-4 text-center">
-        <p className="text-secondary mb-2">Failed to load checkout report.</p>
-        <Button variant="outline" size="sm" onClick={() => { setError(false); setLoading(true); }}>Retry</Button>
-      </Card>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Failed to load checkout report</AlertTitle>
+        <AlertDescription className="flex items-center gap-3">
+          <span>Check your connection and try again.</span>
+          <Button variant="outline" size="sm" onClick={() => loadData()}>Retry</Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
     <>
       {/* Period selector */}
-      <div className="flex-center gap-3 mb-1" style={{ flexWrap: "wrap" }}>
-        <span className="text-sm text-muted">Period:</span>
+      <div className="flex items-center gap-3 mb-1 flex-wrap">
+        <span className="text-sm text-muted-foreground">Period:</span>
         {[7, 30, 90].map((d) => (
           <Button
             key={d}
@@ -124,15 +152,15 @@ export default function CheckoutsReportPage() {
             {d}d
           </Button>
         ))}
-        {data.recentCheckouts.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => downloadCsv(data.recentCheckouts)} style={{ marginLeft: "auto" }}>
+        {(data.recentCheckouts ?? []).length > 0 && (
+          <Button variant="outline" size="sm" onClick={() => downloadCsv(data.recentCheckouts)} className="ml-auto">
             Export CSV
           </Button>
         )}
       </div>
 
       {/* Summary metrics */}
-      <div className="summary-grid mb-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
         <MetricCard value={data.totalCheckouts} label={`Checkouts (${days}d)`} />
         <MetricCard
           value={data.overdueCheckouts}
@@ -141,44 +169,44 @@ export default function CheckoutsReportPage() {
         />
       </div>
 
-      <div className="grid-2col gap-4">
+      <div className="grid md:grid-cols-2 gap-2.5">
         {/* Recent checkouts */}
         <Card>
           <CardHeader><CardTitle>Recent checkouts</CardTitle></CardHeader>
-          {data.recentCheckouts.length === 0 ? (
+          {(data.recentCheckouts ?? []).length === 0 ? (
             <EmptyState icon="clipboard" title="No checkouts in this period" />
           ) : (
             <>
               {/* Desktop table */}
-              <div className="hide-mobile-only">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Title</th>
-                      <th>Requester</th>
-                      <th className="hide-mobile">Due</th>
-                      <th className="hide-mobile">Items</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Requester</TableHead>
+                      <TableHead>Due</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {data.recentCheckouts.map((c) => (
-                      <tr key={c.id}>
-                        <td>
-                          <Link href={`/checkouts/${c.id}`} className="row-link">{c.title}</Link>
-                        </td>
-                        <td>{c.requester}</td>
-                        <td className="hide-mobile">{formatDateFull(c.endsAt)}</td>
-                        <td className="hide-mobile">{c.itemCount}</td>
-                        <td><StatusBadge status={c.status} isOverdue={c.isOverdue} /></td>
-                      </tr>
+                      <TableRow key={c.id}>
+                        <TableCell>
+                          <Link href={`/checkouts/${c.id}`} className="text-foreground font-medium hover:underline">{c.title}</Link>
+                        </TableCell>
+                        <TableCell>{c.requester}</TableCell>
+                        <TableCell>{formatDateFull(c.endsAt)}</TableCell>
+                        <TableCell>{c.itemCount}</TableCell>
+                        <TableCell><StatusBadge status={c.status} isOverdue={c.isOverdue} /></TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
 
               {/* Mobile cards */}
-              <div className="show-mobile-only">
+              <div className="md:hidden">
                 {data.recentCheckouts.map((c) => (
                   <CheckoutMobileCard key={c.id} c={c} />
                 ))}
@@ -190,28 +218,33 @@ export default function CheckoutsReportPage() {
         {/* Top requesters */}
         <Card>
           <CardHeader><CardTitle>Top requesters</CardTitle></CardHeader>
-          {data.topRequesters.length === 0 ? (
+          {(data.topRequesters ?? []).length === 0 ? (
             <EmptyState icon="users" title="No data" />
           ) : (
             <>
-              <div className="hide-mobile-only">
-                <table className="data-table">
-                  <thead><tr><th>Name</th><th className="text-right">Checkouts</th></tr></thead>
-                  <tbody>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-right">Checkouts</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {data.topRequesters.map((r) => (
-                      <tr key={r.name}>
-                        <td>{r.name}</td>
-                        <td className="text-right">{r.count}</td>
-                      </tr>
+                      <TableRow key={r.name}>
+                        <TableCell>{r.name}</TableCell>
+                        <TableCell className="text-right">{r.count}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
-              <div className="show-mobile-only">
+              <div className="md:hidden">
                 {data.topRequesters.map((r) => (
-                  <div key={r.name} className="report-mobile-card">
+                  <div key={r.name} className="flex items-center justify-between px-4 py-3 border-b last:border-b-0">
                     <span>{r.name}</span>
-                    <span className="text-muted">{r.count}</span>
+                    <span className="text-muted-foreground">{r.count}</span>
                   </div>
                 ))}
               </div>

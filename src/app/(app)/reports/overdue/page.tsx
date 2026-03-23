@@ -8,6 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 type OverdueBooking = {
   id: string;
@@ -52,33 +62,32 @@ function LeaderboardMobileCard({
   onToggle: () => void;
 }) {
   return (
-    <div className="report-mobile-card" style={{ flexDirection: "column", gap: 8, cursor: "pointer" }} onClick={onToggle}>
-      <div className="report-mobile-top">
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="text-muted text-sm">#{rank}</span>
-          <span style={{ fontWeight: 600 }}>{entry.name}</span>
+    <div className="flex flex-col gap-2 px-4 py-3 border-b last:border-b-0 cursor-pointer" onClick={onToggle}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">#{rank}</span>
+          <span className="font-semibold">{entry.name}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           <Badge variant="red">{entry.overdueCount}</Badge>
-          <span className="text-muted">{expanded ? "\u25B2" : "\u25BC"}</span>
+          <span className="text-muted-foreground">{expanded ? "\u25B2" : "\u25BC"}</span>
         </div>
       </div>
-      <div className="text-sm" style={{ color: "var(--red)", fontWeight: 600 }}>
+      <div className="text-sm font-semibold" style={{ color: "var(--red)" }}>
         {formatOverdue(entry.totalOverdueHours)} total
       </div>
       {expanded && (
-        <div style={{ paddingTop: 4 }}>
-          {entry.bookings.map((b) => (
+        <div className="pt-1">
+          {(entry.bookings ?? []).map((b) => (
             <Link
               key={b.id}
               href={`/checkouts/${b.id}`}
-              className="report-mobile-card no-underline"
-              style={{ paddingLeft: 0 }}
+              className="flex items-center justify-between py-2 no-underline"
               onClick={(e) => e.stopPropagation()}
             >
               <div>
-                <span className="row-link text-sm">{b.title}</span>
-                <div className="text-xs text-muted">
+                <span className="text-foreground font-medium text-sm hover:underline">{b.title}</span>
+                <div className="text-xs text-muted-foreground">
                   {b.location} &middot; {b.itemCount} item{b.itemCount !== 1 ? "s" : ""}
                   {b.items.length > 0 && `: ${b.items.join(", ")}`}
                 </div>
@@ -97,7 +106,7 @@ function LeaderboardMobileCard({
 function downloadCsv(leaderboard: LeaderboardEntry[]) {
   const header = "Person,Overdue Checkouts,Total Overdue Hours,Bookings\n";
   const rows = leaderboard.map((e) =>
-    `"${e.name}",${e.overdueCount},${e.totalOverdueHours},"${e.bookings.map((b) => b.title).join("; ")}"`
+    `"${e.name}",${e.overdueCount},${e.totalOverdueHours},"${(e.bookings ?? []).map((b) => b.title).join("; ")}"`
   ).join("\n");
   const blob = new Blob([header + rows], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -138,20 +147,19 @@ export default function OverdueLeaderboardPage() {
   if (loading) {
     return (
       <>
-        <div className="summary-grid mb-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
           {[0, 1].map((i) => (
             <Card key={i} className="p-4 text-center">
-              <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
-              <Skeleton className="skeleton-text-sm mx-auto w-[100px]" />
+              <Skeleton className="h-8 mx-auto mb-2 w-[40px]" />
+              <Skeleton className="h-4 mx-auto w-[100px]" />
             </Card>
           ))}
         </div>
-        <Card>
+        <Card className="p-4">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="skeleton-row" style={{ padding: "12px 16px" }}>
-              <div className="skeleton-lines flex-1">
-                <Skeleton className="skeleton-text" style={{ width: `${60 - i * 8}%` }} />
-              </div>
+            <div key={i} className="flex gap-4 py-3">
+              <Skeleton className="h-4" style={{ width: `${60 - i * 8}%` }} />
+              <Skeleton className="h-4 w-12 ml-auto" />
             </div>
           ))}
         </Card>
@@ -161,32 +169,38 @@ export default function OverdueLeaderboardPage() {
 
   if (error || !data) {
     return (
-      <Card className="p-4 text-center">
-        <p className="text-secondary mb-2">Failed to load overdue report.</p>
-        <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
-      </Card>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Failed to load overdue report</AlertTitle>
+        <AlertDescription className="flex items-center gap-3">
+          <span>Check your connection and try again.</span>
+          <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
+  const leaderboard = data.leaderboard ?? [];
+
   return (
     <>
-      {data.leaderboard.length > 0 && (
-        <div className="flex-center mb-1" style={{ justifyContent: "flex-end" }}>
-          <Button variant="outline" size="sm" onClick={() => downloadCsv(data.leaderboard)}>
+      {leaderboard.length > 0 && (
+        <div className="flex items-center mb-1 justify-end">
+          <Button variant="outline" size="sm" onClick={() => downloadCsv(leaderboard)}>
             Export CSV
           </Button>
         </div>
       )}
-      <div className="summary-grid mb-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
         <MetricCard
           value={data.totalOverdueBookings}
           label="Overdue checkouts"
           color={data.totalOverdueBookings > 0 ? "var(--red)" : undefined}
         />
-        <MetricCard value={data.leaderboard.length} label="People with overdue gear" />
+        <MetricCard value={leaderboard.length} label="People with overdue gear" />
       </div>
 
-      {data.leaderboard.length === 0 ? (
+      {leaderboard.length === 0 ? (
         <Card>
           <EmptyState icon="clipboard" title="No overdue checkouts right now" />
         </Card>
@@ -194,23 +208,23 @@ export default function OverdueLeaderboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Overdue by person</CardTitle>
-            <span className="text-sm text-muted">Sorted by total overdue time</span>
+            <span className="text-sm text-muted-foreground">Sorted by total overdue time</span>
           </CardHeader>
 
           {/* Desktop table */}
-          <div className="hide-mobile-only">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 40 }}>#</th>
-                  <th>Person</th>
-                  <th className="text-right">Overdue checkouts</th>
-                  <th className="text-right">Total overdue</th>
-                  <th style={{ width: 40 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.leaderboard.map((entry, i) => (
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">#</TableHead>
+                  <TableHead>Person</TableHead>
+                  <TableHead className="text-right">Overdue checkouts</TableHead>
+                  <TableHead className="text-right">Total overdue</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboard.map((entry, i) => (
                   <OverdueTableRows
                     key={entry.userId}
                     entry={entry}
@@ -219,13 +233,13 @@ export default function OverdueLeaderboardPage() {
                     onToggle={() => toggleExpand(entry.userId)}
                   />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           {/* Mobile cards */}
-          <div className="show-mobile-only">
-            {data.leaderboard.map((entry, i) => (
+          <div className="md:hidden">
+            {leaderboard.map((entry, i) => (
               <LeaderboardMobileCard
                 key={entry.userId}
                 entry={entry}
@@ -254,37 +268,37 @@ function OverdueTableRows({
 }) {
   return (
     <>
-      <tr style={{ cursor: "pointer" }} onClick={onToggle}>
-        <td className="text-muted">{rank}</td>
-        <td style={{ fontWeight: 600 }}>{entry.name}</td>
-        <td className="text-right">
+      <TableRow className="cursor-pointer" onClick={onToggle}>
+        <TableCell className="text-muted-foreground">{rank}</TableCell>
+        <TableCell className="font-semibold">{entry.name}</TableCell>
+        <TableCell className="text-right">
           <Badge variant="red">{entry.overdueCount}</Badge>
-        </td>
-        <td className="text-right" style={{ color: "var(--red)", fontWeight: 600 }}>
+        </TableCell>
+        <TableCell className="text-right font-semibold" style={{ color: "var(--red)" }}>
           {formatOverdue(entry.totalOverdueHours)}
-        </td>
-        <td className="text-center text-muted">
+        </TableCell>
+        <TableCell className="text-center text-muted-foreground">
           {expanded ? "\u25B2" : "\u25BC"}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
       {expanded &&
-        entry.bookings.map((b) => (
-          <tr key={b.id} style={{ background: "var(--bg)" }}>
-            <td></td>
-            <td colSpan={2} style={{ paddingLeft: 24 }}>
-              <Link href={`/checkouts/${b.id}`} className="row-link">
+        (entry.bookings ?? []).map((b) => (
+          <TableRow key={b.id} className="bg-muted/30">
+            <TableCell></TableCell>
+            <TableCell colSpan={2} className="pl-6">
+              <Link href={`/checkouts/${b.id}`} className="text-foreground font-medium hover:underline">
                 {b.title}
               </Link>
-              <div className="text-sm text-muted">
+              <div className="text-sm text-muted-foreground">
                 {b.location} &middot; {b.itemCount} item{b.itemCount !== 1 ? "s" : ""}
                 {b.items.length > 0 && `: ${b.items.join(", ")}`}
               </div>
-            </td>
-            <td className="text-right text-sm" style={{ color: "var(--red)" }}>
+            </TableCell>
+            <TableCell className="text-right text-sm" style={{ color: "var(--red)" }}>
               {formatOverdue(b.overdueHours)} overdue
-            </td>
-            <td></td>
-          </tr>
+            </TableCell>
+            <TableCell></TableCell>
+          </TableRow>
         ))}
     </>
   );

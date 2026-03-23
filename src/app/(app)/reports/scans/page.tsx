@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
-import { SkeletonTable } from "@/components/Skeleton";
-import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 type ScanEntry = {
   id: string;
@@ -34,22 +44,22 @@ type ScanData = {
 
 function ScanMobileCard({ s }: { s: ScanEntry }) {
   return (
-    <div className="report-mobile-card" style={{ flexDirection: "column", gap: 4 }}>
-      <div className="report-mobile-top">
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className={`badge ${s.phase === "CHECKOUT" ? "badge-blue" : "badge-purple"}`}>
+    <div className="flex flex-col gap-1 px-4 py-3 border-b last:border-b-0">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge variant={s.phase === "CHECKOUT" ? "blue" : "purple"}>
             {s.phase.toLowerCase()}
-          </span>
-          <span className={`badge ${s.success ? "badge-green" : "badge-red"}`}>
+          </Badge>
+          <Badge variant={s.success ? "green" : "red"}>
             {s.success ? "ok" : "fail"}
-          </span>
+          </Badge>
         </div>
-        <span className="text-xs text-muted">{formatDateTime(s.createdAt)}</span>
+        <span className="text-xs text-muted-foreground">{formatDateTime(s.createdAt)}</span>
       </div>
       <div className="text-sm">
-        <span className="text-muted">{s.actor}</span> scanned <span className="font-mono">{s.item}</span>
+        <span className="text-muted-foreground">{s.actor}</span> scanned <span className="font-mono">{s.item}</span>
       </div>
-      <Link href={`/checkouts/${s.bookingId}`} className="row-link text-sm no-underline">
+      <Link href={`/checkouts/${s.bookingId}`} className="text-foreground font-medium text-sm no-underline hover:underline">
         {s.bookingTitle}
       </Link>
     </div>
@@ -79,13 +89,13 @@ export default function ScanHistoryPage() {
   const [periodDays, setPeriodDays] = useState(0); // 0 = all time
   const limit = 50;
 
-  useEffect(() => {
+  function loadData(p = page) {
     setLoading(true);
     setError(false);
     const params = new URLSearchParams({
       type: "scans",
       limit: String(limit),
-      offset: String(page * limit),
+      offset: String(p * limit),
     });
     if (phaseFilter) params.set("phase", phaseFilter);
     if (periodDays > 0) {
@@ -96,58 +106,53 @@ export default function ScanHistoryPage() {
       .then((json) => setData(json ?? null))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [page, phaseFilter, periodDays]);
+  }
+
+  useEffect(() => { loadData(page); }, [page, phaseFilter, periodDays]);
 
   if (loading) {
     return (
       <>
-        <div className="summary-grid mb-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
           <Card className="p-4 text-center">
-            <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
-            <Skeleton className="skeleton-text-sm mx-auto w-[80px]" />
+            <Skeleton className="h-8 mx-auto mb-2 w-[40px]" />
+            <Skeleton className="h-4 mx-auto w-[80px]" />
           </Card>
         </div>
-        <Card><SkeletonTable rows={8} cols={6} /></Card>
+        <Card className="p-4">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="flex gap-4 py-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4" style={{ width: `${50 + (i % 3) * 10}%` }} />
+              <Skeleton className="h-4 w-12 ml-auto" />
+            </div>
+          ))}
+        </Card>
       </>
     );
   }
 
-  function reload() {
-    setPage(0);
-    setError(false);
-    setLoading(true);
-    const params = new URLSearchParams({
-      type: "scans",
-      limit: String(limit),
-      offset: "0",
-    });
-    if (phaseFilter) params.set("phase", phaseFilter);
-    if (periodDays > 0) {
-      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
-    }
-    fetch(`/api/reports?${params}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json) => setData(json ?? null))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }
-
   if (error || !data) {
     return (
-      <Card className="p-4 text-center">
-        <p className="text-secondary mb-2">Failed to load scan report.</p>
-        <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
-      </Card>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Failed to load scan report</AlertTitle>
+        <AlertDescription className="flex items-center gap-3">
+          <span>Check your connection and try again.</span>
+          <Button variant="outline" size="sm" onClick={() => { setPage(0); loadData(0); }}>Retry</Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
   const totalPages = Math.ceil(data.total / limit);
+  const entries = data.data ?? [];
 
   return (
     <>
       {/* Filters */}
-      <div className="flex-center gap-3 mb-1" style={{ flexWrap: "wrap" }}>
-        <span className="text-sm text-muted">Period:</span>
+      <div className="flex items-center gap-3 mb-1 flex-wrap">
+        <span className="text-sm text-muted-foreground">Period:</span>
         {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
           <Button
             key={d}
@@ -157,7 +162,7 @@ export default function ScanHistoryPage() {
             {label}
           </Button>
         ))}
-        <span className="text-sm text-muted" style={{ marginLeft: 8 }}>Phase:</span>
+        <span className="text-sm text-muted-foreground ml-2">Phase:</span>
         {[{ v: "", label: "All" }, { v: "CHECKOUT", label: "Checkout" }, { v: "CHECKIN", label: "Check-in" }].map(({ v, label }) => (
           <Button
             key={v}
@@ -167,14 +172,14 @@ export default function ScanHistoryPage() {
             {label}
           </Button>
         ))}
-        {data.data.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => downloadCsv(data.data)} style={{ marginLeft: "auto" }}>
+        {entries.length > 0 && (
+          <Button variant="outline" size="sm" onClick={() => downloadCsv(entries)} className="ml-auto">
             Export CSV
           </Button>
         )}
       </div>
 
-      <div className="summary-grid mb-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
         <MetricCard value={data.total} label="Total scans" />
         <MetricCard
           value={`${data.successRate}%`}
@@ -186,64 +191,64 @@ export default function ScanHistoryPage() {
       <Card>
         <CardHeader>
           <CardTitle>Scan history</CardTitle>
-          <span className="text-sm text-muted">{data.total} events</span>
+          <span className="text-sm text-muted-foreground">{data.total} events</span>
         </CardHeader>
 
-        {data.data.length === 0 ? (
+        {entries.length === 0 ? (
           <EmptyState icon="search" title="No scan events recorded" />
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hide-mobile-only">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Who</th>
-                    <th>Item</th>
-                    <th>Phase</th>
-                    <th>Booking</th>
-                    <th>Result</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.data.map((s) => (
-                    <tr key={s.id}>
-                      <td className="whitespace-nowrap text-sm">{formatDateTime(s.createdAt)}</td>
-                      <td>{s.actor}</td>
-                      <td className="font-mono text-sm">{s.item}</td>
-                      <td>
-                        <span className={`badge ${s.phase === "CHECKOUT" ? "badge-blue" : "badge-purple"}`}>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>Who</TableHead>
+                    <TableHead>Item</TableHead>
+                    <TableHead>Phase</TableHead>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Result</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="text-sm">{formatDateTime(s.createdAt)}</TableCell>
+                      <TableCell>{s.actor}</TableCell>
+                      <TableCell className="font-mono text-sm">{s.item}</TableCell>
+                      <TableCell>
+                        <Badge variant={s.phase === "CHECKOUT" ? "blue" : "purple"}>
                           {s.phase.toLowerCase()}
-                        </span>
-                      </td>
-                      <td>
-                        <Link href={`/checkouts/${s.bookingId}`} className="row-link text-sm">
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Link href={`/checkouts/${s.bookingId}`} className="text-foreground font-medium text-sm hover:underline">
                           {s.bookingTitle}
                         </Link>
-                      </td>
-                      <td>
-                        <span className={`badge ${s.success ? "badge-green" : "badge-red"}`}>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={s.success ? "green" : "red"}>
                           {s.success ? "ok" : "fail"}
-                        </span>
-                      </td>
-                    </tr>
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
             {/* Mobile cards */}
-            <div className="show-mobile-only">
-              {data.data.map((s) => (
+            <div className="md:hidden">
+              {entries.map((s) => (
                 <ScanMobileCard key={s.id} s={s} />
               ))}
             </div>
 
             {totalPages > 1 && (
-              <div className="pagination">
-                <span>Page {page + 1} of {totalPages}</span>
-                <div className="pagination-btns">
+              <div className="flex items-center justify-between px-4 py-3 border-t">
+                <span className="text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
+                <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
                   <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
                 </div>
