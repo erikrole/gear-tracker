@@ -56,3 +56,4 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-03-18 | Event Command Center: staff view with shift + gear status, missing gear list, nudge notifications | Slice 4 |
 | 2026-03-18 | Shift-checkout linking: shiftAssignmentId FK on Booking, wired through checkout/reservation creation, command center shows linked status | Slice 6 |
 | 2026-03-23 | Roadmap: merge Events + Shifts into unified `/calendar` page — see `tasks/calendar-roadmap.md` | — |
+| 2026-03-23 | Shipped: unified `/calendar` page (V1). `/schedule` → redirect to `/calendar`. Schedule page replaced by combined view with coverage badges, calendar grid, Trade Board tab. Sidebar "Schedule" entry removed. | V1 |

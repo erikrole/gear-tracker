@@ -170,6 +170,18 @@ All 41 shadcn components are installed. Remaining custom primitives to replace:
 - `BookingSummary.locationName`, `MyReservation.locationName`, `EventSummary.location`, `MyShift.locationName` — data already in API responses
 - Add `activeLocation` alongside `activeSport`, URL param `?location=Camp+Randall`
 - Handle field name inconsistency: events use `location`, everything else uses `locationName`
+- **No dependency on dashboard decomposition** — same pattern as sport filter, added to existing page
+
+#### 3.7 Unified Calendar Page (Size: M) — see `tasks/calendar-roadmap.md`
+
+- Merge `/events` + `/schedule` → single `/calendar` page
+- Combined list view (date-grouped events with coverage badges) + calendar view (month grid with coverage dots)
+- Redirects: `/events` → `/calendar`, `/schedule` → `/calendar`; sidebar updated
+- Venue Mappings moved to `/settings/venue-mappings`
+- Trade Board kept as tab (no regression)
+- Reuses existing APIs (`/api/calendar-events` + `/api/shift-groups`) — no new endpoint needed for V1
+- ShiftDetailPanel, TradeBoard, FilterChip all reused unchanged
+- **No dependency on hook extractions** — uses existing fetch patterns consistent with current codebase
 
 ---
 
@@ -337,9 +349,8 @@ All 41 shadcn components are installed. Remaining custom primitives to replace:
 ```
 Extract shared hooks (useFetch, useUrlState)
         │
-        ├──→ Dashboard decomposition (depends on extracted hooks)
+        ├──→ Dashboard decomposition (benefits from extracted hooks, not blocked by them)
         │           │
-        │           ├──→ Location filter chips (depends on decomposed dashboard)
         │           ├──→ Inline overdue actions (depends on decomposed dashboard)
         │           └──→ Saved filters (depends on decomposed dashboard)
         │
@@ -350,13 +361,20 @@ Extract shared hooks (useFetch, useUrlState)
         └──→ Error classification utility
                     │
                     └──→ React Query adoption (V2 — replaces useFetch with proper cache)
+
+Independent (no blockers):
+        ├──→ Unified Calendar page (merge /events + /schedule → /calendar)
+        ├──→ Location filter chip (same pattern as sport filter)
+        ├──→ Reports drill-down links
+        ├──→ Labels cross-linking
+        └──→ Empty state audit
 ```
 
 ### What Blocks Other Improvements
 
 | Blocker | What It Blocks | Effort |
 |---------|---------------|--------|
-| Dashboard decomposition | Location filter, inline actions, saved filters, Game-Day Mode | M |
+| Dashboard decomposition | Inline actions, saved filters, Game-Day Mode | M |
 | Shared hook extraction | Consistent patterns across all new features | S |
 | D-009 recipient model finalization | Multi-recipient escalation, notification improvements | S (decision, not code) |
 | `BRIEF_KIT_MANAGEMENT_V1.md` | Kit UI implementation | S (planning doc) |
@@ -435,29 +453,32 @@ The V1/V2 boundary is most likely to blur on:
 
 ### Recommended V1 Order (Highest Impact → Lowest)
 
-| # | Item | Effort | Impact | Files Touched |
-|---|------|--------|--------|--------------|
-| 1 | Extract `useUrlState` hook | S | Foundation | New: `src/hooks/use-url-state.ts` |
-| 2 | Extract `useFetch` hook | S | Foundation | New: `src/hooks/use-fetch.ts` |
-| 3 | Extract `classifyError` utility | S | Consistency | New: `src/lib/errors.ts` |
-| 4 | Dashboard decomposition | M | Enables V2 features | `src/app/(app)/page.tsx` → hooks + components |
-| 5 | Location filter chip | S | User-facing | Dashboard page + new filter logic |
-| 6 | Reports drill-down links | S | User-facing | `src/app/(app)/reports/page.tsx` |
-| 7 | Visibility-based auto-refresh | S | Data freshness | `useFetch` hook enhancement |
-| 8 | Empty state audit | S | Polish | Multiple pages |
-| 9 | Form standardization (`useFormSubmit`) | M | Foundation | New hook + checkout/reservation creation forms |
-| 10 | Kits placeholder page | XS | Polish | `src/app/(app)/kits/page.tsx` |
+| # | Item | Effort | Impact | Files Touched | Dependencies |
+|---|------|--------|--------|--------------|-------------|
+| 1 | **Unified Calendar page** | M | High — merges two workflows | New `/calendar` page + API, sidebar, redirects | None |
+| 2 | Location filter chip | S | Medium — staff filter by venue | Dashboard page + new filter logic | None (same pattern as sport filter) |
+| 3 | Extract `useUrlState` hook | S | Foundation | New: `src/hooks/use-url-state.ts` | None |
+| 4 | Extract `useFetch` hook | S | Foundation | New: `src/hooks/use-fetch.ts` | None |
+| 5 | Extract `classifyError` utility | S | Consistency | New: `src/lib/errors.ts` | None |
+| 6 | Reports drill-down links | S | Medium — reports become actionable | `src/app/(app)/reports/page.tsx` | None |
+| 7 | Dashboard decomposition | M | Enables V2 features | `src/app/(app)/page.tsx` → hooks + components | Benefits from 3-5 |
+| 8 | Visibility-based auto-refresh | S | Data freshness | `useFetch` hook enhancement | Item 4 |
+| 9 | Empty state audit | S | Polish | Multiple pages | None |
+| 10 | Form standardization (`useFormSubmit`) | M | Foundation | New hook + checkout/reservation creation forms | Benefits from 5 |
+| 11 | Kits placeholder page | XS | Polish | `src/app/(app)/kits/page.tsx` | None |
 
 ### Resource Strategy
 
 **Can run in parallel** (independent):
-- Items 1-3 (hook/utility extraction) — independent files
-- Items 6, 8, 10 (reports links, empty states, kits placeholder) — independent pages
+- Item 1 (unified calendar) — independent new page
+- Item 2 (location filter) — independent, same pattern as sport filter
+- Items 3-5 (hook/utility extraction) — independent files
+- Items 6, 9, 11 (reports links, empty states, kits placeholder) — independent pages
 
 **Must be sequential**:
-- Item 4 (dashboard decomposition) depends on Items 1-3
-- Item 5 (location filter) depends on Item 4
-- Item 9 (form standardization) can start independently but benefits from Item 3
+- Item 7 (dashboard decomposition) benefits from Items 3-5 but is not strictly blocked
+- Item 8 (visibility refresh) depends on Item 4 (`useFetch` hook)
+- Item 10 (form standardization) benefits from Item 5
 
 ### Effort Estimates
 
