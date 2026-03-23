@@ -65,6 +65,11 @@ export const PATCH = withAuth(async (req, { user }) => {
 
   const payload = updateProfileSchema.parse(body);
 
+  const current = await db.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { name: true, locationId: true },
+  });
+
   const updated = await db.user.update({
     where: { id: user.id },
     data: {
@@ -78,14 +83,28 @@ export const PATCH = withAuth(async (req, { user }) => {
     }
   });
 
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "user",
-    entityId: user.id,
-    action: "profile_update",
-    after: payload,
-  });
+  const beforeDiff: Record<string, unknown> = {};
+  const afterDiff: Record<string, unknown> = {};
+  if (payload.name && payload.name !== current.name) {
+    beforeDiff.name = current.name;
+    afterDiff.name = payload.name;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "locationId") && payload.locationId !== current.locationId) {
+    beforeDiff.locationId = current.locationId;
+    afterDiff.locationId = payload.locationId ?? null;
+  }
+
+  if (Object.keys(afterDiff).length > 0) {
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "user",
+      entityId: user.id,
+      action: "profile_update",
+      before: beforeDiff,
+      after: afterDiff,
+    });
+  }
 
   return ok({
     data: {

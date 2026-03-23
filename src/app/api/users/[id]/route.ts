@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { ShiftArea } from "@prisma/client";
+import { Prisma, ShiftArea } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
@@ -62,6 +62,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(404, "User not found");
   }
 
+  // STAFF cannot edit ADMIN users — only ADMIN can modify ADMIN profiles
+  if (target.role === "ADMIN" && user.role !== "ADMIN") {
+    throw new HttpError(403, "Only admins can edit admin users");
+  }
+
   const updateData: Record<string, unknown> = {};
 
   if (body.name !== undefined) {
@@ -71,10 +76,6 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.email !== undefined) {
     const email = body.email.toLowerCase();
     if (email !== target.email) {
-      const existing = await db.user.findUnique({ where: { email } });
-      if (existing) {
-        throw new HttpError(409, "A user with this email already exists");
-      }
       updateData.email = email;
     }
   }
@@ -101,15 +102,23 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     beforeDiff[key] = (target as Record<string, unknown>)[key] ?? null;
   }
 
-  const updated = await db.user.update({
-    where: { id },
-    data: updateData,
-    include: {
-      location: { select: { name: true } },
-      sportAssignments: true,
-      areaAssignments: true,
-    },
-  });
+  let updated;
+  try {
+    updated = await db.user.update({
+      where: { id },
+      data: updateData,
+      include: {
+        location: { select: { name: true } },
+        sportAssignments: true,
+        areaAssignments: true,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new HttpError(409, "A user with this email already exists");
+    }
+    throw err;
+  }
 
   for (const key of Object.keys(updateData)) {
     afterDiff[key] = (updated as Record<string, unknown>)[key] ?? null;
