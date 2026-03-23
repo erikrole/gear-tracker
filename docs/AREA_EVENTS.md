@@ -26,10 +26,9 @@ Make athletics schedule data the operational backbone for booking and checkout w
 9. Production sync diagnostics: structured logging for missing event counts and sync failure details.
 
 ## Next
-1. Calendar source enable/disable toggle — pause a feed without deleting its configuration.
-2. Sync health admin UI — show last synced time, event count, last error per source on Events page.
-3. Better normalization for opponent and venue fields.
-4. Stale-data visibility: surface last sync time on source management table.
+1. **Merge with Schedule page** — see `tasks/calendar-roadmap.md` for V1→V2→V3 roadmap. Events + Shifts become a unified `/calendar` page. Calendar Sources and Venue Mappings move to Settings exclusively.
+2. Better normalization for opponent and venue fields.
+3. Stale-data visibility: surface last sync time on source management table.
 
 ## Later
 1. Multi-source event ingestion, if required.
