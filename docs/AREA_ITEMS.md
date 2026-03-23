@@ -365,3 +365,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
   - Resilience: refresh failures preserve visible data (toast error instead of replacing table with error screen). Initial load vs refresh distinguished — skeleton only on first load, shimmer progress bar on subsequent refreshes.
   - UX polish: loading skeleton matches actual table layout (image placeholder + two-line text, pill-shaped status badge, varied widths). Retire confirmation names the specific item and states consequences. Bulk actions toast success/failure with action type and count. Retire button shows "Retiring…" during in-flight action.
   - Bulk action hook now toasts success/failure messages.
+- 2026-03-23: Items page roadmap created — V1 polish, V2 enhanced UX, V3 advanced features. See `tasks/items-roadmap.md`.
+
+## Roadmap
+See `tasks/items-roadmap.md` for the versioned enhancement plan (V1 → V2 → V3).
