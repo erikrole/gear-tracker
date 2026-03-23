@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, EyeIcon, EyeOffIcon } from "lucide-react";
+import { AlertCircle, EyeIcon, EyeOffIcon, Loader2, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,11 +25,14 @@ function validatePassword(password: string): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -42,18 +45,24 @@ export default function LoginPage() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     }
-    if (error) setError("");
+    if (error) {
+      setError("");
+      setIsNetworkError(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
     setError("");
+    setIsNetworkError(false);
 
     const emailErr = validateEmail(email);
     const passErr = validatePassword(password);
     if (emailErr || passErr) {
       setFieldErrors({ email: emailErr, password: passErr });
+      if (emailErr) emailRef.current?.focus();
+      else if (passErr) passwordRef.current?.focus();
       return;
     }
 
@@ -80,7 +89,8 @@ export default function LoginPage() {
       router.replace("/");
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Unable to connect — check your internet connection");
+        setIsNetworkError(true);
+        setError("You're offline — check your internet connection and try again");
       } else {
         setError(err instanceof Error ? err.message : "Login failed");
       }
@@ -91,7 +101,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px]">
+      <Card className="w-full max-w-[400px] animate-in fade-in-0 zoom-in-95 duration-300">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Creative</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
@@ -101,6 +111,7 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
+                ref={emailRef}
                 id="email"
                 type="email"
                 value={email}
@@ -121,6 +132,7 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
+                  ref={passwordRef}
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -162,13 +174,18 @@ export default function LoginPage() {
 
             {error && (
               <Alert variant="destructive">
-                <AlertCircle className="size-4" />
+                {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : "Sign in"}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground">

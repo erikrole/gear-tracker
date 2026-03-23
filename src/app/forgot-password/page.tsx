@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,14 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
     setError("");
+    setIsNetworkError(false);
     setLoading(true);
 
     try {
@@ -42,7 +44,8 @@ export default function ForgotPasswordPage() {
       setSubmitted(true);
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Unable to connect — check your internet connection");
+        setIsNetworkError(true);
+        setError("You're offline — check your internet connection and try again");
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
@@ -53,7 +56,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px]">
+      <Card className="w-full max-w-[400px] animate-in fade-in-0 zoom-in-95 duration-300">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Creative</CardTitle>
           <CardDescription>Reset your password</CardDescription>
@@ -76,7 +79,7 @@ export default function ForgotPasswordPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
+                  onChange={(e) => { setEmail(e.target.value); if (error) { setError(""); setIsNetworkError(false); } }}
                   placeholder="you@example.com"
                   required
                   autoFocus
@@ -87,13 +90,18 @@ export default function ForgotPasswordPage() {
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertCircle className="size-4" />
+                  {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-                {loading ? "Sending..." : "Send reset link"}
+                {loading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : "Send reset link"}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">

@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, EyeIcon, EyeOffIcon } from "lucide-react";
+import { AlertCircle, EyeIcon, EyeOffIcon, Loader2, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -21,11 +21,14 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -42,18 +45,24 @@ function ResetPasswordForm() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     }
-    if (error) setError("");
+    if (error) {
+      setError("");
+      setIsNetworkError(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
     setError("");
+    setIsNetworkError(false);
 
     const passErr = validatePassword(password);
     const confirmErr = password !== confirmPassword ? "Passwords do not match" : "";
     if (passErr || confirmErr) {
       setFieldErrors({ password: passErr, confirmPassword: confirmErr });
+      if (passErr) passwordRef.current?.focus();
+      else if (confirmErr) confirmRef.current?.focus();
       return;
     }
 
@@ -80,7 +89,8 @@ function ResetPasswordForm() {
       setSuccess(true);
     } catch (err) {
       if (err instanceof TypeError) {
-        setError("Unable to connect — check your internet connection");
+        setIsNetworkError(true);
+        setError("You're offline — check your internet connection and try again");
       } else {
         setError(err instanceof Error ? err.message : "Reset failed");
       }
@@ -122,6 +132,7 @@ function ResetPasswordForm() {
         <Label htmlFor="password">New password</Label>
         <div className="relative">
           <Input
+            ref={passwordRef}
             id="password"
             type={showPassword ? "text" : "password"}
             value={password}
@@ -154,6 +165,7 @@ function ResetPasswordForm() {
       <div className="space-y-1.5">
         <Label htmlFor="confirmPassword">Confirm password</Label>
         <Input
+          ref={confirmRef}
           id="confirmPassword"
           type={showPassword ? "text" : "password"}
           value={confirmPassword}
@@ -172,13 +184,18 @@ function ResetPasswordForm() {
 
       {error && (
         <Alert variant="destructive">
-          <AlertCircle className="size-4" />
+          {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-        {loading ? "Resetting..." : "Reset password"}
+        {loading ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            Resetting...
+          </>
+        ) : "Reset password"}
       </Button>
     </form>
   );
@@ -187,7 +204,7 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px]">
+      <Card className="w-full max-w-[400px] animate-in fade-in-0 zoom-in-95 duration-300">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Creative</CardTitle>
           <CardDescription>Set a new password</CardDescription>
