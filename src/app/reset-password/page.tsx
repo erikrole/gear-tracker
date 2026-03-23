@@ -1,12 +1,15 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, EyeIcon, EyeOffIcon, Loader2, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function validatePassword(password: string): string {
   if (!password) return "Password is required";
@@ -18,11 +21,14 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -39,16 +45,24 @@ function ResetPasswordForm() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     }
+    if (error) {
+      setError("");
+      setIsNetworkError(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError("");
+    setIsNetworkError(false);
 
     const passErr = validatePassword(password);
     const confirmErr = password !== confirmPassword ? "Passwords do not match" : "";
     if (passErr || confirmErr) {
       setFieldErrors({ password: passErr, confirmPassword: confirmErr });
+      if (passErr) passwordRef.current?.focus();
+      else if (confirmErr) confirmRef.current?.focus();
       return;
     }
 
@@ -61,15 +75,25 @@ function ResetPasswordForm() {
         body: JSON.stringify({ token, password }),
       });
 
-      const json = await res.json();
-
       if (!res.ok) {
-        throw new Error(json.error || "Reset failed");
+        let message = "Reset failed";
+        try {
+          const json = await res.json();
+          message = json.error || message;
+        } catch {
+          // Non-JSON response
+        }
+        throw new Error(message);
       }
 
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed");
+      if (err instanceof TypeError) {
+        setIsNetworkError(true);
+        setError("You're offline — check your internet connection and try again");
+      } else {
+        setError(err instanceof Error ? err.message : "Reset failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -77,96 +101,142 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <>
-        <p className="login-subtitle">Invalid reset link</p>
-        <p style={{ marginBottom: 16 }}>This password reset link is invalid or has expired.</p>
+      <div className="space-y-4 text-center animate-in fade-in-0 duration-200">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-destructive/10">
+          <AlertCircle className="size-6 text-destructive" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-medium">Invalid reset link</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            This password reset link is invalid or has expired.
+          </p>
+        </div>
         <Link href="/forgot-password">
           <Button type="button" className="w-full h-11 text-base font-semibold">Request a new link</Button>
         </Link>
-      </>
+      </div>
     );
   }
 
   if (success) {
     return (
-      <>
-        <p className="login-subtitle">Set a new password</p>
-        <p style={{ fontSize: "var(--text-base)", lineHeight: 1.5, marginBottom: 16 }}>
-          Your password has been reset. You can now sign in with your new password.
-        </p>
+      <div className="space-y-4 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
+          <CheckCircle2 className="size-6 text-primary" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-medium">Password updated</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Your password has been reset. You can now sign in with your new password.
+          </p>
+        </div>
         <Link href="/login">
           <Button type="button" className="w-full h-11 text-base font-semibold">Sign in</Button>
         </Link>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <p className="login-subtitle">Set a new password</p>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-1 space-y-1.5">
-          <Label htmlFor="password">New password</Label>
-          <div className="password-wrapper">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-              onBlur={() => handleBlur("password")}
-              placeholder="At least 8 characters"
-              required
-              minLength={8}
-              autoFocus
-              className="h-11 text-base"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
-            </button>
-          </div>
-          {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
-        </div>
-
-        <div className="mb-1 space-y-1.5">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="password">New password</Label>
+        <div className="relative">
           <Input
-            id="confirmPassword"
+            ref={passwordRef}
+            id="password"
             type={showPassword ? "text" : "password"}
-            value={confirmPassword}
-            onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
-            onBlur={() => handleBlur("confirmPassword")}
-            placeholder="Re-enter your password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
+            onBlur={() => handleBlur("password")}
+            placeholder="At least 8 characters"
+            autoComplete="new-password"
             required
             minLength={8}
-            className="h-11 text-base"
+            autoFocus
+            disabled={loading}
+            aria-invalid={!!fieldErrors.password}
+            aria-describedby={fieldErrors.password ? "password-error" : undefined}
+            className="h-11 text-base pr-11 transition-colors"
           />
-          {fieldErrors.confirmPassword && <p className="text-destructive text-xs mt-1">{fieldErrors.confirmPassword}</p>}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowPassword(!showPassword)}
+            disabled={loading}
+            tabIndex={-1}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+          </Button>
         </div>
+        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
+          <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || "\u00A0"}</p>
+        </div>
+      </div>
 
-        {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
+      <div className="space-y-1.5">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input
+          ref={confirmRef}
+          id="confirmPassword"
+          type={showPassword ? "text" : "password"}
+          value={confirmPassword}
+          onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
+          onBlur={() => handleBlur("confirmPassword")}
+          placeholder="Re-enter your password"
+          autoComplete="new-password"
+          required
+          minLength={8}
+          disabled={loading}
+          aria-invalid={!!fieldErrors.confirmPassword}
+          aria-describedby={fieldErrors.confirmPassword ? "confirm-error" : undefined}
+          className="h-11 text-base transition-colors"
+        />
+        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.confirmPassword}>
+          <p id="confirm-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.confirmPassword || "\u00A0"}</p>
+        </div>
+      </div>
 
-        <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-          {loading ? "Resetting..." : "Reset password"}
-        </Button>
-      </form>
-    </>
+      <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+        <div className="overflow-hidden">
+          {error && (
+            <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
+              {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
+
+      <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
+        {loading ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            Resetting...
+          </>
+        ) : "Reset password"}
+      </Button>
+    </form>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <h1>Creative</h1>
-        <Suspense fallback={<p className="login-subtitle">Loading...</p>}>
-          <ResetPasswordForm />
-        </Suspense>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
+      <Card className="w-full max-w-[400px] shadow-lg animate-in fade-in-0 zoom-in-95 duration-300">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold tracking-tight">Creative</CardTitle>
+          <CardDescription className="text-base">Set a new password</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={<div className="space-y-4"><Skeleton className="h-5 w-24" /><Skeleton className="h-11 w-full" /><Skeleton className="h-5 w-32" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>}>
+            <ResetPasswordForm />
+          </Suspense>
+        </CardContent>
+      </Card>
     </div>
   );
 }

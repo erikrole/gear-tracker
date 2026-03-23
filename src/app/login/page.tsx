@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { AlertCircle, EyeIcon, EyeOffIcon, Loader2, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 function validateEmail(email: string): string {
   if (!email) return "Email is required";
@@ -23,11 +26,14 @@ function validatePassword(password: string): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -40,16 +46,24 @@ export default function LoginPage() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     }
+    if (error) {
+      setError("");
+      setIsNetworkError(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError("");
+    setIsNetworkError(false);
 
     const emailErr = validateEmail(email);
     const passErr = validatePassword(password);
     if (emailErr || passErr) {
       setFieldErrors({ email: emailErr, password: passErr });
+      if (emailErr) emailRef.current?.focus();
+      else if (passErr) passwordRef.current?.focus();
       return;
     }
 
@@ -63,91 +77,143 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Invalid credentials");
+        let message = "Invalid credentials";
+        try {
+          const json = await res.json();
+          message = json.error || message;
+        } catch {
+          // Non-JSON response (e.g., proxy error page)
+        }
+        throw new Error(message);
       }
 
       router.replace("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      if (err instanceof TypeError) {
+        setIsNetworkError(true);
+        setError("You're offline — check your internet connection and try again");
+      } else {
+        setError(err instanceof Error ? err.message : "Login failed");
+      }
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="login-page">
-      <form className="login-card" onSubmit={handleSubmit}>
-        <h1>Creative</h1>
-        <p className="login-subtitle">Sign in to your account</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
+      <Card className="w-full max-w-[400px] shadow-lg animate-in fade-in-0 zoom-in-95 duration-300">
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold tracking-tight">Creative</CardTitle>
+          <CardDescription className="text-base">Sign in to your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                ref={emailRef}
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
+                onBlur={() => handleBlur("email")}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+                autoFocus
+                disabled={loading}
+                aria-invalid={!!fieldErrors.email}
+                aria-describedby={fieldErrors.email ? "email-error" : undefined}
+                className="h-11 text-base transition-colors"
+              />
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email}>
+                <p id="email-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || "\u00A0"}</p>
+              </div>
+            </div>
 
-        <div className="mb-1 space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
-            onBlur={() => handleBlur("email")}
-            placeholder="you@example.com"
-            required
-            autoFocus
-            className="h-11 text-base"
-          />
-          {fieldErrors.email && <p className="text-destructive text-xs mt-1">{fieldErrors.email}</p>}
-        </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Input
+                  ref={passwordRef}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
+                  onBlur={() => handleBlur("password")}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                  disabled={loading}
+                  aria-invalid={!!fieldErrors.password}
+                  aria-describedby={fieldErrors.password ? "password-error" : undefined}
+                  className="h-11 text-base pr-11 transition-colors"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                </Button>
+              </div>
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
+                <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || "\u00A0"}</p>
+              </div>
+            </div>
 
-        <div className="mb-1 space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <div className="password-wrapper">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-              onBlur={() => handleBlur("password")}
-              placeholder="Enter your password"
-              required
-              className="h-11 text-base"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
-            </button>
-          </div>
-          {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
-        </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="rememberMe"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+                className="shrink-0"
+              />
+              <Label htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer font-normal leading-none">
+                Remember me for 30 days
+              </Label>
+            </div>
 
-        <div className="flex items-center gap-2 mb-1">
-          <Checkbox
-            id="rememberMe"
-            checked={rememberMe}
-            onCheckedChange={(checked) => setRememberMe(checked === true)}
-            className="shrink-0"
-          />
-          <Label htmlFor="rememberMe" className="text-sm text-muted-foreground cursor-pointer font-normal leading-none">
-            Remember me for 30 days
-          </Label>
-        </div>
+            <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+              <div className="overflow-hidden">
+                {error && (
+                  <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                    {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </div>
 
-        {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
+            <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : "Sign in"}
+            </Button>
 
-        <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-          {loading ? "Signing in..." : "Sign in"}
-        </Button>
+            <Separator />
 
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
-          <Link href="/forgot-password">Forgot password?</Link>
-        </p>
-        <p style={{ textAlign: "center", marginTop: 8, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
-          Don&apos;t have an account?{" "}
-          <Link href="/register">Create one</Link>
-        </p>
-      </form>
+            <p className="text-center text-sm text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="font-medium text-foreground hover:underline transition-colors">Create one</Link>
+            </p>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
