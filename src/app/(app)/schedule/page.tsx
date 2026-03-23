@@ -442,14 +442,13 @@ export default function SchedulePage() {
       {/* View toggle + filters */}
       <div className="filter-chip-bar mb-1">
         <div
-          className="flex gap-1 rounded"
-          style={{ border: "1px solid var(--border)", overflow: "hidden" }}
+          className="flex rounded border border-border overflow-hidden"
         >
           <Button
             variant={viewMode === "list" ? "default" : "outline"}
             size="sm"
             onClick={() => setViewMode("list")}
-            style={{ borderRadius: 0, border: "none" }}
+            className="rounded-none border-none"
           >
             List
           </Button>
@@ -457,7 +456,7 @@ export default function SchedulePage() {
             variant={viewMode === "calendar" ? "default" : "outline"}
             size="sm"
             onClick={() => setViewMode("calendar")}
-            style={{ borderRadius: 0, border: "none" }}
+            className="rounded-none border-none"
           >
             Calendar
           </Button>
@@ -589,43 +588,19 @@ export default function SchedulePage() {
                           entry.shiftGroupId ? (
                             <button
                               key={entry.id}
-                              className={calBookingClass(entry)}
+                              className={`${calBookingClass(entry)} flex items-center gap-1 bg-transparent border-none cursor-pointer w-full text-left px-1 py-0.5`}
                               title={`${entry.summary}${entry.coverage ? ` (${entry.coverage.filled}/${entry.coverage.total} filled)` : ""}`}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                width: "100%",
-                                textAlign: "left",
-                                padding: "2px 4px",
-                              }}
                               onClick={() =>
                                 setSelectedGroupId(entry.shiftGroupId)
                               }
                             >
                               {entry.coverage && (
                                 <span
-                                  style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    background: coverageDot(
-                                      entry.coverage.percentage
-                                    ),
-                                    flexShrink: 0,
-                                  }}
+                                  className="size-1.5 rounded-full flex-shrink-0"
+                                  style={{ background: coverageDot(entry.coverage.percentage) }}
                                 />
                               )}
-                              <span
-                                style={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
+                              <span className="truncate">
                                 {entry.sportCode && entry.opponent
                                   ? `${entry.sportCode} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
                                   : entry.summary}
@@ -890,8 +865,7 @@ export default function SchedulePage() {
                     <Link
                       key={entry.id}
                       href={`/events/${entry.id}`}
-                      className="schedule-mobile-card no-underline"
-                      style={{ cursor: "pointer", display: "block" }}
+                      className="schedule-mobile-card no-underline block cursor-pointer"
                     >
                       <div className="flex-between mb-1">
                         <span className="font-semibold">
