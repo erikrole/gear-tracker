@@ -493,3 +493,19 @@ Always use shadcn Empty component:
 - `Loader2 className="animate-spin"` inside the submit button alongside loading text (e.g., "Signing in...") gives a clear visual signal that something is happening. Static text alone feels frozen.
 - `WifiOff` icon for network errors vs `AlertCircle` for auth/server errors — small icon difference communicates system understanding.
 - Auto-focus the first invalid field after validation failure using refs. Users shouldn't have to click back into the field with the error.
+
+## Session 2026-03-23 (Scan Page Hardening)
+
+### Reliability Patterns
+- **Refresh vs initial load errors**: A refresh failure should toast, not replace visible data with an error screen. Use `setScanStatus((prev) => { if (!prev) setLoadError(true); else toast(...); return prev; })` to distinguish initial load from refresh.
+- **try/catch/finally for multi-step async flows**: When a handler has multiple sequential `await` calls (e.g., try serialized → try bulk → fetch units), wrap in try/catch/finally to guarantee `processingRef` cleanup. Without finally, a network drop between steps leaves the page permanently stuck.
+- **Every inline `fetch()` needs its own error path**: The numbered bulk scan flow had 3 sequential fetches but only the first was guarded. Each fetch in a chain can fail independently.
+
+### UX Patterns
+- **Auto-clear scan feedback**: Stale success/error messages from a previous scan confuse users, especially on slow networks. Auto-clear success after 5s and errors after 8s using a ref-backed timer.
+- **Optimistic checklist update**: When a scan succeeds, update the item's `scanned: true` immediately via `setScanStatus` updater function. Then fire a background `loadScanStatus()` (no `await`) to get authoritative state. This eliminates the "scanned but still shows unchecked" moment.
+- **Spinner on async buttons**: `Loader2Icon className="animate-spin"` is more informative than static `"..."` text. Used consistently on manual scan, complete checkout, and unit picker submit buttons.
+
+### Design System Patterns
+- **Badge variants map to status enums**: When a component has a `statusColor()` function returning hex values, check if shadcn Badge already has matching variants (green, blue, purple, orange, gray). Direct replacement eliminates inline styles and custom CSS.
+- **Progress component replaces custom progress bars**: Custom `.progress-bar` + `.progress-fill` CSS is a direct shadcn Progress replacement. Use `[&>[data-slot=progress-indicator]]:bg-color` for custom indicator colors.

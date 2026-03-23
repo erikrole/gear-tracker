@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ChevronLeftIcon, XIcon, ScanIcon } from "lucide-react";
+import { ChevronLeftIcon, XIcon, ScanIcon, AlertCircleIcon, Loader2Icon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
@@ -117,6 +120,7 @@ export default function ScanPage() {
   const [processing, setProcessing] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<{ message: string; success: boolean } | null>(null);
+  const scanFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [itemPreview, setItemPreview] = useState<ItemPreview | null>(null);
 
@@ -141,6 +145,7 @@ export default function ScanPage() {
   // Race condition guards
   const processingRef = useRef(false);
   const loadingStatusRef = useRef(false);
+  const completingRef = useRef(false);
 
   // ── Load scan status for booking modes ──
   const loadScanStatus = useCallback(async () => {
@@ -150,7 +155,22 @@ export default function ScanPage() {
     loadingStatusRef.current = true;
     try {
       const res = await fetch(`/api/checkouts/${checkoutId}/scan-status?phase=${phaseParam}`);
-      if (!res.ok) { setLoadError(true); setStatusLoading(false); loadingStatusRef.current = false; return; }
+      if (res.status === 401) {
+        toastRef.current("Session expired — please log in again", "error");
+        loadingStatusRef.current = false;
+        return;
+      }
+      if (!res.ok) {
+        // Only show error screen on initial load; toast on refresh
+        setScanStatus((prev) => {
+          if (!prev) setLoadError(true);
+          else toastRef.current("Could not refresh scan status", "error");
+          return prev;
+        });
+        setStatusLoading(false);
+        loadingStatusRef.current = false;
+        return;
+      }
       const json = await res.json();
       const data = json.data as ScanStatus;
 
@@ -165,7 +185,12 @@ export default function ScanPage() {
       });
       setLoadError(false);
     } catch {
-      setLoadError(true);
+      // Only show error screen on initial load; toast on refresh
+      setScanStatus((prev) => {
+        if (!prev) setLoadError(true);
+        else toastRef.current("Network error — could not refresh", "error");
+        return prev;
+      });
     }
     setStatusLoading(false);
     loadingStatusRef.current = false;
@@ -200,6 +225,15 @@ export default function ScanPage() {
     return () => clearInterval(interval);
   }, [mode, checkoutId, phaseParam, loadScanStatus]);
 
+  // ── Set scan feedback with auto-clear ──
+  function setScanFeedback(result: { message: string; success: boolean } | null) {
+    if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current);
+    setLastScanResult(result);
+    if (result) {
+      scanFeedbackTimer.current = setTimeout(() => setLastScanResult(null), result.success ? 5_000 : 8_000);
+    }
+  }
+
   // ── Vibrate on scan (mobile haptic feedback) ──
   function vibrate(ms = 100) {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -209,8 +243,9 @@ export default function ScanPage() {
 
   // ── Lookup mode: scan → show item preview bottom sheet ──
   const handleLookupScan = useCallback(async (value: string) => {
+    processingRef.current = true;
     setProcessing(true);
-    setLastScanResult(null);
+    setScanFeedback(null);
     setItemPreview(null);
     try {
       let searchTerm = value;
@@ -219,7 +254,8 @@ export default function ScanPage() {
 
       const res = await fetch(`/api/assets?q=${encodeURIComponent(searchTerm)}&limit=5`);
       if (!res.ok) {
-        setLastScanResult({ message: "Failed to look up item", success: false });
+        setScanFeedback({ message: res.status === 401 ? "Session expired — please log in again" : "Failed to look up item", success: false });
+        processingRef.current = false;
         setProcessing(false);
         return;
       }
@@ -253,14 +289,16 @@ export default function ScanPage() {
             activeBooking: null,
           });
         }
+        processingRef.current = false;
         setProcessing(false);
         return;
       }
 
-      setLastScanResult({ message: `No item found for: ${value}`, success: false });
+      setScanFeedback({ message: `No item found for: ${value}`, success: false });
     } catch {
-      setLastScanResult({ message: "Network error", success: false });
+      setScanFeedback({ message: "Network error", success: false });
     }
+    processingRef.current = false;
     setProcessing(false);
   }, []);
 
@@ -281,10 +319,35 @@ export default function ScanPage() {
 
       if (res.ok) {
         vibrate();
-        setLastScanResult({ message: "Item scanned successfully", success: true });
-        await loadScanStatus();
+        setScanFeedback({ message: "Item scanned successfully", success: true });
+        // Optimistic update — mark item scanned in checklist immediately
+        if (payload.scanType === "SERIALIZED" && payload.scanValue) {
+          setScanStatus((prev) => {
+            if (!prev) return prev;
+            const val = payload.scanValue as string;
+            const updated = prev.serializedItems.map((item) =>
+              (item.assetTag === val || item.assetId === val) ? { ...item, scanned: true } : item
+            );
+            const scannedCount = updated.filter((i) => i.scanned).length;
+            return {
+              ...prev,
+              serializedItems: updated,
+              progress: {
+                ...prev.progress,
+                serializedScanned: scannedCount,
+                allComplete: scannedCount === prev.progress.serializedTotal && prev.progress.bulkComplete,
+              },
+            };
+          });
+        }
+        // Background refresh to get authoritative state
+        loadScanStatus();
         return true;
       } else {
+        if (res.status === 401) {
+          setScanFeedback({ message: "Session expired — please log in again", success: false });
+          return false;
+        }
         const json = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
         const errCode = json.data?.code;
         let errMsg = json.error || "Scan not recognized";
@@ -296,12 +359,12 @@ export default function ScanPage() {
         } else if (errCode === "DUPLICATE_SCAN") {
           errMsg = "Already scanned — skipping duplicate";
         }
-        setLastScanResult({ message: errMsg, success: false });
+        setScanFeedback({ message: errMsg, success: false });
         vibrate(50);
         return false;
       }
     } catch {
-      setLastScanResult({ message: "Network error \u2014 try again", success: false });
+      setScanFeedback({ message: "Network error \u2014 try again", success: false });
       return false;
     }
   }, [checkoutId, phaseParam, loadScanStatus]);
@@ -313,91 +376,96 @@ export default function ScanPage() {
     if (processingRef.current) return;
     processingRef.current = true;
     setProcessing(true);
-    setLastScanResult(null);
+    setScanFeedback(null);
 
-    // Check if this QR belongs to a numbered bulk item
-    const numberedBulk = scanStatus.bulkItems.find(
-      (item) => item.trackByNumber
-    );
-
-    // We need to check if the scan value matches a bulk bin QR — try the scan
-    // and if it's a numbered bulk item, the API will tell us we need unitNumbers
-    if (numberedBulk) {
-      // Try as serialized first
-      const res = await fetch(
-        phaseParam === "CHECKIN"
-          ? `/api/checkouts/${checkoutId}/checkin-scan`
-          : `/api/checkouts/${checkoutId}/scan`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phase: phaseParam, scanType: "SERIALIZED", scanValue: value }),
-        }
-      );
-
-      if (res.ok) {
-        vibrate();
-        setLastScanResult({ message: "Item scanned successfully", success: true });
-        await loadScanStatus();
-        processingRef.current = false;
-        setProcessing(false);
-        return;
-      }
-
-      const errJson = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
-      const errCode = errJson.data?.code;
-      const errMsg = errJson.error || "";
-
-      // If serialized scan failed because item isn't in this checkout,
-      // check if the scan matches a numbered bulk bin instead
-      const matchingBulk = scanStatus.bulkItems.find(
+    try {
+      // Check if this QR belongs to a numbered bulk item
+      const numberedBulk = scanStatus.bulkItems.find(
         (item) => item.trackByNumber
       );
 
-      if (matchingBulk && errCode === "SCAN_NOT_IN_CHECKOUT") {
-        // Fetch available units to show picker
-        const unitsRes = await fetch(`/api/bulk-skus/${matchingBulk.bulkSkuId}/units`);
-        if (unitsRes.ok) {
-          const unitsJson = await unitsRes.json();
-          const units = unitsJson.data as Array<{ unitNumber: number; status: string }>;
+      // We need to check if the scan value matches a bulk bin QR — try the scan
+      // and if it's a numbered bulk item, the API will tell us we need unitNumbers
+      if (numberedBulk) {
+        // Try as serialized first
+        const res = await fetch(
+          phaseParam === "CHECKIN"
+            ? `/api/checkouts/${checkoutId}/checkin-scan`
+            : `/api/checkouts/${checkoutId}/scan`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phase: phaseParam, scanType: "SERIALIZED", scanValue: value }),
+          }
+        );
 
-          const availableUnits = phaseParam === "CHECKOUT"
-            ? units.filter((u) => u.status === "AVAILABLE").map((u) => u.unitNumber)
-            : units.filter((u) => u.status === "CHECKED_OUT").map((u) => u.unitNumber);
+        if (res.ok) {
+          vibrate();
+          setScanFeedback({ message: "Item scanned successfully", success: true });
+          await loadScanStatus();
+          return;
+        }
 
-          if (availableUnits.length > 0) {
-            setUnitPicker({
-              bulkSkuId: matchingBulk.bulkSkuId,
-              scanValue: value,
-              name: matchingBulk.name,
-              availableUnits,
-            });
-            setSelectedUnits(new Set(availableUnits));
-            processingRef.current = false;
-            setProcessing(false);
-            return;
+        if (res.status === 401) {
+          setScanFeedback({ message: "Session expired — please log in again", success: false });
+          return;
+        }
+
+        const errJson = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
+        const errCode = errJson.data?.code;
+        const errMsg = errJson.error || "";
+
+        // If serialized scan failed because item isn't in this checkout,
+        // check if the scan matches a numbered bulk bin instead
+        const matchingBulk = scanStatus.bulkItems.find(
+          (item) => item.trackByNumber
+        );
+
+        if (matchingBulk && errCode === "SCAN_NOT_IN_CHECKOUT") {
+          // Fetch available units to show picker
+          const unitsRes = await fetch(`/api/bulk-skus/${matchingBulk.bulkSkuId}/units`);
+          if (unitsRes.ok) {
+            const unitsJson = await unitsRes.json();
+            const units = (unitsJson.data ?? []) as Array<{ unitNumber: number; status: string }>;
+
+            const availableUnits = phaseParam === "CHECKOUT"
+              ? units.filter((u) => u.status === "AVAILABLE").map((u) => u.unitNumber)
+              : units.filter((u) => u.status === "CHECKED_OUT").map((u) => u.unitNumber);
+
+            if (availableUnits.length > 0) {
+              setUnitPicker({
+                bulkSkuId: matchingBulk.bulkSkuId,
+                scanValue: value,
+                name: matchingBulk.name,
+                availableUnits,
+              });
+              setSelectedUnits(new Set(availableUnits));
+              return;
+            }
           }
         }
+
+        setScanFeedback({ message: errMsg || "This item is not part of this checkout", success: false });
+        vibrate(50);
+        return;
       }
 
-      setLastScanResult({ message: errMsg || "This item is not part of this checkout", success: false });
-      vibrate(50);
+      // Standard flow: try as serialized scan
+      await submitScan({ scanType: "SERIALIZED", scanValue: value });
+    } catch {
+      setScanFeedback({ message: "Network error — try again", success: false });
+    } finally {
       processingRef.current = false;
       setProcessing(false);
-      return;
     }
-
-    // Standard flow: try as serialized scan
-    await submitScan({ scanType: "SERIALIZED", scanValue: value });
-    processingRef.current = false;
-    setProcessing(false);
   }, [checkoutId, phaseParam, scanStatus, loadScanStatus, submitScan]);
 
   // ── Submit numbered bulk unit selection ──
   async function handleUnitPickerSubmit() {
-    if (!unitPicker || selectedUnits.size === 0) return;
+    if (!unitPicker || selectedUnits.size === 0 || processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
-    setLastScanResult(null);
+    setScanFeedback(null);
 
     const success = await submitScan({
       scanType: "BULK_BIN",
@@ -409,19 +477,20 @@ export default function ScanPage() {
       setUnitPicker(null);
       setSelectedUnits(new Set());
     }
+    processingRef.current = false;
     setProcessing(false);
   }
 
   // ── Route scan to correct handler ──
   const handleScan = useCallback((value: string) => {
     // Use ref for synchronous guard — state may be stale from camera callback
-    if (processing || processingRef.current) return;
+    if (processingRef.current) return;
     if (mode === "lookup") {
       handleLookupScan(value);
     } else {
       handleBookingScan(value);
     }
-  }, [mode, processing, handleLookupScan, handleBookingScan]);
+  }, [mode, handleLookupScan, handleBookingScan]);
 
   const handleManualEntry = () => {
     const v = manualCode.trim();
@@ -441,7 +510,8 @@ export default function ScanPage() {
 
   // ── Complete checkout/checkin ──
   async function handleComplete() {
-    if (!checkoutId) return;
+    if (!checkoutId || completingRef.current) return;
+    completingRef.current = true;
     setCompleting(true);
 
     const endpoint = mode === "checkin"
@@ -455,11 +525,16 @@ export default function ScanPage() {
         router.push(`/checkouts/${checkoutId}`);
         return;
       }
-      const json = await res.json().catch(() => ({}));
-      toast((json as Record<string, string>).error || "Could not complete", "error");
+      if (res.status === 401) {
+        toast("Session expired — please log in again", "error");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Could not complete", "error");
+      }
     } catch {
       toast("Network error \u2014 try again", "error");
     }
+    completingRef.current = false;
     setCompleting(false);
   }
 
@@ -488,6 +563,15 @@ export default function ScanPage() {
       case "MAINTENANCE": return "In Maintenance";
       case "RETIRED": return "Retired";
       default: return s;
+    }
+  }
+  function statusBadgeVariant(s: string): "green" | "blue" | "purple" | "orange" | "gray" {
+    switch (s) {
+      case "AVAILABLE": return "green";
+      case "CHECKED_OUT": return "blue";
+      case "RESERVED": return "purple";
+      case "MAINTENANCE": return "orange";
+      default: return "gray";
     }
   }
   function statusColor(s: string) {
@@ -557,28 +641,34 @@ export default function ScanPage() {
             <span className="scan-progress-label">items scanned</span>
             <span className="scan-progress-pct">{progressPct}%</span>
           </div>
-          <div className="scan-progress-bar">
-            <div
-              className={`scan-progress-fill ${allComplete ? "scan-progress-complete" : ""}`}
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
+          <Progress
+            value={progressPct}
+            className={`h-2.5 ${allComplete ? "[&>[data-slot=progress-indicator]]:bg-green-500" : "[&>[data-slot=progress-indicator]]:bg-blue-500"}`}
+          />
         </div>
       )}
 
       {/* ══════ Loading / error states ══════ */}
       {mode !== "lookup" && statusLoading && (
-        <div className="scan-status-card">
-          <Spinner className="size-5" />
-          <span>Loading checkout details...</span>
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-3 w-full" />
+          <div className="flex flex-col gap-2 rounded-lg border border-border p-4">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
         </div>
       )}
 
       {mode !== "lookup" && loadError && (
-        <div className="scan-status-card scan-status-error">
-          Failed to load checkout details.{" "}
-          <Button variant="outline" size="sm" onClick={loadScanStatus}>Retry</Button>
-        </div>
+        <Alert variant="destructive">
+          <AlertCircleIcon className="size-4" />
+          <AlertDescription className="flex items-center gap-3">
+            Failed to load checkout details.
+            <Button variant="outline" size="sm" onClick={loadScanStatus}>Retry</Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* ══════ Camera + Manual entry ══════ */}
@@ -592,7 +682,7 @@ export default function ScanPage() {
             />
             <button
               className="scan-camera-toggle"
-              onClick={() => { setScanning(false); setCameraError(""); setLastScanResult(null); }}
+              onClick={() => { setScanning(false); setCameraError(""); setScanFeedback(null); }}
             >
               <XIcon className="size-4" />
             </button>
@@ -600,7 +690,7 @@ export default function ScanPage() {
         ) : (
           <button
             className="scan-camera-start"
-            onClick={() => { setScanning(true); setCameraError(""); setLastScanResult(null); }}
+            onClick={() => { setScanning(true); setCameraError(""); setScanFeedback(null); }}
           >
             <ScanIcon className="size-8" />
             <span>Tap to start camera</span>
@@ -608,9 +698,10 @@ export default function ScanPage() {
         )}
 
         {cameraError && (
-          <div className="scan-camera-error">
-            Camera error: {cameraError}
-          </div>
+          <Alert variant="destructive" className="rounded-none border-x-0 border-b-0">
+            <AlertCircleIcon className="size-4" />
+            <AlertDescription>Camera error: {cameraError}</AlertDescription>
+          </Alert>
         )}
 
         {/* Manual entry */}
@@ -629,7 +720,7 @@ export default function ScanPage() {
             onClick={handleManualEntry}
             disabled={!manualCode.trim() || processing}
           >
-            {processing ? "..." : mode === "lookup" ? "Look up" : "Scan"}
+            {processing ? <Loader2Icon className="size-4 animate-spin" /> : mode === "lookup" ? "Look up" : "Scan"}
           </Button>
         </div>
 
@@ -678,7 +769,7 @@ export default function ScanPage() {
                     <span className="scan-item-desc">{item.brand} {item.model}</span>
                   </div>
                   {item.scanned && (
-                    <span className="scan-item-badge">Scanned</span>
+                    <Badge variant="green" size="sm">Scanned</Badge>
                   )}
                 </div>
               ))}
@@ -698,7 +789,7 @@ export default function ScanPage() {
                       <span className="scan-item-tag">
                         {item.name}
                         {item.trackByNumber && (
-                          <span className="text-xs font-semibold px-1.5 py-px rounded bg-blue-50 text-blue-500 ml-1.5">#</span>
+                          <Badge variant="blue" size="sm" className="ml-1.5">#</Badge>
                         )}
                       </span>
                       <span className="scan-item-desc">{item.scanned} / {item.required} scanned</span>
@@ -708,9 +799,13 @@ export default function ScanPage() {
                     {item.trackByNumber && allocated.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2 ml-10">
                         {allocated.map((u) => (
-                          <span key={u.unitNumber} className={`text-xs font-semibold px-1.5 py-0.5 rounded ${u.checkedIn ? "bg-green-100 text-green-800" : u.checkedOut ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-500"}`}>
+                          <Badge
+                            key={u.unitNumber}
+                            variant={u.checkedIn ? "green" : u.checkedOut ? "blue" : "gray"}
+                            size="sm"
+                          >
                             #{u.unitNumber}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     )}
@@ -785,7 +880,7 @@ export default function ScanPage() {
               disabled={selectedUnits.size === 0 || processing}
               className="flex-1 min-h-12"
             >
-              {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
+              {processing ? <><Loader2Icon className="size-4 animate-spin mr-2" />Scanning...</> : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -801,7 +896,7 @@ export default function ScanPage() {
             disabled={!allComplete || completing}
           >
             {completing
-              ? "Completing..."
+              ? <><Loader2Icon className="size-4 animate-spin mr-2" />Completing...</>
               : allComplete
                 ? mode === "checkout" ? "Complete Checkout" : "Complete Check-in"
                 : `${totalItems - scannedItems} item${totalItems - scannedItems !== 1 ? "s" : ""} remaining`
@@ -835,15 +930,9 @@ export default function ScanPage() {
                 </div>
               </div>
               {itemPreview && (
-                <span
-                  className="scan-status-badge"
-                  style={{
-                    background: statusColor(itemPreview.computedStatus).bg,
-                    color: statusColor(itemPreview.computedStatus).text,
-                  }}
-                >
+                <Badge variant={statusBadgeVariant(itemPreview.computedStatus)}>
                   {statusLabel(itemPreview.computedStatus)}
-                </span>
+                </Badge>
               )}
             </div>
           </SheetHeader>

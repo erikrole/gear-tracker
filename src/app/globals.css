@@ -2900,40 +2900,7 @@ textarea:focus-visible {
   color: var(--text-secondary);
 }
 
-.scan-progress-bar {
-  height: 10px;
-  border-radius: 5px;
-  background: #e5e7eb;
-  overflow: hidden;
-}
-
-.scan-progress-fill {
-  height: 100%;
-  border-radius: 5px;
-  background: #3b82f6;
-  transition: width 0.4s ease;
-}
-
-.scan-progress-complete {
-  background: #22c55e;
-}
-
-/* ── Status cards (loading/error) ── */
-.scan-status-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-}
-
-.scan-status-error {
-  color: var(--red, #dc2626);
-}
+/* Status cards removed — using shadcn Progress, Skeleton, Alert */
 
 /* ── Camera section ── */
 .scan-camera-section {
@@ -2988,11 +2955,7 @@ textarea:focus-visible {
   background: var(--panel-hover);
 }
 
-.scan-camera-error {
-  padding: 10px 16px;
-  font-size: var(--text-sm);
-  color: var(--red, #dc2626);
-}
+/* Camera error removed — using shadcn Alert */
 
 /* ── Manual entry ── */
 .scan-manual-entry {
@@ -3178,12 +3141,7 @@ textarea:focus-visible {
   text-overflow: ellipsis;
 }
 
-.scan-item-badge {
-  font-size: var(--text-3xs);
-  font-weight: var(--weight-bold);
-  color: #22c55e;
-  flex-shrink: 0;
-}
+/* Item badge removed — using shadcn Badge */
 
 /* ── Sticky bottom bar ── */
 .scan-bottom-bar {
@@ -3283,15 +3241,7 @@ textarea:focus-visible {
   margin-top: 2px;
 }
 
-.scan-status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
+/* Status badge removed — using shadcn Badge */
 
 .scan-sheet-details {
   display: flex;
