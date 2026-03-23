@@ -29,7 +29,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
    - Reservations needing action
 3. My Gear in Custody cards
 4. Drafts section (recover in-progress reservation/checkout drafts)
-5. Filter chips (Sport, Location) are deferred — not in V1
+5. Sport filter chips shipped (V4). Location filter deferred.
 
 ## Section Specs
 
@@ -177,3 +177,4 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-03-22: **Dashboard UX hardening** — Draft discard requires confirmation dialog + toast feedback. Error state differentiates 401 (redirect to login) from network/server errors. Refresh indicator (progress bar) after sheet mutations. Due date labels inline on all checkout rows. Ref numbers shown as badges. My Shifts reordered above Drafts. My Reservations gets "View all" overflow. Welcome banner condition patched (checks reservations/drafts/shifts). Overdue banner uses API-provided initials. Microcopy pass: personalized empty states, "Prep gear" label, "Resolve all overdue" CTA.
 - 2026-03-22: **Reliability hardening** — AbortController on dashboard fetch prevents race conditions and cancels on unmount. Refresh failures show toast instead of replacing visible data with error screen. Null-safe array guards on API response prevent crashes from partial backend data. Draft delete has try/catch for network errors, disabled state to prevent double-click, and 401 handling for expired sessions. `toast` dependency removed from `useCallback` deps via ref pattern to prevent infinite re-fetch loops.
 - 2026-03-22: **UX polish** — Manual refresh button (spinning RefreshCw icon) with "Updated X ago" tooltip for data freshness visibility. Optimistic draft delete (instant removal + rollback on failure, no full-page reload). Skeleton loading uses varied widths per row to look like real content. Error states differentiated by icon (bell for offline, box for server) with reassuring copy ("usually temporary"). `lastRefreshed` timestamp tracks data age.
+- 2026-03-23: **Sport filter chips** — Toggleable sport code filter chips below stat strip. Scopes all dashboard sections (My Checkouts, My Reservations, My Shifts, Team Checkouts, Team Reservations, Upcoming Events) to a single sport. URL-persisted via `?sport=MBB` query param. Client-side filtering on already-loaded data (no API changes). Contextual empty states ("No MBB checkouts"). Overdue banner intentionally unfiltered (safety-critical). Auto-hides when fewer than 2 sport codes present in data.

@@ -45,6 +45,7 @@ Last updated: 2026-03-22
 
 ## Recently Shipped
 
+- [x] **Dashboard Sport Filter Chips** — Toggleable sport code chips below stat strip, URL-persisted (`?sport=MBB`), scopes all sections client-side. Contextual empty states. Overdue banner unfiltered. Auto-hides with <2 sports. (2026-03-23)
 - [x] **Reports Page Hardening (6-pass)** — Design system alignment (Table, Badge, Alert, Card; -23 lines dead CSS). Data flow hardening (AbortController, 401 redirect, null-safe arrays, race condition prevention, refresh-without-replacement). Resilience (error differentiation: network vs server, retry with loading state). UX polish (Loader2 spinners, high-fidelity skeletons, varied widths). Features: data freshness indicator (RefreshCw + "Updated X ago" tooltip), URL-persisted filters (shareable report URLs), MetricCard tooltips. (2026-03-23)
 - [x] **Profile Page Hardening (5-pass)** — Merged profile into user detail page (`/profile` → redirect to `/users/{id}`). Avatar upload + password change integrated into user detail when viewing self. Fixed student self-edit permissions (name/location via `/api/profile`). Optimistic avatar removal. High-fidelity skeletons. Removed 50 lines dead CSS. (2026-03-23)
 - [x] **Scan Page Hardening (5-pass)** — Design system (Progress, Badge, Alert, Skeleton; -35 lines dead CSS). Data flow (refresh-preserves-data, 401 on all endpoints, ref guards). Resilience (auto-clear feedback, try/catch/finally numbered bulk, spam-click guards). UX (optimistic checklist update, Loader2 spinners). (2026-03-23)
