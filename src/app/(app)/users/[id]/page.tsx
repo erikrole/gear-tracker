@@ -106,7 +106,7 @@ export default function UserDetailPage() {
       if (!res.ok) {
         toast(json.error || "Failed to upload avatar", "error");
       } else {
-        setUser((u) => u ? { ...u, avatarUrl: json.data.avatarUrl } : u);
+        setUser((u) => u ? { ...u, avatarUrl: json.data?.avatarUrl ?? null } : u);
         toast("Avatar updated", "success");
       }
     } catch {
@@ -142,7 +142,7 @@ export default function UserDetailPage() {
           <AlertDescription className="mt-2 space-y-3">
             <p>User not found or something went wrong.</p>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => { setFetchError(false); loadUser(); }}>
+              <Button variant="outline" size="sm" onClick={() => { setFetchError(false); setUser(null); loadUser(); }}>
                 Retry
               </Button>
               <Button variant="ghost" size="sm" asChild>
