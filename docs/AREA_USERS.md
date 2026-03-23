@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-22
+- Last Updated: 2026-03-23
 - Status: Active
 - Version: V1.1
 
@@ -119,3 +119,8 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **Data flow**: AbortController on all fetches (race condition prevention + unmount cleanup). Form-options/me fetch failure no longer blocks page. Stale response overwrite prevention.
   - **Resilience**: Retry buttons on all error states (list, detail, activity). 401 redirect to /login on all fetches and mutations (list, detail, create, patch, role change, activity).
   - **UX polish**: High-fidelity skeletons matching real row layout (avatar circle, name/email lines, badge pill). Refresh shows spinner instead of replacing data with skeletons. Result count always visible below list.
+- 2026-03-23: Profile page hardening (5-pass audit):
+  - **Design system**: Merged profile page into user detail page. `/profile` now redirects to `/users/{currentUserId}`. Avatar upload, password change integrated into user detail page when viewing self. Sidebar and topbar links point directly to `/users/{id}`. Removed 50 lines dead profile CSS (`.profile-avatar-section`, `.profile-form`, `.roles-table`).
+  - **Data flow**: Fixed student self-edit permissions — students can edit name/location via `/api/profile`, other fields require ADMIN/STAFF via `/api/users/:id`. Added null-safe guards on `sportAssignments`/`areaAssignments` arrays. Separated `isSelf` from `canEdit` for field-level permission control.
+  - **Resilience**: Retry now clears stale user data to prevent briefly showing wrong user. Null-safe avatar upload response.
+  - **UX polish**: Optimistic avatar removal with rollback on failure. Breadcrumb shows "Profile" when viewing self. High-fidelity loading skeletons matching actual field rows and assignment badges.

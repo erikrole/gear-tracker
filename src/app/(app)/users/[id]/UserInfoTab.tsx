@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
 import type { UserDetail, Location } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -126,17 +129,30 @@ export default function UserInfoTab({
   user,
   locations,
   canEdit,
+  isSelf = false,
   onUpdated,
 }: {
   user: UserDetail;
   locations: Location[];
   canEdit: boolean;
+  isSelf?: boolean;
   onUpdated: () => void;
 }) {
   const { toast } = useToast();
+  const [savingPassword, setSavingPassword] = useState(false);
 
   async function patchUser(payload: Record<string, unknown>) {
-    const res = await fetch(`/api/users/${user.id}`, {
+    // Self-edits for name/location go through /api/profile (works for all roles)
+    // Other fields require ADMIN/STAFF via /api/users/:id
+    const isSelfProfileField =
+      isSelf &&
+      Object.keys(payload).every((k) => k === "name" || k === "locationId");
+
+    const url = isSelfProfileField
+      ? "/api/profile"
+      : `/api/users/${user.id}`;
+
+    const res = await fetch(url, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -164,6 +180,32 @@ export default function UserInfoTab({
     onUpdated();
   }
 
+  async function changePassword(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSavingPassword(true);
+    try {
+      const form = new FormData(e.currentTarget);
+      const currentPassword = String(form.get("currentPassword") || "");
+      const newPassword = String(form.get("newPassword") || "");
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "change_password", currentPassword, newPassword }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to update password", "error");
+      } else {
+        e.currentTarget.reset();
+        toast("Password updated", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setSavingPassword(false);
+  }
+
   const locationOptions = locations.map((l) => ({
     value: l.id,
     label: l.name,
@@ -180,7 +222,7 @@ export default function UserInfoTab({
           <TextInputField
             label="Name"
             value={user.name}
-            canEdit={canEdit}
+            canEdit={canEdit || isSelf}
             onSave={(v) => patchUser({ name: v })}
           />
           <TextInputField
@@ -209,7 +251,7 @@ export default function UserInfoTab({
             label="Location"
             value={user.locationId || ""}
             options={locationOptions}
-            canEdit={canEdit}
+            canEdit={canEdit || isSelf}
             onSave={(v) => patchUser({ locationId: v || null })}
             allowEmpty
             emptyLabel="No location"
@@ -234,11 +276,11 @@ export default function UserInfoTab({
         <CardContent>
           {/* Sport Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
-          {user.sportAssignments.length === 0 ? (
+          {(user.sportAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground mb-1">No sport assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5 mb-1">
-              {user.sportAssignments.map((sa) => (
+              {(user.sportAssignments ?? []).map((sa) => (
                 <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}
                 </Badge>
@@ -250,11 +292,11 @@ export default function UserInfoTab({
 
           {/* Area Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
-          {user.areaAssignments.length === 0 ? (
+          {(user.areaAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">No area assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
-              {user.areaAssignments.map((aa) => (
+              {(user.areaAssignments ?? []).map((aa) => (
                 <Badge
                   key={aa.id}
                   variant={aa.isPrimary ? "purple" : "gray"}
@@ -268,6 +310,31 @@ export default function UserInfoTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Password Change Card — only shown when viewing own profile */}
+      {isSelf && (
+        <Card className="lg:col-span-full">
+          <CardHeader>
+            <CardTitle>Change password</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={changePassword} className="grid gap-3 max-w-sm">
+              <div className="space-y-1.5">
+                <Label htmlFor="currentPassword">Current password</Label>
+                <Input id="currentPassword" name="currentPassword" type="password" required minLength={8} disabled={savingPassword} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassword">New password</Label>
+                <Input id="newPassword" name="newPassword" type="password" required minLength={8} disabled={savingPassword} />
+              </div>
+              <Button type="submit" disabled={savingPassword} className="w-fit">
+                {savingPassword && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+                {savingPassword ? "Updating..." : "Update password"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

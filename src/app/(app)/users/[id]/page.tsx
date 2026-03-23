@@ -7,6 +7,7 @@ import type { UserDetail, Location, Role } from "../types";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
+import { useToast } from "@/components/Toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -20,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CameraIcon, Loader2, TrashIcon } from "lucide-react";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -35,15 +36,21 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
 
   const [user, setUser] = useState<UserDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("info");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<Role | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [fetchError, setFetchError] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const isSelf = currentUserId != null && currentUserId === id;
+  const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const canEdit = isSelf || isStaffOrAdmin;
 
   const loadUser = useCallback(() => {
     abortRef.current?.abort();
@@ -74,6 +81,7 @@ export default function UserDetailPage() {
     ]).then(async ([meRes, optionsRes]) => {
       if (meRes.ok) {
         const j = await meRes.json();
+        if (j?.user?.id) setCurrentUserId(j.user.id);
         if (j?.user?.role) setCurrentUserRole(j.user.role);
       }
       if (optionsRes.ok) {
@@ -87,6 +95,48 @@ export default function UserDetailPage() {
     };
   }, [loadUser]);
 
+  async function uploadAvatar(file: File) {
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to upload avatar", "error");
+      } else {
+        setUser((u) => u ? { ...u, avatarUrl: json.data?.avatarUrl ?? null } : u);
+        toast("Avatar updated", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setUploadingAvatar(false);
+  }
+
+  async function removeAvatar() {
+    // Optimistic: remove avatar immediately, rollback on failure
+    const previousUrl = user?.avatarUrl ?? null;
+    setUser((u) => u ? { ...u, avatarUrl: null } : u);
+    setUploadingAvatar(true);
+    try {
+      const res = await fetch("/api/profile/avatar", { method: "DELETE" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        setUser((u) => u ? { ...u, avatarUrl: previousUrl } : u);
+        toast(json.error || "Failed to remove avatar", "error");
+      } else {
+        toast("Avatar removed", "success");
+      }
+    } catch {
+      setUser((u) => u ? { ...u, avatarUrl: previousUrl } : u);
+      toast("Network error", "error");
+    }
+    setUploadingAvatar(false);
+  }
+
   if (fetchError) {
     return (
       <div className="py-10 px-5 flex justify-center">
@@ -96,7 +146,7 @@ export default function UserDetailPage() {
           <AlertDescription className="mt-2 space-y-3">
             <p>User not found or something went wrong.</p>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => { setFetchError(false); loadUser(); }}>
+              <Button variant="outline" size="sm" onClick={() => { setFetchError(false); setUser(null); loadUser(); }}>
                 Retry
               </Button>
               <Button variant="ghost" size="sm" asChild>
@@ -113,21 +163,37 @@ export default function UserDetailPage() {
     return (
       <div className="space-y-6">
         {/* Breadcrumb skeleton */}
-        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-28" />
         {/* Header skeleton */}
         <div className="flex items-center gap-3">
           <Skeleton className="size-12 rounded-full" />
           <div className="space-y-2">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-3.5 w-56" />
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-3.5 w-48" />
           </div>
         </div>
         {/* Tabs skeleton */}
-        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-9 w-36" />
         {/* Content skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5">
-          <Skeleton className="h-64 rounded-xl" />
-          <Skeleton className="h-48 rounded-xl" />
+          <div className="rounded-xl border p-4 space-y-4">
+            {[72, 56, 44, 60, 48, 52].map((w, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-4 w-[120px] shrink-0" />
+                <Skeleton className="h-8 flex-1" style={{ maxWidth: `${w}%` }} />
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border p-4 space-y-3">
+            <Skeleton className="h-4 w-16" />
+            <div className="flex gap-1.5">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-px w-full" />
+            <Skeleton className="h-4 w-14" />
+            <Skeleton className="h-5 w-24 rounded-full" />
+          </div>
         </div>
       </div>
     );
@@ -145,7 +211,7 @@ export default function UserDetailPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{user.name}</BreadcrumbPage>
+            <BreadcrumbPage>{isSelf ? "Profile" : user.name}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -160,8 +226,49 @@ export default function UserDetailPage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="mb-0">{user.name}</h1>
+            <h1 className="mb-0">{isSelf ? "My profile" : user.name}</h1>
             <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
+            {isSelf && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadAvatar(file);
+                    e.target.value = "";
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingAvatar}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <CameraIcon className="mr-1.5 size-3.5" />
+                  )}
+                  {user.avatarUrl ? "Change photo" : "Upload photo"}
+                </Button>
+                {user.avatarUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={uploadingAvatar}
+                    onClick={removeAvatar}
+                  >
+                    <TrashIcon className="mr-1.5 size-3.5" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <RoleBadge role={user.role} />
@@ -183,7 +290,8 @@ export default function UserDetailPage() {
         <UserInfoTab
           user={user}
           locations={locations}
-          canEdit={canEdit}
+          canEdit={isStaffOrAdmin}
+          isSelf={isSelf}
           onUpdated={loadUser}
         />
       )}

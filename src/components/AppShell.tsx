@@ -19,7 +19,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 
-type User = { name: string; email: string; role: string; avatarUrl?: string | null };
+type User = { id: string; name: string; email: string; role: string; avatarUrl?: string | null };
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -327,7 +327,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
-                  <Link href="/profile">
+                  <Link href={`/users/${user.id}`}>
                     <UserIcon className="size-5" />
                   </Link>
                 </Button>

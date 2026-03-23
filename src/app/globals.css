@@ -3416,27 +3416,6 @@ textarea:focus-visible {
   margin-bottom: 12px;
 }
 
-/* Profile avatar upload */
-.profile-avatar-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 16px 0;
-}
-.profile-avatar-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* Profile forms */
-.profile-form {
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-  max-width: min(520px, 100%);
-}
-
 /* Category search */
 .cat-search-wrap {
   position: relative;
@@ -3494,10 +3473,6 @@ textarea:focus-visible {
     position: static;
   }
 
-  .profile-form .btn {
-    min-height: 44px;
-  }
-
   /* Category inputs: responsive width, 44px touch */
   .cat-inline-input {
     width: 100%;
@@ -3538,31 +3513,6 @@ textarea:focus-visible {
     padding: 4px 10px;
   }
 
-  /* User roles table → stacked cards on mobile */
-  .roles-table thead {
-    display: none;
-  }
-  .roles-table tbody tr {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-light);
-  }
-  .roles-table tbody tr:last-child {
-    border-bottom: none;
-  }
-  .roles-table td {
-    padding: 0;
-  }
-  .roles-table td:first-child {
-    font-weight: var(--weight-semibold);
-  }
-  .roles-table td:nth-child(2),
-  .roles-table td:nth-child(3) {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-  }
 }
 
 /* ===== Category List ===== */

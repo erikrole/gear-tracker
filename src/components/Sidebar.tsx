@@ -35,7 +35,7 @@ const navItems = [
   { label: "Checkouts", href: "/checkouts", icon: <ClipboardCheckIcon /> },
   { label: "Scan", href: "/scan", className: "sidebar-scan-nav", icon: <ScanIcon /> },
   { label: "Reports", href: "/reports", icon: <BarChart3Icon /> },
-  { label: "Profile", href: "/profile", icon: <UserIcon /> },
+  { label: "Profile", href: "/profile", icon: <UserIcon />, dynamic: true },
   { label: "Settings", href: "/settings", icon: <SettingsIcon /> },
 ];
 
@@ -43,7 +43,7 @@ const navItems = [
 const STUDENT_HIDDEN_HREFS = new Set(["/users", "/kits", "/reports", "/settings"]);
 
 type SidebarProps = {
-  user: { name: string; email: string; role?: string; avatarUrl?: string | null } | null;
+  user: { id: string; name: string; email: string; role?: string; avatarUrl?: string | null } | null;
   open?: boolean;
   onClose?: () => void;
   onSignOut?: () => void;
@@ -90,7 +90,7 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
     <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
       {/* User profile header */}
       {user && (
-        <Link href="/profile" className="sidebar-profile" onClick={onClose}>
+        <Link href={`/users/${user.id}`} className="sidebar-profile" onClick={onClose}>
           <Avatar className="size-[72px] border-2 border-white/15 bg-white/10 mb-2.5">
             {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
             <AvatarFallback className="bg-transparent text-white/90 text-[26px] font-semibold">
@@ -104,14 +104,17 @@ export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps
       {/* Navigation */}
       <nav className="sidebar-nav">
         {navItems.filter((item) => !(user?.role === "STUDENT" && STUDENT_HIDDEN_HREFS.has(item.href))).map((item) => {
+          const href = (item as { dynamic?: boolean }).dynamic && user?.id
+            ? `/users/${user.id}`
+            : item.href;
           const isActive =
-            item.href === "/"
+            href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname.startsWith(href);
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={item.label}
+              href={href}
               className={[isActive ? "active" : "", (item as { className?: string }).className || ""].filter(Boolean).join(" ")}
               onClick={onClose}
             >
