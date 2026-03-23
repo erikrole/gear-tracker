@@ -159,7 +159,7 @@ export default function SchedulePage() {
   // Data
   const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<false | "network" | "server">(false);
 
   // View — restore from localStorage
   const [viewMode, setViewMode] = useState<"list" | "calendar">(() => {
@@ -201,6 +201,7 @@ export default function SchedulePage() {
 
   // AbortController for fetch race prevention
   const abortRef = useRef<AbortController | null>(null);
+  const hasLoadedRef = useRef(false);
 
   // Persist view mode
   useEffect(() => {
@@ -271,7 +272,8 @@ export default function SchedulePage() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setLoading(true);
+    // Only show skeleton on initial load — preserve data on refresh
+    if (!hasLoadedRef.current) setLoading(true);
     setLoadError(false);
     try {
       const evParams = new URLSearchParams({ limit: "200" });
@@ -329,9 +331,11 @@ export default function SchedulePage() {
       }
 
       setEntries(mergeData(events, groups));
+      hasLoadedRef.current = true;
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
-      setLoadError(true);
+      const isNetwork = err instanceof TypeError && (err as TypeError).message.includes("fetch");
+      setLoadError(isNetwork ? "network" : "server");
     }
     setLoading(false);
   }, [viewMode, calMonth, includePast, sportFilter, mergeData]);
@@ -683,7 +687,9 @@ export default function SchedulePage() {
           ) : loadError ? (
             <div className="p-4 text-center">
               <p className="text-secondary mb-2">
-                Failed to load schedule data.
+                {loadError === "network"
+                  ? "You appear to be offline. Check your connection and try again."
+                  : "Something went wrong loading schedule data — usually temporary."}
               </p>
               <Button variant="outline" size="sm" onClick={loadData}>
                 Retry
