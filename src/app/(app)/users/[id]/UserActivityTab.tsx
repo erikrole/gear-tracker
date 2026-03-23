@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
+import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -59,13 +60,17 @@ function describeFieldChange(key: string, before: unknown, after: unknown): stri
 /* ── Component ─────────────────────────────────────────── */
 
 export default function UserActivityTab({ userId }: { userId: string }) {
+  const { toast } = useToast();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [fetchError, setFetchError] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
   const loadActivity = useCallback(() => {
     setLoading(true);
     setFetchError(false);
+    setNextCursor(null);
     const controller = new AbortController();
     fetch(`/api/users/${userId}/activity`, { signal: controller.signal })
       .then((res) => {
@@ -73,7 +78,10 @@ export default function UserActivityTab({ userId }: { userId: string }) {
         if (!res.ok) { setFetchError(true); return null; }
         return res.json();
       })
-      .then((json) => { if (json?.data) setEntries(json.data); })
+      .then((json) => {
+        if (json?.data) setEntries(json.data);
+        if (json?.nextCursor) setNextCursor(json.nextCursor);
+      })
       .catch((err) => {
         if ((err as Error).name !== "AbortError") setFetchError(true);
       })
@@ -85,6 +93,26 @@ export default function UserActivityTab({ userId }: { userId: string }) {
     const controller = loadActivity();
     return () => { controller?.abort(); };
   }, [loadActivity]);
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/users/${userId}/activity?cursor=${nextCursor}`);
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (!res.ok) {
+        toast("Failed to load more activity", "error");
+        return;
+      }
+      const json = await res.json();
+      if (json?.data) setEntries((prev) => [...prev, ...json.data]);
+      setNextCursor(json?.nextCursor ?? null);
+    } catch {
+      toast("Network error", "error");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -185,6 +213,13 @@ export default function UserActivityTab({ userId }: { userId: string }) {
           </div>
         );
       })}
+      {nextCursor && (
+        <div className="flex justify-center pt-2">
+          <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Loading...</> : "Load more"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -88,6 +88,8 @@
 | Pattern fragmentation | New pages copy-paste fetch/URL/error patterns instead of reusing hooks | V1 roadmap: extract shared hooks before building new features | Engineering |
 | Dashboard monolith | Dashboard page grows with each feature (filters, actions, sections) | V1 roadmap: decompose before adding location filter or inline actions | Engineering |
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
+| ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
+| ~~STAFF editing ADMIN profiles/roles~~ | ~~Role guard only checks grant, not revoke/edit~~ | ~~Closed 2026-03-23: target.role === ADMIN guard on all mutation endpoints~~ | ~~Engineering~~ |
 
 ---
 

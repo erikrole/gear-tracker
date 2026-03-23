@@ -115,25 +115,28 @@ export const POST = withAuth(async (req, { user }) => {
 
   const email = body.email.toLowerCase();
 
-  const existing = await db.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new HttpError(409, "A user with this email already exists");
-  }
-
   const passwordHash = await hashPassword(body.password);
 
-  const created = await db.user.create({
-    data: {
-      name: body.name,
-      email,
-      passwordHash,
-      role: body.role,
-      locationId: body.locationId ?? null
-    },
-    include: {
-      location: { select: { name: true } }
+  let created;
+  try {
+    created = await db.user.create({
+      data: {
+        name: body.name,
+        email,
+        passwordHash,
+        role: body.role,
+        locationId: body.locationId ?? null
+      },
+      include: {
+        location: { select: { name: true } }
+      }
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new HttpError(409, "A user with this email already exists");
     }
-  });
+    throw err;
+  }
 
   await createAuditEntry({
     actorId: user.id,

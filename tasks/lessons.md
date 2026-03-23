@@ -562,3 +562,19 @@ Always use shadcn Empty component:
 - **Per-item acting guards are insufficient**: `disabled={acting === t.id}` only blocks the button being acted on. Users can spam-click buttons on DIFFERENT items, firing concurrent mutations. Fix: `disabled={acting !== null}` blocks ALL mutation buttons while any mutation is in-flight.
 - **401 handling is per-component, not per-page**: The schedule page has 401 handling on its own fetches, but ShiftDetailPanel and TradeBoard are rendered inside it as child components with their own fetch calls. Each component needs its own 401 handling — a page-level guard doesn't protect child component mutations.
 - **Conditional render = auto-remount = fresh data**: `{open && <Component />}` unmounts on close and remounts on open, triggering useEffect data loads. No manual "reload on open" needed — the component lifecycle handles it.
+
+## Session 2026-03-23 (Users Page Hardening)
+
+### Resilience Patterns
+- **Radix Dialog retains DOM between close/open**: Unlike conditional render (`{open && <Form />}`), Radix Dialog keeps content mounted but hidden. Uncontrolled form inputs retain their values across opens. Fix: `useEffect(() => { if (open) formRef.current?.reset(); }, [open])`.
+- **hasDataRef for stale-closure-safe refresh**: `users.length` in a useCallback can't be in the dep array (would cause infinite reload loop) and can't be read from the closure (stale). A `hasDataRef` stores whether we've successfully loaded data — allows safe "only show error if no prior data" logic without dependency issues.
+
+### UX Patterns
+- **Error differentiation by type**: Use `navigator.onLine === false` in catch blocks to distinguish network errors from server errors. Show `WifiOff` icon + "You're offline" for network, generic icon + "Something went wrong" for server.
+- **Manual refresh with relative timestamp**: A `RefreshCw` icon button (spins when loading) with Tooltip showing "Updated 2m ago" gives users control + visibility into data freshness. Pattern: `lastFetched` Date state, updated on successful fetch, formatted via simple relative-time helper.
+
+### Security Patterns (Stress Test)
+- **TOCTOU on unique constraints**: Never rely on a `findUnique` check before `create`/`update` for uniqueness enforcement. Two concurrent requests can both pass the check. Instead: catch Prisma `P2002` (unique constraint violation) and return a friendly 409. The DB constraint is the single source of truth, not application-level pre-checks.
+- **Privilege escalation has two vectors per role operation**: When guarding role changes, check BOTH directions — granting AND revoking. A guard that prevents STAFF from *granting* ADMIN but allows *demoting* ADMIN is a privilege escalation vector. Pattern: `if (target.role === "ADMIN" && actor.role !== "ADMIN") reject`.
+- **Profile edit must respect role hierarchy**: STAFF should not be able to edit ADMIN user profiles (name, email, phone). The same role guard that applies to role changes must also apply to profile field edits. Always check `target.role` vs `actor.role` on mutation endpoints.
+- **Audit entries need before-snapshots**: An audit entry with only `after` data can't reconstruct what changed. Fetch the current record before update, diff the fields, and pass both `before` and `after` to `createAuditEntry`. Skip the audit entry entirely if no fields actually changed.

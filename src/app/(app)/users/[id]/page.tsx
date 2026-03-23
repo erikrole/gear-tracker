@@ -21,7 +21,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CameraIcon, Loader2, TrashIcon } from "lucide-react";
+import { AlertCircle, CalendarDays, CameraIcon, Loader2, TrashIcon } from "lucide-react";
+import { formatDateFull } from "@/lib/format";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -228,6 +229,12 @@ export default function UserDetailPage() {
           <div>
             <h1 className="mb-0">{isSelf ? "My profile" : user.name}</h1>
             <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
+            {user.createdAt && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                <CalendarDays className="size-3" />
+                Member since {formatDateFull(user.createdAt)}
+              </div>
+            )}
             {isSelf && (
               <div className="flex items-center gap-2 mt-1.5">
                 <input

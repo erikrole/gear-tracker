@@ -20,9 +20,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(400, "You cannot change your own role");
   }
 
-  // Only ADMIN can grant the ADMIN role
-  if (user.role !== "ADMIN" && body.role === "ADMIN") {
-    throw new HttpError(403, "Only admins can grant the admin role");
+  // Only ADMIN can grant or revoke the ADMIN role
+  if (user.role !== "ADMIN" && (body.role === "ADMIN" || target.role === "ADMIN")) {
+    throw new HttpError(403, "Only admins can change admin roles");
   }
 
   const previousRole = target.role;
