@@ -116,18 +116,22 @@ export default function UserDetailPage() {
   }
 
   async function removeAvatar() {
+    // Optimistic: remove avatar immediately, rollback on failure
+    const previousUrl = user?.avatarUrl ?? null;
+    setUser((u) => u ? { ...u, avatarUrl: null } : u);
     setUploadingAvatar(true);
     try {
       const res = await fetch("/api/profile/avatar", { method: "DELETE" });
       if (res.status === 401) { window.location.href = "/login"; return; }
       const json = await res.json();
       if (!res.ok) {
+        setUser((u) => u ? { ...u, avatarUrl: previousUrl } : u);
         toast(json.error || "Failed to remove avatar", "error");
       } else {
-        setUser((u) => u ? { ...u, avatarUrl: null } : u);
         toast("Avatar removed", "success");
       }
     } catch {
+      setUser((u) => u ? { ...u, avatarUrl: previousUrl } : u);
       toast("Network error", "error");
     }
     setUploadingAvatar(false);
@@ -159,21 +163,37 @@ export default function UserDetailPage() {
     return (
       <div className="space-y-6">
         {/* Breadcrumb skeleton */}
-        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-28" />
         {/* Header skeleton */}
         <div className="flex items-center gap-3">
           <Skeleton className="size-12 rounded-full" />
           <div className="space-y-2">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-3.5 w-56" />
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-3.5 w-48" />
           </div>
         </div>
         {/* Tabs skeleton */}
-        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-9 w-36" />
         {/* Content skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5">
-          <Skeleton className="h-64 rounded-xl" />
-          <Skeleton className="h-48 rounded-xl" />
+          <div className="rounded-xl border p-4 space-y-4">
+            {[72, 56, 44, 60, 48, 52].map((w, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-4 w-[120px] shrink-0" />
+                <Skeleton className="h-8 flex-1" style={{ maxWidth: `${w}%` }} />
+              </div>
+            ))}
+          </div>
+          <div className="rounded-xl border p-4 space-y-3">
+            <Skeleton className="h-4 w-16" />
+            <div className="flex gap-1.5">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-px w-full" />
+            <Skeleton className="h-4 w-14" />
+            <Skeleton className="h-5 w-24 rounded-full" />
+          </div>
         </div>
       </div>
     );
@@ -191,7 +211,7 @@ export default function UserDetailPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{user.name}</BreadcrumbPage>
+            <BreadcrumbPage>{isSelf ? "Profile" : user.name}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
