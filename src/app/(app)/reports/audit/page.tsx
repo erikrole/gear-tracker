@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -68,31 +68,46 @@ export default function AuditReportPage() {
   const [data, setData] = useState<AuditData | null>(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | false>(false);
   const [periodDays, setPeriodDays] = useState(0); // 0 = all time
   const limit = 25;
+  const abortRef = useRef<AbortController | null>(null);
 
-  function loadData(p = page) {
+  const loadData = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(false);
-    const params = new URLSearchParams({
-      type: "audit",
-      limit: String(limit),
-      offset: String(p * limit),
-    });
-    if (periodDays > 0) {
-      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
+    try {
+      const params = new URLSearchParams({
+        type: "audit",
+        limit: String(limit),
+        offset: String(page * limit),
+      });
+      if (periodDays > 0) {
+        params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
+      }
+      const res = await fetch(`/api/reports?${params}`, { signal: controller.signal });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (!res.ok) { setError("Unable to load audit report. Please try again."); return; }
+      const json = await res.json();
+      setData(json ?? null);
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      setError("You appear to be offline. Check your connection and try again.");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
     }
-    fetch(`/api/reports?${params}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json) => setData(json ?? null))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }
+  }, [page, periodDays]);
 
-  useEffect(() => { loadData(page); }, [page, periodDays]);
+  useEffect(() => {
+    loadData();
+    return () => { abortRef.current?.abort(); };
+  }, [loadData]);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <Card className="p-4">
         {Array.from({ length: 6 }, (_, i) => (
@@ -106,18 +121,20 @@ export default function AuditReportPage() {
     );
   }
 
-  if (error || !data) {
+  if (error && !data) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Failed to load audit report</AlertTitle>
         <AlertDescription className="flex items-center gap-3">
-          <span>Check your connection and try again.</span>
-          <Button variant="outline" size="sm" onClick={() => { setPage(0); loadData(0); }}>Retry</Button>
+          <span>{error}</span>
+          <Button variant="outline" size="sm" onClick={() => { setPage(0); }}>Retry</Button>
         </AlertDescription>
       </Alert>
     );
   }
+
+  if (!data) return null;
 
   const totalPages = Math.ceil(data.total / limit);
   const entries = data.data ?? [];

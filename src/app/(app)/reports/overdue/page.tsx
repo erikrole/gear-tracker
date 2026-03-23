@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
@@ -120,20 +120,35 @@ function downloadCsv(leaderboard: LeaderboardEntry[]) {
 export default function OverdueLeaderboardPage() {
   const [data, setData] = useState<OverdueData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | false>(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const abortRef = useRef<AbortController | null>(null);
 
-  function loadData() {
+  const loadData = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(false);
-    fetch("/api/reports?type=overdue")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json) => setData(json ?? null))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }
+    try {
+      const res = await fetch("/api/reports?type=overdue", { signal: controller.signal });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (!res.ok) { setError("Unable to load overdue report. Please try again."); return; }
+      const json = await res.json();
+      setData(json ?? null);
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      setError("You appear to be offline. Check your connection and try again.");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    return () => { abortRef.current?.abort(); };
+  }, [loadData]);
 
   function toggleExpand(userId: string) {
     setExpanded((prev) => {
@@ -144,7 +159,7 @@ export default function OverdueLeaderboardPage() {
     });
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
@@ -167,18 +182,20 @@ export default function OverdueLeaderboardPage() {
     );
   }
 
-  if (error || !data) {
+  if (error && !data) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Failed to load overdue report</AlertTitle>
         <AlertDescription className="flex items-center gap-3">
-          <span>Check your connection and try again.</span>
+          <span>{error}</span>
           <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
         </AlertDescription>
       </Alert>
     );
   }
+
+  if (!data) return null;
 
   const leaderboard = data.leaderboard ?? [];
 
