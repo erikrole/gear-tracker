@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 const TradeBoard = dynamic(() => import("@/components/TradeBoard"), { ssr: false });
 import { FilterChip } from "@/components/FilterChip";
@@ -15,6 +16,13 @@ import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetBody,
+} from "@/components/ui/sheet";
 
 /* ───── Types ───── */
 
@@ -81,6 +89,9 @@ const AREA_LABELS: Record<string, string> = {
 
 const ACTIVE_STATUSES = ["DIRECT_ASSIGNED", "APPROVED"];
 
+const LS_VIEW_MODE = "schedule-view-mode";
+const LS_MY_SHIFTS = "schedule-my-shifts";
+
 function coverageVariant(pct: number): BadgeProps["variant"] {
   if (pct >= 100) return "green";
   if (pct > 0) return "orange";
@@ -103,6 +114,27 @@ function areaCoverage(shifts: Shift[], area: string) {
     total: areaShifts.length,
     assignedUsers: activeAssignments.map((a) => a.user),
   };
+}
+
+/** Check if user has an active assignment on any shift in this entry */
+function userHasShift(entry: CalendarEntry, userId: string): boolean {
+  return entry.shifts.some((s) =>
+    s.assignments.some(
+      (a) => a.user.id === userId && ACTIVE_STATUSES.includes(a.status)
+    )
+  );
+}
+
+/** Get user's assignment status label for display */
+function userShiftStatus(entry: CalendarEntry, userId: string): string | null {
+  for (const s of entry.shifts) {
+    for (const a of s.assignments) {
+      if (a.user.id !== userId) continue;
+      if (a.status === "APPROVED" || a.status === "DIRECT_ASSIGNED") return "Confirmed";
+      if (a.status === "REQUESTED") return "Pending";
+    }
+  }
+  return null;
 }
 
 function formatDate(iso: string) {
@@ -129,9 +161,12 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
-  // View
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
-  const [pageTab, setPageTab] = useState<"calendar" | "trades">("calendar");
+  // View — restore from localStorage
+  const [viewMode, setViewMode] = useState<"list" | "calendar">(() => {
+    if (typeof window === "undefined") return "list";
+    const stored = localStorage.getItem(LS_VIEW_MODE);
+    return stored === "calendar" ? "calendar" : "list";
+  });
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -143,11 +178,36 @@ export default function SchedulePage() {
   const [areaFilter, setAreaFilter] = useState("");
   const [coverageFilter, setCoverageFilter] = useState("");
   const [includePast, setIncludePast] = useState(false);
+  const [myShiftsOnly, setMyShiftsOnly] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(LS_MY_SHIFTS) === "true";
+  });
+
+  // Inline coverage expansion
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  // Trade Board sheet
+  const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
+  const [openTradeCount, setOpenTradeCount] = useState(0);
 
   // Detail panel
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserRole, setCurrentUserRole] = useState("STUDENT");
+
+  // Auto-scroll ref
+  const todayRef = useRef<HTMLDivElement>(null);
+  const didScrollRef = useRef(false);
+
+  // Persist view mode
+  useEffect(() => {
+    localStorage.setItem(LS_VIEW_MODE, viewMode);
+  }, [viewMode]);
+
+  // Persist my-shifts toggle
+  useEffect(() => {
+    localStorage.setItem(LS_MY_SHIFTS, String(myShiftsOnly));
+  }, [myShiftsOnly]);
 
   // Fetch user info
   useEffect(() => {
@@ -157,7 +217,21 @@ export default function SchedulePage() {
         if (j?.user) {
           setCurrentUserId(j.user.id);
           setCurrentUserRole(j.user.role);
+          // Default "My Shifts" ON for students
+          if (j.user.role === "STUDENT" && localStorage.getItem(LS_MY_SHIFTS) === null) {
+            setMyShiftsOnly(true);
+          }
         }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch open trade count
+  useEffect(() => {
+    fetch("/api/shift-trades?status=OPEN")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.data) setOpenTradeCount(j.data.length);
       })
       .catch(() => {});
   }, []);
@@ -246,9 +320,20 @@ export default function SchedulePage() {
     loadData();
   }, [loadData]);
 
-  // Client-side filtering for area and coverage
+  // Auto-scroll to today on first list load
+  useEffect(() => {
+    if (viewMode === "list" && !loading && !didScrollRef.current && todayRef.current) {
+      todayRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      didScrollRef.current = true;
+    }
+  }, [viewMode, loading]);
+
+  // Client-side filtering for area, coverage, and my-shifts
   const filteredEntries = useMemo(() => {
     let result = entries;
+    if (myShiftsOnly && currentUserId) {
+      result = result.filter((e) => userHasShift(e, currentUserId));
+    }
     if (areaFilter) {
       result = result.filter((e) => e.shifts.some((s) => s.area === areaFilter));
     }
@@ -258,7 +343,7 @@ export default function SchedulePage() {
       result = result.filter((e) => e.coverage && e.coverage.percentage >= 100);
     }
     return result;
-  }, [entries, areaFilter, coverageFilter]);
+  }, [entries, areaFilter, coverageFilter, myShiftsOnly, currentUserId]);
 
   // Group entries by date for list view
   const groupedEntries = useMemo(() => {
@@ -334,330 +419,330 @@ export default function SchedulePage() {
     }));
   }, [entries]);
 
-  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || includePast);
+  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || includePast || myShiftsOnly);
 
   return (
     <>
       <div className="page-header">
         <h1>Schedule</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setTradeSheetOpen(true)}
+        >
+          Trade Board
+          {openTradeCount > 0 && (
+            <Badge variant="orange" size="sm" className="ml-1.5">
+              {openTradeCount}
+            </Badge>
+          )}
+        </Button>
+      </div>
+
+      {/* View toggle + filters */}
+      <div className="filter-chip-bar mb-1">
         <div
           className="flex gap-1 rounded"
           style={{ border: "1px solid var(--border)", overflow: "hidden" }}
         >
           <Button
-            variant={pageTab === "calendar" ? "default" : "outline"}
+            variant={viewMode === "list" ? "default" : "outline"}
             size="sm"
-            onClick={() => setPageTab("calendar")}
+            onClick={() => setViewMode("list")}
             style={{ borderRadius: 0, border: "none" }}
           >
-            Events
+            List
           </Button>
           <Button
-            variant={pageTab === "trades" ? "default" : "outline"}
+            variant={viewMode === "calendar" ? "default" : "outline"}
             size="sm"
-            onClick={() => setPageTab("trades")}
+            onClick={() => setViewMode("calendar")}
             style={{ borderRadius: 0, border: "none" }}
           >
-            Trade Board
+            Calendar
           </Button>
+        </div>
+        <div className="filter-chips">
+          <FilterChip
+            label="My Shifts"
+            value={myShiftsOnly ? "mine" : ""}
+            displayValue="My shifts"
+            options={[{ value: "mine", label: "My shifts only" }]}
+            onSelect={() => setMyShiftsOnly(true)}
+            onClear={() => setMyShiftsOnly(false)}
+          />
+          <FilterChip
+            label="Sport"
+            value={sportFilter}
+            displayValue={sportFilter ? sportLabel(sportFilter) : ""}
+            options={sportOptions}
+            onSelect={(v) => setSportFilter(v)}
+            onClear={() => setSportFilter("")}
+          />
+          <FilterChip
+            label="Area"
+            value={areaFilter}
+            displayValue={
+              areaFilter ? (AREA_LABELS[areaFilter] ?? areaFilter) : ""
+            }
+            options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] }))}
+            onSelect={(v) => setAreaFilter(v)}
+            onClear={() => setAreaFilter("")}
+          />
+          <FilterChip
+            label="Coverage"
+            value={coverageFilter}
+            displayValue={
+              coverageFilter === "unfilled"
+                ? "Needs staff"
+                : coverageFilter === "filled"
+                  ? "Fully staffed"
+                  : ""
+            }
+            options={[
+              { value: "unfilled", label: "Needs staff" },
+              { value: "filled", label: "Fully staffed" },
+            ]}
+            onSelect={(v) => setCoverageFilter(v)}
+            onClear={() => setCoverageFilter("")}
+          />
+          {viewMode === "list" && (
+            <FilterChip
+              label="Time"
+              value={includePast ? "all" : ""}
+              displayValue="All events"
+              options={[{ value: "all", label: "Include past events" }]}
+              onSelect={() => setIncludePast(true)}
+              onClear={() => setIncludePast(false)}
+            />
+          )}
+          {hasFilters && (
+            <button
+              type="button"
+              className="filter-chip-clear-all"
+              onClick={() => {
+                setSportFilter("");
+                setAreaFilter("");
+                setCoverageFilter("");
+                setIncludePast(false);
+                setMyShiftsOnly(false);
+              }}
+            >
+              Clear all
+            </button>
+          )}
         </div>
       </div>
 
-      {pageTab === "trades" ? (
-        <TradeBoard
-          currentUserId={currentUserId}
-          currentUserRole={currentUserRole}
-        />
-      ) : (
-        <>
-          {/* View toggle + filters */}
-          <div className="filter-chip-bar mb-1">
-            <div
-              className="flex gap-1 rounded"
-              style={{ border: "1px solid var(--border)", overflow: "hidden" }}
-            >
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                style={{ borderRadius: 0, border: "none" }}
-              >
-                List
+      {/* ── Calendar View ── */}
+      {viewMode === "calendar" && (
+        <Card className="mb-1">
+          <CardHeader className="flex-row items-center justify-between">
+            <div className="flex-center gap-2">
+              <Button variant="outline" size="sm" onClick={prevMonth}>
+                &lsaquo;
               </Button>
-              <Button
-                variant={viewMode === "calendar" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("calendar")}
-                style={{ borderRadius: 0, border: "none" }}
-              >
-                Calendar
+              <CardTitle className="text-center" style={{ minWidth: 160 }}>
+                {calMonth.toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={nextMonth}>
+                {"\u203a"}
               </Button>
             </div>
-            <div className="filter-chips">
-              <FilterChip
-                label="Sport"
-                value={sportFilter}
-                displayValue={sportFilter ? sportLabel(sportFilter) : ""}
-                options={sportOptions}
-                onSelect={(v) => setSportFilter(v)}
-                onClear={() => setSportFilter("")}
-              />
-              <FilterChip
-                label="Area"
-                value={areaFilter}
-                displayValue={
-                  areaFilter ? (AREA_LABELS[areaFilter] ?? areaFilter) : ""
-                }
-                options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] }))}
-                onSelect={(v) => setAreaFilter(v)}
-                onClear={() => setAreaFilter("")}
-              />
-              <FilterChip
-                label="Coverage"
-                value={coverageFilter}
-                displayValue={
-                  coverageFilter === "unfilled"
-                    ? "Needs staff"
-                    : coverageFilter === "filled"
-                      ? "Fully staffed"
-                      : ""
-                }
-                options={[
-                  { value: "unfilled", label: "Needs staff" },
-                  { value: "filled", label: "Fully staffed" },
-                ]}
-                onSelect={(v) => setCoverageFilter(v)}
-                onClear={() => setCoverageFilter("")}
-              />
-              {viewMode === "list" && (
-                <FilterChip
-                  label="Time"
-                  value={includePast ? "all" : ""}
-                  displayValue="All events"
-                  options={[{ value: "all", label: "Include past events" }]}
-                  onSelect={() => setIncludePast(true)}
-                  onClear={() => setIncludePast(false)}
-                />
+            <Button variant="outline" size="sm" onClick={goCalToday}>
+              Today
+            </Button>
+          </CardHeader>
+          <div className="p-4">
+            <div className="cal-mobile-notice hidden">
+              Switch to List view for the best mobile experience.
+            </div>
+            <div className="cal-grid">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                (d) => (
+                  <div key={d} className="cal-header">
+                    {d}
+                  </div>
+                )
               )}
-              {hasFilters && (
-                <button
-                  type="button"
-                  className="filter-chip-clear-all"
-                  onClick={() => {
-                    setSportFilter("");
-                    setAreaFilter("");
-                    setCoverageFilter("");
-                    setIncludePast(false);
-                  }}
-                >
-                  Clear all
-                </button>
-              )}
+              {calCells.map((cell, i) => {
+                const dayEntries = cell.day
+                  ? calEntriesByDay.get(cell.day)
+                  : undefined;
+                const isExpanded = expandedDay === cell.day;
+                const visibleEntries = isExpanded
+                  ? dayEntries
+                  : dayEntries?.slice(0, 3);
+                const hiddenCount = (dayEntries?.length ?? 0) - 3;
+                return (
+                  <div
+                    key={i}
+                    className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""} ${isExpanded ? "cal-cell-expanded" : ""}`}
+                  >
+                    {cell.day && (
+                      <>
+                        <span className="cal-day-num">{cell.day}</span>
+                        {visibleEntries?.map((entry) =>
+                          entry.shiftGroupId ? (
+                            <button
+                              key={entry.id}
+                              className={calBookingClass(entry)}
+                              title={`${entry.summary}${entry.coverage ? ` (${entry.coverage.filled}/${entry.coverage.total} filled)` : ""}`}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "2px 4px",
+                              }}
+                              onClick={() =>
+                                setSelectedGroupId(entry.shiftGroupId)
+                              }
+                            >
+                              {entry.coverage && (
+                                <span
+                                  style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: coverageDot(
+                                      entry.coverage.percentage
+                                    ),
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              )}
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {entry.sportCode && entry.opponent
+                                  ? `${entry.sportCode} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
+                                  : entry.summary}
+                              </span>
+                            </button>
+                          ) : (
+                            <Link
+                              key={entry.id}
+                              href={`/events/${entry.id}`}
+                              className={calBookingClass(entry)}
+                              title={entry.summary}
+                            >
+                              {entry.sportCode && entry.opponent
+                                ? `${entry.sportCode} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
+                                : entry.summary}
+                            </Link>
+                          )
+                        )}
+                        {!isExpanded && hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            className="cal-more"
+                            onClick={() => setExpandedDay(cell.day)}
+                          >
+                            +{hiddenCount} more
+                          </button>
+                        )}
+                        {isExpanded && hiddenCount > 0 && (
+                          <button
+                            type="button"
+                            className="cal-more"
+                            onClick={() => setExpandedDay(null)}
+                          >
+                            show less
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
+        </Card>
+      )}
 
-          {/* ── Calendar View ── */}
-          {viewMode === "calendar" && (
-            <Card className="mb-1">
-              <CardHeader className="flex-row items-center justify-between">
-                <div className="flex-center gap-2">
-                  <Button variant="outline" size="sm" onClick={prevMonth}>
-                    &lsaquo;
-                  </Button>
-                  <CardTitle className="text-center" style={{ minWidth: 160 }}>
-                    {calMonth.toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </CardTitle>
-                  <Button variant="outline" size="sm" onClick={nextMonth}>
-                    {"\u203a"}
-                  </Button>
-                </div>
-                <Button variant="outline" size="sm" onClick={goCalToday}>
-                  Today
-                </Button>
-              </CardHeader>
-              <div className="p-4">
-                <div className="cal-mobile-notice hidden">
-                  Switch to List view for the best mobile experience.
-                </div>
-                <div className="cal-grid">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                    (d) => (
-                      <div key={d} className="cal-header">
-                        {d}
-                      </div>
-                    )
-                  )}
-                  {calCells.map((cell, i) => {
-                    const dayEntries = cell.day
-                      ? calEntriesByDay.get(cell.day)
-                      : undefined;
-                    const isExpanded = expandedDay === cell.day;
-                    const visibleEntries = isExpanded
-                      ? dayEntries
-                      : dayEntries?.slice(0, 3);
-                    const hiddenCount = (dayEntries?.length ?? 0) - 3;
-                    return (
+      {/* ── List View ── */}
+      {viewMode === "list" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {myShiftsOnly ? "My" : includePast ? "All" : "Upcoming"} Events (
+              {filteredEntries.length})
+            </CardTitle>
+          </CardHeader>
+
+          {loading ? (
+            <SkeletonTable rows={6} cols={6} />
+          ) : loadError ? (
+            <div className="p-4 text-center">
+              <p className="text-secondary mb-2">
+                Failed to load schedule data.
+              </p>
+              <Button variant="outline" size="sm" onClick={loadData}>
+                Retry
+              </Button>
+            </div>
+          ) : filteredEntries.length === 0 ? (
+            <EmptyState
+              icon="calendar"
+              title={myShiftsOnly ? "No shifts assigned" : "No events found"}
+              description={
+                myShiftsOnly
+                  ? "You don't have any upcoming shift assignments."
+                  : hasFilters
+                    ? "Try adjusting your filters."
+                    : "No upcoming events. Check Settings → Calendar Sources to add an ICS feed."
+              }
+              actionLabel={myShiftsOnly ? "Show all events" : hasFilters ? undefined : "Calendar Sources"}
+              actionHref={myShiftsOnly ? undefined : hasFilters ? undefined : "/settings/calendar-sources"}
+              onAction={myShiftsOnly ? () => setMyShiftsOnly(false) : undefined}
+            />
+          ) : (
+            <>
+              {/* Desktop: date-grouped table */}
+              <div className="event-list-grouped schedule-table-desktop">
+                {groupedEntries.map(([dateKey, groupEntries]) => {
+                  const isGroupToday =
+                    new Date(dateKey).toDateString() ===
+                    new Date().toDateString();
+                  return (
+                    <div key={dateKey} ref={isGroupToday ? todayRef : undefined}>
                       <div
-                        key={i}
-                        className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""} ${isExpanded ? "cal-cell-expanded" : ""}`}
+                        className={`event-date-header ${isGroupToday ? "event-date-header-today" : ""}`}
                       >
-                        {cell.day && (
-                          <>
-                            <span className="cal-day-num">{cell.day}</span>
-                            {visibleEntries?.map((entry) =>
-                              entry.shiftGroupId ? (
-                                <button
-                                  key={entry.id}
-                                  className={calBookingClass(entry)}
-                                  title={`${entry.summary}${entry.coverage ? ` (${entry.coverage.filled}/${entry.coverage.total} filled)` : ""}`}
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    width: "100%",
-                                    textAlign: "left",
-                                    padding: "2px 4px",
-                                  }}
-                                  onClick={() =>
-                                    setSelectedGroupId(entry.shiftGroupId)
-                                  }
-                                >
-                                  {entry.coverage && (
-                                    <span
-                                      style={{
-                                        width: 6,
-                                        height: 6,
-                                        borderRadius: "50%",
-                                        background: coverageDot(
-                                          entry.coverage.percentage
-                                        ),
-                                        flexShrink: 0,
-                                      }}
-                                    />
-                                  )}
-                                  <span
-                                    style={{
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    {entry.sportCode && entry.opponent
-                                      ? `${entry.sportCode} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
-                                      : entry.summary}
-                                  </span>
-                                </button>
-                              ) : (
-                                <Link
-                                  key={entry.id}
-                                  href={`/events/${entry.id}`}
-                                  className={calBookingClass(entry)}
-                                  title={entry.summary}
-                                >
-                                  {entry.sportCode && entry.opponent
-                                    ? `${entry.sportCode} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
-                                    : entry.summary}
-                                </Link>
-                              )
-                            )}
-                            {!isExpanded && hiddenCount > 0 && (
-                              <button
-                                type="button"
-                                className="cal-more"
-                                onClick={() => setExpandedDay(cell.day)}
-                              >
-                                +{hiddenCount} more
-                              </button>
-                            )}
-                            {isExpanded && hiddenCount > 0 && (
-                              <button
-                                type="button"
-                                className="cal-more"
-                                onClick={() => setExpandedDay(null)}
-                              >
-                                show less
-                              </button>
-                            )}
-                          </>
-                        )}
+                        {formatDate(groupEntries[0].startsAt)}
+                        <span className="event-date-count">
+                          {groupEntries.length} event
+                          {groupEntries.length !== 1 ? "s" : ""}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* ── List View ── */}
-          {viewMode === "list" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {includePast ? "All" : "Upcoming"} Events (
-                  {filteredEntries.length})
-                </CardTitle>
-              </CardHeader>
-
-              {loading ? (
-                <SkeletonTable rows={6} cols={6} />
-              ) : loadError ? (
-                <div className="p-4 text-center">
-                  <p className="text-secondary mb-2">
-                    Failed to load calendar data.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={loadData}>
-                    Retry
-                  </Button>
-                </div>
-              ) : filteredEntries.length === 0 ? (
-                <EmptyState
-                  icon="calendar"
-                  title="No events found"
-                  description={
-                    hasFilters
-                      ? "Try adjusting your filters."
-                      : "No upcoming events. Check Settings → Calendar Sources to add an ICS feed."
-                  }
-                  actionLabel={hasFilters ? undefined : "Calendar Sources"}
-                  actionHref={hasFilters ? undefined : "/settings/calendar-sources"}
-                />
-              ) : (
-                <>
-                  {/* Desktop: date-grouped table */}
-                  <div className="event-list-grouped schedule-table-desktop">
-                    {groupedEntries.map(([dateKey, groupEntries]) => {
-                      const isGroupToday =
-                        new Date(dateKey).toDateString() ===
-                        new Date().toDateString();
-                      return (
-                        <div key={dateKey}>
-                          <div
-                            className={`event-date-header ${isGroupToday ? "event-date-header-today" : ""}`}
-                          >
-                            {formatDate(groupEntries[0].startsAt)}
-                            <span className="event-date-count">
-                              {groupEntries.length} event
-                              {groupEntries.length !== 1 ? "s" : ""}
-                            </span>
-                          </div>
-                          <table className="data-table data-table-grouped">
-                            <thead>
-                              <tr>
-                                <th>Sport</th>
-                                <th>Event</th>
-                                <th>Time</th>
-                                <th>Location</th>
-                                <th className="text-center">Coverage</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {groupEntries.map((entry) => (
+                      <table className="data-table data-table-grouped">
+                        <thead>
+                          <tr>
+                            <th>Sport</th>
+                            <th>Event</th>
+                            <th>Time</th>
+                            <th>Location</th>
+                            <th className="text-center">Coverage</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupEntries.map((entry) => {
+                            const isExpRow = expandedRowId === entry.id;
+                            const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
+                            return (
+                              <>
                                 <tr key={entry.id}>
                                   <td>
                                     {entry.sportCode && (
@@ -688,6 +773,15 @@ export default function SchedulePage() {
                                         Premier
                                       </Badge>
                                     )}
+                                    {shiftStatus && (
+                                      <Badge
+                                        variant={shiftStatus === "Confirmed" ? "green" : "orange"}
+                                        size="sm"
+                                        className="ml-1"
+                                      >
+                                        {shiftStatus}
+                                      </Badge>
+                                    )}
                                   </td>
                                   <td>
                                     {entry.allDay
@@ -707,42 +801,113 @@ export default function SchedulePage() {
                                   </td>
                                   <td className="text-center">
                                     {entry.coverage ? (
-                                      <Badge
-                                        variant={coverageVariant(
-                                          entry.coverage.percentage
-                                        )}
+                                      <button
+                                        type="button"
+                                        className="inline-flex items-center gap-1"
+                                        onClick={() => setExpandedRowId(isExpRow ? null : entry.id)}
+                                        title="Click to expand coverage breakdown"
                                       >
-                                        {entry.coverage.filled}/
-                                        {entry.coverage.total}
-                                      </Badge>
+                                        {isExpRow ? (
+                                          <ChevronDownIcon className="size-3 text-secondary" />
+                                        ) : (
+                                          <ChevronRightIcon className="size-3 text-secondary" />
+                                        )}
+                                        <Badge
+                                          variant={coverageVariant(
+                                            entry.coverage.percentage
+                                          )}
+                                        >
+                                          {entry.coverage.filled}/
+                                          {entry.coverage.total}
+                                        </Badge>
+                                      </button>
                                     ) : (
                                       <span className="text-secondary">—</span>
                                     )}
                                   </td>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })}
-                  </div>
+                                {/* Inline coverage expansion */}
+                                {isExpRow && entry.coverage && (
+                                  <tr key={`${entry.id}-exp`} className="bg-muted/30">
+                                    <td colSpan={5}>
+                                      <div className="flex flex-wrap gap-4 py-2 px-3">
+                                        {AREAS.map((area) => {
+                                          const ac = areaCoverage(entry.shifts, area);
+                                          if (ac.total === 0) return null;
+                                          return (
+                                            <div key={area} className="flex flex-col items-center gap-1">
+                                              <span className="text-xs text-secondary font-medium">{AREA_LABELS[area]}</span>
+                                              <Badge
+                                                variant={coverageVariant(
+                                                  ac.total > 0 ? (ac.filled / ac.total) * 100 : 0
+                                                )}
+                                              >
+                                                {ac.filled}/{ac.total}
+                                              </Badge>
+                                              {ac.assignedUsers.length > 0 && (
+                                                <AvatarGroup max={3}>
+                                                  {ac.assignedUsers.map((u) => (
+                                                    <Avatar key={u.id} className="size-6" title={u.name}>
+                                                      <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
+                                                        {u.name.charAt(0).toUpperCase()}
+                                                      </AvatarFallback>
+                                                    </Avatar>
+                                                  ))}
+                                                </AvatarGroup>
+                                              )}
+                                              {ac.filled < ac.total && entry.shiftGroupId && (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="text-xs h-6 px-2"
+                                                  onClick={() => setSelectedGroupId(entry.shiftGroupId)}
+                                                >
+                                                  Assign
+                                                </Button>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
 
-                  {/* Mobile cards */}
-                  <div className="schedule-mobile-list">
-                    {filteredEntries.map((entry) => (
-                      <Link
-                        key={entry.id}
-                        href={`/events/${entry.id}`}
-                        className="schedule-mobile-card no-underline"
-                        style={{ cursor: "pointer", display: "block" }}
-                      >
-                        <div className="flex-between mb-1">
-                          <span className="font-semibold">
-                            {entry.opponent
-                              ? `${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
-                              : entry.summary}
-                          </span>
+              {/* Mobile cards */}
+              <div className="schedule-mobile-list">
+                {filteredEntries.map((entry) => {
+                  const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
+                  return (
+                    <Link
+                      key={entry.id}
+                      href={`/events/${entry.id}`}
+                      className="schedule-mobile-card no-underline"
+                      style={{ cursor: "pointer", display: "block" }}
+                    >
+                      <div className="flex-between mb-1">
+                        <span className="font-semibold">
+                          {entry.opponent
+                            ? `${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
+                            : entry.summary}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {shiftStatus && (
+                            <Badge
+                              variant={shiftStatus === "Confirmed" ? "green" : "orange"}
+                              size="sm"
+                            >
+                              {shiftStatus}
+                            </Badge>
+                          )}
                           {entry.coverage && (
                             <Badge
                               variant={coverageVariant(
@@ -753,68 +918,85 @@ export default function SchedulePage() {
                             </Badge>
                           )}
                         </div>
-                        <div className="text-xs text-secondary flex gap-2 flex-wrap">
-                          <span>
-                            {formatDateShort(entry.startsAt)}{" "}
-                            {entry.allDay
-                              ? "All day"
-                              : formatTimeShort(entry.startsAt)}
-                          </span>
-                          {entry.sportCode && (
-                            <Badge variant="gray">{entry.sportCode}</Badge>
-                          )}
-                          {entry.isPremier && (
-                            <Badge variant="blue">Premier</Badge>
-                          )}
-                          {entry.location && (
-                            <Badge variant="blue" size="sm">
-                              {entry.location.name}
-                            </Badge>
-                          )}
-                        </div>
-                        {entry.coverage && entry.shifts.length > 0 && (
-                          <div className="flex gap-2 mt-1">
-                            {AREAS.map((area) => {
-                              const ac = areaCoverage(entry.shifts, area);
-                              if (ac.total === 0) return null;
-                              return (
-                                <span key={area} className="text-xs">
-                                  {AREA_LABELS[area]}:{" "}
-                                  <Badge
-                                    variant={coverageVariant(
-                                      ac.total > 0
-                                        ? (ac.filled / ac.total) * 100
-                                        : 0
-                                    )}
-                                    size="sm"
-                                  >
-                                    {ac.filled}/{ac.total}
-                                  </Badge>
-                                </span>
-                              );
-                            })}
-                          </div>
+                      </div>
+                      <div className="text-xs text-secondary flex gap-2 flex-wrap">
+                        <span>
+                          {formatDateShort(entry.startsAt)}{" "}
+                          {entry.allDay
+                            ? "All day"
+                            : formatTimeShort(entry.startsAt)}
+                        </span>
+                        {entry.sportCode && (
+                          <Badge variant="gray">{entry.sportCode}</Badge>
                         )}
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              )}
-            </Card>
+                        {entry.isPremier && (
+                          <Badge variant="blue">Premier</Badge>
+                        )}
+                        {entry.location && (
+                          <Badge variant="blue" size="sm">
+                            {entry.location.name}
+                          </Badge>
+                        )}
+                      </div>
+                      {entry.coverage && entry.shifts.length > 0 && (
+                        <div className="flex gap-2 mt-1">
+                          {AREAS.map((area) => {
+                            const ac = areaCoverage(entry.shifts, area);
+                            if (ac.total === 0) return null;
+                            return (
+                              <span key={area} className="text-xs">
+                                {AREA_LABELS[area]}:{" "}
+                                <Badge
+                                  variant={coverageVariant(
+                                    ac.total > 0
+                                      ? (ac.filled / ac.total) * 100
+                                      : 0
+                                  )}
+                                  size="sm"
+                                >
+                                  {ac.filled}/{ac.total}
+                                </Badge>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
           )}
-
-          {/* Shift detail panel */}
-          {selectedGroupId && (
-            <ShiftDetailPanel
-              groupId={selectedGroupId}
-              onClose={() => setSelectedGroupId(null)}
-              onUpdated={loadData}
-              currentUserId={currentUserId}
-              currentUserRole={currentUserRole}
-            />
-          )}
-        </>
+        </Card>
       )}
+
+      {/* Shift detail panel */}
+      {selectedGroupId && (
+        <ShiftDetailPanel
+          groupId={selectedGroupId}
+          onClose={() => setSelectedGroupId(null)}
+          onUpdated={loadData}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
+      )}
+
+      {/* Trade Board sheet */}
+      <Sheet open={tradeSheetOpen} onOpenChange={setTradeSheetOpen}>
+        <SheetContent side="right" className="sm:max-w-xl w-full">
+          <SheetHeader>
+            <SheetTitle>Trade Board</SheetTitle>
+          </SheetHeader>
+          <SheetBody>
+            {tradeSheetOpen && (
+              <TradeBoard
+                currentUserId={currentUserId}
+                currentUserRole={currentUserRole}
+              />
+            )}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

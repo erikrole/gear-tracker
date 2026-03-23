@@ -57,3 +57,4 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-03-18 | Shift-checkout linking: shiftAssignmentId FK on Booking, wired through checkout/reservation creation, command center shows linked status | Slice 6 |
 | 2026-03-23 | Roadmap: merge Events + Shifts into unified page — see `tasks/calendar-roadmap.md` | — |
 | 2026-03-23 | Shipped: unified `/schedule` page (V1). Old events list page removed. Combined view with coverage badges, calendar grid, Trade Board tab. Sidebar shows single "Schedule" entry. | V1 |
+| 2026-03-23 | V2 enhancements: "My Shifts" filter (default ON for students, localStorage-persisted), inline coverage expansion (click badge → per-area breakdown with avatars + assign button), Trade Board as Sheet overlay with open-trade count badge, localStorage view mode persistence, auto-scroll to today's date on list load. | V2 |
