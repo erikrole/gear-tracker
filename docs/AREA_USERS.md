@@ -134,3 +134,8 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **Data flow**: List refresh failure now preserves existing data (hasDataRef pattern). Activity loadMore shows toast on failure instead of silent swallow.
   - **Resilience**: Create user dialog resets form on reopen (Radix Dialog retains DOM state). Network vs server error differentiation.
   - **UX polish**: Manual refresh button with "Updated Xm ago" tooltip. Wifi-off icon + distinct copy for offline errors. `wifi-off` icon added to shared EmptyState.
+- 2026-03-23: Users stress test — 5 issues found and fixed:
+  - **BRK-003 (CRITICAL)**: STAFF could demote ADMIN users via role endpoint. Guard now blocks STAFF from changing ADMIN roles in either direction.
+  - **BRK-004 (CRITICAL)**: STAFF could edit ADMIN user profiles via PATCH. Guard now rejects STAFF modifications to ADMIN users.
+  - **BRK-001/002 (HIGH)**: Email uniqueness TOCTOU on create/update. Removed manual findUnique pre-checks, catch P2002 from DB unique constraint instead.
+  - **BRK-005 (MEDIUM)**: Profile self-update `/api/profile` missing before-snapshot in audit. Now fetches current state and records field-level diffs.

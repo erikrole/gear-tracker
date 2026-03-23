@@ -572,3 +572,9 @@ Always use shadcn Empty component:
 ### UX Patterns
 - **Error differentiation by type**: Use `navigator.onLine === false` in catch blocks to distinguish network errors from server errors. Show `WifiOff` icon + "You're offline" for network, generic icon + "Something went wrong" for server.
 - **Manual refresh with relative timestamp**: A `RefreshCw` icon button (spins when loading) with Tooltip showing "Updated 2m ago" gives users control + visibility into data freshness. Pattern: `lastFetched` Date state, updated on successful fetch, formatted via simple relative-time helper.
+
+### Security Patterns (Stress Test)
+- **TOCTOU on unique constraints**: Never rely on a `findUnique` check before `create`/`update` for uniqueness enforcement. Two concurrent requests can both pass the check. Instead: catch Prisma `P2002` (unique constraint violation) and return a friendly 409. The DB constraint is the single source of truth, not application-level pre-checks.
+- **Privilege escalation has two vectors per role operation**: When guarding role changes, check BOTH directions — granting AND revoking. A guard that prevents STAFF from *granting* ADMIN but allows *demoting* ADMIN is a privilege escalation vector. Pattern: `if (target.role === "ADMIN" && actor.role !== "ADMIN") reject`.
+- **Profile edit must respect role hierarchy**: STAFF should not be able to edit ADMIN user profiles (name, email, phone). The same role guard that applies to role changes must also apply to profile field edits. Always check `target.role` vs `actor.role` on mutation endpoints.
+- **Audit entries need before-snapshots**: An audit entry with only `after` data can't reconstruct what changed. Fetch the current record before update, diff the fields, and pass both `before` and `after` to `createAuditEntry`. Skip the audit entry entirely if no fields actually changed.
