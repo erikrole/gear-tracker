@@ -244,7 +244,7 @@ export default function UserInfoTab({
             label="Role"
             value={user.role}
             options={ROLE_OPTIONS}
-            canEdit={canEdit}
+            canEdit={canEdit && !isSelf}
             onSave={changeRole}
           />
           <SelectInputField
