@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,12 @@ export default function CreateUserDialog({
 }) {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) formRef.current?.reset();
+  }, [open]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,7 +84,7 @@ export default function CreateUserDialog({
         <DialogHeader>
           <DialogTitle>Add user</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-3">
+        <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="create-name">Full name</Label>
             <Input id="create-name" name="name" required autoFocus />
