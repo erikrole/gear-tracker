@@ -526,3 +526,17 @@ Always use shadcn Empty component:
 ### UX Patterns
 - **Optimistic removal with rollback**: For destructive actions where the expected outcome is clear (removing an avatar sets it to null), update the UI immediately and restore on failure. Save the previous value, set the new state optimistically, then rollback in both the error response and catch paths.
 - **Contextual breadcrumbs**: When the same page serves two purposes (user detail vs profile), the breadcrumb should reflect the user's intent: show "Profile" when `isSelf`, show the user's name when viewing someone else.
+
+## Session 2026-03-23 (Reports Page Hardening)
+
+### Design System Patterns
+- **Global PageBreadcrumb covers sub-routes**: `AppShell.tsx` renders `<PageBreadcrumb />` which auto-generates breadcrumbs from the URL path (e.g., Home > Reports > Utilization). Page-level breadcrumb components are always redundant — remove them.
+- **shadcn Table vs custom .data-table CSS**: The `Table` / `TableRow` / `TableCell` components from shadcn provide consistent hover, borders, and spacing. Custom `.data-table` CSS was 50+ lines that duplicated what shadcn Table does in 0 lines.
+
+### Data Flow Patterns
+- **URL-persisted filters via `window.history.replaceState`**: For read-only pages with filter controls (period, phase), sync filter state to the URL so report links are shareable. Use `useSearchParams()` to hydrate initial state, `replaceState` to sync changes. Don't use `router.push()` — it triggers unnecessary navigation transitions.
+- **Data freshness indicator reuse**: The Dashboard's `lastRefreshed` + `RefreshCw` + `Tooltip` + `formatRelativeTime` pattern is portable to any data-fetching page. Add `lastRefreshed` state, set on successful fetch, display in a Tooltip on a ghost-variant RefreshCw button. Update "ago" display with a 60s interval.
+
+### Reliability Patterns
+- **Retry button must call loadData, not just clear error state**: Anti-pattern: `onClick={() => { setError(false); setLoading(true); }}` — this clears the error and shows loading but never re-fetches. Always call the actual data loading function.
+- **Refresh-without-replacement for filter changes**: When `data !== null` and the user changes a filter, don't replace visible data with skeletons. Show a subtle spinner (e.g., RefreshCw animate-spin) and keep current data visible until the new response arrives. Only show full skeletons on initial load (`data === null`).
