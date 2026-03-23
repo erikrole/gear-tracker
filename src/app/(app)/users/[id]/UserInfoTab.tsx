@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, X } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -19,8 +19,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
+import { cn } from "@/lib/utils";
 
 /* ── Text Input Field ─────────────────────────────────── */
 
@@ -156,14 +170,15 @@ export default function UserInfoTab({
   const targetIsStudent = user.role === "STUDENT";
 
   // Permission logic:
-  // - Users can edit their own nominal details (name, phone, location)
+  // - Everyone can edit their own nominal details (name, phone, location)
   // - Admins can edit everything for everyone
-  // - Staff can edit students' profiles but not admin profiles
-  const canEditProfile = isAdmin || (isStaffOrAdmin && targetIsStudent);
+  // - Staff can only edit student profiles (not other staff or admins)
+  const isStaff = currentUserRole === "STAFF";
+  const canEditProfile = isAdmin || (isStaff && targetIsStudent);
   const canEditSelf = isSelf; // own name, phone, location
-  const canEditRole = isAdmin || (isStaffOrAdmin && !isSelf && user.role !== "ADMIN");
+  const canEditRole = isAdmin || (isStaff && !isSelf && targetIsStudent);
   // Assignments: admin/staff can edit for self + students
-  const canEditAssignments = isStaffOrAdmin;
+  const canEditAssignments = isAdmin || (isStaff && (isSelf || targetIsStudent));
 
   async function patchUser(payload: Record<string, unknown>) {
     const isSelfProfileField =
@@ -397,75 +412,160 @@ export default function UserInfoTab({
           <CardTitle>Assignments</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Sport Assignments */}
+          {/* Sport Assignments — Multi-select */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
-          {(user.sportAssignments ?? []).length === 0 && !canEditAssignments ? (
+          {canEditAssignments ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-auto min-h-9 font-normal"
+                  disabled={addingSport}
+                >
+                  {(user.sportAssignments ?? []).length === 0 ? (
+                    <span className="text-muted-foreground">Select sports...</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 py-0.5">
+                      {(user.sportAssignments ?? []).map((sa) => (
+                        <Badge key={sa.id} variant="blue" size="sm" className="gap-1">
+                          {sportLabel(sa.sportCode)}
+                          <button
+                            type="button"
+                            className="ml-0.5 rounded-full hover:bg-blue-600/20 p-0.5"
+                            onClick={(e) => { e.stopPropagation(); removeSport(sa.id, sa.sportCode); }}
+                            aria-label={`Remove ${sportLabel(sa.sportCode)}`}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search sports..." />
+                  <CommandList>
+                    <CommandEmpty>No sports found.</CommandEmpty>
+                    <CommandGroup>
+                      {SPORT_OPTIONS.map((s) => {
+                        const isSelected = assignedSportCodes.has(s.value);
+                        const assignment = (user.sportAssignments ?? []).find((sa) => sa.sportCode === s.value);
+                        return (
+                          <CommandItem
+                            key={s.value}
+                            value={s.label}
+                            onSelect={() => {
+                              if (isSelected && assignment) {
+                                removeSport(assignment.id, s.value);
+                              } else {
+                                addSport(s.value);
+                              }
+                            }}
+                          >
+                            <Check className={cn("mr-2 size-4", isSelected ? "opacity-100" : "opacity-0")} />
+                            {s.label}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          ) : (user.sportAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground mb-1">No sport assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5 mb-1">
               {(user.sportAssignments ?? []).map((sa) => (
-                <Badge key={sa.id} variant="blue" size="sm" className="gap-1">
+                <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}
-                  {canEditAssignments && (
-                    <button
-                      type="button"
-                      className="ml-0.5 rounded-full hover:bg-blue-600/20 p-0.5"
-                      onClick={() => removeSport(sa.id, sa.sportCode)}
-                      aria-label={`Remove ${sportLabel(sa.sportCode)}`}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  )}
                 </Badge>
               ))}
-              {canEditAssignments && availableSports.length > 0 && (
-                <Select
-                  value=""
-                  onValueChange={(v) => { if (v) addSport(v); }}
-                  disabled={addingSport}
-                >
-                  <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
-                    <Plus className="size-3" />
-                    <span>Add</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSports.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
-          {(user.sportAssignments ?? []).length === 0 && canEditAssignments && availableSports.length > 0 && (
-            <div className="mb-1">
-              <Select
-                value=""
-                onValueChange={(v) => { if (v) addSport(v); }}
-                disabled={addingSport}
-              >
-                <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
-                  <Plus className="size-3" />
-                  <span>Add sport</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableSports.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           )}
 
-          <Separator className="my-2" />
+          <Separator className="my-3" />
 
-          {/* Area Assignments */}
+          {/* Area Assignments — Multi-select */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
-          {(user.areaAssignments ?? []).length === 0 && !canEditAssignments ? (
+          {canEditAssignments ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-auto min-h-9 font-normal"
+                  disabled={addingArea}
+                >
+                  {(user.areaAssignments ?? []).length === 0 ? (
+                    <span className="text-muted-foreground">Select areas...</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 py-0.5">
+                      {(user.areaAssignments ?? []).map((aa) => (
+                        <Badge
+                          key={aa.id}
+                          variant={aa.isPrimary ? "purple" : "gray"}
+                          size="sm"
+                          className="gap-1"
+                        >
+                          <button
+                            type="button"
+                            className="hover:underline"
+                            onClick={(e) => { e.stopPropagation(); toggleAreaPrimary(aa.area, !aa.isPrimary); }}
+                            title={aa.isPrimary ? "Remove as primary" : "Set as primary"}
+                          >
+                            {AREA_LABELS[aa.area] || aa.area}
+                            {aa.isPrimary && " (Primary)"}
+                          </button>
+                          <button
+                            type="button"
+                            className="ml-0.5 rounded-full hover:bg-black/10 p-0.5"
+                            onClick={(e) => { e.stopPropagation(); removeArea(aa.id); }}
+                            aria-label={`Remove ${AREA_LABELS[aa.area] || aa.area}`}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandList>
+                    <CommandGroup>
+                      {AREA_OPTIONS.map((a) => {
+                        const isSelected = assignedAreas.has(a.value);
+                        const assignment = (user.areaAssignments ?? []).find((aa) => aa.area === a.value);
+                        return (
+                          <CommandItem
+                            key={a.value}
+                            value={a.label}
+                            onSelect={() => {
+                              if (isSelected && assignment) {
+                                removeArea(assignment.id);
+                              } else {
+                                addArea(a.value);
+                              }
+                            }}
+                          >
+                            <Check className={cn("mr-2 size-4", isSelected ? "opacity-100" : "opacity-0")} />
+                            {a.label}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          ) : (user.areaAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">No area assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
@@ -474,69 +574,12 @@ export default function UserInfoTab({
                   key={aa.id}
                   variant={aa.isPrimary ? "purple" : "gray"}
                   size="sm"
-                  className="gap-1 cursor-default"
                 >
-                  <button
-                    type="button"
-                    className={canEditAssignments ? "hover:underline" : ""}
-                    disabled={!canEditAssignments}
-                    onClick={() => canEditAssignments && toggleAreaPrimary(aa.area, !aa.isPrimary)}
-                    title={canEditAssignments ? (aa.isPrimary ? "Remove as primary" : "Set as primary") : undefined}
-                  >
-                    {AREA_LABELS[aa.area] || aa.area}
-                    {aa.isPrimary && " (Primary)"}
-                  </button>
-                  {canEditAssignments && (
-                    <button
-                      type="button"
-                      className="ml-0.5 rounded-full hover:bg-black/10 p-0.5"
-                      onClick={() => removeArea(aa.id)}
-                      aria-label={`Remove ${AREA_LABELS[aa.area] || aa.area}`}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  )}
+                  {AREA_LABELS[aa.area] || aa.area}
+                  {aa.isPrimary && " (Primary)"}
                 </Badge>
               ))}
-              {canEditAssignments && availableAreas.length > 0 && (
-                <Select
-                  value=""
-                  onValueChange={(v) => { if (v) addArea(v); }}
-                  disabled={addingArea}
-                >
-                  <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
-                    <Plus className="size-3" />
-                    <span>Add</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableAreas.map((a) => (
-                      <SelectItem key={a.value} value={a.value}>
-                        {a.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
-          )}
-          {(user.areaAssignments ?? []).length === 0 && canEditAssignments && availableAreas.length > 0 && (
-            <Select
-              value=""
-              onValueChange={(v) => { if (v) addArea(v); }}
-              disabled={addingArea}
-            >
-              <SelectTrigger className="h-6 w-auto gap-1 text-xs px-2 border-dashed">
-                <Plus className="size-3" />
-                <span>Add area</span>
-              </SelectTrigger>
-              <SelectContent>
-                {availableAreas.map((a) => (
-                  <SelectItem key={a.value} value={a.value}>
-                    {a.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           )}
         </CardContent>
       </Card>
