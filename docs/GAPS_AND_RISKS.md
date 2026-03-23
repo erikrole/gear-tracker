@@ -26,10 +26,17 @@
 |---|---|---|---|---|
 | ~~GAP-1~~ | ~~`BRIEF_STUDENT_MOBILE_V1.md` not written~~ | ~~AREA_MOBILE~~ | ~~Closed~~ | ~~Brief written, V1 hardening shipped 2026-03-15~~ |
 | ~~GAP-2~~ | ~~Draft persistence model underspecified~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Shipped 2026-03-16: DRAFT booking CRUD + dashboard section + auto-save on cancel~~ |
-| GAP-3 | Equipment guidance: only 1 rule in production | AREA_CHECKOUTS | Low priority | D-016 defers admin-config to Phase C |
+| GAP-3 | Equipment guidance: only 3 rules in production | AREA_CHECKOUTS | Low priority | D-016 defers admin-config to Phase C |
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
 | ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
 | ~~GAP-6~~ | ~~Email notification channel not wired~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Resend email service wired; dual-channel (in-app + email) shipped 2026-03-16~~ |
+| GAP-7 | No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere | CROSS-CUTTING | Open | See `tasks/system-roadmap.md` V1 §3.1 — extract `useFetch`, `useUrlState` hooks |
+| GAP-8 | Reports page is a navigation dead end — no drill-down to individual bookings/items | AREA_DASHBOARD | Open | V1 quick win: add "View bookings" links from metric cards |
+| GAP-9 | Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters | AREA_DASHBOARD | Open | V1 priority: decompose into hooks + leaf components per items page pattern |
+| GAP-10 | Kit management page exists but is empty — confusing for users navigating via sidebar | AREA_CHECKOUTS | Open | XS fix: add "Coming soon" placeholder card explaining D-020 |
+| GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2: adopt React Query/SWR for shared cache + background refresh |
+| GAP-12 | No stale-data detection across browser tabs or after backgrounding | CROSS-CUTTING | Open | V1: add Page Visibility API refresh in `useFetch` hook |
+| GAP-13 | `BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020) | AREA_CHECKOUTS | Open | Priority 2 planning doc per NORTH_STAR §12 |
 
 ---
 
@@ -76,8 +83,11 @@
 | Mobile as afterthought | Dashboard/list changes without AREA_MOBILE.md review | Scope rule: mobile review mandatory | Engineering |
 | Scope expansion without brief | Features shipped without BRIEF_*.md or Decision record | CLAUDE.md rule 12: no brief = no implementation | Product |
 | Premature Phase C | Kiosk/templates work before Phase A/B solid | Roadmap sequencing enforced by NORTH_STAR.md | Product |
-| Equipment guidance stagnation | Only 1 guidance rule in production | Quarterly rule audit with operator input | Product |
+| Equipment guidance stagnation | Only 3 guidance rules in production | Quarterly rule audit with operator input | Product |
 | Alert fatigue from escalation | Repeated overdue notifications overwhelm staff | D-009 fatigue controls required before Phase B | Engineering |
+| Pattern fragmentation | New pages copy-paste fetch/URL/error patterns instead of reusing hooks | V1 roadmap: extract shared hooks before building new features | Engineering |
+| Dashboard monolith | Dashboard page grows with each feature (filters, actions, sections) | V1 roadmap: decompose before adding location filter or inline actions | Engineering |
+| Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
 
 ---
 
@@ -116,3 +126,4 @@
 - 2026-03-23: Scan page hardening (5-pass) — design system alignment, data flow hardening, resilience, UX polish. No new gaps opened.
 - 2026-03-23: Profile page hardening (5-pass) — merged profile into user detail page, fixed student self-edit permissions, optimistic avatar removal, high-fidelity skeletons. No new gaps opened.
 - 2026-03-23: Reports page hardening (6-pass) — shadcn/ui migration (Table, Badge, Alert), data flow hardening (AbortController, 401, null-safe arrays), resilience (error differentiation), UX polish (refresh-without-replacement, loading spinners). Features: data freshness indicator, URL-persisted filters, MetricCard tooltips. No new gaps opened.
+- 2026-03-23: System roadmap review — added GAP-7 through GAP-13 (systemic gaps: pattern fragmentation, reports dead end, dashboard monolith, kits placeholder, cross-page cache, stale-data detection, kit brief missing). Added 3 new active risks (pattern fragmentation, dashboard monolith, audit log growth). Updated GAP-3 to reflect 3 shipped rules. See `tasks/system-roadmap.md` for full analysis.
