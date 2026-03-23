@@ -49,7 +49,8 @@ export default function UserDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isSelf = currentUserId != null && currentUserId === id;
-  const canEdit = isSelf || currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const canEdit = isSelf || isStaffOrAdmin;
 
   const loadUser = useCallback(() => {
     abortRef.current?.abort();
@@ -265,7 +266,7 @@ export default function UserDetailPage() {
         <UserInfoTab
           user={user}
           locations={locations}
-          canEdit={canEdit}
+          canEdit={isStaffOrAdmin}
           isSelf={isSelf}
           onUpdated={loadUser}
         />

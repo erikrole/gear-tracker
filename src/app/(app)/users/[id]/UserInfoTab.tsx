@@ -141,7 +141,17 @@ export default function UserInfoTab({
   const [savingPassword, setSavingPassword] = useState(false);
 
   async function patchUser(payload: Record<string, unknown>) {
-    const res = await fetch(`/api/users/${user.id}`, {
+    // Self-edits for name/location go through /api/profile (works for all roles)
+    // Other fields require ADMIN/STAFF via /api/users/:id
+    const isSelfProfileField =
+      isSelf &&
+      Object.keys(payload).every((k) => k === "name" || k === "locationId");
+
+    const url = isSelfProfileField
+      ? "/api/profile"
+      : `/api/users/${user.id}`;
+
+    const res = await fetch(url, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -211,7 +221,7 @@ export default function UserInfoTab({
           <TextInputField
             label="Name"
             value={user.name}
-            canEdit={canEdit}
+            canEdit={canEdit || isSelf}
             onSave={(v) => patchUser({ name: v })}
           />
           <TextInputField
@@ -240,7 +250,7 @@ export default function UserInfoTab({
             label="Location"
             value={user.locationId || ""}
             options={locationOptions}
-            canEdit={canEdit}
+            canEdit={canEdit || isSelf}
             onSave={(v) => patchUser({ locationId: v || null })}
             allowEmpty
             emptyLabel="No location"
@@ -265,11 +275,11 @@ export default function UserInfoTab({
         <CardContent>
           {/* Sport Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
-          {user.sportAssignments.length === 0 ? (
+          {(user.sportAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground mb-1">No sport assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5 mb-1">
-              {user.sportAssignments.map((sa) => (
+              {(user.sportAssignments ?? []).map((sa) => (
                 <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}
                 </Badge>
@@ -281,11 +291,11 @@ export default function UserInfoTab({
 
           {/* Area Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
-          {user.areaAssignments.length === 0 ? (
+          {(user.areaAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">No area assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
-              {user.areaAssignments.map((aa) => (
+              {(user.areaAssignments ?? []).map((aa) => (
                 <Badge
                   key={aa.id}
                   variant={aa.isPrimary ? "purple" : "gray"}
