@@ -29,6 +29,7 @@ function toBookingSummary(c: {
   id: string;
   title: string;
   refNumber: string | null;
+  sportCode: string | null;
   requester: { name: string; avatarUrl: string | null };
   location?: { name: string } | null;
   startsAt: Date;
@@ -42,6 +43,7 @@ function toBookingSummary(c: {
     id: c.id,
     title: c.title,
     refNumber: c.refNumber,
+    sportCode: c.sportCode ?? null,
     requesterName: c.requester.name,
     requesterInitials: getInitials(c.requester.name),
     requesterAvatarUrl: c.requester.avatarUrl ?? null,
@@ -406,6 +408,7 @@ export const GET = withAuth(async (_req, { user }) => {
           id: r.id,
           title: r.title,
           refNumber: r.refNumber,
+          sportCode: r.sportCode ?? null,
           requesterName: r.requester.name,
           requesterInitials: getInitials(r.requester.name),
           requesterAvatarUrl: r.requester.avatarUrl ?? null,

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
@@ -19,7 +20,7 @@ import {
   formatRelativeTime,
   isDueToday,
 } from "@/lib/format";
-import { ClipboardCheckIcon, CalendarCheckIcon, PackageIcon, CalendarIcon, InboxIcon, AlertTriangleIcon, RefreshCwIcon } from "lucide-react";
+import { ClipboardCheckIcon, CalendarCheckIcon, PackageIcon, CalendarIcon, InboxIcon, AlertTriangleIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,7 @@ type BookingSummary = {
   id: string;
   title: string;
   refNumber: string | null;
+  sportCode: string | null;
   requesterName: string;
   requesterInitials: string;
   requesterAvatarUrl: string | null;
@@ -58,6 +60,7 @@ type MyReservation = {
   id: string;
   title: string;
   refNumber: string | null;
+  sportCode: string | null;
   requesterName: string;
   requesterInitials: string;
   requesterAvatarUrl: string | null;
@@ -219,6 +222,55 @@ export default function DashboardPage() {
   // if useToast() ever returns an unstable reference.
   const toastRef = useRef(toast);
   toastRef.current = toast;
+
+  // ── Sport filter (URL-persisted via ?sport=MBB) ──
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeSport = searchParams.get("sport");
+
+  const setActiveSport = useCallback((sport: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (sport) {
+      params.set("sport", sport);
+    } else {
+      params.delete("sport");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+  }, [searchParams, router]);
+
+  // Collect distinct sport codes from all dashboard data
+  const availableSports = useMemo(() => {
+    if (!data) return [];
+    const codes = new Set<string>();
+    for (const c of data.myCheckouts.items) if (c.sportCode) codes.add(c.sportCode);
+    for (const c of data.teamCheckouts.items) if (c.sportCode) codes.add(c.sportCode);
+    for (const r of data.teamReservations.items) if (r.sportCode) codes.add(r.sportCode);
+    for (const r of data.myReservations) if (r.sportCode) codes.add(r.sportCode);
+    for (const e of data.upcomingEvents) if (e.sportCode) codes.add(e.sportCode);
+    for (const s of data.myShifts) if (s.event.sportCode) codes.add(s.event.sportCode);
+    return [...codes].sort();
+  }, [data]);
+
+  // Filter helper: does a booking/event match the active sport filter?
+  const matchesSport = useCallback((sportCode: string | null) => {
+    if (!activeSport) return true; // no filter = show all
+    return sportCode === activeSport;
+  }, [activeSport]);
+
+  // Pre-filtered views of dashboard data
+  const filtered = useMemo(() => {
+    if (!data || !activeSport) return null; // null = no filtering needed, use raw data
+    return {
+      myCheckouts: data.myCheckouts.items.filter((c) => matchesSport(c.sportCode)),
+      teamCheckouts: data.teamCheckouts.items.filter((c) => matchesSport(c.sportCode)),
+      teamReservations: data.teamReservations.items.filter((r) => matchesSport(r.sportCode)),
+      myReservations: data.myReservations.filter((r) => matchesSport(r.sportCode)),
+      upcomingEvents: data.upcomingEvents.filter((e) => matchesSport(e.sportCode)),
+      myShifts: data.myShifts.filter((s) => matchesSport(s.event.sportCode)),
+      overdueItems: data.overdueItems, // overdue banner always shows all — safety-critical
+    };
+  }, [data, activeSport, matchesSport]);
 
   const loadData = useCallback((isRefresh = false) => {
     // Cancel any in-flight request to prevent race conditions
@@ -395,6 +447,34 @@ export default function DashboardPage() {
         </a>
       </div>
 
+      {/* ══════ Sport Filter Chips ══════ */}
+      {availableSports.length > 1 && (
+        <div className="flex items-center gap-1.5 flex-wrap mt-2">
+          {availableSports.map((code) => (
+            <Button
+              key={code}
+              variant={activeSport === code ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-2.5"
+              onClick={() => setActiveSport(activeSport === code ? null : code)}
+            >
+              {code}
+            </Button>
+          ))}
+          {activeSport && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2 text-muted-foreground"
+              onClick={() => setActiveSport(null)}
+            >
+              <XIcon className="size-3 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* ══════ Welcome Banner (first-run) ══════ */}
       {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
         && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0
@@ -464,11 +544,11 @@ export default function DashboardPage() {
               <h2>My checkouts</h2>
               <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
             </a>
-            {data.myCheckouts.items.length === 0 ? (
-              <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />You have no gear checked out</div>
+            {(filtered?.myCheckouts ?? data.myCheckouts.items).length === 0 ? (
+              <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
             ) : (
               <CardContent className="p-0 py-1">
-                {data.myCheckouts.items.map((c) => {
+                {(filtered?.myCheckouts ?? data.myCheckouts.items).map((c) => {
                   const dueLabel = formatDueLabel(c.endsAt, now);
                   return (
                     <button
@@ -493,7 +573,7 @@ export default function DashboardPage() {
                     </button>
                   );
                 })}
-                {data.myCheckouts.total > data.myCheckouts.items.length && (
+                {!activeSport && data.myCheckouts.total > data.myCheckouts.items.length && (
                   <a href="/checkouts?mine=true" className="view-all-link">View all {data.myCheckouts.total} &rarr;</a>
                 )}
               </CardContent>
@@ -506,11 +586,11 @@ export default function DashboardPage() {
               <h2>My reservations</h2>
               <Badge variant="gray" size="sm">{data.myReservations.length}</Badge>
             </a>
-            {data.myReservations.length === 0 ? (
-              <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />No reservations coming up</div>
+            {(filtered?.myReservations ?? data.myReservations).length === 0 ? (
+              <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
             ) : (
               <CardContent className="p-0 py-1">
-                {data.myReservations.map((r) => (
+                {(filtered?.myReservations ?? data.myReservations).map((r) => (
                   <button
                     key={r.id}
                     className="ops-row ops-row-status ops-row-reserved"
@@ -529,7 +609,7 @@ export default function DashboardPage() {
                     <GearAvatarStack items={r.items} totalCount={r.itemCount} />
                   </button>
                 ))}
-                {data.myReservations.length >= 5 && (
+                {!activeSport && data.myReservations.length >= 5 && (
                   <a href="/reservations?mine=true" className="view-all-link">View all &rarr;</a>
                 )}
               </CardContent>
@@ -537,14 +617,14 @@ export default function DashboardPage() {
           </Card>
 
           {/* My Shifts (above drafts — higher temporal urgency) */}
-          {data.myShifts.length > 0 && (
+          {(filtered?.myShifts ?? data.myShifts).length > 0 && (
             <Card>
               <a href="/schedule" className="card-header-link">
                 <h2>My shifts</h2>
                 <Badge variant="gray" size="sm">{data.myShifts.length}</Badge>
               </a>
               <CardContent className="p-0 py-1">
-                {data.myShifts.map((s) => {
+                {(filtered?.myShifts ?? data.myShifts).map((s) => {
                   const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
                   const eventTitle = s.event.opponent
                     ? `${s.event.isHome ? "vs" : "at"} ${s.event.opponent}`
@@ -666,11 +746,11 @@ export default function DashboardPage() {
               <h2>Checked out</h2>
               <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
             </a>
-            {data.teamCheckouts.items.length === 0 ? (
-              <div className="empty-section"><InboxIcon className="empty-section-icon" />No team checkouts right now</div>
+            {(filtered?.teamCheckouts ?? data.teamCheckouts.items).length === 0 ? (
+              <div className="empty-section"><InboxIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
             ) : (
               <CardContent className="p-0 py-1">
-                {data.teamCheckouts.items.map((c) => {
+                {(filtered?.teamCheckouts ?? data.teamCheckouts.items).map((c) => {
                   const dueLabel = formatDueLabel(c.endsAt, now);
                   return (
                     <button
@@ -695,7 +775,7 @@ export default function DashboardPage() {
                     </button>
                   );
                 })}
-                {data.teamCheckouts.total > data.teamCheckouts.items.length && (
+                {!activeSport && data.teamCheckouts.total > data.teamCheckouts.items.length && (
                   <a href="/checkouts" className="view-all-link">View all {data.teamCheckouts.total} &rarr;</a>
                 )}
               </CardContent>
@@ -708,11 +788,11 @@ export default function DashboardPage() {
               <h2>Reserved</h2>
               <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
             </a>
-            {data.teamReservations.items.length === 0 ? (
-              <div className="empty-section"><InboxIcon className="empty-section-icon" />No team reservations right now</div>
+            {(filtered?.teamReservations ?? data.teamReservations.items).length === 0 ? (
+              <div className="empty-section"><InboxIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
             ) : (
               <CardContent className="p-0 py-1">
-                {data.teamReservations.items.map((r) => (
+                {(filtered?.teamReservations ?? data.teamReservations.items).map((r) => (
                   <button
                     key={r.id}
                     className="ops-row ops-row-status ops-row-reserved"
@@ -731,7 +811,7 @@ export default function DashboardPage() {
                     <GearAvatarStack items={r.items} totalCount={r.itemCount} />
                   </button>
                 ))}
-                {data.teamReservations.total > data.teamReservations.items.length && (
+                {!activeSport && data.teamReservations.total > data.teamReservations.items.length && (
                   <a href="/reservations" className="view-all-link">View all {data.teamReservations.total} &rarr;</a>
                 )}
               </CardContent>
@@ -743,11 +823,11 @@ export default function DashboardPage() {
             <a href="/events" className="card-header-link">
               <h2>Upcoming events</h2>
             </a>
-            {data.upcomingEvents.length === 0 ? (
-              <div className="empty-section"><CalendarIcon className="empty-section-icon" />No upcoming events</div>
+            {(filtered?.upcomingEvents ?? data.upcomingEvents).length === 0 ? (
+              <div className="empty-section"><CalendarIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} events` : "No upcoming events"}</div>
             ) : (
               <CardContent className="p-0 py-1">
-                {data.upcomingEvents.map((e) => {
+                {(filtered?.upcomingEvents ?? data.upcomingEvents).map((e) => {
                   const titleParam = encodeURIComponent(e.title);
                   const startsParam = encodeURIComponent(e.startsAt);
                   const endsParam = encodeURIComponent(e.endsAt);
