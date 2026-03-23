@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CameraIcon, TrashIcon } from "lucide-react";
+import { AlertCircle, CameraIcon, Loader2, TrashIcon } from "lucide-react";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -226,7 +226,7 @@ export default function UserDetailPage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="mb-0">{user.name}</h1>
+            <h1 className="mb-0">{isSelf ? "My profile" : user.name}</h1>
             <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
             {isSelf && (
               <div className="flex items-center gap-2 mt-1.5">
@@ -248,8 +248,12 @@ export default function UserDetailPage() {
                   disabled={uploadingAvatar}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <CameraIcon className="mr-1.5 size-3.5" />
-                  {uploadingAvatar ? "Uploading..." : user.avatarUrl ? "Change photo" : "Upload photo"}
+                  {uploadingAvatar ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <CameraIcon className="mr-1.5 size-3.5" />
+                  )}
+                  {user.avatarUrl ? "Change photo" : "Upload photo"}
                 </Button>
                 {user.avatarUrl && (
                   <Button

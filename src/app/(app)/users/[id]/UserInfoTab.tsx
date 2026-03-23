@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -320,13 +321,14 @@ export default function UserInfoTab({
             <form onSubmit={changePassword} className="grid gap-3 max-w-sm">
               <div className="space-y-1.5">
                 <Label htmlFor="currentPassword">Current password</Label>
-                <Input id="currentPassword" name="currentPassword" type="password" required minLength={8} />
+                <Input id="currentPassword" name="currentPassword" type="password" required minLength={8} disabled={savingPassword} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="newPassword">New password</Label>
-                <Input id="newPassword" name="newPassword" type="password" required minLength={8} />
+                <Input id="newPassword" name="newPassword" type="password" required minLength={8} disabled={savingPassword} />
               </div>
               <Button type="submit" disabled={savingPassword} className="w-fit">
+                {savingPassword && <Loader2 className="mr-1.5 size-4 animate-spin" />}
                 {savingPassword ? "Updating..." : "Update password"}
               </Button>
             </form>
