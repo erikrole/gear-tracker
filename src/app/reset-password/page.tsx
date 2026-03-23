@@ -3,10 +3,13 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { AlertCircle, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function validatePassword(password: string): string {
   if (!password) return "Password is required";
@@ -77,96 +80,106 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <>
-        <p className="login-subtitle">Invalid reset link</p>
-        <p style={{ marginBottom: 16 }}>This password reset link is invalid or has expired.</p>
+      <div className="space-y-4">
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertDescription>This password reset link is invalid or has expired.</AlertDescription>
+        </Alert>
         <Link href="/forgot-password">
           <Button type="button" className="w-full h-11 text-base font-semibold">Request a new link</Button>
         </Link>
-      </>
+      </div>
     );
   }
 
   if (success) {
     return (
-      <>
-        <p className="login-subtitle">Set a new password</p>
-        <p style={{ fontSize: "var(--text-base)", lineHeight: 1.5, marginBottom: 16 }}>
+      <div className="space-y-4">
+        <p className="text-base leading-relaxed">
           Your password has been reset. You can now sign in with your new password.
         </p>
         <Link href="/login">
           <Button type="button" className="w-full h-11 text-base font-semibold">Sign in</Button>
         </Link>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <p className="login-subtitle">Set a new password</p>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-1 space-y-1.5">
-          <Label htmlFor="password">New password</Label>
-          <div className="password-wrapper">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-              onBlur={() => handleBlur("password")}
-              placeholder="At least 8 characters"
-              required
-              minLength={8}
-              autoFocus
-              className="h-11 text-base"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
-            </button>
-          </div>
-          {fieldErrors.password && <p className="text-destructive text-xs mt-1">{fieldErrors.password}</p>}
-        </div>
-
-        <div className="mb-1 space-y-1.5">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="password">New password</Label>
+        <div className="relative">
           <Input
-            id="confirmPassword"
+            id="password"
             type={showPassword ? "text" : "password"}
-            value={confirmPassword}
-            onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
-            onBlur={() => handleBlur("confirmPassword")}
-            placeholder="Re-enter your password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
+            onBlur={() => handleBlur("password")}
+            placeholder="At least 8 characters"
             required
             minLength={8}
-            className="h-11 text-base"
+            autoFocus
+            className="h-11 text-base pr-11"
           />
-          {fieldErrors.confirmPassword && <p className="text-destructive text-xs mt-1">{fieldErrors.confirmPassword}</p>}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+          </Button>
         </div>
+        {fieldErrors.password && <p className="text-destructive text-xs">{fieldErrors.password}</p>}
+      </div>
 
-        {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
+      <div className="space-y-1.5">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input
+          id="confirmPassword"
+          type={showPassword ? "text" : "password"}
+          value={confirmPassword}
+          onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
+          onBlur={() => handleBlur("confirmPassword")}
+          placeholder="Re-enter your password"
+          required
+          minLength={8}
+          className="h-11 text-base"
+        />
+        {fieldErrors.confirmPassword && <p className="text-destructive text-xs">{fieldErrors.confirmPassword}</p>}
+      </div>
 
-        <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-          {loading ? "Resetting..." : "Reset password"}
-        </Button>
-      </form>
-    </>
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
+        {loading ? "Resetting..." : "Reset password"}
+      </Button>
+    </form>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <h1>Creative</h1>
-        <Suspense fallback={<p className="login-subtitle">Loading...</p>}>
-          <ResetPasswordForm />
-        </Suspense>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
+      <Card className="w-full max-w-[400px]">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Creative</CardTitle>
+          <CardDescription>Set a new password</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={<div className="space-y-4"><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /><Skeleton className="h-11 w-full" /></div>}>
+            <ResetPasswordForm />
+          </Suspense>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -38,48 +41,56 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <h1>Creative</h1>
-        <p className="login-subtitle">Reset your password</p>
-
-        {submitted ? (
-          <>
-            <p style={{ fontSize: "var(--text-base)", lineHeight: 1.5, marginBottom: 16 }}>
-              If an account exists with that email, we&apos;ve sent a password reset link. Check your inbox.
-            </p>
-            <Link href="/login">
-              <Button type="button" className="w-full h-11 text-base font-semibold">Back to sign in</Button>
-            </Link>
-          </>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="mb-1 space-y-1.5">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                autoFocus
-                className="h-11 text-base"
-              />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
+      <Card className="w-full max-w-[400px]">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Creative</CardTitle>
+          <CardDescription>Reset your password</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {submitted ? (
+            <div className="space-y-4">
+              <p className="text-base leading-relaxed">
+                If an account exists with that email, we&apos;ve sent a password reset link. Check your inbox.
+              </p>
+              <Link href="/login">
+                <Button type="button" className="w-full h-11 text-base font-semibold">Back to sign in</Button>
+              </Link>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  autoFocus
+                  className="h-11 text-base"
+                />
+              </div>
 
-            {error && <p className="text-destructive text-sm mt-3" role="alert">{error}</p>}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="size-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
-              {loading ? "Sending..." : "Send reset link"}
-            </Button>
+              <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading}>
+                {loading ? "Sending..." : "Send reset link"}
+              </Button>
 
-            <p style={{ textAlign: "center", marginTop: 16, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
-              <Link href="/login">Back to sign in</Link>
-            </p>
-          </form>
-        )}
-      </div>
+              <p className="text-center text-sm text-muted-foreground">
+                <Link href="/login" className="hover:underline">Back to sign in</Link>
+              </p>
+            </form>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
