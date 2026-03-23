@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatDateTime } from "@/lib/format";
+import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -59,6 +60,7 @@ function describeFieldChange(key: string, before: unknown, after: unknown): stri
 /* ── Component ─────────────────────────────────────────── */
 
 export default function UserActivityTab({ userId }: { userId: string }) {
+  const { toast } = useToast();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -98,12 +100,15 @@ export default function UserActivityTab({ userId }: { userId: string }) {
     try {
       const res = await fetch(`/api/users/${userId}/activity?cursor=${nextCursor}`);
       if (res.status === 401) { window.location.href = "/login"; return; }
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast("Failed to load more activity", "error");
+        return;
+      }
       const json = await res.json();
       if (json?.data) setEntries((prev) => [...prev, ...json.data]);
       setNextCursor(json?.nextCursor ?? null);
     } catch {
-      // silently fail — user can retry
+      toast("Network error", "error");
     } finally {
       setLoadingMore(false);
     }

@@ -93,6 +93,7 @@ export default function UsersPage() {
   // ── Data fetching ──
 
   const abortRef = useRef<AbortController | null>(null);
+  const hasDataRef = useRef(false);
 
   const reload = useCallback(async () => {
     abortRef.current?.abort();
@@ -119,11 +120,13 @@ export default function UsersPage() {
         const json: ListResponse = await res.json();
         setUsers(json.data ?? []);
         setTotal(json.total ?? 0);
-      } else {
+        setLoadError(false);
+        hasDataRef.current = (json.data ?? []).length > 0;
+      } else if (!hasDataRef.current) {
         setLoadError(true);
       }
     } catch (err) {
-      if ((err as Error).name !== "AbortError") setLoadError(true);
+      if ((err as Error).name !== "AbortError" && !hasDataRef.current) setLoadError(true);
     }
     if (!controller.signal.aborted) setLoading(false);
   }, [page, search, sort, roleFilter, locationFilter]);
