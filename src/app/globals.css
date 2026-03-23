@@ -1815,35 +1815,6 @@ textarea:focus-visible {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ===== Profile Page ===== */
-.profile-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.profile-field {
-  margin-bottom: 16px;
-}
-
-.profile-field-label {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  margin-bottom: 4px;
-}
-
-.profile-field-value {
-  font-size: var(--text-md);
-}
-
-.form-success {
-  color: var(--green);
-  font-size: var(--text-sm);
-  margin-top: 12px;
-}
 
 /* ===== Checkout table responsive ===== */
 @media (max-width: 768px) {
@@ -2039,10 +2010,6 @@ textarea:focus-visible {
 
   .sidebar-overlay.visible {
     display: block;
-  }
-
-  .profile-grid {
-    grid-template-columns: 1fr;
   }
 
   /* ── App shell mobile adjustments ── */
@@ -5576,9 +5543,7 @@ tr.returned-row { opacity: 0.55; }
 .gear-status-reserved { background: var(--badge-orange-bg, #f59e0b); }
 .gear-status-checked_out { background: var(--badge-green-bg, #22c55e); }
 
-/* ===== Users Page ===== */
-
-/* Responsive toggle utilities */
+/* Responsive toggle utilities (used by settings/sports) */
 .show-mobile-only { display: none; }
 .hide-mobile-only { display: block; }
 

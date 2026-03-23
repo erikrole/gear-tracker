@@ -146,7 +146,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
 
   return (
     <div className="mt-6 grid gap-3.5">
-      {entries.map((entry, _idx) => {
+      {entries.map((entry) => {
         const actorName = entry.actor?.name || "System";
         const initial = actorName.slice(0, 1).toUpperCase();
         const actionLabel = ACTION_LABELS[entry.action] || entry.action;
