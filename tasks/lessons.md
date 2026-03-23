@@ -470,3 +470,26 @@ Always use shadcn Empty component:
 - **Manual refresh button with freshness tooltip**: A spinning `RefreshCwIcon` next to the page title with `formatRelativeTime(lastRefreshed, now)` in the tooltip. Users can see data age and refresh manually. The `animate-spin` class on the icon provides feedback during refresh.
 - **Skeleton width variation**: Identical `w-3/4` skeletons look like a test pattern. Vary widths per row (`70 + (j % 3) * 10` percent for titles, `40 + (j % 2) * 15` percent for meta) to look like real content being loaded.
 - **Differentiate error icons by type**: Network errors (offline) get a bell icon with "You're offline" copy. Server errors get a box icon with "usually temporary" language. Small changes that signal the system knows what went wrong.
+
+## Session 2026-03-23
+
+### Auth Page Hardening Patterns
+
+**Design System:**
+- Auth pages (login, register, forgot-password, reset-password) share CSS classes. When migrating one to shadcn, migrate ALL to prevent half-dead CSS. Grep for shared classes across the directory before deleting any.
+- Password toggle button should use `Button variant="ghost" size="icon"` not a raw `<button>` — consistent hover states, focus ring, and disabled styling for free.
+
+**Data Flow:**
+- `res.json()` on error responses can throw if the body isn't JSON (e.g., proxy 502 returns HTML). Always wrap in try-catch: `try { const json = await res.json(); message = json.error || fallback; } catch { /* non-JSON */ }`.
+- `TypeError` from `fetch()` specifically indicates network failure (offline, DNS, CORS). Use this to distinguish network errors from server errors with different icons and copy.
+- Form `handleSubmit` needs an early `if (loading) return` guard even when the button is `disabled={loading}` — keyboard Enter can bypass the disabled button state during rapid re-renders.
+- Clear the form-level error Alert when the user starts typing, not just on re-submit. Stale errors confuse users who've already corrected their input.
+
+**Resilience:**
+- Disable ALL form inputs during submission, not just the submit button. If inputs remain editable, the user can change values while the request is in-flight, causing a mismatch between what they see and what the error references.
+- Always add `aria-invalid` and `aria-describedby` to inputs with validation errors. Screen readers can't associate a red `<p>` with its input without these attributes.
+
+**UX Polish:**
+- `Loader2 className="animate-spin"` inside the submit button alongside loading text (e.g., "Signing in...") gives a clear visual signal that something is happening. Static text alone feels frozen.
+- `WifiOff` icon for network errors vs `AlertCircle` for auth/server errors — small icon difference communicates system understanding.
+- Auto-focus the first invalid field after validation failure using refs. Users shouldn't have to click back into the field with the error.
