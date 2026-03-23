@@ -144,6 +144,7 @@ export default function ScanPage() {
   // Race condition guards
   const processingRef = useRef(false);
   const loadingStatusRef = useRef(false);
+  const completingRef = useRef(false);
 
   // ── Load scan status for booking modes ──
   const loadScanStatus = useCallback(async () => {
@@ -153,7 +154,22 @@ export default function ScanPage() {
     loadingStatusRef.current = true;
     try {
       const res = await fetch(`/api/checkouts/${checkoutId}/scan-status?phase=${phaseParam}`);
-      if (!res.ok) { setLoadError(true); setStatusLoading(false); loadingStatusRef.current = false; return; }
+      if (res.status === 401) {
+        toastRef.current("Session expired — please log in again", "error");
+        loadingStatusRef.current = false;
+        return;
+      }
+      if (!res.ok) {
+        // Only show error screen on initial load; toast on refresh
+        setScanStatus((prev) => {
+          if (!prev) setLoadError(true);
+          else toastRef.current("Could not refresh scan status", "error");
+          return prev;
+        });
+        setStatusLoading(false);
+        loadingStatusRef.current = false;
+        return;
+      }
       const json = await res.json();
       const data = json.data as ScanStatus;
 
@@ -168,7 +184,12 @@ export default function ScanPage() {
       });
       setLoadError(false);
     } catch {
-      setLoadError(true);
+      // Only show error screen on initial load; toast on refresh
+      setScanStatus((prev) => {
+        if (!prev) setLoadError(true);
+        else toastRef.current("Network error — could not refresh", "error");
+        return prev;
+      });
     }
     setStatusLoading(false);
     loadingStatusRef.current = false;
@@ -212,6 +233,7 @@ export default function ScanPage() {
 
   // ── Lookup mode: scan → show item preview bottom sheet ──
   const handleLookupScan = useCallback(async (value: string) => {
+    processingRef.current = true;
     setProcessing(true);
     setLastScanResult(null);
     setItemPreview(null);
@@ -222,7 +244,8 @@ export default function ScanPage() {
 
       const res = await fetch(`/api/assets?q=${encodeURIComponent(searchTerm)}&limit=5`);
       if (!res.ok) {
-        setLastScanResult({ message: "Failed to look up item", success: false });
+        setLastScanResult({ message: res.status === 401 ? "Session expired — please log in again" : "Failed to look up item", success: false });
+        processingRef.current = false;
         setProcessing(false);
         return;
       }
@@ -256,6 +279,7 @@ export default function ScanPage() {
             activeBooking: null,
           });
         }
+        processingRef.current = false;
         setProcessing(false);
         return;
       }
@@ -264,6 +288,7 @@ export default function ScanPage() {
     } catch {
       setLastScanResult({ message: "Network error", success: false });
     }
+    processingRef.current = false;
     setProcessing(false);
   }, []);
 
@@ -288,6 +313,10 @@ export default function ScanPage() {
         await loadScanStatus();
         return true;
       } else {
+        if (res.status === 401) {
+          setLastScanResult({ message: "Session expired — please log in again", success: false });
+          return false;
+        }
         const json = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
         const errCode = json.data?.code;
         let errMsg = json.error || "Scan not recognized";
@@ -342,6 +371,13 @@ export default function ScanPage() {
         vibrate();
         setLastScanResult({ message: "Item scanned successfully", success: true });
         await loadScanStatus();
+        processingRef.current = false;
+        setProcessing(false);
+        return;
+      }
+
+      if (res.status === 401) {
+        setLastScanResult({ message: "Session expired — please log in again", success: false });
         processingRef.current = false;
         setProcessing(false);
         return;
@@ -418,13 +454,13 @@ export default function ScanPage() {
   // ── Route scan to correct handler ──
   const handleScan = useCallback((value: string) => {
     // Use ref for synchronous guard — state may be stale from camera callback
-    if (processing || processingRef.current) return;
+    if (processingRef.current) return;
     if (mode === "lookup") {
       handleLookupScan(value);
     } else {
       handleBookingScan(value);
     }
-  }, [mode, processing, handleLookupScan, handleBookingScan]);
+  }, [mode, handleLookupScan, handleBookingScan]);
 
   const handleManualEntry = () => {
     const v = manualCode.trim();
@@ -444,7 +480,8 @@ export default function ScanPage() {
 
   // ── Complete checkout/checkin ──
   async function handleComplete() {
-    if (!checkoutId) return;
+    if (!checkoutId || completingRef.current) return;
+    completingRef.current = true;
     setCompleting(true);
 
     const endpoint = mode === "checkin"
@@ -458,11 +495,16 @@ export default function ScanPage() {
         router.push(`/checkouts/${checkoutId}`);
         return;
       }
-      const json = await res.json().catch(() => ({}));
-      toast((json as Record<string, string>).error || "Could not complete", "error");
+      if (res.status === 401) {
+        toast("Session expired — please log in again", "error");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Could not complete", "error");
+      }
     } catch {
       toast("Network error \u2014 try again", "error");
     }
+    completingRef.current = false;
     setCompleting(false);
   }
 
