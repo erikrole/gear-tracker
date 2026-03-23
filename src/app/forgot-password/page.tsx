@@ -76,10 +76,11 @@ export default function ForgotPasswordPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
                   placeholder="you@example.com"
                   required
                   autoFocus
+                  disabled={loading}
                   className="h-11 text-base"
                 />
               </div>

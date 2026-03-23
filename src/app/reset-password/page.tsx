@@ -131,6 +131,9 @@ function ResetPasswordForm() {
             required
             minLength={8}
             autoFocus
+            disabled={loading}
+            aria-invalid={!!fieldErrors.password}
+            aria-describedby={fieldErrors.password ? "password-error" : undefined}
             className="h-11 text-base pr-11"
           />
           <Button
@@ -139,12 +142,13 @@ function ResetPasswordForm() {
             size="icon"
             className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground"
             onClick={() => setShowPassword(!showPassword)}
+            disabled={loading}
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
           </Button>
         </div>
-        {fieldErrors.password && <p className="text-destructive text-xs">{fieldErrors.password}</p>}
+        {fieldErrors.password && <p id="password-error" className="text-destructive text-xs">{fieldErrors.password}</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -158,9 +162,12 @@ function ResetPasswordForm() {
           placeholder="Re-enter your password"
           required
           minLength={8}
+          disabled={loading}
+          aria-invalid={!!fieldErrors.confirmPassword}
+          aria-describedby={fieldErrors.confirmPassword ? "confirm-error" : undefined}
           className="h-11 text-base"
         />
-        {fieldErrors.confirmPassword && <p className="text-destructive text-xs">{fieldErrors.confirmPassword}</p>}
+        {fieldErrors.confirmPassword && <p id="confirm-error" className="text-destructive text-xs">{fieldErrors.confirmPassword}</p>}
       </div>
 
       {error && (

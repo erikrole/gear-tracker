@@ -119,9 +119,12 @@ export default function RegisterPage() {
                 placeholder="Your full name"
                 required
                 autoFocus
+                disabled={loading}
+                aria-invalid={!!fieldErrors.name}
+                aria-describedby={fieldErrors.name ? "name-error" : undefined}
                 className="h-11 text-base"
               />
-              {fieldErrors.name && <p className="text-destructive text-xs">{fieldErrors.name}</p>}
+              {fieldErrors.name && <p id="name-error" className="text-destructive text-xs">{fieldErrors.name}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -134,9 +137,12 @@ export default function RegisterPage() {
                 onBlur={() => handleBlur("email")}
                 placeholder="you@example.com"
                 required
+                disabled={loading}
+                aria-invalid={!!fieldErrors.email}
+                aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 className="h-11 text-base"
               />
-              {fieldErrors.email && <p className="text-destructive text-xs">{fieldErrors.email}</p>}
+              {fieldErrors.email && <p id="email-error" className="text-destructive text-xs">{fieldErrors.email}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -151,6 +157,9 @@ export default function RegisterPage() {
                   placeholder="At least 8 characters"
                   required
                   minLength={8}
+                  disabled={loading}
+                  aria-invalid={!!fieldErrors.password}
+                  aria-describedby={fieldErrors.password ? "password-error" : undefined}
                   className="h-11 text-base pr-11"
                 />
                 <Button
@@ -159,12 +168,13 @@ export default function RegisterPage() {
                   size="icon"
                   className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
                 </Button>
               </div>
-              {fieldErrors.password && <p className="text-destructive text-xs">{fieldErrors.password}</p>}
+              {fieldErrors.password && <p id="password-error" className="text-destructive text-xs">{fieldErrors.password}</p>}
             </div>
 
             {error && (
