@@ -199,6 +199,9 @@ export default function SchedulePage() {
   const todayRef = useRef<HTMLDivElement>(null);
   const didScrollRef = useRef(false);
 
+  // AbortController for fetch race prevention
+  const abortRef = useRef<AbortController | null>(null);
+
   // Persist view mode
   useEffect(() => {
     localStorage.setItem(LS_VIEW_MODE, viewMode);
@@ -212,7 +215,10 @@ export default function SchedulePage() {
   // Fetch user info
   useEffect(() => {
     fetch("/api/me")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (r.status === 401) { window.location.href = "/login"; return null; }
+        return r.ok ? r.json() : null;
+      })
       .then((j) => {
         if (j?.user) {
           setCurrentUserId(j.user.id);
@@ -226,8 +232,8 @@ export default function SchedulePage() {
       .catch(() => {});
   }, []);
 
-  // Fetch open trade count
-  useEffect(() => {
+  // Fetch open trade count — reload when sheet closes
+  const loadTradeCount = useCallback(() => {
     fetch("/api/shift-trades?status=OPEN")
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
@@ -235,6 +241,8 @@ export default function SchedulePage() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => { loadTradeCount(); }, [loadTradeCount]);
 
   // Merge events + shift groups into CalendarEntry[]
   const mergeData = useCallback(
@@ -256,8 +264,13 @@ export default function SchedulePage() {
     []
   );
 
-  // Load data — fetch both APIs in parallel
+  // Load data — fetch both APIs in parallel with AbortController
   const loadData = useCallback(async () => {
+    // Abort any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setLoadError(false);
     try {
@@ -293,9 +306,15 @@ export default function SchedulePage() {
       }
 
       const [evRes, sgRes] = await Promise.all([
-        fetch(`/api/calendar-events?${evParams}`),
-        fetch(`/api/shift-groups?${sgParams}`),
+        fetch(`/api/calendar-events?${evParams}`, { signal: controller.signal }),
+        fetch(`/api/shift-groups?${sgParams}`, { signal: controller.signal }),
       ]);
+
+      // 401 on either → redirect to login
+      if (evRes.status === 401 || sgRes.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
 
       if (!evRes.ok) throw new Error("events fetch failed");
 
@@ -310,7 +329,8 @@ export default function SchedulePage() {
       }
 
       setEntries(mergeData(events, groups));
-    } catch {
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
       setLoadError(true);
     }
     setLoading(false);
@@ -318,6 +338,7 @@ export default function SchedulePage() {
 
   useEffect(() => {
     loadData();
+    return () => { abortRef.current?.abort(); };
   }, [loadData]);
 
   // Auto-scroll to today on first list load
@@ -956,7 +977,10 @@ export default function SchedulePage() {
       )}
 
       {/* Trade Board sheet */}
-      <Sheet open={tradeSheetOpen} onOpenChange={setTradeSheetOpen}>
+      <Sheet open={tradeSheetOpen} onOpenChange={(open) => {
+        setTradeSheetOpen(open);
+        if (!open) loadTradeCount(); // Refresh count after sheet closes
+      }}>
         <SheetContent side="right" className="sm:max-w-xl w-full">
           <SheetHeader>
             <SheetTitle>Trade Board</SheetTitle>
