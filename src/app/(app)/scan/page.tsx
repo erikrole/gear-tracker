@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ChevronLeftIcon, XIcon, ScanIcon, AlertCircleIcon } from "lucide-react";
+import { ChevronLeftIcon, XIcon, ScanIcon, AlertCircleIcon, Loader2Icon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
@@ -320,7 +320,28 @@ export default function ScanPage() {
       if (res.ok) {
         vibrate();
         setScanFeedback({ message: "Item scanned successfully", success: true });
-        await loadScanStatus();
+        // Optimistic update — mark item scanned in checklist immediately
+        if (payload.scanType === "SERIALIZED" && payload.scanValue) {
+          setScanStatus((prev) => {
+            if (!prev) return prev;
+            const val = payload.scanValue as string;
+            const updated = prev.serializedItems.map((item) =>
+              (item.assetTag === val || item.assetId === val) ? { ...item, scanned: true } : item
+            );
+            const scannedCount = updated.filter((i) => i.scanned).length;
+            return {
+              ...prev,
+              serializedItems: updated,
+              progress: {
+                ...prev.progress,
+                serializedScanned: scannedCount,
+                allComplete: scannedCount === prev.progress.serializedTotal && prev.progress.bulkComplete,
+              },
+            };
+          });
+        }
+        // Background refresh to get authoritative state
+        loadScanStatus();
         return true;
       } else {
         if (res.status === 401) {
@@ -699,7 +720,7 @@ export default function ScanPage() {
             onClick={handleManualEntry}
             disabled={!manualCode.trim() || processing}
           >
-            {processing ? "..." : mode === "lookup" ? "Look up" : "Scan"}
+            {processing ? <Loader2Icon className="size-4 animate-spin" /> : mode === "lookup" ? "Look up" : "Scan"}
           </Button>
         </div>
 
@@ -859,7 +880,7 @@ export default function ScanPage() {
               disabled={selectedUnits.size === 0 || processing}
               className="flex-1 min-h-12"
             >
-              {processing ? "Scanning..." : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
+              {processing ? <><Loader2Icon className="size-4 animate-spin mr-2" />Scanning...</> : `Scan ${selectedUnits.size} unit${selectedUnits.size !== 1 ? "s" : ""}`}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -875,7 +896,7 @@ export default function ScanPage() {
             disabled={!allComplete || completing}
           >
             {completing
-              ? "Completing..."
+              ? <><Loader2Icon className="size-4 animate-spin mr-2" />Completing...</>
               : allComplete
                 ? mode === "checkout" ? "Complete Checkout" : "Complete Check-in"
                 : `${totalItems - scannedItems} item${totalItems - scannedItems !== 1 ? "s" : ""} remaining`
