@@ -144,11 +144,11 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="p-24">
-      <h1 className="m-0 mb-16">Search</h1>
+    <div className="p-6">
+      <h1 className="m-0 mb-1">Search</h1>
 
-      <form onSubmit={handleSubmit} className="mb-24">
-        <div className="flex gap-8">
+      <form onSubmit={handleSubmit} className="mb-6">
+        <div className="flex gap-2">
           <Input
             ref={inputRef}
             type="text"
@@ -172,13 +172,13 @@ export default function SearchPage() {
       )}
 
       {!loading && results.length > 0 && (
-        <div className="flex-col gap-24">
+        <div className="flex flex-col gap-6">
           {(["item", "checkout", "reservation"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;
             return (
               <div key={type}>
-                <h2 className="text-sm text-secondary text-uppercase font-semibold mb-8 m-0">
+                <h2 className="text-sm text-secondary text-uppercase font-semibold mb-2 m-0">
                   {sectionLabels[type]} ({items.length})
                 </h2>
                 <Card>

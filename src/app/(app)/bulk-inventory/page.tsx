@@ -202,9 +202,9 @@ export default function BulkInventoryPage() {
       </div>
 
       {showCreate && (
-        <Card className="mb-16">
+        <Card className="mb-1">
           <CardHeader><CardTitle>Add bulk SKU</CardTitle></CardHeader>
-          <form onSubmit={handleCreate} className="form-grid form-grid-3 p-16">
+          <form onSubmit={handleCreate} className="form-grid form-grid-3 p-4">
             <Input name="name" placeholder="Name" required />
             <Select name="categoryId" defaultValue="__none__">
               <SelectTrigger>
@@ -307,7 +307,7 @@ export default function BulkInventoryPage() {
                       onClick={() => sku.trackByNumber && setExpandedSku(isExpanded ? null : sku.id)}
                     >
                       <td className="font-medium">
-                        <div className="flex-center gap-6">
+                        <div className="flex-center gap-1.5">
                           {sku.name}
                           {sku.trackByNumber && (
                             <Badge variant="blue" size="sm">#</Badge>
@@ -320,7 +320,7 @@ export default function BulkInventoryPage() {
                         )}
                         {!sku.trackByNumber && (
                           <Button
-                            variant="outline" size="sm" className="mt-4 text-xs px-2 py-0.5"
+                            variant="outline" size="sm" className="mt-1 text-xs px-2 py-0.5"
                             onClick={(e) => { e.stopPropagation(); handleConvertToNumbered(sku.id); }}
                             disabled={submitting}
                           >
@@ -359,11 +359,11 @@ export default function BulkInventoryPage() {
               const units = sku.units ?? [];
 
               return (
-                <div className="p-16 border-t border-border bg-[var(--bg)]">
-                  <div className="flex-between mb-12">
+                <div className="p-4 border-t border-border bg-[var(--bg)]">
+                  <div className="flex-between mb-3">
                     <h3 className="m-0 text-md">{sku.name} — Units</h3>
                     {addingUnits === sku.id ? (
-                      <div className="flex-center gap-8">
+                      <div className="flex-center gap-2">
                         <Input
                           type="number" min={1} max={500} value={addCount}
                           onChange={(e) => setAddCount(Number(e.target.value))}
@@ -416,7 +416,7 @@ export default function BulkInventoryPage() {
                     </div>
                   )}
 
-                  <div className="mt-10 text-sm text-secondary">
+                  <div className="mt-2.5 text-sm text-secondary">
                     Click a unit to cycle status: Available &rarr; Lost &rarr; Retired &rarr; Available
                   </div>
                 </div>

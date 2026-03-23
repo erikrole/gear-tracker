@@ -98,12 +98,12 @@ export default function RosterPanel({
   }
 
   return (
-    <Card className="mt-16">
+    <Card className="mt-4">
       <CardHeader>
         <CardTitle>{sportLabel(sportCode)} Roster</CardTitle>
       </CardHeader>
       {loading ? (
-        <div className="flex items-center justify-center p-16"><Spinner className="size-8" /></div>
+        <div className="flex items-center justify-center p-4"><Spinner className="size-8" /></div>
       ) : (
         <>
           {/* Desktop table */}
@@ -120,7 +120,7 @@ export default function RosterPanel({
               <tbody>
                 {roster.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="text-center text-secondary p-16">
+                    <td colSpan={4} className="text-center text-secondary p-4">
                       No one assigned to this sport yet.
                     </td>
                   </tr>
@@ -154,7 +154,7 @@ export default function RosterPanel({
           {/* Mobile cards */}
           <div className="show-mobile-only">
             {roster.length === 0 && (
-              <div className="p-16 text-center text-secondary text-sm">
+              <div className="p-4 text-center text-secondary text-sm">
                 No one assigned to this sport yet.
               </div>
             )}
@@ -167,7 +167,7 @@ export default function RosterPanel({
                       {member.user.role.charAt(0) + member.user.role.slice(1).toLowerCase()}
                     </span>
                     {member.user.primaryArea && (
-                      <span className="ml-8">{AREA_LABELS[member.user.primaryArea]}</span>
+                      <span className="ml-2">{AREA_LABELS[member.user.primaryArea]}</span>
                     )}
                   </div>
                 </div>
@@ -185,7 +185,7 @@ export default function RosterPanel({
           </div>
 
           {/* Add to roster */}
-          <div className="p-12 flex gap-8 items-center" style={{ flexWrap: "wrap" }}>
+          <div className="p-3 flex gap-2 items-center" style={{ flexWrap: "wrap" }}>
             <Select value={addUserId} onValueChange={setAddUserId}>
               <SelectTrigger style={{ minWidth: 200, flex: "1 1 200px" }}>
                 <SelectValue placeholder="Select user..." />

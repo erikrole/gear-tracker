@@ -92,7 +92,7 @@ export default function RegisterPage() {
         <h1>Creative</h1>
         <p className="login-subtitle">Create your account</p>
 
-        <div className="mb-4 space-y-1.5">
+        <div className="mb-1 space-y-1.5">
           <Label htmlFor="name">Name</Label>
           <Input
             id="name"
@@ -108,7 +108,7 @@ export default function RegisterPage() {
           {fieldErrors.name && <p className="text-destructive text-xs mt-1">{fieldErrors.name}</p>}
         </div>
 
-        <div className="mb-4 space-y-1.5">
+        <div className="mb-1 space-y-1.5">
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
@@ -123,7 +123,7 @@ export default function RegisterPage() {
           {fieldErrors.email && <p className="text-destructive text-xs mt-1">{fieldErrors.email}</p>}
         </div>
 
-        <div className="mb-4 space-y-1.5">
+        <div className="mb-1 space-y-1.5">
           <Label htmlFor="password">Password</Label>
           <div className="password-wrapper">
             <Input

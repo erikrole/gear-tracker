@@ -358,7 +358,7 @@ export default function EventsPage() {
     <>
       <div className="page-header">
         <h1>Events</h1>
-        <div className="flex gap-8">
+        <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowMappings(!showMappings)}>
             {showMappings ? "Hide mappings" : "Venue mappings"}
           </Button>
@@ -370,7 +370,7 @@ export default function EventsPage() {
 
       {/* Sync result message */}
       {syncMessage && (
-        <div className={`mb-12 text-sm rounded px-3 py-2 ${syncMessage.includes("failed") ? "bg-yellow-50 text-yellow-800" : "bg-blue-50 text-blue-800"}`}>
+        <div className={`mb-3 text-sm rounded px-3 py-2 ${syncMessage.includes("failed") ? "bg-yellow-50 text-yellow-800" : "bg-blue-50 text-blue-800"}`}>
           {syncMessage}
           <Button type="button" variant="ghost" size="sm" onClick={() => { setSyncMessage(null); setSyncDiagnostics(null); }} className="ml-2 opacity-60 hover:opacity-100 h-auto p-0.5">
             <XIcon className="size-3.5" />
@@ -380,11 +380,11 @@ export default function EventsPage() {
 
       {/* Sync diagnostics panel */}
       {syncDiagnostics && (
-        <details className="mb-12 rounded text-xs border border-border">
-          <summary className="p-12 cursor-pointer font-semibold">
+        <details className="mb-3 rounded text-xs border border-border">
+          <summary className="p-3 cursor-pointer font-semibold">
             Sync Diagnostics — {syncDiagnostics.parsedEventCount ?? 0} events parsed, {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB fetched
           </summary>
-          <div className="p-12 grid gap-2">
+          <div className="p-3 grid gap-2">
             <div><strong>Fetch URL:</strong> <code className="text-xs" style={{ wordBreak: "break-all" }}>{syncDiagnostics.fetchUrl}</code></div>
             <div><strong>HTTP Status:</strong> {syncDiagnostics.httpStatus}</div>
             <div><strong>Response Size:</strong> {((syncDiagnostics.responseSizeBytes ?? 0) / 1024).toFixed(1)} KB</div>
@@ -394,7 +394,7 @@ export default function EventsPage() {
             {(syncDiagnostics.firstEvents?.length ?? 0) > 0 && (
               <div>
                 <strong>First {syncDiagnostics.firstEvents!.length} events (by DTSTART):</strong>
-                <table className="w-full mt-4 text-xs">
+                <table className="w-full mt-1 text-xs">
                   <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.firstEvents!.map((e: { uid: string; summary: string; dtstart: string }) => (
@@ -408,7 +408,7 @@ export default function EventsPage() {
             {(syncDiagnostics.lastEvents?.length ?? 0) > 0 && (
               <div>
                 <strong>Last {syncDiagnostics.lastEvents!.length} events (by DTSTART):</strong>
-                <table className="w-full mt-4 text-xs">
+                <table className="w-full mt-1 text-xs">
                   <thead><tr><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">DTSTART</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.lastEvents!.map((e: { uid: string; summary: string; dtstart: string }) => (
@@ -422,7 +422,7 @@ export default function EventsPage() {
             {(syncDiagnostics.errors?.length ?? 0) > 0 && (
               <div>
                 <strong className="text-red">Persistence Errors ({syncDiagnostics.errors!.length} shown):</strong>
-                <table className="w-full mt-4 text-xs">
+                <table className="w-full mt-1 text-xs">
                   <thead><tr><th className="text-left">Op</th><th className="text-left">UID</th><th className="text-left">Summary</th><th className="text-left">Error</th></tr></thead>
                   <tbody>
                     {syncDiagnostics.errors!.map((e: { uid: string; summary: string; operation: string; reason: string }, i: number) => (
@@ -443,7 +443,7 @@ export default function EventsPage() {
 
       {/* Venue mapping panel */}
       {showMappings && (
-        <Card className="mb-16">
+        <Card className="mb-1">
           <CardHeader>
             <CardTitle>Venue Mappings</CardTitle>
             <Button size="sm" onClick={() => setShowAddMapping(!showAddMapping)}>
@@ -456,7 +456,7 @@ export default function EventsPage() {
           </div>
 
           {showAddMapping && (
-            <form onSubmit={handleAddMapping} className="flex flex-wrap gap-8 p-16">
+            <form onSubmit={handleAddMapping} className="flex flex-wrap gap-2 p-4">
               <Input name="pattern" placeholder="Pattern (regex or text)" required className="flex-[2] min-w-[150px]" />
               <Select name="locationId" required defaultValue="">
                 <SelectTrigger className="flex-1 min-w-[120px]">
@@ -512,7 +512,7 @@ export default function EventsPage() {
 
       {/* Sources management panel */}
       {showSources && (
-        <Card className="mb-16">
+        <Card className="mb-1">
           <CardHeader>
             <CardTitle>Calendar Sources</CardTitle>
             <Button size="sm" onClick={() => setShowAddSource(!showAddSource)}>
@@ -521,7 +521,7 @@ export default function EventsPage() {
           </CardHeader>
 
           {showAddSource && (
-            <form onSubmit={handleAddSource} className="flex gap-8 p-16">
+            <form onSubmit={handleAddSource} className="flex gap-2 p-4">
               <Input name="name" placeholder="Source name" required className="flex-1" />
               <Input name="url" placeholder="webcal:// or https:// URL" required className="flex-[2]" />
               <Button type="submit" disabled={addingSource}>{addingSource ? "Adding..." : "Add"}</Button>
@@ -583,7 +583,7 @@ export default function EventsPage() {
                         {togglingId === source.id ? "..." : source.enabled ? "Disable" : "Enable"}
                       </Button>
                     </td>
-                    <td className="flex gap-4">
+                    <td className="flex gap-1">
                       <Button
                         variant="outline"
                         size="sm"
@@ -612,7 +612,7 @@ export default function EventsPage() {
       )}
 
       {/* Filters and view toggle */}
-      <div className="filter-chip-bar mb-16">
+      <div className="filter-chip-bar mb-1">
         <div className="flex rounded border border-border overflow-hidden">
           <Button
             variant={viewMode === "list" ? "default" : "outline"}
@@ -668,9 +668,9 @@ export default function EventsPage() {
 
       {/* Calendar view */}
       {viewMode === "calendar" && (
-        <Card className="mb-16">
+        <Card className="mb-1">
           <CardHeader className="flex-row items-center justify-between">
-            <div className="flex-center gap-8">
+            <div className="flex-center gap-2">
               <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
               <CardTitle className="text-center min-w-[160px]">
                 {calMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
@@ -679,7 +679,7 @@ export default function EventsPage() {
             </div>
             <Button variant="outline" size="sm" onClick={goCalToday}>Today</Button>
           </CardHeader>
-          <div className="p-16">
+          <div className="p-4">
             <div className="cal-mobile-notice hidden">
               Switch to List view for the best mobile experience.
             </div>

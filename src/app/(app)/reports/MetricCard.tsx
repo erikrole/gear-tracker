@@ -11,7 +11,7 @@ type MetricCardProps = {
 
 export default function MetricCard({ label, value, color, badge }: MetricCardProps) {
   return (
-    <Card className="p-16 text-center">
+    <Card className="p-4 text-center">
       <div className="metric-value" style={color ? { color } : undefined}>
         {value}
       </div>

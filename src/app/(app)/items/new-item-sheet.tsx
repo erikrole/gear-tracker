@@ -167,7 +167,7 @@ export function NewItemSheet({
           {showPostCreate ? (
             <div className="space-y-6">
               <SuccessFlash message={`"${createdLabel}" created successfully!`} />
-              <div className="flex flex-col items-center gap-4 py-4">
+              <div className="flex flex-col items-center gap-1 py-4">
                 <Button
                   type="button"
                   variant="outline"

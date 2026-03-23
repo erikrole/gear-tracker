@@ -341,9 +341,9 @@ export default function ImportPage() {
       </div>
 
       {/* Step indicator */}
-      <div className="flex gap-8 mb-24">
+      <div className="flex gap-2 mb-6">
         {stepLabels.map((s, i) => (
-          <div key={s} className="flex-center gap-8">
+          <div key={s} className="flex-center gap-2">
             {i > 0 && <div style={{ width: 24, height: 1, background: "var(--border)" }} />}
             <div
               style={{
@@ -369,7 +369,7 @@ export default function ImportPage() {
       {step === "upload" && (
         <Card>
           <CardHeader><CardTitle>Upload CSV file</CardTitle></CardHeader>
-          <div className="p-24">
+          <div className="p-6">
             <div
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
@@ -387,7 +387,7 @@ export default function ImportPage() {
               />
               {file ? (
                 <>
-                  <div className="text-xl font-semibold mb-4">{file.name}</div>
+                  <div className="text-xl font-semibold mb-1">{file.name}</div>
                   <div className="text-secondary text-sm">
                     {(file.size / 1024).toFixed(1)} KB — Click or drop to replace
                   </div>
@@ -397,7 +397,7 @@ export default function ImportPage() {
                   <div className="text-4xl mb-2">
                     <UploadIcon className="size-12 text-secondary" />
                   </div>
-                  <div className="font-semibold mb-4">Drop your CSV here</div>
+                  <div className="font-semibold mb-1">Drop your CSV here</div>
                   <div className="text-secondary text-sm">
                     Supports semicolon and comma delimited CSV
                   </div>
@@ -405,7 +405,7 @@ export default function ImportPage() {
               )}
             </div>
 
-            <div className="flex-end mt-16">
+            <div className="flex-end mt-4">
               <Button
                 disabled={!file || loading}
                 onClick={handleParseHeaders}
@@ -420,7 +420,7 @@ export default function ImportPage() {
       {/* ── Column mapping step ── */}
       {step === "mapping" && csvHeaders.length > 0 && (
         <>
-          <Card className="mb-16">
+          <Card className="mb-1">
             <CardHeader>
               <CardTitle>Map CSV columns to fields</CardTitle>
               <span className="text-secondary text-sm">
@@ -465,7 +465,7 @@ export default function ImportPage() {
             </div>
           </Card>
 
-          <div className="flex-end gap-8">
+          <div className="flex-end gap-2">
             <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
             <Button
               disabled={!mapping["Name"] && !Object.values(mapping).includes("assetTag")}
@@ -481,7 +481,7 @@ export default function ImportPage() {
       {step === "preview" && preview && (
         <>
           {/* Summary cards */}
-          <div className="summary-grid mb-16">
+          <div className="summary-grid mb-1">
             <SummaryCard label="Total items" value={preview.summary.totalItems} />
             <SummaryCard label="Will create" value={preview.summary.willCreate} color="var(--green)" />
             <SummaryCard label="Will update" value={preview.summary.willUpdate} color="var(--blue)" />
@@ -492,30 +492,30 @@ export default function ImportPage() {
 
           {/* New entities to create */}
           {(preview.summary.newLocations.length > 0 || preview.summary.newDepartments.length > 0 || preview.summary.kits.length > 0) && (
-            <Card className="mb-16">
+            <Card className="mb-1">
               <CardHeader><CardTitle>Will be auto-created</CardTitle></CardHeader>
-              <div className="p-16 flex flex-wrap gap-16">
+              <div className="p-4 flex flex-wrap gap-4">
                 {preview.summary.newLocations.length > 0 && (
                   <div>
-                    <div className="font-semibold text-sm mb-4">New Locations</div>
+                    <div className="font-semibold text-sm mb-1">New Locations</div>
                     {preview.summary.newLocations.map((l) => (
-                      <Badge key={l} variant="blue" className="mr-4 mb-4">{l}</Badge>
+                      <Badge key={l} variant="blue" className="mr-1 mb-1">{l}</Badge>
                     ))}
                   </div>
                 )}
                 {preview.summary.newDepartments.length > 0 && (
                   <div>
-                    <div className="font-semibold text-sm mb-4">New Departments</div>
+                    <div className="font-semibold text-sm mb-1">New Departments</div>
                     {preview.summary.newDepartments.map((d) => (
-                      <Badge key={d} variant="purple" className="mr-4 mb-4">{d}</Badge>
+                      <Badge key={d} variant="purple" className="mr-1 mb-1">{d}</Badge>
                     ))}
                   </div>
                 )}
                 {preview.summary.kits.length > 0 && (
                   <div>
-                    <div className="font-semibold text-sm mb-4">Kits</div>
+                    <div className="font-semibold text-sm mb-1">Kits</div>
                     {preview.summary.kits.map((k) => (
-                      <Badge key={k} variant="orange" className="mr-4 mb-4">{k}</Badge>
+                      <Badge key={k} variant="orange" className="mr-1 mb-1">{k}</Badge>
                     ))}
                   </div>
                 )}
@@ -567,7 +567,7 @@ export default function ImportPage() {
                       </td>
                       <td className="font-semibold">
                         {row.assetTag}
-                        {row.assetTagDeduped && <Badge variant="orange" size="sm" className="ml-4">renamed</Badge>}
+                        {row.assetTagDeduped && <Badge variant="orange" size="sm" className="ml-1">renamed</Badge>}
                       </td>
                       <td>{row.brand}</td>
                       <td>{row.model}</td>
@@ -590,7 +590,7 @@ export default function ImportPage() {
             </div>
           </Card>
 
-          <div className="flex-end gap-8 mt-16">
+          <div className="flex-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setStep("mapping")}>Back to mapping</Button>
             <Button variant="outline" onClick={resetWizard}>Cancel</Button>
             <Button
@@ -606,11 +606,11 @@ export default function ImportPage() {
       {/* ── Importing step ── */}
       {step === "importing" && (
         <Card>
-          <div className="p-48 text-center">
+          <div className="p-12 text-center">
             <div className="flex items-center justify-center py-10">
               <Spinner className="size-8" />
             </div>
-            <div className="mt-16 font-semibold">Importing items...</div>
+            <div className="mt-4 font-semibold">Importing items...</div>
             <div className="text-secondary text-sm">
               Creating locations, departments, kits, and assets
             </div>
@@ -621,7 +621,7 @@ export default function ImportPage() {
       {/* ── Summary step ── */}
       {step === "summary" && result && (
         <>
-          <div className="summary-grid mb-16">
+          <div className="summary-grid mb-1">
             <SummaryCard label="Created" value={result.created} color="var(--green)" />
             <SummaryCard label="Updated" value={result.updated} color="var(--blue)" />
             <SummaryCard label="Skipped" value={result.skipped} warn={result.skipped > 0} />
@@ -629,7 +629,7 @@ export default function ImportPage() {
           </div>
 
           {result.errors.length > 0 && (
-            <Card className="mb-16">
+            <Card className="mb-1">
               <CardHeader>
                 <CardTitle>Errors ({result.errors.length})</CardTitle>
                 <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
@@ -660,14 +660,14 @@ export default function ImportPage() {
           )}
 
           <Card>
-            <div className="p-24 text-center">
+            <div className="p-6 text-center">
               <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>
                 {result.created + result.updated > 0 ? "Import complete" : "No items imported"}
               </div>
-              <div className="text-secondary mb-16">
+              <div className="text-secondary mb-1">
                 {result.created} created, {result.updated} updated, {result.skipped} skipped
               </div>
-              <div className="flex gap-8" style={{ justifyContent: "center" }}>
+              <div className="flex gap-2" style={{ justifyContent: "center" }}>
                 <Button variant="outline" onClick={resetWizard}>Import another file</Button>
                 <Button asChild><a href="/items" className="no-underline">View items</a></Button>
               </div>
@@ -691,7 +691,7 @@ function SummaryCard({
   color?: string;
 }) {
   return (
-    <Card className="p-16 text-center">
+    <Card className="p-4 text-center">
       <div className="metric-value" style={{ color: warn ? "var(--red)" : color || "var(--text-primary)" }}>
         {value}
       </div>

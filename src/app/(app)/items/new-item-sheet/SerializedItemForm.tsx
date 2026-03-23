@@ -302,7 +302,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
           <div className="space-y-3">
             {/* Accessory toggle */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-1">
               <div>
                 <Label className="text-sm font-medium">Item is an accessory</Label>
                 <p className="text-xs text-muted-foreground">Attach to a parent item (e.g. lens → camera body)</p>
@@ -386,21 +386,21 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             {/* Booking availability — three independent toggles matching detail page */}
             {!isAccessory && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-1">
                   <div>
                     <Label className="text-sm font-medium">Available for reservation</Label>
                     <p className="text-xs text-muted-foreground">Item is available to be used in reservations</p>
                   </div>
                   <Switch checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
                 </div>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-1">
                   <div>
                     <Label className="text-sm font-medium">Available for check out</Label>
                     <p className="text-xs text-muted-foreground">Item is available to be used in check-outs</p>
                   </div>
                   <Switch checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
                 </div>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-1">
                   <div>
                     <Label className="text-sm font-medium">Available for custody</Label>
                     <p className="text-xs text-muted-foreground">Item can be taken into custody by a user</p>

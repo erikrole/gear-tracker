@@ -108,7 +108,7 @@ export function AccessoriesSection({
   if (isChild) return null;
 
   return (
-    <div className="mt-14 max-w-2xl">
+    <div className="mt-3.5 max-w-2xl">
       <Card className="border-border/40 shadow-none">
         <CardHeader>
           <CardTitle>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</CardTitle>
@@ -120,7 +120,7 @@ export function AccessoriesSection({
         </CardHeader>
         <CardContent className="p-4 pt-0">
           {attaching && (
-            <div className="mb-4">
+            <div className="mb-1">
               <Input
                 type="text"
                 placeholder="Search by asset tag, brand, or model..."

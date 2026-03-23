@@ -202,7 +202,7 @@ export default function BookingDetailPage({
           <Skeleton className="h-5 w-24 rounded-full" />
           <Skeleton className="h-5 w-48 rounded-full" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-1.5">
           <Skeleton className="h-72 rounded-lg" />
           <Skeleton className="h-72 rounded-lg" />
         </div>
@@ -428,7 +428,7 @@ export default function BookingDetailPage({
       )}
 
       {/* ── Two-column layout: Info + Equipment ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-1.5">
         {/* Left: Info card */}
         <div>
           <BookingInfoTab

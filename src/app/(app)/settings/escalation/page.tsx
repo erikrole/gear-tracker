@@ -123,7 +123,7 @@ export default function EscalationSettingsPage() {
 
       <div className="settings-main">
         {/* Rules table */}
-        <Card className="mb-16">
+        <Card className="mb-1">
           <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
           <div className="data-table-wrap">
           <table className="data-table">
@@ -172,8 +172,8 @@ export default function EscalationSettingsPage() {
         {/* Fatigue controls */}
         <Card>
           <CardHeader><CardTitle>Fatigue Controls</CardTitle></CardHeader>
-          <div className="p-16">
-            <div className="flex gap-12 items-center">
+          <div className="p-4">
+            <div className="flex gap-3 items-center">
               <label htmlFor="cap" className="text-sm font-semibold">
                 Max notifications per booking
               </label>
@@ -192,7 +192,7 @@ export default function EscalationSettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-sm text-secondary mt-8 m-0">
+            <p className="text-sm text-secondary mt-2 m-0">
               Once a booking reaches this limit, no further notifications will be sent for it.
               This prevents alert fatigue for long-overdue items.
             </p>

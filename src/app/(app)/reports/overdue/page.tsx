@@ -138,9 +138,9 @@ export default function OverdueLeaderboardPage() {
   if (loading) {
     return (
       <>
-        <div className="summary-grid mb-16">
+        <div className="summary-grid mb-1">
           {[0, 1].map((i) => (
-            <Card key={i} className="p-16 text-center">
+            <Card key={i} className="p-4 text-center">
               <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
               <Skeleton className="skeleton-text-sm mx-auto w-[100px]" />
             </Card>
@@ -161,8 +161,8 @@ export default function OverdueLeaderboardPage() {
 
   if (error || !data) {
     return (
-      <Card className="p-16 text-center">
-        <p className="text-secondary mb-8">Failed to load overdue report.</p>
+      <Card className="p-4 text-center">
+        <p className="text-secondary mb-2">Failed to load overdue report.</p>
         <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
       </Card>
     );
@@ -171,13 +171,13 @@ export default function OverdueLeaderboardPage() {
   return (
     <>
       {data.leaderboard.length > 0 && (
-        <div className="flex-center mb-16" style={{ justifyContent: "flex-end" }}>
+        <div className="flex-center mb-1" style={{ justifyContent: "flex-end" }}>
           <Button variant="outline" size="sm" onClick={() => downloadCsv(data.leaderboard)}>
             Export CSV
           </Button>
         </div>
       )}
-      <div className="summary-grid mb-16">
+      <div className="summary-grid mb-1">
         <MetricCard
           value={data.totalOverdueBookings}
           label="Overdue checkouts"

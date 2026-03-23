@@ -125,7 +125,7 @@ export default function UserDetailPage() {
         {/* Tabs skeleton */}
         <Skeleton className="h-9 w-40" />
         {/* Content skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5">
           <Skeleton className="h-64 rounded-xl" />
           <Skeleton className="h-48 rounded-xl" />
         </div>
@@ -136,7 +136,7 @@ export default function UserDetailPage() {
   return (
     <>
       {/* Breadcrumb */}
-      <Breadcrumb className="mb-4">
+      <Breadcrumb className="mb-1">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
@@ -168,7 +168,7 @@ export default function UserDetailPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="mt-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="mt-1">
         <TabsList>
           {tabDefs.map((tab) => (
             <TabsTrigger key={tab.key} value={tab.key}>

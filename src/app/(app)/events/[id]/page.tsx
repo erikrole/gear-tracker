@@ -261,9 +261,9 @@ export default function EventDetailPage() {
           </CardHeader>
           <div style={{ padding: 16 }}>
             {shiftGroup.isPremier && (
-              <div className="mb-8">
+              <div className="mb-2">
                 <Badge variant="blue">Premier Event</Badge>
-                <span className="text-xs text-secondary ml-4">Students can request shifts</span>
+                <span className="text-xs text-secondary ml-1">Students can request shifts</span>
               </div>
             )}
             <table className="data-table" style={{ fontSize: "var(--text-sm)" }}>

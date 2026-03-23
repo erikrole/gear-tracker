@@ -170,7 +170,7 @@ export default function UserInfoTab({
   }));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5 mt-6">
       {/* Profile Card */}
       <Card>
         <CardHeader>
@@ -235,9 +235,9 @@ export default function UserInfoTab({
           {/* Sport Assignments */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
           {user.sportAssignments.length === 0 ? (
-            <p className="text-sm text-muted-foreground mb-4">No sport assignments</p>
+            <p className="text-sm text-muted-foreground mb-1">No sport assignments</p>
           ) : (
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            <div className="flex flex-wrap gap-1.5 mb-1">
               {user.sportAssignments.map((sa) => (
                 <Badge key={sa.id} variant="blue" size="sm">
                   {sportLabel(sa.sportCode)}

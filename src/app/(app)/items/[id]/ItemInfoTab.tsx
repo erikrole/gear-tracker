@@ -499,10 +499,10 @@ export function QRModal({
           <DialogCloseButton />
         </DialogHeader>
         <DialogBody className="py-6">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-1">
             <QRCodeCanvas value={asset.qrCodeValue} size={240} />
           </div>
-          <div className="font-semibold font-mono text-center text-sm mb-4">
+          <div className="font-semibold font-mono text-center text-sm mb-1">
             {asset.qrCodeValue}
           </div>
           {canEdit && (

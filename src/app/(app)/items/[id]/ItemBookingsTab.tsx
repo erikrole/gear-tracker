@@ -127,7 +127,7 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
           <CardTitle>Tracking Codes</CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-1 items-center">
             <button
               className="asset-tag-label"
               onClick={() => setShowModal(true)}
@@ -253,7 +253,7 @@ export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRe
   const reservations = asset.upcomingReservations;
 
   return (
-    <div className="flex-col gap-16">
+    <div className="flex flex-col gap-4">
       {/* Active Checkout / Reservation Card (always visible) */}
       {b ? (
         <ActiveBookingCard booking={b} kind={b.kind} now={now} onSelectBooking={onSelectBooking} />
@@ -340,7 +340,7 @@ export function BookingKindTab({
   const showUpcoming = kind === "RESERVATION" && asset.upcomingReservations.length > 0;
 
   return (
-    <div className="flex-col gap-16 mt-14">
+    <div className="flex flex-col gap-4 mt-3.5">
       {/* Active booking card at top of matching tab */}
       {showActiveCard && activeBooking && (
         <ActiveBookingCard booking={activeBooking} kind={kind} now={now} onSelectBooking={onSelectBooking} />
@@ -480,17 +480,17 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d });
 
   return (
-    <div className="mt-14">
+    <div className="mt-3.5">
       <Card>
         <CardHeader>
-          <div className="flex-center gap-8">
+          <div className="flex-center gap-2">
             <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
             <CardTitle className="cal-month-label">{monthLabel}</CardTitle>
             <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
           </div>
           <Button variant="outline" size="sm" onClick={goToday}>Today</Button>
         </CardHeader>
-        <CardContent className="p-16">
+        <CardContent className="p-4">
           {/* Day headers */}
           <div className="cal-grid">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
@@ -523,7 +523,7 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
       </Card>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-3 justify-center">
+      <div className="flex items-center gap-1 mt-3 justify-center">
         <div className="flex items-center gap-1.5 text-sm">
           <Badge variant="blue" size="sm">Checkout</Badge>
         </div>
@@ -568,7 +568,7 @@ export function BookingsTab({
   const showUpcoming = asset.upcomingReservations.length > 0;
 
   return (
-    <div className="flex-col gap-16 mt-14">
+    <div className="flex flex-col gap-4 mt-3.5">
       {/* Active booking card */}
       {activeBooking && (
         <ActiveBookingCard booking={activeBooking} kind={activeBooking.kind} now={now} onSelectBooking={onSelectBooking} />
@@ -669,7 +669,7 @@ export function BookingsTab({
 
 export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
   return (
-    <div className="mt-14 max-w-lg">
+    <div className="mt-3.5 max-w-lg">
       <SettingsCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );

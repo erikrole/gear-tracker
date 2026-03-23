@@ -60,7 +60,7 @@ export default function ShiftConfigTable({
                 <tr key={code} className={isExpanded ? "row-expanded" : undefined}>
                   <td>
                     <span className="font-semibold">{code}</span>
-                    <span className="text-secondary ml-8 text-sm">{sportLabel(code)}</span>
+                    <span className="text-secondary ml-2 text-sm">{sportLabel(code)}</span>
                   </td>
                   <td>
                     <button
@@ -134,7 +134,7 @@ export default function ShiftConfigTable({
               <div className="sport-mobile-top">
                 <div>
                   <span className="font-semibold">{code}</span>
-                  <span className="text-secondary ml-8 text-sm">{sportLabel(code)}</span>
+                  <span className="text-secondary ml-2 text-sm">{sportLabel(code)}</span>
                 </div>
                 <button
                   className={`toggle${isActive ? " on" : ""}`}
@@ -191,7 +191,7 @@ export default function ShiftConfigTable({
         })}
       </div>
 
-      <div className="p-12">
+      <div className="p-3">
         <p className="text-sm text-secondary m-0">
           Numbers show Home / Away shift count per area. Toggle Active to enable shift generation for a sport.
         </p>
