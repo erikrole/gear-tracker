@@ -10,7 +10,6 @@ import {
   MonitorIcon,
   LayoutGridIcon,
   CalendarIcon,
-  ClockIcon,
   LayersIcon,
   BoxIcon,
   UsersIcon,
@@ -26,8 +25,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: <LayoutGridIcon /> },
-  { label: "Calendar", href: "/events", icon: <CalendarIcon /> },
-  { label: "Schedule", href: "/schedule", icon: <ClockIcon /> },
+  { label: "Schedule", href: "/schedule", icon: <CalendarIcon /> },
   { label: "Items", href: "/items", icon: <LayersIcon /> },
   { label: "Kits", href: "/kits", icon: <BoxIcon /> },
   { label: "Users", href: "/users", icon: <UsersIcon /> },
