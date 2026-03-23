@@ -3005,14 +3005,14 @@ textarea:focus-visible {
   background: var(--green-bg);
 }
 
+.scan-feedback-info {
+  color: var(--text-secondary);
+  background: var(--accent-soft);
+}
+
 .scan-feedback-error {
   color: var(--red, #dc2626);
   background: var(--red-bg);
-}
-
-.scan-feedback-icon {
-  font-size: var(--text-lg);
-  flex-shrink: 0;
 }
 
 @keyframes scan-feedback-in {

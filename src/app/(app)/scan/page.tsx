@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ChevronLeftIcon, XIcon, ScanIcon, AlertCircleIcon, Loader2Icon } from "lucide-react";
+import { ChevronLeftIcon, XIcon, ScanIcon, AlertCircleIcon, Loader2Icon, WifiOffIcon, CheckCircle2Icon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
@@ -119,7 +119,7 @@ export default function ScanPage() {
   const [manualCode, setManualCode] = useState("");
   const [processing, setProcessing] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [lastScanResult, setLastScanResult] = useState<{ message: string; success: boolean } | null>(null);
+  const [lastScanResult, setLastScanResult] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const scanFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [itemPreview, setItemPreview] = useState<ItemPreview | null>(null);
@@ -226,11 +226,16 @@ export default function ScanPage() {
   }, [mode, checkoutId, phaseParam, loadScanStatus]);
 
   // ── Set scan feedback with auto-clear ──
-  function setScanFeedback(result: { message: string; success: boolean } | null) {
+  type ScanFeedback = { message: string; type: "success" | "error" | "info" } | null;
+  function setScanFeedback(result: { message: string; success: boolean } | ScanFeedback) {
     if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current);
-    setLastScanResult(result);
-    if (result) {
-      scanFeedbackTimer.current = setTimeout(() => setLastScanResult(null), result.success ? 5_000 : 8_000);
+    if (!result) { setLastScanResult(null); return; }
+    // Normalize old {success} format to {type}
+    const normalized = "type" in result ? result : { message: result.message, type: result.success ? "success" as const : "error" as const };
+    setLastScanResult(normalized);
+    if (normalized) {
+      const delay = normalized.type === "success" ? 5_000 : 8_000;
+      scanFeedbackTimer.current = setTimeout(() => setLastScanResult(null), delay);
     }
   }
 
@@ -357,7 +362,8 @@ export default function ScanPage() {
         } else if (res.status === 409) {
           errMsg = json.error || "Unit not available — it may have been scanned by another device";
         } else if (errCode === "DUPLICATE_SCAN") {
-          errMsg = "Already scanned — skipping duplicate";
+          setScanFeedback({ message: "Already scanned — skipping duplicate", type: "info" });
+          return false;
         }
         setScanFeedback({ message: errMsg, success: false });
         vibrate(50);
@@ -726,8 +732,16 @@ export default function ScanPage() {
 
         {/* Inline scan feedback */}
         {lastScanResult && (
-          <div className={`scan-feedback ${lastScanResult.success ? "scan-feedback-success" : "scan-feedback-error"}`}>
-            <span className="scan-feedback-icon">{lastScanResult.success ? "\u2713" : "\u2717"}</span>
+          <div className={`scan-feedback ${lastScanResult.type === "success" ? "scan-feedback-success" : lastScanResult.type === "info" ? "scan-feedback-info" : "scan-feedback-error"}`}>
+            {lastScanResult.type === "success" ? (
+              <CheckCircle2Icon className="size-4 shrink-0" />
+            ) : lastScanResult.type === "info" ? (
+              <CheckCircle2Icon className="size-4 shrink-0" />
+            ) : lastScanResult.message.includes("Network") || lastScanResult.message.includes("offline") ? (
+              <WifiOffIcon className="size-4 shrink-0" />
+            ) : (
+              <AlertCircleIcon className="size-4 shrink-0" />
+            )}
             {lastScanResult.message}
           </div>
         )}
@@ -907,12 +921,12 @@ export default function ScanPage() {
 
       {/* ══════ Celebration overlay ══════ */}
       {showCelebration && (
-        <div className="scan-celebration">
+        <div className="scan-celebration" onClick={() => setShowCelebration(false)}>
           <div className="scan-celebration-card">
             <div className="scan-celebration-icon">{"\u2705"}</div>
             <div className="scan-celebration-title">All items scanned!</div>
             <div className="scan-celebration-desc">
-              Tap the button below to {mode === "checkin" ? "complete check-in" : "complete checkout"}
+              Tap to dismiss, then complete {mode === "checkin" ? "check-in" : "checkout"} below
             </div>
           </div>
         </div>
