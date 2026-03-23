@@ -540,3 +540,20 @@ Always use shadcn Empty component:
 ### Reliability Patterns
 - **Retry button must call loadData, not just clear error state**: Anti-pattern: `onClick={() => { setError(false); setLoading(true); }}` — this clears the error and shows loading but never re-fetches. Always call the actual data loading function.
 - **Refresh-without-replacement for filter changes**: When `data !== null` and the user changes a filter, don't replace visible data with skeletons. Show a subtle spinner (e.g., RefreshCw animate-spin) and keep current data visible until the new response arrives. Only show full skeletons on initial load (`data === null`).
+
+## Session 2026-03-23 (Schedule Page Merge + Hardening)
+
+### Architecture Patterns
+- **Merge pages that answer the same question**: If two pages pivot on the same model and answer "what's happening and who's working?", merge them. Staff shouldn't bounce between pages for related context. The unified `/schedule` page replaced `/events` + old `/schedule`.
+- **Parallel API fetches over combined endpoints**: Fetching `/api/calendar-events` and `/api/shift-groups` in parallel from the client is simpler than creating a combined endpoint. One API can 403 gracefully (students without shift:view) without blocking the other.
+- **Keep Trade Board accessible during page context**: Moving Trade Board from a tab (replaces page) to a Sheet overlay (side panel) lets users see the schedule while browsing trades. Side panels preserve context; tabs destroy it.
+
+### UX Patterns
+- **"My Shifts" as default-ON for students**: Student users want their shifts first. Default the filter ON for STUDENT role (from `/api/me`), but only when localStorage has no prior preference (`=== null` check). This respects user choice after first interaction.
+- **Filtered count indicator**: Show "N of M" (e.g., "3 of 12") when filters reduce the result set. Helps users understand they're seeing a subset without needing to clear filters to verify.
+- **Trade count badge on button**: A small orange badge with open trade count on the "Trade Board" button provides at-a-glance visibility of pending actions. Refresh the count when the sheet closes (trades may have been claimed/cancelled).
+- **Inline coverage expansion**: Click a coverage badge to expand per-area breakdown inline (Video 2/2, Photo 1/2, etc.) with assign buttons. Avoids opening ShiftDetailPanel just to see which areas need staff.
+
+### Reliability Patterns
+- **hasLoadedRef for refresh-preserves-data**: Use a ref (not state) to track whether initial data load completed. On subsequent loads (filter/view changes), skip `setLoading(true)` so existing data stays visible. Avoids skeleton flash on every filter change.
+- **Trade count refresh on sheet close**: The `onOpenChange` handler on the Sheet fires when closing — use it to re-fetch trade count since the user may have claimed or cancelled trades while the sheet was open.
