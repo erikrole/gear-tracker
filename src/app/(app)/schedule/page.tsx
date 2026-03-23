@@ -677,13 +677,15 @@ export default function SchedulePage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {myShiftsOnly ? "My" : includePast ? "All" : "Upcoming"} Events (
-              {filteredEntries.length})
+              {myShiftsOnly ? "My" : includePast ? "All" : "Upcoming"} Events{" "}
+              ({filteredEntries.length !== entries.length
+                ? `${filteredEntries.length} of ${entries.length}`
+                : filteredEntries.length})
             </CardTitle>
           </CardHeader>
 
           {loading ? (
-            <SkeletonTable rows={6} cols={6} />
+            <SkeletonTable rows={6} cols={5} />
           ) : loadError ? (
             <div className="p-4 text-center">
               <p className="text-secondary mb-2">
