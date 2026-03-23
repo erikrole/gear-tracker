@@ -509,3 +509,20 @@ Always use shadcn Empty component:
 ### Design System Patterns
 - **Badge variants map to status enums**: When a component has a `statusColor()` function returning hex values, check if shadcn Badge already has matching variants (green, blue, purple, orange, gray). Direct replacement eliminates inline styles and custom CSS.
 - **Progress component replaces custom progress bars**: Custom `.progress-bar` + `.progress-fill` CSS is a direct shadcn Progress replacement. Use `[&>[data-slot=progress-indicator]]:bg-color` for custom indicator colors.
+
+## Session 2026-03-23 (Profile Page Hardening)
+
+### Architecture Patterns
+- **"Same page, different context" > separate pages**: When a profile page duplicates a user detail page with minor additions (avatar upload, password change), merge them. Use `isSelf` detection to conditionally show self-edit features. This eliminates code duplication, keeps the navigation model simple, and ensures profile features stay in sync with the user detail page.
+- **Redirect pages for backward compatibility**: When merging pages, keep the old route as a lightweight redirect (`/profile` → `/users/{id}`) so bookmarks and links still work. The redirect fetches the user ID then calls `router.replace()`.
+
+### Data Flow Patterns
+- **Separate `canEdit` from `isSelf`**: A boolean `canEdit = isSelf || isAdmin` is too coarse when different fields have different edit permissions. Students can edit their own name/location but not email/phone/role. Pass both `canEdit` (role-based) and `isSelf` to the component, and apply field-level permissions: `canEdit={canEdit || isSelf}` for name/location, `canEdit={canEdit}` for admin-only fields.
+- **Route self-edits through the right API**: When the same form serves both admin-edits and self-edits, the `patchUser` function must detect which API to use. Self-edits for name/location go through `/api/profile` (works for all roles), while other fields require `/api/users/:id` (ADMIN/STAFF only). Anti-pattern: using a single `canEdit` boolean that makes all fields editable for self-viewers, then sending all edits through the admin API which returns 403 for students.
+
+### Resilience Patterns
+- **Clear stale data on retry**: When a retry button re-triggers data loading, always clear the previous data (`setUser(null)`) alongside clearing the error state. Without this, old data is briefly visible while the new request is in flight, which can show the wrong user's information.
+
+### UX Patterns
+- **Optimistic removal with rollback**: For destructive actions where the expected outcome is clear (removing an avatar sets it to null), update the UI immediately and restore on failure. Save the previous value, set the new state optimistically, then rollback in both the error response and catch paths.
+- **Contextual breadcrumbs**: When the same page serves two purposes (user detail vs profile), the breadcrumb should reflect the user's intent: show "Profile" when `isSelf`, show the user's name when viewing someone else.
