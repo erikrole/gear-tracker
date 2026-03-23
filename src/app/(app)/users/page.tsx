@@ -16,9 +16,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowUpDown, Loader2 } from "lucide-react";
+import { ArrowUpDown, Loader2, RefreshCw, WifiOff } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const LIMIT = 50;
+
+function formatRelativeShort(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 10) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
+}
 
 /* ── Sort Header ───────────────────────────────────────── */
 
@@ -72,7 +82,8 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<false | "network" | "server">(false);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   // Filters & sort
   const [search, setSearch] = useState("");
@@ -121,12 +132,15 @@ export default function UsersPage() {
         setUsers(json.data ?? []);
         setTotal(json.total ?? 0);
         setLoadError(false);
+        setLastFetched(new Date());
         hasDataRef.current = (json.data ?? []).length > 0;
       } else if (!hasDataRef.current) {
-        setLoadError(true);
+        setLoadError("server");
       }
     } catch (err) {
-      if ((err as Error).name !== "AbortError" && !hasDataRef.current) setLoadError(true);
+      if ((err as Error).name !== "AbortError" && !hasDataRef.current) {
+        setLoadError(navigator.onLine === false ? "network" : "server");
+      }
     }
     if (!controller.signal.aborted) setLoading(false);
   }, [page, search, sort, roleFilter, locationFilter]);
@@ -169,7 +183,18 @@ export default function UsersPage() {
       <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-2">
           <h1>Users</h1>
-          {isRefreshing && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={reload} disabled={loading}>
+                <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {lastFetched
+                ? `Updated ${formatRelativeShort(lastFetched)}`
+                : "Refresh"}
+            </TooltipContent>
+          </Tooltip>
         </div>
         {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
@@ -235,9 +260,11 @@ export default function UsersPage() {
           </div>
         ) : loadError ? (
           <EmptyState
-            icon="users"
-            title="Failed to load users"
-            description="Something went wrong. Please try again."
+            icon={loadError === "network" ? "wifi-off" : "users"}
+            title={loadError === "network" ? "You\u2019re offline" : "Failed to load users"}
+            description={loadError === "network"
+              ? "Check your internet connection and try again."
+              : "Something went wrong \u2014 usually temporary."}
             actionLabel="Retry"
             onAction={reload}
           />
