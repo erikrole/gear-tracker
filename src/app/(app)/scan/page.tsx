@@ -120,6 +120,7 @@ export default function ScanPage() {
   const [processing, setProcessing] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<{ message: string; success: boolean } | null>(null);
+  const scanFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [itemPreview, setItemPreview] = useState<ItemPreview | null>(null);
 
@@ -224,6 +225,15 @@ export default function ScanPage() {
     return () => clearInterval(interval);
   }, [mode, checkoutId, phaseParam, loadScanStatus]);
 
+  // ── Set scan feedback with auto-clear ──
+  function setScanFeedback(result: { message: string; success: boolean } | null) {
+    if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current);
+    setLastScanResult(result);
+    if (result) {
+      scanFeedbackTimer.current = setTimeout(() => setLastScanResult(null), result.success ? 5_000 : 8_000);
+    }
+  }
+
   // ── Vibrate on scan (mobile haptic feedback) ──
   function vibrate(ms = 100) {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -235,7 +245,7 @@ export default function ScanPage() {
   const handleLookupScan = useCallback(async (value: string) => {
     processingRef.current = true;
     setProcessing(true);
-    setLastScanResult(null);
+    setScanFeedback(null);
     setItemPreview(null);
     try {
       let searchTerm = value;
@@ -244,7 +254,7 @@ export default function ScanPage() {
 
       const res = await fetch(`/api/assets?q=${encodeURIComponent(searchTerm)}&limit=5`);
       if (!res.ok) {
-        setLastScanResult({ message: res.status === 401 ? "Session expired — please log in again" : "Failed to look up item", success: false });
+        setScanFeedback({ message: res.status === 401 ? "Session expired — please log in again" : "Failed to look up item", success: false });
         processingRef.current = false;
         setProcessing(false);
         return;
@@ -284,9 +294,9 @@ export default function ScanPage() {
         return;
       }
 
-      setLastScanResult({ message: `No item found for: ${value}`, success: false });
+      setScanFeedback({ message: `No item found for: ${value}`, success: false });
     } catch {
-      setLastScanResult({ message: "Network error", success: false });
+      setScanFeedback({ message: "Network error", success: false });
     }
     processingRef.current = false;
     setProcessing(false);
@@ -309,12 +319,12 @@ export default function ScanPage() {
 
       if (res.ok) {
         vibrate();
-        setLastScanResult({ message: "Item scanned successfully", success: true });
+        setScanFeedback({ message: "Item scanned successfully", success: true });
         await loadScanStatus();
         return true;
       } else {
         if (res.status === 401) {
-          setLastScanResult({ message: "Session expired — please log in again", success: false });
+          setScanFeedback({ message: "Session expired — please log in again", success: false });
           return false;
         }
         const json = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
@@ -328,12 +338,12 @@ export default function ScanPage() {
         } else if (errCode === "DUPLICATE_SCAN") {
           errMsg = "Already scanned — skipping duplicate";
         }
-        setLastScanResult({ message: errMsg, success: false });
+        setScanFeedback({ message: errMsg, success: false });
         vibrate(50);
         return false;
       }
     } catch {
-      setLastScanResult({ message: "Network error \u2014 try again", success: false });
+      setScanFeedback({ message: "Network error \u2014 try again", success: false });
       return false;
     }
   }, [checkoutId, phaseParam, loadScanStatus]);
@@ -345,98 +355,96 @@ export default function ScanPage() {
     if (processingRef.current) return;
     processingRef.current = true;
     setProcessing(true);
-    setLastScanResult(null);
+    setScanFeedback(null);
 
-    // Check if this QR belongs to a numbered bulk item
-    const numberedBulk = scanStatus.bulkItems.find(
-      (item) => item.trackByNumber
-    );
-
-    // We need to check if the scan value matches a bulk bin QR — try the scan
-    // and if it's a numbered bulk item, the API will tell us we need unitNumbers
-    if (numberedBulk) {
-      // Try as serialized first
-      const res = await fetch(
-        phaseParam === "CHECKIN"
-          ? `/api/checkouts/${checkoutId}/checkin-scan`
-          : `/api/checkouts/${checkoutId}/scan`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phase: phaseParam, scanType: "SERIALIZED", scanValue: value }),
-        }
-      );
-
-      if (res.ok) {
-        vibrate();
-        setLastScanResult({ message: "Item scanned successfully", success: true });
-        await loadScanStatus();
-        processingRef.current = false;
-        setProcessing(false);
-        return;
-      }
-
-      if (res.status === 401) {
-        setLastScanResult({ message: "Session expired — please log in again", success: false });
-        processingRef.current = false;
-        setProcessing(false);
-        return;
-      }
-
-      const errJson = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
-      const errCode = errJson.data?.code;
-      const errMsg = errJson.error || "";
-
-      // If serialized scan failed because item isn't in this checkout,
-      // check if the scan matches a numbered bulk bin instead
-      const matchingBulk = scanStatus.bulkItems.find(
+    try {
+      // Check if this QR belongs to a numbered bulk item
+      const numberedBulk = scanStatus.bulkItems.find(
         (item) => item.trackByNumber
       );
 
-      if (matchingBulk && errCode === "SCAN_NOT_IN_CHECKOUT") {
-        // Fetch available units to show picker
-        const unitsRes = await fetch(`/api/bulk-skus/${matchingBulk.bulkSkuId}/units`);
-        if (unitsRes.ok) {
-          const unitsJson = await unitsRes.json();
-          const units = unitsJson.data as Array<{ unitNumber: number; status: string }>;
+      // We need to check if the scan value matches a bulk bin QR — try the scan
+      // and if it's a numbered bulk item, the API will tell us we need unitNumbers
+      if (numberedBulk) {
+        // Try as serialized first
+        const res = await fetch(
+          phaseParam === "CHECKIN"
+            ? `/api/checkouts/${checkoutId}/checkin-scan`
+            : `/api/checkouts/${checkoutId}/scan`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phase: phaseParam, scanType: "SERIALIZED", scanValue: value }),
+          }
+        );
 
-          const availableUnits = phaseParam === "CHECKOUT"
-            ? units.filter((u) => u.status === "AVAILABLE").map((u) => u.unitNumber)
-            : units.filter((u) => u.status === "CHECKED_OUT").map((u) => u.unitNumber);
+        if (res.ok) {
+          vibrate();
+          setScanFeedback({ message: "Item scanned successfully", success: true });
+          await loadScanStatus();
+          return;
+        }
 
-          if (availableUnits.length > 0) {
-            setUnitPicker({
-              bulkSkuId: matchingBulk.bulkSkuId,
-              scanValue: value,
-              name: matchingBulk.name,
-              availableUnits,
-            });
-            setSelectedUnits(new Set(availableUnits));
-            processingRef.current = false;
-            setProcessing(false);
-            return;
+        if (res.status === 401) {
+          setScanFeedback({ message: "Session expired — please log in again", success: false });
+          return;
+        }
+
+        const errJson = await res.json().catch(() => ({})) as { error?: string; data?: { code?: string } };
+        const errCode = errJson.data?.code;
+        const errMsg = errJson.error || "";
+
+        // If serialized scan failed because item isn't in this checkout,
+        // check if the scan matches a numbered bulk bin instead
+        const matchingBulk = scanStatus.bulkItems.find(
+          (item) => item.trackByNumber
+        );
+
+        if (matchingBulk && errCode === "SCAN_NOT_IN_CHECKOUT") {
+          // Fetch available units to show picker
+          const unitsRes = await fetch(`/api/bulk-skus/${matchingBulk.bulkSkuId}/units`);
+          if (unitsRes.ok) {
+            const unitsJson = await unitsRes.json();
+            const units = (unitsJson.data ?? []) as Array<{ unitNumber: number; status: string }>;
+
+            const availableUnits = phaseParam === "CHECKOUT"
+              ? units.filter((u) => u.status === "AVAILABLE").map((u) => u.unitNumber)
+              : units.filter((u) => u.status === "CHECKED_OUT").map((u) => u.unitNumber);
+
+            if (availableUnits.length > 0) {
+              setUnitPicker({
+                bulkSkuId: matchingBulk.bulkSkuId,
+                scanValue: value,
+                name: matchingBulk.name,
+                availableUnits,
+              });
+              setSelectedUnits(new Set(availableUnits));
+              return;
+            }
           }
         }
+
+        setScanFeedback({ message: errMsg || "This item is not part of this checkout", success: false });
+        vibrate(50);
+        return;
       }
 
-      setLastScanResult({ message: errMsg || "This item is not part of this checkout", success: false });
-      vibrate(50);
+      // Standard flow: try as serialized scan
+      await submitScan({ scanType: "SERIALIZED", scanValue: value });
+    } catch {
+      setScanFeedback({ message: "Network error — try again", success: false });
+    } finally {
       processingRef.current = false;
       setProcessing(false);
-      return;
     }
-
-    // Standard flow: try as serialized scan
-    await submitScan({ scanType: "SERIALIZED", scanValue: value });
-    processingRef.current = false;
-    setProcessing(false);
   }, [checkoutId, phaseParam, scanStatus, loadScanStatus, submitScan]);
 
   // ── Submit numbered bulk unit selection ──
   async function handleUnitPickerSubmit() {
-    if (!unitPicker || selectedUnits.size === 0) return;
+    if (!unitPicker || selectedUnits.size === 0 || processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
-    setLastScanResult(null);
+    setScanFeedback(null);
 
     const success = await submitScan({
       scanType: "BULK_BIN",
@@ -448,6 +456,7 @@ export default function ScanPage() {
       setUnitPicker(null);
       setSelectedUnits(new Set());
     }
+    processingRef.current = false;
     setProcessing(false);
   }
 
@@ -652,7 +661,7 @@ export default function ScanPage() {
             />
             <button
               className="scan-camera-toggle"
-              onClick={() => { setScanning(false); setCameraError(""); setLastScanResult(null); }}
+              onClick={() => { setScanning(false); setCameraError(""); setScanFeedback(null); }}
             >
               <XIcon className="size-4" />
             </button>
@@ -660,7 +669,7 @@ export default function ScanPage() {
         ) : (
           <button
             className="scan-camera-start"
-            onClick={() => { setScanning(true); setCameraError(""); setLastScanResult(null); }}
+            onClick={() => { setScanning(true); setCameraError(""); setScanFeedback(null); }}
           >
             <ScanIcon className="size-8" />
             <span>Tap to start camera</span>
