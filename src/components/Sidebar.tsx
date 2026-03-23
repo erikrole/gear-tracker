@@ -25,7 +25,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: <LayoutGridIcon /> },
-  { label: "Calendar", href: "/calendar", icon: <CalendarIcon /> },
+  { label: "Schedule", href: "/schedule", icon: <CalendarIcon /> },
   { label: "Items", href: "/items", icon: <LayersIcon /> },
   { label: "Kits", href: "/kits", icon: <BoxIcon /> },
   { label: "Users", href: "/users", icon: <UsersIcon /> },

@@ -174,9 +174,9 @@ All 41 shadcn components are installed. Remaining custom primitives to replace:
 
 #### 3.7 Unified Calendar Page (Size: M) — see `tasks/calendar-roadmap.md`
 
-- Merge `/events` + `/schedule` → single `/calendar` page
+- Merge `/events` + `/schedule` → single unified `/schedule` page
 - Combined list view (date-grouped events with coverage badges) + calendar view (month grid with coverage dots)
-- Redirects: `/events` → `/calendar`, `/schedule` → `/calendar`; sidebar updated
+- Old `/events` list page removed (detail page `/events/[id]` unchanged); sidebar shows "Schedule"
 - Venue Mappings moved to `/settings/venue-mappings`
 - Trade Board kept as tab (no regression)
 - Reuses existing APIs (`/api/calendar-events` + `/api/shift-groups`) — no new endpoint needed for V1
@@ -455,7 +455,7 @@ The V1/V2 boundary is most likely to blur on:
 
 | # | Item | Effort | Impact | Files Touched | Dependencies |
 |---|------|--------|--------|--------------|-------------|
-| 1 | **Unified Calendar page** | M | High — merges two workflows | New `/calendar` page + API, sidebar, redirects | None |
+| 1 | **Unified Schedule page** | M | High — merges two workflows | `/schedule` page, sidebar, old pages removed | None |
 | 2 | Location filter chip | S | Medium — staff filter by venue | Dashboard page + new filter logic | None (same pattern as sport filter) |
 | 3 | Extract `useUrlState` hook | S | Foundation | New: `src/hooks/use-url-state.ts` | None |
 | 4 | Extract `useFetch` hook | S | Foundation | New: `src/hooks/use-fetch.ts` | None |
