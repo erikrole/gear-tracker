@@ -67,13 +67,16 @@ export const PATCH = withAuth(async (req, { user }) => {
 
   const current = await db.user.findUniqueOrThrow({
     where: { id: user.id },
-    select: { name: true, locationId: true },
+    select: { name: true, phone: true, locationId: true },
   });
 
   const updated = await db.user.update({
     where: { id: user.id },
     data: {
       ...(payload.name ? { name: payload.name } : {}),
+      ...(Object.prototype.hasOwnProperty.call(payload, "phone")
+        ? { phone: payload.phone ?? null }
+        : {}),
       ...(Object.prototype.hasOwnProperty.call(payload, "locationId")
         ? { locationId: payload.locationId ?? null }
         : {})
@@ -88,6 +91,10 @@ export const PATCH = withAuth(async (req, { user }) => {
   if (payload.name && payload.name !== current.name) {
     beforeDiff.name = current.name;
     afterDiff.name = payload.name;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "phone") && payload.phone !== current.phone) {
+    beforeDiff.phone = current.phone;
+    afterDiff.phone = payload.phone ?? null;
   }
   if (Object.prototype.hasOwnProperty.call(payload, "locationId") && payload.locationId !== current.locationId) {
     beforeDiff.locationId = current.locationId;

@@ -62,9 +62,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(404, "User not found");
   }
 
-  // STAFF cannot edit ADMIN users — only ADMIN can modify ADMIN profiles
-  if (target.role === "ADMIN" && user.role !== "ADMIN") {
-    throw new HttpError(403, "Only admins can edit admin users");
+  // STAFF can only edit STUDENT users — not other STAFF or ADMIN
+  if (user.role === "STAFF" && target.role !== "STUDENT") {
+    throw new HttpError(403, "Staff can only edit student profiles");
   }
 
   const updateData: Record<string, unknown> = {};

@@ -3,14 +3,15 @@
 import { FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
-import type { UserDetail, Location } from "../types";
+import { SPORT_CODES } from "@/lib/sports";
+import type { UserDetail, Location, Role } from "../types";
 import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -18,8 +19,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
+import { cn } from "@/lib/utils";
 
 /* ── Text Input Field ─────────────────────────────────── */
 
@@ -123,30 +138,52 @@ function SelectInputField({
   );
 }
 
+/* ── Sport Options (for the add dropdown) ─────────────── */
+
+const SPORT_OPTIONS = SPORT_CODES.map((s) => ({
+  value: s.code,
+  label: s.label,
+}));
+
 /* ── User Info Tab ─────────────────────────────────────── */
 
 export default function UserInfoTab({
   user,
   locations,
-  canEdit,
+  currentUserRole,
   isSelf = false,
   onUpdated,
 }: {
   user: UserDetail;
   locations: Location[];
-  canEdit: boolean;
+  currentUserRole: Role | null;
   isSelf?: boolean;
   onUpdated: () => void;
 }) {
   const { toast } = useToast();
   const [savingPassword, setSavingPassword] = useState(false);
+  const [addingSport, setAddingSport] = useState(false);
+  const [addingArea, setAddingArea] = useState(false);
+
+  const isAdmin = currentUserRole === "ADMIN";
+  const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const targetIsStudent = user.role === "STUDENT";
+
+  // Permission logic:
+  // - Everyone can edit their own nominal details (name, phone, location)
+  // - Admins can edit everything for everyone
+  // - Staff can only edit student profiles (not other staff or admins)
+  const isStaff = currentUserRole === "STAFF";
+  const canEditProfile = isAdmin || (isStaff && targetIsStudent);
+  const canEditSelf = isSelf; // own name, phone, location
+  const canEditRole = isAdmin || (isStaff && !isSelf && targetIsStudent);
+  // Assignments: admin/staff can edit for self + students
+  const canEditAssignments = isAdmin || (isStaff && (isSelf || targetIsStudent));
 
   async function patchUser(payload: Record<string, unknown>) {
-    // Self-edits for name/location go through /api/profile (works for all roles)
-    // Other fields require ADMIN/STAFF via /api/users/:id
     const isSelfProfileField =
       isSelf &&
-      Object.keys(payload).every((k) => k === "name" || k === "locationId");
+      Object.keys(payload).every((k) => k === "name" || k === "locationId" || k === "phone");
 
     const url = isSelfProfileField
       ? "/api/profile"
@@ -206,10 +243,111 @@ export default function UserInfoTab({
     setSavingPassword(false);
   }
 
+  async function addSport(sportCode: string) {
+    setAddingSport(true);
+    try {
+      const res = await fetch(`/api/sport-configs/${sportCode}/roster`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to add sport", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setAddingSport(false);
+  }
+
+  async function removeSport(assignmentId: string, sportCode: string) {
+    try {
+      const res = await fetch(`/api/sport-configs/${sportCode}/roster?assignmentId=${assignmentId}`, {
+        method: "DELETE",
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to remove sport", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+  }
+
+  async function addArea(area: string) {
+    setAddingArea(true);
+    try {
+      const res = await fetch("/api/student-areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, area, isPrimary: false }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to add area", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setAddingArea(false);
+  }
+
+  async function removeArea(assignmentId: string) {
+    try {
+      const res = await fetch(`/api/student-areas?id=${assignmentId}`, {
+        method: "DELETE",
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to remove area", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+  }
+
+  async function toggleAreaPrimary(area: string, isPrimary: boolean) {
+    try {
+      const res = await fetch("/api/student-areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, area, isPrimary }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      const json = await res.json();
+      if (!res.ok) {
+        toast(json.error || "Failed to update area", "error");
+      } else {
+        onUpdated();
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+  }
+
   const locationOptions = locations.map((l) => ({
     value: l.id,
     label: l.name,
   }));
+
+  const assignedSportCodes = new Set((user.sportAssignments ?? []).map((sa) => sa.sportCode));
+  const availableSports = SPORT_OPTIONS.filter((s) => !assignedSportCodes.has(s.value));
+
+  const assignedAreas = new Set((user.areaAssignments ?? []).map((aa) => aa.area));
+  const availableAreas = AREA_OPTIONS.filter((a) => !assignedAreas.has(a.value));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5 mt-6">
@@ -222,13 +360,13 @@ export default function UserInfoTab({
           <TextInputField
             label="Name"
             value={user.name}
-            canEdit={canEdit || isSelf}
+            canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ name: v })}
           />
           <TextInputField
             label="Email"
             value={user.email}
-            canEdit={canEdit}
+            canEdit={canEditProfile}
             onSave={(v) => patchUser({ email: v })}
             type="email"
           />
@@ -236,7 +374,7 @@ export default function UserInfoTab({
             label="Phone"
             value={user.phone || ""}
             placeholder="Add phone number"
-            canEdit={canEdit}
+            canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ phone: v || null })}
             type="tel"
           />
@@ -244,14 +382,14 @@ export default function UserInfoTab({
             label="Role"
             value={user.role}
             options={ROLE_OPTIONS}
-            canEdit={canEdit}
+            canEdit={canEditRole}
             onSave={changeRole}
           />
           <SelectInputField
             label="Location"
             value={user.locationId || ""}
             options={locationOptions}
-            canEdit={canEdit || isSelf}
+            canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ locationId: v || null })}
             allowEmpty
             emptyLabel="No location"
@@ -260,7 +398,7 @@ export default function UserInfoTab({
             label="Primary Area"
             value={user.primaryArea || ""}
             options={AREA_OPTIONS}
-            canEdit={canEdit}
+            canEdit={canEditProfile}
             onSave={(v) => patchUser({ primaryArea: v || null })}
             allowEmpty
             emptyLabel="Not assigned"
@@ -274,9 +412,71 @@ export default function UserInfoTab({
           <CardTitle>Assignments</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Sport Assignments */}
+          {/* Sport Assignments — Multi-select */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
-          {(user.sportAssignments ?? []).length === 0 ? (
+          {canEditAssignments ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-auto min-h-9 font-normal"
+                  disabled={addingSport}
+                >
+                  {(user.sportAssignments ?? []).length === 0 ? (
+                    <span className="text-muted-foreground">Select sports...</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 py-0.5">
+                      {(user.sportAssignments ?? []).map((sa) => (
+                        <Badge key={sa.id} variant="blue" size="sm" className="gap-1">
+                          {sportLabel(sa.sportCode)}
+                          <button
+                            type="button"
+                            className="ml-0.5 rounded-full hover:bg-blue-600/20 p-0.5"
+                            onClick={(e) => { e.stopPropagation(); removeSport(sa.id, sa.sportCode); }}
+                            aria-label={`Remove ${sportLabel(sa.sportCode)}`}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search sports..." />
+                  <CommandList>
+                    <CommandEmpty>No sports found.</CommandEmpty>
+                    <CommandGroup>
+                      {SPORT_OPTIONS.map((s) => {
+                        const isSelected = assignedSportCodes.has(s.value);
+                        const assignment = (user.sportAssignments ?? []).find((sa) => sa.sportCode === s.value);
+                        return (
+                          <CommandItem
+                            key={s.value}
+                            value={s.label}
+                            onSelect={() => {
+                              if (isSelected && assignment) {
+                                removeSport(assignment.id, s.value);
+                              } else {
+                                addSport(s.value);
+                              }
+                            }}
+                          >
+                            <Check className={cn("mr-2 size-4", isSelected ? "opacity-100" : "opacity-0")} />
+                            {s.label}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          ) : (user.sportAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground mb-1">No sport assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5 mb-1">
@@ -288,11 +488,84 @@ export default function UserInfoTab({
             </div>
           )}
 
-          <Separator className="my-2" />
+          <Separator className="my-3" />
 
-          {/* Area Assignments */}
+          {/* Area Assignments — Multi-select */}
           <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
-          {(user.areaAssignments ?? []).length === 0 ? (
+          {canEditAssignments ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between h-auto min-h-9 font-normal"
+                  disabled={addingArea}
+                >
+                  {(user.areaAssignments ?? []).length === 0 ? (
+                    <span className="text-muted-foreground">Select areas...</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 py-0.5">
+                      {(user.areaAssignments ?? []).map((aa) => (
+                        <Badge
+                          key={aa.id}
+                          variant={aa.isPrimary ? "purple" : "gray"}
+                          size="sm"
+                          className="gap-1"
+                        >
+                          <button
+                            type="button"
+                            className="hover:underline"
+                            onClick={(e) => { e.stopPropagation(); toggleAreaPrimary(aa.area, !aa.isPrimary); }}
+                            title={aa.isPrimary ? "Remove as primary" : "Set as primary"}
+                          >
+                            {AREA_LABELS[aa.area] || aa.area}
+                            {aa.isPrimary && " (Primary)"}
+                          </button>
+                          <button
+                            type="button"
+                            className="ml-0.5 rounded-full hover:bg-black/10 p-0.5"
+                            onClick={(e) => { e.stopPropagation(); removeArea(aa.id); }}
+                            aria-label={`Remove ${AREA_LABELS[aa.area] || aa.area}`}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandList>
+                    <CommandGroup>
+                      {AREA_OPTIONS.map((a) => {
+                        const isSelected = assignedAreas.has(a.value);
+                        const assignment = (user.areaAssignments ?? []).find((aa) => aa.area === a.value);
+                        return (
+                          <CommandItem
+                            key={a.value}
+                            value={a.label}
+                            onSelect={() => {
+                              if (isSelected && assignment) {
+                                removeArea(assignment.id);
+                              } else {
+                                addArea(a.value);
+                              }
+                            }}
+                          >
+                            <Check className={cn("mr-2 size-4", isSelected ? "opacity-100" : "opacity-0")} />
+                            {a.label}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          ) : (user.areaAssignments ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">No area assignments</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">

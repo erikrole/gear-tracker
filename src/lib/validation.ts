@@ -131,6 +131,7 @@ export const bookingKindSchema = z.nativeEnum(BookingKind);
 
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  phone: z.string().max(30).nullable().optional(),
   locationId: z.string().cuid().nullable().optional()
 });
 
