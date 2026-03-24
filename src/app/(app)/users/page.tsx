@@ -90,6 +90,7 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [sort, setSort] = useState<SortKey | string>("name");
+  const [showInactive, setShowInactive] = useState(false);
 
   // Form options
   const [locations, setLocations] = useState<Location[]>([]);
@@ -121,6 +122,7 @@ export default function UsersPage() {
       if (sort) params.set("sort", sort);
       if (roleFilter) params.set("role", roleFilter);
       if (locationFilter) params.set("locationId", locationFilter);
+      if (showInactive) params.set("active", "all");
 
       const res = await fetch(`/api/users?${params}`, { signal: controller.signal });
       if (res.status === 401) {
@@ -143,7 +145,7 @@ export default function UsersPage() {
       }
     }
     if (!controller.signal.aborted) setLoading(false);
-  }, [page, search, sort, roleFilter, locationFilter]);
+  }, [page, search, sort, roleFilter, locationFilter, showInactive]);
 
   useEffect(() => {
     reload();
@@ -170,7 +172,7 @@ export default function UsersPage() {
   }, []);
 
   // Reset page when filters change
-  useEffect(() => { setPage(0); }, [search, roleFilter, locationFilter, sort]);
+  useEffect(() => { setPage(0); }, [search, roleFilter, locationFilter, sort, showInactive]);
 
   const totalPages = Math.ceil(total / LIMIT);
   const hasFilters = !!search || !!roleFilter || !!locationFilter;
@@ -221,9 +223,12 @@ export default function UsersPage() {
           locationFilter={locationFilter}
           onLocationChange={setLocationFilter}
           locations={locations}
+          showInactive={showInactive}
+          onShowInactiveChange={setShowInactive}
           onClearAll={() => {
             setRoleFilter("");
             setLocationFilter("");
+            setShowInactive(false);
           }}
         />
 

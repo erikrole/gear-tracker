@@ -19,7 +19,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AlertCircle, CalendarDays, CameraIcon, Loader2, TrashIcon } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { AlertCircle, CalendarDays, CameraIcon, Copy, KeyRound, Loader2, TrashIcon } from "lucide-react";
 import { formatDateFull } from "@/lib/format";
 
 /* ── Tab Definitions ───────────────────────────────────── */
@@ -44,6 +58,9 @@ export default function UserDetailPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [fetchError, setFetchError] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [resetPwDialog, setResetPwDialog] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +151,46 @@ export default function UserDetailPage() {
       toast("Network error", "error");
     }
     setUploadingAvatar(false);
+  }
+
+  async function toggleActive() {
+    if (!user) return;
+    const newActive = !user.active;
+    setUser((u) => u ? { ...u, active: newActive } : u);
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: newActive }),
+      });
+      if (!res.ok) {
+        setUser((u) => u ? { ...u, active: !newActive } : u);
+        toast("Failed to update status", "error");
+      } else {
+        toast(newActive ? "User activated" : "User deactivated", "success");
+      }
+    } catch {
+      setUser((u) => u ? { ...u, active: !newActive } : u);
+      toast("Network error", "error");
+    }
+  }
+
+  async function handlePasswordReset() {
+    setResetBusy(true);
+    try {
+      const res = await fetch(`/api/users/${id}/reset-password`, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Password reset failed", "error");
+      } else {
+        const json = await res.json();
+        setTempPassword(json.data?.temporaryPassword ?? null);
+        toast("Password reset successfully", "success");
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setResetBusy(false);
   }
 
   if (fetchError) {
@@ -267,8 +324,73 @@ export default function UserDetailPage() {
             )}
           </div>
         </div>
-        <RoleBadge role={user.role} />
+        <div className="flex items-center gap-2">
+          <RoleBadge role={user.role} />
+          {user.active === false && <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>}
+          {currentUserRole === "ADMIN" && !isSelf && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">Admin</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={toggleActive}>
+                  {user.active !== false ? "Deactivate user" : "Activate user"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setResetPwDialog(true)}>
+                  <KeyRound className="mr-2 size-4" />
+                  Reset password
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
+
+      {/* Password Reset Dialog */}
+      <AlertDialog open={resetPwDialog || !!tempPassword} onOpenChange={(open) => {
+        if (!open) { setResetPwDialog(false); setTempPassword(null); }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tempPassword ? "Password Reset" : "Reset password?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tempPassword ? (
+                <div className="space-y-3">
+                  <p>New temporary password for <strong>{user.name}</strong>:</p>
+                  <div className="flex items-center gap-2">
+                    <Input value={tempPassword} readOnly className="font-mono" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(tempPassword);
+                        toast("Copied to clipboard", "success");
+                      }}
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs">This password is shown only once. The user&apos;s existing sessions have been invalidated.</p>
+                </div>
+              ) : (
+                <>This will generate a new temporary password for <strong>{user.name}</strong> and invalidate all their current sessions.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {tempPassword ? (
+              <AlertDialogAction onClick={() => { setTempPassword(null); setResetPwDialog(false); }}>Done</AlertDialogAction>
+            ) : (
+              <>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handlePasswordReset} disabled={resetBusy}>
+                  {resetBusy ? "Resetting…" : "Reset password"}
+                </AlertDialogAction>
+              </>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="mt-1">

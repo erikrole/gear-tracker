@@ -1247,6 +1247,9 @@ export async function getBookingDetail(bookingId: string) {
       ...bookingInclude,
       creator: { select: { id: true, name: true, email: true } },
       serializedItems: { include: { asset: { include: { location: { select: { id: true, name: true } } } } } },
+      event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
+      sourceReservation: { select: { id: true, refNumber: true, title: true } },
+      shiftAssignment: { select: { id: true, shift: { select: { area: true } } } },
     }
   });
 

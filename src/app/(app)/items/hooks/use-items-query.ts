@@ -18,17 +18,27 @@ type QueryDeps = {
   sortKey: string;
 };
 
+type StatusBreakdown = {
+  available: number;
+  checkedOut: number;
+  reserved: number;
+  maintenance: number;
+  retired: number;
+};
+
 type AssetsResponse = {
   data: Asset[];
   total: number;
   limit: number;
   offset: number;
+  statusBreakdown?: StatusBreakdown;
 };
 
 export function useItemsQuery(deps: QueryDeps) {
   const searchParams = useSearchParams();
   const [items, setItems] = useState<Asset[]>([]);
   const [total, setTotal] = useState(0);
+  const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown | null>(null);
   const [page, setPage] = useState(() => {
     const p = parseInt(searchParams.get("page") ?? "", 10);
     return Number.isFinite(p) && p > 0 ? p : 0;
@@ -88,6 +98,7 @@ export function useItemsQuery(deps: QueryDeps) {
       const json: AssetsResponse = await res.json();
       setItems(json.data ?? []);
       setTotal(json.total ?? 0);
+      if (json.statusBreakdown) setStatusBreakdown(json.statusBreakdown);
       hasLoadedOnce.current = true;
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
@@ -109,7 +120,9 @@ export function useItemsQuery(deps: QueryDeps) {
 
   return {
     items,
+    setItems,
     total,
+    statusBreakdown,
     page,
     setPage,
     limit,
