@@ -101,6 +101,15 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 4. Enforce role-adaptive visibility so student mobile stays uncluttered and policy-safe.
 5. Add mobile regression coverage for ownership gating, overdue styling, and row action parity.
 
+## Sidebar Roadmap
+
+Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md`
+
+Key planned improvements affecting mobile navigation:
+- **V1**: `SidebarMenuBadge` on Checkouts (overdue count) and Notifications (unread count) — closes §4 of Mobile Navigation Contract
+- **V2**: Quick-create `SidebarMenuAction` on Checkouts/Reservations — always visible on mobile
+- **V3**: Bottom nav badge counts wired to live `/api/nav-counts` endpoint
+
 ## Change Log
 - 2026-03-02: Initial mobile operations area scope created from Cheqroom mobile analysis and Gear Tracker role model.
 - 2026-03-15: Student Mobile Hardening V1 shipped — STUDENT added to checkout.scan permission with server-side ownership gating, sidebar hides Users/Kits/Settings for STUDENT, team activity hidden on mobile for STUDENT, ownership border accent on My Gear rows.
