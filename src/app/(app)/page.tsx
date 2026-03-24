@@ -284,21 +284,25 @@ export default function DashboardPage() {
   const toastRef = useRef(toast);
   toastRef.current = toast;
 
-  // ── Sport filter (URL-persisted via ?sport=MBB) ──
+  // ── Filters (URL-persisted via ?sport=MBB&location=Camp+Randall) ──
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeSport = searchParams.get("sport");
+  const activeLocation = searchParams.get("location");
 
-  const setActiveSport = useCallback((sport: string | null) => {
+  const setFilterParam = useCallback((key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (sport) {
-      params.set("sport", sport);
+    if (value) {
+      params.set(key, value);
     } else {
-      params.delete("sport");
+      params.delete(key);
     }
     const qs = params.toString();
     router.replace(qs ? `/?${qs}` : "/", { scroll: false });
   }, [searchParams, router]);
+
+  const setActiveSport = useCallback((sport: string | null) => setFilterParam("sport", sport), [setFilterParam]);
+  const setActiveLocation = useCallback((loc: string | null) => setFilterParam("location", loc), [setFilterParam]);
 
   // Collect distinct sport codes from all dashboard data
   const availableSports = useMemo(() => {
@@ -313,25 +317,47 @@ export default function DashboardPage() {
     return [...codes].sort();
   }, [data]);
 
-  // Filter helper: does a booking/event match the active sport filter?
+  // Collect distinct location names from all dashboard data
+  const availableLocations = useMemo(() => {
+    if (!data) return [];
+    const names = new Set<string>();
+    for (const c of data.myCheckouts.items) if (c.locationName) names.add(c.locationName);
+    for (const c of data.teamCheckouts.items) if (c.locationName) names.add(c.locationName);
+    for (const r of data.teamReservations.items) if (r.locationName) names.add(r.locationName);
+    for (const r of data.myReservations) if (r.locationName) names.add(r.locationName);
+    for (const e of data.upcomingEvents) if (e.location) names.add(e.location);
+    for (const s of data.myShifts) if (s.event.locationName) names.add(s.event.locationName);
+    return [...names].sort();
+  }, [data]);
+
+  // Filter helpers
   const matchesSport = useCallback((sportCode: string | null) => {
-    if (!activeSport) return true; // no filter = show all
+    if (!activeSport) return true;
     return sportCode === activeSport;
   }, [activeSport]);
 
+  const matchesLocation = useCallback((locationName: string | null) => {
+    if (!activeLocation) return true;
+    return locationName === activeLocation;
+  }, [activeLocation]);
+
+  const matchesFilters = useCallback((sportCode: string | null, locationName: string | null) => {
+    return matchesSport(sportCode) && matchesLocation(locationName);
+  }, [matchesSport, matchesLocation]);
+
   // Pre-filtered views of dashboard data
   const filtered = useMemo(() => {
-    if (!data || !activeSport) return null; // null = no filtering needed, use raw data
+    if (!data || (!activeSport && !activeLocation)) return null;
     return {
-      myCheckouts: data.myCheckouts.items.filter((c) => matchesSport(c.sportCode)),
-      teamCheckouts: data.teamCheckouts.items.filter((c) => matchesSport(c.sportCode)),
-      teamReservations: data.teamReservations.items.filter((r) => matchesSport(r.sportCode)),
-      myReservations: data.myReservations.filter((r) => matchesSport(r.sportCode)),
-      upcomingEvents: data.upcomingEvents.filter((e) => matchesSport(e.sportCode)),
-      myShifts: data.myShifts.filter((s) => matchesSport(s.event.sportCode)),
+      myCheckouts: data.myCheckouts.items.filter((c) => matchesFilters(c.sportCode, c.locationName)),
+      teamCheckouts: data.teamCheckouts.items.filter((c) => matchesFilters(c.sportCode, c.locationName)),
+      teamReservations: data.teamReservations.items.filter((r) => matchesFilters(r.sportCode, r.locationName)),
+      myReservations: data.myReservations.filter((r) => matchesFilters(r.sportCode, r.locationName)),
+      upcomingEvents: data.upcomingEvents.filter((e) => matchesFilters(e.sportCode, e.location)),
+      myShifts: data.myShifts.filter((s) => matchesFilters(s.event.sportCode, s.event.locationName)),
       overdueItems: data.overdueItems, // overdue banner always shows all — safety-critical
     };
-  }, [data, activeSport, matchesSport]);
+  }, [data, activeSport, activeLocation, matchesFilters]);
 
   const loadData = useCallback((isRefresh = false) => {
     // Cancel any in-flight request to prevent race conditions
@@ -511,12 +537,12 @@ export default function DashboardPage() {
       {/* ══════ Activity Overview Chart ══════ */}
       <ActivityChart stats={data.stats} />
 
-      {/* ══════ Sport Filter Chips ══════ */}
-      {availableSports.length > 1 && (
+      {/* ══════ Filter Chips (Sport + Location) ══════ */}
+      {(availableSports.length > 1 || availableLocations.length > 1) && (
         <div className="flex items-center gap-1.5 flex-wrap mt-2">
-          {availableSports.map((code) => (
+          {availableSports.length > 1 && availableSports.map((code) => (
             <Button
-              key={code}
+              key={`sport-${code}`}
               variant={activeSport === code ? "default" : "outline"}
               size="sm"
               className="h-7 text-xs px-2.5"
@@ -525,12 +551,26 @@ export default function DashboardPage() {
               {code}
             </Button>
           ))}
-          {activeSport && (
+          {availableSports.length > 1 && availableLocations.length > 1 && (
+            <span className="w-px h-5 bg-border mx-0.5" />
+          )}
+          {availableLocations.length > 1 && availableLocations.map((name) => (
+            <Button
+              key={`loc-${name}`}
+              variant={activeLocation === name ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-2.5"
+              onClick={() => setActiveLocation(activeLocation === name ? null : name)}
+            >
+              {name}
+            </Button>
+          ))}
+          {(activeSport || activeLocation) && (
             <Button
               variant="ghost"
               size="sm"
               className="h-7 text-xs px-2 text-muted-foreground"
-              onClick={() => setActiveSport(null)}
+              onClick={() => { setActiveSport(null); setActiveLocation(null); }}
             >
               <XIcon className="size-3 mr-1" />
               Clear

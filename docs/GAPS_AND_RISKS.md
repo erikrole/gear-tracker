@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-22
+- Last Updated: 2026-03-24
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -30,12 +30,12 @@
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
 | ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
 | ~~GAP-6~~ | ~~Email notification channel not wired~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Resend email service wired; dual-channel (in-app + email) shipped 2026-03-16~~ |
-| GAP-7 | No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere | CROSS-CUTTING | Open | See `tasks/system-roadmap.md` V1 §3.1 — extract `useFetch`, `useUrlState` hooks |
-| GAP-8 | Reports page is a navigation dead end — no drill-down to individual bookings/items | AREA_DASHBOARD | Open | V1 quick win: add "View bookings" links from metric cards |
+| ~~GAP-7~~ | ~~No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere~~ | ~~CROSS-CUTTING~~ | ~~Closed (partial)~~ | ~~`useFetch`, `useUrlState`, `classifyError` hooks extracted 2026-03-24. Pages not yet migrated to use them (Sprint 2).~~ |
+| ~~GAP-8~~ | ~~Reports page is a navigation dead end — no drill-down to individual bookings/items~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Drill-down links added to MetricCard in checkouts, overdue, and utilization reports 2026-03-24~~ |
 | GAP-9 | Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters | AREA_DASHBOARD | Open | V1 priority: decompose into hooks + leaf components per items page pattern |
 | GAP-10 | Kit management page exists but is empty — confusing for users navigating via sidebar | AREA_CHECKOUTS | Open | XS fix: add "Coming soon" placeholder card explaining D-020 |
 | GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2: adopt React Query/SWR for shared cache + background refresh |
-| GAP-12 | No stale-data detection across browser tabs or after backgrounding | CROSS-CUTTING | Open | V1: add Page Visibility API refresh in `useFetch` hook |
+| ~~GAP-12~~ | ~~No stale-data detection across browser tabs or after backgrounding~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~`useFetch` hook includes Page Visibility API refresh; item detail page refreshes on tab focus 2026-03-24~~ |
 | GAP-13 | `BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020) | AREA_CHECKOUTS | Open | Priority 2 planning doc per NORTH_STAR §12 |
 
 ---
@@ -48,7 +48,7 @@
 | ~~Department filter/display~~ | ~~AREA_ITEMS~~ | ~~D-019~~ | ~~Shipped 2026-03-21: department FK, combobox filter on items page~~ |
 | Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI. Simple parent-child accessories shipped via D-023. |
 | Dashboard saved filters | AREA_DASHBOARD | — | Deferred from V1 |
-| ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter still deferred~~ |
+| ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter shipped 2026-03-24~~ |
 | ~~Notification center polish (pagination, mark-as-read)~~ | ~~AREA_NOTIFICATIONS~~ | ~~—~~ | ~~Shipped: pagination, mark-as-read, unread filter all implemented~~ |
 | Multi-recipient escalation | AREA_NOTIFICATIONS | D-009 | Pending recipient model decision |
 | ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |

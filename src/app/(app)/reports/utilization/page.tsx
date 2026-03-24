@@ -225,10 +225,11 @@ export default function UtilizationPage() {
               value={count}
               label={meta?.label || status}
               badge={meta ? { text: meta.label, variant: meta.variant } : undefined}
+              href={`/items?status=${status}`}
             />
           );
         })}
-        <MetricCard value={data.totalAssets} label="Total assets" tooltip="Total number of assets in the system" />
+        <MetricCard value={data.totalAssets} label="Total assets" tooltip="Total number of assets in the system" href="/items" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-2.5">
