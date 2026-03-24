@@ -296,9 +296,9 @@ export default function BookingDetailsSheet({
 
   function enterEquipEditMode() {
     if (!booking) return;
-    setEditSerializedIds(booking.serializedItems.map((i) => i.asset.id));
+    setEditSerializedIds((booking.serializedItems ?? []).map((i) => i.asset.id));
     setEditBulkItems(
-      booking.bulkItems.map((i) => ({
+      (booking.bulkItems ?? []).map((i) => ({
         bulkSkuId: i.bulkSku.id,
         quantity: i.plannedQuantity,
       }))
@@ -353,7 +353,7 @@ export default function BookingDetailsSheet({
   }
 
   async function handleEquipSave() {
-    if (!booking) return;
+    if (!booking || equipSaving) return;
     setEquipSaving(true);
     setConflictError(null);
 
@@ -389,7 +389,7 @@ export default function BookingDetailsSheet({
   }
 
   async function handleSave() {
-    if (!booking) return;
+    if (!booking || saving) return;
     setSaving(true);
 
     const payload: Record<string, unknown> = {};
@@ -402,6 +402,12 @@ export default function BookingDetailsSheet({
     if (booking.kind === "RESERVATION") {
       const newStartsAt = new Date(editStartsAt).toISOString();
       if (newStartsAt !== booking.startsAt) payload.startsAt = newStartsAt;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      toast("No changes to save", "info");
+      setSaving(false);
+      return;
     }
 
     try {
