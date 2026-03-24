@@ -33,7 +33,7 @@
 | GAP-7 | No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere | CROSS-CUTTING | Open | See `tasks/system-roadmap.md` V1 §3.1 — extract `useFetch`, `useUrlState` hooks |
 | GAP-8 | Reports page is a navigation dead end — no drill-down to individual bookings/items | AREA_DASHBOARD | Open | V1 quick win: add "View bookings" links from metric cards |
 | GAP-9 | Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters | AREA_DASHBOARD | Open | V1 priority: decompose into hooks + leaf components per items page pattern |
-| GAP-10 | Kit management page exists but is empty — confusing for users navigating via sidebar | AREA_CHECKOUTS | Open | XS fix: add "Coming soon" placeholder card explaining D-020 |
+| ~~GAP-10~~ | ~~Kit management page exists but is empty — confusing for users navigating via sidebar~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Placeholder card shipped; Kits moved to Admin group with "Soon" badge in sidebar (2026-03-24)~~ |
 | GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2: adopt React Query/SWR for shared cache + background refresh |
 | GAP-12 | No stale-data detection across browser tabs or after backgrounding | CROSS-CUTTING | Open | V1: add Page Visibility API refresh in `useFetch` hook |
 | GAP-13 | `BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020) | AREA_CHECKOUTS | Open | Priority 2 planning doc per NORTH_STAR §12 |

@@ -15,44 +15,68 @@ import {
   UsersIcon,
   CalendarPlusIcon,
   ClipboardCheckIcon,
-  ScanIcon,
   BarChart3Icon,
-  UserIcon,
   SettingsIcon,
   LogOutIcon,
+  BellIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
-const navItems = [
-  { label: "Dashboard", href: "/", icon: LayoutGridIcon },
-  { label: "Schedule", href: "/schedule", icon: CalendarIcon },
-  { label: "Items", href: "/items", icon: LayersIcon },
-  { label: "Kits", href: "/kits", icon: BoxIcon },
-  { label: "Users", href: "/users", icon: UsersIcon },
-  { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon },
-  { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon },
-  { label: "Scan", href: "/scan", mobileOnly: true, icon: ScanIcon },
-  { label: "Reports", href: "/reports", icon: BarChart3Icon },
-  { label: "Profile", href: "/profile", icon: UserIcon, dynamic: true },
-  { label: "Settings", href: "/settings", icon: SettingsIcon },
-];
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: string;
+};
 
-/** Nav items hidden from STUDENT role */
-const STUDENT_HIDDEN_HREFS = new Set(["/users", "/kits", "/reports", "/settings"]);
+type NavGroup = {
+  label?: string;
+  adminOnly?: boolean;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    items: [
+      { label: "Dashboard", href: "/", icon: LayoutGridIcon },
+      { label: "Schedule", href: "/schedule", icon: CalendarIcon },
+      { label: "Items", href: "/items", icon: LayersIcon },
+      { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon },
+      { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon },
+      { label: "Notifications", href: "/notifications", icon: BellIcon },
+    ],
+  },
+  {
+    label: "Admin",
+    adminOnly: true,
+    items: [
+      { label: "Kits", href: "/kits", icon: BoxIcon, badge: "Soon" },
+      { label: "Users", href: "/users", icon: UsersIcon },
+      { label: "Reports", href: "/reports", icon: BarChart3Icon },
+      { label: "Settings", href: "/settings", icon: SettingsIcon },
+    ],
+  },
+];
 
 type AppSidebarProps = {
   user: { id: string; name: string; email: string; role?: string; avatarUrl?: string | null } | null;
   onSignOut?: () => void;
+  isLoggingOut?: boolean;
+  overdueBadgeCount?: number;
+  unreadNotifications?: number;
 };
 
 type ThemePref = "system" | "light" | "dark";
@@ -88,9 +112,16 @@ function useTheme() {
   return { theme, setTheme };
 }
 
-export default function AppSidebar({ user, onSignOut }: AppSidebarProps) {
+export default function AppSidebar({
+  user,
+  onSignOut,
+  isLoggingOut = false,
+  overdueBadgeCount = 0,
+  unreadNotifications = 0,
+}: AppSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const isAdmin = user?.role === "ADMIN" || user?.role === "STAFF";
 
   const initials = user
     ? user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
@@ -126,37 +157,78 @@ export default function AppSidebar({ user, onSignOut }: AppSidebarProps) {
         </SidebarHeader>
       )}
 
-      {/* Navigation */}
+      {/* Navigation groups */}
       <SidebarContent className="py-2">
-        <SidebarMenu className="px-2 gap-0.5">
-          {navItems
-            .filter((item) => !(user?.role === "STUDENT" && STUDENT_HIDDEN_HREFS.has(item.href)))
-            .filter((item) => !item.mobileOnly)
-            .map((item) => {
-              const href = item.dynamic && user?.id ? `/users/${user.id}` : item.href;
-              const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
-              const Icon = item.icon;
-              return (
-                <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive}
-                    tooltip={item.label}
-                    className={
-                      isActive
-                        ? "border-l-2 border-[var(--wi-red)] rounded-l-none pl-[10px] data-[active=true]:bg-white/[0.10] data-[active=true]:text-white"
-                        : "text-white/65 hover:text-white hover:bg-white/[0.06]"
-                    }
-                  >
-                    <Link href={href}>
-                      <Icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-        </SidebarMenu>
+        {navGroups
+          .filter((group) => !group.adminOnly || isAdmin)
+          .map((group, groupIdx) => (
+            <div key={groupIdx}>
+              {groupIdx > 0 && (
+                <SidebarSeparator className="mx-4 my-1 bg-white/[0.07] group-data-[collapsible=icon]:mx-2" />
+              )}
+              <SidebarGroup className="px-2 py-0">
+                {group.label && (
+                  <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5">
+                    {group.label}
+                  </SidebarGroupLabel>
+                )}
+                <SidebarMenu className="gap-0.5">
+                  {group.items.map((item) => {
+                    const href = item.href;
+                    const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+                    const Icon = item.icon;
+
+                    // Per-item badge count
+                    const badgeCount =
+                      item.href === "/checkouts" && overdueBadgeCount > 0
+                        ? overdueBadgeCount
+                        : item.href === "/notifications" && unreadNotifications > 0
+                        ? unreadNotifications
+                        : 0;
+                    const badgeLabel = item.badge; // static label like "Soon"
+
+                    // Enrich tooltip with count context for collapsed icon-only mode
+                    const tooltip =
+                      item.href === "/checkouts" && overdueBadgeCount > 0
+                        ? `Checkouts · ${overdueBadgeCount} overdue`
+                        : item.href === "/notifications" && unreadNotifications > 0
+                        ? `Notifications · ${unreadNotifications} unread`
+                        : item.label;
+
+                    return (
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={tooltip}
+                          className={
+                            isActive
+                              ? "border-l-2 border-[var(--wi-red)] rounded-l-none pl-[10px] data-[active=true]:bg-white/[0.10] data-[active=true]:text-white"
+                              : "text-white/65 hover:text-white hover:bg-white/[0.06]"
+                          }
+                        >
+                          <Link href={href}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {badgeCount > 0 && (
+                          <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                            {badgeCount > 99 ? "99+" : badgeCount}
+                          </SidebarMenuBadge>
+                        )}
+                        {!badgeCount && badgeLabel && (
+                          <SidebarMenuBadge className="bg-white/10 text-white/50 text-[9px] font-semibold h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
+                            {badgeLabel}
+                          </SidebarMenuBadge>
+                        )}
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroup>
+            </div>
+          ))}
       </SidebarContent>
 
       {/* Footer: theme toggle + logout */}
@@ -183,12 +255,13 @@ export default function AppSidebar({ user, onSignOut }: AppSidebarProps) {
         <SidebarMenu className="px-2">
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Log out"
+              tooltip={isLoggingOut ? "Logging out…" : "Log out"}
               onClick={onSignOut}
-              className="text-white/65 hover:text-white hover:bg-white/[0.06] cursor-pointer"
+              disabled={isLoggingOut}
+              className="text-white/65 hover:text-white hover:bg-white/[0.06] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogOutIcon />
-              <span>Log out</span>
+              <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

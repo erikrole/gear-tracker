@@ -48,6 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/me")
@@ -59,11 +60,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
 
-    // Fetch unread notification count
-    fetch("/api/notifications?limit=0&unread=true")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.unreadCount != null) setUnreadNotifications(json.unreadCount); })
-      .catch(() => {});
+    // Fetch unread notification count and overdue badge count in parallel
+    const badgeController = new AbortController();
+    Promise.all([
+      fetch("/api/notifications?limit=0&unread=true", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
+      fetch("/api/dashboard", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
+    ]).then(([notifJson, dashJson]) => {
+      if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
+      // Use user-scoped overdue count so all roles (including STUDENT) see only their own overdue
+      if (dashJson?.data?.myCheckouts?.overdue != null) setOverdueBadgeCount(dashJson.data.myCheckouts.overdue);
+    }).catch(() => {});
+
+    return () => { badgeController.abort(); };
   }, [router, pathname]);
 
   // Command palette state
@@ -159,8 +167,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   async function handleLogout() {
     setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.replace("/login");
+    } catch {
+      setLoggingOut(false);
+    }
   }
 
   if (loading) {
@@ -268,7 +280,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </CommandList>
       </CommandDialog>
 
-      <AppSidebar user={user} onSignOut={handleLogout} />
+      <AppSidebar
+        user={user}
+        onSignOut={handleLogout}
+        isLoggingOut={loggingOut}
+        overdueBadgeCount={overdueBadgeCount}
+        unreadNotifications={unreadNotifications}
+      />
 
       {!online && (
         <div className="offline-banner" role="status">

@@ -101,8 +101,18 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 4. Enforce role-adaptive visibility so student mobile stays uncluttered and policy-safe.
 5. Add mobile regression coverage for ownership gating, overdue styling, and row action parity.
 
+## Sidebar Roadmap
+
+Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md`
+
+Key planned improvements affecting mobile navigation:
+- **V1**: `SidebarMenuBadge` on Checkouts (overdue count) and Notifications (unread count) — closes §4 of Mobile Navigation Contract
+- **V2**: Quick-create `SidebarMenuAction` on Checkouts/Reservations — always visible on mobile
+- **V3**: Bottom nav badge counts wired to live `/api/nav-counts` endpoint
+
 ## Change Log
 - 2026-03-02: Initial mobile operations area scope created from Cheqroom mobile analysis and Gear Tracker role model.
 - 2026-03-15: Student Mobile Hardening V1 shipped — STUDENT added to checkout.scan permission with server-side ownership gating, sidebar hides Users/Kits/Settings for STUDENT, team activity hidden on mobile for STUDENT, ownership border accent on My Gear rows.
 - 2026-03-22: iPhone polish pass — (1) Fixed iOS input zoom: Input/Textarea/SelectTrigger use `text-base md:text-sm` (16px mobile, 13px desktop). (2) Global `-webkit-tap-highlight-color: transparent` on all interactive elements. (3) `overscroll-behavior-y: none` on body. (4) Booking detail header stacks title above action buttons on mobile (`flex-col sm:flex-row`). (5) Equipment card header stacks title above return buttons on mobile. (6) Row action menus always visible on mobile (hover-reveal only on sm+).
 - 2026-03-23: Scan page hardening (5-pass) — Skeleton loading states, shadcn Alert for errors, optimistic checklist updates, auto-clear feedback, processingRef guards on all scan handlers, network drop recovery via try/catch/finally.
+- 2026-03-24: Sidebar V1 badges shipped — closes §4 of Mobile Navigation Contract. Overdue badge on Checkouts, unread badge on Notifications nav item (both from AppShell parallel fetch). Semantic nav groups (Operations / Admin) with STUDENT seeing no Admin group. Kits moved to Admin group with "Soon" badge. GAP-10 closed. Hardening (5-pass): dead old-sidebar CSS removed (107 lines), AbortController cleanup on badge fetch, isLoggingOut guard on logout button, logout network-failure recovery, profile nav item removed (redundant with header avatar), group separators, count-aware collapsed tooltips. Stress test: fixed overdue badge always showing 0 (wrong response path dashJson.stats vs dashJson.data.stats); fixed system-wide overdue being shown to STUDENT (added user-scoped myOverdueCount to dashboard response).
