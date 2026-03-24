@@ -34,13 +34,13 @@ export default function BookingActions({
   onCancel,
 }: Props) {
   return (
-    <div className="sheet-actions">
+    <div className="flex gap-2 flex-wrap">
       {canEdit && (
         <Button onClick={onEdit}>Edit</Button>
       )}
       {canCheckin && (
         <Button
-          className="bg-green-500 text-white border-none hover:bg-green-600"
+          className="bg-green-600 text-white hover:bg-green-700"
           disabled={checkinLoading}
           onClick={onCheckinAll}
         >
@@ -57,7 +57,7 @@ export default function BookingActions({
           {cancelling ? "Cancelling..." : booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
         </Button>
       )}
-      <Button variant="outline" className="no-underline ml-auto inline-flex items-center" asChild>
+      <Button variant="outline" className="ml-auto" asChild>
         <Link href={booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`}>
           Full page
         </Link>

@@ -83,6 +83,7 @@
 | Mobile as afterthought | Dashboard/list changes without AREA_MOBILE.md review | Scope rule: mobile review mandatory | Engineering |
 | Scope expansion without brief | Features shipped without BRIEF_*.md or Decision record | CLAUDE.md rule 12: no brief = no implementation | Product |
 | Premature Phase C | Kiosk/templates work before Phase A/B solid | Roadmap sequencing enforced by NORTH_STAR.md | Product |
+| ~~Missing SERIALIZABLE on cancel transactions~~ | ~~`cancelBooking()` and `cancelReservation()` used READ_COMMITTED~~ | ~~Fixed 2026-03-24: both upgraded to SERIALIZABLE. Grep `db.$transaction(async` for remaining cases.~~ | ~~Engineering~~ |
 | Equipment guidance stagnation | Only 3 guidance rules in production | Quarterly rule audit with operator input | Product |
 | Alert fatigue from escalation | Repeated overdue notifications overwhelm staff | D-009 fatigue controls required before Phase B | Engineering |
 | Pattern fragmentation | New pages copy-paste fetch/URL/error patterns instead of reusing hooks | V1 roadmap: extract shared hooks before building new features | Engineering |

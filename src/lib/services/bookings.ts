@@ -658,7 +658,7 @@ export async function cancelReservation(bookingId: string, actorUserId: string) 
     });
 
     return { success: true };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function markCheckoutCompleted(bookingId: string, actorUserId: string) {
@@ -1000,7 +1000,7 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
     });
 
     return { success: true };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
