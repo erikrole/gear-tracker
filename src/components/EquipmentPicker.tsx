@@ -110,6 +110,7 @@ export default function EquipmentPicker({
   // ── Availability preview state ──
   const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
   const [conflictsLoading, setConflictsLoading] = useState(false);
+  const [conflictsError, setConflictsError] = useState(false);
   const availDebounce = useRef<ReturnType<typeof setTimeout>>(null);
 
   // ── Indexed lookups (O(1) instead of O(n)) ──
@@ -231,6 +232,7 @@ export default function EquipmentPicker({
     abortRef.current = controller;
 
     setConflictsLoading(true);
+    setConflictsError(false);
     try {
       const res = await fetch("/api/availability/check", {
         method: "POST",
@@ -261,10 +263,12 @@ export default function EquipmentPicker({
           }
         }
         setConflicts(map);
+      } else {
+        setConflictsError(true);
       }
     } catch (err) {
-      // Ignore aborted requests; silently degrade on other errors
       if (err instanceof DOMException && err.name === "AbortError") return;
+      setConflictsError(true);
     }
     setConflictsLoading(false);
   }, [startsAt, endsAt, locationId, assets]);
@@ -277,6 +281,11 @@ export default function EquipmentPicker({
       abortRef.current?.abort();
     };
   }, [fetchConflicts]);
+
+  // Clean up scan feedback timer on unmount
+  useEffect(() => {
+    return () => { if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current); };
+  }, []);
 
   // ── Helpers ──
 
@@ -354,27 +363,33 @@ export default function EquipmentPicker({
     );
 
     if (asset) {
-      setSelectedAssetIds((prev) => {
-        if (prev.includes(asset.id)) return prev;
-        return [...prev, asset.id];
-      });
+      const alreadySelected = selectedIdSet.has(asset.id);
+      if (!alreadySelected) {
+        setSelectedAssetIds((prev) => [...prev, asset.id]);
+      }
       const section = classifyAssetType(asset.type, asset.categoryName);
       setActiveSection(section);
-      showScanFeedbackMsg(`Added ${asset.assetTag}`, "success");
-      if (navigator.vibrate) navigator.vibrate(100);
+      showScanFeedbackMsg(
+        alreadySelected ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
+        alreadySelected ? "error" : "success",
+      );
+      if (navigator.vibrate) navigator.vibrate(alreadySelected ? [50, 50] : 100);
       return;
     }
 
     const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
     if (sku) {
-      setSelectedBulkItems((prev) => {
-        if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
-        return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
-      });
+      const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
+      if (!alreadySelected) {
+        setSelectedBulkItems((prev) => [...prev, { bulkSkuId: sku.id, quantity: 1 }]);
+      }
       const section = classifyAssetType(sku.category, sku.categoryName);
       setActiveSection(section);
-      showScanFeedbackMsg(`Added ${sku.name}`, "success");
-      if (navigator.vibrate) navigator.vibrate(100);
+      showScanFeedbackMsg(
+        alreadySelected ? `${sku.name} already selected` : `Added ${sku.name}`,
+        alreadySelected ? "error" : "success",
+      );
+      if (navigator.vibrate) navigator.vibrate(alreadySelected ? [50, 50] : 100);
       return;
     }
 
@@ -537,6 +552,9 @@ export default function EquipmentPicker({
                   )}
                   {conflictsLoading && (
                     <span className="picker-avail-loading" aria-live="polite">Checking availability...</span>
+                  )}
+                  {conflictsError && !conflictsLoading && (
+                    <span className="picker-avail-loading text-[var(--orange)]" aria-live="polite">Availability unavailable</span>
                   )}
                 </div>
               )}
