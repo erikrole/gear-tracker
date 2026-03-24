@@ -578,3 +578,11 @@ Always use shadcn Empty component:
 - **Privilege escalation has two vectors per role operation**: When guarding role changes, check BOTH directions — granting AND revoking. A guard that prevents STAFF from *granting* ADMIN but allows *demoting* ADMIN is a privilege escalation vector. Pattern: `if (target.role === "ADMIN" && actor.role !== "ADMIN") reject`.
 - **Profile edit must respect role hierarchy**: STAFF should not be able to edit ADMIN user profiles (name, email, phone). The same role guard that applies to role changes must also apply to profile field edits. Always check `target.role` vs `actor.role` on mutation endpoints.
 - **Audit entries need before-snapshots**: An audit entry with only `after` data can't reconstruct what changed. Fetch the current record before update, diff the fields, and pass both `before` and `after` to `createAuditEntry`. Skip the audit entry entirely if no fields actually changed.
+
+## Session 2026-03-24
+
+### Equipment Picker shadcn Migration
+- **shadcn Checkbox uses Radix `checked` prop, not HTML `checked`**: Pass `checked={true}`, `checked={false}`, or `checked="indeterminate"` — the indeterminate state replaces the HTML `el.indeterminate = true` ref pattern.
+- **shadcn Button in inline contexts needs CSS resets**: When replacing raw `<button>` with shadcn `Button` inside tight layouts (footer tags, quantity steppers), the default `height`, `min-height`, `padding`, and `box-shadow` must be overridden. Use specific class selectors (`.picker-footer-tag-remove`) rather than `button` tag selectors.
+- **O(1) Map lookups pay for themselves in render-heavy components**: Any component that renders a list + footer/summary of selected items should index by ID at the top with `useMemo(() => new Map(...))` rather than calling `.find()` inside `.map()` loops. The EquipmentPicker had 6 separate `.find()` call sites in render paths.
+- **ARIA tablist pattern requires `tabIndex` management**: Active tab gets `tabIndex={0}`, inactive tabs get `tabIndex={-1}`. Arrow keys move focus programmatically via `querySelectorAll("[role=tab]")`. This is the WAI-ARIA Tabs pattern — don't improvise.
