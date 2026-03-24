@@ -2496,42 +2496,6 @@ textarea:focus-visible {
 }
 
 /* ===== Equipment Picker ===== */
-.equip-picker-list {
-  max-height: 240px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-top: 8px;
-}
-
-.equip-picker-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-light);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  transition: background 0.1s;
-  min-height: 44px;
-}
-
-.equip-picker-item:last-child {
-  border-bottom: none;
-}
-
-.equip-picker-item:hover {
-  background: var(--accent-soft);
-}
-
-.equip-picker-item.selected {
-  background: var(--blue-bg);
-}
-
-.equip-picker-meta {
-  color: var(--text-secondary);
-  font-size: var(--text-3xs);
-}
 
 /* ===== Location Badge ===== */
 .badge-mixed {
@@ -4515,15 +4479,6 @@ textarea {
   overflow-y: auto;
 }
 
-/* Checkbox */
-.equip-checkbox {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  margin: 0;
-  cursor: pointer;
-  accent-color: var(--primary, #3b82f6);
-}
 
 /* Item rows — Cheqroom-inspired */
 .picker-row {
@@ -4558,9 +4513,6 @@ textarea {
 }
 .picker-row[data-unavailable]:hover {
   background: transparent;
-}
-.picker-row:has(input:disabled) {
-  cursor: default;
 }
 
 /* Status dot */
@@ -5096,11 +5048,6 @@ tr.returned-row { opacity: 0.55; }
     min-height: 52px;
   }
 
-  /* Checkbox: larger on mobile */
-  .equip-checkbox {
-    width: 22px;
-    height: 22px;
-  }
 
   /* Event scroll: taller to reduce nested scroll confusion */
   .event-scroll {

@@ -6,7 +6,6 @@ import {
   classifyAssetType,
   groupAssetsBySection,
   groupBulkBySection,
-  sectionIndex,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
@@ -100,7 +99,6 @@ export default function EquipmentPicker({
 }: EquipmentPickerProps) {
   // ── Internal UI state ──
   const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
-  const [highestReached, setHighestReached] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
   const [searchBySection, setSearchBySection] = useState<Record<EquipmentSectionKey, string>>({
     cameras: "", lenses: "", batteries: "", accessories: "", others: "",
   });
@@ -271,9 +269,6 @@ export default function EquipmentPicker({
 
   function advanceToSection(key: EquipmentSectionKey) {
     setActiveSection(key);
-    if (sectionIndex(key) > sectionIndex(highestReached)) {
-      setHighestReached(key);
-    }
   }
 
   function setSearch(value: string) {
@@ -437,7 +432,6 @@ export default function EquipmentPicker({
                   className={cn(
                     "section-tab",
                     isActive && "active",
-                    selCount > 0 && "section-tab-has-selected",
                   )}
                   onClick={() => setActiveSection(sec.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
