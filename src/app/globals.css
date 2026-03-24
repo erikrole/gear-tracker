@@ -2496,42 +2496,6 @@ textarea:focus-visible {
 }
 
 /* ===== Equipment Picker ===== */
-.equip-picker-list {
-  max-height: 240px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-top: 8px;
-}
-
-.equip-picker-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-light);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  transition: background 0.1s;
-  min-height: 44px;
-}
-
-.equip-picker-item:last-child {
-  border-bottom: none;
-}
-
-.equip-picker-item:hover {
-  background: var(--accent-soft);
-}
-
-.equip-picker-item.selected {
-  background: var(--blue-bg);
-}
-
-.equip-picker-meta {
-  color: var(--text-secondary);
-  font-size: var(--text-3xs);
-}
 
 /* ===== Location Badge ===== */
 .badge-mixed {
@@ -4427,16 +4391,22 @@ textarea {
 }
 .picker-search-clear {
   position: absolute;
-  right: 8px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
+  box-shadow: none;
   font-size: var(--text-lg);
   color: var(--text-secondary);
   cursor: pointer;
   padding: 4px;
   line-height: 1;
+  height: auto;
+  min-height: 0;
+}
+.picker-search-clear:hover {
+  background: var(--accent-soft);
 }
 .picker-filter-chip {
   padding: 6px 12px;
@@ -4445,7 +4415,9 @@ textarea {
   border-radius: 100px;
   border: 1px solid var(--border);
   background: var(--panel);
+  box-shadow: none;
   cursor: pointer;
+  height: auto;
   color: var(--text-secondary);
   white-space: nowrap;
   transition: all 0.15s;
@@ -4489,9 +4461,12 @@ textarea {
   color: var(--text-secondary);
   background: none;
   border: none;
+  box-shadow: none;
   cursor: pointer;
   padding: 2px 6px;
   border-radius: var(--radius);
+  height: auto;
+  min-height: 0;
 }
 .picker-col-header-deselect:hover {
   background: var(--accent-soft);
@@ -4504,15 +4479,6 @@ textarea {
   overflow-y: auto;
 }
 
-/* Checkbox */
-.equip-checkbox {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  margin: 0;
-  cursor: pointer;
-  accent-color: var(--primary, #3b82f6);
-}
 
 /* Item rows — Cheqroom-inspired */
 .picker-row {
@@ -4547,9 +4513,6 @@ textarea {
 }
 .picker-row[data-unavailable]:hover {
   background: transparent;
-}
-.picker-row:has(input:disabled) {
-  cursor: default;
 }
 
 /* Status dot */
@@ -4655,17 +4618,24 @@ textarea {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
 }
-.picker-footer-tag button {
+.picker-footer-tag button,
+.picker-footer-tag .picker-footer-tag-remove,
+.picker-footer-tag .picker-footer-tag-qty-btn {
   background: none;
   border: none;
+  box-shadow: none;
   cursor: pointer;
   font-size: var(--text-sm);
   color: var(--text-secondary);
   padding: 0 2px;
   line-height: 1;
+  height: auto;
+  min-height: 0;
 }
-.picker-footer-tag button:hover {
+.picker-footer-tag button:hover,
+.picker-footer-tag .picker-footer-tag-remove:hover {
   color: var(--red);
+  background: none;
 }
 .picker-footer-tag-conflict {
   border-color: var(--orange);
@@ -4678,9 +4648,13 @@ textarea {
   margin-left: 2px;
   font-size: var(--text-3xs);
 }
-.picker-footer-tag-qty button {
+.picker-footer-tag-qty button,
+.picker-footer-tag-qty .picker-footer-tag-qty-btn {
   font-size: var(--text-xs);
   font-weight: var(--weight-bold);
+  height: auto;
+  min-height: 0;
+  padding: 0 2px;
 }
 .picker-footer-tag-compact {
   font-size: var(--text-3xs);
@@ -4810,11 +4784,14 @@ textarea {
 .scan-overlay-close {
   background: none;
   border: none;
+  box-shadow: none;
   font-size: 22px;
   cursor: pointer;
   color: var(--text-secondary);
   padding: 4px 8px;
   line-height: 1;
+  height: auto;
+  min-height: 0;
 }
 .scan-overlay-hint {
   text-align: center;
@@ -5071,11 +5048,6 @@ tr.returned-row { opacity: 0.55; }
     min-height: 52px;
   }
 
-  /* Checkbox: larger on mobile */
-  .equip-checkbox {
-    width: 22px;
-    height: 22px;
-  }
 
   /* Event scroll: taller to reduce nested scroll confusion */
   .event-scroll {

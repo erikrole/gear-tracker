@@ -6,13 +6,15 @@ import {
   classifyAssetType,
   groupAssetsBySection,
   groupBulkBySection,
-  sectionIndex,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
 import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
-import { QrCodeIcon, SearchIcon } from "lucide-react";
+import { QrCodeIcon, SearchIcon, XIcon } from "lucide-react";
 import QrScanner from "@/components/QrScanner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 /* ───── Status dot colors ───── */
 
@@ -97,7 +99,6 @@ export default function EquipmentPicker({
 }: EquipmentPickerProps) {
   // ── Internal UI state ──
   const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
-  const [highestReached, setHighestReached] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
   const [searchBySection, setSearchBySection] = useState<Record<EquipmentSectionKey, string>>({
     cameras: "", lenses: "", batteries: "", accessories: "", others: "",
   });
@@ -109,7 +110,13 @@ export default function EquipmentPicker({
   // ── Availability preview state ──
   const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
   const [conflictsLoading, setConflictsLoading] = useState(false);
+  const [conflictsError, setConflictsError] = useState(false);
   const availDebounce = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // ── Indexed lookups (O(1) instead of O(n)) ──
+  const assetById = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
+  const bulkById = useMemo(() => new Map(bulkSkus.map((s) => [s.id, s])), [bulkSkus]);
+  const selectedIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
   // ── Section grouping ──
   const assetsBySection = useMemo(() => groupAssetsBySection(assets), [assets]);
@@ -149,21 +156,21 @@ export default function EquipmentPicker({
       cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
     };
     for (const id of selectedAssetIds) {
-      const asset = assets.find((a) => a.id === id);
+      const asset = assetById.get(id);
       if (asset) {
         const sec = classifyAssetType(asset.type, asset.categoryName);
         counts[sec]++;
       }
     }
     for (const item of selectedBulkItems) {
-      const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+      const sku = bulkById.get(item.bulkSkuId);
       if (sku) {
         const sec = classifyAssetType(sku.category, sku.categoryName);
         counts[sec]++;
       }
     }
     return counts;
-  }, [selectedAssetIds, selectedBulkItems, assets, bulkSkus]);
+  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById]);
 
   const sectionTotalCounts = useMemo(() => {
     const counts: Record<EquipmentSectionKey, number> = {
@@ -180,15 +187,15 @@ export default function EquipmentPicker({
   const selectedSectionKeys = useMemo(() => {
     const keys = new Set<EquipmentSectionKey>();
     for (const id of selectedAssetIds) {
-      const asset = assets.find((a) => a.id === id);
+      const asset = assetById.get(id);
       if (asset) keys.add(classifyAssetType(asset.type, asset.categoryName));
     }
     for (const item of selectedBulkItems) {
-      const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+      const sku = bulkById.get(item.bulkSkuId);
       if (sku) keys.add(classifyAssetType(sku.category, sku.categoryName));
     }
     return Array.from(keys);
-  }, [selectedAssetIds, selectedBulkItems, assets, bulkSkus]);
+  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById]);
 
   const activeGuidance = useMemo(() => {
     if (!activeSection) return [];
@@ -204,10 +211,12 @@ export default function EquipmentPicker({
   }, [sectionAssets, conflicts]);
 
   const allSectionSelected = allSectionAvailableIds.length > 0 &&
-    allSectionAvailableIds.every((id) => selectedAssetIds.includes(id));
-  const someSectionSelected = allSectionAvailableIds.some((id) => selectedAssetIds.includes(id));
+    allSectionAvailableIds.every((id) => selectedIdSet.has(id));
+  const someSectionSelected = allSectionAvailableIds.some((id) => selectedIdSet.has(id));
 
   // ── Availability preview ──
+
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchConflicts = useCallback(async () => {
     if (!startsAt || !endsAt || !locationId) {
@@ -217,7 +226,13 @@ export default function EquipmentPicker({
     const allAssetIds = assets.map((a) => a.id);
     if (allAssetIds.length === 0) return;
 
+    // Abort any in-flight request to prevent stale data overwriting fresh
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setConflictsLoading(true);
+    setConflictsError(false);
     try {
       const res = await fetch("/api/availability/check", {
         method: "POST",
@@ -229,6 +244,7 @@ export default function EquipmentPicker({
           serializedAssetIds: allAssetIds,
           bulkItems: [],
         }),
+        signal: controller.signal,
       });
       if (res.ok) {
         const json = await res.json();
@@ -247,9 +263,12 @@ export default function EquipmentPicker({
           }
         }
         setConflicts(map);
+      } else {
+        setConflictsError(true);
       }
-    } catch {
-      // Availability check failed — silently degrade, show status dots only
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setConflictsError(true);
     }
     setConflictsLoading(false);
   }, [startsAt, endsAt, locationId, assets]);
@@ -257,16 +276,21 @@ export default function EquipmentPicker({
   useEffect(() => {
     if (availDebounce.current) clearTimeout(availDebounce.current);
     availDebounce.current = setTimeout(fetchConflicts, 500);
-    return () => { if (availDebounce.current) clearTimeout(availDebounce.current); };
+    return () => {
+      if (availDebounce.current) clearTimeout(availDebounce.current);
+      abortRef.current?.abort();
+    };
   }, [fetchConflicts]);
+
+  // Clean up scan feedback timer on unmount
+  useEffect(() => {
+    return () => { if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current); };
+  }, []);
 
   // ── Helpers ──
 
   function advanceToSection(key: EquipmentSectionKey) {
     setActiveSection(key);
-    if (sectionIndex(key) > sectionIndex(highestReached)) {
-      setHighestReached(key);
-    }
   }
 
   function setSearch(value: string) {
@@ -281,11 +305,9 @@ export default function EquipmentPicker({
 
   function toggleAllInSection() {
     if (allSectionSelected) {
-      // Deselect all in this section
       const sectionIds = new Set(allSectionAvailableIds);
       setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
     } else {
-      // Select all available in this section
       setSelectedAssetIds((prev) => {
         const existing = new Set(prev);
         const toAdd = allSectionAvailableIds.filter((id) => !existing.has(id));
@@ -299,6 +321,32 @@ export default function EquipmentPicker({
     setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
     const sectionBulkIds = new Set((bulkBySection[activeSection] || []).map((s) => s.id));
     setSelectedBulkItems((prev) => prev.filter((i) => !sectionBulkIds.has(i.bulkSkuId)));
+  }
+
+  // ── Keyboard navigation ──
+
+  function handleTabKeyDown(e: React.KeyboardEvent, currentIdx: number) {
+    let nextIdx = currentIdx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      nextIdx = (currentIdx + 1) % EQUIPMENT_SECTIONS.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      nextIdx = (currentIdx - 1 + EQUIPMENT_SECTIONS.length) % EQUIPMENT_SECTIONS.length;
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      nextIdx = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      nextIdx = EQUIPMENT_SECTIONS.length - 1;
+    } else {
+      return;
+    }
+    setActiveSection(EQUIPMENT_SECTIONS[nextIdx].key);
+    // Focus the target tab button
+    const tabList = (e.currentTarget as HTMLElement).parentElement;
+    const buttons = tabList?.querySelectorAll<HTMLButtonElement>("[role=\"tab\"]");
+    buttons?.[nextIdx]?.focus();
   }
 
   // ── Scan-to-add ──
@@ -315,31 +363,58 @@ export default function EquipmentPicker({
     );
 
     if (asset) {
+      // BRK-001: Check computedStatus — don't add unavailable items via scan
+      const isAvailable = asset.computedStatus === "AVAILABLE";
+      const hasConflict = conflicts.has(asset.id);
+      if (!isAvailable && !hasConflict) {
+        const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
+        showScanFeedbackMsg(`${asset.assetTag} is ${statusLabel}`, "error");
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+        // Still navigate to the section so user can see the item
+        setActiveSection(classifyAssetType(asset.type, asset.categoryName));
+        return;
+      }
+
+      // BRK-002: Guard inside callback to prevent duplicate IDs from rapid scans
+      let wasAdded = false;
       setSelectedAssetIds((prev) => {
         if (prev.includes(asset.id)) return prev;
+        wasAdded = true;
         return [...prev, asset.id];
       });
       const section = classifyAssetType(asset.type, asset.categoryName);
       setActiveSection(section);
-      showScanFeedbackMsg(`Added ${asset.assetTag}`, "success");
-      if (navigator.vibrate) navigator.vibrate(100);
+      // Use callback result for feedback — selectedIdSet may be stale under rapid scans
+      const alreadySelected = selectedIdSet.has(asset.id);
+      showScanFeedbackMsg(
+        alreadySelected && !wasAdded ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
+        alreadySelected && !wasAdded ? "error" : "success",
+      );
+      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
       return;
     }
 
     const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
     if (sku) {
+      // BRK-002: Guard inside callback for bulk items too
+      let wasAdded = false;
       setSelectedBulkItems((prev) => {
         if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
+        wasAdded = true;
         return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
       });
       const section = classifyAssetType(sku.category, sku.categoryName);
       setActiveSection(section);
-      showScanFeedbackMsg(`Added ${sku.name}`, "success");
-      if (navigator.vibrate) navigator.vibrate(100);
+      const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
+      showScanFeedbackMsg(
+        alreadySelected && !wasAdded ? `${sku.name} already selected` : `Added ${sku.name}`,
+        alreadySelected && !wasAdded ? "error" : "success",
+      );
+      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
       return;
     }
 
-    showScanFeedbackMsg("Item not found", "error");
+    showScanFeedbackMsg("No matching item — check this location\u2019s inventory", "error");
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
   }
 
@@ -369,7 +444,7 @@ export default function EquipmentPicker({
                 variant="outline" size="sm"
                 className="inline-flex items-center gap-1 max-md:min-h-[44px] max-md:px-3 max-md:py-2"
                 onClick={() => setShowScanner(true)}
-                title="Scan QR to add item"
+                aria-label="Scan QR code to add item"
               >
                 <QrCodeIcon className="size-4" />
                 Scan
@@ -388,18 +463,27 @@ export default function EquipmentPicker({
 
       {/* Sectioned picker */}
       {visible && (
-        <div className="section-picker">
+        <div className="section-picker" role="region" aria-label="Equipment picker">
           {/* Section tabs */}
-          <div className="section-tabs">
-            {EQUIPMENT_SECTIONS.map((sec) => {
+          <div className="section-tabs" role="tablist" aria-label="Equipment sections">
+            {EQUIPMENT_SECTIONS.map((sec, idx) => {
               const isActive = activeSection === sec.key;
               const selCount = selectedCountBySection[sec.key] || 0;
               return (
                 <button
                   key={sec.key}
                   type="button"
-                  className={`section-tab${isActive ? " active" : ""}${selCount > 0 ? " section-tab-has-selected" : ""}`}
+                  role="tab"
+                  id={`picker-tab-${sec.key}`}
+                  aria-selected={isActive}
+                  aria-controls={`picker-panel-${sec.key}`}
+                  tabIndex={isActive ? 0 : -1}
+                  className={cn(
+                    "section-tab",
+                    isActive && "active",
+                  )}
                   onClick={() => setActiveSection(sec.key)}
+                  onKeyDown={(e) => handleTabKeyDown(e, idx)}
                 >
                   {sec.label}
                   {selCount > 0 ? (
@@ -414,86 +498,143 @@ export default function EquipmentPicker({
 
           {/* Active section content */}
           {activeSection && (
-            <div className="section-content">
+            <div
+              className="section-content"
+              role="tabpanel"
+              id={`picker-panel-${activeSection}`}
+              aria-labelledby={`picker-tab-${activeSection}`}
+            >
               {/* Search + "Only available" filter */}
               <div className="picker-toolbar">
                 <div className="picker-search-wrap">
-                  <SearchIcon className="picker-search-icon size-3.5" />
+                  <SearchIcon className="picker-search-icon size-3.5" aria-hidden="true" />
                   <input
                     className="picker-search"
                     placeholder={`Search ${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label.toLowerCase() || "items"}...`}
                     value={equipSearch}
                     onChange={(e) => setSearch(e.target.value)}
+                    aria-label={`Search ${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label || "items"}`}
                   />
                   {equipSearch && (
-                    <button type="button" className="picker-search-clear" onClick={() => setSearch("")}>&times;</button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="picker-search-clear"
+                      onClick={() => setSearch("")}
+                      aria-label="Clear search"
+                    >
+                      <XIcon className="size-3.5" />
+                    </Button>
                   )}
                 </div>
-                <button
+                <Button
                   type="button"
-                  className={`picker-filter-chip${onlyAvailable ? " picker-filter-chip-active" : ""}`}
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "picker-filter-chip",
+                    onlyAvailable && "picker-filter-chip-active",
+                  )}
                   onClick={() => setOnlyAvailable((v) => !v)}
-                  title={onlyAvailable ? "Showing only available items. Click to show all." : "Showing all items. Click to filter to available only."}
+                  aria-pressed={onlyAvailable}
+                  aria-label={onlyAvailable ? "Showing only available items. Click to show all." : "Showing all items. Click to filter to available only."}
                 >
                   Only available
-                </button>
+                </Button>
               </div>
 
               {/* Column header with select-all checkbox */}
               {sectionAssets.length > 0 && (
                 <div className="picker-col-header">
-                  <label className="picker-col-header-check">
-                    <input
-                      type="checkbox"
-                      className="equip-checkbox"
-                      checked={allSectionSelected}
-                      ref={(el) => { if (el) el.indeterminate = someSectionSelected && !allSectionSelected; }}
-                      onChange={toggleAllInSection}
+                  <div className="picker-col-header-check">
+                    <Checkbox
+                      checked={allSectionSelected ? true : someSectionSelected ? "indeterminate" : false}
+                      onCheckedChange={toggleAllInSection}
+                      aria-label={allSectionSelected ? "Deselect all items in section" : "Select all available items in section"}
                     />
-                  </label>
+                  </div>
                   <span className="picker-col-header-label">Item</span>
                   {currentSectionSelected > 0 && (
-                    <button type="button" className="picker-col-header-deselect" onClick={deselectAllInSection}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="picker-col-header-deselect"
+                      onClick={deselectAllInSection}
+                    >
                       Deselect ({currentSectionSelected})
-                    </button>
+                    </Button>
                   )}
                   {equipSearch && (
-                    <span className="picker-match-count">
+                    <span className="picker-match-count" aria-live="polite">
                       {sectionAssets.length + sectionBulk.length} results
                     </span>
                   )}
                   {conflictsLoading && (
-                    <span className="picker-avail-loading">Checking availability...</span>
+                    <span className="picker-avail-loading" aria-live="polite">Checking availability...</span>
+                  )}
+                  {conflictsError && !conflictsLoading && (
+                    <button
+                      type="button"
+                      className="picker-avail-loading text-[var(--orange)] underline cursor-pointer"
+                      onClick={fetchConflicts}
+                      aria-live="polite"
+                    >
+                      Availability unavailable — retry
+                    </button>
                   )}
                 </div>
               )}
 
-              <div className="picker-scroll">
+              <div className="picker-scroll" role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label || "Items"} list`}>
                 {/* Serialized assets */}
                 {sectionAssets.length > 0 && (
                   <>
                     {sectionAssets.map((asset) => {
-                      const isSelected = selectedAssetIds.includes(asset.id);
+                      const isSelected = selectedIdSet.has(asset.id);
                       const isAvailable = asset.computedStatus === "AVAILABLE";
                       const conflict = conflicts.get(asset.id);
                       const dotColor = conflict
                         ? "var(--orange)"
                         : STATUS_DOT_COLORS[asset.computedStatus] || "var(--text-muted)";
                       const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
+                      const isDisabled = !isAvailable && !conflict;
                       return (
-                        <label
+                        <div
                           key={asset.id}
-                          className={`picker-row${isSelected ? " picker-row-selected" : ""}${conflict ? " picker-row-conflict" : ""}`}
-                          data-unavailable={!isAvailable && !conflict ? true : undefined}
+                          role="option"
+                          aria-selected={isSelected}
+                          aria-disabled={isDisabled}
+                          tabIndex={0}
+                          className={cn(
+                            "picker-row",
+                            isSelected && "picker-row-selected",
+                            conflict && "picker-row-conflict",
+                          )}
+                          data-unavailable={isDisabled ? true : undefined}
+                          onClick={() => { if (!isDisabled) toggleAsset(asset.id); }}
+                          onKeyDown={(e) => {
+                            if (isDisabled) return;
+                            if (e.key === " " || e.key === "Enter") {
+                              e.preventDefault();
+                              toggleAsset(asset.id);
+                            }
+                          }}
                         >
-                          <input
-                            type="checkbox"
-                            className="equip-checkbox"
+                          <Checkbox
                             checked={isSelected}
-                            onChange={() => toggleAsset(asset.id)}
-                            disabled={!isAvailable && !conflict}
+                            onCheckedChange={() => toggleAsset(asset.id)}
+                            disabled={isDisabled}
+                            aria-label={`Select ${asset.assetTag}`}
+                            tabIndex={-1}
                           />
-                          <span className="picker-row-dot" style={{ backgroundColor: dotColor }} title={conflict ? "scheduling conflict" : statusLabel} />
+                          <span
+                            className="picker-row-dot"
+                            style={{ backgroundColor: dotColor }}
+                            title={conflict ? "Scheduling conflict" : statusLabel}
+                            aria-hidden="true"
+                          />
                           <div className="picker-row-info">
                             <div className="picker-row-name">
                               {asset.assetTag}
@@ -510,7 +651,7 @@ export default function EquipmentPicker({
                               </div>
                             )}
                           </div>
-                        </label>
+                        </div>
                       );
                     })}
                   </>
@@ -520,19 +661,34 @@ export default function EquipmentPicker({
                 {sectionBulk.length > 0 && (
                   <>
                     {sectionAssets.length > 0 && (
-                      <div className="section-subheading">Bulk Items</div>
+                      <div className="section-subheading" role="separator">Bulk Items</div>
                     )}
                     {sectionBulk.map((sku) => {
                       const isSelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
                       return (
                         <div
                           key={sku.id}
-                          className={`picker-row picker-row-bulk${isSelected ? " picker-row-selected" : ""}`}
+                          role="option"
+                          aria-selected={isSelected}
+                          tabIndex={0}
+                          className={cn(
+                            "picker-row picker-row-bulk",
+                            isSelected && "picker-row-selected",
+                          )}
                           onClick={() => {
                             if (isSelected) return;
                             setSelectedBulkItems((prev) =>
                               prev.some((i) => i.bulkSkuId === sku.id) ? prev : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
                             );
+                          }}
+                          onKeyDown={(e) => {
+                            if (isSelected) return;
+                            if (e.key === " " || e.key === "Enter") {
+                              e.preventDefault();
+                              setSelectedBulkItems((prev) =>
+                                prev.some((i) => i.bulkSkuId === sku.id) ? prev : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
+                              );
+                            }
                           }}
                         >
                           <div className="picker-row-info">
@@ -540,7 +696,7 @@ export default function EquipmentPicker({
                             <div className="picker-row-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
                           </div>
                           {isSelected && (
-                            <span className="picker-row-added">Added</span>
+                            <Badge variant="green" size="sm">Added</Badge>
                           )}
                         </div>
                       );
@@ -549,12 +705,14 @@ export default function EquipmentPicker({
                 )}
 
                 {sectionAssets.length === 0 && sectionBulk.length === 0 && (
-                  <div className="picker-empty">
+                  <div className="picker-empty" role="status">
                     {equipSearch
                       ? "No matching items"
-                      : onlyAvailable
-                        ? "No available items in this section"
-                        : "No items in this section"}
+                      : onlyAvailable && (sectionTotalCounts[activeSection] || 0) > 0
+                        ? <>No available items in this section — <button type="button" className="underline cursor-pointer" onClick={() => setOnlyAvailable(false)}>show all</button></>
+                        : onlyAvailable
+                          ? "No available items in this section"
+                          : "No items in this section"}
                   </div>
                 )}
               </div>
@@ -564,7 +722,11 @@ export default function EquipmentPicker({
                 <div
                   key={rule.id}
                   data-guidance={rule.id}
-                  className={`guidance-hint ${rule.level === "warning" ? "guidance-warning" : "guidance-info"}`}
+                  className={cn(
+                    "guidance-hint",
+                    rule.level === "warning" ? "guidance-warning" : "guidance-info",
+                  )}
+                  role="alert"
                 >
                   {rule.message}
                 </div>
@@ -599,39 +761,76 @@ export default function EquipmentPicker({
             </div>
           )}
 
-          {/* Sticky selection footer — Cheqroom-inspired */}
+          {/* Sticky selection footer */}
           {equipmentCount > 0 && (
-            <div className="picker-footer">
+            <div className="picker-footer" aria-live="polite">
               <div className="picker-footer-count">
-                <span className="picker-footer-badge">{equipmentCount}</span>
+                <Badge variant="default" className="picker-footer-badge">{equipmentCount}</Badge>
                 item{equipmentCount !== 1 ? "s" : ""} selected
               </div>
               <div className="picker-footer-items">
                 {selectedAssetIds.map((assetId) => {
-                  const asset = assets.find((a) => a.id === assetId);
+                  const asset = assetById.get(assetId);
                   if (!asset) return null;
                   const conflict = conflicts.get(assetId);
                   return (
-                    <span key={assetId} className={`picker-footer-tag${conflict ? " picker-footer-tag-conflict" : ""}`}>
+                    <span key={assetId} className={cn("picker-footer-tag", conflict && "picker-footer-tag-conflict")}>
                       {asset.assetTag}
-                      <button type="button" onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}>&times;</button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="picker-footer-tag-remove"
+                        onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}
+                        aria-label={`Remove ${asset.assetTag}`}
+                      >
+                        &times;
+                      </Button>
                     </span>
                   );
                 })}
                 {selectedBulkItems.map((item) => {
-                  const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+                  const sku = bulkById.get(item.bulkSkuId);
                   return (
                     <span key={item.bulkSkuId} className="picker-footer-tag">
                       {sku?.name || item.bulkSkuId}
                       <span className="picker-footer-tag-qty">
-                        <button type="button" onClick={() => {
-                          if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
-                          else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
-                        }}>&minus;</button>
-                        <span>{item.quantity}</span>
-                        <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}>+</button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="picker-footer-tag-qty-btn"
+                          onClick={() => {
+                            if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
+                            else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
+                          }}
+                          aria-label={`Decrease ${sku?.name || "item"} quantity`}
+                        >
+                          &minus;
+                        </Button>
+                        <span>{item.quantity}{sku && sku.currentQuantity > 0 ? `/${sku.currentQuantity}` : ""}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="picker-footer-tag-qty-btn"
+                          onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}
+                          disabled={!!sku && sku.currentQuantity > 0 && item.quantity >= sku.currentQuantity}
+                          aria-label={`Increase ${sku?.name || "item"} quantity`}
+                        >
+                          +
+                        </Button>
                       </span>
-                      <button type="button" onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}>&times;</button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="picker-footer-tag-remove"
+                        onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}
+                        aria-label={`Remove ${sku?.name || "item"}`}
+                      >
+                        &times;
+                      </Button>
                     </span>
                   );
                 })}
@@ -660,17 +859,17 @@ export default function EquipmentPicker({
       {equipmentCount > 0 && !visible && (
         <div className="picker-closed-summary">
           <div className="picker-closed-summary-count">
-            <span className="picker-footer-badge">{equipmentCount}</span>
+            <Badge variant="default" className="picker-footer-badge">{equipmentCount}</Badge>
             item{equipmentCount !== 1 ? "s" : ""} selected
           </div>
           <div className="picker-closed-summary-tags">
             {selectedAssetIds.map((assetId) => {
-              const asset = assets.find((a) => a.id === assetId);
+              const asset = assetById.get(assetId);
               if (!asset) return null;
               return <span key={assetId} className="picker-footer-tag picker-footer-tag-compact">{asset.assetTag}</span>;
             })}
             {selectedBulkItems.map((item) => {
-              const sku = bulkSkus.find((s) => s.id === item.bulkSkuId);
+              const sku = bulkById.get(item.bulkSkuId);
               return <span key={item.bulkSkuId} className="picker-footer-tag picker-footer-tag-compact">{sku?.name || item.bulkSkuId} &times;{item.quantity}</span>;
             })}
           </div>
@@ -680,11 +879,27 @@ export default function EquipmentPicker({
 
       {/* Scan-to-add overlay */}
       {showScanner && (
-        <div className="scan-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowScanner(false); }}>
+        <div
+          className="scan-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Scan equipment QR code"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowScanner(false); }}
+          onKeyDown={(e) => { if (e.key === "Escape") setShowScanner(false); }}
+        >
           <div className="scan-overlay-content">
             <div className="scan-overlay-header">
               <h3>Scan to add equipment</h3>
-              <button type="button" className="scan-overlay-close" onClick={() => setShowScanner(false)}>&times;</button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="scan-overlay-close"
+                onClick={() => setShowScanner(false)}
+                aria-label="Close scanner"
+              >
+                <XIcon className="size-4" />
+              </Button>
             </div>
             <QrScanner
               onScan={handleScanToAdd}
@@ -692,7 +907,7 @@ export default function EquipmentPicker({
               active={showScanner}
             />
             {scanFeedback && (
-              <div className={`scan-feedback scan-feedback-${scanFeedback.type}`}>
+              <div className={cn("scan-feedback", `scan-feedback-${scanFeedback.type}`)} role="status" aria-live="assertive">
                 {scanFeedback.message}
               </div>
             )}

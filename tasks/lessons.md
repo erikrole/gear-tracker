@@ -578,3 +578,23 @@ Always use shadcn Empty component:
 - **Privilege escalation has two vectors per role operation**: When guarding role changes, check BOTH directions — granting AND revoking. A guard that prevents STAFF from *granting* ADMIN but allows *demoting* ADMIN is a privilege escalation vector. Pattern: `if (target.role === "ADMIN" && actor.role !== "ADMIN") reject`.
 - **Profile edit must respect role hierarchy**: STAFF should not be able to edit ADMIN user profiles (name, email, phone). The same role guard that applies to role changes must also apply to profile field edits. Always check `target.role` vs `actor.role` on mutation endpoints.
 - **Audit entries need before-snapshots**: An audit entry with only `after` data can't reconstruct what changed. Fetch the current record before update, diff the fields, and pass both `before` and `after` to `createAuditEntry`. Skip the audit entry entirely if no fields actually changed.
+
+## Session 2026-03-24
+
+### Equipment Picker shadcn Migration
+- **shadcn Checkbox uses Radix `checked` prop, not HTML `checked`**: Pass `checked={true}`, `checked={false}`, or `checked="indeterminate"` — the indeterminate state replaces the HTML `el.indeterminate = true` ref pattern.
+- **shadcn Button in inline contexts needs CSS resets**: When replacing raw `<button>` with shadcn `Button` inside tight layouts (footer tags, quantity steppers), the default `height`, `min-height`, `padding`, and `box-shadow` must be overridden. Use specific class selectors (`.picker-footer-tag-remove`) rather than `button` tag selectors.
+- **O(1) Map lookups pay for themselves in render-heavy components**: Any component that renders a list + footer/summary of selected items should index by ID at the top with `useMemo(() => new Map(...))` rather than calling `.find()` inside `.map()` loops. The EquipmentPicker had 6 separate `.find()` call sites in render paths.
+- **ARIA tablist pattern requires `tabIndex` management**: Active tab gets `tabIndex={0}`, inactive tabs get `tabIndex={-1}`. Arrow keys move focus programmatically via `querySelectorAll("[role=tab]")`. This is the WAI-ARIA Tabs pattern — don't improvise.
+
+### Hardening Patterns
+- **Selection checks in render loops need Set, not Array**: `selectedIds.includes(id)` per row in a list is O(n×m). Wrap in `useMemo(() => new Set(selectedIds))` and use `.has()` — the Set is rebuilt once per selection change, not per row.
+- **AbortController is mandatory for debounced fetches**: Any `useCallback` + `useEffect` combo that debounces an API call MUST abort the previous in-flight request before starting a new one. Without this, a slow first response can overwrite fresh data from a faster second response. Pattern: `abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;`
+- **Dead state accumulates during feature evolution**: The `highestReached` state was from an earlier "locked tab progression" design that was dropped but the state variable persisted through 3 PRs. Run dead-code audits after multi-commit features.
+- **CSS selectors targeting HTML tags break after shadcn migration**: `.picker-row:has(input:disabled)` silently broke when raw `<input type="checkbox">` was replaced with shadcn `Checkbox` (which renders a Radix `<button>`). Always grep for `:has(input` selectors when migrating form elements.
+- **Silent scan failures erode trust**: Re-scanning an already-selected item with no feedback makes users think the scanner is broken. Always give explicit feedback for every scan result, even if the action is a no-op.
+
+### Stress Test Patterns (Equipment Picker)
+- **Scan-to-add must enforce the same rules as click-to-select**: The picker disabled unavailable items in the row UI but scan bypassed all checks. Any alternative input path (scan, keyboard shortcut, paste) must validate identically to the primary path. Pattern: extract an `canSelectAsset(asset)` predicate and use it in both row rendering and scan handler.
+- **setState callbacks must be self-contained for concurrency safety**: When using `selectedIdSet.has()` outside the callback and `setSelectedAssetIds((prev) => [...prev, id])` inside, rapid events can see stale `selectedIdSet` and add duplicates. Always guard inside the callback: `(prev) => { if (prev.includes(id)) return prev; return [...prev, id]; }`.
+- **Quantity steppers need domain-aware bounds**: The + button on bulk items had no upper bound. The `currentQuantity` field existed on the data model but was never wired to the UI. Always check: "Does this stepper/input have data that should constrain its range?" and wire it.
