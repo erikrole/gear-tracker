@@ -2,7 +2,7 @@
 
 **Target:** `src/components/Sidebar.tsx` + `src/components/AppShell.tsx`
 **Created:** 2026-03-24
-**Status:** V0.75 (shadcn migration just completed — collapse and mobile Sheet working)
+**Status:** V1 shipped (2026-03-24) — badges, nav groups, Notifications item
 
 ---
 

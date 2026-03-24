@@ -48,6 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/me")
@@ -59,11 +60,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
 
-    // Fetch unread notification count
-    fetch("/api/notifications?limit=0&unread=true")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.unreadCount != null) setUnreadNotifications(json.unreadCount); })
-      .catch(() => {});
+    // Fetch unread notification count and overdue badge count in parallel
+    Promise.all([
+      fetch("/api/notifications?limit=0&unread=true").then((res) => res.ok ? res.json() : null),
+      fetch("/api/dashboard").then((res) => res.ok ? res.json() : null),
+    ]).then(([notifJson, dashJson]) => {
+      if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
+      if (dashJson?.stats?.overdue != null) setOverdueBadgeCount(dashJson.stats.overdue);
+    }).catch(() => {});
   }, [router, pathname]);
 
   // Command palette state
@@ -268,7 +272,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </CommandList>
       </CommandDialog>
 
-      <AppSidebar user={user} onSignOut={handleLogout} />
+      <AppSidebar
+        user={user}
+        onSignOut={handleLogout}
+        overdueBadgeCount={overdueBadgeCount}
+        unreadNotifications={unreadNotifications}
+      />
 
       {!online && (
         <div className="offline-banner" role="status">
