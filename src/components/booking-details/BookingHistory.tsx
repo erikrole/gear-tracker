@@ -1,8 +1,27 @@
 "use client";
 
 import { formatDateTime } from "@/lib/format";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Badge } from "@/components/ui/badge";
 import { formatRelative, EQUIPMENT_ACTIONS, actionLabels } from "./helpers";
+import { cn } from "@/lib/utils";
 import type { AuditEntry, HistoryFilter } from "./types";
+
+const TIMELINE_DOT_COLORS: Record<string, string> = {
+  created: "bg-green-500",
+  create: "bg-green-500",
+  updated: "bg-blue-500",
+  update: "bg-blue-500",
+  extended: "bg-purple-500",
+  extend: "bg-purple-500",
+  cancelled: "bg-red-500",
+  cancel: "bg-red-500",
+  checkin_completed: "bg-green-500",
+  cancelled_by_checkout_conversion: "bg-blue-500",
+  "booking.items_added": "bg-green-500",
+  "booking.items_removed": "bg-red-500",
+  "booking.items_qty_changed": "bg-orange-500",
+};
 
 type Props = {
   filteredAuditLogs: AuditEntry[];
@@ -22,18 +41,19 @@ export default function BookingHistory({
   onToggleDiff,
 }: Props) {
   return (
-    <div className="sheet-section">
+    <div>
       {/* Filter chips */}
-      <div className="filter-chips">
-        {([["all", "All"], ["booking", "Booking changes"], ["equipment", "Equipment changes"]] as [HistoryFilter, string][]).map(([key, label]) => (
-          <button
-            key={key}
-            className={`filter-chip ${historyFilter === key ? "active" : ""}`}
-            onClick={() => onSetHistoryFilter(key)}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="mb-3">
+        <ToggleGroup
+          type="single"
+          value={historyFilter}
+          onValueChange={(v) => { if (v) onSetHistoryFilter(v as HistoryFilter); }}
+          className="h-8"
+        >
+          <ToggleGroupItem value="all" className="h-7 text-xs px-3">All</ToggleGroupItem>
+          <ToggleGroupItem value="booking" className="h-7 text-xs px-3">Booking changes</ToggleGroupItem>
+          <ToggleGroupItem value="equipment" className="h-7 text-xs px-3">Equipment changes</ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {filteredAuditLogs.length === 0 ? (
@@ -42,35 +62,40 @@ export default function BookingHistory({
         </div>
       ) : (
         filteredAuditLogs.map((entry) => (
-          <div className="timeline-item" key={entry.id}>
-            <div className={`timeline-dot action-${entry.action}`} />
-            <div className="timeline-content">
-              <div className="timeline-action">
+          <div className="flex gap-3 py-2" key={entry.id}>
+            <div
+              className={cn(
+                "size-2 rounded-full mt-1.5 shrink-0",
+                TIMELINE_DOT_COLORS[entry.action] || "bg-border"
+              )}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium">
                 {actionLabels[entry.action] || entry.action}
               </div>
-              <div className="timeline-meta">
+              <div className="text-xs text-muted-foreground mt-0.5">
                 {entry.actor?.name ?? "Unknown user"} {"\u00b7"} {formatRelative(entry.createdAt)}
               </div>
 
               {/* Extended detail */}
               {entry.action === "extended" && entry.afterJson && typeof entry.afterJson.endsAt === "string" && (
-                <div className="timeline-detail">
+                <div className="text-xs text-muted-foreground mt-1 bg-muted px-2.5 py-1.5 rounded-md">
                   Extended to {formatDateTime(entry.afterJson.endsAt as string)}
                 </div>
               )}
 
               {/* Updated fields */}
               {entry.action === "updated" && entry.afterJson && (
-                <div className="timeline-detail">
+                <div className="flex gap-1 flex-wrap mt-1">
                   {Object.keys(entry.afterJson).filter((k) => k !== "serializedAssetIds" && k !== "bulkItems").map((k) => (
-                    <span key={k} className="field-tag">{k}</span>
+                    <Badge key={k} variant="gray" size="sm">{k}</Badge>
                   ))}
                 </div>
               )}
 
               {/* Equipment change details */}
               {EQUIPMENT_ACTIONS.has(entry.action) && (
-                <div className="timeline-detail">
+                <div className="text-xs text-muted-foreground mt-1 bg-muted px-2.5 py-1.5 rounded-md">
                   {entry.action === "booking.items_added" && entry.afterJson && (
                     <span>
                       {Array.isArray(entry.afterJson.serializedAssetIds)
@@ -100,11 +125,14 @@ export default function BookingHistory({
               {/* Admin-only diff toggle */}
               {isAdmin && (entry.beforeJson || entry.afterJson) && (
                 <>
-                  <button className="diff-toggle" onClick={() => onToggleDiff(entry.id)}>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 decoration-dotted mt-1"
+                    onClick={() => onToggleDiff(entry.id)}
+                  >
                     {expandedDiffs.has(entry.id) ? "Hide diff" : "View diff"}
                   </button>
                   {expandedDiffs.has(entry.id) && (
-                    <div className="diff-snapshot">
+                    <div className="text-xs font-mono bg-muted px-2.5 py-2 rounded-md mt-1 whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
                       {entry.beforeJson && (
                         <div>
                           <strong>Before:</strong>{"\n"}
@@ -112,7 +140,7 @@ export default function BookingHistory({
                         </div>
                       )}
                       {entry.afterJson && (
-                        <div className={entry.beforeJson ? "diff-after-section" : undefined}>
+                        <div className={entry.beforeJson ? "mt-2" : undefined}>
                           <strong>After:</strong>{"\n"}
                           {JSON.stringify(entry.afterJson, null, 2)}
                         </div>

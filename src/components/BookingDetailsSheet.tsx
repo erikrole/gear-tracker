@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
@@ -14,9 +13,11 @@ import {
   SheetBody,
   SheetFooter,
 } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
+import { statusBadgeVariant, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
   BookingOverview,
@@ -569,7 +570,7 @@ export default function BookingDetailsSheet({
           </SheetTitle>
           {booking && (
             <div className="flex gap-2 flex-wrap mt-1">
-              <Badge variant={(statusBadge[booking.status] || "gray") as BadgeProps["variant"]}>
+              <Badge variant={(statusBadgeVariant[booking.status] || "gray") as BadgeProps["variant"]}>
                 {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
               </Badge>
               <Badge variant="gray">{booking.bookingType}</Badge>
@@ -581,22 +582,28 @@ export default function BookingDetailsSheet({
         </SheetHeader>
 
         {/* Tabs */}
-        <div className="flex border-b px-6">
-          {(["info", "equipment", "history"] as TabKey[]).map((t) => (
-            <button
-              key={t}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-              onClick={() => setTab(t)}
-            >
-              {t === "info" ? "Info" : t === "equipment" ? `Equipment${booking ? ` (${booking.serializedItems.length + booking.bulkItems.length})` : ""}` : "History"}
-            </button>
-          ))}
+        <div className="px-6">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
+            <TabsList className="w-full justify-start">
+              <TabsTrigger value="info">Info</TabsTrigger>
+              <TabsTrigger value="equipment">
+                Equipment{booking ? ` (${booking.serializedItems.length + booking.bulkItems.length})` : ""}
+              </TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Body */}
         <SheetBody className="px-6 py-4">
           {loading ? (
-            <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+            <div className="space-y-4 px-5 py-4">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-4 w-3/5" />
+            </div>
           ) : fetchError ? (
             <div className="py-10 px-5 text-center text-muted-foreground">Failed to load booking details.</div>
           ) : !booking ? (
