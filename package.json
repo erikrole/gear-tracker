@@ -30,6 +30,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "geist": "^1.7.0",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.577.0",
     "motion": "^12.38.0",
