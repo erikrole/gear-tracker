@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -101,20 +101,35 @@ export default function BookingDetailsSheet({
 
   /* ───── Data fetching ───── */
 
-  const fetchBooking = useCallback(async () => {
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchBooking = useCallback(async (opts?: { silent?: boolean }) => {
     if (!bookingId) return;
-    setLoading(true);
+    // Only show skeleton on initial load, not on refresh after mutations
+    if (!opts?.silent) setLoading(true);
     setFetchError(false);
+
+    // Abort any in-flight request to prevent stale data overwriting fresh
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`);
+      const res = await fetchWithTimeout(`/api/bookings/${bookingId}`, {
+        signal: controller.signal,
+      });
       if (res.ok) {
         const json = await res.json();
         if (json?.data) setBooking(json.data);
+      } else if (res.status === 401) {
+        window.location.href = "/login";
+        return;
       } else {
-        setFetchError(true);
+        if (!opts?.silent) setFetchError(true);
       }
-    } catch {
-      setFetchError(true);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (!opts?.silent) setFetchError(true);
     }
     setLoading(false);
   }, [bookingId]);
@@ -127,12 +142,20 @@ export default function BookingDetailsSheet({
       setEquipEditMode(false);
       setConflictError(null);
     }
+    return () => { abortRef.current?.abort(); };
   }, [bookingId, fetchBooking]);
+
+  /** Redirect to login on 401, return true if redirected */
+  function handle401(res: Response): boolean {
+    if (res.status === 401) { window.location.href = "/login"; return true; }
+    return false;
+  }
 
   const loadFormOptions = useCallback(async () => {
     try {
       setOptionsError(false);
-      const res = await fetch("/api/form-options");
+      const res = await fetchWithTimeout("/api/form-options");
+      if (handle401(res)) return;
       if (res.ok) {
         const json = await res.json();
         setAvailableAssets(json.data.availableAssets || []);
@@ -144,7 +167,7 @@ export default function BookingDetailsSheet({
       setOptionsError(true);
       toast("Failed to load equipment options", "error");
     }
-  }, []);
+  }, [toast]);
 
   /* ───── Derived state ───── */
 
@@ -344,10 +367,11 @@ export default function BookingDetailsSheet({
         }),
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         toast("Equipment updated", "success");
         setEquipEditMode(false);
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
@@ -387,10 +411,11 @@ export default function BookingDetailsSheet({
         body: JSON.stringify(payload),
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         toast("Booking updated", "success");
         setEditMode(false);
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
@@ -412,19 +437,20 @@ export default function BookingDetailsSheet({
     const extended = new Date(current.getTime() + days * 24 * 60 * 60 * 1000);
 
     try {
-      const res = await fetch(`/api/bookings/${booking.id}/extend`, {
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: extended.toISOString() }),
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         toast(`Extended by ${days} day${days > 1 ? "s" : ""}`, "success");
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to extend", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to extend", "error");
       }
     } catch {
       toast("Failed to extend", "error");
@@ -444,17 +470,18 @@ export default function BookingDetailsSheet({
 
     setCancelling(true);
     try {
-      const res = await fetch(`/api/bookings/${booking.id}/cancel`, {
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}/cancel`, {
         method: "POST",
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         toast("Booking cancelled", "success");
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to cancel", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to cancel", "error");
       }
     } catch {
       toast("Failed to cancel", "error");
@@ -473,10 +500,11 @@ export default function BookingDetailsSheet({
 
     setConverting(true);
     try {
-      const res = await fetch(`/api/reservations/${booking.id}/convert`, {
+      const res = await fetchWithTimeout(`/api/reservations/${booking.id}/convert`, {
         method: "POST",
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         const json = await res.json();
         toast("Converted to checkout", "success");
@@ -484,8 +512,8 @@ export default function BookingDetailsSheet({
         onClose();
         window.location.href = `/checkouts/${json.data.id}`;
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to convert", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to convert", "error");
       }
     } catch {
       toast("Failed to convert", "error");
@@ -494,21 +522,22 @@ export default function BookingDetailsSheet({
   }
 
   async function handleCheckinItem(assetId: string) {
-    if (!booking) return;
+    if (!booking || checkinLoading) return;
     setCheckinLoading(true);
     try {
-      const res = await fetch(`/api/checkouts/${booking.id}/checkin-items`, {
+      const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assetIds: [assetId] }),
       });
+      if (handle401(res)) return;
       if (res.ok) {
         toast("Item checked in", "success");
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to check in", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to check in", "error");
       }
     } catch {
       toast("Failed to check in", "error");
@@ -517,7 +546,7 @@ export default function BookingDetailsSheet({
   }
 
   async function handleCheckinAll() {
-    if (!booking) return;
+    if (!booking || checkinLoading) return;
     const activeItems = booking.serializedItems.filter((i) => i.allocationStatus !== "returned");
     if (activeItems.length === 0) return;
     const ok = await confirm({
@@ -529,18 +558,19 @@ export default function BookingDetailsSheet({
 
     setCheckinLoading(true);
     try {
-      const res = await fetch(`/api/checkouts/${booking.id}/checkin-items`, {
+      const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assetIds: activeItems.map((i) => i.asset.id) }),
       });
+      if (handle401(res)) return;
       if (res.ok) {
         toast("All items checked in", "success");
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to check in", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to check in", "error");
       }
     } catch {
       toast("Failed to check in", "error");
