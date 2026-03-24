@@ -610,3 +610,22 @@ Always use shadcn Empty component:
 - **SERIALIZABLE must be explicit on EVERY write transaction**: `cancelBooking()` and `cancelReservation()` used `db.$transaction()` without isolation level, defaulting to PostgreSQL's READ_COMMITTED. Two concurrent cancels could both see the booking as non-cancelled. Fix: always pass `{ isolationLevel: Prisma.TransactionIsolationLevel.Serializable }`. Grep for `db.$transaction(async` WITHOUT isolation level to find other missing cases.
 - **Handler functions must self-guard against double invocation**: Even if the UI button is `disabled={saving}`, the handler function itself must check `if (saving) return`. React state updates are async — two rapid clicks can both execute before `disabled` takes effect. Every async handler that sets a loading flag must also check it.
 - **Empty-payload writes waste API calls and create noise audit entries**: If `handleSave` detects no diff between edit state and booking state, it should bail early with a "No changes" toast rather than sending a no-op PATCH that creates an empty audit entry.
+
+## Session 2026-03-24
+
+### Sidebar / Navigation Shell Patterns
+
+**Design system:**
+- **Dead CSS accumulates fast on layout migrations**: When replacing a custom sidebar with a shadcn component, the old CSS blocks (`.sidebar`, `.sidebar-nav`, `.sidebar-profile`, etc.) have zero JSX references but remain in globals.css. Always grep `src/` for every CSS class before removing — but do remove them. 107 lines of dead sidebar CSS accumulated in this session.
+- **`SidebarGroupLabel` has built-in collapse behavior**: The shadcn `SidebarGroupLabel` already handles `group-data-[collapsible=icon]:-mt-8 opacity-0` transitions. Don't add a redundant `hidden` class — it overrides the smooth animation.
+- **Redundant nav items kill trust**: If a header avatar already links to the profile page, a separate "Profile" nav item is noise. Remove it. Users notice when two paths go to the same destination and infer inconsistency.
+- **Group separators aid fast scanning**: A `SidebarSeparator` between Operations and Admin nav groups is worth ~3 lines of code and makes the section boundary immediately obvious without needing to read labels.
+
+**Logic / resilience:**
+- **Badge fetches need AbortController cleanup**: AppShell re-fetches badge counts on every pathname change. Without a cleanup function returning `badgeController.abort()`, navigating quickly causes multiple in-flight fetches that set state after unmount. Pattern: create controller at top of effect, pass `signal` to all fetches, `return () => { controller.abort(); }`.
+- **`isLoggingOut` must be wired all the way to the button**: Tracking `loggingOut` state in AppShell without passing it to the sidebar component means the button is never actually disabled. Pass as prop; check `disabled={isLoggingOut}` on the button.
+- **Logout network failure must re-enable the button**: Without a `try/catch` in `handleLogout`, a network drop during logout leaves `loggingOut=true` permanently. The user's only recovery is a page refresh. Wrap with try/catch and `setLoggingOut(false)` in the catch.
+
+**UX:**
+- **Collapsed icon-only tooltips can carry urgency signal**: `tooltip="Checkouts"` in collapsed mode gives no urgency cue. `tooltip="Checkouts · 3 overdue"` gives the same information as the badge when the badge might be hard to see. Cost: a ternary. Impact: accessible urgency in icon-only mode.
+- **shadcn `SidebarMenuBadge` is visible in both expanded and collapsed modes**: It uses absolute positioning and is always rendered. No additional logic needed for collapsed badge visibility — it works out of the box.
