@@ -56,6 +56,8 @@ Optimize handoff and return execution so daily operators can move fast without d
 
 The equipment picker is a standalone component (`src/components/EquipmentPicker.tsx`) extracted from BookingListPage. It uses a sectioned flow with free tab navigation. Supporting libraries: `src/lib/equipment-sections.ts`, `src/lib/equipment-guidance.ts`.
 
+> **Component Roadmap:** See `tasks/item-picker-roadmap.md` for the V1→V2→V3 evolution plan covering decomposition, shadcn alignment, compound component API, and generic picker abstraction.
+
 ### Section Order
 1. **Cameras** — camera bodies, camcorders, cinema cameras, DSLRs, mirrorless
 2. **Lenses** — lenses

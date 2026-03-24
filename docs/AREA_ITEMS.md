@@ -38,6 +38,8 @@ Treat physical gear identity as primary, make list and detail views action-orien
 4. User attaches image from upload or URL.
 6. User saves item and returns to list or adds another.
 
+> **Picker Roadmap:** Form comboboxes (Department, Location, Category, Bulk SKU) are covered in `tasks/item-picker-roadmap.md` — see FormCombobox V1 cleanup for normalization plan.
+
 ### Item Detail
 1. User opens item details from list.
 2. Header exposes fast actions (`Reserve`, `Check out`) by permission and policy.
