@@ -76,7 +76,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
   return (
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <div
-        className="group relative rounded-xl border border-[var(--border)] bg-[var(--panel-solid)] p-4 cursor-pointer transition-all duration-[var(--transition-slow)] hover:shadow-md hover:border-[var(--border-hover)]"
+        className="group relative rounded-lg border border-[var(--border)] bg-[var(--panel-solid)] p-4 cursor-pointer transition-colors hover:bg-[var(--accent-soft)]"
         onClick={onClick}
       >
         {/* Top row: status + date range */}
