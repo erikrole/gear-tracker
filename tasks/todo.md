@@ -75,7 +75,7 @@ Last updated: 2026-03-22
 - [x] **Dashboard Drafts (D-017 / GAP-2)** — DRAFT booking CRUD, dashboard section, auto-save on cancel, resume pre-fill (2026-03-16)
 - [x] **D-018 Doc Sync** — Asset financial fields already in UI; docs updated to reflect shipped (2026-03-16)
 - [x] **Dark mode contrast sweep** — 14 elements fixed across 2 commits (2026-03-16)
-- [x] **Equipment Picker: shadcn + perf + a11y** — shadcn Checkbox/Button/Badge, O(1) Map lookups, full ARIA keyboard nav (2026-03-24)
+- [x] **Equipment Picker: shadcn + perf + a11y + 4-pass hardening** — shadcn components, O(1) Map + Set lookups, full ARIA keyboard nav, AbortController, scan feedback, availability retry, dead CSS cleanup (2026-03-24)
 - [x] **Equipment Picker V2** — Multi-select, per-section search, availability preview, scan-to-add (2026-03-15)
 - [x] **Dashboard V2/V3** — Ops-first split layout with live countdown timers (2026-03-11/12)
 - [x] **Item Detail: UW Asset Tag Mirror** — uwAssetTag shown in page header (2026-03-11)
