@@ -46,7 +46,7 @@
 |---|---|---|---|
 | ~~Asset financial fields UI~~ | ~~AREA_ITEMS~~ | ~~D-018~~ | ~~Shipped 2026-03-16: Procurement section in item detail Info tab~~ |
 | ~~Department filter/display~~ | ~~AREA_ITEMS~~ | ~~D-019~~ | ~~Shipped 2026-03-21: department FK, combobox filter on items page~~ |
-| Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Brief written (`BRIEF_KIT_MANAGEMENT_V1.md`). V1: CRUD + member management. V2: checkout integration. |
+| ~~Kit management UI + kit-based checkout~~ | ~~AREA_CHECKOUTS~~ | ~~D-020~~ | ~~V1 shipped 2026-03-24: CRUD + member management + search + archive. V2: checkout integration.~~ |
 | ~~Dashboard saved filters~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Shipped 2026-03-24: Save view button + localStorage presets + apply/delete~~ |
 | ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter shipped 2026-03-24~~ |
 | ~~Notification center polish (pagination, mark-as-read)~~ | ~~AREA_NOTIFICATIONS~~ | ~~—~~ | ~~Shipped: pagination, mark-as-read, unread filter all implemented~~ |

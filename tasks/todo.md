@@ -45,6 +45,7 @@ Last updated: 2026-03-22
 
 ## Recently Shipped
 
+- [x] **Kit Management V1 (D-020)** — Kit CRUD, member management via asset search, equipment section grouping, archive/restore, audit logging on all mutations. Kit service layer + 4 API routes + list page (search, location filter, pagination, sort) + creation sheet + detail page (inline edit, member add/remove, delete). Sidebar "Soon" badge removed. (2026-03-24)
 - [x] **Sidebar V1 + Hardening (5-pass)** — Badge awareness (overdue on Checkouts, unread on Notifications). Semantic nav groups (Operations / Admin / Account). STUDENT sees no Admin group. Kits moved to Admin with "Soon" badge. Profile nav item removed (redundant with header). Group separators. Count-aware collapsed tooltips ("Checkouts · 3 overdue"). Logic: AbortController for badge fetch cleanup, isLoggingOut prop disables button during in-flight logout. Resilience: logout network failure now resets to allow retry. Design: 107 lines of dead old-sidebar CSS removed. (2026-03-24)
 - [x] **Users Page Improvements + Hardening** — Create user dialog, activity cursor pagination, member since date. Hardening: dead CSS removal, refresh-preserves-data, form reset on reopen, error differentiation, manual refresh with tooltip. (2026-03-23)
 - [x] **Schedule Page Hardening (4-pass)** — Design system (inline styles → Tailwind classes). Data flow (AbortController race prevention, 401 redirect on all fetches, trade count refreshes on sheet close). Resilience (network vs server error differentiation, refresh preserves existing data). UX polish (filtered "N of M" count indicator, skeleton column fix). (2026-03-23)
@@ -90,7 +91,7 @@ Last updated: 2026-03-22
 
 - [ ] **Dashboard filter chips** (Sport, Location) — deferred from V1
 - [ ] **Dashboard saved filters** — deferred from V1
-- [ ] **Kit management UI** (D-020) — brief written (`BRIEF_KIT_MANAGEMENT_V1.md`), ready to implement
+- [x] **Kit management UI** (D-020) — shipped 2026-03-24
 - [x] **Department filter/display** (D-019) — shipped 2026-03-21
 - [ ] **Notification center pagination** — list grows unbounded
 - [ ] **Shift email notifications** — V1 = in-app audit only
