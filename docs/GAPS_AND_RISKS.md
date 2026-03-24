@@ -13,8 +13,8 @@
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
-| PD-2 | Venue mapping governance — who owns regex-to-location mapping table? | AREA_EVENTS | Medium | No |
-| PD-3 | Event sync refresh cadence — Vercel Cron schedule and staleness thresholds | AREA_EVENTS | Medium | No |
+| ~~PD-2~~ | ~~Venue mapping governance — who owns regex-to-location mapping table?~~ | ~~AREA_EVENTS~~ | ~~Resolved~~ | ~~D-027: Admin-only, pattern validation, longest-match tie-breaking~~ |
+| ~~PD-3~~ | ~~Event sync refresh cadence — Vercel Cron schedule and staleness thresholds~~ | ~~AREA_EVENTS~~ | ~~Resolved~~ | ~~D-026: Daily cron (6 AM UTC) + manual refresh, staleness indicator, admin failure alerts~~ |
 | ~~PD-4~~ | ~~B&H metadata cache TTL target~~ | ~~AREA_ITEMS~~ | ~~N/A~~ | ~~No — D-005 withdrawn~~ |
 | ~~PD-5~~ | ~~Student mobile KPI definitions~~ | ~~AREA_MOBILE~~ | ~~Resolved~~ | ~~Taps-to-checkout ≤3, scan success ≥95%, task completion <30s~~ |
 
@@ -36,7 +36,7 @@
 | ~~GAP-10~~ | ~~Kit management page exists but is empty — confusing for users navigating via sidebar~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Placeholder card shipped; Kits moved to Admin group with "Soon" badge in sidebar (2026-03-24)~~ |
 | GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2: adopt React Query/SWR for shared cache + background refresh |
 | ~~GAP-12~~ | ~~No stale-data detection across browser tabs or after backgrounding~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~`useFetch` hook includes Page Visibility API refresh; item detail page refreshes on tab focus 2026-03-24~~ |
-| GAP-13 | `BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020) | AREA_CHECKOUTS | Open | Priority 2 planning doc per NORTH_STAR §12 |
+| ~~GAP-13~~ | ~~`BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020)~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Brief written 2026-03-24; V1 scope: kit CRUD + member management + derived availability~~ |
 
 ---
 
@@ -46,7 +46,7 @@
 |---|---|---|---|
 | ~~Asset financial fields UI~~ | ~~AREA_ITEMS~~ | ~~D-018~~ | ~~Shipped 2026-03-16: Procurement section in item detail Info tab~~ |
 | ~~Department filter/display~~ | ~~AREA_ITEMS~~ | ~~D-019~~ | ~~Shipped 2026-03-21: department FK, combobox filter on items page~~ |
-| Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI. Simple parent-child accessories shipped via D-023. |
+| Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Brief written (`BRIEF_KIT_MANAGEMENT_V1.md`). V1: CRUD + member management. V2: checkout integration. |
 | ~~Dashboard saved filters~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Shipped 2026-03-24: Save view button + localStorage presets + apply/delete~~ |
 | ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter shipped 2026-03-24~~ |
 | ~~Notification center polish (pagination, mark-as-read)~~ | ~~AREA_NOTIFICATIONS~~ | ~~—~~ | ~~Shipped: pagination, mark-as-read, unread filter all implemented~~ |
@@ -133,4 +133,5 @@
 - 2026-03-23: Unified Schedule page (V1) shipped. Events + Schedule merged into `/schedule`. Old events list page removed. Venue Mappings moved to `/settings/venue-mappings`. System roadmap updated — calendar merge is item #1 in V1 order.
 - 2026-03-23: Schedule V2 enhancements shipped — "My Shifts" filter (student-first, localStorage-persisted), inline coverage expansion (per-area breakdown with avatars + assign), Trade Board as Sheet overlay with open-trade count badge, view mode persistence, auto-scroll to today.
 - 2026-03-23: Schedule page hardened (4-pass) — design system alignment, AbortController race prevention, 401 redirect, network vs server error differentiation, refresh-preserves-data pattern, filtered count indicator.
+- 2026-03-24: Closed GAP-13 (`BRIEF_KIT_MANAGEMENT_V1.md` written — V1 scope: kit CRUD, member management, derived availability). Resolved PD-2 (D-027: admin-owned venue mappings with pattern validation) and PD-3 (D-026: hourly cron sync with staleness indicator).
 - 2026-03-24: V1 Cohesive Foundation completion — Dashboard decomposed into `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (GAP-9 closed). Empty state audit across search, scan, bulk-inventory, data-table. `useFormSubmit` hook extracted for standardized form handling (Zod validation → fetch → error classification → toast). Applied to Create User dialog as reference implementation.

@@ -90,7 +90,7 @@ Last updated: 2026-03-22
 
 - [ ] **Dashboard filter chips** (Sport, Location) — deferred from V1
 - [ ] **Dashboard saved filters** — deferred from V1
-- [ ] **Kit management UI** (D-020) — full schema, zero UI
+- [ ] **Kit management UI** (D-020) — brief written (`BRIEF_KIT_MANAGEMENT_V1.md`), ready to implement
 - [x] **Department filter/display** (D-019) — shipped 2026-03-21
 - [ ] **Notification center pagination** — list grows unbounded
 - [ ] **Shift email notifications** — V1 = in-app audit only
@@ -100,10 +100,7 @@ Last updated: 2026-03-22
 
 ## Pending Decisions
 
-See `docs/GAPS_AND_RISKS.md` for the full registry. Key items:
-
-1. **PD-2**: Venue mapping governance — who owns regex-to-location mapping table?
-2. **PD-3**: Event sync refresh cadence — Vercel Cron schedule and staleness thresholds
+All pending decisions resolved — see `docs/DECISIONS.md` for D-026 (event sync cadence) and D-027 (venue mapping governance).
 
 ---
 
