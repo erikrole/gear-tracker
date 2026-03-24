@@ -10,6 +10,7 @@ import {
   UsersIcon,
   FolderIcon,
   BarChart3Icon,
+  WifiOffIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/empty";
 
 type EmptyStateProps = {
-  icon?: "search" | "calendar" | "box" | "clipboard" | "bell" | "users" | "folder" | "chart";
+  icon?: "search" | "calendar" | "box" | "clipboard" | "bell" | "users" | "folder" | "chart" | "wifi-off";
   title: string;
   description?: string;
   actionLabel?: string;
@@ -38,6 +39,7 @@ const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>
   users: UsersIcon,
   folder: FolderIcon,
   chart: BarChart3Icon,
+  "wifi-off": WifiOffIcon,
 };
 
 export default function EmptyState({

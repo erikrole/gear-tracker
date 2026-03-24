@@ -10,6 +10,7 @@ export type UserRow = {
   locationId: string | null;
   location: string | null;
   avatarUrl: string | null;
+  active?: boolean;
 };
 
 export type SportAssignment = {
@@ -26,6 +27,7 @@ export type AreaAssignment = {
 };
 
 export type UserDetail = UserRow & {
+  createdAt: string | null;
   sportAssignments: SportAssignment[];
   areaAssignments: AreaAssignment[];
 };

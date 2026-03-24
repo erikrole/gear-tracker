@@ -5,7 +5,7 @@ import EmptyState from "@/components/EmptyState";
 import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
-import CreateUserCard from "./CreateUserCard";
+import CreateUserDialog from "./CreateUserCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -16,9 +16,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowUpDown, Loader2 } from "lucide-react";
+import { ArrowUpDown, Loader2, RefreshCw, WifiOff } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const LIMIT = 50;
+
+function formatRelativeShort(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 10) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
+}
 
 /* ── Sort Header ───────────────────────────────────────── */
 
@@ -72,13 +82,15 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<false | "network" | "server">(false);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   // Filters & sort
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [sort, setSort] = useState<SortKey | string>("name");
+  const [showInactive, setShowInactive] = useState(false);
 
   // Form options
   const [locations, setLocations] = useState<Location[]>([]);
@@ -93,6 +105,7 @@ export default function UsersPage() {
   // ── Data fetching ──
 
   const abortRef = useRef<AbortController | null>(null);
+  const hasDataRef = useRef(false);
 
   const reload = useCallback(async () => {
     abortRef.current?.abort();
@@ -109,6 +122,7 @@ export default function UsersPage() {
       if (sort) params.set("sort", sort);
       if (roleFilter) params.set("role", roleFilter);
       if (locationFilter) params.set("locationId", locationFilter);
+      if (showInactive) params.set("active", "all");
 
       const res = await fetch(`/api/users?${params}`, { signal: controller.signal });
       if (res.status === 401) {
@@ -119,14 +133,19 @@ export default function UsersPage() {
         const json: ListResponse = await res.json();
         setUsers(json.data ?? []);
         setTotal(json.total ?? 0);
-      } else {
-        setLoadError(true);
+        setLoadError(false);
+        setLastFetched(new Date());
+        hasDataRef.current = (json.data ?? []).length > 0;
+      } else if (!hasDataRef.current) {
+        setLoadError("server");
       }
     } catch (err) {
-      if ((err as Error).name !== "AbortError") setLoadError(true);
+      if ((err as Error).name !== "AbortError" && !hasDataRef.current) {
+        setLoadError(navigator.onLine === false ? "network" : "server");
+      }
     }
     if (!controller.signal.aborted) setLoading(false);
-  }, [page, search, sort, roleFilter, locationFilter]);
+  }, [page, search, sort, roleFilter, locationFilter, showInactive]);
 
   useEffect(() => {
     reload();
@@ -153,7 +172,7 @@ export default function UsersPage() {
   }, []);
 
   // Reset page when filters change
-  useEffect(() => { setPage(0); }, [search, roleFilter, locationFilter, sort]);
+  useEffect(() => { setPage(0); }, [search, roleFilter, locationFilter, sort, showInactive]);
 
   const totalPages = Math.ceil(total / LIMIT);
   const hasFilters = !!search || !!roleFilter || !!locationFilter;
@@ -166,23 +185,33 @@ export default function UsersPage() {
       <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-2">
           <h1>Users</h1>
-          {isRefreshing && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-7" onClick={reload} disabled={loading}>
+                <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {lastFetched
+                ? `Updated ${formatRelativeShort(lastFetched)}`
+                : "Refresh"}
+            </TooltipContent>
+          </Tooltip>
         </div>
-        {canEdit && !showCreate && (
+        {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
             Add user
           </Button>
         )}
       </div>
 
-      {/* Create Form (toggleable) */}
-      {canEdit && showCreate && (
-        <CreateUserCard
-          locations={locations}
-          onCreated={reload}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        locations={locations}
+        onCreated={reload}
+      />
 
       {/* Users List */}
       <div className="space-y-4">
@@ -194,9 +223,12 @@ export default function UsersPage() {
           locationFilter={locationFilter}
           onLocationChange={setLocationFilter}
           locations={locations}
+          showInactive={showInactive}
+          onShowInactiveChange={setShowInactive}
           onClearAll={() => {
             setRoleFilter("");
             setLocationFilter("");
+            setShowInactive(false);
           }}
         />
 
@@ -233,9 +265,11 @@ export default function UsersPage() {
           </div>
         ) : loadError ? (
           <EmptyState
-            icon="users"
-            title="Failed to load users"
-            description="Something went wrong. Please try again."
+            icon={loadError === "network" ? "wifi-off" : "users"}
+            title={loadError === "network" ? "You\u2019re offline" : "Failed to load users"}
+            description={loadError === "network"
+              ? "Check your internet connection and try again."
+              : "Something went wrong \u2014 usually temporary."}
             actionLabel="Retry"
             onAction={reload}
           />

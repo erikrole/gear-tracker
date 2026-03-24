@@ -509,3 +509,127 @@ Always use shadcn Empty component:
 ### Design System Patterns
 - **Badge variants map to status enums**: When a component has a `statusColor()` function returning hex values, check if shadcn Badge already has matching variants (green, blue, purple, orange, gray). Direct replacement eliminates inline styles and custom CSS.
 - **Progress component replaces custom progress bars**: Custom `.progress-bar` + `.progress-fill` CSS is a direct shadcn Progress replacement. Use `[&>[data-slot=progress-indicator]]:bg-color` for custom indicator colors.
+
+## Session 2026-03-23 (Profile Page Hardening)
+
+### Architecture Patterns
+- **"Same page, different context" > separate pages**: When a profile page duplicates a user detail page with minor additions (avatar upload, password change), merge them. Use `isSelf` detection to conditionally show self-edit features. This eliminates code duplication, keeps the navigation model simple, and ensures profile features stay in sync with the user detail page.
+- **Redirect pages for backward compatibility**: When merging pages, keep the old route as a lightweight redirect (`/profile` → `/users/{id}`) so bookmarks and links still work. The redirect fetches the user ID then calls `router.replace()`.
+
+### Data Flow Patterns
+- **Separate `canEdit` from `isSelf`**: A boolean `canEdit = isSelf || isAdmin` is too coarse when different fields have different edit permissions. Students can edit their own name/location but not email/phone/role. Pass both `canEdit` (role-based) and `isSelf` to the component, and apply field-level permissions: `canEdit={canEdit || isSelf}` for name/location, `canEdit={canEdit}` for admin-only fields.
+- **Route self-edits through the right API**: When the same form serves both admin-edits and self-edits, the `patchUser` function must detect which API to use. Self-edits for name/location go through `/api/profile` (works for all roles), while other fields require `/api/users/:id` (ADMIN/STAFF only). Anti-pattern: using a single `canEdit` boolean that makes all fields editable for self-viewers, then sending all edits through the admin API which returns 403 for students.
+
+### Resilience Patterns
+- **Clear stale data on retry**: When a retry button re-triggers data loading, always clear the previous data (`setUser(null)`) alongside clearing the error state. Without this, old data is briefly visible while the new request is in flight, which can show the wrong user's information.
+
+### UX Patterns
+- **Optimistic removal with rollback**: For destructive actions where the expected outcome is clear (removing an avatar sets it to null), update the UI immediately and restore on failure. Save the previous value, set the new state optimistically, then rollback in both the error response and catch paths.
+- **Contextual breadcrumbs**: When the same page serves two purposes (user detail vs profile), the breadcrumb should reflect the user's intent: show "Profile" when `isSelf`, show the user's name when viewing someone else.
+
+## Session 2026-03-23 (Reports Page Hardening)
+
+### Design System Patterns
+- **Global PageBreadcrumb covers sub-routes**: `AppShell.tsx` renders `<PageBreadcrumb />` which auto-generates breadcrumbs from the URL path (e.g., Home > Reports > Utilization). Page-level breadcrumb components are always redundant — remove them.
+- **shadcn Table vs custom .data-table CSS**: The `Table` / `TableRow` / `TableCell` components from shadcn provide consistent hover, borders, and spacing. Custom `.data-table` CSS was 50+ lines that duplicated what shadcn Table does in 0 lines.
+
+### Data Flow Patterns
+- **URL-persisted filters via `window.history.replaceState`**: For read-only pages with filter controls (period, phase), sync filter state to the URL so report links are shareable. Use `useSearchParams()` to hydrate initial state, `replaceState` to sync changes. Don't use `router.push()` — it triggers unnecessary navigation transitions.
+- **Data freshness indicator reuse**: The Dashboard's `lastRefreshed` + `RefreshCw` + `Tooltip` + `formatRelativeTime` pattern is portable to any data-fetching page. Add `lastRefreshed` state, set on successful fetch, display in a Tooltip on a ghost-variant RefreshCw button. Update "ago" display with a 60s interval.
+
+### Reliability Patterns
+- **Retry button must call loadData, not just clear error state**: Anti-pattern: `onClick={() => { setError(false); setLoading(true); }}` — this clears the error and shows loading but never re-fetches. Always call the actual data loading function.
+- **Refresh-without-replacement for filter changes**: When `data !== null` and the user changes a filter, don't replace visible data with skeletons. Show a subtle spinner (e.g., RefreshCw animate-spin) and keep current data visible until the new response arrives. Only show full skeletons on initial load (`data === null`).
+
+## Session 2026-03-23 (Schedule Page Merge + Hardening)
+
+### Architecture Patterns
+- **Merge pages that answer the same question**: If two pages pivot on the same model and answer "what's happening and who's working?", merge them. Staff shouldn't bounce between pages for related context. The unified `/schedule` page replaced `/events` + old `/schedule`.
+- **Parallel API fetches over combined endpoints**: Fetching `/api/calendar-events` and `/api/shift-groups` in parallel from the client is simpler than creating a combined endpoint. One API can 403 gracefully (students without shift:view) without blocking the other.
+- **Keep Trade Board accessible during page context**: Moving Trade Board from a tab (replaces page) to a Sheet overlay (side panel) lets users see the schedule while browsing trades. Side panels preserve context; tabs destroy it.
+
+### UX Patterns
+- **"My Shifts" as default-ON for students**: Student users want their shifts first. Default the filter ON for STUDENT role (from `/api/me`), but only when localStorage has no prior preference (`=== null` check). This respects user choice after first interaction.
+- **Filtered count indicator**: Show "N of M" (e.g., "3 of 12") when filters reduce the result set. Helps users understand they're seeing a subset without needing to clear filters to verify.
+- **Trade count badge on button**: A small orange badge with open trade count on the "Trade Board" button provides at-a-glance visibility of pending actions. Refresh the count when the sheet closes (trades may have been claimed/cancelled).
+- **Inline coverage expansion**: Click a coverage badge to expand per-area breakdown inline (Video 2/2, Photo 1/2, etc.) with assign buttons. Avoids opening ShiftDetailPanel just to see which areas need staff.
+
+### Reliability Patterns
+- **hasLoadedRef for refresh-preserves-data**: Use a ref (not state) to track whether initial data load completed. On subsequent loads (filter/view changes), skip `setLoading(true)` so existing data stays visible. Avoids skeleton flash on every filter change.
+- **Trade count refresh on sheet close**: The `onOpenChange` handler on the Sheet fires when closing — use it to re-fetch trade count since the user may have claimed or cancelled trades while the sheet was open.
+
+### Stress Test Patterns
+- **Per-item acting guards are insufficient**: `disabled={acting === t.id}` only blocks the button being acted on. Users can spam-click buttons on DIFFERENT items, firing concurrent mutations. Fix: `disabled={acting !== null}` blocks ALL mutation buttons while any mutation is in-flight.
+- **401 handling is per-component, not per-page**: The schedule page has 401 handling on its own fetches, but ShiftDetailPanel and TradeBoard are rendered inside it as child components with their own fetch calls. Each component needs its own 401 handling — a page-level guard doesn't protect child component mutations.
+- **Conditional render = auto-remount = fresh data**: `{open && <Component />}` unmounts on close and remounts on open, triggering useEffect data loads. No manual "reload on open" needed — the component lifecycle handles it.
+
+## Session 2026-03-23 (Users Page Hardening)
+
+### Resilience Patterns
+- **Radix Dialog retains DOM between close/open**: Unlike conditional render (`{open && <Form />}`), Radix Dialog keeps content mounted but hidden. Uncontrolled form inputs retain their values across opens. Fix: `useEffect(() => { if (open) formRef.current?.reset(); }, [open])`.
+- **hasDataRef for stale-closure-safe refresh**: `users.length` in a useCallback can't be in the dep array (would cause infinite reload loop) and can't be read from the closure (stale). A `hasDataRef` stores whether we've successfully loaded data — allows safe "only show error if no prior data" logic without dependency issues.
+
+### UX Patterns
+- **Error differentiation by type**: Use `navigator.onLine === false` in catch blocks to distinguish network errors from server errors. Show `WifiOff` icon + "You're offline" for network, generic icon + "Something went wrong" for server.
+- **Manual refresh with relative timestamp**: A `RefreshCw` icon button (spins when loading) with Tooltip showing "Updated 2m ago" gives users control + visibility into data freshness. Pattern: `lastFetched` Date state, updated on successful fetch, formatted via simple relative-time helper.
+
+### Security Patterns (Stress Test)
+- **TOCTOU on unique constraints**: Never rely on a `findUnique` check before `create`/`update` for uniqueness enforcement. Two concurrent requests can both pass the check. Instead: catch Prisma `P2002` (unique constraint violation) and return a friendly 409. The DB constraint is the single source of truth, not application-level pre-checks.
+- **Privilege escalation has two vectors per role operation**: When guarding role changes, check BOTH directions — granting AND revoking. A guard that prevents STAFF from *granting* ADMIN but allows *demoting* ADMIN is a privilege escalation vector. Pattern: `if (target.role === "ADMIN" && actor.role !== "ADMIN") reject`.
+- **Profile edit must respect role hierarchy**: STAFF should not be able to edit ADMIN user profiles (name, email, phone). The same role guard that applies to role changes must also apply to profile field edits. Always check `target.role` vs `actor.role` on mutation endpoints.
+- **Audit entries need before-snapshots**: An audit entry with only `after` data can't reconstruct what changed. Fetch the current record before update, diff the fields, and pass both `before` and `after` to `createAuditEntry`. Skip the audit entry entirely if no fields actually changed.
+
+## Session 2026-03-24
+
+### Equipment Picker shadcn Migration
+- **shadcn Checkbox uses Radix `checked` prop, not HTML `checked`**: Pass `checked={true}`, `checked={false}`, or `checked="indeterminate"` — the indeterminate state replaces the HTML `el.indeterminate = true` ref pattern.
+- **shadcn Button in inline contexts needs CSS resets**: When replacing raw `<button>` with shadcn `Button` inside tight layouts (footer tags, quantity steppers), the default `height`, `min-height`, `padding`, and `box-shadow` must be overridden. Use specific class selectors (`.picker-footer-tag-remove`) rather than `button` tag selectors.
+- **O(1) Map lookups pay for themselves in render-heavy components**: Any component that renders a list + footer/summary of selected items should index by ID at the top with `useMemo(() => new Map(...))` rather than calling `.find()` inside `.map()` loops. The EquipmentPicker had 6 separate `.find()` call sites in render paths.
+- **ARIA tablist pattern requires `tabIndex` management**: Active tab gets `tabIndex={0}`, inactive tabs get `tabIndex={-1}`. Arrow keys move focus programmatically via `querySelectorAll("[role=tab]")`. This is the WAI-ARIA Tabs pattern — don't improvise.
+
+### Hardening Patterns
+- **Selection checks in render loops need Set, not Array**: `selectedIds.includes(id)` per row in a list is O(n×m). Wrap in `useMemo(() => new Set(selectedIds))` and use `.has()` — the Set is rebuilt once per selection change, not per row.
+- **AbortController is mandatory for debounced fetches**: Any `useCallback` + `useEffect` combo that debounces an API call MUST abort the previous in-flight request before starting a new one. Without this, a slow first response can overwrite fresh data from a faster second response. Pattern: `abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;`
+- **Dead state accumulates during feature evolution**: The `highestReached` state was from an earlier "locked tab progression" design that was dropped but the state variable persisted through 3 PRs. Run dead-code audits after multi-commit features.
+- **CSS selectors targeting HTML tags break after shadcn migration**: `.picker-row:has(input:disabled)` silently broke when raw `<input type="checkbox">` was replaced with shadcn `Checkbox` (which renders a Radix `<button>`). Always grep for `:has(input` selectors when migrating form elements.
+- **Silent scan failures erode trust**: Re-scanning an already-selected item with no feedback makes users think the scanner is broken. Always give explicit feedback for every scan result, even if the action is a no-op.
+
+### Stress Test Patterns (Equipment Picker)
+- **Scan-to-add must enforce the same rules as click-to-select**: The picker disabled unavailable items in the row UI but scan bypassed all checks. Any alternative input path (scan, keyboard shortcut, paste) must validate identically to the primary path. Pattern: extract an `canSelectAsset(asset)` predicate and use it in both row rendering and scan handler.
+- **setState callbacks must be self-contained for concurrency safety**: When using `selectedIdSet.has()` outside the callback and `setSelectedAssetIds((prev) => [...prev, id])` inside, rapid events can see stale `selectedIdSet` and add duplicates. Always guard inside the callback: `(prev) => { if (prev.includes(id)) return prev; return [...prev, id]; }`.
+- **Quantity steppers need domain-aware bounds**: The + button on bulk items had no upper bound. The `currentQuantity` field existed on the data model but was never wired to the UI. Always check: "Does this stepper/input have data that should constrain its range?" and wire it.
+
+### BookingDetailsSheet Hardening (4-pass)
+- **fetchWithTimeout must be used everywhere, not just on some calls**: 5 of 7 fetch calls in the sheet used raw `fetch()` while 2 used `fetchWithTimeout`. When adding a timeout utility, grep for ALL fetch calls in the file and convert them — not just the ones you're currently editing.
+- **Distinguish initial load vs refresh**: After a mutation (save, extend, checkin), calling the same `fetchData()` that sets `loading=true` replaces visible content with a skeleton. Pattern: accept `{ silent?: boolean }` option and only show skeleton on initial load. Refresh should preserve visible content.
+- **401 must be handled on EVERY mutation endpoint, not just the main fetch**: Session can expire between page load and any subsequent user action. Add `handle401(res)` helper and call it before checking `res.ok` on every fetch response.
+- **Null-safe array access is non-negotiable on API responses**: Even if the API "always" returns arrays, add `?? []` guards. APIs evolve, partial responses happen, and a `.length` on null crashes the entire sheet. Cost: 5 characters. Benefit: zero crash risk.
+- **Toast messages should confirm WHAT happened, not just that something happened**: "Item checked in" → "APPLE-001 checked in". "Extended by 3 days" → "Extended to Mar 28". The user should never need to look at the data to verify the action was correct.
+
+### BookingDetailsSheet Stress Test
+- **SERIALIZABLE must be explicit on EVERY write transaction**: `cancelBooking()` and `cancelReservation()` used `db.$transaction()` without isolation level, defaulting to PostgreSQL's READ_COMMITTED. Two concurrent cancels could both see the booking as non-cancelled. Fix: always pass `{ isolationLevel: Prisma.TransactionIsolationLevel.Serializable }`. Grep for `db.$transaction(async` WITHOUT isolation level to find other missing cases.
+- **Handler functions must self-guard against double invocation**: Even if the UI button is `disabled={saving}`, the handler function itself must check `if (saving) return`. React state updates are async — two rapid clicks can both execute before `disabled` takes effect. Every async handler that sets a loading flag must also check it.
+- **Empty-payload writes waste API calls and create noise audit entries**: If `handleSave` detects no diff between edit state and booking state, it should bail early with a "No changes" toast rather than sending a no-op PATCH that creates an empty audit entry.
+
+## Session 2026-03-24
+
+### Sidebar / Navigation Shell Patterns
+
+**Design system:**
+- **Dead CSS accumulates fast on layout migrations**: When replacing a custom sidebar with a shadcn component, the old CSS blocks (`.sidebar`, `.sidebar-nav`, `.sidebar-profile`, etc.) have zero JSX references but remain in globals.css. Always grep `src/` for every CSS class before removing — but do remove them. 107 lines of dead sidebar CSS accumulated in this session.
+- **`SidebarGroupLabel` has built-in collapse behavior**: The shadcn `SidebarGroupLabel` already handles `group-data-[collapsible=icon]:-mt-8 opacity-0` transitions. Don't add a redundant `hidden` class — it overrides the smooth animation.
+- **Redundant nav items kill trust**: If a header avatar already links to the profile page, a separate "Profile" nav item is noise. Remove it. Users notice when two paths go to the same destination and infer inconsistency.
+- **Group separators aid fast scanning**: A `SidebarSeparator` between Operations and Admin nav groups is worth ~3 lines of code and makes the section boundary immediately obvious without needing to read labels.
+
+**Logic / resilience:**
+- **Badge fetches need AbortController cleanup**: AppShell re-fetches badge counts on every pathname change. Without a cleanup function returning `badgeController.abort()`, navigating quickly causes multiple in-flight fetches that set state after unmount. Pattern: create controller at top of effect, pass `signal` to all fetches, `return () => { controller.abort(); }`.
+- **`isLoggingOut` must be wired all the way to the button**: Tracking `loggingOut` state in AppShell without passing it to the sidebar component means the button is never actually disabled. Pass as prop; check `disabled={isLoggingOut}` on the button.
+- **Logout network failure must re-enable the button**: Without a `try/catch` in `handleLogout`, a network drop during logout leaves `loggingOut=true` permanently. The user's only recovery is a page refresh. Wrap with try/catch and `setLoggingOut(false)` in the catch.
+
+**UX:**
+- **Collapsed icon-only tooltips can carry urgency signal**: `tooltip="Checkouts"` in collapsed mode gives no urgency cue. `tooltip="Checkouts · 3 overdue"` gives the same information as the badge when the badge might be hard to see. Cost: a ternary. Impact: accessible urgency in icon-only mode.
+- **shadcn `SidebarMenuBadge` is visible in both expanded and collapsed modes**: It uses absolute positioning and is always rendered. No additional logic needed for collapsed badge visibility — it works out of the box.
+
+### Stress Test: Response Path Bugs Are Silent and Fatal
+- **Always verify the exact response path when reading nested API data**: The overdue badge was silently broken at launch because AppShell read `dashJson?.stats?.overdue` but the dashboard API returns `{ data: { stats: { overdue } } }`. `dashJson.stats` was always `undefined`, the badge always showed 0, and there was no error — just a missing feature. Anti-pattern: assume response shape from memory. Fix: read the API route's `return ok(...)` call to trace the exact path before writing the client read.
+- **System-wide aggregate counts are wrong for sidebar badges**: `stats.overdue` in the dashboard is intentionally system-wide (for the dashboard page's team view). Using it as the sidebar badge count shows all users' overdue to STUDENT users who should only see their own. Anti-pattern: reuse a page-level stat for a shell-level badge. Fix: add a user-scoped parallel count (`requesterUserId: user.id`) specifically for badge purposes, surfaced as a separate field (`myCheckouts.overdue`).

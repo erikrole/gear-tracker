@@ -124,11 +124,18 @@ export default function ShiftDetailPanel({
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
+  /** Redirect to login on 401 — returns true if redirected */
+  function redirectOn401(res: Response): boolean {
+    if (res.status === 401) { window.location.href = "/login"; return true; }
+    return false;
+  }
+
   const fetchGroup = useCallback(async () => {
     if (!groupId) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/shift-groups/${groupId}`);
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
         setGroup(json.data ?? null);
@@ -158,6 +165,7 @@ export default function ShiftDetailPanel({
     setRosterError(false);
     try {
       const res = await fetch(`/api/sport-configs/${sportCode}/roster`);
+      if (redirectOn401(res)) return;
       if (res.ok) {
         const json = await res.json();
         setRosterUsers(json.data ?? []);
@@ -186,6 +194,7 @@ export default function ShiftDetailPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shiftId, userId }),
       });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Shift assigned", "success");
         setAssigningShiftId(null);
@@ -203,6 +212,7 @@ export default function ShiftDetailPanel({
     setActing(assignmentId);
     try {
       const res = await fetch(`/api/shift-assignments/${assignmentId}/approve`, { method: "PATCH" });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Request approved", "success");
         await fetchGroup();
@@ -219,6 +229,7 @@ export default function ShiftDetailPanel({
     setActing(assignmentId);
     try {
       const res = await fetch(`/api/shift-assignments/${assignmentId}/decline`, { method: "PATCH" });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Request declined", "success");
         await fetchGroup();
@@ -242,6 +253,7 @@ export default function ShiftDetailPanel({
     setActing(assignmentId);
     try {
       const res = await fetch(`/api/shift-assignments/${assignmentId}`, { method: "DELETE" });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Assignment removed", "success");
         await fetchGroup();
@@ -262,6 +274,7 @@ export default function ShiftDetailPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shiftId }),
       });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Shift requested", "success");
         await fetchGroup();
@@ -283,6 +296,7 @@ export default function ShiftDetailPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isPremier: !group.isPremier }),
       });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast(group.isPremier ? "Removed premier status" : "Marked as premier", "success");
         await fetchGroup();
@@ -345,7 +359,7 @@ export default function ShiftDetailPanel({
                           variant="outline"
                           size="sm"
                           onClick={handleTogglePremier}
-                          disabled={acting === "premier"}
+                          disabled={acting !== null}
                           style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                         >
                           {acting === "premier" ? "..." : "Toggle"}
@@ -422,7 +436,7 @@ export default function ShiftDetailPanel({
                                 size="sm"
                                 className="text-destructive"
                                 onClick={() => handleRemove(activeAssignment.id)}
-                                disabled={acting === activeAssignment.id}
+                                disabled={acting !== null}
                                 style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                               >
                                 {acting === activeAssignment.id ? "..." : "Remove"}
@@ -450,7 +464,7 @@ export default function ShiftDetailPanel({
                                   <Button
                                     size="sm"
                                     onClick={() => handleApprove(req.id)}
-                                    disabled={acting === req.id}
+                                    disabled={acting !== null}
                                     style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                                   >
                                     {acting === req.id ? "..." : "Approve"}
@@ -460,7 +474,7 @@ export default function ShiftDetailPanel({
                                     size="sm"
                                     className="text-destructive"
                                     onClick={() => handleDecline(req.id)}
-                                    disabled={acting === req.id}
+                                    disabled={acting !== null}
                                     style={{ fontSize: "var(--text-3xs)", padding: "2px 6px" }}
                                   >
                                     Decline
@@ -489,7 +503,7 @@ export default function ShiftDetailPanel({
                               variant="outline"
                               size="sm"
                               onClick={() => handleRequest(shift.id)}
-                              disabled={acting === shift.id}
+                              disabled={acting !== null}
                               style={{ fontSize: "var(--text-3xs)" }}
                             >
                               {acting === shift.id ? "Requesting..." : "Request this shift"}
@@ -535,7 +549,7 @@ export default function ShiftDetailPanel({
                                   size="sm"
                                   className="w-full text-left mb-2"
                                   onClick={() => handleAssign(shift.id, u.id)}
-                                  disabled={acting === shift.id}
+                                  disabled={acting !== null}
                                   style={{ fontSize: "var(--text-xs)", justifyContent: "flex-start" }}
                                 >
                                   {u.name}

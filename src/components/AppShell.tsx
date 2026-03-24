@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, MenuIcon } from "lucide-react";
-import Sidebar from "./Sidebar";
+import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon } from "lucide-react";
+import AppSidebar from "./Sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
   CommandDialog,
   CommandInput,
@@ -19,7 +20,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 
-type User = { name: string; email: string; role: string; avatarUrl?: string | null };
+type User = { id: string; name: string; email: string; role: string; avatarUrl?: string | null };
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -46,8 +47,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/me")
@@ -59,11 +60,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
 
-    // Fetch unread notification count
-    fetch("/api/notifications?limit=0&unread=true")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.unreadCount != null) setUnreadNotifications(json.unreadCount); })
-      .catch(() => {});
+    // Fetch unread notification count and overdue badge count in parallel
+    const badgeController = new AbortController();
+    Promise.all([
+      fetch("/api/notifications?limit=0&unread=true", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
+      fetch("/api/dashboard", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
+    ]).then(([notifJson, dashJson]) => {
+      if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
+      // Use user-scoped overdue count so all roles (including STUDENT) see only their own overdue
+      if (dashJson?.data?.myCheckouts?.overdue != null) setOverdueBadgeCount(dashJson.data.myCheckouts.overdue);
+    }).catch(() => {});
+
+    return () => { badgeController.abort(); };
   }, [router, pathname]);
 
   // Command palette state
@@ -159,8 +167,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   async function handleLogout() {
     setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.replace("/login");
+    } catch {
+      setLoggingOut(false);
+    }
   }
 
   if (loading) {
@@ -174,7 +186,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   return (
-    <div className="app-shell">
+    <SidebarProvider>
       <a href="#main-content" className="skip-link">Skip to content</a>
 
       {/* Command palette */}
@@ -268,26 +280,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </CommandList>
       </CommandDialog>
 
-      {/* Mobile overlay */}
-      <div
-        className={`sidebar-overlay${sidebarOpen ? " visible" : ""}`}
-        onClick={() => setSidebarOpen(false)}
+      <AppSidebar
+        user={user}
+        onSignOut={handleLogout}
+        isLoggingOut={loggingOut}
+        overdueBadgeCount={overdueBadgeCount}
+        unreadNotifications={unreadNotifications}
       />
-      <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onSignOut={handleLogout} />
+
       {!online && (
         <div className="offline-banner" role="status">
-          You're offline. Changes will sync when connected.
+          You&apos;re offline. Changes will sync when connected.
         </div>
       )}
-      <main className="app-main">
+
+      <div className="app-main">
         <header className="topbar">
-          <button
-            className="mobile-nav-toggle"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
-          >
-            <MenuIcon />
-          </button>
+          <SidebarTrigger className="topbar-sidebar-trigger text-[var(--text)] hover:bg-[var(--panel)] hover:text-[var(--text)]" />
           {/* Search trigger (desktop + mobile) */}
           <button
             className="topbar-search topbar-search-desktop"
@@ -327,7 +336,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
-                  <Link href="/profile">
+                  <Link href={`/users/${user.id}`}>
                     <UserIcon className="size-5" />
                   </Link>
                 </Button>
@@ -340,7 +349,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <PageBreadcrumb />
           {children}
         </div>
-      </main>
+      </div>
 
       {/* Mobile bottom nav */}
       <nav className="bottom-nav">
@@ -361,6 +370,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
-    </div>
+    </SidebarProvider>
   );
 }

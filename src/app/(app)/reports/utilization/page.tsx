@@ -1,12 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SkeletonTable } from "@/components/Skeleton";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { formatRelativeTime } from "@/lib/format";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type UtilizationData = {
   totalAssets: number;
@@ -16,12 +32,12 @@ type UtilizationData = {
   byDepartment: { department: string; count: number }[];
 };
 
-const STATUS_META: Record<string, { label: string; badge: string }> = {
-  AVAILABLE: { label: "Available", badge: "badge-green" },
-  CHECKED_OUT: { label: "Checked out", badge: "badge-blue" },
-  RESERVED: { label: "Reserved", badge: "badge-purple" },
-  MAINTENANCE: { label: "Maintenance", badge: "badge-orange" },
-  RETIRED: { label: "Retired", badge: "badge-gray" },
+const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
+  AVAILABLE: { label: "Available", variant: "green" },
+  CHECKED_OUT: { label: "Checked out", variant: "blue" },
+  RESERVED: { label: "Reserved", variant: "purple" },
+  MAINTENANCE: { label: "Maintenance", variant: "orange" },
+  RETIRED: { label: "Retired", variant: "gray" },
 };
 
 function BreakdownCard({
@@ -40,34 +56,34 @@ function BreakdownCard({
       <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
 
       {/* Desktop table */}
-      <div className="hide-mobile-only">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>{labelKey}</th>
-              <th className="text-right">Count</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{labelKey}</TableHead>
+              <TableHead className="text-right">Count</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.label}>
-                <td>{r.label}</td>
-                <td className="text-right">{r.count}</td>
-              </tr>
+              <TableRow key={r.label}>
+                <TableCell>{r.label}</TableCell>
+                <TableCell className="text-right">{r.count}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Mobile cards */}
-      <div className="show-mobile-only">
+      <CardContent className="md:hidden space-y-0 p-0">
         {rows.map((r) => (
-          <div key={r.label} className="report-mobile-card">
+          <div key={r.label} className="flex items-center justify-between px-4 py-3 border-b last:border-b-0">
             <span>{r.label}</span>
-            <span className="text-muted">{r.count}</span>
+            <span className="text-muted-foreground">{r.count}</span>
           </div>
         ))}
-      </div>
+      </CardContent>
     </Card>
   );
 }
@@ -97,56 +113,110 @@ function downloadCsv(data: UtilizationData) {
 export default function UtilizationPage() {
   const [data, setData] = useState<UtilizationData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | false>(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => new Date());
+  const abortRef = useRef<AbortController | null>(null);
 
-  function loadData() {
+  // Update "ago" display every 60s
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const loadData = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(false);
-    fetch("/api/reports?type=utilization")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((json) => setData(json ?? null))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }
+    try {
+      const res = await fetch("/api/reports?type=utilization", { signal: controller.signal });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (!res.ok) { setError("Unable to load utilization report. Please try again."); return; }
+      const json = await res.json();
+      setData(json ?? null);
+      setLastRefreshed(new Date());
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      setError("You appear to be offline. Check your connection and try again.");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    return () => { abortRef.current?.abort(); };
+  }, [loadData]);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <>
-        <div className="summary-grid mb-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
           {Array.from({ length: 4 }, (_, i) => (
             <Card key={i} className="p-4 text-center">
-              <Skeleton className="skeleton-text-lg mx-auto mb-2 w-[40px]" />
-              <Skeleton className="skeleton-text-sm mx-auto w-[80px]" />
+              <Skeleton className="h-8 mx-auto mb-2 w-[40px]" />
+              <Skeleton className="h-4 mx-auto w-[80px]" />
             </Card>
           ))}
         </div>
-        <div className="grid-2col gap-4">
-          <Card><SkeletonTable rows={4} cols={2} /></Card>
-          <Card><SkeletonTable rows={4} cols={2} /></Card>
+        <div className="grid md:grid-cols-2 gap-2.5">
+          <Card className="p-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="flex gap-4 py-2">
+                <Skeleton className="h-4" style={{ width: `${60 - i * 8}%` }} />
+                <Skeleton className="h-4 w-10 ml-auto" />
+              </div>
+            ))}
+          </Card>
+          <Card className="p-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="flex gap-4 py-2">
+                <Skeleton className="h-4" style={{ width: `${55 - i * 6}%` }} />
+                <Skeleton className="h-4 w-10 ml-auto" />
+              </div>
+            ))}
+          </Card>
         </div>
       </>
     );
   }
 
-  if (error || !data) {
+  if (error && !data) {
     return (
-      <Card className="p-4 text-center">
-        <p className="text-secondary mb-2">Failed to load utilization report.</p>
-        <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
-      </Card>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Failed to load utilization report</AlertTitle>
+        <AlertDescription className="flex items-center gap-3">
+          <span>{error}</span>
+          <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
+  if (!data) return null;
+
   return (
     <>
-      <div className="flex-center mb-1" style={{ justifyContent: "flex-end" }}>
+      <div className="flex items-center mb-1 justify-end gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadData}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
+          </TooltipContent>
+        </Tooltip>
         <Button variant="outline" size="sm" onClick={() => downloadCsv(data)}>
           Export CSV
         </Button>
       </div>
-      <div className="summary-grid mb-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
         {Object.entries(data.statusCounts).map(([status, count]) => {
           const meta = STATUS_META[status];
           return (
@@ -154,26 +224,27 @@ export default function UtilizationPage() {
               key={status}
               value={count}
               label={meta?.label || status}
-              badge={meta ? { text: meta.label, className: meta.badge } : undefined}
+              badge={meta ? { text: meta.label, variant: meta.variant } : undefined}
+              href={`/items?status=${status}`}
             />
           );
         })}
-        <MetricCard value={data.totalAssets} label="Total assets" />
+        <MetricCard value={data.totalAssets} label="Total assets" tooltip="Total number of assets in the system" href="/items" />
       </div>
 
-      <div className="grid-2col gap-4">
+      <div className="grid md:grid-cols-2 gap-2.5">
         <BreakdownCard
           title="By location"
           labelKey="Location"
-          rows={data.byLocation.map((r) => ({ label: r.location, count: r.count }))}
+          rows={(data.byLocation ?? []).map((r) => ({ label: r.location, count: r.count }))}
         />
         <BreakdownCard
           title="By type"
           labelKey="Type"
-          rows={data.byType.map((r) => ({ label: r.type, count: r.count }))}
+          rows={(data.byType ?? []).map((r) => ({ label: r.type, count: r.count }))}
         />
-        {data.byDepartment.length > 0 && (
-          <div className="col-span-full">
+        {(data.byDepartment ?? []).length > 0 && (
+          <div className="md:col-span-2">
             <BreakdownCard
               title="By department"
               labelKey="Department"

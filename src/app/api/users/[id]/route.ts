@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { ShiftArea } from "@prisma/client";
+import { Prisma, ShiftArea } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
@@ -12,6 +12,7 @@ const updateUserSchema = z.object({
   locationId: z.string().cuid().nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
   primaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
+  active: z.boolean().optional(),
 });
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
@@ -44,6 +45,8 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       phone: target.phone,
       primaryArea: target.primaryArea,
       avatarUrl: target.avatarUrl ?? null,
+      active: target.active,
+      createdAt: target.createdAt?.toISOString() ?? null,
       sportAssignments: target.sportAssignments,
       areaAssignments: target.areaAssignments,
     },
@@ -61,6 +64,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     throw new HttpError(404, "User not found");
   }
 
+  // STAFF can only edit STUDENT users — not other STAFF or ADMIN
+  if (user.role === "STAFF" && target.role !== "STUDENT") {
+    throw new HttpError(403, "Staff can only edit student profiles");
+  }
+
   const updateData: Record<string, unknown> = {};
 
   if (body.name !== undefined) {
@@ -70,10 +78,6 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.email !== undefined) {
     const email = body.email.toLowerCase();
     if (email !== target.email) {
-      const existing = await db.user.findUnique({ where: { email } });
-      if (existing) {
-        throw new HttpError(409, "A user with this email already exists");
-      }
       updateData.email = email;
     }
   }
@@ -90,6 +94,10 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     updateData.primaryArea = body.primaryArea;
   }
 
+  if (body.active !== undefined) {
+    updateData.active = body.active;
+  }
+
   if (Object.keys(updateData).length === 0) {
     throw new HttpError(400, "No fields to update");
   }
@@ -100,15 +108,23 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     beforeDiff[key] = (target as Record<string, unknown>)[key] ?? null;
   }
 
-  const updated = await db.user.update({
-    where: { id },
-    data: updateData,
-    include: {
-      location: { select: { name: true } },
-      sportAssignments: true,
-      areaAssignments: true,
-    },
-  });
+  let updated;
+  try {
+    updated = await db.user.update({
+      where: { id },
+      data: updateData,
+      include: {
+        location: { select: { name: true } },
+        sportAssignments: true,
+        areaAssignments: true,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new HttpError(409, "A user with this email already exists");
+    }
+    throw err;
+  }
 
   for (const key of Object.keys(updateData)) {
     afterDiff[key] = (updated as Record<string, unknown>)[key] ?? null;
@@ -135,6 +151,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       phone: updated.phone,
       primaryArea: updated.primaryArea,
       avatarUrl: updated.avatarUrl ?? null,
+      active: updated.active,
+      createdAt: updated.createdAt?.toISOString() ?? null,
       sportAssignments: updated.sportAssignments,
       areaAssignments: updated.areaAssignments,
     },

@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { Spinner } from "@/components/ui/spinner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
@@ -14,9 +13,11 @@ import {
   SheetBody,
   SheetFooter,
 } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { statusBadge, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
+import { statusBadgeVariant, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
   BookingOverview,
@@ -100,20 +101,35 @@ export default function BookingDetailsSheet({
 
   /* ───── Data fetching ───── */
 
-  const fetchBooking = useCallback(async () => {
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchBooking = useCallback(async (opts?: { silent?: boolean }) => {
     if (!bookingId) return;
-    setLoading(true);
+    // Only show skeleton on initial load, not on refresh after mutations
+    if (!opts?.silent) setLoading(true);
     setFetchError(false);
+
+    // Abort any in-flight request to prevent stale data overwriting fresh
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`);
+      const res = await fetchWithTimeout(`/api/bookings/${bookingId}`, {
+        signal: controller.signal,
+      });
       if (res.ok) {
         const json = await res.json();
         if (json?.data) setBooking(json.data);
+      } else if (res.status === 401) {
+        window.location.href = "/login";
+        return;
       } else {
-        setFetchError(true);
+        if (!opts?.silent) setFetchError(true);
       }
-    } catch {
-      setFetchError(true);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (!opts?.silent) setFetchError(true);
     }
     setLoading(false);
   }, [bookingId]);
@@ -126,12 +142,20 @@ export default function BookingDetailsSheet({
       setEquipEditMode(false);
       setConflictError(null);
     }
+    return () => { abortRef.current?.abort(); };
   }, [bookingId, fetchBooking]);
+
+  /** Redirect to login on 401, return true if redirected */
+  function handle401(res: Response): boolean {
+    if (res.status === 401) { window.location.href = "/login"; return true; }
+    return false;
+  }
 
   const loadFormOptions = useCallback(async () => {
     try {
       setOptionsError(false);
-      const res = await fetch("/api/form-options");
+      const res = await fetchWithTimeout("/api/form-options");
+      if (handle401(res)) return;
       if (res.ok) {
         const json = await res.json();
         setAvailableAssets(json.data.availableAssets || []);
@@ -143,25 +167,27 @@ export default function BookingDetailsSheet({
       setOptionsError(true);
       toast("Failed to load equipment options", "error");
     }
-  }, []);
+  }, [toast]);
 
   /* ───── Derived state ───── */
 
   const checkinProgress = useMemo(() => {
     if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") return null;
-    const total = booking.serializedItems.length;
+    const items = booking.serializedItems ?? [];
+    const total = items.length;
     if (total === 0) return null;
-    const returned = booking.serializedItems.filter((i) => i.allocationStatus === "returned").length;
+    const returned = items.filter((i) => i.allocationStatus === "returned").length;
     return { returned, total, percent: Math.round((returned / total) * 100) };
   }, [booking]);
 
   const filteredAuditLogs = useMemo(() => {
     if (!booking) return [];
-    if (historyFilter === "all") return booking.auditLogs;
+    const logs = booking.auditLogs ?? [];
+    if (historyFilter === "all") return logs;
     if (historyFilter === "equipment") {
-      return booking.auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
+      return logs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
     }
-    return booking.auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    return logs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
   }, [booking, historyFilter]);
 
   const pickerAssets = useMemo(() => {
@@ -229,6 +255,14 @@ export default function BookingDetailsSheet({
     [booking, bulkSkus]
   );
 
+  const resolveSkuMaxQty = useCallback(
+    (skuId: string) => {
+      const sku = bulkSkus.find((s) => s.id === skuId);
+      return sku?.currentQuantity ?? 100;
+    },
+    [bulkSkus]
+  );
+
   /* ───── Permission flags ───── */
 
   const actions = booking?.allowedActions ?? [];
@@ -241,7 +275,7 @@ export default function BookingDetailsSheet({
 
   /* ───── Filtered equipment ───── */
 
-  const filteredSerializedItems = booking?.serializedItems.filter((item) => {
+  const filteredSerializedItems = (booking?.serializedItems ?? []).filter((item) => {
     if (!equipSearch) return true;
     const q = equipSearch.toLowerCase();
     return (
@@ -250,12 +284,12 @@ export default function BookingDetailsSheet({
       item.asset.model.toLowerCase().includes(q) ||
       item.asset.serialNumber.toLowerCase().includes(q)
     );
-  }) ?? [];
+  });
 
-  const filteredBulkItems = booking?.bulkItems.filter((item) => {
+  const filteredBulkItems = (booking?.bulkItems ?? []).filter((item) => {
     if (!equipSearch) return true;
     return item.bulkSku.name.toLowerCase().includes(equipSearch.toLowerCase());
-  }) ?? [];
+  });
 
   /* ───── Handlers ───── */
 
@@ -270,9 +304,9 @@ export default function BookingDetailsSheet({
 
   function enterEquipEditMode() {
     if (!booking) return;
-    setEditSerializedIds(booking.serializedItems.map((i) => i.asset.id));
+    setEditSerializedIds((booking.serializedItems ?? []).map((i) => i.asset.id));
     setEditBulkItems(
-      booking.bulkItems.map((i) => ({
+      (booking.bulkItems ?? []).map((i) => ({
         bulkSkuId: i.bulkSku.id,
         quantity: i.plannedQuantity,
       }))
@@ -327,7 +361,7 @@ export default function BookingDetailsSheet({
   }
 
   async function handleEquipSave() {
-    if (!booking) return;
+    if (!booking || equipSaving) return;
     setEquipSaving(true);
     setConflictError(null);
 
@@ -343,10 +377,11 @@ export default function BookingDetailsSheet({
         }),
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         toast("Equipment updated", "success");
         setEquipEditMode(false);
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
@@ -362,7 +397,7 @@ export default function BookingDetailsSheet({
   }
 
   async function handleSave() {
-    if (!booking) return;
+    if (!booking || saving) return;
     setSaving(true);
 
     const payload: Record<string, unknown> = {};
@@ -377,6 +412,12 @@ export default function BookingDetailsSheet({
       if (newStartsAt !== booking.startsAt) payload.startsAt = newStartsAt;
     }
 
+    if (Object.keys(payload).length === 0) {
+      toast("No changes to save", "info");
+      setSaving(false);
+      return;
+    }
+
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
@@ -386,10 +427,11 @@ export default function BookingDetailsSheet({
         body: JSON.stringify(payload),
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         toast("Booking updated", "success");
         setEditMode(false);
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
@@ -411,19 +453,21 @@ export default function BookingDetailsSheet({
     const extended = new Date(current.getTime() + days * 24 * 60 * 60 * 1000);
 
     try {
-      const res = await fetch(`/api/bookings/${booking.id}/extend`, {
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: extended.toISOString() }),
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
-        toast(`Extended by ${days} day${days > 1 ? "s" : ""}`, "success");
-        await fetchBooking();
+        const newDate = extended.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        toast(`Extended to ${newDate}`, "success");
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to extend", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to extend", "error");
       }
     } catch {
       toast("Failed to extend", "error");
@@ -433,27 +477,29 @@ export default function BookingDetailsSheet({
 
   async function handleCancel() {
     if (!booking || cancelling) return;
+    const typeLabel = booking.kind === "RESERVATION" ? "reservation" : "checkout";
     const ok = await confirm({
-      title: "Cancel booking",
-      message: `Cancel "${booking.title}"? This cannot be undone.`,
-      confirmLabel: "Cancel booking",
+      title: `Cancel ${typeLabel}`,
+      message: `Cancel "${booking.title}"? This will release all equipment and cannot be undone.`,
+      confirmLabel: `Cancel ${typeLabel}`,
       variant: "danger",
     });
     if (!ok) return;
 
     setCancelling(true);
     try {
-      const res = await fetch(`/api/bookings/${booking.id}/cancel`, {
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}/cancel`, {
         method: "POST",
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         toast("Booking cancelled", "success");
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to cancel", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to cancel", "error");
       }
     } catch {
       toast("Failed to cancel", "error");
@@ -472,10 +518,11 @@ export default function BookingDetailsSheet({
 
     setConverting(true);
     try {
-      const res = await fetch(`/api/reservations/${booking.id}/convert`, {
+      const res = await fetchWithTimeout(`/api/reservations/${booking.id}/convert`, {
         method: "POST",
       });
 
+      if (handle401(res)) return;
       if (res.ok) {
         const json = await res.json();
         toast("Converted to checkout", "success");
@@ -483,8 +530,8 @@ export default function BookingDetailsSheet({
         onClose();
         window.location.href = `/checkouts/${json.data.id}`;
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to convert", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to convert", "error");
       }
     } catch {
       toast("Failed to convert", "error");
@@ -493,21 +540,23 @@ export default function BookingDetailsSheet({
   }
 
   async function handleCheckinItem(assetId: string) {
-    if (!booking) return;
+    if (!booking || checkinLoading) return;
     setCheckinLoading(true);
+    const item = (booking.serializedItems ?? []).find((i) => i.asset.id === assetId);
     try {
-      const res = await fetch(`/api/checkouts/${booking.id}/checkin-items`, {
+      const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assetIds: [assetId] }),
       });
+      if (handle401(res)) return;
       if (res.ok) {
-        toast("Item checked in", "success");
-        await fetchBooking();
+        toast(`${item?.asset.assetTag ?? "Item"} checked in`, "success");
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to check in", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to check in", "error");
       }
     } catch {
       toast("Failed to check in", "error");
@@ -516,8 +565,8 @@ export default function BookingDetailsSheet({
   }
 
   async function handleCheckinAll() {
-    if (!booking) return;
-    const activeItems = booking.serializedItems.filter((i) => i.allocationStatus !== "returned");
+    if (!booking || checkinLoading) return;
+    const activeItems = (booking.serializedItems ?? []).filter((i) => i.allocationStatus !== "returned");
     if (activeItems.length === 0) return;
     const ok = await confirm({
       title: "Check in all items",
@@ -528,18 +577,19 @@ export default function BookingDetailsSheet({
 
     setCheckinLoading(true);
     try {
-      const res = await fetch(`/api/checkouts/${booking.id}/checkin-items`, {
+      const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assetIds: activeItems.map((i) => i.asset.id) }),
       });
+      if (handle401(res)) return;
       if (res.ok) {
         toast("All items checked in", "success");
-        await fetchBooking();
+        await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json();
-        toast(json.error || "Failed to check in", "error");
+        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+        toast((json as Record<string, string>).error || "Failed to check in", "error");
       }
     } catch {
       toast("Failed to check in", "error");
@@ -569,7 +619,7 @@ export default function BookingDetailsSheet({
           </SheetTitle>
           {booking && (
             <div className="flex gap-2 flex-wrap mt-1">
-              <Badge variant={(statusBadge[booking.status] || "gray") as BadgeProps["variant"]}>
+              <Badge variant={(statusBadgeVariant[booking.status] || "gray") as BadgeProps["variant"]}>
                 {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
               </Badge>
               <Badge variant="gray">{booking.bookingType}</Badge>
@@ -581,24 +631,33 @@ export default function BookingDetailsSheet({
         </SheetHeader>
 
         {/* Tabs */}
-        <div className="flex border-b px-6">
-          {(["info", "equipment", "history"] as TabKey[]).map((t) => (
-            <button
-              key={t}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-              onClick={() => setTab(t)}
-            >
-              {t === "info" ? "Info" : t === "equipment" ? `Equipment${booking ? ` (${booking.serializedItems.length + booking.bulkItems.length})` : ""}` : "History"}
-            </button>
-          ))}
+        <div className="px-6">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
+            <TabsList className="w-full justify-start">
+              <TabsTrigger value="info">Info</TabsTrigger>
+              <TabsTrigger value="equipment">
+                Equipment{booking ? ` (${(booking.serializedItems?.length ?? 0) + (booking.bulkItems?.length ?? 0)})` : ""}
+              </TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
         {/* Body */}
         <SheetBody className="px-6 py-4">
           {loading ? (
-            <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+            <div className="space-y-4 px-5 py-4">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-4 w-3/5" />
+            </div>
           ) : fetchError ? (
-            <div className="py-10 px-5 text-center text-muted-foreground">Failed to load booking details.</div>
+            <div className="py-10 px-5 text-center space-y-3">
+              <p className="text-muted-foreground">Failed to load booking details.</p>
+              <Button variant="outline" size="sm" onClick={() => fetchBooking()}>Retry</Button>
+            </div>
           ) : !booking ? (
             <div className="py-10 px-5 text-center text-muted-foreground">Booking not found</div>
           ) : (
@@ -674,6 +733,7 @@ export default function BookingDetailsSheet({
                   equipSaving={equipSaving}
                   resolveAssetName={resolveAssetName}
                   resolveSkuName={resolveSkuName}
+                  resolveSkuMaxQty={resolveSkuMaxQty}
                   onRemoveSerializedItem={handleRemoveSerializedItem}
                   onAddSerializedItem={addSerializedItem}
                   onUpdateBulkQty={updateBulkQty}

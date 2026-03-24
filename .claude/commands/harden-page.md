@@ -1,14 +1,61 @@
 # Harden Page
 
-Five-pass audit and hardening pipeline for a page component.
+Six-pass audit and hardening pipeline for a page component.
 Each pass adopts a different expert lens. Run sequentially — each builds on the last.
-Commit after every pass. Push after all five.
+Commit after every pass. Push after all six.
 
 **Target:** $ARGUMENTS
 
 ---
 
-## Pass 1 of 5: Design System Alignment
+## Pass 0 of 6: Page Purpose & Architecture Audit
+
+You are a product architect and information architect.
+
+### GOAL
+Before hardening anything, evaluate whether this page is the right unit of work.
+Determine if it should remain standalone, be merged into an adjacent page, be split,
+or be restructured. Wasted effort polishing a page that needs a different shape is
+the most expensive kind of rework.
+
+### PREPARATION (do this before touching any code)
+1. Read the target page file completely — understand what it renders and what data it fetches
+2. Read `docs/NORTH_STAR.md` — understand the product's identity and what it is NOT trying to be
+3. Read the relevant `docs/AREA_*.md` — understand the intended information architecture for this domain
+4. Read the relevant `docs/BRIEF_*.md` if one exists — understand the original feature spec and acceptance criteria
+5. List all pages under `src/app/(app)/` — map the full page tree
+6. Read sibling pages in the same route segment (e.g., if target is `/items/[id]/page.tsx`, also read `/items/page.tsx`)
+7. Read `docs/DECISIONS.md` for any decisions affecting this page's scope or lifecycle
+
+### AUDIT QUESTIONS (answer each explicitly before proceeding)
+
+| Question | What to evaluate |
+|---|---|
+| **Does this page have a clear, singular purpose?** | Can you describe what it does in one sentence? If not, it may be doing too much. |
+| **Is this the right granularity?** | Should this be a tab within a parent page instead of a standalone route? Or should a tab be promoted to a full page? |
+| **Are there sibling pages with overlapping content?** | Two pages showing the same entity from different angles (e.g., item detail + item history) may merge better as tabs or a sheet. |
+| **Does the URL structure match the mental model?** | Would a staff coordinator find this page where they expect it? Does the breadcrumb path make sense? |
+| **Is the page reachable?** | Are there navigation links, breadcrumbs, or search results pointing here? Orphan pages are invisible. |
+| **Does the AREA doc's IA match what's built?** | If the area doc says "tabs: Info, History" but the page has 4 tabs, the doc or the page is wrong. |
+| **Mobile viability** | Is this page usable on a phone in the field? Given the mobile-first principle from NORTH_STAR, should it be? |
+
+### DECISION GATE
+- **If the page should be restructured** (merged, split, re-routed): STOP. Write the restructuring proposal to `tasks/todo.md` and ask the user before proceeding. Do not harden a page that should not exist in its current form.
+- **If the page is correctly scoped**: State the one-sentence purpose and proceed to Pass 1.
+
+### RULES
+- This pass produces zero code changes
+- Bias toward keeping existing structure — only recommend restructuring when there is clear overlap, confusion, or violation of the AREA doc's IA
+- Consider mobile: a page that makes sense on desktop might be unnecessary on mobile if the parent already shows the same data
+- Consider roles: does the content density match the role's needs? (Students need speed; admins need depth)
+
+### OUTPUT
+- If proceeding: No commit. Move to Pass 1.
+- If restructuring needed: Write proposal to `tasks/todo.md`, stop, and ask user.
+
+---
+
+## Pass 1 of 6: Design System Alignment
 
 You are a frontend engineer and design systems expert.
 
@@ -68,7 +115,7 @@ Commit: `fix: migrate [page] to shadcn/ui components, remove N lines dead CSS`
 
 ---
 
-## Pass 2 of 5: Logic & Data Flow
+## Pass 2 of 6: Logic & Data Flow (builds on Pass 0 findings)
 
 You are a senior full-stack engineer.
 
@@ -118,7 +165,7 @@ Commit: `fix: harden [page] data flow — [brief list of fixes]`
 
 ---
 
-## Pass 3 of 5: Resilience & Failure Modes
+## Pass 3 of 6: Resilience & Failure Modes (builds on Pass 0 findings)
 
 You are a reliability engineer.
 
@@ -158,7 +205,7 @@ Commit: `fix: harden [page] resilience — [brief list of scenarios fixed]`
 
 ---
 
-## Pass 4 of 5: UX Polish
+## Pass 4 of 6: UX Polish (builds on Pass 0 findings)
 
 You are a product-minded UX engineer.
 
@@ -197,9 +244,9 @@ Commit: `feat: polish [page] UX — [brief description of top changes]`
 
 ---
 
-## Pass 5 of 5: Doc Sync
+## Pass 5 of 6: Doc Sync
 
-Update all project documentation to reflect the work done in passes 1-4.
+Update all project documentation to reflect the work done in passes 0-4.
 
 ### FILES TO CHECK AND UPDATE
 

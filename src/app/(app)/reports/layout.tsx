@@ -13,23 +13,10 @@ const REPORT_SECTIONS = [
 
 export default function ReportsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const current = REPORT_SECTIONS.find((s) => pathname.startsWith(s.href));
 
   return (
     <>
-      <div className="breadcrumb">
-        <Link href="/reports">Reports</Link>
-        {current && (
-          <>
-            <span>&rsaquo;</span>
-            <span>{current.label}</span>
-          </>
-        )}
-      </div>
-
-      <div className="page-header mb-0">
-        <h1>Reports</h1>
-      </div>
+      <h1 className="text-2xl font-bold mb-0">Reports</h1>
 
       <nav className="flex gap-0 border-b mb-5">
         {REPORT_SECTIONS.map((s) => (

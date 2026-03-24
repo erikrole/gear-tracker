@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-22
+- Last Updated: 2026-03-23
 - Status: Active
 - Version: V1.1
 
@@ -119,3 +119,23 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **Data flow**: AbortController on all fetches (race condition prevention + unmount cleanup). Form-options/me fetch failure no longer blocks page. Stale response overwrite prevention.
   - **Resilience**: Retry buttons on all error states (list, detail, activity). 401 redirect to /login on all fetches and mutations (list, detail, create, patch, role change, activity).
   - **UX polish**: High-fidelity skeletons matching real row layout (avatar circle, name/email lines, badge pill). Refresh shows spinner instead of replacing data with skeletons. Result count always visible below list.
+- 2026-03-23: Profile page hardening (5-pass audit):
+  - **Design system**: Merged profile page into user detail page. `/profile` now redirects to `/users/{currentUserId}`. Avatar upload, password change integrated into user detail page when viewing self. Sidebar and topbar links point directly to `/users/{id}`. Removed 50 lines dead profile CSS (`.profile-avatar-section`, `.profile-form`, `.roles-table`).
+  - **Data flow**: Fixed student self-edit permissions — students can edit name/location via `/api/profile`, other fields require ADMIN/STAFF via `/api/users/:id`. Added null-safe guards on `sportAssignments`/`areaAssignments` arrays. Separated `isSelf` from `canEdit` for field-level permission control.
+  - **Resilience**: Retry now clears stale user data to prevent briefly showing wrong user. Null-safe avatar upload response.
+  - **UX polish**: Optimistic avatar removal with rollback on failure. Breadcrumb shows "Profile" when viewing self. High-fidelity loading skeletons matching actual field rows and assignment badges.
+- 2026-03-23: Created Users page versioned roadmap (`tasks/users-roadmap.md`). Defines V1 (status field, activity pagination, dialog create, password reset), V2 (bulk operations, gear tab, assignment editing, login blocking, export), V3 (last-active tracking, auto-deactivation, heatmap, smart suggestions, notification prefs). Each version includes schema changes, API routes, RBAC, risks, and build order.
+- 2026-03-23: Users page improvements — 3 enhancements shipped:
+  - **Create user dialog**: Replaced inline CreateUserCard with Dialog component. Eliminates list displacement when creating users. Form uses labeled fields in structured layout with DialogFooter.
+  - **Activity tab pagination**: Replaced hard `take: 100` cap with cursor-based pagination (50 per page). API returns `nextCursor`; UI shows "Load more" button when more entries exist.
+  - **Member since date**: `createdAt` now returned by GET/PATCH `/api/users/[id]` and displayed as "Member since {date}" in user detail header.
+- 2026-03-23: Users page hardening (5-pass audit):
+  - **Design system**: Removed 34 lines dead profile CSS (`.profile-grid`, `.profile-field-*`, `.form-success`). Fixed users page CSS comment.
+  - **Data flow**: List refresh failure now preserves existing data (hasDataRef pattern). Activity loadMore shows toast on failure instead of silent swallow.
+  - **Resilience**: Create user dialog resets form on reopen (Radix Dialog retains DOM state). Network vs server error differentiation.
+  - **UX polish**: Manual refresh button with "Updated Xm ago" tooltip. Wifi-off icon + distinct copy for offline errors. `wifi-off` icon added to shared EmptyState.
+- 2026-03-23: Users stress test — 5 issues found and fixed:
+  - **BRK-003 (CRITICAL)**: STAFF could demote ADMIN users via role endpoint. Guard now blocks STAFF from changing ADMIN roles in either direction.
+  - **BRK-004 (CRITICAL)**: STAFF could edit ADMIN user profiles via PATCH. Guard now rejects STAFF modifications to ADMIN users.
+  - **BRK-001/002 (HIGH)**: Email uniqueness TOCTOU on create/update. Removed manual findUnique pre-checks, catch P2002 from DB unique constraint instead.
+  - **BRK-005 (MEDIUM)**: Profile self-update `/api/profile` missing before-snapshot in audit. Now fetches current state and records field-level diffs.

@@ -10,6 +10,8 @@ const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsShe
 const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
+import PageBreadcrumb from "@/components/PageBreadcrumb";
+import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -28,7 +30,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PencilIcon, ImageIcon, Copy, Check } from "lucide-react";
+import { PencilIcon, ImageIcon, Copy, Check, RefreshCw, AlertTriangle, WifiOff } from "lucide-react";
+import {
+  classifyError,
+  isAbortError,
+  handleAuthRedirect,
+  type FetchErrorKind,
+} from "@/lib/errors";
 
 import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
@@ -147,6 +155,9 @@ function ActionsMenu({
         <DropdownMenuItem onSelect={() => onAction("duplicate")}>
           Duplicate
         </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onAction("print-label")}>
+          Print label
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onAction("maintenance")}>
           {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
         </DropdownMenuItem>
@@ -185,16 +196,56 @@ export default function ItemDetailsPage() {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
-  const [fetchError, setFetchError] = useState(false);
+  const [fetchError, setFetchError] = useState<FetchErrorKind | "not-found" | false>(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const abortRef = useRef<AbortController | null>(null);
+  const hasLoadedOnce = useRef(false);
 
   const loadAsset = useCallback(() => {
-    fetch(`/api/assets/${id}`)
-      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
-      .then((json) => { if (json?.data) setAsset(json.data); else setFetchError(true); })
-      .catch(() => setFetchError(true));
-  }, [id]);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const isRefresh = hasLoadedOnce.current;
+    if (isRefresh) setRefreshing(true);
+
+    fetch(`/api/assets/${id}`, { signal: controller.signal })
+      .then((res) => {
+        if (controller.signal.aborted) return null;
+        if (handleAuthRedirect(res, `/items/${id}`)) return null;
+        if (res.status === 404) { if (!isRefresh) setFetchError("not-found"); return null; }
+        if (!res.ok) throw new Error("server");
+        return res.json();
+      })
+      .then((json) => {
+        if (!json || controller.signal.aborted) {
+          if (!hasLoadedOnce.current && !controller.signal.aborted && !fetchError) setFetchError("server");
+          return;
+        }
+        if (json?.data) {
+          setAsset(json.data);
+          setFetchError(false);
+          setLastRefreshed(new Date());
+          hasLoadedOnce.current = true;
+        } else if (!isRefresh) {
+          setFetchError("server");
+        }
+      })
+      .catch((err) => {
+        if (isAbortError(err)) return;
+        if (isRefresh) {
+          toast("Failed to refresh — your data may be stale.", "error");
+        } else {
+          setFetchError(classifyError(err));
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRefreshing(false);
+      });
+  }, [id, toast, fetchError]);
 
   const loadCategories = useCallback(() => {
     fetch("/api/categories")
@@ -226,20 +277,25 @@ export default function ItemDetailsPage() {
     loadCategories();
     loadDepartments();
     loadLocations();
+    return () => { abortRef.current?.abort(); };
   }, [loadAsset, loadCategories, loadDepartments, loadLocations]);
 
   // Live countdown tick every 60 seconds + refresh on tab focus
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
     function onVisibilityChange() {
-      if (document.visibilityState === "visible") setNow(new Date());
+      if (document.visibilityState === "visible") {
+        setNow(new Date());
+        // Refresh asset data when tab becomes visible
+        if (hasLoadedOnce.current) loadAsset();
+      }
     }
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, []);
+  }, [loadAsset]);
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
@@ -285,7 +341,11 @@ export default function ItemDetailsPage() {
     if (!asset || actionBusy) return;
     setActionBusy(true);
     try {
-      if (action === "duplicate") {
+      if (action === "print-label") {
+        router.push(`/labels?items=${asset.id}`);
+        setActionBusy(false);
+        return;
+      } else if (action === "duplicate") {
         const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
         if (res.ok) {
           const json = await res.json();
@@ -337,8 +397,37 @@ export default function ItemDetailsPage() {
     setActionBusy(false);
   }
 
-  if (fetchError) {
-    return <div className="py-10 px-5 text-center text-muted-foreground">Item not found or failed to load. <Link href="/items">Back to items</Link></div>;
+  if (fetchError && !asset) {
+    return (
+      <div>
+        <PageBreadcrumb />
+        {fetchError === "not-found" ? (
+          <EmptyState
+            icon="box"
+            title="Item not found"
+            description="This item may have been deleted or you don\u2019t have access."
+            actionLabel="Back to items"
+            actionHref="/items"
+          />
+        ) : fetchError === "network" ? (
+          <EmptyState
+            icon="wifi-off"
+            title="You\u2019re offline"
+            description="Check your connection and try again."
+            actionLabel="Retry"
+            onAction={loadAsset}
+          />
+        ) : (
+          <EmptyState
+            icon="box"
+            title="Something went wrong"
+            description="We couldn\u2019t load this item. This is usually temporary."
+            actionLabel="Retry"
+            onAction={loadAsset}
+          />
+        )}
+      </div>
+    );
   }
 
   if (!asset) {
@@ -408,8 +497,13 @@ export default function ItemDetailsPage() {
     );
   }
 
+  // Tab badge counts (derived from loaded asset data)
+  const bookingsCount = (asset?.history?.length ?? 0) + (asset?.activeBooking ? 1 : 0);
+  const accessoriesCount = asset?.accessories?.length ?? 0;
+
   return (
     <>
+      <PageBreadcrumb />
       <div className="page-header mb-0">
         <div className="flex gap-4 items-center">
           {/* Hero image — larger square */}
@@ -456,6 +550,20 @@ export default function ItemDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={loadAsset} disabled={refreshing}>
+                  <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {lastRefreshed
+                  ? `Updated ${lastRefreshed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                  : "Refresh"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
           <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
             <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>
@@ -491,15 +599,24 @@ export default function ItemDetailsPage() {
         </div>
       )}
 
-      {/* Tabs — sticky on scroll */}
+      {/* Tabs — sticky on scroll, horizontally scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
-        <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
-          {tabDefs.map((tab, i) => (
-            <TabsTrigger key={tab.key} value={tab.key}>
-              {tab.label}
-              <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">{i + 1}</kbd>
-            </TabsTrigger>
-          ))}
+        <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
+          {tabDefs.map((tab, i) => {
+            const count =
+              tab.key === "bookings" ? bookingsCount :
+              tab.key === "accessories" ? accessoriesCount :
+              0;
+            return (
+              <TabsTrigger key={tab.key} value={tab.key} className="shrink-0">
+                {tab.label}
+                {count > 0 && (
+                  <span className="ml-1 text-[10px] text-muted-foreground">{count}</span>
+                )}
+                <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">{i + 1}</kbd>
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </Tabs>
 

@@ -161,7 +161,7 @@ Use these questions before adding any feature:
 
 ## 9. Near-Term Roadmap
 
-### Phase A — Now (Partially Complete)
+### Phase A — Now (Complete)
 | Item | Status |
 |---|---|
 | Checkout UX V2 (action gating, event defaults, sectioned picker, partial check-in) | ✅ Complete |
@@ -170,21 +170,34 @@ Use these questions before adding any feature:
 | Reservations V1 (lifecycle, detail sheet, list page, action gating) | ✅ Complete |
 | Items V1 (list, create, detail, inline edit, item-kind form) | ✅ Complete |
 | ~~B&H metadata enrichment~~ | ❌ Withdrawn (scraping blocked) |
-| Student mobile hardening (brief + implementation) | ⬜ Not started |
-| Equipment guidance rules expansion (lens+body, audio, drone) | ⬜ Not started |
+| Student mobile hardening V1 (scan permissions, ownership gating, role-adaptive sidebar) | ✅ Complete |
+| Equipment guidance rules (body-needs-batteries, lens-needs-body, audio-with-video) | ✅ Complete (3 rules; admin-configurable rules deferred to Phase C per D-016) |
+| shadcn/ui full migration (11 slices + 6 deep integrations) | ✅ Complete |
+| Booking detail unification (checkout + reservation merged into BookingDetailPage) | ✅ Complete |
+| Security & data integrity hardening (13 fixes, TOCTOU, privilege escalation) | ✅ Complete |
+| 5-pass page hardening (dashboard, items, users, scan, auth, profile) | ✅ Complete |
+| Scheduling + gear integration (6 slices: shift banner, My Shifts, Gear Up, Event Command Center) | ✅ Complete |
 
-### Phase B — Next
-1. Dashboard expansion: draft recovery UX, lane tuning, overdue banner polish
-2. Notifications escalation: D-009 acceptance — recipient model, alert fatigue controls, formal spec
-3. ~~Picker improvements: multi-select, availability preview, scan-to-add during checkout~~ — **Shipped** 2026-03-15 (Equipment Picker V2)
-4. ~~Calendar source health UI: enable/disable per source, sync status and last-error display~~ — **Shipped** 2026-03-15 (Events page)
+### Phase B — Active
+| Item | Status |
+|---|---|
+| ~~Picker improvements: multi-select, availability preview, scan-to-add~~ | ✅ Shipped 2026-03-15 (Equipment Picker V2) |
+| ~~Calendar source health UI: enable/disable, sync status, error display~~ | ✅ Shipped 2026-03-19 |
+| ~~Dashboard V2/V3: ops-first layout, live countdown, draft recovery~~ | ✅ Shipped 2026-03-12 |
+| ~~Notification center: in-app + email delivery, Resend, Vercel Cron~~ | ✅ Shipped 2026-03-16 |
+| ~~iPhone polish: input zoom, tap highlight, overscroll, responsive stacking~~ | ✅ Shipped 2026-03-22 |
+| Notifications escalation: D-009 recipient model, alert fatigue controls | ⬜ Not started |
+| ~~Kit management UI (D-020 — CRUD, members, archive, audit)~~ | ✅ Shipped 2026-03-24 |
+| Dashboard filter chips (Sport, Location) | ⬜ Not started |
+| Student availability tracking (declare unavailable dates) | ⬜ Not started |
 
 ### Phase C — Later
 1. Kiosk mode (self-serve scan station)
 2. Reservation and checkout templates
-3. Board / ops view for game-day coordinators
+3. Board / ops view for game-day coordinators (Game-Day Readiness Score — deferred from scheduling integration)
 4. Advanced analytics (only after workflows stabilize)
 5. Multi-source event ingestion beyond UW Badgers ICS
+6. Admin-configurable equipment guidance rules (D-016)
 
 ---
 
@@ -202,39 +215,30 @@ Use these questions before adding any feature:
 
 ---
 
-## 11. Gaps in Current Planning (as of 2026-03-15)
+## 11. Gaps in Current Planning (as of 2026-03-23)
 
-These are open items that must be resolved before implementing related features:
+Open items that must be resolved before implementing related features:
 
-1. ~~`AREA_NOTIFICATIONS.md` missing~~ — **Closed**: file exists, escalation schedule documented
-2. Student mobile KPI definitions not yet defined (pending in DECISIONS.md)
-3. Venue mapping governance owner not assigned
-4. Event sync refresh cadence and staleness thresholds not formalized
-5. ~~B&H metadata cache TTL target not defined~~ — **N/A**: D-005 withdrawn (scraping blocked by source)
-6. Phase C features (kiosk, templates, analytics) unscoped and unbriefed
-7. Draft persistence model underspecified — referenced in AREA_DASHBOARD.md but no owning spec
-8. ~~DRAFT booking state not formally specced~~ — **Closed**: D-017 accepted, documented in AREA_CHECKOUTS.md
-9. Equipment guidance rules hardcoded with only 1 rule; no admin-configuration path defined (D-016 defers to Phase C)
-10. ~~Calendar source enable/disable not specced~~ — **Closed**: enable/disable toggle shipped 2026-03-15 on Events page
+1. Student mobile KPI definitions not yet defined (taps-to-action, task-completion time, scan success rate — pending in DECISIONS.md)
+2. Venue mapping governance owner not assigned (PD-2)
+3. Event sync refresh cadence and staleness thresholds not formalized (PD-3)
+4. Phase C features (kiosk, templates, analytics) unscoped and unbriefed
+5. ~~Kit management UI has full schema but zero UI (D-020)~~ — Shipped 2026-03-24
 
 ---
 
-## 12. Recommended Next 3 Planning Docs
+## 12. Recommended Next 2 Planning Docs
 
 **Priority 1: D-009 Recipient Model Acceptance**
 - `AREA_NOTIFICATIONS.md` exists; D-009 escalation schedule is shipped
 - Still pending: recipient model for +24h escalation, alert fatigue controls
 - Blocks: notification center polish, overdue escalation wiring, dashboard badge counts
-- Action: finalize D-009 acceptance criteria before Phase B begins
+- Action: finalize D-009 acceptance criteria
 
-**Priority 2: `BRIEF_STUDENT_MOBILE_V1.md`**
-- D-015 accepted but no implementation brief exists
-- KPI definitions (taps-to-action, task-completion time, scan success rate) are pending
-- Needed to hold the mobile-first line during upcoming dashboard expansion
-
-**Priority 3: `BRIEF_BH_ENRICHMENT_V1.md`**
-- Priority #2 per D-010; not started
-- Must be scoped (server-side fetch boundary, parser fallback behavior, image source policy) before implementation begins
+**Priority 2: `BRIEF_KIT_MANAGEMENT_V1.md`**
+- D-020 accepted; full Prisma schema exists (Kit, KitItem models)
+- Zero UI — needs brief before implementation
+- Scope: kit CRUD, kit-to-booking integration, kit availability derived from member items
 
 ---
 
@@ -242,15 +246,15 @@ These are open items that must be resolved before implementing related features:
 
 These are tracked here as candidates for future planning cycles:
 
-1. **More equipment guidance rules** — Current system has 1 rule. High-value additions: `lens-needs-body` (warn if lens added without body), `audio-with-video` (remind about audio when selecting video camera), drone battery and prop check.
-2. **Calendar source enable/disable** — Can delete sources but not pause them. An `enabled` toggle on CalendarSource would let admins suspend a feed without losing configuration.
-3. **Sync health dashboard** — Production sync diagnostics are in code but have no admin UI. A "Last synced / X events / last error" display on the Events page would reduce support burden.
-4. **Scan-to-add in checkout picker** — Scanning a QR code during equipment picker should instantly add the item to the cart, accelerating physical handoff for staff.
-5. **Partial check-in item checklist UX** — The service supports partial check-in; the UI could be more explicit with a per-item return confirmation list rather than relying on scan flow alone.
+1. **Drone equipment guidance** — 3 rules shipped (body-needs-batteries, lens-needs-body, audio-with-video). Remaining: drone battery and prop check rule.
+2. **Partial check-in item checklist UX** — The service supports partial check-in; the UI could be more explicit with a per-item return confirmation list rather than relying on scan flow alone.
+3. **Game-Day Readiness Score** — Deferred from scheduling integration (Slice 5). Aggregate metric showing shift coverage, gear availability, and checkout status for an upcoming event.
+4. **Booking templates** — Save and reuse common booking configurations (sport + equipment combos) to accelerate repeat workflows.
 
 ---
 
 ## Change Log
 - 2026-03-09: Initial north star document created. Synthesized from all AREA_*.md, DECISIONS.md, prompts/, and codebase review as of PR #32.
 - 2026-03-11: Docs hardening — closed gaps #1 (AREA_NOTIFICATIONS exists) and #8 (DRAFT specced in D-017 + AREA_CHECKOUTS). Added Reservations V1 and Items V1 to Phase A shipped. Updated B&H enrichment status. Refreshed planning doc priorities.
-- 2026-03-15: Docs sync — closed gap #5 (B&H withdrawn, N/A), closed gap #10 (calendar enable/disable shipped). Marked Picker V2 and Calendar Health UI as shipped in Phase B. Updated AREA_CHECKOUTS and AREA_RESERVATIONS timestamps.
+- 2026-03-15: Docs sync — closed gap #5 (B&H withdrawn, N/A), closed gap #10 (calendar enable/disable shipped). Marked Picker V2 and Calendar Health UI as shipped in Phase B.
+- 2026-03-23: Major refresh — Phase A marked complete (student mobile V1, equipment guidance 3 rules, shadcn migration, booking unification, security hardening, 5-pass page audits, scheduling integration all shipped). Phase B updated with shipped items and remaining work. Cleaned closed gaps from section 11. Scrapped B&H from planning priorities; replaced with Kit Management V1 brief. Updated feature suggestions to reflect shipped items (calendar source health, scan-to-add, 3 guidance rules). Added Game-Day Readiness Score and booking templates as candidates.

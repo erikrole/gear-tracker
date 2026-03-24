@@ -25,10 +25,18 @@ export const GET = withAuth(async (req, { user }) => {
   const q = searchParams.get("q")?.trim();
   const roleParam = searchParams.get("role");
   const locationId = searchParams.get("locationId");
+  const activeParam = searchParams.get("active");
   const sort = searchParams.get("sort") || "name";
 
   // Build where clause
   const conditions: Prisma.UserWhereInput[] = [];
+
+  // Default to active-only unless explicitly requesting all or inactive
+  if (activeParam === "false") {
+    conditions.push({ active: false });
+  } else if (activeParam !== "all") {
+    conditions.push({ active: true });
+  }
 
   if (q) {
     conditions.push({
@@ -96,6 +104,7 @@ export const GET = withAuth(async (req, { user }) => {
       locationId: u.locationId,
       location: u.location?.name ?? null,
       avatarUrl: u.avatarUrl ?? null,
+      active: u.active,
     })),
     total,
     limit,
@@ -115,25 +124,28 @@ export const POST = withAuth(async (req, { user }) => {
 
   const email = body.email.toLowerCase();
 
-  const existing = await db.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new HttpError(409, "A user with this email already exists");
-  }
-
   const passwordHash = await hashPassword(body.password);
 
-  const created = await db.user.create({
-    data: {
-      name: body.name,
-      email,
-      passwordHash,
-      role: body.role,
-      locationId: body.locationId ?? null
-    },
-    include: {
-      location: { select: { name: true } }
+  let created;
+  try {
+    created = await db.user.create({
+      data: {
+        name: body.name,
+        email,
+        passwordHash,
+        role: body.role,
+        locationId: body.locationId ?? null
+      },
+      include: {
+        location: { select: { name: true } }
+      }
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new HttpError(409, "A user with this email already exists");
     }
-  });
+    throw err;
+  }
 
   await createAuditEntry({
     actorId: user.id,

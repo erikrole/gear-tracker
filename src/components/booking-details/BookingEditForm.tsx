@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import type { BookingDetail } from "./types";
 
@@ -26,7 +27,6 @@ import { toLocalDateTimeValue } from "./helpers";
 /** Convert datetime-local string back to Date (treats string as local time) */
 function parseLocalDateTime(s: string): Date | undefined {
   if (!s) return undefined;
-  // datetime-local strings are "YYYY-MM-DDTHH:MM" — parse components directly
   const [datePart, timePart] = s.split("T");
   if (!datePart || !timePart) return undefined;
   const [y, mo, d] = datePart.split("-").map(Number);
@@ -50,7 +50,7 @@ export default function BookingEditForm({
   onCancel,
 }: Props) {
   return (
-    <div className="sheet-section">
+    <div className="px-5 py-4">
       <div className="mb-3 space-y-1">
         <Label>Title</Label>
         <Input
@@ -80,14 +80,14 @@ export default function BookingEditForm({
 
       <div className="mb-3 space-y-1">
         <Label>Notes</Label>
-        <textarea
+        <Textarea
           rows={3}
           value={editNotes}
           onChange={(e) => onEditNotes(e.target.value)}
         />
       </div>
 
-      <div className="action-row-mt">
+      <div className="flex gap-2 mt-4">
         <Button
           disabled={saving}
           onClick={onSave}

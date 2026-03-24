@@ -45,6 +45,15 @@ Last updated: 2026-03-22
 
 ## Recently Shipped
 
+- [x] **Kit Management V1 (D-020)** — Kit CRUD, member management via asset search, equipment section grouping, archive/restore, audit logging on all mutations. Kit service layer + 4 API routes + list page (search, location filter, pagination, sort) + creation sheet + detail page (inline edit, member add/remove, delete). Sidebar "Soon" badge removed. (2026-03-24)
+- [x] **Sidebar V1 + Hardening (5-pass)** — Badge awareness (overdue on Checkouts, unread on Notifications). Semantic nav groups (Operations / Admin / Account). STUDENT sees no Admin group. Kits moved to Admin with "Soon" badge. Profile nav item removed (redundant with header). Group separators. Count-aware collapsed tooltips ("Checkouts · 3 overdue"). Logic: AbortController for badge fetch cleanup, isLoggingOut prop disables button during in-flight logout. Resilience: logout network failure now resets to allow retry. Design: 107 lines of dead old-sidebar CSS removed. (2026-03-24)
+- [x] **Users Page Improvements + Hardening** — Create user dialog, activity cursor pagination, member since date. Hardening: dead CSS removal, refresh-preserves-data, form reset on reopen, error differentiation, manual refresh with tooltip. (2026-03-23)
+- [x] **Schedule Page Hardening (4-pass)** — Design system (inline styles → Tailwind classes). Data flow (AbortController race prevention, 401 redirect on all fetches, trade count refreshes on sheet close). Resilience (network vs server error differentiation, refresh preserves existing data). UX polish (filtered "N of M" count indicator, skeleton column fix). (2026-03-23)
+- [x] **Schedule V2 Enhancements** — "My Shifts" filter (student-first, default ON for students, localStorage-persisted). Inline coverage expansion (click badge → per-area breakdown with avatars + assign button). Trade Board as Sheet overlay with open-trade count badge. View mode persistence in localStorage. Auto-scroll to today's date on list load. Shift status badges (Confirmed/Pending) on event rows. (2026-03-23)
+- [x] **Unified Schedule Page (V1)** — Merged `/events` + `/schedule` into single `/schedule` page. List view with date-grouped events + coverage badges. Calendar view with month grid + coverage dots. Unified filters (sport, area, coverage, past events). Trade Board tab. `/events` list page removed; detail page unchanged. Venue Mappings moved to `/settings/venue-mappings`. (2026-03-23)
+- [x] **Dashboard Sport Filter Chips** — Toggleable sport code chips below stat strip, URL-persisted (`?sport=MBB`), scopes all sections client-side. Contextual empty states. Overdue banner unfiltered. Auto-hides with <2 sports. (2026-03-23)
+- [x] **Reports Page Hardening (6-pass)** — Design system alignment (Table, Badge, Alert, Card; -23 lines dead CSS). Data flow hardening (AbortController, 401 redirect, null-safe arrays, race condition prevention, refresh-without-replacement). Resilience (error differentiation: network vs server, retry with loading state). UX polish (Loader2 spinners, high-fidelity skeletons, varied widths). Features: data freshness indicator (RefreshCw + "Updated X ago" tooltip), URL-persisted filters (shareable report URLs), MetricCard tooltips. (2026-03-23)
+- [x] **Profile Page Hardening (5-pass)** — Merged profile into user detail page (`/profile` → redirect to `/users/{id}`). Avatar upload + password change integrated into user detail when viewing self. Fixed student self-edit permissions (name/location via `/api/profile`). Optimistic avatar removal. High-fidelity skeletons. Removed 50 lines dead CSS. (2026-03-23)
 - [x] **Scan Page Hardening (5-pass)** — Design system (Progress, Badge, Alert, Skeleton; -35 lines dead CSS). Data flow (refresh-preserves-data, 401 on all endpoints, ref guards). Resilience (auto-clear feedback, try/catch/finally numbered bulk, spam-click guards). UX (optimistic checklist update, Loader2 spinners). (2026-03-23)
 - [x] **Login Page Hardening (5-pass)** — Design system alignment (Card, Alert, CardHeader/CardDescription; -78 lines dead CSS from all 4 auth pages). Data flow hardening (safe JSON parse, network error differentiation, double-submit guard, error-clears-on-typing). Resilience (disabled inputs during submit, aria-invalid/aria-describedby for accessibility). UX polish (Loader2 spinner on buttons, WifiOff icon for network errors, auto-focus first invalid field, card entrance animation). All 4 auth pages (login, register, forgot-password, reset-password) hardened consistently. (2026-03-23)
 - [x] **Users Page Hardening (5-pass)** — Design system alignment (shadcn tokens, dead CSS removal), data flow hardening (AbortController, race condition prevention), resilience (retry buttons, 401 redirect on all endpoints), UX polish (high-fidelity skeletons, refresh-without-replacement, result count). (2026-03-22)
@@ -68,6 +77,7 @@ Last updated: 2026-03-22
 - [x] **Dashboard Drafts (D-017 / GAP-2)** — DRAFT booking CRUD, dashboard section, auto-save on cancel, resume pre-fill (2026-03-16)
 - [x] **D-018 Doc Sync** — Asset financial fields already in UI; docs updated to reflect shipped (2026-03-16)
 - [x] **Dark mode contrast sweep** — 14 elements fixed across 2 commits (2026-03-16)
+- [x] **Equipment Picker: shadcn + perf + a11y + 4-pass hardening** — shadcn components, O(1) Map + Set lookups, full ARIA keyboard nav, AbortController, scan feedback, availability retry, dead CSS cleanup (2026-03-24)
 - [x] **Equipment Picker V2** — Multi-select, per-section search, availability preview, scan-to-add (2026-03-15)
 - [x] **Dashboard V2/V3** — Ops-first split layout with live countdown timers (2026-03-11/12)
 - [x] **Item Detail: UW Asset Tag Mirror** — uwAssetTag shown in page header (2026-03-11)
@@ -81,7 +91,7 @@ Last updated: 2026-03-22
 
 - [ ] **Dashboard filter chips** (Sport, Location) — deferred from V1
 - [ ] **Dashboard saved filters** — deferred from V1
-- [ ] **Kit management UI** (D-020) — full schema, zero UI
+- [x] **Kit management UI** (D-020) — shipped 2026-03-24
 - [x] **Department filter/display** (D-019) — shipped 2026-03-21
 - [ ] **Notification center pagination** — list grows unbounded
 - [ ] **Shift email notifications** — V1 = in-app audit only
@@ -91,10 +101,7 @@ Last updated: 2026-03-22
 
 ## Pending Decisions
 
-See `docs/GAPS_AND_RISKS.md` for the full registry. Key items:
-
-1. **PD-2**: Venue mapping governance — who owns regex-to-location mapping table?
-2. **PD-3**: Event sync refresh cadence — Vercel Cron schedule and staleness thresholds
+All pending decisions resolved — see `docs/DECISIONS.md` for D-026 (event sync cadence) and D-027 (venue mapping governance).
 
 ---
 

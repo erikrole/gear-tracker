@@ -63,11 +63,11 @@ const bookingInclude = {
 
 const bookingListInclude = {
   location: { select: { id: true, name: true } },
-  requester: { select: { id: true, name: true, email: true } },
+  requester: { select: { id: true, name: true, email: true, avatarUrl: true } },
   serializedItems: {
     select: {
       id: true, assetId: true, allocationStatus: true,
-      asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true } },
+      asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true, imageUrl: true } },
     },
   },
   bulkItems: {
@@ -658,7 +658,7 @@ export async function cancelReservation(bookingId: string, actorUserId: string) 
     });
 
     return { success: true };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function markCheckoutCompleted(bookingId: string, actorUserId: string) {
@@ -1000,7 +1000,7 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
     });
 
     return { success: true };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -1247,6 +1247,9 @@ export async function getBookingDetail(bookingId: string) {
       ...bookingInclude,
       creator: { select: { id: true, name: true, email: true } },
       serializedItems: { include: { asset: { include: { location: { select: { id: true, name: true } } } } } },
+      event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
+      sourceReservation: { select: { id: true, refNumber: true, title: true } },
+      shiftAssignment: { select: { id: true, shift: { select: { area: true } } } },
     }
   });
 

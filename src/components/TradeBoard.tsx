@@ -80,6 +80,11 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
+  function redirectOn401(res: Response): boolean {
+    if (res.status === 401) { window.location.href = "/login"; return true; }
+    return false;
+  }
+
   const loadTrades = useCallback(async () => {
     setLoading(true);
     try {
@@ -87,6 +92,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (areaFilter) params.set("area", areaFilter);
       if (statusFilter) params.set("status", statusFilter);
       const res = await fetch(`/api/shift-trades?${params}`);
+      if (redirectOn401(res)) return;
       if (res.ok) {
         const json = await res.json();
         setTrades(json.data ?? []);
@@ -114,6 +120,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/claim`, { method: "POST" });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Trade claimed", "success");
         await loadTrades();
@@ -129,6 +136,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/approve`, { method: "PATCH" });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Trade approved — swap executed", "success");
         await loadTrades();
@@ -144,6 +152,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/decline`, { method: "PATCH" });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Trade declined — reopened", "success");
         await loadTrades();
@@ -166,6 +175,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/cancel`, { method: "PATCH" });
+      if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Trade cancelled", "success");
         await loadTrades();
@@ -281,7 +291,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                             <Button
                               size="sm"
                               onClick={() => handleClaim(t.id)}
-                              disabled={acting === t.id}
+                              disabled={acting !== null}
                               style={{ fontSize: "var(--text-3xs)" }}
                             >
                               {acting === t.id ? "..." : "Claim"}
@@ -294,7 +304,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                               variant="ghost" size="sm"
                               className="text-destructive"
                               onClick={() => handleCancel(t.id)}
-                              disabled={acting === t.id}
+                              disabled={acting !== null}
                               style={{ fontSize: "var(--text-3xs)" }}
                             >
                               Cancel
@@ -307,7 +317,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                               <Button
                                 size="sm"
                                 onClick={() => handleApprove(t.id)}
-                                disabled={acting === t.id}
+                                disabled={acting !== null}
                                 style={{ fontSize: "var(--text-3xs)" }}
                               >
                                 {acting === t.id ? "..." : "Approve"}
@@ -316,7 +326,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                                 variant="ghost" size="sm"
                                 className="text-destructive"
                                 onClick={() => handleDecline(t.id)}
-                                disabled={acting === t.id}
+                                disabled={acting !== null}
                                 style={{ fontSize: "var(--text-3xs)" }}
                               >
                                 Decline
@@ -357,7 +367,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                         <Button
                           size="sm"
                           onClick={() => handleClaim(t.id)}
-                          disabled={acting === t.id}
+                          disabled={acting !== null}
                         >
                           {acting === t.id ? "..." : "Claim"}
                         </Button>
@@ -367,7 +377,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                           variant="ghost" size="sm"
                           className="text-destructive"
                           onClick={() => handleCancel(t.id)}
-                          disabled={acting === t.id}
+                          disabled={acting !== null}
                         >
                           Cancel
                         </Button>
@@ -377,7 +387,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                           <Button
                             size="sm"
                             onClick={() => handleApprove(t.id)}
-                            disabled={acting === t.id}
+                            disabled={acting !== null}
                           >
                             {acting === t.id ? "..." : "Approve"}
                           </Button>
@@ -385,7 +395,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                             variant="ghost" size="sm"
                             className="text-destructive"
                             onClick={() => handleDecline(t.id)}
-                            disabled={acting === t.id}
+                            disabled={acting !== null}
                           >
                             Decline
                           </Button>

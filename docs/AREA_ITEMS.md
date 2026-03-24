@@ -38,6 +38,8 @@ Treat physical gear identity as primary, make list and detail views action-orien
 4. User attaches image from upload or URL.
 6. User saves item and returns to list or adds another.
 
+> **Picker Roadmap:** Form comboboxes (Department, Location, Category, Bulk SKU) are covered in `tasks/item-picker-roadmap.md` — see FormCombobox V1 cleanup for normalization plan.
+
 ### Item Detail
 1. User opens item details from list.
 2. Header exposes fast actions (`Reserve`, `Check out`) by permission and policy.
@@ -365,3 +367,9 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
   - Resilience: refresh failures preserve visible data (toast error instead of replacing table with error screen). Initial load vs refresh distinguished — skeleton only on first load, shimmer progress bar on subsequent refreshes.
   - UX polish: loading skeleton matches actual table layout (image placeholder + two-line text, pill-shaped status badge, varied widths). Retire confirmation names the specific item and states consequences. Bulk actions toast success/failure with action type and count. Retire button shows "Retiring…" during in-flight action.
   - Bulk action hook now toasts success/failure messages.
+- 2026-03-23: Items page roadmap created — V1 polish, V2 enhanced UX, V3 advanced features. See `tasks/items-roadmap.md`.
+- 2026-03-24: Item details page roadmap created — V1 hardening, V2 enhanced workflows, V3 intelligent features. See `tasks/item-details-roadmap.md`.
+
+## Roadmaps
+- **Items list page**: `tasks/items-roadmap.md` — V1 polish, V2 enhanced UX, V3 advanced features
+- **Item details page**: `tasks/item-details-roadmap.md` — V1 hardening, V2 reduced friction, V3 predictive/proactive

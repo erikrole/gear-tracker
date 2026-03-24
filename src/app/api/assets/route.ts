@@ -57,7 +57,7 @@ const SORT_MAP: Record<string, Prisma.AssetOrderByWithRelationInput> = {
   "-department": { department: { name: "desc" } },
 };
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, { user }) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const showAccessories = searchParams.get("show_accessories") === "true";
@@ -143,7 +143,41 @@ export const GET = withAuth(async (req) => {
   }
 
   const enrichedWithBookings = await attachActiveBookings(data);
-  return ok({ data: enrichedWithBookings, total, limit, offset });
+
+  // Attach isFavorited for current user
+  const favoriteAssetIds = new Set(
+    (await db.favoriteItem.findMany({
+      where: { userId: user.id, assetId: { in: enrichedWithBookings.map((a) => a.id) } },
+      select: { assetId: true },
+    })).map((f) => f.assetId)
+  );
+  const enrichedWithFavorites = enrichedWithBookings.map((a) => ({
+    ...a,
+    isFavorited: favoriteAssetIds.has(a.id),
+  }));
+
+  // Status breakdown counts using derived status logic
+  const statusKeys = ["AVAILABLE", "CHECKED_OUT", "RESERVED", "MAINTENANCE", "RETIRED"] as const;
+  const breakdownCounts = await Promise.all(
+    statusKeys.map((s) => {
+      const clauses = buildDerivedStatusWhere([s]);
+      return db.asset.count({ where: { AND: [baseWhere, { OR: clauses }] } });
+    })
+  );
+
+  return ok({
+    data: enrichedWithFavorites,
+    total,
+    limit,
+    offset,
+    statusBreakdown: {
+      available: breakdownCounts[0],
+      checkedOut: breakdownCounts[1],
+      reserved: breakdownCounts[2],
+      maintenance: breakdownCounts[3],
+      retired: breakdownCounts[4],
+    },
+  });
 });
 
 /** Attach activeBooking (id, kind, title, requester) for CHECKED_OUT / RESERVED assets. */

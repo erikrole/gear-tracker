@@ -14,9 +14,9 @@ export type BookingItem = {
   status: string;
   sportCode: string | null;
   createdBy?: string;
-  requester: { id: string; name: string };
+  requester: { id: string; name: string; avatarUrl?: string | null };
   location: { id: string; name: string };
-  serializedItems: Array<{ asset: { assetTag: string; brand: string; model: string } }>;
+  serializedItems: Array<{ asset: { assetTag: string; brand: string; model: string; imageUrl?: string | null } }>;
   bulkItems: Array<{ bulkSku: { name: string }; plannedQuantity: number }>;
   event?: { id: string; summary: string; sportCode: string | null; opponent: string | null; isHome: boolean | null } | null;
 };
@@ -71,6 +71,8 @@ export type BookingListConfig = {
   defaultTieToEvent: boolean;
   hasSportFilter: boolean;
   overdueStatus: string;
+  /** Status filter applied by default (e.g. "OPEN" to hide completed/cancelled) */
+  defaultStatusFilter?: string;
   showEventBadge: boolean;
   contextMenuExtras: ContextMenuExtra[];
 };

@@ -1,5 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 import {
   Select,
@@ -19,6 +21,8 @@ export default function UserFilters({
   locationFilter,
   onLocationChange,
   locations,
+  showInactive,
+  onShowInactiveChange,
   onClearAll,
 }: {
   search: string;
@@ -28,6 +32,8 @@ export default function UserFilters({
   locationFilter: string;
   onLocationChange: (v: string) => void;
   locations: Location[];
+  showInactive: boolean;
+  onShowInactiveChange: (v: boolean) => void;
   onClearAll: () => void;
 }) {
   const hasFilters = !!roleFilter || !!locationFilter;
@@ -66,6 +72,16 @@ export default function UserFilters({
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-1.5">
+            <Checkbox
+              id="show-inactive"
+              checked={showInactive}
+              onCheckedChange={(v) => onShowInactiveChange(!!v)}
+            />
+            <Label htmlFor="show-inactive" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+              Show inactive
+            </Label>
+          </div>
         </div>
       </div>
       {hasFilters && (

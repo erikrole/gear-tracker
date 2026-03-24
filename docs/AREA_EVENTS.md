@@ -25,11 +25,14 @@ Make athletics schedule data the operational backbone for booking and checkout w
 8. Batch DB operations in sync pipeline for performance (avoid N+1 query patterns).
 9. Production sync diagnostics: structured logging for missing event counts and sync failure details.
 
+## Now (Implemented — cont.)
+10. **Unified Schedule page** — merged `/events` + old `/schedule` into single `/schedule` page. List view with date-grouped events + coverage badges. Calendar view with month grid + coverage indicator dots. Unified filters (sport, area, coverage, past events). Trade Board as tab. ShiftDetailPanel integration. Old `/events` page removed (detail page `/events/[id]` unchanged). Sidebar shows single "Schedule" entry.
+11. **Venue Mappings moved to Settings** — `/settings/venue-mappings` page with add/delete/list. Removed from events page.
+12. Calendar Sources management remains at `/settings/calendar-sources` (unchanged).
+
 ## Next
-1. Calendar source enable/disable toggle — pause a feed without deleting its configuration.
-2. Sync health admin UI — show last synced time, event count, last error per source on Events page.
-3. Better normalization for opponent and venue fields.
-4. Stale-data visibility: surface last sync time on source management table.
+1. Better normalization for opponent and venue fields.
+2. V2 enhancements: Day Drawer, Trade Board as sheet, inline coverage expansion, "My Shifts" filter — see `tasks/calendar-roadmap.md`.
 
 ## Later
 1. Multi-source event ingestion, if required.
@@ -67,3 +70,4 @@ Make athletics schedule data the operational backbone for booking and checkout w
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-02: Added explicit dashboard-scope boundary and mobile/dashboard dependency alignment.
 - 2026-03-09: Expanded "Now" to reflect shipped implementation: source deletion, upcoming-default filter, sync hardening, batch DB ops, production diagnostics. Added enable/disable and sync health UI to Next.
+- 2026-03-23: Unified Schedule page shipped (V1). Events + Schedule merged into `/schedule`. Old `/events` list page removed; `/events/[id]` detail unchanged. Venue Mappings moved to `/settings/venue-mappings`. Calendar Sources unchanged at `/settings/calendar-sources`.

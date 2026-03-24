@@ -21,6 +21,7 @@ type Props = {
   equipSaving: boolean;
   resolveAssetName: (assetId: string) => string;
   resolveSkuName: (skuId: string) => string;
+  resolveSkuMaxQty: (skuId: string) => number;
   onRemoveSerializedItem: (assetId: string) => void;
   onAddSerializedItem: (assetId: string) => void;
   onUpdateBulkQty: (skuId: string, qty: number) => void;
@@ -45,6 +46,7 @@ export default function BookingEquipmentEditor({
   equipSaving,
   resolveAssetName,
   resolveSkuName,
+  resolveSkuMaxQty,
   onRemoveSerializedItem,
   onAddSerializedItem,
   onUpdateBulkQty,
@@ -99,47 +101,61 @@ export default function BookingEquipmentEditor({
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Bulk Items ({editBulkItems.length})
           </div>
-          {editBulkItems.map((item) => (
-            <div key={item.bulkSkuId} className="flex items-center gap-2 py-1.5">
-              <span className="text-sm flex-1 truncate">{resolveSkuName(item.bulkSkuId)}</span>
-              <div className="inline-flex items-center rounded-md border border-border overflow-hidden">
+          {editBulkItems.map((item) => {
+            const maxQty = resolveSkuMaxQty(item.bulkSkuId);
+            return (
+              <div key={item.bulkSkuId} className="flex items-center gap-2 py-1.5">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm truncate block">{resolveSkuName(item.bulkSkuId)}</span>
+                  {maxQty < 100 && (
+                    <span className="text-[10px] text-muted-foreground">{item.quantity}/{maxQty} available</span>
+                  )}
+                </div>
+                <div className="inline-flex items-center rounded-md border border-border overflow-hidden">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-none border-r border-border"
+                    aria-label={`Decrease quantity for ${resolveSkuName(item.bulkSkuId)}`}
+                    disabled={item.quantity <= 1}
+                    onClick={() => onUpdateBulkQty(item.bulkSkuId, Math.max(1, item.quantity - 1))}
+                  >
+                    <Minus className="size-3" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={maxQty}
+                    value={item.quantity}
+                    aria-label={`Quantity for ${resolveSkuName(item.bulkSkuId)}`}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value) || 1;
+                      onUpdateBulkQty(item.bulkSkuId, Math.min(maxQty, Math.max(1, v)));
+                    }}
+                    className="h-8 w-12 rounded-none border-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-none border-l border-border"
+                    aria-label={`Increase quantity for ${resolveSkuName(item.bulkSkuId)}`}
+                    disabled={item.quantity >= maxQty}
+                    onClick={() => onUpdateBulkQty(item.bulkSkuId, Math.min(maxQty, item.quantity + 1))}
+                  >
+                    <Plus className="size-3" />
+                  </Button>
+                </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-none border-r border-border"
-                  aria-label={`Decrease quantity for ${resolveSkuName(item.bulkSkuId)}`}
-                  onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity - 1)}
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={() => onRemoveBulkItem(item.bulkSkuId)}
                 >
-                  <Minus className="size-3" />
-                </Button>
-                <Input
-                  type="number"
-                  min={1}
-                  value={item.quantity}
-                  aria-label={`Quantity for ${resolveSkuName(item.bulkSkuId)}`}
-                  onChange={(e) => onUpdateBulkQty(item.bulkSkuId, parseInt(e.target.value) || 1)}
-                  className="h-8 w-12 rounded-none border-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-none border-l border-border"
-                  aria-label={`Increase quantity for ${resolveSkuName(item.bulkSkuId)}`}
-                  onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity + 1)}
-                >
-                  <Plus className="size-3" />
+                  <X className="size-4" />
                 </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                onClick={() => onRemoveBulkItem(item.bulkSkuId)}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

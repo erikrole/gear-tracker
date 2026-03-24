@@ -104,6 +104,12 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     claim: ["ADMIN", "STAFF", "STUDENT"],
     approve: ["ADMIN", "STAFF"],
   },
+  kit: {
+    view: ["ADMIN", "STAFF"],
+    create: ["ADMIN", "STAFF"],
+    edit: ["ADMIN", "STAFF"],
+    delete: ["ADMIN"],
+  },
 };
 
 /**
