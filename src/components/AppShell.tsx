@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, MenuIcon } from "lucide-react";
-import Sidebar from "./Sidebar";
+import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon } from "lucide-react";
+import AppSidebar from "./Sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
   CommandDialog,
   CommandInput,
@@ -46,7 +47,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
@@ -174,7 +174,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   return (
-    <div className="app-shell">
+    <SidebarProvider>
       <a href="#main-content" className="skip-link">Skip to content</a>
 
       {/* Command palette */}
@@ -268,26 +268,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </CommandList>
       </CommandDialog>
 
-      {/* Mobile overlay */}
-      <div
-        className={`sidebar-overlay${sidebarOpen ? " visible" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-      <Sidebar user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onSignOut={handleLogout} />
+      <AppSidebar user={user} onSignOut={handleLogout} />
+
       {!online && (
         <div className="offline-banner" role="status">
-          You're offline. Changes will sync when connected.
+          You&apos;re offline. Changes will sync when connected.
         </div>
       )}
-      <main className="app-main">
+
+      <div className="app-main">
         <header className="topbar">
-          <button
-            className="mobile-nav-toggle"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
-          >
-            <MenuIcon />
-          </button>
+          <SidebarTrigger className="topbar-sidebar-trigger text-[var(--text)] hover:bg-[var(--panel)] hover:text-[var(--text)]" />
           {/* Search trigger (desktop + mobile) */}
           <button
             className="topbar-search topbar-search-desktop"
@@ -340,7 +331,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <PageBreadcrumb />
           {children}
         </div>
-      </main>
+      </div>
 
       {/* Mobile bottom nav */}
       <nav className="bottom-nav">
@@ -361,6 +352,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
-    </div>
+    </SidebarProvider>
   );
 }
