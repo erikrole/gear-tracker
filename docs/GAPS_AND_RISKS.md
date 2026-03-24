@@ -32,7 +32,7 @@
 | ~~GAP-6~~ | ~~Email notification channel not wired~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Resend email service wired; dual-channel (in-app + email) shipped 2026-03-16~~ |
 | ~~GAP-7~~ | ~~No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere~~ | ~~CROSS-CUTTING~~ | ~~Closed (partial)~~ | ~~`useFetch`, `useUrlState`, `classifyError` hooks extracted 2026-03-24. Pages not yet migrated to use them (Sprint 2).~~ |
 | ~~GAP-8~~ | ~~Reports page is a navigation dead end — no drill-down to individual bookings/items~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Drill-down links added to MetricCard in checkouts, overdue, and utilization reports 2026-03-24~~ |
-| GAP-9 | Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters | AREA_DASHBOARD | Open | V1 priority: decompose into hooks + leaf components per items page pattern |
+| ~~GAP-9~~ | ~~Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Decomposed: `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (avatars, chart, overdue, filters, columns, skeleton). Page.tsx reduced from 1004 to ~170 lines (2026-03-24)~~ |
 | ~~GAP-10~~ | ~~Kit management page exists but is empty — confusing for users navigating via sidebar~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Placeholder card shipped; Kits moved to Admin group with "Soon" badge in sidebar (2026-03-24)~~ |
 | GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2: adopt React Query/SWR for shared cache + background refresh |
 | ~~GAP-12~~ | ~~No stale-data detection across browser tabs or after backgrounding~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~`useFetch` hook includes Page Visibility API refresh; item detail page refreshes on tab focus 2026-03-24~~ |
@@ -87,7 +87,7 @@
 | Equipment guidance stagnation | Only 3 guidance rules in production | Quarterly rule audit with operator input | Product |
 | Alert fatigue from escalation | Repeated overdue notifications overwhelm staff | D-009 fatigue controls required before Phase B | Engineering |
 | Pattern fragmentation | New pages copy-paste fetch/URL/error patterns instead of reusing hooks | V1 roadmap: extract shared hooks before building new features | Engineering |
-| Dashboard monolith | Dashboard page grows with each feature (filters, actions, sections) | V1 roadmap: decompose before adding location filter or inline actions | Engineering |
+| ~~Dashboard monolith~~ | ~~Dashboard page grows with each feature (filters, actions, sections)~~ | ~~Closed 2026-03-24: decomposed into hooks + 7 leaf components~~ | ~~Engineering~~ |
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
 | ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
 | ~~STAFF editing ADMIN profiles/roles~~ | ~~Role guard only checks grant, not revoke/edit~~ | ~~Closed 2026-03-23: target.role === ADMIN guard on all mutation endpoints~~ | ~~Engineering~~ |
@@ -133,3 +133,4 @@
 - 2026-03-23: Unified Schedule page (V1) shipped. Events + Schedule merged into `/schedule`. Old events list page removed. Venue Mappings moved to `/settings/venue-mappings`. System roadmap updated — calendar merge is item #1 in V1 order.
 - 2026-03-23: Schedule V2 enhancements shipped — "My Shifts" filter (student-first, localStorage-persisted), inline coverage expansion (per-area breakdown with avatars + assign), Trade Board as Sheet overlay with open-trade count badge, view mode persistence, auto-scroll to today.
 - 2026-03-23: Schedule page hardened (4-pass) — design system alignment, AbortController race prevention, 401 redirect, network vs server error differentiation, refresh-preserves-data pattern, filtered count indicator.
+- 2026-03-24: V1 Cohesive Foundation completion — Dashboard decomposed into `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (GAP-9 closed). Empty state audit across search, scan, bulk-inventory, data-table. `useFormSubmit` hook extracted for standardized form handling (Zod validation → fetch → error classification → toast). Applied to Create User dialog as reference implementation.

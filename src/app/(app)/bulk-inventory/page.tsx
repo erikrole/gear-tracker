@@ -388,7 +388,7 @@ export default function BulkInventoryPage() {
                   </div>
 
                   {units.length === 0 ? (
-                    <div className="text-secondary text-base">No units created yet.</div>
+                    <div className="py-4 text-center text-sm text-muted-foreground">No units created yet. Click &ldquo;Add more units&rdquo; to get started.</div>
                   ) : (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
                       {units.map((u) => {

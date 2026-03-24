@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 import {
   Sheet,
   SheetContent,
@@ -764,7 +765,7 @@ export default function ScanPage() {
           </div>
 
           {scanStatus.serializedItems.length === 0 && scanStatus.bulkItems.length === 0 ? (
-            <div className="py-10 px-5 text-center text-muted-foreground">No items to scan.</div>
+            <EmptyState icon="box" title="No items to scan" description="This booking has no equipment assigned." />
           ) : (
             <div className="scan-checklist-items">
               {/* Unscanned first, then scanned */}
