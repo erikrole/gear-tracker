@@ -128,7 +128,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
 
       {/* Upcoming Events */}
       <Card>
-        <a href="/events" className="card-header-link">
+        <a href="/schedule" className="card-header-link">
           <h2>Upcoming events</h2>
         </a>
         {(filtered?.upcomingEvents ?? data.upcomingEvents).length === 0 ? (

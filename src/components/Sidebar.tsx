@@ -19,6 +19,7 @@ import {
   SettingsIcon,
   LogOutIcon,
   BellIcon,
+  PlusIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -29,6 +30,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -40,6 +42,7 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
   badge?: string;
+  quickCreateHref?: string;
 };
 
 type NavGroup = {
@@ -54,8 +57,8 @@ const navGroups: NavGroup[] = [
       { label: "Dashboard", href: "/", icon: LayoutGridIcon },
       { label: "Schedule", href: "/schedule", icon: CalendarIcon },
       { label: "Items", href: "/items", icon: LayersIcon },
-      { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon },
-      { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon },
+      { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon, quickCreateHref: "/reservations?create=true" },
+      { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon, quickCreateHref: "/checkouts?create=true" },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
     ],
   },
@@ -221,6 +224,13 @@ export default function AppSidebar({
                           <SidebarMenuBadge className="bg-white/10 text-white/50 text-[9px] font-semibold h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
                             {badgeLabel}
                           </SidebarMenuBadge>
+                        )}
+                        {item.quickCreateHref && isAdmin && (
+                          <SidebarMenuAction asChild showOnHover>
+                            <Link href={item.quickCreateHref} aria-label={`New ${item.label.toLowerCase().replace(/s$/, "")}`}>
+                              <PlusIcon />
+                            </Link>
+                          </SidebarMenuAction>
                         )}
                       </SidebarMenuItem>
                     );

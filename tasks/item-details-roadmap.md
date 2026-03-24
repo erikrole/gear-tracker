@@ -74,7 +74,7 @@ Partially usable. Hero image + header work. **Tab bar is the main problem** — 
 
 ### Features
 
-#### 1. Data flow hardening
+#### 1. Data flow hardening ✅ Shipped
 - **AbortController** on all fetches (loadAsset, loadCategories, loadDepartments, loadLocations, /api/me) with cleanup on unmount and re-fetch
 - **401 redirect** — check `res.status === 401` on every fetch, redirect to `/login`
 - **Refresh-preserves-data** — on reload failure, keep previous `asset` state visible, show toast error instead of replacing page
@@ -82,31 +82,31 @@ Partially usable. Hero image + header work. **Tab bar is the main problem** — 
 - **Files**: `page.tsx` (main fetch logic)
 - **Components**: None new — pattern exists on dashboard, items list, schedule pages
 
-#### 2. Error state improvements
+#### 2. Error state improvements ✅ Shipped
 - **Differentiated errors**: network (WifiOff icon + "Check your connection") vs server (AlertTriangle + "Something went wrong") vs 404 ("Item not found")
 - **Retry button** on error state
 - **Components**: shadcn `Alert`, `Button`
 - **Files**: `page.tsx` error rendering section
 
-#### 3. Refresh indicator + freshness
+#### 3. Refresh indicator + freshness ✅ Shipped
 - **Manual refresh button** with `RefreshCw` icon in header (next to Actions)
 - **"Updated X ago" tooltip** on refresh button (pattern from dashboard/reports)
 - **Shimmer progress bar** during background refresh (not initial load)
 - **Components**: shadcn `Tooltip`, `Button`, `Progress`
 - **Files**: `page.tsx` header section
 
-#### 4. Breadcrumb
+#### 4. Breadcrumb ✅ Shipped
 - Add `PageBreadcrumb` with `Items > {assetTag}` path
 - **Components**: shadcn `Breadcrumb`
 - **Files**: `page.tsx` — add above page-header div
 
-#### 5. Mobile tab overflow
+#### 5. Mobile tab overflow ✅ Shipped
 - Make `TabsList` horizontally scrollable on mobile with `overflow-x-auto` and `scrollbar-hide`
 - Hide keyboard shortcut hints (`kbd` elements) on mobile (already `hidden sm:inline-block`)
 - **Components**: No new — CSS on existing `TabsList`
 - **Files**: `page.tsx` Tabs section
 
-#### 6. Tab badge counts
+#### 6. Tab badge counts ✅ Shipped
 - **Bookings tab**: show count of active + upcoming bookings (e.g., "Bookings (3)")
 - **Accessories tab**: show count of attached accessories (e.g., "Accessories (2)")
 - Counts derived from already-loaded `asset` data — no new API calls

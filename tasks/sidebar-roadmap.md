@@ -115,7 +115,7 @@
 
 ### Features
 
-**1. Semantic navigation groups**
+**1. Semantic navigation groups** ✅ Shipped 2026-03-24
 
 Reorganize 11 items into two groups using `SidebarGroup` + `SidebarGroupLabel`:
 
@@ -129,7 +129,7 @@ Reorganize 11 items into two groups using `SidebarGroup` + `SidebarGroupLabel`:
 - Group labels appear in expanded mode only; hidden when collapsed (shadcn `SidebarGroupLabel` handles via `group-data-[collapsible=icon]:opacity-0`)
 - Replaces the current `STUDENT_HIDDEN_HREFS` per-item filter; logic moves to group-level visibility
 
-**2. Quick-create actions on Checkouts + Reservations**
+**2. Quick-create actions on Checkouts + Reservations** ✅ Shipped 2026-03-24
 
 - Add `SidebarMenuAction` (hover-reveal + icon) to Checkouts and Reservations items
 - Checkouts action: `href="/checkouts?create=true"` with `+` icon

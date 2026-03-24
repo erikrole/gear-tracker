@@ -125,14 +125,14 @@ Gear Tracker is the internal gear management system for Wisconsin Athletics Crea
 
 **Goal**: Every page feels like it belongs to the same product. Consistency and reliability across the system.
 
-#### 3.1 Extract Shared Patterns (Size: M)
+#### 3.1 Extract Shared Patterns (Size: M) ✅ Shipped
 
-| Pattern | Current State | Target |
-|---------|--------------|--------|
-| URL state management | 3 different implementations (dashboard `useSearchParams`, items `use-url-filters`, reports inline) | Extract `useUrlState(key, defaultValue)` hook in `src/hooks/use-url-state.ts` |
-| Fetch + loading/error | Manual `useState` + `useEffect` + `AbortController` on every page | Extract `useFetch<T>(url, options)` hook with loading, error, data, refresh, abort |
-| Error classification | Inline `if (!res.ok)` with ad-hoc network vs server checks | Extract `classifyError(error)` utility in `src/lib/errors.ts` |
-| Page init pattern | Mix of single init endpoints and multiple parallel fetches | Standardize: pages with 3+ fetches get a consolidated init endpoint |
+| Pattern | Current State | Target | Status |
+|---------|--------------|--------|--------|
+| URL state management | 3 different implementations | `useUrlState(key, defaultValue)` in `src/hooks/use-url-state.ts` | ✅ Shipped |
+| Fetch + loading/error | Manual `useState` + `useEffect` + `AbortController` | `useFetch<T>(url, options)` in `src/hooks/use-fetch.ts` | ✅ Shipped |
+| Error classification | Inline `if (!res.ok)` with ad-hoc checks | `classifyError(error)` in `src/lib/errors.ts` | ✅ Shipped |
+| Page init pattern | Mix of single init endpoints and multiple parallel fetches | Standardize: pages with 3+ fetches get a consolidated init endpoint | ✅ Shipped |
 
 #### 3.2 Complete Missing States (Size: S)
 
@@ -141,21 +141,18 @@ Gear Tracker is the internal gear management system for Wisconsin Athletics Crea
 - **Bulk inventory → item detail**: Add row click → item detail navigation on bulk SKU rows
 - **Kits page placeholder**: Replace empty page with "Coming soon" card explaining D-020 status (prevents user confusion)
 
-#### 3.3 Page Decomposition Standard (Size: M)
+#### 3.3 Page Decomposition Standard (Size: M) ✅ Shipped
 
-Dashboard (`src/app/(app)/page.tsx`) is likely 500+ lines with 10+ useState calls. Apply the items page decomposition pattern:
-- Extract data fetching into `use-dashboard-data.ts`
-- Extract filter state into `use-dashboard-filters.ts`
-- Extract section components (`OverdueBanner`, `StatStrip`, `FilterChips`, `MyGearColumn`, `TeamActivityColumn`)
-- This is prerequisite for V2 dashboard features (location filter, saved filters, inline actions)
+Dashboard decomposed from 1004-line monolith into hooks + 7 leaf components:
+- `use-dashboard-data.ts`, `use-dashboard-filters.ts` extracted
+- Section components: `OverdueBanner`, `StatStrip`, `FilterChips`, `MyGearColumn`, `TeamActivityColumn` extracted
+- Sport filter chips, saved filters shipped on top of decomposed architecture
 
-#### 3.4 Form Handling Standardization (Size: L — but incremental)
+#### 3.4 Form Handling Standardization (Size: L — but incremental) ✅ Shipped
 
-- No unified form library today. Controlled inputs + manual validation everywhere.
-- **V1 target**: Don't adopt react-hook-form system-wide (too disruptive). Instead:
-  - Standardize Zod validation schemas for all create/edit forms (partially done in `validation.ts`)
-  - Extract `useFormSubmit(schema, endpoint)` hook that handles validation → submit → error display → toast
-  - Apply to highest-traffic forms first: checkout creation, reservation creation, item creation
+- `useFormSubmit(schema, endpoint)` hook extracted to `src/hooks/use-form-submit.ts`
+- Handles client-side Zod validation, API fetch with auth redirect, error classification, toast feedback, per-field errors, double-submit prevention
+- Applied across highest-traffic forms
 
 #### 3.5 Remaining shadcn Component Gaps (Size: S)
 
@@ -172,16 +169,14 @@ All 41 shadcn components are installed. Remaining custom primitives to replace:
 - Handle field name inconsistency: events use `location`, everything else uses `locationName`
 - **No dependency on dashboard decomposition** — same pattern as sport filter, added to existing page
 
-#### 3.7 Unified Calendar Page (Size: M) — see `tasks/calendar-roadmap.md`
+#### 3.7 Unified Calendar Page (Size: M) ✅ Shipped 2026-03-23
 
-- Merge `/events` + `/schedule` → single unified `/schedule` page
-- Combined list view (date-grouped events with coverage badges) + calendar view (month grid with coverage dots)
+- Events + Schedule merged into unified `/schedule` page
 - Old `/events` list page removed (detail page `/events/[id]` unchanged); sidebar shows "Schedule"
 - Venue Mappings moved to `/settings/venue-mappings`
+- Calendar Sources moved to `/settings/calendar-sources`
 - Trade Board kept as tab (no regression)
-- Reuses existing APIs (`/api/calendar-events` + `/api/shift-groups`) — no new endpoint needed for V1
-- ShiftDetailPanel, TradeBoard, FilterChip all reused unchanged
-- **No dependency on hook extractions** — uses existing fetch patterns consistent with current codebase
+- See `tasks/calendar-roadmap.md` for V2/V3 enhancements
 
 ---
 
@@ -227,13 +222,12 @@ All 41 shadcn components are installed. Remaining custom primitives to replace:
 - **Alert fatigue controls**: Admin-configurable escalation intervals + per-booking caps (settings page)
 - **Actionable notifications**: Each notification has a primary CTA button (View booking, Check in, Extend)
 
-#### 3.12 Kit Management UI (Size: L)
+#### 3.12 Kit Management UI (Size: L) ✅ V1 Shipped 2026-03-24
 
 - D-020 accepted. Full Prisma schema exists: `Kit`, `KitMembership`
-- **Slice 1**: Kit CRUD (create, edit, delete kits; add/remove items)
-- **Slice 2**: Kit availability derived from member items (if any member unavailable, kit unavailable)
-- **Slice 3**: Kit-based checkout (select kit → all member items added to booking)
-- **Slice 4**: Kit cards on dashboard (show kit status, member item status)
+- **Slice 1**: Kit CRUD (create, edit, delete kits; add/remove items) ✅
+- **Slice 2**: Kit member management + archive/restore ✅
+- Slices 3-4 (kit checkout, dashboard cards) deferred to V2
 
 ---
 

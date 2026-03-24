@@ -255,6 +255,14 @@ export default function BookingDetailsSheet({
     [booking, bulkSkus]
   );
 
+  const resolveSkuMaxQty = useCallback(
+    (skuId: string) => {
+      const sku = bulkSkus.find((s) => s.id === skuId);
+      return sku?.currentQuantity ?? 100;
+    },
+    [bulkSkus]
+  );
+
   /* ───── Permission flags ───── */
 
   const actions = booking?.allowedActions ?? [];
@@ -725,6 +733,7 @@ export default function BookingDetailsSheet({
                   equipSaving={equipSaving}
                   resolveAssetName={resolveAssetName}
                   resolveSkuName={resolveSkuName}
+                  resolveSkuMaxQty={resolveSkuMaxQty}
                   onRemoveSerializedItem={handleRemoveSerializedItem}
                   onAddSerializedItem={addSerializedItem}
                   onUpdateBulkQty={updateBulkQty}

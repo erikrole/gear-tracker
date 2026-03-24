@@ -209,7 +209,7 @@ export default function DashboardPage() {
               <span className="welcome-step-num">2</span>
               <span>Import from spreadsheet</span>
             </Link>
-            <Link href="/events" className="welcome-step">
+            <Link href="/settings/calendar-sources" className="welcome-step">
               <span className="welcome-step-num">3</span>
               <span>Set up calendar sync</span>
             </Link>
