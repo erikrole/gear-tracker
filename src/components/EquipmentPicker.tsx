@@ -393,7 +393,7 @@ export default function EquipmentPicker({
       return;
     }
 
-    showScanFeedbackMsg("Item not found", "error");
+    showScanFeedbackMsg("No matching item — check this location\u2019s inventory", "error");
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
   }
 
@@ -554,7 +554,14 @@ export default function EquipmentPicker({
                     <span className="picker-avail-loading" aria-live="polite">Checking availability...</span>
                   )}
                   {conflictsError && !conflictsLoading && (
-                    <span className="picker-avail-loading text-[var(--orange)]" aria-live="polite">Availability unavailable</span>
+                    <button
+                      type="button"
+                      className="picker-avail-loading text-[var(--orange)] underline cursor-pointer"
+                      onClick={fetchConflicts}
+                      aria-live="polite"
+                    >
+                      Availability unavailable — retry
+                    </button>
                   )}
                 </div>
               )}
@@ -680,9 +687,11 @@ export default function EquipmentPicker({
                   <div className="picker-empty" role="status">
                     {equipSearch
                       ? "No matching items"
-                      : onlyAvailable
-                        ? "No available items in this section"
-                        : "No items in this section"}
+                      : onlyAvailable && (sectionTotalCounts[activeSection] || 0) > 0
+                        ? <>No available items in this section — <button type="button" className="underline cursor-pointer" onClick={() => setOnlyAvailable(false)}>show all</button></>
+                        : onlyAvailable
+                          ? "No available items in this section"
+                          : "No items in this section"}
                   </div>
                 )}
               </div>
