@@ -363,33 +363,54 @@ export default function EquipmentPicker({
     );
 
     if (asset) {
-      const alreadySelected = selectedIdSet.has(asset.id);
-      if (!alreadySelected) {
-        setSelectedAssetIds((prev) => [...prev, asset.id]);
+      // BRK-001: Check computedStatus — don't add unavailable items via scan
+      const isAvailable = asset.computedStatus === "AVAILABLE";
+      const hasConflict = conflicts.has(asset.id);
+      if (!isAvailable && !hasConflict) {
+        const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
+        showScanFeedbackMsg(`${asset.assetTag} is ${statusLabel}`, "error");
+        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+        // Still navigate to the section so user can see the item
+        setActiveSection(classifyAssetType(asset.type, asset.categoryName));
+        return;
       }
+
+      // BRK-002: Guard inside callback to prevent duplicate IDs from rapid scans
+      let wasAdded = false;
+      setSelectedAssetIds((prev) => {
+        if (prev.includes(asset.id)) return prev;
+        wasAdded = true;
+        return [...prev, asset.id];
+      });
       const section = classifyAssetType(asset.type, asset.categoryName);
       setActiveSection(section);
+      // Use callback result for feedback — selectedIdSet may be stale under rapid scans
+      const alreadySelected = selectedIdSet.has(asset.id);
       showScanFeedbackMsg(
-        alreadySelected ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
-        alreadySelected ? "error" : "success",
+        alreadySelected && !wasAdded ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
+        alreadySelected && !wasAdded ? "error" : "success",
       );
-      if (navigator.vibrate) navigator.vibrate(alreadySelected ? [50, 50] : 100);
+      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
       return;
     }
 
     const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
     if (sku) {
-      const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
-      if (!alreadySelected) {
-        setSelectedBulkItems((prev) => [...prev, { bulkSkuId: sku.id, quantity: 1 }]);
-      }
+      // BRK-002: Guard inside callback for bulk items too
+      let wasAdded = false;
+      setSelectedBulkItems((prev) => {
+        if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
+        wasAdded = true;
+        return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
+      });
       const section = classifyAssetType(sku.category, sku.categoryName);
       setActiveSection(section);
+      const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
       showScanFeedbackMsg(
-        alreadySelected ? `${sku.name} already selected` : `Added ${sku.name}`,
-        alreadySelected ? "error" : "success",
+        alreadySelected && !wasAdded ? `${sku.name} already selected` : `Added ${sku.name}`,
+        alreadySelected && !wasAdded ? "error" : "success",
       );
-      if (navigator.vibrate) navigator.vibrate(alreadySelected ? [50, 50] : 100);
+      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
       return;
     }
 
@@ -787,13 +808,14 @@ export default function EquipmentPicker({
                         >
                           &minus;
                         </Button>
-                        <span>{item.quantity}</span>
+                        <span>{item.quantity}{sku && sku.currentQuantity > 0 ? `/${sku.currentQuantity}` : ""}</span>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           className="picker-footer-tag-qty-btn"
                           onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}
+                          disabled={!!sku && sku.currentQuantity > 0 && item.quantity >= sku.currentQuantity}
                           aria-label={`Increase ${sku?.name || "item"} quantity`}
                         >
                           +
