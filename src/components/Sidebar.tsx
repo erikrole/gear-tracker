@@ -63,7 +63,7 @@ const navGroups: NavGroup[] = [
     label: "Admin",
     adminOnly: true,
     items: [
-      { label: "Kits", href: "/kits", icon: BoxIcon, badge: "Soon" },
+      { label: "Kits", href: "/kits", icon: BoxIcon },
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
       { label: "Settings", href: "/settings", icon: SettingsIcon },

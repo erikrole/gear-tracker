@@ -116,18 +116,18 @@ Build a Kit CRUD interface scoped to the Admin section. Kits are named collectio
 ---
 
 ## Acceptance Criteria
-- [ ] AC-1: Staff can create a kit with name, description, and location
-- [ ] AC-2: Kit name uniqueness per location is enforced with friendly error
-- [ ] AC-3: Staff can add assets to a kit via search picker
-- [ ] AC-4: Staff can remove assets from a kit
-- [ ] AC-5: Kit detail page shows members grouped by equipment section
-- [ ] AC-6: Kit list page shows derived availability badge per kit
-- [ ] AC-7: Kit detail page shows per-member availability status
-- [ ] AC-8: Kit list supports search, location filter, pagination
-- [ ] AC-9: Staff can archive/restore a kit via active toggle
-- [ ] AC-10: All kit mutations (create, update, delete, add/remove member) emit audit entries
-- [ ] AC-11: Kits nav item no longer shows "Soon" badge
-- [ ] AC-12: Build passes, no regressions
+- [x] AC-1: Staff can create a kit with name, description, and location (2026-03-24)
+- [x] AC-2: Kit name uniqueness per location is enforced with friendly error (2026-03-24)
+- [x] AC-3: Staff can add assets to a kit via search picker (2026-03-24)
+- [x] AC-4: Staff can remove assets from a kit (2026-03-24)
+- [x] AC-5: Kit detail page shows members grouped by equipment section (2026-03-24)
+- [x] AC-6: Kit list page shows availability badge per kit (2026-03-24)
+- [x] AC-7: Kit detail page shows per-member status badge (2026-03-24)
+- [x] AC-8: Kit list supports search, location filter, pagination (2026-03-24)
+- [x] AC-9: Staff can archive/restore a kit via active toggle (2026-03-24)
+- [x] AC-10: All kit mutations (create, update, delete, add/remove member) emit audit entries (2026-03-24)
+- [x] AC-11: Kits nav item no longer shows "Soon" badge (2026-03-24)
+- [x] AC-12: Build passes, no regressions (2026-03-24)
 
 ---
 

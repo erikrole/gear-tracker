@@ -187,7 +187,7 @@ Use these questions before adding any feature:
 | ~~Notification center: in-app + email delivery, Resend, Vercel Cron~~ | ✅ Shipped 2026-03-16 |
 | ~~iPhone polish: input zoom, tap highlight, overscroll, responsive stacking~~ | ✅ Shipped 2026-03-22 |
 | Notifications escalation: D-009 recipient model, alert fatigue controls | ⬜ Not started |
-| Kit management UI (D-020 — schema exists, zero UI) | ⬜ Not started |
+| ~~Kit management UI (D-020 — CRUD, members, archive, audit)~~ | ✅ Shipped 2026-03-24 |
 | Dashboard filter chips (Sport, Location) | ⬜ Not started |
 | Student availability tracking (declare unavailable dates) | ⬜ Not started |
 
@@ -223,7 +223,7 @@ Open items that must be resolved before implementing related features:
 2. Venue mapping governance owner not assigned (PD-2)
 3. Event sync refresh cadence and staleness thresholds not formalized (PD-3)
 4. Phase C features (kiosk, templates, analytics) unscoped and unbriefed
-5. Kit management UI has full schema but zero UI (D-020)
+5. ~~Kit management UI has full schema but zero UI (D-020)~~ — Shipped 2026-03-24
 
 ---
 
