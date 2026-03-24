@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 type QrScannerProps = {
   onScan: (value: string) => void;
@@ -9,83 +9,143 @@ type QrScannerProps = {
 };
 
 /**
- * Camera-based QR/barcode scanner using html5-qrcode.
- * Dynamically imports the library to avoid SSR issues.
+ * Camera-based QR/barcode scanner using native BarcodeDetector API.
  *
- * iOS Safari notes:
- * - aspectRatio must not be forced to 1.0 (camera rejects it)
- * - qrbox must be responsive (percentage of viewfinder), not fixed pixels
- * - useBarCodeDetectorIfSupported enables native BarcodeDetector on iOS 15.4+
+ * Uses getUserMedia + BarcodeDetector directly — no html5-qrcode wrapper.
+ * This is dramatically more reliable on iOS Safari because:
+ *  1. No forced aspect ratio (camera chooses its natural output)
+ *  2. No intermediate canvas copy — BarcodeDetector reads the video element
+ *  3. Native iOS barcode engine (same as Camera.app) via BarcodeDetector
+ *
+ * Falls back to barcode-detector polyfill (ZXing WASM) on Firefox/older browsers.
  */
-export default function QrScanner({ onScan, onError, active = true }: QrScannerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const scannerRef = useRef<unknown>(null);
+export default function QrScanner({
+  onScan,
+  onError,
+  active = true,
+}: QrScannerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number>(0);
   const lastScanRef = useRef<string>("");
   const lastScanTimeRef = useRef<number>(0);
 
-  // Stable refs for callbacks — prevents effect from re-running on every render
+  // Stable refs for callbacks
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
-  // Use a unique ID per mount to avoid html5-qrcode ID conflicts
-  const idRef = useRef(`qr-scanner-${Math.random().toString(36).slice(2, 8)}`);
+  const stopCamera = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
 
   useEffect(() => {
-    if (!active || !containerRef.current) return;
+    if (!active) {
+      stopCamera();
+      return;
+    }
 
     let mounted = true;
-    let scannerInstance: { stop?: () => Promise<void>; clear?: () => void } | null = null;
 
     async function startScanner() {
       try {
-        const { Html5Qrcode } = await import("html5-qrcode");
+        // Get native or polyfilled BarcodeDetector
+        let DetectorClass: typeof BarcodeDetector;
+        if (typeof globalThis.BarcodeDetector !== "undefined") {
+          DetectorClass = globalThis.BarcodeDetector;
+        } else {
+          // Polyfill for Firefox / older browsers (ZXing WASM)
+          const mod = await import("barcode-detector");
+          DetectorClass =
+            (mod as unknown as { default: typeof BarcodeDetector }).default ??
+            (mod as unknown as { BarcodeDetector: typeof BarcodeDetector })
+              .BarcodeDetector;
+        }
 
-        if (!mounted || !containerRef.current) return;
+        if (!mounted) return;
 
-        const scanner = new Html5Qrcode(idRef.current, {
-          // Use native BarcodeDetector API when available (iOS Safari 15.4+)
-          // Falls back to JS-based decoder on older browsers
-          useBarCodeDetectorIfSupported: true,
-          verbose: false,
+        const detector = new DetectorClass({
+          formats: ["qr_code", "code_128", "code_39", "ean_13", "ean_8"],
         });
-        scannerInstance = scanner as typeof scannerInstance;
-        scannerRef.current = scanner;
 
-        await scanner.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            // Responsive scan box — 70% of the smaller viewfinder dimension
-            // (fixed 250px was too small relative to high-DPI iPhone video feeds)
-            qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-              const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
-              return { width: size, height: size };
-            },
-            // Do NOT set aspectRatio — iOS cameras reject 1.0 and silently fail
+        // Request camera — rear-facing, autofocus
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
           },
-          (decodedText) => {
-            const now = Date.now();
-            // Debounce: ignore duplicate scans within 3 seconds
-            if (decodedText === lastScanRef.current && now - lastScanTimeRef.current < 3000) {
-              return;
+          audio: false,
+        });
+
+        if (!mounted) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+
+        const video = videoRef.current;
+        if (!video) return;
+
+        video.srcObject = stream;
+        await video.play();
+
+        // Detection loop — runs via requestAnimationFrame for smooth perf
+        // Throttled to ~12 fps to balance battery vs responsiveness
+        let lastDetectTime = 0;
+        const DETECT_INTERVAL_MS = 80; // ~12fps
+
+        async function detect() {
+          if (!mounted) return;
+
+          const now = performance.now();
+          if (now - lastDetectTime >= DETECT_INTERVAL_MS) {
+            lastDetectTime = now;
+            try {
+              if (video!.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+                const barcodes = await detector.detect(video!);
+                if (barcodes.length > 0 && mounted) {
+                  const value = barcodes[0].rawValue;
+                  const scanNow = Date.now();
+                  // Debounce: same code within 3s, or any code within 1s
+                  const isDupe =
+                    value === lastScanRef.current &&
+                    scanNow - lastScanTimeRef.current < 3000;
+                  const isTooFast = scanNow - lastScanTimeRef.current < 1000;
+
+                  if (!isDupe && !isTooFast) {
+                    lastScanRef.current = value;
+                    lastScanTimeRef.current = scanNow;
+                    onScanRef.current(value);
+                  }
+                }
+              }
+            } catch {
+              // detect() can throw on iOS if video isn't ready — ignore
             }
-            // Also ignore ANY scan within 1 second of the last (rapid-fire prevention)
-            if (now - lastScanTimeRef.current < 1000) {
-              return;
-            }
-            lastScanRef.current = decodedText;
-            lastScanTimeRef.current = now;
-            onScanRef.current(decodedText);
-          },
-          () => {
-            // Ignore scan failures (noise)
           }
-        );
+
+          rafRef.current = requestAnimationFrame(detect);
+        }
+
+        rafRef.current = requestAnimationFrame(detect);
       } catch (err) {
         if (mounted) {
-          onErrorRef.current?.(err instanceof Error ? err.message : "Camera not available");
+          onErrorRef.current?.(
+            err instanceof Error ? err.message : "Camera not available"
+          );
         }
       }
     }
@@ -94,23 +154,99 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
 
     return () => {
       mounted = false;
-      if (scannerInstance?.stop) {
-        scannerInstance.stop().catch(() => {}).then(() => scannerInstance?.clear?.());
-      }
+      stopCamera();
     };
-  }, [active]); // Only re-run when active changes
+  }, [active, stopCamera]);
 
   return (
     <div
-      id={idRef.current}
-      ref={containerRef}
       style={{
+        position: "relative",
         width: "100%",
         maxWidth: 400,
         margin: "0 auto",
         borderRadius: 12,
         overflow: "hidden",
         background: "#000",
+      }}
+    >
+      {/* Live camera feed */}
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        style={{
+          display: "block",
+          width: "100%",
+          height: "auto",
+          objectFit: "cover",
+        }}
+      />
+      {/* Viewfinder overlay with corner brackets */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            width: "70%",
+            aspectRatio: "1 / 1",
+            position: "relative",
+          }}
+        >
+          {/* Top-left corner */}
+          <Corner top={0} left={0} />
+          {/* Top-right corner */}
+          <Corner top={0} right={0} />
+          {/* Bottom-left corner */}
+          <Corner bottom={0} left={0} />
+          {/* Bottom-right corner */}
+          <Corner bottom={0} right={0} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A single corner bracket for the viewfinder overlay */
+function Corner(pos: {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+}) {
+  const size = 24;
+  const weight = 3;
+  const color = "rgba(255,255,255,0.85)";
+  const radius = 6;
+
+  const isTop = pos.top !== undefined;
+  const isLeft = pos.left !== undefined;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        ...pos,
+        width: size,
+        height: size,
+        borderColor: color,
+        borderStyle: "solid",
+        borderWidth: 0,
+        ...(isTop ? { borderTopWidth: weight } : { borderBottomWidth: weight }),
+        ...(isLeft
+          ? { borderLeftWidth: weight }
+          : { borderRightWidth: weight }),
+        borderTopLeftRadius: isTop && isLeft ? radius : 0,
+        borderTopRightRadius: isTop && !isLeft ? radius : 0,
+        borderBottomLeftRadius: !isTop && isLeft ? radius : 0,
+        borderBottomRightRadius: !isTop && !isLeft ? radius : 0,
       }}
     />
   );
