@@ -447,7 +447,8 @@ export default function BookingDetailsSheet({
 
       if (handle401(res)) return;
       if (res.ok) {
-        toast(`Extended by ${days} day${days > 1 ? "s" : ""}`, "success");
+        const newDate = extended.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        toast(`Extended to ${newDate}`, "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
@@ -462,10 +463,11 @@ export default function BookingDetailsSheet({
 
   async function handleCancel() {
     if (!booking || cancelling) return;
+    const typeLabel = booking.kind === "RESERVATION" ? "reservation" : "checkout";
     const ok = await confirm({
-      title: "Cancel booking",
-      message: `Cancel "${booking.title}"? This cannot be undone.`,
-      confirmLabel: "Cancel booking",
+      title: `Cancel ${typeLabel}`,
+      message: `Cancel "${booking.title}"? This will release all equipment and cannot be undone.`,
+      confirmLabel: `Cancel ${typeLabel}`,
       variant: "danger",
     });
     if (!ok) return;
@@ -526,6 +528,7 @@ export default function BookingDetailsSheet({
   async function handleCheckinItem(assetId: string) {
     if (!booking || checkinLoading) return;
     setCheckinLoading(true);
+    const item = (booking.serializedItems ?? []).find((i) => i.asset.id === assetId);
     try {
       const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
         method: "POST",
@@ -534,7 +537,7 @@ export default function BookingDetailsSheet({
       });
       if (handle401(res)) return;
       if (res.ok) {
-        toast("Item checked in", "success");
+        toast(`${item?.asset.assetTag ?? "Item"} checked in`, "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
