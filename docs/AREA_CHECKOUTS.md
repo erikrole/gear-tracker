@@ -246,6 +246,10 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Integrity constraints and audit requirements from `DECISIONS.md` (D-001, D-006, D-007).
 - Mobile operations contract from `AREA_MOBILE.md`.
 
+## Roadmaps
+- `tasks/item-picker-roadmap.md` — EquipmentPicker V1→V2→V3
+- `tasks/booking-details-sheet-roadmap.md` — BookingDetailsSheet V1→V2→V3
+
 ## Out of Scope (V1)
 1. Booking engine rewrite.
 2. Kiosk mode.
