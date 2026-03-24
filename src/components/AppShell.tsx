@@ -166,8 +166,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   async function handleLogout() {
     setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.replace("/login");
+    } catch {
+      setLoggingOut(false);
+    }
   }
 
   if (loading) {
