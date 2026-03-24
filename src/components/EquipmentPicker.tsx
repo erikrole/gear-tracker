@@ -115,6 +115,7 @@ export default function EquipmentPicker({
   // ── Indexed lookups (O(1) instead of O(n)) ──
   const assetById = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
   const bulkById = useMemo(() => new Map(bulkSkus.map((s) => [s.id, s])), [bulkSkus]);
+  const selectedIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
   // ── Section grouping ──
   const assetsBySection = useMemo(() => groupAssetsBySection(assets), [assets]);
@@ -209,10 +210,12 @@ export default function EquipmentPicker({
   }, [sectionAssets, conflicts]);
 
   const allSectionSelected = allSectionAvailableIds.length > 0 &&
-    allSectionAvailableIds.every((id) => selectedAssetIds.includes(id));
-  const someSectionSelected = allSectionAvailableIds.some((id) => selectedAssetIds.includes(id));
+    allSectionAvailableIds.every((id) => selectedIdSet.has(id));
+  const someSectionSelected = allSectionAvailableIds.some((id) => selectedIdSet.has(id));
 
   // ── Availability preview ──
+
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchConflicts = useCallback(async () => {
     if (!startsAt || !endsAt || !locationId) {
@@ -221,6 +224,11 @@ export default function EquipmentPicker({
     }
     const allAssetIds = assets.map((a) => a.id);
     if (allAssetIds.length === 0) return;
+
+    // Abort any in-flight request to prevent stale data overwriting fresh
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setConflictsLoading(true);
     try {
@@ -234,6 +242,7 @@ export default function EquipmentPicker({
           serializedAssetIds: allAssetIds,
           bulkItems: [],
         }),
+        signal: controller.signal,
       });
       if (res.ok) {
         const json = await res.json();
@@ -253,8 +262,9 @@ export default function EquipmentPicker({
         }
         setConflicts(map);
       }
-    } catch {
-      // Availability check failed — silently degrade, show status dots only
+    } catch (err) {
+      // Ignore aborted requests; silently degrade on other errors
+      if (err instanceof DOMException && err.name === "AbortError") return;
     }
     setConflictsLoading(false);
   }, [startsAt, endsAt, locationId, assets]);
@@ -262,7 +272,10 @@ export default function EquipmentPicker({
   useEffect(() => {
     if (availDebounce.current) clearTimeout(availDebounce.current);
     availDebounce.current = setTimeout(fetchConflicts, 500);
-    return () => { if (availDebounce.current) clearTimeout(availDebounce.current); };
+    return () => {
+      if (availDebounce.current) clearTimeout(availDebounce.current);
+      abortRef.current?.abort();
+    };
   }, [fetchConflicts]);
 
   // ── Helpers ──
@@ -533,7 +546,7 @@ export default function EquipmentPicker({
                 {sectionAssets.length > 0 && (
                   <>
                     {sectionAssets.map((asset) => {
-                      const isSelected = selectedAssetIds.includes(asset.id);
+                      const isSelected = selectedIdSet.has(asset.id);
                       const isAvailable = asset.computedStatus === "AVAILABLE";
                       const conflict = conflicts.get(asset.id);
                       const dotColor = conflict
