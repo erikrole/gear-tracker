@@ -155,6 +155,9 @@ function ActionsMenu({
         <DropdownMenuItem onSelect={() => onAction("duplicate")}>
           Duplicate
         </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onAction("print-label")}>
+          Print label
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onAction("maintenance")}>
           {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
         </DropdownMenuItem>
@@ -338,7 +341,11 @@ export default function ItemDetailsPage() {
     if (!asset || actionBusy) return;
     setActionBusy(true);
     try {
-      if (action === "duplicate") {
+      if (action === "print-label") {
+        router.push(`/labels?items=${asset.id}`);
+        setActionBusy(false);
+        return;
+      } else if (action === "duplicate") {
         const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
         if (res.ok) {
           const json = await res.json();

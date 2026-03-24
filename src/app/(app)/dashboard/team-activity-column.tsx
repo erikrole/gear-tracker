@@ -10,10 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, InboxIcon, PackageIcon } from "lucide-react";
+import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, ClockIcon, InboxIcon, PackageIcon } from "lucide-react";
 import { formatDueLabel, formatEventDateTime, isDueToday } from "@/lib/format";
 import { UserAvatar, GearAvatarStack, ShiftAvatarStack } from "./dashboard-avatars";
-import type { DashboardData } from "../dashboard-types";
+import type { DashboardData, BookingSummary } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type Props = {
@@ -21,10 +21,13 @@ type Props = {
   filtered: FilteredDashboardData | null;
   activeSport: string | null;
   now: Date;
+  isStaff: boolean;
+  inlineActionId: string | null;
   onSelectBooking: (id: string) => void;
+  onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
 };
 
-export function TeamActivityColumn({ data, filtered, activeSport, now, onSelectBooking }: Props) {
+export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, inlineActionId, onSelectBooking, onExtend }: Props) {
   return (
     <div className="dashboard-col dashboard-col-right">
       <span className="dashboard-col-label">Team Activity</span>
@@ -58,6 +61,22 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, onSelectB
                     </span>
                   </div>
                   <div className="ops-row-right">
+                    {isStaff && (c.isOverdue || isDueToday(c.endsAt, now)) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="inline-action-btn"
+                            disabled={inlineActionId === c.id}
+                            onClick={(e) => onExtend(c, e)}
+                          >
+                            <ClockIcon className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Extend 1 day</TooltipContent>
+                      </Tooltip>
+                    )}
                     <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm">{dueLabel}</Badge>
                     <GearAvatarStack items={c.items} totalCount={c.itemCount} />
                   </div>

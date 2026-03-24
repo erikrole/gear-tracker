@@ -2,11 +2,12 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ClipboardCheckIcon, CalendarCheckIcon } from "lucide-react";
+import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
 import { formatDueLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
-import type { DashboardData } from "../dashboard-types";
+import type { DashboardData, BookingSummary } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type Props = {
@@ -15,8 +16,11 @@ type Props = {
   activeSport: string | null;
   now: Date;
   deletingDraftId: string | null;
+  inlineActionId: string | null;
   onSelectBooking: (id: string) => void;
   onDeleteDraft: (draftId: string) => void;
+  onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
+  onConvert: (bookingId: string, e: React.MouseEvent) => void;
 };
 
 export function MyGearColumn({
@@ -25,8 +29,11 @@ export function MyGearColumn({
   activeSport,
   now,
   deletingDraftId,
+  inlineActionId,
   onSelectBooking,
   onDeleteDraft,
+  onExtend,
+  onConvert,
 }: Props) {
   return (
     <div className="dashboard-col dashboard-col-left">
@@ -61,6 +68,22 @@ export function MyGearColumn({
                     </span>
                   </div>
                   <div className="ops-row-right">
+                    {(c.isOverdue || isDueToday(c.endsAt, now)) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="inline-action-btn"
+                            disabled={inlineActionId === c.id}
+                            onClick={(e) => onExtend(c, e)}
+                          >
+                            <ClockIcon className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Extend 1 day</TooltipContent>
+                      </Tooltip>
+                    )}
                     <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm">{dueLabel}</Badge>
                     <GearAvatarStack items={c.items} totalCount={c.itemCount} />
                   </div>
@@ -100,7 +123,23 @@ export function MyGearColumn({
                     {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <GearAvatarStack items={r.items} totalCount={r.itemCount} />
+                <div className="ops-row-right">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="inline-action-btn"
+                        disabled={inlineActionId === r.id}
+                        onClick={(e) => onConvert(r.id, e)}
+                      >
+                        <ArrowRightCircleIcon className="size-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Convert to checkout</TooltipContent>
+                  </Tooltip>
+                  <GearAvatarStack items={r.items} totalCount={r.itemCount} />
+                </div>
               </button>
             ))}
             {!activeSport && data.myReservations.length >= 5 && (
