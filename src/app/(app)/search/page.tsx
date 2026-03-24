@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import EmptyState from "@/components/EmptyState";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -168,7 +169,7 @@ export default function SearchPage() {
       )}
 
       {!loading && searched && results.length === 0 && (
-        <div className="py-10 px-5 text-center text-muted-foreground">No results found for "{query}"</div>
+        <EmptyState icon="search" title="No results found" description={`Nothing matched "${query}". Try a different search term.`} />
       )}
 
       {!loading && results.length > 0 && (
