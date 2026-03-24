@@ -11,6 +11,11 @@ type QrScannerProps = {
 /**
  * Camera-based QR/barcode scanner using html5-qrcode.
  * Dynamically imports the library to avoid SSR issues.
+ *
+ * iOS Safari notes:
+ * - aspectRatio must not be forced to 1.0 (camera rejects it)
+ * - qrbox must be responsive (percentage of viewfinder), not fixed pixels
+ * - useBarCodeDetectorIfSupported enables native BarcodeDetector on iOS 15.4+
  */
 export default function QrScanner({ onScan, onError, active = true }: QrScannerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,7 +44,12 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
 
         if (!mounted || !containerRef.current) return;
 
-        const scanner = new Html5Qrcode(idRef.current);
+        const scanner = new Html5Qrcode(idRef.current, {
+          // Use native BarcodeDetector API when available (iOS Safari 15.4+)
+          // Falls back to JS-based decoder on older browsers
+          useBarCodeDetectorIfSupported: true,
+          verbose: false,
+        });
         scannerInstance = scanner as typeof scannerInstance;
         scannerRef.current = scanner;
 
@@ -47,8 +57,13 @@ export default function QrScanner({ onScan, onError, active = true }: QrScannerP
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
+            // Responsive scan box — 70% of the smaller viewfinder dimension
+            // (fixed 250px was too small relative to high-DPI iPhone video feeds)
+            qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+              const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+              return { width: size, height: size };
+            },
+            // Do NOT set aspectRatio — iOS cameras reject 1.0 and silently fail
           },
           (decodedText) => {
             const now = Date.now();
