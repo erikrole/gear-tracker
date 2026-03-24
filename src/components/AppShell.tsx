@@ -67,7 +67,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       fetch("/api/dashboard", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
     ]).then(([notifJson, dashJson]) => {
       if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
-      if (dashJson?.stats?.overdue != null) setOverdueBadgeCount(dashJson.stats.overdue);
+      // Use user-scoped overdue count so all roles (including STUDENT) see only their own overdue
+      if (dashJson?.data?.myCheckouts?.overdue != null) setOverdueBadgeCount(dashJson.data.myCheckouts.overdue);
     }).catch(() => {});
 
     return () => { badgeController.abort(); };

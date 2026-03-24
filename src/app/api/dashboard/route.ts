@@ -91,6 +91,8 @@ export const GET = withAuth(async (_req, { user }) => {
     // My checkouts (booking-level)
     myCheckoutsRaw,
     myCheckoutsTotalCount,
+    // My overdue count (user-scoped, used for sidebar badge)
+    myOverdueCount,
     // Stats: totals across all users
     totalCheckedOut,
     totalOverdue,
@@ -139,6 +141,10 @@ export const GET = withAuth(async (_req, { user }) => {
     }),
     db.booking.count({
       where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id },
+    }),
+    // My overdue count (user-scoped — for sidebar badge, works correctly for all roles)
+    db.booking.count({
+      where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id, endsAt: { lt: now } },
     }),
     // Stats: totals across all users
     db.booking.count({
@@ -390,6 +396,7 @@ export const GET = withAuth(async (_req, { user }) => {
       },
       myCheckouts: {
         total: myCheckoutsTotalCount,
+        overdue: myOverdueCount,
         items: myCheckouts,
       },
       teamCheckouts: {
