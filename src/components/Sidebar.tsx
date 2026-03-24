@@ -16,7 +16,6 @@ import {
   CalendarPlusIcon,
   ClipboardCheckIcon,
   BarChart3Icon,
-  UserIcon,
   SettingsIcon,
   LogOutIcon,
   BellIcon,
@@ -40,7 +39,6 @@ type NavItem = {
   label: string;
   href: string;
   icon: React.ElementType;
-  dynamic?: boolean;
   badge?: string;
 };
 
@@ -69,12 +67,6 @@ const navGroups: NavGroup[] = [
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
       { label: "Settings", href: "/settings", icon: SettingsIcon },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { label: "Profile", href: "/profile", icon: UserIcon, dynamic: true },
     ],
   },
 ];
@@ -170,59 +162,72 @@ export default function AppSidebar({
         {navGroups
           .filter((group) => !group.adminOnly || isAdmin)
           .map((group, groupIdx) => (
-            <SidebarGroup key={groupIdx} className="px-2 py-0">
-              {group.label && (
-                <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5">
-                  {group.label}
-                </SidebarGroupLabel>
+            <div key={groupIdx}>
+              {groupIdx > 0 && (
+                <SidebarSeparator className="mx-4 my-1 bg-white/[0.07] group-data-[collapsible=icon]:mx-2" />
               )}
-              <SidebarMenu className="gap-0.5">
-                {group.items.map((item) => {
-                  const href = item.dynamic && user?.id ? `/users/${user.id}` : item.href;
-                  const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
-                  const Icon = item.icon;
+              <SidebarGroup className="px-2 py-0">
+                {group.label && (
+                  <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5">
+                    {group.label}
+                  </SidebarGroupLabel>
+                )}
+                <SidebarMenu className="gap-0.5">
+                  {group.items.map((item) => {
+                    const href = item.href;
+                    const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+                    const Icon = item.icon;
 
-                  // Per-item badge count
-                  const badgeCount =
-                    item.href === "/checkouts" && overdueBadgeCount > 0
-                      ? overdueBadgeCount
-                      : item.href === "/notifications" && unreadNotifications > 0
-                      ? unreadNotifications
-                      : 0;
-                  const badgeLabel = item.badge; // static label like "Soon"
+                    // Per-item badge count
+                    const badgeCount =
+                      item.href === "/checkouts" && overdueBadgeCount > 0
+                        ? overdueBadgeCount
+                        : item.href === "/notifications" && unreadNotifications > 0
+                        ? unreadNotifications
+                        : 0;
+                    const badgeLabel = item.badge; // static label like "Soon"
 
-                  return (
-                    <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive}
-                        tooltip={item.label}
-                        className={
-                          isActive
-                            ? "border-l-2 border-[var(--wi-red)] rounded-l-none pl-[10px] data-[active=true]:bg-white/[0.10] data-[active=true]:text-white"
-                            : "text-white/65 hover:text-white hover:bg-white/[0.06]"
-                        }
-                      >
-                        <Link href={href}>
-                          <Icon />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                      {badgeCount > 0 && (
-                        <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
-                          {badgeCount > 99 ? "99+" : badgeCount}
-                        </SidebarMenuBadge>
-                      )}
-                      {!badgeCount && badgeLabel && (
-                        <SidebarMenuBadge className="bg-white/10 text-white/50 text-[9px] font-semibold h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
-                          {badgeLabel}
-                        </SidebarMenuBadge>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
+                    // Enrich tooltip with count context for collapsed icon-only mode
+                    const tooltip =
+                      item.href === "/checkouts" && overdueBadgeCount > 0
+                        ? `Checkouts · ${overdueBadgeCount} overdue`
+                        : item.href === "/notifications" && unreadNotifications > 0
+                        ? `Notifications · ${unreadNotifications} unread`
+                        : item.label;
+
+                    return (
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={tooltip}
+                          className={
+                            isActive
+                              ? "border-l-2 border-[var(--wi-red)] rounded-l-none pl-[10px] data-[active=true]:bg-white/[0.10] data-[active=true]:text-white"
+                              : "text-white/65 hover:text-white hover:bg-white/[0.06]"
+                          }
+                        >
+                          <Link href={href}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {badgeCount > 0 && (
+                          <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                            {badgeCount > 99 ? "99+" : badgeCount}
+                          </SidebarMenuBadge>
+                        )}
+                        {!badgeCount && badgeLabel && (
+                          <SidebarMenuBadge className="bg-white/10 text-white/50 text-[9px] font-semibold h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
+                            {badgeLabel}
+                          </SidebarMenuBadge>
+                        )}
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroup>
+            </div>
           ))}
       </SidebarContent>
 
