@@ -13,8 +13,7 @@ import {
   LayersIcon,
   BoxIcon,
   UsersIcon,
-  CalendarPlusIcon,
-  ClipboardCheckIcon,
+  BookOpenIcon,
   BarChart3Icon,
   SettingsIcon,
   LogOutIcon,
@@ -57,8 +56,7 @@ const navGroups: NavGroup[] = [
       { label: "Dashboard", href: "/", icon: LayoutGridIcon },
       { label: "Schedule", href: "/schedule", icon: CalendarIcon },
       { label: "Items", href: "/items", icon: LayersIcon },
-      { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon, quickCreateHref: "/reservations?create=true" },
-      { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon, quickCreateHref: "/checkouts?create=true" },
+      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
     ],
   },
@@ -183,7 +181,7 @@ export default function AppSidebar({
 
                     // Per-item badge count
                     const badgeCount =
-                      item.href === "/checkouts" && overdueBadgeCount > 0
+                      item.href === "/bookings" && overdueBadgeCount > 0
                         ? overdueBadgeCount
                         : item.href === "/notifications" && unreadNotifications > 0
                         ? unreadNotifications
@@ -192,8 +190,8 @@ export default function AppSidebar({
 
                     // Enrich tooltip with count context for collapsed icon-only mode
                     const tooltip =
-                      item.href === "/checkouts" && overdueBadgeCount > 0
-                        ? `Checkouts · ${overdueBadgeCount} overdue`
+                      item.href === "/bookings" && overdueBadgeCount > 0
+                        ? `Bookings · ${overdueBadgeCount} overdue`
                         : item.href === "/notifications" && unreadNotifications > 0
                         ? `Notifications · ${unreadNotifications} unread`
                         : item.label;
