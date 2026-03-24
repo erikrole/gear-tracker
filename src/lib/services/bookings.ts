@@ -63,11 +63,11 @@ const bookingInclude = {
 
 const bookingListInclude = {
   location: { select: { id: true, name: true } },
-  requester: { select: { id: true, name: true, email: true } },
+  requester: { select: { id: true, name: true, email: true, avatarUrl: true } },
   serializedItems: {
     select: {
       id: true, assetId: true, allocationStatus: true,
-      asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true } },
+      asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true, imageUrl: true } },
     },
   },
   bulkItems: {

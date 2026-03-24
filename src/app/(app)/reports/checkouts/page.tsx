@@ -211,7 +211,7 @@ export default function CheckoutsReportPage() {
 
       {/* Summary metrics */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
-        <MetricCard value={data.totalCheckouts} label={`Checkouts (${days}d)`} tooltip="Checkouts created in the selected period" href="/checkouts" />
+        <MetricCard value={data.totalCheckouts} label={`Checkouts (${days}d)`} tooltip="Checkouts created in the selected period" href="/bookings?tab=checkouts" />
         <MetricCard
           value={data.overdueCheckouts}
           label="Currently overdue"

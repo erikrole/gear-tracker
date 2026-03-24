@@ -34,7 +34,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
 
       {/* Team Checkouts */}
       <Card>
-        <a href="/checkouts" className="card-header-link">
+        <a href="/bookings?tab=checkouts" className="card-header-link">
           <h2>Checked out</h2>
           <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
         </a>
@@ -84,7 +84,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               );
             })}
             {!activeSport && data.teamCheckouts.total > data.teamCheckouts.items.length && (
-              <a href="/checkouts" className="view-all-link">View all {data.teamCheckouts.total} &rarr;</a>
+              <a href="/bookings?tab=checkouts" className="view-all-link">View all {data.teamCheckouts.total} &rarr;</a>
             )}
           </CardContent>
         )}
@@ -92,7 +92,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
 
       {/* Team Reservations */}
       <Card>
-        <a href="/reservations" className="card-header-link">
+        <a href="/bookings?tab=reservations" className="card-header-link">
           <h2>Reserved</h2>
           <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
         </a>
@@ -120,7 +120,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               </button>
             ))}
             {!activeSport && data.teamReservations.total > data.teamReservations.items.length && (
-              <a href="/reservations" className="view-all-link">View all {data.teamReservations.total} &rarr;</a>
+              <a href="/bookings?tab=reservations" className="view-all-link">View all {data.teamReservations.total} &rarr;</a>
             )}
           </CardContent>
         )}
@@ -128,7 +128,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
 
       {/* Upcoming Events */}
       <Card>
-        <a href="/events" className="card-header-link">
+        <a href="/schedule" className="card-header-link">
           <h2>Upcoming events</h2>
         </a>
         {(filtered?.upcomingEvents ?? data.upcomingEvents).length === 0 ? (

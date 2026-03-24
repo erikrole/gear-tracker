@@ -19,6 +19,7 @@ import {
   BookingFilters,
   BookingTableRow,
   BookingMobileCard,
+  BookingCard,
   CreateBookingCard,
   roundTo15Min,
   toLocalDateTimeValue,
@@ -39,7 +40,7 @@ export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 
 /* ───── Component ───── */
 
-export default function BookingListPage({ config }: { config: BookingListConfig }) {
+export default function BookingListPage({ config, viewMode = "table", hideHeader = false }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean }) {
   const { toast } = useToast();
   const urlParams = useSearchParams();
 
@@ -481,12 +482,21 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
 
   return (
     <>
-      <div className="page-header">
-        <h1>{config.labelPlural}</h1>
-        <Button onClick={() => setShowCreate((v) => !v)}>
-          {showCreate ? "Close" : `New ${config.label}`}
-        </Button>
-      </div>
+      {!hideHeader && (
+        <div className="page-header">
+          <h1>{config.labelPlural}</h1>
+          <Button onClick={() => setShowCreate((v) => !v)}>
+            {showCreate ? "Close" : `New ${config.label}`}
+          </Button>
+        </div>
+      )}
+      {hideHeader && (
+        <div className="flex justify-end px-4 pt-3">
+          <Button onClick={() => setShowCreate((v) => !v)}>
+            {showCreate ? "Close" : `New ${config.label}`}
+          </Button>
+        </div>
+      )}
 
       {/* ════════ Create booking card ════════ */}
       {showCreate && (
@@ -558,23 +568,63 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
           <EmptyState icon="clipboard" title={`No ${config.labelPlural.toLowerCase()} found`} description="Try adjusting your search or filters." />
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="booking-table-wrap">
-              <table className="data-table booking-table">
-                <thead>
-                  <tr>
-                    <SortHeader label="Name" sortKey="title" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
-                    <SortHeader label="From" sortKey="startsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
-                    <SortHeader label="To" sortKey="endsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
-                    <th className="hide-mobile">Duration</th>
-                    <th className="hide-mobile">User</th>
-                    <th className="hide-mobile">Items</th>
-                    <th className="col-overflow"></th>
-                  </tr>
-                </thead>
-                <tbody>
+            {viewMode === "cards" ? (
+              /* ════════ Card grid ════════ */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                {items.map((item) => (
+                  <BookingCard
+                    key={item.id}
+                    item={item}
+                    overdueStatus={config.overdueStatus}
+                    onClick={() => setSelectedBookingId(item.id)}
+                    menuProps={{
+                      currentUserId, currentUserRole, config, extendingId,
+                      onViewDetails: (id) => setSelectedBookingId(id),
+                      onExtend: handleExtendFromMenu,
+                      items, reload,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Desktop table */}
+                <div className="booking-table-wrap">
+                  <table className="data-table booking-table">
+                    <thead>
+                      <tr>
+                        <SortHeader label="Name" sortKey="title" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                        <SortHeader label="From" sortKey="startsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                        <SortHeader label="To" sortKey="endsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                        <th className="hide-mobile">Duration</th>
+                        <th className="hide-mobile">User</th>
+                        <th className="hide-mobile">Items</th>
+                        <th className="col-overflow"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item) => (
+                        <BookingTableRow
+                          key={item.id}
+                          item={item}
+                          overdueStatus={config.overdueStatus}
+                          onClick={() => setSelectedBookingId(item.id)}
+                          menuProps={{
+                            currentUserId, currentUserRole, config, extendingId,
+                            onViewDetails: (id) => setSelectedBookingId(id),
+                            onExtend: handleExtendFromMenu,
+                            items, reload,
+                          }}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile card list */}
+                <div className="booking-mobile-list">
                   {items.map((item) => (
-                    <BookingTableRow
+                    <BookingMobileCard
                       key={item.id}
                       item={item}
                       overdueStatus={config.overdueStatus}
@@ -587,27 +637,9 @@ export default function BookingListPage({ config }: { config: BookingListConfig 
                       }}
                     />
                   ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile card list */}
-            <div className="booking-mobile-list">
-              {items.map((item) => (
-                <BookingMobileCard
-                  key={item.id}
-                  item={item}
-                  overdueStatus={config.overdueStatus}
-                  onClick={() => setSelectedBookingId(item.id)}
-                  menuProps={{
-                    currentUserId, currentUserRole, config, extendingId,
-                    onViewDetails: (id) => setSelectedBookingId(id),
-                    onExtend: handleExtendFromMenu,
-                    items, reload,
-                  }}
-                />
-              ))}
-            </div>
+                </div>
+              </>
+            )}
 
             {totalPages > 1 && (
               <div className="pagination">

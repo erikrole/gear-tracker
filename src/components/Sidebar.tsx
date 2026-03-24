@@ -13,12 +13,12 @@ import {
   LayersIcon,
   BoxIcon,
   UsersIcon,
-  CalendarPlusIcon,
-  ClipboardCheckIcon,
+  BookOpenIcon,
   BarChart3Icon,
   SettingsIcon,
   LogOutIcon,
   BellIcon,
+  PlusIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -29,6 +29,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -40,6 +41,7 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
   badge?: string;
+  quickCreateHref?: string;
 };
 
 type NavGroup = {
@@ -54,8 +56,7 @@ const navGroups: NavGroup[] = [
       { label: "Dashboard", href: "/", icon: LayoutGridIcon },
       { label: "Schedule", href: "/schedule", icon: CalendarIcon },
       { label: "Items", href: "/items", icon: LayersIcon },
-      { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon },
-      { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon },
+      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
     ],
   },
@@ -180,7 +181,7 @@ export default function AppSidebar({
 
                     // Per-item badge count
                     const badgeCount =
-                      item.href === "/checkouts" && overdueBadgeCount > 0
+                      item.href === "/bookings" && overdueBadgeCount > 0
                         ? overdueBadgeCount
                         : item.href === "/notifications" && unreadNotifications > 0
                         ? unreadNotifications
@@ -189,8 +190,8 @@ export default function AppSidebar({
 
                     // Enrich tooltip with count context for collapsed icon-only mode
                     const tooltip =
-                      item.href === "/checkouts" && overdueBadgeCount > 0
-                        ? `Checkouts · ${overdueBadgeCount} overdue`
+                      item.href === "/bookings" && overdueBadgeCount > 0
+                        ? `Bookings · ${overdueBadgeCount} overdue`
                         : item.href === "/notifications" && unreadNotifications > 0
                         ? `Notifications · ${unreadNotifications} unread`
                         : item.label;
@@ -221,6 +222,13 @@ export default function AppSidebar({
                           <SidebarMenuBadge className="bg-white/10 text-white/50 text-[9px] font-semibold h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
                             {badgeLabel}
                           </SidebarMenuBadge>
+                        )}
+                        {item.quickCreateHref && isAdmin && (
+                          <SidebarMenuAction asChild showOnHover>
+                            <Link href={item.quickCreateHref} aria-label={`New ${item.label.toLowerCase().replace(/s$/, "")}`}>
+                              <PlusIcon />
+                            </Link>
+                          </SidebarMenuAction>
                         )}
                       </SidebarMenuItem>
                     );

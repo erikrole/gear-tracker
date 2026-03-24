@@ -75,6 +75,7 @@ export type BulkSkuOption = {
   category: string;
   unit: string;
   locationId: string;
+  currentQuantity?: number;
 };
 
 export type ConflictData = {

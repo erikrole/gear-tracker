@@ -83,10 +83,10 @@ BookingDetailsSheet is a unified side-panel (Sheet) for viewing and editing both
 - [x] Audit history with filters
 - [x] Role-gated actions
 - [ ] **V1.1: Bulk quantity stepper cap** — disable + button at `currentQuantity`; show `qty/max`
-- [ ] **V1.2: Migrate custom CSS to shadcn** — replace `.timeline-*` with Card/Badge, `.filter-chips` with ToggleGroup, raw `<textarea>` with shadcn Textarea, `.progress-*` with shadcn Progress
-- [ ] **V1.3: Event/shift context display** — if `eventId` or `shiftAssignmentId` exists, show read-only context badge in Info tab (sport, event title, shift area)
-- [ ] **V1.4: Source reservation link** — if converted checkout, show "Converted from RV-0042" link in Info tab
-- [ ] **V1.5: CreatedAt + createdBy display** — show "Created by [name] on [date]" in Info tab footer
+- [x] **V1.2: Migrate custom CSS to shadcn** — replace `.timeline-*` with Card/Badge, `.filter-chips` with ToggleGroup, raw `<textarea>` with shadcn Textarea, `.progress-*` with shadcn Progress ✅ Shipped
+- [x] **V1.3: Event/shift context display** — if `eventId` or `shiftAssignmentId` exists, show read-only context badge in Info tab (sport, event title, shift area) ✅ Shipped
+- [x] **V1.4: Source reservation link** — if converted checkout, show "Converted from RV-0042" link in Info tab ✅ Shipped
+- [x] **V1.5: CreatedAt + createdBy display** — show "Created by [name] on [date]" in Info tab footer ✅ Shipped
 
 ### What's NOT in V1
 - No scan-to-add in equipment editor (V2)
