@@ -71,6 +71,8 @@ export type BookingListConfig = {
   defaultTieToEvent: boolean;
   hasSportFilter: boolean;
   overdueStatus: string;
+  /** Status filter applied by default (e.g. "OPEN" to hide completed/cancelled) */
+  defaultStatusFilter?: string;
   showEventBadge: boolean;
   contextMenuExtras: ContextMenuExtra[];
 };

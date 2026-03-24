@@ -39,6 +39,7 @@ export default function BookingsPage() {
     defaultTieToEvent: true,
     hasSportFilter: true,
     overdueStatus: "OPEN",
+    defaultStatusFilter: "OPEN",
     showEventBadge: true,
     contextMenuExtras: [
       {
