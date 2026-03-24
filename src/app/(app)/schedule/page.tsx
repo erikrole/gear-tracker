@@ -716,7 +716,7 @@ export default function SchedulePage() {
             <>
               {/* Desktop: date-grouped table */}
               <div className="event-list-grouped schedule-table-desktop">
-                {groupedEntries.map(([dateKey, groupEntries]) => {
+                {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
                   const isGroupToday =
                     new Date(dateKey).toDateString() ===
                     new Date().toDateString();
@@ -731,7 +731,14 @@ export default function SchedulePage() {
                           {groupEntries.length !== 1 ? "s" : ""}
                         </span>
                       </div>
-                      <table className="data-table data-table-grouped">
+                      <table className={`data-table data-table-grouped${groupIdx === 0 ? " data-table-show-head" : ""}`}>
+                        <colgroup>
+                          <col className="col-sport" />
+                          <col className="col-event" />
+                          <col className="col-time" />
+                          <col className="col-location" />
+                          <col className="col-coverage" />
+                        </colgroup>
                         <thead>
                           <tr>
                             <th>Sport</th>
@@ -747,7 +754,11 @@ export default function SchedulePage() {
                             const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
                             return (
                               <>
-                                <tr key={entry.id}>
+                                <tr
+                                  key={entry.id}
+                                  className={entry.shiftGroupId ? "cursor-pointer" : ""}
+                                  onClick={entry.shiftGroupId ? () => setSelectedGroupId(entry.shiftGroupId) : undefined}
+                                >
                                   <td>
                                     {entry.sportCode && (
                                       <Badge
@@ -763,6 +774,7 @@ export default function SchedulePage() {
                                     <Link
                                       href={`/events/${entry.id}`}
                                       className="row-link"
+                                      onClick={(e) => e.stopPropagation()}
                                     >
                                       {entry.opponent
                                         ? `${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
@@ -792,23 +804,17 @@ export default function SchedulePage() {
                                       ? "All day"
                                       : `${formatTime(entry.startsAt)} – ${formatTime(entry.endsAt)}`}
                                   </td>
-                                  <td>
-                                    {entry.location ? (
-                                      <Badge variant="blue">
-                                        {entry.location.name}
-                                      </Badge>
-                                    ) : entry.rawLocationText ? (
-                                      <span className="text-secondary text-xs">
-                                        {entry.rawLocationText}
-                                      </span>
-                                    ) : null}
+                                  <td className="text-secondary">
+                                    {entry.location
+                                      ? entry.location.name
+                                      : entry.rawLocationText ?? null}
                                   </td>
                                   <td className="text-center">
                                     {entry.coverage ? (
                                       <button
                                         type="button"
                                         className="inline-flex items-center gap-1"
-                                        onClick={() => setExpandedRowId(isExpRow ? null : entry.id)}
+                                        onClick={(e) => { e.stopPropagation(); setExpandedRowId(isExpRow ? null : entry.id); }}
                                         title="Click to expand coverage breakdown"
                                       >
                                         {isExpRow ? (
@@ -825,9 +831,7 @@ export default function SchedulePage() {
                                           {entry.coverage.total}
                                         </Badge>
                                       </button>
-                                    ) : (
-                                      <span className="text-secondary">—</span>
-                                    )}
+                                    ) : null}
                                   </td>
                                 </tr>
                                 {/* Inline coverage expansion */}

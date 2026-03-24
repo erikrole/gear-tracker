@@ -1619,9 +1619,22 @@ textarea:focus-visible {
   display: none;
 }
 
-.data-table-grouped td:first-child {
-  width: 60px;
+.data-table-grouped.data-table-show-head thead {
+  display: table-header-group;
 }
+
+.data-table-grouped.data-table-show-head thead th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Column widths for schedule table */
+.data-table-grouped col.col-sport { width: 56px; }
+.data-table-grouped col.col-event { }
+.data-table-grouped col.col-time { width: 160px; }
+.data-table-grouped col.col-location { width: 200px; }
+.data-table-grouped col.col-coverage { width: 80px; }
 
 .data-table-wrap {
   overflow-x: auto;
