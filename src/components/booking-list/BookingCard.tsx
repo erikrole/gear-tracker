@@ -76,7 +76,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
   return (
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <div
-        className="group relative rounded-xl border border-[var(--border)] bg-[var(--panel-solid)] p-4 cursor-pointer transition-all duration-[var(--transition-slow)] hover:shadow-md hover:border-[var(--border-hover)]"
+        className="group relative rounded-lg border border-[var(--border)] bg-[var(--panel-solid)] p-4 cursor-pointer transition-colors hover:bg-[var(--accent-soft)]"
         onClick={onClick}
       >
         {/* Top row: status + date range */}
@@ -95,8 +95,8 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
           </span>
         </div>
 
-        {/* Title — big and bold */}
-        <h3 className="text-[15px] font-semibold text-[var(--text-primary)] leading-snug mb-1 line-clamp-2 pr-6">
+        {/* Title — big and bold; red when overdue */}
+        <h3 className={`text-[15px] font-semibold leading-snug mb-1 line-clamp-2 pr-6 ${isOverdue ? "text-[var(--red)]" : "text-[var(--text-primary)]"}`}>
           {item.title}
         </h3>
 

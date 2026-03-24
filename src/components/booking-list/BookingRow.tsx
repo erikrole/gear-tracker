@@ -33,7 +33,7 @@ export function BookingTableRow({
         <td>
           <div className="booking-name-cell">
             {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
-            <span className="row-link">{item.title}</span>
+            <span className="row-link" style={isOverdue ? { color: "var(--red)" } : undefined}>{item.title}</span>
             <span className="booking-status-line">
               <span className="status-dot" style={{ background: sv.dot }} />
               <span className="status-label">{sv.label}</span>
@@ -93,7 +93,7 @@ export function BookingMobileCard({
       <div className="booking-mobile-top">
         <div className="booking-mobile-name">
           {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
-          <span className="row-link">{item.title}</span>
+          <span className="row-link" style={isOverdue ? { color: "var(--red)" } : undefined}>{item.title}</span>
           <span className="booking-status-line">
             <span className="status-dot" style={{ background: sv.dot }} />
             <span className="status-label">{sv.label}</span>

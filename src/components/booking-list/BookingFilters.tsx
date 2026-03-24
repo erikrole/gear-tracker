@@ -45,7 +45,14 @@ export function BookingFilters({
 }: BookingFiltersProps) {
   return (
     <CardHeader className="filter-chip-bar">
-      <CardTitle style={{ margin: 0, whiteSpace: "nowrap" }}>All {config.labelPlural.toLowerCase()}</CardTitle>
+      <CardTitle style={{ margin: 0, whiteSpace: "nowrap" }}>
+        {statusFilter
+          ? config.statusOptions.find((s) => s.value === statusFilter)?.label ?? "Filtered"
+          : specialFilter
+            ? specialFilter === "overdue" ? "Overdue" : "Due today"
+            : "All"}{" "}
+        {config.labelPlural.toLowerCase()}
+      </CardTitle>
       <Input
         type="text"
         className="filter-chip-search"
