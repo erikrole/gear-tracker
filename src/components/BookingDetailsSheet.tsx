@@ -173,19 +173,21 @@ export default function BookingDetailsSheet({
 
   const checkinProgress = useMemo(() => {
     if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") return null;
-    const total = booking.serializedItems.length;
+    const items = booking.serializedItems ?? [];
+    const total = items.length;
     if (total === 0) return null;
-    const returned = booking.serializedItems.filter((i) => i.allocationStatus === "returned").length;
+    const returned = items.filter((i) => i.allocationStatus === "returned").length;
     return { returned, total, percent: Math.round((returned / total) * 100) };
   }, [booking]);
 
   const filteredAuditLogs = useMemo(() => {
     if (!booking) return [];
-    if (historyFilter === "all") return booking.auditLogs;
+    const logs = booking.auditLogs ?? [];
+    if (historyFilter === "all") return logs;
     if (historyFilter === "equipment") {
-      return booking.auditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
+      return logs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
     }
-    return booking.auditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    return logs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
   }, [booking, historyFilter]);
 
   const pickerAssets = useMemo(() => {
@@ -265,7 +267,7 @@ export default function BookingDetailsSheet({
 
   /* ───── Filtered equipment ───── */
 
-  const filteredSerializedItems = booking?.serializedItems.filter((item) => {
+  const filteredSerializedItems = (booking?.serializedItems ?? []).filter((item) => {
     if (!equipSearch) return true;
     const q = equipSearch.toLowerCase();
     return (
@@ -274,12 +276,12 @@ export default function BookingDetailsSheet({
       item.asset.model.toLowerCase().includes(q) ||
       item.asset.serialNumber.toLowerCase().includes(q)
     );
-  }) ?? [];
+  });
 
-  const filteredBulkItems = booking?.bulkItems.filter((item) => {
+  const filteredBulkItems = (booking?.bulkItems ?? []).filter((item) => {
     if (!equipSearch) return true;
     return item.bulkSku.name.toLowerCase().includes(equipSearch.toLowerCase());
-  }) ?? [];
+  });
 
   /* ───── Handlers ───── */
 
@@ -547,7 +549,7 @@ export default function BookingDetailsSheet({
 
   async function handleCheckinAll() {
     if (!booking || checkinLoading) return;
-    const activeItems = booking.serializedItems.filter((i) => i.allocationStatus !== "returned");
+    const activeItems = (booking.serializedItems ?? []).filter((i) => i.allocationStatus !== "returned");
     if (activeItems.length === 0) return;
     const ok = await confirm({
       title: "Check in all items",
@@ -617,7 +619,7 @@ export default function BookingDetailsSheet({
             <TabsList className="w-full justify-start">
               <TabsTrigger value="info">Info</TabsTrigger>
               <TabsTrigger value="equipment">
-                Equipment{booking ? ` (${booking.serializedItems.length + booking.bulkItems.length})` : ""}
+                Equipment{booking ? ` (${(booking.serializedItems?.length ?? 0) + (booking.bulkItems?.length ?? 0)})` : ""}
               </TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
@@ -635,7 +637,10 @@ export default function BookingDetailsSheet({
               <Skeleton className="h-4 w-3/5" />
             </div>
           ) : fetchError ? (
-            <div className="py-10 px-5 text-center text-muted-foreground">Failed to load booking details.</div>
+            <div className="py-10 px-5 text-center space-y-3">
+              <p className="text-muted-foreground">Failed to load booking details.</p>
+              <Button variant="outline" size="sm" onClick={() => fetchBooking()}>Retry</Button>
+            </div>
           ) : !booking ? (
             <div className="py-10 px-5 text-center text-muted-foreground">Booking not found</div>
           ) : (
