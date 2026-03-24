@@ -61,13 +61,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
 
     // Fetch unread notification count and overdue badge count in parallel
+    const badgeController = new AbortController();
     Promise.all([
-      fetch("/api/notifications?limit=0&unread=true").then((res) => res.ok ? res.json() : null),
-      fetch("/api/dashboard").then((res) => res.ok ? res.json() : null),
+      fetch("/api/notifications?limit=0&unread=true", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
+      fetch("/api/dashboard", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
     ]).then(([notifJson, dashJson]) => {
       if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
       if (dashJson?.stats?.overdue != null) setOverdueBadgeCount(dashJson.stats.overdue);
     }).catch(() => {});
+
+    return () => { badgeController.abort(); };
   }, [router, pathname]);
 
   // Command palette state
@@ -275,6 +278,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <AppSidebar
         user={user}
         onSignOut={handleLogout}
+        isLoggingOut={loggingOut}
         overdueBadgeCount={overdueBadgeCount}
         unreadNotifications={unreadNotifications}
       />

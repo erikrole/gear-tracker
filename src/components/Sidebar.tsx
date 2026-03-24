@@ -82,6 +82,7 @@ const navGroups: NavGroup[] = [
 type AppSidebarProps = {
   user: { id: string; name: string; email: string; role?: string; avatarUrl?: string | null } | null;
   onSignOut?: () => void;
+  isLoggingOut?: boolean;
   overdueBadgeCount?: number;
   unreadNotifications?: number;
 };
@@ -122,6 +123,7 @@ function useTheme() {
 export default function AppSidebar({
   user,
   onSignOut,
+  isLoggingOut = false,
   overdueBadgeCount = 0,
   unreadNotifications = 0,
 }: AppSidebarProps) {
@@ -248,12 +250,13 @@ export default function AppSidebar({
         <SidebarMenu className="px-2">
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Log out"
+              tooltip={isLoggingOut ? "Logging out…" : "Log out"}
               onClick={onSignOut}
-              className="text-white/65 hover:text-white hover:bg-white/[0.06] cursor-pointer"
+              disabled={isLoggingOut}
+              className="text-white/65 hover:text-white hover:bg-white/[0.06] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogOutIcon />
-              <span>Log out</span>
+              <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
