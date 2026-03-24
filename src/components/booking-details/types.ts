@@ -55,6 +55,10 @@ export type BookingDetail = {
   itemLocations: LocationInfo[];
   locationMode: "SINGLE" | "MIXED";
   allowedActions?: string[];
+  sourceReservation?: { id: string; refNumber: string | null; title: string } | null;
+  event?: { id: string; summary: string; sportCode: string | null; opponent: string | null; isHome: boolean | null } | null;
+  sportCode?: string | null;
+  shiftAssignment?: { id: string; shift: { area: string } } | null;
 };
 
 export type AvailableAsset = {

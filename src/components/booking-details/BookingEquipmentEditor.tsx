@@ -108,16 +108,21 @@ export default function BookingEquipmentEditor({
                   size="icon"
                   className="h-8 w-8 rounded-none border-r border-border"
                   aria-label={`Decrease quantity for ${resolveSkuName(item.bulkSkuId)}`}
-                  onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity - 1)}
+                  disabled={item.quantity <= 1}
+                  onClick={() => onUpdateBulkQty(item.bulkSkuId, Math.max(1, item.quantity - 1))}
                 >
                   <Minus className="size-3" />
                 </Button>
                 <Input
                   type="number"
                   min={1}
+                  max={100}
                   value={item.quantity}
                   aria-label={`Quantity for ${resolveSkuName(item.bulkSkuId)}`}
-                  onChange={(e) => onUpdateBulkQty(item.bulkSkuId, parseInt(e.target.value) || 1)}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value) || 1;
+                    onUpdateBulkQty(item.bulkSkuId, Math.min(100, Math.max(1, v)));
+                  }}
                   className="h-8 w-12 rounded-none border-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <Button
@@ -125,7 +130,8 @@ export default function BookingEquipmentEditor({
                   size="icon"
                   className="h-8 w-8 rounded-none border-l border-border"
                   aria-label={`Increase quantity for ${resolveSkuName(item.bulkSkuId)}`}
-                  onClick={() => onUpdateBulkQty(item.bulkSkuId, item.quantity + 1)}
+                  disabled={item.quantity >= 100}
+                  onClick={() => onUpdateBulkQty(item.bulkSkuId, Math.min(100, item.quantity + 1))}
                 >
                   <Plus className="size-3" />
                 </Button>

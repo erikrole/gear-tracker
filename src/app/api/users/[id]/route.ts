@@ -12,6 +12,7 @@ const updateUserSchema = z.object({
   locationId: z.string().cuid().nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
   primaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
+  active: z.boolean().optional(),
 });
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
@@ -44,6 +45,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       phone: target.phone,
       primaryArea: target.primaryArea,
       avatarUrl: target.avatarUrl ?? null,
+      active: target.active,
       createdAt: target.createdAt?.toISOString() ?? null,
       sportAssignments: target.sportAssignments,
       areaAssignments: target.areaAssignments,
@@ -90,6 +92,10 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   if (body.primaryArea !== undefined) {
     updateData.primaryArea = body.primaryArea;
+  }
+
+  if (body.active !== undefined) {
+    updateData.active = body.active;
   }
 
   if (Object.keys(updateData).length === 0) {
@@ -145,6 +151,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       phone: updated.phone,
       primaryArea: updated.primaryArea,
       avatarUrl: updated.avatarUrl ?? null,
+      active: updated.active,
       createdAt: updated.createdAt?.toISOString() ?? null,
       sportAssignments: updated.sportAssignments,
       areaAssignments: updated.areaAssignments,
