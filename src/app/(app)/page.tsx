@@ -21,6 +21,7 @@ import { FilterChips } from "./dashboard/filter-chips";
 import { OverdueBanner } from "./dashboard/overdue-banner";
 import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
+import type { BookingSummary } from "./dashboard-types";
 
 export default function DashboardPage() {
   const { data, fetchError, refreshing, lastRefreshed, loadData, setData } = useDashboardData();
@@ -65,6 +66,60 @@ export default function DashboardPage() {
       toast("Network error \u2014 couldn\u2019t delete draft", "error");
     } finally {
       setDeletingDraftId(null);
+    }
+  };
+
+  /* ── Inline Actions ─────────────────────────────────── */
+
+  const [inlineActionId, setInlineActionId] = useState<string | null>(null);
+
+  const handleExtend = async (booking: BookingSummary, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (inlineActionId) return;
+    setInlineActionId(booking.id);
+    try {
+      const newEnd = new Date(new Date(booking.endsAt).getTime() + 24 * 60 * 60 * 1000);
+      const endpoint = booking.kind === "RESERVATION"
+        ? `/api/reservations/${booking.id}/extend`
+        : `/api/bookings/${booking.id}/extend`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endsAt: newEnd.toISOString() }),
+      });
+      if (res.status === 401) { window.location.href = "/login?returnTo=/"; return; }
+      if (res.ok) {
+        toast("Extended by 1 day", "success");
+        loadData(true);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Extend failed", "error");
+      }
+    } catch {
+      toast("Network error — couldn\u2019t extend", "error");
+    } finally {
+      setInlineActionId(null);
+    }
+  };
+
+  const handleConvert = async (bookingId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (inlineActionId) return;
+    setInlineActionId(bookingId);
+    try {
+      const res = await fetch(`/api/reservations/${bookingId}/convert`, { method: "POST" });
+      if (res.status === 401) { window.location.href = "/login?returnTo=/"; return; }
+      if (res.ok) {
+        toast("Converted to checkout", "success");
+        loadData(true);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Convert failed", "error");
+      }
+    } catch {
+      toast("Network error — couldn\u2019t convert", "error");
+    } finally {
+      setInlineActionId(null);
     }
   };
 
@@ -178,15 +233,21 @@ export default function DashboardPage() {
           activeSport={filters.activeSport}
           now={now}
           deletingDraftId={deletingDraftId}
+          inlineActionId={inlineActionId}
           onSelectBooking={setSelectedBookingId}
           onDeleteDraft={handleDeleteDraft}
+          onExtend={handleExtend}
+          onConvert={handleConvert}
         />
         <TeamActivityColumn
           data={data}
           filtered={filters.filtered}
           activeSport={filters.activeSport}
           now={now}
+          isStaff={data.role === "STAFF" || data.role === "ADMIN"}
+          inlineActionId={inlineActionId}
           onSelectBooking={setSelectedBookingId}
+          onExtend={handleExtend}
         />
       </div>
 

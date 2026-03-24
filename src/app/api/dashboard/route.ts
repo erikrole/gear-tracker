@@ -27,6 +27,7 @@ function sortItemsByCategory(
 
 function toBookingSummary(c: {
   id: string;
+  kind: string;
   title: string;
   refNumber: string | null;
   sportCode: string | null;
@@ -41,6 +42,7 @@ function toBookingSummary(c: {
   const sorted = sortItemsByCategory(c.serializedItems);
   return {
     id: c.id,
+    kind: c.kind,
     title: c.title,
     refNumber: c.refNumber,
     sportCode: c.sportCode ?? null,
@@ -388,6 +390,7 @@ export const GET = withAuth(async (_req, { user }) => {
 
   return ok({
     data: {
+      role: user.role,
       stats: {
         checkedOut: totalCheckedOut,
         overdue: totalOverdue,

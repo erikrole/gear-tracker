@@ -8,6 +8,7 @@ export type ItemThumb = {
 
 export type BookingSummary = {
   id: string;
+  kind: string;
   title: string;
   refNumber: string | null;
   sportCode: string | null;
@@ -93,6 +94,7 @@ export type MyShift = {
 };
 
 export type DashboardData = {
+  role: string;
   stats: {
     checkedOut: number;
     overdue: number;

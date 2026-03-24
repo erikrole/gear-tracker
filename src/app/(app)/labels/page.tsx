@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -37,10 +38,13 @@ type Asset = {
 };
 
 export default function LabelsPage() {
+  const searchParams = useSearchParams();
+  const preselectedItems = searchParams.get("items");
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [didPreselect, setDidPreselect] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams({ limit: "200" });
@@ -48,9 +52,19 @@ export default function LabelsPage() {
 
     fetch(`/api/assets?${params}`)
       .then((res) => res.ok ? res.json() : null)
-      .then((json) => setAssets(json?.data ?? []))
+      .then((json) => {
+        const data: Asset[] = json?.data ?? [];
+        setAssets(data);
+        // Auto-select items from URL param on first load
+        if (!didPreselect && preselectedItems) {
+          const ids = new Set(preselectedItems.split(","));
+          const matching = new Set(data.filter((a) => ids.has(a.id)).map((a) => a.id));
+          if (matching.size > 0) setSelectedIds(matching);
+          setDidPreselect(true);
+        }
+      })
       .finally(() => setLoading(false));
-  }, [search]);
+  }, [search, preselectedItems, didPreselect]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {

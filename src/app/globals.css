@@ -1246,6 +1246,16 @@ textarea:focus-visible {
   line-height: var(--leading-snug);
 }
 
+/* ── Inline action buttons (extend, convert) ── */
+.inline-action-btn {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.ops-row:hover .inline-action-btn,
+.inline-action-btn:focus-visible {
+  opacity: 1;
+}
+
 /* ── Row right-side actions (flex wrapper) ── */
 .ops-row-actions {
   display: flex;
