@@ -170,7 +170,7 @@ export default function AppSidebar({
           .map((group, groupIdx) => (
             <SidebarGroup key={groupIdx} className="px-2 py-0">
               {group.label && (
-                <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5 group-data-[collapsible=icon]:hidden">
+                <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5">
                   {group.label}
                 </SidebarGroupLabel>
               )}
