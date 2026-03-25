@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ── Config ──────────────────────────────────────────────
 
@@ -59,31 +60,32 @@ const HREF_OVERRIDE: Record<string, string> = {
 };
 
 /** Sibling routes for quick-jump navigation within a section */
+const SETTINGS_SIBLINGS = [
+  { href: "/settings/categories", label: "Categories" },
+  { href: "/settings/sports", label: "Sports" },
+  { href: "/settings/escalation", label: "Escalation" },
+  { href: "/settings/calendar-sources", label: "Calendar" },
+  { href: "/settings/venue-mappings", label: "Venue Mappings" },
+  { href: "/settings/database", label: "Database" },
+];
+
+const REPORTS_SIBLINGS = [
+  { href: "/reports/utilization", label: "Utilization" },
+  { href: "/reports/checkouts", label: "Checkouts" },
+  { href: "/reports/overdue", label: "Overdue" },
+  { href: "/reports/scans", label: "Scans" },
+  { href: "/reports/audit", label: "Audit" },
+];
+
 const SIBLING_MAP: Record<string, Array<{ href: string; label: string }>> = {
-  "/settings/categories": [
-    { href: "/settings/categories", label: "Categories" },
-    { href: "/settings/sports", label: "Sports" },
-    { href: "/settings/escalation", label: "Escalation" },
-    { href: "/settings/calendar-sources", label: "Calendar" },
-    { href: "/settings/venue-mappings", label: "Venue Mappings" },
-    { href: "/settings/database", label: "Database" },
-  ],
-  "/reports/utilization": [
-    { href: "/reports/utilization", label: "Utilization" },
-    { href: "/reports/checkouts", label: "Checkouts" },
-    { href: "/reports/overdue", label: "Overdue" },
-    { href: "/reports/scans", label: "Scans" },
-    { href: "/reports/audit", label: "Audit" },
-  ],
+  // Parent-level entries — dropdown on the "Settings" or "Reports" crumb itself
+  "/settings": SETTINGS_SIBLINGS,
+  "/reports": REPORTS_SIBLINGS,
 };
 
-// Share the same sibling list for all routes in each group
-for (const key of Object.keys(SIBLING_MAP)) {
-  const siblings = SIBLING_MAP[key];
-  for (const s of siblings) {
-    if (!SIBLING_MAP[s.href]) SIBLING_MAP[s.href] = siblings;
-  }
-}
+// Register each child route to the same sibling list
+for (const s of SETTINGS_SIBLINGS) SIBLING_MAP[s.href] = SETTINGS_SIBLINGS;
+for (const s of REPORTS_SIBLINGS) SIBLING_MAP[s.href] = REPORTS_SIBLINGS;
 
 /** Collapse middle crumbs when total exceeds this threshold */
 const COLLAPSE_THRESHOLD = 3;
@@ -186,16 +188,16 @@ export default function PageBreadcrumb() {
     : allItems;
 
   // Get siblings and recent entities for the current path
-  const siblings = SIBLING_MAP[pathname] ?? null;
   const recentEntities = onDetailPage ? getRecentEntities(firstSegment) : [];
+
+  // Show loading skeleton when on a detail page and entity label hasn't arrived yet
+  const showSkeleton = onDetailPage && !entityLabel;
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
         {visibleItems.map((item, i) => {
-          const isLastItem = i === visibleItems.length - 1;
-          const hasSiblings = !item.isPage && siblings && SIBLING_MAP[item.href];
-          // Show recent dropdown on the entity label (last crumb on detail pages)
+          const hasSiblings = !item.isPage && SIBLING_MAP[item.href] != null;
           const hasRecent = item.isPage && onDetailPage && recentEntities.length > 1;
 
           return (
@@ -240,6 +242,14 @@ export default function PageBreadcrumb() {
             </span>
           );
         })}
+        {showSkeleton && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <Skeleton className="h-4 w-24" />
+            </BreadcrumbItem>
+          </>
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   );
