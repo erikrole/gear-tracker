@@ -116,6 +116,7 @@ type NormalizedRow = {
   description: string;
   owner: string;
   fiscalYear: string;
+  sourcePayload: Record<string, string>;
   warnings: string[];
   errors: string[];
   /** "create" | "update" | "skip" — set during preview with DB lookup */
@@ -205,6 +206,21 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
     const retiredRaw = getMapped(record, mapping, "retired").toLowerCase();
     const retired = retiredRaw === "true" || retiredRaw === "yes" || retiredRaw === "1";
 
+    // Collect unmapped columns into sourcePayload (D-014 lossless parsing)
+    const mappedHeaders = new Set(Object.keys(mapping));
+    const sourcePayload: Record<string, string> = {};
+    for (const [header, value] of Object.entries(record)) {
+      if (!mappedHeaders.has(header) && value.trim()) {
+        sourcePayload[header] = value.trim();
+      }
+    }
+    // Also preserve mapped-but-not-stored fields for traceability
+    if (sourceId) sourcePayload["sourceId"] = sourceId;
+    const flagVal = getMapped(record, mapping, "flag");
+    if (flagVal) sourcePayload["flag"] = flagVal;
+    const geoVal = getMapped(record, mapping, "geo");
+    if (geoVal) sourcePayload["geo"] = geoVal;
+
     rows.push({
       line: lineNo,
       assetTag,
@@ -232,6 +248,7 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
       description: getMapped(record, mapping, "description"),
       owner: getMapped(record, mapping, "owner"),
       fiscalYear: getMapped(record, mapping, "fiscalYear"),
+      sourcePayload,
       warnings,
       errors,
     });
@@ -267,6 +284,14 @@ function buildAssetData(
     link: row.link || undefined,
   };
 
+  // Merge notes-style fields into sourcePayload for lossless preservation (D-014)
+  const fullSourcePayload = {
+    ...row.sourcePayload,
+    ...Object.fromEntries(
+      Object.entries(notesPayload).filter(([, v]) => v !== undefined)
+    ),
+  };
+
   return {
     assetTag: row.assetTag,
     name: row.name || null,
@@ -288,6 +313,7 @@ function buildAssetData(
     uwAssetTag: row.uwAssetTag || null,
     linkUrl: row.link || null,
     notes: JSON.stringify(notesPayload),
+    sourcePayload: Object.keys(fullSourcePayload).length > 0 ? fullSourcePayload : undefined,
   };
 }
 
@@ -439,16 +465,24 @@ export const POST = withAuth(async (req, { user }) => {
   const existingBySerial = new Map(existingAssets.map((a) => [a.serialNumber, a]));
   const existingByTag = new Map(existingAssets.map((a) => [a.assetTag, a]));
 
-  // 3. Split rows into creates vs updates
+  // 3. Split rows into creates vs updates, and separate bulk items
   const toCreate: Array<ReturnType<typeof buildAssetData>> = [];
   const toUpdate: Array<{ id: string; data: Record<string, unknown> }> = [];
+  const bulkRows: Array<{ row: NormalizedRow; locationId: string }> = [];
   let createdCount = 0;
   let updatedCount = 0;
+  let bulkCreatedCount = 0;
 
   for (const row of validRows) {
     const locationId = locationMap.get(row.locationName);
     if (!locationId) {
       importErrors.push({ line: row.line, assetTag: row.assetTag, error: "Location not resolved" });
+      continue;
+    }
+
+    // Route bulk items to BulkSku instead of Asset
+    if (row.consumable) {
+      bulkRows.push({ row, locationId });
       continue;
     }
 
@@ -481,6 +515,35 @@ export const POST = withAuth(async (req, { user }) => {
     // 5. Update existing assets
     for (const { id, data } of toUpdate) {
       await tx.asset.update({ where: { id }, data });
+    }
+
+    // 5b. Create BulkSku + BulkStockBalance for bulk rows
+    for (const { row, locationId } of bulkRows) {
+      const binQr = row.primaryScanCode || `bg://bulk/${row.assetTag}`;
+      try {
+        const sku = await tx.bulkSku.upsert({
+          where: { locationId_binQrCodeValue: { locationId, binQrCodeValue: binQr } },
+          create: {
+            name: row.name || row.assetTag,
+            category: row.type || "consumable",
+            unit: "each",
+            locationId,
+            binQrCodeValue: binQr,
+          },
+          update: {
+            name: row.name || row.assetTag,
+            category: row.type || "consumable",
+          },
+        });
+        await tx.bulkStockBalance.upsert({
+          where: { bulkSkuId_locationId: { bulkSkuId: sku.id, locationId } },
+          create: { bulkSkuId: sku.id, locationId, onHandQuantity: row.quantity },
+          update: { onHandQuantity: { increment: row.quantity } },
+        });
+        bulkCreatedCount += 1;
+      } catch (err) {
+        importErrors.push({ line: row.line, assetTag: row.assetTag, error: `BulkSku creation failed: ${err instanceof Error ? err.message : "unknown"}` });
+      }
     }
 
     // 6. Kit creation + membership
@@ -588,6 +651,7 @@ export const POST = withAuth(async (req, { user }) => {
     after: {
       created: createdCount,
       updated: updatedCount,
+      bulkCreated: bulkCreatedCount,
       skipped: skippedCount,
       kitsCreated,
       imagesHosted,
@@ -598,6 +662,7 @@ export const POST = withAuth(async (req, { user }) => {
   return ok({
     created: createdCount,
     updated: updatedCount,
+    bulkCreated: bulkCreatedCount,
     skipped: skippedCount,
     kitsCreated,
     imagesHosted,
