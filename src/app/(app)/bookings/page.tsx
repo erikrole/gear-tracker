@@ -25,12 +25,6 @@ export default function BookingsPage() {
     requesterLabel: "Checked out to",
     startLabel: "Pickup",
     endLabel: "Return by",
-    statusBadge: {
-      DRAFT: "badge-gray",
-      OPEN: "badge-green",
-      COMPLETED: "badge-purple",
-      CANCELLED: "badge-red",
-    },
     statusOptions: [
       { value: "OPEN", label: "Open" },
       { value: "COMPLETED", label: "Completed" },
@@ -86,13 +80,6 @@ export default function BookingsPage() {
     requesterLabel: "Reserved for",
     startLabel: "Start",
     endLabel: "End",
-    statusBadge: {
-      DRAFT: "badge-gray",
-      BOOKED: "badge-blue",
-      OPEN: "badge-green",
-      COMPLETED: "badge-purple",
-      CANCELLED: "badge-red",
-    },
     statusOptions: [
       { value: "DRAFT", label: "Draft" },
       { value: "BOOKED", label: "Booked" },

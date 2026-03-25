@@ -21,7 +21,8 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { Clock, ChevronDown, Copy } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Clock, ChevronDown, Copy } from "lucide-react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { useToast } from "@/components/Toast";
 
@@ -213,13 +214,34 @@ export default function BookingDetailPage({
   /* ── Error state ── */
 
   if (error || !booking) {
+    const isNetwork = error === "network";
     return (
-      <div className="py-10 px-5 text-center text-muted-foreground">
-        {kindLabel.charAt(0).toUpperCase() + kindLabel.slice(1)} not found or failed to
-        load.{" "}
-        <Link href={listPath} className="text-blue-600 hover:underline">
-          Back to {kindLabelPlural.toLowerCase()}
-        </Link>
+      <div className="flex items-center justify-center py-16 px-5">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="size-4" />
+          <AlertTitle>
+            {isNetwork
+              ? "Connection error"
+              : `${kindLabel.charAt(0).toUpperCase() + kindLabel.slice(1)} not found`}
+          </AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>
+              {isNetwork
+                ? "Could not reach the server. Check your connection and try again."
+                : `This ${kindLabel} could not be loaded. It may have been deleted or you may not have access.`}
+            </p>
+            <div className="flex items-center gap-3">
+              {isNetwork && (
+                <Button variant="outline" size="sm" onClick={reload}>
+                  Retry
+                </Button>
+              )}
+              <Link href={listPath} className="underline font-medium text-sm">
+                Back to {kindLabelPlural.toLowerCase()}
+              </Link>
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }

@@ -19,14 +19,6 @@ export function toLocalDateTimeValue(date: Date) {
   return `${y}-${mo}-${d}T${h}:${mi}`;
 }
 
-export const statusBadge: Record<string, string> = {
-  DRAFT: "gray",
-  BOOKED: "blue",
-  OPEN: "green",
-  COMPLETED: "purple",
-  CANCELLED: "red",
-};
-
 /** Status → shadcn Badge variant mapping (typed for BadgeProps) */
 export const statusBadgeVariant: Record<string, "gray" | "blue" | "green" | "purple" | "red"> = {
   DRAFT: "gray",
