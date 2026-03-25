@@ -202,10 +202,10 @@
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* Transition durations */
-  --duration-fast: 0.1s;
-  --duration-normal: 0.15s;
-  --duration-slow: 0.25s;
+  /* Transition durations — Notion-like pacing */
+  --duration-fast: 0.12s;
+  --duration-normal: 0.2s;
+  --duration-slow: 0.3s;
 
   /* Z-index scale */
   --z-base: 1;
@@ -516,6 +516,24 @@ h3, h4, h5, h6 {
   font-weight: 700;
 }
 
+/* ===== Card Refinement ===== */
+/* Subtle shadow on all cards for depth. Gentle lift on hover for interactivity. */
+[data-slot="card"] {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-normal) var(--ease-out);
+}
+[data-slot="card"]:hover {
+  box-shadow: var(--shadow);
+}
+
+/* ===== Button Press Feedback ===== */
+[data-slot="button"] {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+[data-slot="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
 /* Remove iOS tap highlight on all interactive elements */
 a, button, [role="button"], [tabindex], label, summary, select {
   -webkit-tap-highlight-color: transparent;
@@ -623,20 +641,16 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  /* Subtle warm noise texture for depth — editorial atmosphere */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 200px;
 }
 
 /* ===== Top Bar ===== */
 .topbar {
   height: 48px;
   background: var(--panel-solid);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 24px;
   gap: 12px;
   position: sticky;
   top: 0;
@@ -712,11 +726,11 @@ textarea:focus-visible {
   background: none;
   color: var(--text-secondary);
   border-radius: var(--radius);
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--duration-normal) var(--ease-out), color var(--duration-normal) var(--ease-out);
 }
 
 .topbar-icon-btn:hover {
-  background: var(--bg);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--text);
 }
 
@@ -738,7 +752,7 @@ textarea:focus-visible {
 
 /* ===== Page Content ===== */
 .page-content {
-  padding: 24px 24px 32px;
+  padding: 28px 32px 40px;
   flex: 1;
 }
 
@@ -746,7 +760,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .page-header h1 {
