@@ -16,7 +16,8 @@ export const metadata: Metadata = {
     title: "Gear Tracker",
   },
   icons: {
-    apple: "/icon-192.svg",
+    icon: "/Badgers.png",
+    apple: "/Badgers.png",
   },
 };
 

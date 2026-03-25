@@ -52,34 +52,45 @@
   --color-heatmap-zero: var(--heatmap-zero);
 }
 
-/* ===== Brand Fonts ===== */
-/* Gotham: Drop .woff2 files into /public/fonts/ to activate the real brand font.
-   Until then the stack falls through to Barlow (installed via @fontsource/barlow)
-   which is a close geometric match for Gotham's character. */
+/* ===== Brand Fonts — Gotham ===== */
+/* Gotham is the official UW Athletics brand font.
+   Barlow remains as a fallback for environments without the font files. */
 
-/*
 @font-face {
   font-family: "Gotham";
-  src: url("/fonts/Gotham-Bold.woff2") format("woff2");
+  src: url("/Gotham-Ultra.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham-Black.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gotham";
+  src: url("/Gotham-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Gotham";
-  src: url("/fonts/Gotham-Medium.woff2") format("woff2");
+  src: url("/Gotham-Medium.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Gotham";
-  src: url("/fonts/Gotham-Book.woff2") format("woff2");
+  src: url("/Gotham-Book.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
-*/
 
 /* ===== Wisconsin Typography ===== */
 /* --font-heading: Gotham → Barlow fallback. Bold, geometric, sports-brand authority.
@@ -475,14 +486,16 @@ body {
 }
 
 /* ===== Heading Font System ===== */
-/* All headings use the Gotham/Barlow heading font for editorial authority */
+/* All headings use Gotham Black for editorial authority */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
+  font-weight: 800;
 }
 
-/* Card titles inherit heading font */
+/* Card titles inherit heading font (slightly lighter weight) */
 [data-slot="card-title"] {
   font-family: var(--font-heading);
+  font-weight: 700;
 }
 
 /* Remove iOS tap highlight on all interactive elements */
@@ -721,7 +734,7 @@ textarea:focus-visible {
 .page-header h1 {
   font-family: var(--font-heading);
   font-size: var(--text-3xl);
-  font-weight: var(--weight-bold);
+  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: var(--leading-none);
   margin: 0;
@@ -851,7 +864,7 @@ textarea:focus-visible {
 .stat-strip-value {
   font-family: var(--font-heading);
   font-size: var(--text-2xl);
-  font-weight: var(--weight-bold);
+  font-weight: 800;
   line-height: 1;
   color: var(--text);
 }
@@ -4862,7 +4875,7 @@ tr.returned-row { opacity: 0.55; }
 .welcome-banner h2 {
   font-family: var(--font-heading);
   font-size: var(--text-xl);
-  font-weight: var(--weight-bold);
+  font-weight: 800;
   margin: 0 0 4px;
 }
 

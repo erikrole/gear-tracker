@@ -106,13 +106,11 @@ export default function LoginPage() {
       <div className="fixed inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundRepeat: "repeat", backgroundSize: "256px" }} />
       <Card className="relative w-full max-w-[420px] shadow-2xl border-0 animate-in fade-in-0 zoom-in-95 duration-500">
         <CardHeader className="text-center pb-2 pt-8">
-          {/* Brand mark */}
-          <div className="flex items-center justify-center gap-2.5 mb-3">
-            <div className="size-8 rounded bg-[var(--wi-red)] flex items-center justify-center shadow-md">
-              <span className="text-white text-sm font-bold" style={{ fontFamily: "var(--font-heading)" }}>G</span>
-            </div>
+          {/* Brand mark — Motion W */}
+          <div className="flex items-center justify-center mb-3">
+            <img src="/Badgers.png" alt="Wisconsin" className="size-12 object-contain" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight" style={{ fontFamily: "var(--font-heading)" }}>Gear Tracker</CardTitle>
+          <CardTitle className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>Gear Tracker</CardTitle>
           <CardDescription className="text-base">Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
