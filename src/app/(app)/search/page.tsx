@@ -181,7 +181,7 @@ export default function SearchPage() {
             if (items.length === 0) return null;
             return (
               <div key={type}>
-                <h2 className="text-sm text-secondary text-uppercase font-semibold mb-2 m-0">
+                <h2 className="text-sm text-secondary text-uppercase mb-2 m-0">
                   {sectionLabels[type]} ({items.length})
                 </h2>
                 <Card>

@@ -329,7 +329,7 @@ export default function KitDetailPage() {
             <ArrowLeftIcon className="h-4 w-4" />
           </Button>
           <BoxIcon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">{kit.name}</h1>
+          <h1 className="text-xl">{kit.name}</h1>
           {!kit.active && <Badge variant="outline">Archived</Badge>}
         </div>
         <div className="flex items-center gap-2">

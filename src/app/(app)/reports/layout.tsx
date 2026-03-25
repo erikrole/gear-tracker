@@ -9,7 +9,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
 
   return (
     <>
-      <h1 className="text-2xl font-bold mb-0">Reports</h1>
+      <h1 className="text-2xl mb-0">Reports</h1>
 
       <nav className="flex gap-0 border-b mb-5">
         {REPORT_SECTIONS.map((s) => (
