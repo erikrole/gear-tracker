@@ -2,287 +2,358 @@
 
 **Target:** `src/components/Sidebar.tsx` + `src/components/AppShell.tsx`
 **Created:** 2026-03-24
-**Status:** V1 shipped (2026-03-24) — badges, nav groups, Notifications item
+**Revised:** 2026-03-25 (full refresh — V1 shipped, V2 partially shipped)
+**Status:** V1 shipped (2026-03-24), V2 partial (groups + quick-create shipped, shortcuts pending)
 
 ---
 
 ## Current State Assessment
 
-### What exists today
-- 11 nav items rendered as a flat list inside shadcn `Sidebar` with `collapsible="icon"`
-- Role filtering: `STUDENT` hides `/users`, `/kits`, `/reports`, `/settings` at render time
-- Mobile: shadcn Sheet drawer replaces old CSS-translate hack; `SidebarTrigger` at all breakpoints
-- Bottom nav (mobile only): 5 hardcoded items (Dashboard, Items, Reservations, Checkouts, Scan)
-- User profile header with avatar + name, links to `/users/{id}`
-- Theme toggle (light/dark/system) with localStorage persistence
-- Logout button
+### What exists today (post V1 + partial V2 ship)
 
-### What works well — keep in all versions
-- Role-based filtering (correct; server validates too)
-- Icon-only collapse with tooltips on desktop (`Cmd+B`)
-- Mobile Sheet with animated drawer
-- Active item: red left border (`--wi-red`) + opacity background
-- Theme toggle in footer
-- `SidebarMenuButton tooltip` prop auto-shows label when collapsed
-
-### What's broken or missing today
-- **No badges anywhere** — `SidebarMenuBadge` is installed but never used
-- **Kits is a dead end** — GAP-10: empty page, nothing tells users it's unfinished
-- **Reports is a dead end** — GAP-8: page exists, links to nothing useful
-- **Navigation is a flat soup** — 11 items with no semantic grouping; admin items mixed with student items
-- **Notifications not in sidebar** — bell icon lives only in the topbar header
-- **AREA_MOBILE.md §4 not met** — "Badge counts can appear on Reservations and Check-outs for overdue or due-today urgency" — this is explicitly specced and currently absent
-
-### Available shadcn primitives not yet used
-| Primitive | Potential use |
-|-----------|--------------|
-| `SidebarMenuBadge` | Overdue count on Checkouts, unread on Notifications |
-| `SidebarGroup` + `SidebarGroupLabel` | "Operations" / "Admin" sections |
-| `SidebarMenuAction` | Quick-create button (+ icon) on Checkouts / Reservations |
-
-### Data available but not surfaced
-- `/api/dashboard` returns `stats.overdue`, `stats.dueToday`, `stats.checkedOut`, `stats.reserved`
-- AppShell already fetches `/api/notifications?limit=0&unread=true` → `unreadCount`
-- Both are in the shell before render — zero additional fetch needed for V1
-
----
-
-## V1 — Badge Awareness + Dead-End Fix
-
-**Principle:** The sidebar should never lie by omission. If something is urgent it appears here. If a page is empty it says so.
-
-**Scope:** ~80 lines of changes. Zero new API routes. Zero schema changes.
-
-### Features
-
-**1. Overdue badge on Checkouts**
-- AppShell already fetches unread notifications; add parallel fetch of `stats.overdue` from `/api/dashboard` (or reuse the nav-counts pattern below)
-- Pass `overdueBadgeCount` to `AppSidebar`
-- Render `<SidebarMenuBadge>` on the Checkouts item when `overdueBadgeCount > 0`
-- Shown for all roles (STUDENT sees own overdue only — server already filters)
-- In collapsed mode: badge stays visible next to icon (shadcn handles this)
-
-**2. Notifications nav item with unread badge**
-- Add Notifications to the nav item list (after Profile, before Settings threshold)
-- `href: "/notifications"`, `icon: BellIcon`
-- AppShell passes `unreadNotifications` to sidebar (already computed, line 50/65 of AppShell)
-- Render `<SidebarMenuBadge>` when `unreadNotifications > 0`
-- Hidden from STUDENT role via `STUDENT_HIDDEN_HREFS`? No — students get notifications too. Show for all.
-
-**3. Kits "Coming soon" badge**
-- Add `badge: "Soon"` property to the Kits navItem
-- Render as a small muted `<SidebarMenuBadge>` on the item
-- Tooltip: "Kit management is coming in Phase B" (via `SidebarMenuButton tooltip` prop)
-- Does NOT block navigation to `/kits` — the kits page should show a placeholder card (separate GAP-10 fix)
-
-### What's NOT in V1
-- No navigation groups or labels
-- No quick-create buttons
-- No real-time polling (badges update on page load only)
-- No keyboard shortcut hints
-
-### API routes needed
-- None new. AppShell can fetch `/api/dashboard` stats on mount (deduplicated with dashboard page fetch — they are separate requests, but lightweight).
-
-### RBAC
-- All roles see their own overdue badge count
-- All roles see their own notification badge count
-- STUDENT continues to see Notifications nav item (they receive assignment notifications)
-
-### Loading/error/empty states
-- Badges simply absent while loading (no flash of zero badge)
-- On fetch error: badges stay hidden; no alert shown in sidebar
-
-### Mobile behavior
-- `SidebarMenuBadge` is visible in both expanded and collapsed icon-only modes
-- Bottom nav does not get badges in V1 (separate concern, lower priority)
-- Sheet drawer on mobile renders same badge as desktop
-
-### shadcn components used
-- `SidebarMenuBadge` (already installed, zero imports needed)
-
-### Files changed
-- `src/components/AppShell.tsx` — pass `overdueBadgeCount` and `unreadNotifications` as sidebar props
-- `src/components/Sidebar.tsx` — add badge rendering to Checkouts and Notifications items; add "Soon" badge to Kits
-
----
-
-## V2 — Grouped Navigation + Admin Clarity
-
-**Principle:** The navigation should reflect how users think about their work, not how the database is organized.
-
-**Scope:** ~150 lines. Zero schema changes. One optional CSS tweak.
-
-### Features
-
-**1. Semantic navigation groups** ✅ Shipped 2026-03-24
-
-Reorganize 11 items into two groups using `SidebarGroup` + `SidebarGroupLabel`:
+**Sidebar.tsx** renders two nav groups using shadcn `Sidebar` with `collapsible="icon"`:
 
 | Group | Items | Visible to |
 |-------|-------|-----------|
-| *(unlabeled, no header)* | Dashboard, Schedule, Items, Kits, Reservations, Checkouts, Scan | All roles |
-| Admin | Users, Reports, Settings | ADMIN + STAFF only |
-| Account | Notifications, Profile | All roles |
+| *(unlabeled)* | Dashboard, Schedule, Items, Bookings, Notifications | All roles |
+| Admin | Kits, Users, Reports, Settings | ADMIN + STAFF only |
 
-- STUDENT users see no "Admin" group at all (not just hidden items — the entire section is absent)
-- Group labels appear in expanded mode only; hidden when collapsed (shadcn `SidebarGroupLabel` handles via `group-data-[collapsible=icon]:opacity-0`)
-- Replaces the current `STUDENT_HIDDEN_HREFS` per-item filter; logic moves to group-level visibility
+**Features shipped:**
+- `SidebarMenuBadge` on Bookings (overdue count) and Notifications (unread count)
+- `SidebarMenuAction` quick-create (+) on Bookings — admin/staff only, hover-reveal
+- Kits has a static "Soon" badge (muted style)
+- Role-based group filtering: STUDENT sees no Admin group
+- User profile header: avatar + name, links to `/users/{id}`
+- Brand mark (Badgers.png + "Gear Tracker" text)
+- Theme toggle (light/dark/system) via `ToggleGroup` in footer
+- Logout button in footer with loading state + network failure recovery
+- Active item: red left border (`--wi-red`) + white text + opacity background
+- Collapsed icon mode: `SidebarMenuButton tooltip` auto-shows label + badge context
+- Mobile: shadcn Sheet drawer with same content as desktop
+- Deep Wisconsin dark color scheme (`#1a1017` bg)
 
-**2. Quick-create actions on Checkouts + Reservations** ✅ Shipped 2026-03-24
+**AppShell.tsx** orchestrates the sidebar:
+- Fetches `/api/me` for user identity
+- Parallel fetches `/api/notifications` (unread count) + `/api/dashboard` (overdue count)
+- Passes `overdueBadgeCount` + `unreadNotifications` as props to sidebar
+- Renders mobile bottom nav (5 items: Home, Items, Reservations, Checkouts, Scan)
+- Command palette (`Cmd+K`) for global search
+- Topbar: SidebarTrigger, search bar, notification bell, profile icon
+- Offline detection banner
 
-- Add `SidebarMenuAction` (hover-reveal + icon) to Checkouts and Reservations items
-- Checkouts action: `href="/checkouts?create=true"` with `+` icon
-- Reservations action: `href="/reservations?create=true"` with `+` icon
-- On mobile: always visible (per `after:absolute after:-inset-2 md:after:hidden` in shadcn)
-- Tooltip: "New checkout" / "New reservation"
-- Accessible: ARIA label on the button
+### What works well (keep in all versions)
+- Role-based group filtering (server validates too — sidebar is UI convenience, not security)
+- Icon-only collapse with count-aware tooltips ("Bookings · 3 overdue")
+- Mobile Sheet drawer with animated overlay
+- Active-item visual: red left border is recognizable and on-brand
+- Theme toggle placement in footer (low-frequency action, out of the way)
+- Parallel badge fetch with AbortController cleanup
 
-**3. Keyboard shortcut hints in tooltips**
+### What's missing or could improve
 
-- In collapsed icon mode, `SidebarMenuButton tooltip` already shows the label
-- Extend tooltip content for key items: "Dashboard" → "Dashboard (Cmd+1)" etc.
-- AppShell registers `Cmd+1` through `Cmd+5` for the top 5 nav items
-- This is additive — existing Cmd+K and Cmd+B shortcuts unchanged
+| Gap | Severity | Version target |
+|-----|----------|---------------|
+| No keyboard shortcuts for nav items (Cmd+1–5) | Low | V2 |
+| Bottom nav has no badge counts — urgency invisible on mobile home screen | Medium | V3 |
+| Badge counts only refresh on full page navigation (no polling) | Medium | V3 |
+| Settings has 6 sub-pages but sidebar link goes to flat `/settings` | Low | V2 |
+| Kits "Soon" badge is stale — Kits V1+V2 shipped 2026-03-24/25 | Bug | V1 fix |
+| No game-day/event context in sidebar — staff don't see what's happening today | Medium | V3 |
+| Bookings nav item merges checkouts + reservations — no separate counts | Low | V3 |
+| No "Scan" in sidebar (only in bottom nav) — desktop users must navigate manually | Low | V2 |
 
-### What's NOT in V2
-- No live polling / real-time counts
-- No event context in header
-- No location/sport filter in sidebar
+### Data available but not surfaced in sidebar
+- `/api/dashboard` → `data.myCheckouts.overdue`, `data.myCheckouts.dueToday`, reservation counts
+- `/api/calendar-events` → today's events, upcoming game-day context
+- `Booking` model → upcoming reservation count, due-today count
+- `ShiftAssignment` → user's next shift (could show "Next shift: MBB @ 3pm")
 
-### API routes needed
-- None new.
+### Roles and sidebar experience
 
-### RBAC
-- Admin group only renders for ADMIN + STAFF
-- Quick-create buttons respect existing booking creation permissions (server validates)
+| Role | Current experience | Ideal experience |
+|------|-------------------|-----------------|
+| STUDENT | 5 nav items, overdue badge on Bookings, unread on Notifications | Same + bottom-nav badges on mobile, shift context |
+| STAFF | 9 nav items in 2 groups, quick-create on Bookings | Same + Settings sub-nav, keyboard shortcuts, event context |
+| ADMIN | Same as STAFF | Same as STAFF + system health indicators in sidebar |
 
-### Files changed
-- `src/components/Sidebar.tsx` — refactor navItems to navGroups structure; add `SidebarGroup`/`SidebarGroupLabel`; add `SidebarMenuAction` on Checkouts/Reservations
-- `src/components/AppShell.tsx` — add keyboard shortcut listeners for Cmd+1–5
+### Mobile viability
+- Sidebar opens as Sheet drawer — full-featured, works well
+- Bottom nav provides 5 quick-access items (no badges)
+- No sidebar-specific mobile issues; main gap is bottom-nav badge absence
 
 ---
 
-## V3 — Live Counts + Event Context
+## V1 — Core (Shipped 2026-03-24)
 
-**Principle:** The sidebar knows where you're going before you click. It shows urgency in context, not just after you land.
+**Principle:** The sidebar should never lie by omission. Urgency is visible. Dead ends are labeled.
 
-**Scope:** ~200 lines + 1 new API endpoint. Zero schema changes.
+**Status: SHIPPED** — all features below are live.
+
+### Features included
+1. **Overdue badge on Bookings** — `SidebarMenuBadge` with red pill, count from `/api/dashboard`
+2. **Unread badge on Notifications** — `SidebarMenuBadge` with red pill, count from `/api/notifications`
+3. **Kits "Soon" badge** — static muted badge indicating upcoming feature
+4. **Semantic nav groups** — Operations (unlabeled) + Admin with `SidebarGroupLabel`
+5. **Quick-create on Bookings** — `SidebarMenuAction` with `+` icon, admin/staff only
+6. **Hardening** — dead CSS removed, AbortController cleanup, isLoggingOut guard, count-aware tooltips, STUDENT-scoped overdue (own bookings only)
+
+### shadcn components used
+- `SidebarMenuBadge`, `SidebarMenuAction`, `SidebarGroup`, `SidebarGroupLabel`, `SidebarSeparator`
+
+### API routes
+- None new. Reused `/api/notifications` + `/api/dashboard`.
+
+### What's NOT in V1
+- No keyboard shortcuts
+- No polling/real-time badge updates
+- No bottom-nav badges
+- No Settings sub-navigation
+- No event context
+
+---
+
+## V2 — Enhanced (Improved UX, Reduced Friction)
+
+**Principle:** Now that badges and groups work, make navigation faster and smarter. Add convenience features that reduce clicks and improve discoverability.
+
+**Status:** Partially shipped (groups + quick-create). Remaining items below.
 
 ### Features
 
-**1. Live nav counts via `/api/nav-counts`**
+**1. Remove stale Kits "Soon" badge** (bug fix)
+- Kits V1 (CRUD + member management) shipped 2026-03-24
+- Kits V2 (kit-to-booking integration) shipped 2026-03-25
+- Remove the `badge: "Soon"` from the Kits nav item — it's misleading now
+- Keep Kits in Admin group (admin/staff only)
 
-New lightweight endpoint that returns:
-```json
-{
-  "overdue": 3,
-  "dueToday": 1,
-  "reservedUpcoming": 5,
-  "unreadNotifications": 2
-}
-```
-- Computed from: `Booking` (status + endsAt), `Notification` (readAt)
-- AppShell fetches on mount and re-fetches every 60s (matches existing `setNow` interval)
-- Replaces the separate dashboard stats + notifications fetch
-- Badges on: Checkouts (overdue + due today), Reservations (upcoming), Notifications (unread)
-- STUDENT-scoped: server filters to requesting user's bookings
+**2. Scan nav item in sidebar**
+- Add `{ label: "Scan", href: "/scan", icon: ScanBarcodeIcon }` to the Operations group
+- Position: after Bookings, before Notifications
+- All roles — students use scan for checkout/checkin
+- Closes the gap where desktop users have no sidebar path to `/scan`
+- Bottom nav already has Scan; sidebar should match
 
-**2. Today's event context in SidebarHeader**
+**3. Settings collapsible sub-navigation**
+- Settings has 6 sub-pages: calendar-sources, sports, categories, database, escalation, venue-mappings
+- Use shadcn `Collapsible` + `SidebarMenuSub` + `SidebarMenuSubItem` to show sub-links
+- Collapsed by default; expand on click or when any `/settings/*` route is active
+- Sub-items: Calendar Sources, Sports, Categories, Escalation, Venue Mappings, Database
+- Admin-only (same as Settings parent)
+- In icon-only collapsed mode: clicking Settings icon navigates to `/settings` (no sub-nav)
 
-- Fetch next upcoming calendar event (from existing `/api/calendar-events`) in AppShell
-- If an event is happening today or starting within 4 hours, show a compact "Game day" indicator in the sidebar header below the user profile
-- Shows: event title, time, sport code badge
-- Only shown when sidebar is expanded (collapsed mode hides it via `group-data-[collapsible=icon]:hidden`)
-- Click navigates to `/events/{id}`
-- Staff and admin only (not STUDENT — students don't own events)
+**4. Keyboard shortcut hints + navigation**
+- Register `Cmd+1` through `Cmd+6` in AppShell for top 6 Operations nav items
+- Show shortcut hint in tooltip when sidebar is collapsed: "Dashboard (⌘1)"
+- `Cmd+K` (search) and `Cmd+B` (toggle sidebar) remain unchanged
+- Implementation: single `keydown` listener in AppShell, `router.push()` on match
 
-**3. Bottom nav badge counts (mobile)**
+**5. Due-today secondary badge on Bookings**
+- Currently shows overdue count only
+- Add a secondary amber/muted badge for due-today count when overdue is 0
+- When both overdue AND due-today exist, show overdue only (red takes priority)
+- Data already available: `dashJson.data.myCheckouts.dueToday`
+- Tooltip updates: "Bookings · 2 overdue" or "Bookings · 1 due today"
 
-- Extend the bottom nav items to accept `badge` counts
-- Show red dot or count chip on Checkouts and Reservations bottom nav items
-- Reuses the same `nav-counts` fetch that powers the sidebar badges
-- Closes the gap between sidebar and bottom nav urgency signaling
+### What V1 features get enhanced
+- Bookings badge: gains due-today secondary count
+- Nav items: Scan added to Operations group
+- Settings: gains collapsible sub-nav
+- All tooltips: gain keyboard shortcut hints
 
-### What's NOT in V3
-- No drag-to-reorder nav items (not useful for this user base)
-- No saved filter chip in sidebar (filter state lives on the page, not the nav)
-- No inline booking creation within the sidebar drawer (too much surface area)
+### What's NOT in V2
+- No live polling (still refresh-on-navigate only)
+- No bottom-nav badges
+- No event/game-day context
+- No search within sidebar
 
 ### API routes needed
-- `GET /api/nav-counts` — new, read-only, fast. Queries: `Booking` count where `status IN ('OPEN','BOOKED') AND endsAt < now()`, `Notification` count where `readAt IS NULL AND userId = session.userId`
+- None new. Due-today count already in `/api/dashboard` response.
+
+### RBAC
+- Scan: all roles
+- Settings sub-nav: admin only (STAFF can see Settings parent per current group config)
+- Keyboard shortcuts: all roles (only Operations items have shortcuts)
+
+### Loading/error/empty states
+- Settings sub-nav: renders immediately (no data fetch — static links)
+- Due-today badge: same pattern as overdue — absent while loading, hidden on error
+
+### Mobile behavior
+- Scan item visible in sidebar Sheet drawer (already in bottom nav)
+- Settings sub-nav: fully functional in Sheet drawer
+- Keyboard shortcuts: desktop only (no change on mobile)
+- Due-today badge: visible in Sheet drawer same as overdue badge
+
+### shadcn components used
+- `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` (already installed)
+- `SidebarMenuSub`, `SidebarMenuSubItem`, `SidebarMenuSubButton` (part of sidebar.tsx)
+
+### Files changed
+- `src/components/Sidebar.tsx` — remove Kits "Soon" badge, add Scan item, add Settings collapsible sub-nav, add due-today badge logic
+- `src/components/AppShell.tsx` — register Cmd+1–6 shortcuts, pass `dueTodayCount` prop
+
+---
+
+## V3 — Advanced (Predictive, Automated, Intelligent)
+
+**Principle:** The sidebar anticipates user needs. It surfaces the right information at the right time and automates urgency signaling across all surfaces.
+
+### Features
+
+**1. Live nav counts via `/api/nav-counts` endpoint**
+- New lightweight endpoint returning role-scoped counts:
+  ```json
+  {
+    "overdue": 3,
+    "dueToday": 1,
+    "reservedUpcoming": 5,
+    "unreadNotifications": 2,
+    "pendingTrades": 1
+  }
+  ```
+- Replaces the dual `/api/notifications` + `/api/dashboard` fetch in AppShell
+- Single query with `Booking` + `Notification` + `ShiftTrade` counts
+- STUDENT-scoped: server filters to requesting user's bookings/notifications
+- AppShell polls every 60s with `setInterval` + AbortController cleanup
+- Page Visibility API: pause polling when tab is hidden, resume on focus
+- Badges update in real-time without full page navigation
+
+**2. Bottom nav badge counts (mobile)**
+- Extend `bottomNavItems` in AppShell to accept `badge?: number`
+- Wire overdue count to Checkouts bottom nav item
+- Wire unread count as red dot on a new Notifications bottom nav item (or replace one of the 5)
+- Reuses same `/api/nav-counts` data — zero additional fetches
+- Badge renders as a small red circle with count (matches sidebar badge style)
+- Closes AREA_MOBILE.md gap: urgency visible on mobile home screen
+
+**3. Game-day event context in SidebarHeader**
+- Fetch next upcoming event from `/api/calendar-events?upcoming=true&limit=1`
+- If an event starts within 4 hours or is happening now, show compact game-day card:
+  - Sport badge (e.g., "MBB")
+  - Event title (truncated)
+  - Time ("3:00 PM" or "NOW")
+  - Click → `/schedule?date={eventDate}`
+- Rendered below user profile in SidebarHeader
+- Hidden in collapsed icon mode (`group-data-[collapsible=icon]:hidden`)
+- Staff/admin only — students see their shifts on dashboard, not event management
+- Pulses or highlights when event is within 1 hour (game-day urgency)
+
+**4. Shift context for students**
+- For STUDENT role, show next shift assignment in SidebarHeader (where staff sees event context)
+- Fetch from `/api/shifts/my?upcoming=true&limit=1`
+- Shows: "Next shift: MBB @ 3:00 PM" with sport badge
+- Click → `/schedule` filtered to that day
+- Hidden when no upcoming shifts
+
+**5. Contextual quick actions based on route**
+- When on `/items/[id]`, sidebar Bookings item shows "Book this item" action
+- When on `/schedule` with an event selected, Bookings shows "Gear up for [event]"
+- Implementation: AppShell reads route params and passes context to Sidebar
+- Lightweight — just changes the `quickCreateHref` query params
+
+### What's NOT in V3
+- No drag-to-reorder nav items (not useful for 9-item nav)
+- No inline booking creation within sidebar (too much surface area)
+- No WebSocket push (polling every 60s is sufficient for team size <50)
+- No saved filter state in sidebar (filters live on pages, not nav)
+- No sidebar search box (Cmd+K command palette already serves this)
+
+### API routes needed
+- `GET /api/nav-counts` — new, read-only, fast (~3 SQL queries, <50ms)
+- Existing `/api/calendar-events` and `/api/shifts/my` reused for context cards
 
 ### Schema changes
-- None. All data is computed from existing `Booking`, `Notification`, `CalendarEvent` models.
+- None. All data computed from existing `Booking`, `Notification`, `CalendarEvent`, `ShiftAssignment` models.
+
+### RBAC
+- `/api/nav-counts`: all roles, scoped to own data for STUDENT
+- Event context card: STAFF + ADMIN only
+- Shift context card: STUDENT only
+- Bottom nav badges: all roles
+
+### Loading/error/empty states
+- Nav counts: badges absent during initial load, hidden on fetch error
+- Polling error: silently retry on next interval (no toast/banner for background poll)
+- Event/shift context: hidden when no upcoming event/shift (most of the time)
+- Bottom nav badges: same as sidebar — absent while loading
+
+### Mobile behavior
+- Bottom nav badges are the primary V3 mobile improvement
+- Game-day / shift context cards visible in Sheet drawer
+- Polling respects Page Visibility API — no battery drain when app backgrounded
+
+### shadcn components used
+- `Badge` (for sport code in event/shift context)
+- Existing `SidebarHeader` section (already structured for additional content)
 
 ### Files changed
 - `src/app/api/nav-counts/route.ts` — new endpoint
-- `src/components/AppShell.tsx` — fetch nav-counts; pass event context; pass bottom-nav badges
-- `src/components/Sidebar.tsx` — event context card in header
-- CSS — bottom nav badge styling
+- `src/components/AppShell.tsx` — replace dual fetch with nav-counts polling, pass event/shift context, wire bottom nav badges
+- `src/components/Sidebar.tsx` — event context card, shift context card, contextual quick actions
+- `src/app/globals.css` — bottom nav badge styling
 
 ---
 
 ## Dependencies
 
-| Version | Requires | Shared components to extract |
-|---------|----------|------------------------------|
-| V1 | Nothing — all data already in AppShell | `navBadgeProp` pattern (reuse in V3) |
-| V2 | V1 badges working first (groups will wrap them) | `navGroups` config object (reuse for keyboard shortcuts) |
-| V3 | V2 groups structure; V1 badge wiring | `/api/nav-counts` can be reused by dashboard |
+| Version | Schema changes | Other pages/components required | API routes | Shared components to extract |
+|---------|---------------|-------------------------------|-----------|------------------------------|
+| V1 | None | None | None new | Badge prop pattern |
+| V2 | None | None | None new | `navGroups` config with keyboard shortcut map |
+| V3 | None | None | `GET /api/nav-counts` (new) | Nav count hook (`useNavCounts`) for reuse by dashboard |
 
 ---
 
 ## Risks
 
-**Scope creep into V1:**
-- "Add a search box to the sidebar" — defer to V3 or never. Cmd+K already exists.
-- "Add notification bell to sidebar header" — moving the bell is a redesign; in V1 just add the nav item.
+### Scope creep — V1 into V2
+- "Add search to sidebar" — **DEFER.** `Cmd+K` command palette already exists. Adding a second search input creates confusion.
+- "Add Reservations as separate nav item" — **DEFER.** Bookings is unified per D-002. Separate items would contradict the data model.
 
-**V2 YAGNI:**
-- Keyboard shortcuts for nav items (Cmd+1–5) — if users never use Cmd+B, they won't use Cmd+1 either. Validate before building.
-- Secondary action menus (not just buttons) on nav items — `SidebarMenuAction` as a single link is fine; don't add dropdown menus here.
+### V2 YAGNI
+- **Keyboard shortcuts (Cmd+1–5)**: Low usage likelihood. If users don't use `Cmd+B` (sidebar toggle), they won't discover Cmd+1. Consider shipping as hidden feature without tooltip hints — observe adoption before investing in discoverability.
+- **Settings sub-nav**: Only useful if staff visit Settings frequently. Currently Settings is low-traffic (calendar sources + escalation config are set-once). May not justify the UI complexity. **Mitigation:** Ship collapsible-collapsed-by-default so it doesn't add visual weight.
 
-**V3 scope traps:**
-- "Game day mode" as a distinct sidebar skin — too much. The event context card is enough.
-- Real-time WebSocket push for badge counts — polling every 60s is fine for this team size. WebSockets add infrastructure complexity for marginal gain.
+### V3 scope traps
+- **"Game day mode" skin**: The event context card is enough. A full theme/layout change for game days is over-engineered for a team of <20 people.
+- **WebSocket push for badge counts**: Polling every 60s is fine for this team size. WebSockets add infrastructure complexity (connection management, reconnection logic, Vercel limitations) for marginal gain.
+- **Making `/api/nav-counts` too rich**: Must stay tiny — counts only. No booking data, no item data, no event details. Those belong in their dedicated endpoints.
 
-**Coupling risk:**
-- V3's `/api/nav-counts` must not become the "one endpoint that does too much." Keep it tiny: counts only, no booking data, no item data.
+### Coupling risks
+- V3's polling interval (60s) must not conflict with dashboard's own fetch cycle. Consider deduplication via shared hook or React context.
+- Event/shift context cards share SidebarHeader space with user profile. Needs careful layout so collapsed mode doesn't break.
 
 ---
 
-## Build Order (within each version)
+## Build Order
 
-**V1:**
-1. Add `overdueBadgeCount` + `unreadNotifications` props to Sidebar (types)
-2. AppShell passes both (already has unread; add overdue fetch)
-3. Render `SidebarMenuBadge` on Checkouts, Notifications items
-4. Add "Soon" badge to Kits item
-5. Verify collapsed mode — badges visible in icon-only state
+### V2 (estimated: 1 session)
+1. Remove Kits "Soon" badge (5 min)
+2. Add Scan nav item to Operations group (10 min)
+3. Add due-today secondary badge logic (15 min)
+4. Settings collapsible sub-nav with `SidebarMenuSub` (30 min)
+5. Keyboard shortcuts in AppShell (20 min)
+6. Verify STUDENT role sees correct items, test collapsed mode (10 min)
 
-**V2:**
-1. Define `navGroups` array replacing flat `navItems`
-2. Render `SidebarGroup` + `SidebarGroupLabel` with group-level RBAC
-3. Add `SidebarMenuAction` to Checkouts and Reservations
-4. Add AppShell keyboard shortcuts (Cmd+1–5)
-5. Verify STUDENT sees no Admin group
-
-**V3:**
-1. `GET /api/nav-counts` route (10-minute task)
-2. AppShell: replace dual fetch with single nav-counts fetch; add event fetch
-3. Sidebar: event context card in header (collapsed-hidden)
-4. Bottom nav: accept + render badge counts
-5. 60s polling with cleanup on unmount
+### V3 (estimated: 2 sessions)
+1. `GET /api/nav-counts` route (30 min)
+2. AppShell: replace dual fetch with nav-counts + add 60s polling (30 min)
+3. Sidebar: event context card for staff/admin (45 min)
+4. Sidebar: shift context card for students (30 min)
+5. Bottom nav: badge count wiring + CSS (30 min)
+6. Page Visibility API: pause/resume polling (15 min)
+7. Test all three roles at all breakpoints (20 min)
 
 ---
 
 ## North Star Alignment
 
-| Principle | V1 | V2 | V3 |
-|-----------|----|----|-----|
-| Operational speed | ✅ Overdue visible without navigating | ✅ Quick-create in 1 click | ✅ Counts without opening page |
-| Mobile-first | ✅ Sheet drawer badges work | ✅ MenuAction always visible mobile | ✅ Bottom nav badges |
-| Student-first | ✅ Own overdue; admin items still hidden | ✅ Admin group fully hidden | ✅ Counts scoped to own bookings |
+| Principle | V1 (shipped) | V2 | V3 |
+|-----------|-------------|----|----|
+| Operational speed | Overdue visible without navigating | Quick Scan access, keyboard shortcuts | Counts update live; context cards surface what's next |
+| Mobile-first | Sheet drawer badges work | Scan in sidebar matches bottom nav | Bottom nav badges close mobile urgency gap |
+| Student-first | Own overdue only; admin group hidden | Scan prominently placed | Shift context card; scoped counts |
+| Event-driven | N/A | N/A | Game-day context card links to schedule |
+| Tag-first identity | N/A | N/A | N/A (sidebar is navigation, not item display) |
 | Audit trail | N/A | N/A | N/A (sidebar is read-only) |
-| Derived status | ✅ Counts computed, not stored | ✅ No status field written | ✅ `/api/nav-counts` is computed |
+| Derived status | Counts computed, not stored | Same | `/api/nav-counts` is fully computed |

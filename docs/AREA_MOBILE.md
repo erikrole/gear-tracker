@@ -103,12 +103,11 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 
 ## Sidebar Roadmap
 
-Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md`
+Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-25)
 
-Key planned improvements affecting mobile navigation:
-- **V1**: `SidebarMenuBadge` on Checkouts (overdue count) and Notifications (unread count) — closes §4 of Mobile Navigation Contract
-- **V2**: Quick-create `SidebarMenuAction` on Checkouts/Reservations — always visible on mobile
-- **V3**: Bottom nav badge counts wired to live `/api/nav-counts` endpoint
+- **V1 (shipped)**: `SidebarMenuBadge` on Bookings (overdue) + Notifications (unread), nav groups, quick-create — closes §4 of Mobile Navigation Contract
+- **V2 (next)**: Scan nav item, Settings sub-nav, due-today badge, keyboard shortcuts
+- **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
 - 2026-03-02: Initial mobile operations area scope created from Cheqroom mobile analysis and Gear Tracker role model.
