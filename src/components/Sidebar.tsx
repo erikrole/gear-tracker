@@ -130,10 +130,22 @@ export default function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      {/* User profile header */}
+      {/* Brand mark + user profile header */}
       {user && (
         <SidebarHeader className="border-b border-white/[0.08] pb-3 pt-4">
           <SidebarMenu>
+            {/* Brand mark */}
+            <SidebarMenuItem>
+              <div className="flex items-center gap-2.5 px-2 pb-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                <div className="size-7 shrink-0 rounded bg-[var(--wi-red)] flex items-center justify-center">
+                  <span className="text-white text-xs font-bold" style={{ fontFamily: "var(--font-heading)" }}>G</span>
+                </div>
+                <span className="text-[13px] font-bold tracking-tight text-white group-data-[collapsible=icon]:hidden" style={{ fontFamily: "var(--font-heading)" }}>
+                  Gear Tracker
+                </span>
+              </div>
+            </SidebarMenuItem>
+            {/* User profile */}
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
@@ -169,7 +181,7 @@ export default function AppSidebar({
               )}
               <SidebarGroup className="px-2 py-0">
                 {group.label && (
-                  <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5">
+                  <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5" style={{ fontFamily: "var(--font-heading)" }}>
                     {group.label}
                   </SidebarGroupLabel>
                 )}

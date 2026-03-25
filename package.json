@@ -18,6 +18,7 @@
     "import:cheqroom": "node scripts/import-cheqroom-items.mjs"
   },
   "dependencies": {
+    "@fontsource/barlow": "^5.2.8",
     "@prisma/adapter-neon": "^6.19.2",
     "@prisma/client": "^6.19.2",
     "@radix-ui/react-progress": "^1.1.8",

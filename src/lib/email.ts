@@ -69,7 +69,7 @@ export function buildNotificationEmail({
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #1a1a2e;">
-  <div style="border-bottom: 3px solid #c5050c; padding-bottom: 12px; margin-bottom: 20px;">
+  <div style="border-bottom: 3px solid #A00000; padding-bottom: 12px; margin-bottom: 20px;">
     <strong style="font-size: 18px;">${escapeHtml(title)}</strong>
   </div>
   <p style="font-size: 15px; line-height: 1.5; color: #333;">${escapeHtml(body)}</p>

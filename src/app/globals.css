@@ -52,67 +52,69 @@
   --color-heatmap-zero: var(--heatmap-zero);
 }
 
-/* ===== Brand Font Placeholders ===== */
-/* Drop real font files into /public/fonts/ and uncomment to activate.
-   Until then the stack falls through to Inter / system.
+/* ===== Brand Fonts ===== */
+/* Gotham: Drop .woff2 files into /public/fonts/ to activate the real brand font.
+   Until then the stack falls through to Barlow (installed via @fontsource/barlow)
+   which is a close geometric match for Gotham's character. */
 
+/*
 @font-face {
   font-family: "Gotham";
   src: url("/fonts/Gotham-Bold.woff2") format("woff2");
-  font-weight: var(--weight-bold);
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gotham";
+  src: url("/fonts/Gotham-Medium.woff2") format("woff2");
+  font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: "Gotham";
   src: url("/fonts/Gotham-Book.woff2") format("woff2");
-  font-weight: var(--weight-normal);
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Aeternus";
-  src: url("/fonts/Aeternus-Regular.woff2") format("woff2");
-  font-weight: var(--weight-normal);
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 */
 
 /* ===== Wisconsin Typography ===== */
-/* --font-heading: used for headings + metrics (bold, high-impact)
-   --font-body:    used for UI text, labels, body copy */
+/* --font-heading: Gotham → Barlow fallback. Bold, geometric, sports-brand authority.
+   --font-body:    Geist Sans for UI text, labels, body copy — refined and readable. */
 :root {
-  --font-heading: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Gotham", "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-body: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), "SF Mono", "Fira Code", monospace;
 
   color-scheme: light;
 
-  /* Sidebar — dark #202020 */
-  --sidebar-bg: #202020;
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --sidebar-active: rgba(255, 255, 255, 0.10);
-  --sidebar-text: rgba(255, 255, 255, 0.65);
+  /* Sidebar — deep Wisconsin dark */
+  --sidebar-bg: #1a1017;
+  --sidebar-hover: rgba(160, 0, 0, 0.14);
+  --sidebar-active: rgba(160, 0, 0, 0.22);
+  --sidebar-text: rgba(255, 255, 255, 0.60);
   --sidebar-text-active: #ffffff;
   --sidebar-width: 240px;
 
-  /* Surfaces — distinct layering for depth */
-  --bg: #f5f5f4;
+  /* Surfaces — clean gray with subtle depth layering */
+  --bg: #F1F1F1;
   --bg-card: #ffffff;
-  --bg-surface: #fafaf9;
+  --bg-surface: #f8f8f8;
   --bg-elevated: #ffffff;
   --panel: #ffffff;
   --panel-solid: #ffffff;
-  --panel-hover: #f5f5f4;
+  --panel-hover: #F1F1F1;
   --text: #1a1a1a;
-  --text-secondary: #6b6b6b;
-  --text-muted: #a3a3a3;
-  --accent: #1a1a1a;
-  --accent-hover: #000000;
-  --accent-soft: #f0f0ee;
-  --border: #ebebea;
-  --border-light: #f0f0ee;
+  --text-secondary: #64635e;
+  --text-muted: #9c9b96;
+  --accent: #A00000;
+  --accent-hover: #900000;
+  --accent-soft: #fef2f2;
+  --border: #e4e4e4;
+  --border-light: #ebebeb;
 
   /* Semantic palette */
   --green: #22c55e;
@@ -206,18 +208,18 @@
   --z-scan-feedback: 1000;
   --z-offline: 9999;
 
-  /* Focus ring */
-  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
+  /* Focus ring — brand red outline */
+  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--wi-red);
 
-  /* Brand */
-  --wi-red: #c5050c;
-  --wi-red-hover: #a00409;
+  /* Brand — Wisconsin Red as primary identity */
+  --wi-red: #A00000;
+  --wi-red-hover: #900000;
   --wi-red-soft: #fef2f2;
   --wi-dark: #1a1a1a;
 
-  /* Button colors — stay high-contrast in both themes */
-  --btn-primary-bg: #1a1a1a;
-  --btn-primary-bg-hover: #000000;
+  /* Button colors — Wisconsin Red primary */
+  --btn-primary-bg: #A00000;
+  --btn-primary-bg-hover: #900000;
   --btn-primary-text: #ffffff;
 
   /* Aliases for components that reference --primary */
@@ -271,9 +273,9 @@
     --text: #ececec;
     --text-secondary: #a0a0a0;
     --text-muted: #666666;
-    --accent: #ececec;
-    --accent-hover: #ffffff;
-    --accent-soft: rgba(255, 255, 255, 0.07);
+    --accent: #d04040;
+    --accent-hover: #e05050;
+    --accent-soft: rgba(160, 0, 0, 0.15);
     --border: #2a2a2a;
     --border-light: #222222;
 
@@ -289,18 +291,18 @@
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
     --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
 
-    --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
+    --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--wi-red);
 
-    --sidebar-bg: #0d0d0d;
+    --sidebar-bg: #0d0b0e;
 
-    --wi-red: #e05258;
-    --wi-red-hover: #c5050c;
-    --wi-red-soft: rgba(197, 5, 12, 0.15);
+    --wi-red: #d04040;
+    --wi-red-hover: #e05050;
+    --wi-red-soft: rgba(160, 0, 0, 0.15);
     --wi-dark: #ececec;
 
-    --btn-primary-bg: #ffffff;
-    --btn-primary-bg-hover: #e0e0e0;
-    --btn-primary-text: #111111;
+    --btn-primary-bg: #d04040;
+    --btn-primary-bg-hover: #e05050;
+    --btn-primary-text: #ffffff;
 
     --primary: var(--accent);
     --primary-hover: var(--accent-hover);
@@ -313,7 +315,7 @@
     --card-foreground: var(--text);
     --popover: var(--bg-elevated);
     --popover-foreground: var(--text);
-    --primary-foreground: #111111;
+    --primary-foreground: #ffffff;
     --secondary: rgba(255, 255, 255, 0.07);
     --secondary-foreground: var(--text);
     --muted: var(--bg-surface);
@@ -339,9 +341,9 @@
   --text: #ececec;
   --text-secondary: #a0a0a0;
   --text-muted: #666666;
-  --accent: #ececec;
-  --accent-hover: #ffffff;
-  --accent-soft: rgba(255, 255, 255, 0.07);
+  --accent: #d04040;
+  --accent-hover: #e05050;
+  --accent-soft: rgba(160, 0, 0, 0.15);
   --border: #2a2a2a;
   --border-light: #222222;
 
@@ -357,18 +359,18 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
 
-  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
+  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--wi-red);
 
-  --sidebar-bg: #0d0d0d;
+  --sidebar-bg: #0d0b0e;
 
-  --wi-red: #e05258;
-  --wi-red-hover: #c5050c;
-  --wi-red-soft: rgba(197, 5, 12, 0.15);
+  --wi-red: #d04040;
+  --wi-red-hover: #e05050;
+  --wi-red-soft: rgba(160, 0, 0, 0.15);
   --wi-dark: #ececec;
 
-  --btn-primary-bg: #ffffff;
-  --btn-primary-bg-hover: #e0e0e0;
-  --btn-primary-text: #111111;
+  --btn-primary-bg: #d04040;
+  --btn-primary-bg-hover: #e05050;
+  --btn-primary-text: #ffffff;
 
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
@@ -381,7 +383,7 @@
   --card-foreground: var(--text);
   --popover: var(--bg-elevated);
   --popover-foreground: var(--text);
-  --primary-foreground: #111111;
+  --primary-foreground: #ffffff;
   --secondary: rgba(255, 255, 255, 0.07);
   --secondary-foreground: var(--text);
   --muted: var(--bg-surface);
@@ -470,6 +472,17 @@ body {
   text-rendering: optimizeLegibility;
   /* Prevent rubber-band overscroll on iOS */
   overscroll-behavior-y: none;
+}
+
+/* ===== Heading Font System ===== */
+/* All headings use the Gotham/Barlow heading font for editorial authority */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Card titles inherit heading font */
+[data-slot="card-title"] {
+  font-family: var(--font-heading);
 }
 
 /* Remove iOS tap highlight on all interactive elements */
@@ -579,6 +592,10 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Subtle warm noise texture for depth — editorial atmosphere */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px;
 }
 
 /* ===== Top Bar ===== */
@@ -703,10 +720,10 @@ textarea:focus-visible {
 
 .page-header h1 {
   font-family: var(--font-heading);
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-tight);
-  line-height: var(--leading-tight);
+  letter-spacing: -0.03em;
+  line-height: var(--leading-none);
   margin: 0;
 }
 
@@ -4605,7 +4622,7 @@ textarea {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--wi-red, #c5050c);
+  background: var(--wi-red, #A00000);
   flex-shrink: 0;
 }
 
