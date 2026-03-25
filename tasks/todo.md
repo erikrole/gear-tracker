@@ -41,7 +41,7 @@ Last updated: 2026-03-25
 - [ ] **Harden Categories page** — Run /harden-page.
 - [ ] **Harden Sports page** — Run /harden-page.
 - [ ] **Harden Escalation page** — Run /harden-page.
-- [ ] **Fix layout double breadcrumb** — Settings pages render own breadcrumb + AppShell breadcrumb.
+- [x] **Fix layout double breadcrumb** — Settings pages render own breadcrumb + AppShell breadcrumb. Fixed: removed settings layout `.breadcrumb` div, events detail custom breadcrumb, and items detail duplicate `<PageBreadcrumb />`. Added `events→Schedule` route alias + mobile truncation.
 
 ### Shifts
 - [x] **Harden schedule page** — Decomposed 1,012→117 lines + 4-pass hardening (2026-03-25).

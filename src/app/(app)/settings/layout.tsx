@@ -16,7 +16,6 @@ const SETTINGS_SECTIONS = [
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const current = SETTINGS_SECTIONS.find((s) => pathname.startsWith(s.href));
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
@@ -37,16 +36,6 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className="breadcrumb">
-        <Link href="/settings">Settings</Link>
-        {current && (
-          <>
-            <span>&rsaquo;</span>
-            <span>{current.label}</span>
-          </>
-        )}
-      </div>
-
       <div className="page-header mb-0">
         <h1>Settings</h1>
       </div>

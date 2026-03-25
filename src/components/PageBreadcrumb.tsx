@@ -26,9 +26,11 @@ const LABEL_MAP: Record<string, string> = {
   profile: "Profile",
   notifications: "Notifications",
   schedule: "Schedule",
-  events: "Events",
+  events: "Schedule",
+  bookings: "Bookings",
   "bulk-inventory": "Bulk Inventory",
   "calendar-sources": "Calendar Sources",
+  "venue-mappings": "Venue Mappings",
   database: "Database",
   categories: "Categories",
   escalation: "Escalation",
@@ -37,6 +39,11 @@ const LABEL_MAP: Record<string, string> = {
   overdue: "Overdue",
   scans: "Scans",
   audit: "Audit",
+};
+
+/** Segments whose breadcrumb link should point to a different route */
+const HREF_OVERRIDE: Record<string, string> = {
+  events: "/schedule",
 };
 
 function formatSegment(segment: string): string {
@@ -62,7 +69,7 @@ export default function PageBreadcrumb() {
   const crumbs: Array<{ href: string; label: string }> = [];
   for (let i = 0; i < segments.length; i++) {
     if (isDynamicSegment(segments[i])) continue;
-    const href = "/" + segments.slice(0, i + 1).join("/");
+    const href = HREF_OVERRIDE[segments[i]] ?? "/" + segments.slice(0, i + 1).join("/");
     crumbs.push({ href, label: formatSegment(segments[i]) });
   }
 
@@ -83,10 +90,10 @@ export default function PageBreadcrumb() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               {i === crumbs.length - 1 && !onDetailPage ? (
-                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                <BreadcrumbPage className="max-w-[200px] truncate">{crumb.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
-                  <Link href={crumb.href}>{crumb.label}</Link>
+                  <Link href={crumb.href} className="max-w-[200px] truncate">{crumb.label}</Link>
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>
