@@ -101,6 +101,15 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 4. Enforce role-adaptive visibility so student mobile stays uncluttered and policy-safe.
 5. Add mobile regression coverage for ownership gating, overdue styling, and row action parity.
 
+## Breadcrumb Roadmap
+
+Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
+
+Key planned improvements affecting mobile navigation:
+- **V1**: Fix duplicate breadcrumbs, add mobile text truncation + 44px tap targets
+- **V2**: Entity name display on detail pages, collapsible ellipsis for deep paths (3+ crumbs on mobile)
+- **V3**: Sibling quick-jump dropdown, navigation history, keyboard shortcuts
+
 ## Sidebar Roadmap
 
 Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md`
