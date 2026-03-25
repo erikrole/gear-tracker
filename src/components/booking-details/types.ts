@@ -59,6 +59,7 @@ export type BookingDetail = {
   event?: { id: string; summary: string; sportCode: string | null; opponent: string | null; isHome: boolean | null } | null;
   sportCode?: string | null;
   shiftAssignment?: { id: string; shift: { area: string } } | null;
+  kit?: { id: string; name: string } | null;
 };
 
 export type AvailableAsset = {

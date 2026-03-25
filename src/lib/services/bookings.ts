@@ -26,6 +26,7 @@ type CreateBookingInput = {
   eventId?: string;
   sportCode?: string;
   shiftAssignmentId?: string;
+  kitId?: string;
 };
 
 type UpdateBookingInput = {
@@ -356,7 +357,8 @@ export async function createBooking(input: CreateBookingInput) {
           sourceReservationId: input.sourceReservationId ?? null,
           eventId: input.eventId ?? null,
           sportCode: input.sportCode ?? null,
-          shiftAssignmentId: input.shiftAssignmentId ?? null
+          shiftAssignmentId: input.shiftAssignmentId ?? null,
+          kitId: input.kitId ?? null
         }
       });
 
@@ -1250,6 +1252,7 @@ export async function getBookingDetail(bookingId: string) {
       event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
       sourceReservation: { select: { id: true, refNumber: true, title: true } },
       shiftAssignment: { select: { id: true, shift: { select: { area: true } } } },
+      kit: { select: { id: true, name: true } },
     }
   });
 

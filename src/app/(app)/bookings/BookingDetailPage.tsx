@@ -21,7 +21,9 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { Clock, ChevronDown, Copy } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertCircle, Clock, ChevronDown, Copy, RefreshCw } from "lucide-react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { useToast } from "@/components/Toast";
 
@@ -114,10 +116,11 @@ export default function BookingDetailPage({
   }
 
   async function handleCheckinSelected() {
+    if (!booking) return;
     const returning = Array.from(checkinIds);
     // Optimistically mark items as returned before API call
     const returningSet = new Set(returning);
-    const previousItems = booking!.serializedItems;
+    const previousItems = booking.serializedItems;
     patchLocal({
       serializedItems: previousItems.map((item) =>
         returningSet.has(item.asset.id)
@@ -213,13 +216,34 @@ export default function BookingDetailPage({
   /* ── Error state ── */
 
   if (error || !booking) {
+    const isNetwork = error === "network";
     return (
-      <div className="py-10 px-5 text-center text-muted-foreground">
-        {kindLabel.charAt(0).toUpperCase() + kindLabel.slice(1)} not found or failed to
-        load.{" "}
-        <Link href={listPath} className="text-blue-600 hover:underline">
-          Back to {kindLabelPlural.toLowerCase()}
-        </Link>
+      <div className="flex items-center justify-center py-16 px-5">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="size-4" />
+          <AlertTitle>
+            {isNetwork
+              ? "Connection error"
+              : `${kindLabel.charAt(0).toUpperCase() + kindLabel.slice(1)} not found`}
+          </AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>
+              {isNetwork
+                ? "Could not reach the server. Check your connection and try again."
+                : `This ${kindLabel} could not be loaded. It may have been deleted or you may not have access.`}
+            </p>
+            <div className="flex items-center gap-3">
+              {isNetwork && (
+                <Button variant="outline" size="sm" onClick={reload}>
+                  Retry
+                </Button>
+              )}
+              <Link href={listPath} className="underline font-medium text-sm">
+                Back to {kindLabelPlural.toLowerCase()}
+              </Link>
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -364,22 +388,29 @@ export default function BookingDetailPage({
             {countdown}
           </Badge>
         )}
-        {reloading && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-            <Spinner className="size-3" />
-            Refreshing…
-          </span>
-        )}
-        {!reloading && booking.updatedAt && (
-          <span className="text-xs text-muted-foreground ml-auto">
-            Updated{" "}
-            {new Date(booking.updatedAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
-        )}
+        <span className="ml-auto shrink-0">
+          {reloading ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Spinner className="size-3" />
+              Refreshing…
+            </span>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={reload}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RefreshCw className="size-3" />
+                  {booking.updatedAt
+                    ? `Updated ${new Date(booking.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                    : "Refresh"}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Click to refresh</TooltipContent>
+            </Tooltip>
+          )}
+        </span>
       </div>
 
       {/* ── Extend panel ── */}

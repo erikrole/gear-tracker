@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import { useToast } from "@/components/Toast";
+import { useFetch } from "@/hooks/use-fetch";
 import EmptyState from "@/components/EmptyState";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -123,51 +124,41 @@ function actionColor(entityType: string): string {
 
 export default function UserActivityTab({ userId }: { userId: string }) {
   const { toast } = useToast();
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [fetchError, setFetchError] = useState(false);
+  const [extraEntries, setExtraEntries] = useState<AuditEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  const loadActivity = useCallback(() => {
-    setLoading(true);
-    setFetchError(false);
-    setNextCursor(null);
-    const controller = new AbortController();
-    fetch(`/api/users/${userId}/activity`, { signal: controller.signal })
-      .then((res) => {
-        if (res.status === 401) { window.location.href = "/login"; return null; }
-        if (!res.ok) { setFetchError(true); return null; }
-        return res.json();
-      })
-      .then((json) => {
-        if (json?.data) setEntries(json.data);
-        if (json?.nextCursor) setNextCursor(json.nextCursor);
-      })
-      .catch((err) => {
-        if ((err as Error).name !== "AbortError") setFetchError(true);
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return controller;
-  }, [userId]);
+  type ActivityResponse = { data: AuditEntry[]; nextCursor: string | null };
 
-  useEffect(() => {
-    const controller = loadActivity();
-    return () => { controller?.abort(); };
-  }, [loadActivity]);
+  const {
+    data: initialData,
+    loading,
+    error: fetchError,
+    reload: loadActivity,
+  } = useFetch<ActivityResponse>({
+    url: `/api/users/${userId}/activity`,
+    transform: (json) => ({
+      data: (json as unknown as ActivityResponse).data ?? [],
+      nextCursor: (json as unknown as ActivityResponse).nextCursor ?? null,
+    }),
+  });
+
+  // When initial data loads, sync the cursor (reset extras on reload)
+  const entries = [...(initialData?.data ?? []), ...extraEntries];
+  const effectiveCursor = extraEntries.length > 0 ? nextCursor : (initialData?.nextCursor ?? null);
 
   async function loadMore() {
-    if (!nextCursor || loadingMore) return;
+    if (!effectiveCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const res = await fetch(`/api/users/${userId}/activity?cursor=${nextCursor}`);
+      const res = await fetch(`/api/users/${userId}/activity?cursor=${effectiveCursor}`);
       if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         toast("Failed to load more activity", "error");
         return;
       }
       const json = await res.json();
-      if (json?.data) setEntries((prev) => [...prev, ...json.data]);
+      if (json?.data) setExtraEntries((prev) => [...prev, ...json.data]);
       setNextCursor(json?.nextCursor ?? null);
     } catch {
       toast("Network error", "error");
@@ -200,7 +191,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
           <AlertTitle>Failed to load activity</AlertTitle>
           <AlertDescription className="mt-2">
             <p className="mb-3">Something went wrong loading the activity history.</p>
-            <Button variant="outline" size="sm" onClick={() => loadActivity()}>Retry</Button>
+            <Button variant="outline" size="sm" onClick={loadActivity}>Retry</Button>
           </AlertDescription>
         </Alert>
       </div>
@@ -278,7 +269,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
           </div>
         );
       })}
-      {nextCursor && (
+      {effectiveCursor && (
         <div className="flex justify-center pt-2">
           <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
             {loadingMore ? <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Loading...</> : "Load more"}

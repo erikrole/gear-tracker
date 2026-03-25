@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/table";
 import { ArrowUpDown, Loader2, RefreshCw, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFetch } from "@/hooks/use-fetch";
+import { useDebounce } from "@/hooks/use-url-state";
 
 const LIMIT = 50;
 
@@ -77,102 +79,64 @@ function SortableHead({
 /* ── Page Component ────────────────────────────────────── */
 
 export default function UsersPage() {
-  // List state
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<false | "network" | "server">(false);
-  const [lastFetched, setLastFetched] = useState<Date | null>(null);
-
   // Filters & sort
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [sort, setSort] = useState<SortKey | string>("name");
   const [showInactive, setShowInactive] = useState(false);
-
-  // Form options
-  const [locations, setLocations] = useState<Location[]>([]);
-
-  // Auth
-  const [currentUserRole, setCurrentUserRole] = useState<Role | null>(null);
-  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const [page, setPage] = useState(0);
 
   // UI
   const [showCreate, setShowCreate] = useState(false);
 
-  // ── Data fetching ──
-
-  const abortRef = useRef<AbortController | null>(null);
-  const hasDataRef = useRef(false);
-
-  const reload = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoading(true);
-    setLoadError(false);
-    try {
-      const params = new URLSearchParams();
-      params.set("limit", String(LIMIT));
-      params.set("offset", String(page * LIMIT));
-      if (search) params.set("q", search);
-      if (sort) params.set("sort", sort);
-      if (roleFilter) params.set("role", roleFilter);
-      if (locationFilter) params.set("locationId", locationFilter);
-      if (showInactive) params.set("active", "all");
-
-      const res = await fetch(`/api/users?${params}`, { signal: controller.signal });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      if (res.ok) {
-        const json: ListResponse = await res.json();
-        setUsers(json.data ?? []);
-        setTotal(json.total ?? 0);
-        setLoadError(false);
-        setLastFetched(new Date());
-        hasDataRef.current = (json.data ?? []).length > 0;
-      } else if (!hasDataRef.current) {
-        setLoadError("server");
-      }
-    } catch (err) {
-      if ((err as Error).name !== "AbortError" && !hasDataRef.current) {
-        setLoadError(navigator.onLine === false ? "network" : "server");
-      }
-    }
-    if (!controller.signal.aborted) setLoading(false);
-  }, [page, search, sort, roleFilter, locationFilter, showInactive]);
-
-  useEffect(() => {
-    reload();
-    return () => { abortRef.current?.abort(); };
-  }, [reload]);
-
-  // Load form options + current user role once
-  useEffect(() => {
-    const controller = new AbortController();
-    Promise.all([
-      fetch("/api/form-options", { signal: controller.signal }),
-      fetch("/api/me", { signal: controller.signal }),
-    ]).then(async ([optionsRes, meRes]) => {
-      if (optionsRes.ok) {
-        const j = await optionsRes.json();
-        setLocations(j.data?.locations || []);
-      }
-      if (meRes.ok) {
-        const j = await meRes.json();
-        if (j?.user?.role) setCurrentUserRole(j.user.role);
-      }
-    }).catch(() => { /* auxiliary data — don't block the page */ });
-    return () => { controller.abort(); };
-  }, []);
-
   // Reset page when filters change
-  useEffect(() => { setPage(0); }, [search, roleFilter, locationFilter, sort, showInactive]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, roleFilter, locationFilter, sort, showInactive]);
+
+  // ── Build URL for user list fetch ──
+  const usersUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("limit", String(LIMIT));
+    params.set("offset", String(page * LIMIT));
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (sort) params.set("sort", sort);
+    if (roleFilter) params.set("role", roleFilter);
+    if (locationFilter) params.set("locationId", locationFilter);
+    if (showInactive) params.set("active", "all");
+    return `/api/users?${params}`;
+  }, [page, debouncedSearch, sort, roleFilter, locationFilter, showInactive]);
+
+  const {
+    data: listData,
+    loading,
+    error: loadError,
+    lastRefreshed: lastFetched,
+    reload,
+  } = useFetch<ListResponse>({
+    url: usersUrl,
+    transform: (json) => json as unknown as ListResponse,
+  });
+
+  const users = listData?.data ?? [];
+  const total = listData?.total ?? 0;
+
+  // Form options
+  const { data: formOptions } = useFetch<{ locations: Location[] }>({
+    url: "/api/form-options",
+    transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
+    refetchOnFocus: false,
+  });
+  const locations = formOptions?.locations ?? [];
+
+  // Auth
+  const { data: meData } = useFetch<{ id: string; role: Role }>({
+    url: "/api/me",
+    transform: (json) => (json as Record<string, unknown>).user as { id: string; role: Role },
+    refetchOnFocus: false,
+  });
+  const currentUserRole = meData?.role ?? null;
+  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   const totalPages = Math.ceil(total / LIMIT);
   const hasFilters = !!search || !!roleFilter || !!locationFilter;

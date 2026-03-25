@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { UserDetail, Location, Role } from "../types";
+import { useFetch } from "@/hooks/use-fetch";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
@@ -51,65 +52,46 @@ export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
 
-  const [user, setUser] = useState<UserDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("info");
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<Role | null>(null);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [fetchError, setFetchError] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [resetPwDialog, setResetPwDialog] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Data fetching via useFetch ──
+  const {
+    data: user,
+    loading: userLoading,
+    error: fetchError,
+    reload: loadUser,
+  } = useFetch<UserDetail>({
+    url: `/api/users/${id}`,
+    returnTo: `/users/${id}`,
+  });
+
+  // We need local user state for optimistic updates (avatar, active toggle)
+  const [userOverrides, setUserOverrides] = useState<Partial<UserDetail>>({});
+  const effectiveUser = user ? { ...user, ...userOverrides } : null;
+
+  const { data: meData } = useFetch<{ id: string; role: Role }>({
+    url: "/api/me",
+    transform: (json) => (json as Record<string, unknown>).user as { id: string; role: Role },
+    refetchOnFocus: false,
+  });
+  const currentUserId = meData?.id ?? null;
+  const currentUserRole = meData?.role ?? null;
+
+  const { data: formOptions } = useFetch<{ locations: Location[] }>({
+    url: "/api/form-options",
+    transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
+    refetchOnFocus: false,
+  });
+  const locations = formOptions?.locations ?? [];
 
   const isSelf = currentUserId != null && currentUserId === id;
   const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
   const canEdit = isSelf || isStaffOrAdmin;
-
-  const loadUser = useCallback(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    fetch(`/api/users/${id}`, { signal: controller.signal })
-      .then((res) => {
-        if (res.status === 401) { window.location.href = "/login"; return null; }
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((json) => {
-        if (json?.data) setUser(json.data);
-        else if (json !== null) setFetchError(true);
-      })
-      .catch((err) => {
-        if ((err as Error).name !== "AbortError") setFetchError(true);
-      });
-  }, [id]);
-
-  useEffect(() => {
-    loadUser();
-    const controller = new AbortController();
-    Promise.all([
-      fetch("/api/me", { signal: controller.signal }),
-      fetch("/api/form-options", { signal: controller.signal }),
-    ]).then(async ([meRes, optionsRes]) => {
-      if (meRes.ok) {
-        const j = await meRes.json();
-        if (j?.user?.id) setCurrentUserId(j.user.id);
-        if (j?.user?.role) setCurrentUserRole(j.user.role);
-      }
-      if (optionsRes.ok) {
-        const j = await optionsRes.json();
-        setLocations(j.data?.locations || []);
-      }
-    }).catch(() => { /* auxiliary data — don't block the page */ });
-    return () => {
-      abortRef.current?.abort();
-      controller.abort();
-    };
-  }, [loadUser]);
 
   async function uploadAvatar(file: File) {
     setUploadingAvatar(true);
@@ -122,7 +104,7 @@ export default function UserDetailPage() {
       if (!res.ok) {
         toast(json.error || "Failed to upload avatar", "error");
       } else {
-        setUser((u) => u ? { ...u, avatarUrl: json.data?.avatarUrl ?? null } : u);
+        setUserOverrides((prev) => ({ ...prev, avatarUrl: json.data?.avatarUrl ?? null }));
         toast("Avatar updated", "success");
       }
     } catch {
@@ -133,30 +115,30 @@ export default function UserDetailPage() {
 
   async function removeAvatar() {
     // Optimistic: remove avatar immediately, rollback on failure
-    const previousUrl = user?.avatarUrl ?? null;
-    setUser((u) => u ? { ...u, avatarUrl: null } : u);
+    const previousUrl = effectiveUser?.avatarUrl ?? null;
+    setUserOverrides((prev) => ({ ...prev, avatarUrl: null }));
     setUploadingAvatar(true);
     try {
       const res = await fetch("/api/profile/avatar", { method: "DELETE" });
       if (res.status === 401) { window.location.href = "/login"; return; }
       const json = await res.json();
       if (!res.ok) {
-        setUser((u) => u ? { ...u, avatarUrl: previousUrl } : u);
+        setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
         toast(json.error || "Failed to remove avatar", "error");
       } else {
         toast("Avatar removed", "success");
       }
     } catch {
-      setUser((u) => u ? { ...u, avatarUrl: previousUrl } : u);
+      setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
       toast("Network error", "error");
     }
     setUploadingAvatar(false);
   }
 
   async function toggleActive() {
-    if (!user) return;
-    const newActive = !user.active;
-    setUser((u) => u ? { ...u, active: newActive } : u);
+    if (!effectiveUser) return;
+    const newActive = !effectiveUser.active;
+    setUserOverrides((prev) => ({ ...prev, active: newActive }));
     try {
       const res = await fetch(`/api/users/${id}`, {
         method: "PATCH",
@@ -164,13 +146,13 @@ export default function UserDetailPage() {
         body: JSON.stringify({ active: newActive }),
       });
       if (!res.ok) {
-        setUser((u) => u ? { ...u, active: !newActive } : u);
+        setUserOverrides((prev) => ({ ...prev, active: !newActive }));
         toast("Failed to update status", "error");
       } else {
         toast(newActive ? "User activated" : "User deactivated", "success");
       }
     } catch {
-      setUser((u) => u ? { ...u, active: !newActive } : u);
+      setUserOverrides((prev) => ({ ...prev, active: !newActive }));
       toast("Network error", "error");
     }
   }
@@ -202,7 +184,7 @@ export default function UserDetailPage() {
           <AlertDescription className="mt-2 space-y-3">
             <p>User not found or something went wrong.</p>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => { setFetchError(false); setUser(null); loadUser(); }}>
+              <Button variant="outline" size="sm" onClick={loadUser}>
                 Retry
               </Button>
               <Button variant="ghost" size="sm" asChild>

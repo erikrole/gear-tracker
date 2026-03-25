@@ -124,15 +124,15 @@ export const GET = withAuth(async (_req, { user }) => {
     db.booking.count({
       where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: { not: user.id }, endsAt: { lt: now } },
     }),
-    // Team reservations (excl. me)
+    // Team reservations (excl. me) — next 7 days only (AC-4)
     db.booking.findMany({
-      where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id } },
+      where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id }, startsAt: { gte: now, lte: sevenDaysFromNow } },
       orderBy: { startsAt: "asc" },
       take: 5,
       include: bookingInclude,
     }),
     db.booking.count({
-      where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id } },
+      where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id }, startsAt: { gte: now, lte: sevenDaysFromNow } },
     }),
     // My checkouts (booking-level summaries)
     db.booking.findMany({
@@ -185,12 +185,13 @@ export const GET = withAuth(async (_req, { user }) => {
         },
       },
     }),
-    // My reservations
+    // My reservations — next 7 days only (AC-4)
     db.booking.findMany({
       where: {
         kind: "RESERVATION",
         status: "BOOKED",
         requesterUserId: user.id,
+        startsAt: { gte: now, lte: sevenDaysFromNow },
       },
       orderBy: { startsAt: "asc" },
       take: 5,

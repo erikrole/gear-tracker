@@ -37,11 +37,11 @@
 | GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V3: adopt React Query for shared cache + background refresh. V2: migrate pages to `useFetch` for Visibility API refresh. |
 | ~~GAP-12~~ | ~~No stale-data detection across browser tabs or after backgrounding~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~`useFetch` hook includes Page Visibility API refresh; item detail page refreshes on tab focus 2026-03-24~~ |
 | ~~GAP-13~~ | ~~`BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020)~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Brief written 2026-03-24; V1 scope: kit CRUD + member management + derived availability~~ |
-| GAP-14 | Scan page is 1,038 lines — monolithic, blocks feature additions | AREA_CHECKOUTS | Open | V2: decompose into hooks (`useScanSession`) + leaf components (`ScanFeedback`, `ScanChecklist`, `ScanControls`) |
-| GAP-15 | Schedule page is 1,012 lines — monolithic, blocks feature additions | AREA_SHIFTS | Open | V2: decompose into hooks (`useScheduleData`) + leaf components (`CalendarView`, `ListView`, `ScheduleFilters`) |
-| GAP-16 | Shared hooks extracted but not adopted — most pages still use inline fetch+useState | CROSS-CUTTING | Open | V2: incremental migration of scan, schedule, notifications, bulk-inventory, labels to `useFetch`/`useFormSubmit` |
-| GAP-17 | Labels page not linked from item workflows — "Print label" action missing from item detail | AREA_ITEMS | Low priority | V2: add "Print label" action from item detail → `/labels?items=id` |
-| GAP-18 | Kit-to-booking integration missing — kits can't be checked out as a group | AREA_CHECKOUTS | V2 planned | Kit V1 shipped; V2: `kitId` FK on Booking, equipment picker pre-fill from kit members |
+| ~~GAP-14~~ | ~~Scan page is 1,038 lines — monolithic, blocks feature additions~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Decomposed 2026-03-25: page.tsx 1,038→251 lines. Extracted `useScanSession`, `useScanSubmission` hooks + 4 leaf components (`ScanControls`, `ScanChecklist`, `UnitPickerSheet`, `ItemPreviewSheet`) + shared types~~ |
+| ~~GAP-15~~ | ~~Schedule page is 1,012 lines — monolithic, blocks feature additions~~ | ~~AREA_SHIFTS~~ | ~~Closed~~ | ~~Decomposed 2026-03-25: page.tsx 1,012→117 lines. Extracted `useScheduleData` hook + 3 leaf components (`ScheduleFilters`, `CalendarView`, `ListView`) + shared types~~ |
+| ~~GAP-16~~ | ~~Shared hooks extracted but not adopted — some pages still use inline fetch+useState~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~All pages migrated: notifications (`useFetch`+`useUrlState`), labels (`useFetch`+`useDebounce`), search (`useUrlState`), users list (`useFetch`+`useDebounce`), user detail (`useFetch`), UserActivityTab (`useFetch`). Profile redirect uses AbortController.~~ |
+| ~~GAP-17~~ | ~~Labels page not linked from item workflows~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Already shipped: "Print label" action in item detail context menu → `/labels?items=id`~~ |
+| ~~GAP-18~~ | ~~Kit-to-booking integration missing — kits can't be checked out as a group~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Shipped 2026-03-25: `kitId` FK on Booking (migration 0018), kit selector in CreateBookingSheet (location-filtered), kit badge on booking detail page, validation + service + API route wiring~~ |
 
 ---
 
@@ -51,7 +51,7 @@
 |---|---|---|---|
 | ~~Asset financial fields UI~~ | ~~AREA_ITEMS~~ | ~~D-018~~ | ~~Shipped 2026-03-16: Procurement section in item detail Info tab~~ |
 | ~~Department filter/display~~ | ~~AREA_ITEMS~~ | ~~D-019~~ | ~~Shipped 2026-03-21: department FK, combobox filter on items page~~ |
-| ~~Kit management UI + kit-based checkout~~ | ~~AREA_CHECKOUTS~~ | ~~D-020~~ | ~~V1 shipped 2026-03-24: CRUD + member management + search + archive. V2: checkout integration.~~ |
+| ~~Kit management UI + kit-based checkout~~ | ~~AREA_CHECKOUTS~~ | ~~D-020~~ | ~~V1 shipped 2026-03-24: CRUD + member management + search + archive. V2 shipped 2026-03-25: kit-to-booking integration (kitId FK, selector, display).~~ |
 | ~~Dashboard saved filters~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Shipped 2026-03-24: Save view button + localStorage presets + apply/delete~~ |
 | ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter shipped 2026-03-24~~ |
 | ~~Notification center polish (pagination, mark-as-read)~~ | ~~AREA_NOTIFICATIONS~~ | ~~—~~ | ~~Shipped: pagination, mark-as-read, unread filter all implemented~~ |
@@ -91,8 +91,8 @@
 | ~~Missing SERIALIZABLE on cancel transactions~~ | ~~`cancelBooking()` and `cancelReservation()` used READ_COMMITTED~~ | ~~Fixed 2026-03-24: both upgraded to SERIALIZABLE. Grep `db.$transaction(async` for remaining cases.~~ | ~~Engineering~~ |
 | Equipment guidance stagnation | Only 3 guidance rules in production | Quarterly rule audit with operator input | Product |
 | Alert fatigue from escalation | Repeated overdue notifications overwhelm staff | D-009 fatigue controls required before Phase B | Engineering |
-| Pattern fragmentation | New pages copy-paste fetch/URL/error patterns instead of reusing hooks | V2: migrate pages to shared hooks before building new features | Engineering |
-| Monolithic page files | Scan (1,038 lines) and schedule (1,012 lines) grow with each feature | V2: decompose before adding complexity; same pattern as dashboard decomposition | Engineering |
+| ~~Pattern fragmentation~~ | ~~New pages copy-paste fetch/URL/error patterns instead of reusing hooks~~ | ~~Closed 2026-03-25: all data-loading pages migrated to shared hooks (`useFetch`, `useUrlState`, `useDebounce`). Pattern is now consistent.~~ | ~~Engineering~~ |
+| ~~Monolithic page files~~ | ~~Scan (1,038) and schedule (1,012) grew with each feature~~ | ~~Closed 2026-03-25: scan decomposed (1,038→251), schedule decomposed (1,012→117)~~ | ~~Engineering~~ |
 | ~~Dashboard monolith~~ | ~~Dashboard page grows with each feature (filters, actions, sections)~~ | ~~Closed 2026-03-24: decomposed into hooks + 7 leaf components~~ | ~~Engineering~~ |
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
 | ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
@@ -143,3 +143,7 @@
 - 2026-03-24: V1 Cohesive Foundation completion — Dashboard decomposed into `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (GAP-9 closed). Empty state audit across search, scan, bulk-inventory, data-table. `useFormSubmit` hook extracted for standardized form handling (Zod validation → fetch → error classification → toast). Applied to Create User dialog as reference implementation.
 - 2026-03-24: V2 system roadmap revision. Added GAP-14 (scan page 1,038 lines needs decomposition), GAP-15 (schedule page 1,012 lines needs decomposition), GAP-16 (shared hooks extracted but not adopted by most pages), GAP-17 (labels not linked from item workflows), GAP-18 (kit-to-booking integration missing). Added active risk: monolithic page files (scan/schedule). Updated GAP-11 timeline (React Query deferred to V3; V2 focuses on `useFetch` migration). See `tasks/system-roadmap.md` for full V2 plan.
 - 2026-03-25: Doc sync pass — closed GAP-3 (3 equipment guidance rules shipped, not 1). Struck through multi-recipient escalation row (D-009 shipped 2026-03-15). Verified all AREA doc dates, cross-referenced audit findings. No new gaps or pending decisions opened.
+- 2026-03-25: Closed GAP-14 (scan page decomposed). `page.tsx` reduced from 1,038→251 lines (76% reduction). Extracted: `useScanSession` hook (status, polling, completion), `useScanSubmission` hook (scan processing, feedback, unit picker), 4 leaf components (`ScanControls`, `ScanChecklist`, `UnitPickerSheet`, `ItemPreviewSheet`), shared types module.
+- 2026-03-25: Closed GAP-15 (schedule page decomposed). `page.tsx` reduced from 1,012→117 lines (88% reduction). Extracted: `useScheduleData` hook (fetch, merge, filter, user info), 3 leaf components (`ScheduleFilters`, `CalendarView`, `ListView`), shared types module. Monolithic page files risk closed — both pages decomposed.
+- 2026-03-25: Closed GAP-16 (shared hooks fully adopted). All data-loading pages migrated to `useFetch`, `useUrlState`, `useDebounce`. Pattern fragmentation risk closed.
+- 2026-03-25: Closed GAP-18 (kit-to-booking integration). `kitId` FK on Booking model (migration 0018, index, SET NULL cascade). Kit selector in CreateBookingSheet (location-filtered, optional). Kit badge display on booking detail page. Validation schemas + service + API routes updated.

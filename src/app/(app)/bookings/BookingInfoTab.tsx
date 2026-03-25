@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback } from "react";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
-import { Copy, TriangleAlert } from "lucide-react";
+import { BoxesIcon, Copy, TriangleAlert } from "lucide-react";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { useToast } from "@/components/Toast";
 import type { BookingDetail } from "@/components/booking-details/types";
@@ -119,6 +121,21 @@ export default function BookingInfoTab({
             </Avatar>
             {booking.creator.name}
           </span>
+        </SaveableField>
+      )}
+
+      {/* Kit */}
+      {booking.kit && (
+        <SaveableField label="Kit">
+          <Link
+            href={`/kits/${booking.kit.id}`}
+            className="inline-flex items-center gap-1.5 text-sm hover:underline"
+          >
+            <BoxesIcon className="size-3.5 text-muted-foreground" />
+            <Badge variant="outline" className="font-normal">
+              {booking.kit.name}
+            </Badge>
+          </Link>
         </SaveableField>
       )}
 

@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, ClockIcon, CalendarIcon, PackageIcon, FileTextIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, ClockIcon, CalendarIcon, PackageIcon, FileTextIcon, BoxesIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel, generateEventTitle } from "@/lib/sports";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useToast } from "@/components/Toast";
@@ -184,6 +184,34 @@ export default function CreateBookingSheet({
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(true);
+
+  // ── Kit state ──
+  const [kitId, setKitId] = useState<string>("");
+  const [kits, setKits] = useState<{ id: string; name: string }[]>([]);
+
+  // ── Fetch kits for the selected location ──
+  useEffect(() => {
+    if (!form.locationId || !open) {
+      setKits([]);
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/kits?location_id=${form.locationId}&limit=100`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (controller.signal.aborted) return;
+        setKits(
+          (json?.data || []).map((k: { id: string; name: string }) => ({
+            id: k.id,
+            name: k.name,
+          })),
+        );
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") setKits([]);
+      });
+    return () => controller.abort();
+  }, [form.locationId, open]);
 
   // ── Events + shift ──
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -410,6 +438,10 @@ export default function CreateBookingSheet({
       bulkItems: selectedBulkItems,
     };
 
+    if (kitId) {
+      payload.kitId = kitId;
+    }
+
     if (form.selectedEvent) {
       payload.eventId = form.selectedEvent.id;
       payload.sportCode = form.selectedEvent.sportCode || form.sport || undefined;
@@ -476,6 +508,7 @@ export default function CreateBookingSheet({
       setSelectedAssetIds([]);
       setSelectedBulkItems([]);
       setShowEquipPicker(true);
+      setKitId("");
       setOpenSection("event");
       submittingRef.current = false;
       setSubmitting(false);
@@ -805,6 +838,32 @@ export default function CreateBookingSheet({
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Kit (optional) */}
+                  {kits.length > 0 && (
+                    <div className="space-y-1">
+                      <Label className="flex items-center gap-1.5">
+                        <BoxesIcon className="size-3.5" />
+                        Kit (optional)
+                      </Label>
+                      <Select
+                        value={kitId || "__none__"}
+                        onValueChange={(v) => setKitId(v === "__none__" ? "" : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {kits.map((k) => (
+                            <SelectItem key={k.id} value={k.id}>
+                              {k.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* Dates */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

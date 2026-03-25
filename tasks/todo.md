@@ -44,7 +44,7 @@ Last updated: 2026-03-25
 - [ ] **Fix layout double breadcrumb** — Settings pages render own breadcrumb + AppShell breadcrumb.
 
 ### Shifts
-- [ ] **Harden schedule page** — Run /harden-page.
+- [x] **Harden schedule page** — Decomposed 1,012→117 lines + 4-pass hardening (2026-03-25).
 - [ ] **Wrap decline/remove in transactions** — TOCTOU risk on concurrent shift operations.
 
 ### Reservations

@@ -66,7 +66,6 @@ export type BookingListConfig = {
   startLabel: string;
   /** Label for end date, e.g. "Return by" */
   endLabel: string;
-  statusBadge: Record<string, string>;
   statusOptions: StatusOption[];
   defaultTieToEvent: boolean;
   hasSportFilter: boolean;

@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
-import { BookingStatus, type Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
@@ -227,36 +228,50 @@ export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "asset", "create");
   const body = createAssetSchema.parse(await req.json());
 
-  const asset = await db.asset.create({
-    data: {
-      assetTag: body.assetTag,
-      name: body.name ?? null,
-      type: body.type,
-      brand: body.brand,
-      model: body.model,
-      serialNumber: body.serialNumber?.trim() || null,
-      qrCodeValue: body.qrCodeValue,
-      purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
-      purchasePrice: body.purchasePrice,
-      warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null,
-      residualValue: body.residualValue,
-      locationId: body.locationId,
-      categoryId: body.categoryId ?? null,
-      departmentId: body.departmentId ?? null,
-      linkUrl: body.linkUrl ?? null,
-      uwAssetTag: body.uwAssetTag ?? null,
-      parentAssetId: body.parentAssetId ?? null,
-      availableForReservation: body.availableForReservation ?? true,
-      availableForCheckout: body.availableForCheckout ?? true,
-      availableForCustody: body.availableForCustody ?? true,
-      status: body.status,
-      notes: body.notes
-    },
-    include: {
-      location: { select: { id: true, name: true } },
-      category: { select: { id: true, name: true } },
+  let asset;
+  try {
+    asset = await db.asset.create({
+      data: {
+        assetTag: body.assetTag,
+        name: body.name ?? null,
+        type: body.type,
+        brand: body.brand,
+        model: body.model,
+        serialNumber: body.serialNumber?.trim() || null,
+        qrCodeValue: body.qrCodeValue,
+        purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null,
+        purchasePrice: body.purchasePrice,
+        warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null,
+        residualValue: body.residualValue,
+        locationId: body.locationId,
+        categoryId: body.categoryId ?? null,
+        departmentId: body.departmentId ?? null,
+        linkUrl: body.linkUrl ?? null,
+        uwAssetTag: body.uwAssetTag ?? null,
+        parentAssetId: body.parentAssetId ?? null,
+        availableForReservation: body.availableForReservation ?? true,
+        availableForCheckout: body.availableForCheckout ?? true,
+        availableForCustody: body.availableForCustody ?? true,
+        status: body.status,
+        notes: body.notes
+      },
+      include: {
+        location: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
+      }
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: `Asset tag "${body.assetTag}" is already in use` },
+        { status: 409 }
+      );
     }
-  });
+    throw error;
+  }
 
   await createAuditEntry({
     actorId: user.id,
