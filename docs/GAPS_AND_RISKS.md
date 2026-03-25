@@ -40,7 +40,7 @@
 | ~~GAP-14~~ | ~~Scan page is 1,038 lines — monolithic, blocks feature additions~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Decomposed 2026-03-25: page.tsx 1,038→251 lines. Extracted `useScanSession`, `useScanSubmission` hooks + 4 leaf components (`ScanControls`, `ScanChecklist`, `UnitPickerSheet`, `ItemPreviewSheet`) + shared types~~ |
 | ~~GAP-15~~ | ~~Schedule page is 1,012 lines — monolithic, blocks feature additions~~ | ~~AREA_SHIFTS~~ | ~~Closed~~ | ~~Decomposed 2026-03-25: page.tsx 1,012→117 lines. Extracted `useScheduleData` hook + 3 leaf components (`ScheduleFilters`, `CalendarView`, `ListView`) + shared types~~ |
 | GAP-16 | Shared hooks extracted but not adopted — some pages still use inline fetch+useState | CROSS-CUTTING | Partial | Migrated notifications (`useFetch`+`useUrlState`), labels (`useFetch`+`useDebounce`), search (`useUrlState`). Remaining: users pages, profile. |
-| GAP-17 | Labels page not linked from item workflows — "Print label" action missing from item detail | AREA_ITEMS | Low priority | V2: add "Print label" action from item detail → `/labels?items=id` |
+| ~~GAP-17~~ | ~~Labels page not linked from item workflows~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Already shipped: "Print label" action in item detail context menu → `/labels?items=id`~~ |
 | GAP-18 | Kit-to-booking integration missing — kits can't be checked out as a group | AREA_CHECKOUTS | V2 planned | Kit V1 shipped; V2: `kitId` FK on Booking, equipment picker pre-fill from kit members |
 
 ---
