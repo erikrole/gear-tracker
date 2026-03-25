@@ -637,3 +637,15 @@ Always use shadcn Empty component:
 ### Stress Test: Response Path Bugs Are Silent and Fatal
 - **Always verify the exact response path when reading nested API data**: The overdue badge was silently broken at launch because AppShell read `dashJson?.stats?.overdue` but the dashboard API returns `{ data: { stats: { overdue } } }`. `dashJson.stats` was always `undefined`, the badge always showed 0, and there was no error — just a missing feature. Anti-pattern: assume response shape from memory. Fix: read the API route's `return ok(...)` call to trace the exact path before writing the client read.
 - **System-wide aggregate counts are wrong for sidebar badges**: `stats.overdue` in the dashboard is intentionally system-wide (for the dashboard page's team view). Using it as the sidebar badge count shows all users' overdue to STUDENT users who should only see their own. Anti-pattern: reuse a page-level stat for a shell-level badge. Fix: add a user-scoped parallel count (`requesterUserId: user.id`) specifically for badge purposes, surfaced as a separate field (`myCheckouts.overdue`).
+
+## Session 2026-03-25
+
+### Booking Page Hardening
+
+**Reliability:**
+- **Dead config fields accumulate silently**: `statusBadge` was defined in both booking configs and the type system, but never consumed by any component. The cards used `getStatusVisual()` instead. Anti-pattern: defining config fields during initial build and never cleaning up after the rendering approach changes. Fix: grep for actual consumption before assuming a config field is needed.
+- **`useBookingDetail` reload error replaces visible data**: When `setError(true)` fires during a reload (not initial load), the render path `if (error || !booking)` replaces the fully loaded booking with an error screen. Anti-pattern: sharing one error pathway for initial load and reload. Fix: only set error on initial load; on reload failure, keep existing data visible and let the caller decide (toast, etc.).
+- **AbortController on hooks must handle the initial-vs-subsequent load correctly**: Using `booking` in the reload callback to determine "is initial?" creates a stale closure since `booking` changes on load. Anti-pattern: depending on state in a useCallback that doesn't list it as a dep. Fix: use a ref (`hasLoadedRef`) that persists across renders.
+
+**UX:**
+- **Extend toast should name the outcome, not the action**: "Booking extended" is accurate but doesn't help the user verify correctness. "Extended to Mar 28" tells them the operation did what they intended. Low cost, high trust signal.
