@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Breadcrumb,
@@ -20,8 +20,8 @@ import {
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
-
-// ── Config ──────────────────────────────────────────────
+import { Skeleton } from "@/components/ui/skeleton";
+import { SETTINGS_SECTIONS, REPORT_SECTIONS } from "@/lib/nav-sections";
 
 const LABEL_MAP: Record<string, string> = {
   items: "Items",
@@ -53,45 +53,20 @@ const LABEL_MAP: Record<string, string> = {
   audit: "Audit",
 };
 
-/** Segments whose breadcrumb link should point to a different route */
 const HREF_OVERRIDE: Record<string, string> = {
   events: "/schedule",
 };
 
-/** Sibling routes for quick-jump navigation within a section */
-const SIBLING_MAP: Record<string, Array<{ href: string; label: string }>> = {
-  "/settings/categories": [
-    { href: "/settings/categories", label: "Categories" },
-    { href: "/settings/sports", label: "Sports" },
-    { href: "/settings/escalation", label: "Escalation" },
-    { href: "/settings/calendar-sources", label: "Calendar" },
-    { href: "/settings/venue-mappings", label: "Venue Mappings" },
-    { href: "/settings/database", label: "Database" },
-  ],
-  "/reports/utilization": [
-    { href: "/reports/utilization", label: "Utilization" },
-    { href: "/reports/checkouts", label: "Checkouts" },
-    { href: "/reports/overdue", label: "Overdue" },
-    { href: "/reports/scans", label: "Scans" },
-    { href: "/reports/audit", label: "Audit" },
-  ],
+const SIBLING_MAP: Record<string, ReadonlyArray<{ href: string; label: string }>> = {
+  "/settings": SETTINGS_SECTIONS,
+  "/reports": REPORT_SECTIONS,
 };
+for (const s of SETTINGS_SECTIONS) SIBLING_MAP[s.href] = SETTINGS_SECTIONS;
+for (const s of REPORT_SECTIONS) SIBLING_MAP[s.href] = REPORT_SECTIONS;
 
-// Share the same sibling list for all routes in each group
-for (const key of Object.keys(SIBLING_MAP)) {
-  const siblings = SIBLING_MAP[key];
-  for (const s of siblings) {
-    if (!SIBLING_MAP[s.href]) SIBLING_MAP[s.href] = siblings;
-  }
-}
-
-/** Collapse middle crumbs when total exceeds this threshold */
 const COLLAPSE_THRESHOLD = 3;
-
 const RECENT_STORAGE_KEY = "breadcrumb-recent";
 const MAX_RECENT = 5;
-
-// ── Recent entities (localStorage) ──────────────────────
 
 type RecentEntity = { href: string; label: string; section: string };
 
@@ -110,17 +85,14 @@ function saveRecentEntity(entity: RecentEntity) {
   try {
     const raw = localStorage.getItem(RECENT_STORAGE_KEY);
     const all: RecentEntity[] = raw ? JSON.parse(raw) : [];
-    // Remove duplicate, prepend new entry
+    if (all[0]?.href === entity.href) return;
     const filtered = all.filter((e) => e.href !== entity.href);
     filtered.unshift(entity);
-    // Keep max per section, max 30 total
     localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(filtered.slice(0, 30)));
   } catch {
     // localStorage unavailable
   }
 }
-
-// ── Helpers ─────────────────────────────────────────────
 
 function formatSegment(segment: string): string {
   return LABEL_MAP[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -132,23 +104,24 @@ function isDynamicSegment(segment: string): boolean {
   return false;
 }
 
-// ── Component ───────────────────────────────────────────
-
 export default function PageBreadcrumb() {
   const pathname = usePathname();
   const { label: entityLabel } = useBreadcrumbLabel();
   const [expanded, setExpanded] = useState(false);
-  const segments = pathname.split("/").filter(Boolean);
 
-  // Save entity to recent list when label is set on a detail page
+  // Reset collapse when navigating
+  useEffect(() => { setExpanded(false); }, [pathname]);
+
+  const segments = pathname.split("/").filter(Boolean);
   const firstSegment = segments[0] ?? "";
+  const hasDynamicSegment = segments.some(isDynamicSegment);
+
   useEffect(() => {
-    if (entityLabel && segments.some(isDynamicSegment)) {
+    if (entityLabel && hasDynamicSegment) {
       saveRecentEntity({ href: pathname, label: entityLabel, section: firstSegment });
     }
-  }, [entityLabel, pathname, firstSegment]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [entityLabel, pathname, firstSegment, hasDynamicSegment]);
 
-  // Don't show breadcrumb on the home page
   if (segments.length === 0) return null;
 
   // Build crumbs, filtering out dynamic segments (IDs)
@@ -161,45 +134,35 @@ export default function PageBreadcrumb() {
 
   const onDetailPage = segments.length > crumbs.length;
 
-  // All crumbs including Home and optional entity label
-  const allItems: Array<{ href: string; label: string; isPage: boolean; segment?: string }> = [
+  const allItems: Array<{ href: string; label: string; isPage: boolean }> = [
     { href: "/", label: "Home", isPage: false },
     ...crumbs.map((crumb, i) => ({
       ...crumb,
       isPage: i === crumbs.length - 1 && !onDetailPage && !entityLabel,
-      segment: segments[i] ?? undefined,
     })),
   ];
-
-  if (onDetailPage) {
-    allItems.forEach((item) => { item.isPage = false; });
-  }
 
   if (onDetailPage && entityLabel) {
     allItems.push({ href: pathname, label: entityLabel, isPage: true });
   }
 
-  // Collapse logic
   const shouldCollapse = !expanded && allItems.length > COLLAPSE_THRESHOLD;
   const visibleItems = shouldCollapse
     ? [allItems[0], ...allItems.slice(-2)]
     : allItems;
 
-  // Get siblings and recent entities for the current path
-  const siblings = SIBLING_MAP[pathname] ?? null;
   const recentEntities = onDetailPage ? getRecentEntities(firstSegment) : [];
+  const showSkeleton = onDetailPage && !entityLabel;
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
         {visibleItems.map((item, i) => {
-          const isLastItem = i === visibleItems.length - 1;
-          const hasSiblings = !item.isPage && siblings && SIBLING_MAP[item.href];
-          // Show recent dropdown on the entity label (last crumb on detail pages)
+          const hasSiblings = !item.isPage && SIBLING_MAP[item.href] != null;
           const hasRecent = item.isPage && onDetailPage && recentEntities.length > 1;
 
           return (
-            <span key={item.href + item.label} className="contents">
+            <Fragment key={item.href}>
               {i > 0 && <BreadcrumbSeparator />}
               {shouldCollapse && i === 1 && (
                 <>
@@ -237,15 +200,21 @@ export default function PageBreadcrumb() {
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
-            </span>
+            </Fragment>
           );
         })}
+        {showSkeleton && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <Skeleton className="h-4 w-24" />
+            </BreadcrumbItem>
+          </>
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   );
 }
-
-// ── Sibling Quick-Jump Dropdown ─────────────────────────
 
 function SiblingDropdown({
   currentHref,
@@ -254,7 +223,7 @@ function SiblingDropdown({
 }: {
   currentHref: string;
   label: string;
-  siblings: Array<{ href: string; label: string }>;
+  siblings: ReadonlyArray<{ href: string; label: string }>;
 }) {
   return (
     <DropdownMenu>
@@ -274,8 +243,6 @@ function SiblingDropdown({
     </DropdownMenu>
   );
 }
-
-// ── Recently Visited Entities Dropdown ──────────────────
 
 function RecentDropdown({
   currentLabel,

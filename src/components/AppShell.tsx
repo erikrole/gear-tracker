@@ -346,7 +346,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Tooltip>
           </div>
         </header>
-        <BreadcrumbProvider key={pathname}>
+        <BreadcrumbProvider>
           <div id="main-content" className="page-content">
             <PageBreadcrumb />
             {children}

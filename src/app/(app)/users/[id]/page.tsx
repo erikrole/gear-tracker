@@ -206,8 +206,6 @@ export default function UserDetailPage() {
   if (!user) {
     return (
       <div className="space-y-6">
-        {/* Breadcrumb skeleton */}
-        <Skeleton className="h-4 w-28" />
         {/* Header skeleton */}
         <div className="flex items-center gap-3">
           <Skeleton className="size-12 rounded-full" />

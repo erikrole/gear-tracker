@@ -2,14 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const REPORT_SECTIONS = [
-  { href: "/reports/utilization", label: "Utilization" },
-  { href: "/reports/checkouts", label: "Checkouts" },
-  { href: "/reports/overdue", label: "Overdue" },
-  { href: "/reports/scans", label: "Scans" },
-  { href: "/reports/audit", label: "Audit" },
-];
+import { REPORT_SECTIONS } from "@/lib/nav-sections";
 
 export default function ReportsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

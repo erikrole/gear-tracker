@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-
-const SETTINGS_SECTIONS = [
-  { href: "/settings/categories", label: "Categories" },
-  { href: "/settings/sports", label: "Sports" },
-  { href: "/settings/escalation", label: "Escalation" },
-  { href: "/settings/calendar-sources", label: "Calendar" },
-  { href: "/settings/venue-mappings", label: "Venue Mappings" },
-  { href: "/settings/database", label: "Database" },
-];
+import { SETTINGS_SECTIONS } from "@/lib/nav-sections";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
