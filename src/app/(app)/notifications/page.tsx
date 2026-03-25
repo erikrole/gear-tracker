@@ -31,19 +31,11 @@ type NotificationsData = {
 
 function notifIcon(type: string) {
   switch (type) {
-    case "OVERDUE_CHECKOUT":
-    case "OVERDUE_RESERVATION":
     case "checkout_due_reminder":
     case "checkout_due_now":
     case "checkout_overdue_2h":
     case "checkout_overdue_24h":
       return "⚠";
-    case "BOOKING_APPROVED":
-    case "BOOKING_CONFIRMED":
-      return "✓";
-    case "BOOKING_CANCELLED":
-    case "BOOKING_REJECTED":
-      return "✕";
     case "shift_gear_up":
       return "🎒";
     default:
@@ -53,19 +45,11 @@ function notifIcon(type: string) {
 
 function notifIconClass(type: string) {
   switch (type) {
-    case "OVERDUE_CHECKOUT":
-    case "OVERDUE_RESERVATION":
     case "checkout_due_reminder":
     case "checkout_due_now":
     case "checkout_overdue_2h":
     case "checkout_overdue_24h":
       return "notif-icon-overdue";
-    case "BOOKING_APPROVED":
-    case "BOOKING_CONFIRMED":
-      return "notif-icon-success";
-    case "BOOKING_CANCELLED":
-    case "BOOKING_REJECTED":
-      return "notif-icon-cancelled";
     case "shift_gear_up":
       return "notif-icon-success";
     default:

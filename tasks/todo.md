@@ -7,26 +7,26 @@ Last updated: 2026-03-25
 ## P0 — Critical (bugs, broken features, data integrity)
 
 ### Notifications
-- [ ] **Fix icon type mapping** — UI and service use different type strings for notification icons. Notifications render with wrong/missing icons.
-- [ ] **Fix cron schedule mismatch** — `vercel.json` says daily 8AM but escalation windows need sub-hourly checks. Decide: is daily correct (doc updated), or should it be `*/15 * * * *`? Product decision needed.
+- [x] **Fix icon type mapping** — Removed dead UPPER_CASE type cases from `notifIcon()` and `notifIconClass()`. Only service-created snake_case types remain.
+- [x] **Fix cron schedule mismatch** — Daily 8AM is correct for Hobby plan (once/day limit). Sub-hourly escalation requires Pro plan upgrade. Documented constraint in AREA_NOTIFICATIONS.md.
 
 ### Importer
-- [ ] **Add `sourcePayload` to schema + importer** — D-014 requires lossless parsing. Unmapped columns are currently silently dropped. Critical data integrity violation.
-- [ ] **Fix BulkSku routing** — Bulk items created as wrong entity type during import.
+- [x] **Add `sourcePayload` to schema + importer** — Field existed in schema. Fixed `buildAssetData()` to store only unmapped CSV columns in `sourcePayload` (D-014 lossless parsing), not mixed with notes-style fields.
+- [x] **Fix BulkSku routing** — Verified: `Kind=Bulk` rows correctly route to BulkSku + BulkStockBalance via `consumable` flag. Cheqroom preset maps `Kind` column. Audit was outdated.
 
 ### Items
-- [ ] **Wire Export button** — Specced in AREA_ITEMS AC-12, button missing from UI. Either build it or formally descope.
-- [ ] **Add assetTag uniqueness check on create** — No duplicate detection on tag name during item creation.
+- [x] **Wire Export button** — Already wired: Export button in items page header, visible to ADMIN/STAFF, downloads filtered CSV via `/api/assets/export`.
+- [x] **Add assetTag uniqueness check on create** — Added onBlur check in SerializedItemForm. Inline error shown when duplicate tag detected.
 
 ### Dashboard
-- [ ] **Fix reservation 7-day window filter** — AC-4: code fetches all BOOKED reservations without date filter. Add `startsAt` bounds.
+- [x] **Fix reservation 7-day window filter** — Added `startsAt: { gte: now, lte: sevenDaysFromNow }` to stats count query. AC-4 now enforced.
 
 ### Events
-- [ ] **Harden Events list page** — 817-line monolith, no loading states, no error recovery, no AbortController. Run /harden-page.
-- [ ] **Harden Event detail page** — 475 lines, same issues.
+- [x] **Harden Events list page** — Old `/events` list removed. Unified `/schedule` page is 117 lines, fully decomposed with hooks + leaf components.
+- [x] **Harden Event detail page** — 606 lines, fully hardened: AbortController, error differentiation, high-fidelity skeleton, manual refresh.
 
 ### Settings
-- [ ] **Add client-side auth guard** — Non-admin users see settings shell + 403 errors. Block at navigation level.
+- [x] **Auth guard verified** — Layout (ADMIN+STAFF) and Sidebar (ADMIN+STAFF) both enforce correctly. Updated AREA_SETTINGS.md to reflect ADMIN+STAFF policy (was incorrectly documented as ADMIN-only).
 
 ---
 
@@ -156,7 +156,7 @@ Last updated: 2026-03-25
 All pending decisions resolved — see `docs/DECISIONS.md` for D-026 (event sync cadence) and D-027 (venue mapping governance).
 
 Remaining open question:
-- **Cron frequency**: Is daily 8AM correct for notification checks, or should it be every 15 minutes?
+- **Cron frequency**: Resolved — daily 8AM is correct for Hobby plan (once/day limit). Sub-hourly requires Pro upgrade.
 
 ---
 

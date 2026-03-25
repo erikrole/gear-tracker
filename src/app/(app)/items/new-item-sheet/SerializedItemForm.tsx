@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
 import { Dices, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,23 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     const [uwAssetTag, setUwAssetTag] = useState("");
     const [userNotes, setUserNotes] = useState("");
 
+    // Asset tag uniqueness check
+    const [assetTagError, setAssetTagError] = useState("");
+    const assetTagCheckRef = useRef(0);
+    const checkAssetTagUnique = useCallback(async (tag: string) => {
+      const trimmed = tag.trim();
+      if (!trimmed) { setAssetTagError(""); return; }
+      const id = ++assetTagCheckRef.current;
+      try {
+        const res = await fetch(`/api/assets?q=${encodeURIComponent(trimmed)}&page_size=1`);
+        if (id !== assetTagCheckRef.current) return; // stale
+        if (!res.ok) return;
+        const data = await res.json();
+        const match = data.data?.some((a: { assetTag: string }) => a.assetTag === trimmed);
+        setAssetTagError(match ? "Asset tag already in use" : "");
+      } catch { /* network error — skip */ }
+    }, []);
+
     // QR code
     const [qrCodeValue, setQrCodeValue] = useState("");
     const [showScanner, setShowScanner] = useState(false);
@@ -71,6 +88,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     useImperativeHandle(ref, () => ({
       validate() {
         if (!assetTag.trim()) return "Asset tag is required.";
+        if (assetTagError) return assetTagError;
         if (!itemName.trim()) return "Item name is required.";
         if (!brand.trim()) return "Brand is required.";
         if (!model.trim()) return "Model is required.";
@@ -118,6 +136,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         }
         setFiscalYear("");
         setAssetTag("");
+        setAssetTagError("");
         setItemName("");
         setBrand("");
         setModel("");
@@ -147,7 +166,15 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           <SectionHeading>Identity</SectionHeading>
 
           <FormRow label="Asset tag" required>
-            <Input value={assetTag} onChange={(e) => setAssetTag(e.target.value)} placeholder="Unique tag name" required />
+            <Input
+              value={assetTag}
+              onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); }}
+              onBlur={() => checkAssetTagUnique(assetTag)}
+              placeholder="Unique tag name"
+              required
+              className={assetTagError ? "border-destructive" : undefined}
+            />
+            {assetTagError && <p className="text-sm text-destructive mt-1">{assetTagError}</p>}
           </FormRow>
 
           <FormRow label="Name" required>

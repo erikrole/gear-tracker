@@ -283,7 +283,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - [x] AC-9: Category and fiscal year fields use controlled dropdowns.
 - [x] AC-10: QR code thumbnail renders from stored text code, and missing-code flow supports generation or manual entry.
 - [x] AC-11: Empty optional fields show inline `Add ...` prompts instead of blank values.
-- [ ] AC-12: Export visibility follows role rules. **(Deferred — not yet built.** Import visibility shipped.)
+- [x] AC-12: Export visibility follows role rules. **(Shipped — Export button in items page header, visible to ADMIN/STAFF only. Downloads filtered CSV.)**
 - [x] AC-13: Image and metadata prefill never overwrite `tagName`.
 - [x] AC-14: All item mutations are auditable.
 

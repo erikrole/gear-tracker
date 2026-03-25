@@ -130,7 +130,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - [x] AC-1: User can reach a checkout or reservation action in one click/tap from dashboard.
 - [x] AC-2: Overdue banner and overdue list counts remain consistent.
 - [x] AC-3: Check-outs and Reservations lanes each show max 5 rows plus `View all`.
-- [ ] AC-4: Reservations lane only includes records within next 7 days. **(Not enforced — code fetches all BOOKED reservations without date window filter.)**
+- [x] AC-4: Reservations lane only includes records within next 7 days. **(Enforced — stats count and lane queries both filter `startsAt` within 7-day window.)**
 - [x] AC-5: Permission-restricted actions are hidden or disabled correctly.
 - [x] AC-6: Drafts can be resumed without losing entered data.
 - [x] AC-7: Refresh failures preserve visible data (toast, no error screen wipe).
