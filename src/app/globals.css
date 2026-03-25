@@ -4102,6 +4102,21 @@ textarea {
   gap: 6px;
   align-items: center;
 }
+/* ===== Global Search Bar ===== */
+.picker-global-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.picker-global-search .picker-search {
+  width: 100%;
+}
+.picker-row-highlighted {
+  outline: 2px solid var(--primary, #3b82f6);
+  outline-offset: -2px;
+}
+
 /* ===== Picker Toolbar (search + filter) ===== */
 .picker-toolbar {
   display: flex;
@@ -4381,6 +4396,13 @@ textarea {
 .picker-footer-tag .picker-footer-tag-remove:hover {
   color: var(--red);
   background: none;
+}
+.picker-footer-tag-img {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 .picker-footer-tag-conflict {
   border-color: var(--orange);

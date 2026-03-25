@@ -4,15 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
-import { generateEventTitle } from "@/lib/sports";
+const CreateBookingSheet = dynamic(() => import("@/components/CreateBookingSheet"), { ssr: false });
 import { useToast } from "@/components/Toast";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import type { BulkSelection } from "@/components/EquipmentPicker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { ConfirmBookingDialog } from "./booking-list/ConfirmBookingDialog";
 
 import {
   SortHeader,
@@ -29,7 +27,6 @@ import {
   type ContextMenuExtra,
   type FormUser,
   type Location,
-  type CalendarEvent,
   type AvailableAsset,
   type BulkSkuOption,
   type ListResponse,
@@ -58,72 +55,29 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const [userFilter, setUserFilter] = useState("");
   const [specialFilter, setSpecialFilter] = useState(urlParams.get("filter") || "");
 
-  // ── Form options ──
+  // ── Form options (shared with filters and create sheet) ──
   const [users, setUsers] = useState<FormUser[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
+  const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
 
-  // ── Draft state ──
-  const [draftId, setDraftId] = useState<string | null>(urlParams.get("draftId"));
-  const draftLoadedRef = useRef(false);
-
-  // ── Create form state ──
+  // ── Create sheet state ──
   const [showCreate, setShowCreate] = useState(
     urlParams.get("create") === "true" || !!urlParams.get("title") || !!urlParams.get("draftId")
   );
-  const [tieToEvent, setTieToEvent] = useState(config.defaultTieToEvent);
-  const [createSport, setCreateSport] = useState("");
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [createTitle, setCreateTitle] = useState(urlParams.get("title") || "");
-  const [createLocationId, setCreateLocationId] = useState("");
-  const [createRequester, setCreateRequester] = useState("");
-  const [createStartsAt, setCreateStartsAt] = useState(() => {
-    const p = urlParams.get("startsAt");
-    return p ? toLocalDateTimeValue(new Date(p)) : toLocalDateTimeValue(roundTo15Min(new Date()));
-  });
-  const [createEndsAt, setCreateEndsAt] = useState(() => {
-    const p = urlParams.get("endsAt");
-    return p ? toLocalDateTimeValue(new Date(p)) : toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000)));
-  });
-  const [createError, setCreateError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(urlParams.get("draftId"));
 
-  // ── Shift context (integration) ──
-  const [myShiftForEvent, setMyShiftForEvent] = useState<{
-    area: string;
-    startsAt: string;
-    endsAt: string;
-    gearStatus: string;
-  } | null>(null);
-
-  // ── Equipment picker state ──
-  const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
-  const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
-  const [showEquipPicker, setShowEquipPicker] = useState(true);
-  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
-  const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
+  // ── Current user (for initial requester + list menus) ──
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
+  const [initialRequester, setInitialRequester] = useState<string>("");
 
   // ── Sheet + menu ──
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [extendingId, setExtendingId] = useState<string | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const submittingRef = useRef(false);
   const extendingRef = useRef(false);
 
   const limit = 20;
-
-  // ── Warn before unload when form has data ──
-  useEffect(() => {
-    if (!showCreate) return;
-    const hasData = createTitle.trim() || selectedAssetIds.length > 0 || selectedBulkItems.length > 0;
-    if (!hasData) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [showCreate, createTitle, selectedAssetIds.length, selectedBulkItems.length]);
 
   // ── Data fetching ──
 
@@ -166,8 +120,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         if (signal.aborted || !json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
-        const urlLocId = urlParams.get("locationId");
-        setCreateLocationId(urlLocId || json.data.locations?.[0]?.id || "");
         setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       })
@@ -179,9 +131,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         if (json?.user) {
           setCurrentUserId(json.user.id || "");
           setCurrentUserRole(json.user.role || "");
-          if (!createRequester && json.user.id) {
-            setCreateRequester(json.user.id);
-          }
+          if (json.user.id) setInitialRequester(json.user.id);
           if (urlParams.get("mine") === "true" && json.user.id) {
             setUserFilter(json.user.id);
           }
@@ -190,257 +140,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       .catch((err) => { if (err?.name !== "AbortError") toast("Couldn\u2019t verify your session \u2014 some features may be limited", "error"); });
     return () => controller.abort();
   }, []);
-
-  // Load draft data when draftId is present
-  useEffect(() => {
-    if (!draftId || draftLoadedRef.current) return;
-    draftLoadedRef.current = true;
-    fetch(`/api/drafts/${draftId}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        if (!json?.data) return;
-        const d = json.data;
-        if (d.title && d.title !== "Untitled draft") setCreateTitle(d.title);
-        if (d.requesterUserId) setCreateRequester(d.requesterUserId);
-        if (d.locationId) setCreateLocationId(d.locationId);
-        if (d.startsAt) setCreateStartsAt(toLocalDateTimeValue(new Date(d.startsAt)));
-        if (d.endsAt) setCreateEndsAt(toLocalDateTimeValue(new Date(d.endsAt)));
-        if (d.sportCode) setCreateSport(d.sportCode);
-        if (d.serializedAssetIds?.length) setSelectedAssetIds(d.serializedAssetIds);
-        if (d.bulkItems?.length) {
-          setSelectedBulkItems(d.bulkItems.map((bi: { bulkSkuId: string; quantity: number }) => ({
-            bulkSkuId: bi.bulkSkuId,
-            quantity: bi.quantity,
-          })));
-        }
-      })
-      .catch(() => { toast("Couldn\u2019t load your draft \u2014 starting fresh", "error"); });
-  }, [draftId]);
-
-  // Fetch events when sport selected
-  useEffect(() => {
-    if (!createSport || !tieToEvent) {
-      setEvents([]);
-      return;
-    }
-    setEventsLoading(true);
-    const controller = new AbortController();
-    const now = new Date();
-    const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const params = new URLSearchParams({
-      sportCode: createSport,
-      startDate: now.toISOString(),
-      endDate: in30.toISOString(),
-      limit: "50",
-    });
-    fetch(`/api/calendar-events?${params}`, { signal: controller.signal })
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        if (controller.signal.aborted) return;
-        setEvents(json?.data || []);
-        setEventsLoading(false);
-      })
-      .catch((err) => { if (err?.name !== "AbortError") { setEventsLoading(false); toast("Couldn\u2019t load events \u2014 try again", "error"); } });
-    return () => controller.abort();
-  }, [createSport, tieToEvent]);
-
-  // Fetch shift context when event changes
-  useEffect(() => {
-    if (!selectedEvent) {
-      setMyShiftForEvent(null);
-      return;
-    }
-    const controller = new AbortController();
-    fetch(`/api/my-shifts?eventId=${selectedEvent.id}`, { signal: controller.signal })
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        if (controller.signal.aborted) return;
-        const shifts = json?.data;
-        if (shifts?.length > 0) {
-          const s = shifts[0];
-          setMyShiftForEvent({
-            area: s.area,
-            startsAt: s.startsAt,
-            endsAt: s.endsAt,
-            gearStatus: s.gear.status,
-          });
-        } else {
-          setMyShiftForEvent(null);
-        }
-      })
-      .catch((err) => { if (err?.name !== "AbortError") setMyShiftForEvent(null); });
-    return () => controller.abort();
-  }, [selectedEvent]);
-
-  // ── Event selection auto-populate ──
-
-  function selectEvent(ev: CalendarEvent) {
-    setSelectedEvent(ev);
-    const title = generateEventTitle(ev.sportCode || createSport, ev.opponent, ev.isHome);
-    setCreateTitle(title);
-    const start = new Date(new Date(ev.startsAt).getTime() - 2 * 60 * 60 * 1000);
-    const end = new Date(new Date(ev.endsAt).getTime() + 2 * 60 * 60 * 1000);
-    setCreateStartsAt(toLocalDateTimeValue(start));
-    setCreateEndsAt(toLocalDateTimeValue(end));
-    if (ev.location) {
-      setCreateLocationId(ev.location.id);
-    }
-  }
-
-  // ── Draft save / discard ──
-
-  async function saveDraft() {
-    const hasData = createTitle.trim() || selectedAssetIds.length > 0 || selectedBulkItems.length > 0;
-    if (!hasData) return;
-
-    try {
-      const payload: Record<string, unknown> = {
-        kind: config.kind,
-        title: createTitle.trim(),
-        startsAt: new Date(createStartsAt).toISOString(),
-        endsAt: new Date(createEndsAt).toISOString(),
-        serializedAssetIds: selectedAssetIds,
-        bulkItems: selectedBulkItems,
-      };
-      if (draftId) payload.id = draftId;
-      if (createRequester) payload.requesterUserId = createRequester;
-      if (createLocationId) payload.locationId = createLocationId;
-      if (selectedEvent) {
-        payload.eventId = selectedEvent.id;
-        payload.sportCode = selectedEvent.sportCode || createSport || undefined;
-      } else if (createSport) {
-        payload.sportCode = createSport;
-      }
-
-      const res = await fetch("/api/drafts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setDraftId(json.data.id);
-        toast("Draft saved", "info");
-      }
-    } catch {
-      toast("Draft couldn\u2019t be saved \u2014 your changes may be lost", "error");
-    }
-  }
-
-  async function deleteDraft() {
-    if (!draftId) return;
-    try {
-      await fetch(`/api/drafts/${draftId}`, { method: "DELETE" });
-    } catch {
-      /* best-effort */
-    }
-    setDraftId(null);
-  }
-
-  async function handleCloseCreate() {
-    await saveDraft();
-    setShowCreate(false);
-  }
-
-  // ── Create booking ──
-
-  function handleCreateClick() {
-    if (!createTitle.trim()) { setCreateError("Give this booking a name"); return; }
-    if (!createRequester) { setCreateError("Select who this is for"); return; }
-    if (!createLocationId) { setCreateError("Choose a pickup location"); return; }
-    setCreateError("");
-    setShowConfirm(true);
-  }
-
-  async function handleCreateConfirm() {
-    if (submittingRef.current) return;
-    submittingRef.current = true;
-    setSubmitting(true);
-    setCreateError("");
-
-    const payload: Record<string, unknown> = {
-      title: createTitle.trim(),
-      requesterUserId: createRequester,
-      locationId: createLocationId,
-      startsAt: new Date(createStartsAt).toISOString(),
-      endsAt: new Date(createEndsAt).toISOString(),
-      serializedAssetIds: selectedAssetIds,
-      bulkItems: selectedBulkItems,
-    };
-
-    if (selectedEvent) {
-      payload.eventId = selectedEvent.id;
-      payload.sportCode = selectedEvent.sportCode || createSport || undefined;
-    } else if (createSport) {
-      payload.sportCode = createSport;
-    }
-
-    try {
-      const res = await fetchWithTimeout(config.apiBase, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        if (res.status === 409 && json.data) {
-          const msgs: string[] = [];
-          const d = json.data as { conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string }>; unavailableAssets?: Array<{ assetId: string; status: string }>; shortages?: Array<{ bulkSkuId: string; requested: number; available: number }> };
-          if (d.conflicts?.length) {
-            for (const c of d.conflicts) {
-              const tag = availableAssets.find((a) => a.id === c.assetId)?.assetTag || c.assetId;
-              msgs.push(`${tag} conflicts with "${c.conflictingBookingTitle || "another booking"}"`);
-            }
-          }
-          if (d.unavailableAssets?.length) {
-            for (const u of d.unavailableAssets) {
-              const tag = availableAssets.find((a) => a.id === u.assetId)?.assetTag || u.assetId;
-              msgs.push(`${tag} is ${u.status === "MAINTENANCE" ? "in maintenance" : u.status.toLowerCase()}`);
-            }
-          }
-          if (d.shortages?.length) {
-            for (const s of d.shortages) {
-              const name = bulkSkus.find((sk) => sk.id === s.bulkSkuId)?.name || s.bulkSkuId;
-              msgs.push(`${name}: only ${s.available} available (requested ${s.requested})`);
-            }
-          }
-          setCreateError(msgs.length > 0 ? msgs.join(". ") : (json.error || "Availability conflict"));
-        } else {
-          setCreateError(json.error || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
-        }
-        submittingRef.current = false;
-        setSubmitting(false);
-        setShowConfirm(false);
-        return;
-      }
-
-      await deleteDraft();
-
-      // Reset form
-      setShowConfirm(false);
-      setShowCreate(false);
-      setCreateTitle("");
-      setCreateSport("");
-      setSelectedEvent(null);
-      setCreateStartsAt(toLocalDateTimeValue(roundTo15Min(new Date())));
-      setCreateEndsAt(toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))));
-      setSelectedAssetIds([]);
-      setSelectedBulkItems([]);
-      setShowEquipPicker(true);
-      submittingRef.current = false;
-      setSubmitting(false);
-      setDraftId(null);
-
-      setSelectedBookingId(json.data.id);
-      await reload();
-    } catch {
-      setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
-      submittingRef.current = false;
-      setSubmitting(false);
-      setShowConfirm(false);
-    }
-  }
 
   // ── Menu handlers ──
 
@@ -465,6 +164,13 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     }
     extendingRef.current = false;
     setExtendingId(null);
+  }
+
+  // ── Create sheet callbacks ──
+
+  async function handleCreated(bookingId: string) {
+    setSelectedBookingId(bookingId);
+    await reload();
   }
 
   // ── Derived ──
@@ -496,46 +202,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             {showCreate ? "Close" : `New ${config.label}`}
           </Button>
         </div>
-      )}
-
-      {/* ════════ Create booking card ════════ */}
-      {showCreate && (
-        <CreateBookingCard
-          config={config}
-          tieToEvent={tieToEvent}
-          onTieToEventChange={(v) => { setTieToEvent(v); setSelectedEvent(null); }}
-          createSport={createSport}
-          onCreateSportChange={(v) => { setCreateSport(v); setSelectedEvent(null); }}
-          events={events}
-          eventsLoading={eventsLoading}
-          selectedEvent={selectedEvent}
-          onSelectEvent={selectEvent}
-          myShiftForEvent={myShiftForEvent}
-          createTitle={createTitle}
-          onCreateTitleChange={setCreateTitle}
-          createRequester={createRequester}
-          onCreateRequesterChange={setCreateRequester}
-          createLocationId={createLocationId}
-          onCreateLocationIdChange={setCreateLocationId}
-          createStartsAt={createStartsAt}
-          onCreateStartsAtChange={setCreateStartsAt}
-          createEndsAt={createEndsAt}
-          onCreateEndsAtChange={setCreateEndsAt}
-          users={users}
-          locations={locations}
-          availableAssets={availableAssets}
-          bulkSkus={bulkSkus}
-          showEquipPicker={showEquipPicker}
-          onShowEquipPickerChange={setShowEquipPicker}
-          selectedAssetIds={selectedAssetIds}
-          onSelectedAssetIdsChange={setSelectedAssetIds}
-          selectedBulkItems={selectedBulkItems}
-          onSelectedBulkItemsChange={setSelectedBulkItems}
-          createError={createError}
-          submitting={submitting}
-          onCreate={handleCreateClick}
-          onClose={handleCloseCreate}
-        />
       )}
 
       {/* ════════ Filter bar + list ════════ */}
@@ -662,22 +328,23 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         currentUserRole={currentUserRole}
       />
 
-      {/* ════════ Confirm booking dialog ════════ */}
-      <ConfirmBookingDialog
-        open={showConfirm}
-        onOpenChange={setShowConfirm}
-        onConfirm={handleCreateConfirm}
+      {/* ════════ Create booking sheet ════════ */}
+      <CreateBookingSheet
+        open={showCreate}
+        onOpenChange={setShowCreate}
         config={config}
-        title={createTitle}
-        startsAt={new Date(createStartsAt).toISOString()}
-        endsAt={new Date(createEndsAt).toISOString()}
-        locationName={locations.find((l) => l.id === createLocationId)?.name || ""}
-        requesterName={users.find((u) => u.id === createRequester)?.name || ""}
-        selectedAssetIds={selectedAssetIds}
+        users={users}
+        locations={locations}
         availableAssets={availableAssets}
-        selectedBulkItems={selectedBulkItems}
         bulkSkus={bulkSkus}
-        submitting={submitting}
+        onCreated={handleCreated}
+        draftId={draftId}
+        onDraftIdChange={setDraftId}
+        initialTitle={urlParams.get("title") || ""}
+        initialStartsAt={urlParams.get("startsAt") ? toLocalDateTimeValue(new Date(urlParams.get("startsAt")!)) : undefined}
+        initialEndsAt={urlParams.get("endsAt") ? toLocalDateTimeValue(new Date(urlParams.get("endsAt")!)) : undefined}
+        initialLocationId={urlParams.get("locationId") || undefined}
+        initialRequester={initialRequester}
       />
     </>
   );

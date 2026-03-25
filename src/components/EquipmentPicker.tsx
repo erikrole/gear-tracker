@@ -40,6 +40,7 @@ export type PickerAsset = {
   qrCodeValue?: string | null;
   primaryScanCode?: string | null;
   categoryName?: string | null;
+  imageUrl?: string | null;
   location: { id: string; name: string } | null;
 };
 
@@ -106,6 +107,11 @@ export default function EquipmentPicker({
   const [showScanner, setShowScanner] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const scanFeedbackTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // ── Global search state ──
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [highlightedIdx, setHighlightedIdx] = useState(-1);
+  const globalSearchRef = useRef<HTMLInputElement>(null);
 
   // ── Availability preview state ──
   const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
@@ -196,6 +202,37 @@ export default function EquipmentPicker({
     }
     return Array.from(keys);
   }, [selectedAssetIds, selectedBulkItems, assetById, bulkById]);
+
+  // ── Global search results (flat list across all sections) ──
+  const globalSearchResults = useMemo(() => {
+    const q = globalSearch.toLowerCase().trim();
+    if (!q) return [];
+    const results: { type: "asset"; item: PickerAsset; section: EquipmentSectionKey }[] = [];
+    for (const sec of EQUIPMENT_SECTIONS) {
+      const sectionItems = assetsBySection[sec.key] || [];
+      for (const a of sectionItems) {
+        if (onlyAvailable && a.computedStatus !== "AVAILABLE") continue;
+        if (
+          a.assetTag.toLowerCase().includes(q) ||
+          a.brand.toLowerCase().includes(q) ||
+          a.model.toLowerCase().includes(q) ||
+          a.serialNumber.toLowerCase().includes(q) ||
+          a.type.toLowerCase().includes(q) ||
+          (a.name && a.name.toLowerCase().includes(q))
+        ) {
+          results.push({ type: "asset", item: a, section: sec.key });
+        }
+      }
+    }
+    return results;
+  }, [globalSearch, assetsBySection, onlyAvailable]);
+
+  // Reset highlight when results change
+  useEffect(() => {
+    setHighlightedIdx(globalSearchResults.length > 0 ? 0 : -1);
+  }, [globalSearchResults]);
+
+  const isGlobalSearchActive = globalSearch.trim().length > 0;
 
   const activeGuidance = useMemo(() => {
     if (!activeSection) return [];
@@ -464,6 +501,138 @@ export default function EquipmentPicker({
       {/* Sectioned picker */}
       {visible && (
         <div className="section-picker" role="region" aria-label="Equipment picker">
+          {/* Global search bar */}
+          <div className="picker-global-search">
+            <SearchIcon className="picker-search-icon size-3.5" aria-hidden="true" />
+            <input
+              ref={globalSearchRef}
+              className="picker-search"
+              placeholder="Search all equipment..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (!isGlobalSearchActive || globalSearchResults.length === 0) return;
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setHighlightedIdx((i) => Math.min(i + 1, globalSearchResults.length - 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setHighlightedIdx((i) => Math.max(i - 1, 0));
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  const hit = globalSearchResults[highlightedIdx];
+                  if (hit?.type === "asset") {
+                    const isDisabled = hit.item.computedStatus !== "AVAILABLE" && !conflicts.has(hit.item.id);
+                    if (!isDisabled) toggleAsset(hit.item.id);
+                  }
+                } else if (e.key === "Escape") {
+                  setGlobalSearch("");
+                  globalSearchRef.current?.blur();
+                }
+              }}
+              aria-label="Search all equipment across sections"
+            />
+            {globalSearch && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="picker-search-clear"
+                onClick={() => { setGlobalSearch(""); globalSearchRef.current?.focus(); }}
+                aria-label="Clear global search"
+              >
+                <XIcon className="size-3.5" />
+              </Button>
+            )}
+          </div>
+
+          {/* Global search results (replaces tabs when active) */}
+          {isGlobalSearchActive ? (
+            <div className="section-content">
+              <div className="picker-scroll" role="listbox" aria-label="Search results">
+                {globalSearchResults.length === 0 ? (
+                  <div className="picker-empty" role="status">No matching items across any section</div>
+                ) : (
+                  <>
+                    <div className="picker-match-count px-2 pb-1" aria-live="polite">
+                      {globalSearchResults.length} result{globalSearchResults.length !== 1 ? "s" : ""}
+                    </div>
+                    {globalSearchResults.map((hit, idx) => {
+                      const asset = hit.item;
+                      const isSelected = selectedIdSet.has(asset.id);
+                      const isAvailable = asset.computedStatus === "AVAILABLE";
+                      const conflict = conflicts.get(asset.id);
+                      const dotColor = conflict
+                        ? "var(--orange)"
+                        : STATUS_DOT_COLORS[asset.computedStatus] || "var(--text-muted)";
+                      const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
+                      const isDisabled = !isAvailable && !conflict;
+                      const isHighlighted = idx === highlightedIdx;
+                      return (
+                        <div
+                          key={asset.id}
+                          role="option"
+                          aria-selected={isSelected}
+                          aria-disabled={isDisabled}
+                          tabIndex={0}
+                          className={cn(
+                            "picker-row",
+                            isSelected && "picker-row-selected",
+                            conflict && "picker-row-conflict",
+                            isHighlighted && "picker-row-highlighted",
+                          )}
+                          data-unavailable={isDisabled ? true : undefined}
+                          onClick={() => { if (!isDisabled) toggleAsset(asset.id); }}
+                          onMouseEnter={() => setHighlightedIdx(idx)}
+                          onKeyDown={(e) => {
+                            if (isDisabled) return;
+                            if (e.key === " " || e.key === "Enter") {
+                              e.preventDefault();
+                              toggleAsset(asset.id);
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleAsset(asset.id)}
+                            disabled={isDisabled}
+                            aria-label={`Select ${asset.assetTag}`}
+                            tabIndex={-1}
+                          />
+                          <span
+                            className="picker-row-dot"
+                            style={{ backgroundColor: dotColor }}
+                            title={conflict ? "Scheduling conflict" : statusLabel}
+                            aria-hidden="true"
+                          />
+                          <div className="picker-row-info">
+                            <div className="picker-row-name">
+                              {asset.assetTag}
+                              <Badge variant="gray" size="sm" className="ml-1.5">
+                                {EQUIPMENT_SECTIONS.find((s) => s.key === hit.section)?.label || hit.section}
+                              </Badge>
+                            </div>
+                            <div className="picker-row-meta">
+                              {asset.name || `${asset.brand} ${asset.model}`}
+                              {asset.serialNumber ? ` \u00b7 ${asset.serialNumber}` : ""}
+                              {asset.location ? ` \u00b7 ${asset.location.name}` : ""}
+                              {!isAvailable && !conflict && ` \u00b7 ${statusLabel}`}
+                            </div>
+                            {conflict && (
+                              <div className="picker-row-conflict-detail">
+                                {"\u26a0"} {conflict.conflictingBookingTitle || "another booking"} ({formatConflictDate(conflict.startsAt)}{"\u2013"}{formatConflictDate(conflict.endsAt)})
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+          <>
           {/* Section tabs */}
           <div className="section-tabs" role="tablist" aria-label="Equipment sections">
             {EQUIPMENT_SECTIONS.map((sec, idx) => {
@@ -676,17 +845,19 @@ export default function EquipmentPicker({
                             isSelected && "picker-row-selected",
                           )}
                           onClick={() => {
-                            if (isSelected) return;
                             setSelectedBulkItems((prev) =>
-                              prev.some((i) => i.bulkSkuId === sku.id) ? prev : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
+                              prev.some((i) => i.bulkSkuId === sku.id)
+                                ? prev.filter((i) => i.bulkSkuId !== sku.id)
+                                : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
                             );
                           }}
                           onKeyDown={(e) => {
-                            if (isSelected) return;
                             if (e.key === " " || e.key === "Enter") {
                               e.preventDefault();
                               setSelectedBulkItems((prev) =>
-                                prev.some((i) => i.bulkSkuId === sku.id) ? prev : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
+                                prev.some((i) => i.bulkSkuId === sku.id)
+                                  ? prev.filter((i) => i.bulkSkuId !== sku.id)
+                                  : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
                               );
                             }
                           }}
@@ -760,6 +931,8 @@ export default function EquipmentPicker({
               </div>
             </div>
           )}
+          </>
+          )}
 
           {/* Sticky selection footer */}
           {equipmentCount > 0 && (
@@ -775,6 +948,13 @@ export default function EquipmentPicker({
                   const conflict = conflicts.get(assetId);
                   return (
                     <span key={assetId} className={cn("picker-footer-tag", conflict && "picker-footer-tag-conflict")}>
+                      {asset.imageUrl && (
+                        <img
+                          src={asset.imageUrl}
+                          alt=""
+                          className="picker-footer-tag-img"
+                        />
+                      )}
                       {asset.assetTag}
                       <Button
                         type="button"
@@ -866,7 +1046,12 @@ export default function EquipmentPicker({
             {selectedAssetIds.map((assetId) => {
               const asset = assetById.get(assetId);
               if (!asset) return null;
-              return <span key={assetId} className="picker-footer-tag picker-footer-tag-compact">{asset.assetTag}</span>;
+              return (
+                <span key={assetId} className="picker-footer-tag picker-footer-tag-compact">
+                  {asset.imageUrl && <img src={asset.imageUrl} alt="" className="picker-footer-tag-img" />}
+                  {asset.assetTag}
+                </span>
+              );
             })}
             {selectedBulkItems.map((item) => {
               const sku = bulkById.get(item.bulkSkuId);

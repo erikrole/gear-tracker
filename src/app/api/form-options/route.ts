@@ -21,7 +21,7 @@ export const GET = withAuth(async () => {
       select: {
         id: true, assetTag: true, name: true, brand: true, model: true,
         serialNumber: true, type: true, status: true, locationId: true,
-        qrCodeValue: true, primaryScanCode: true,
+        qrCodeValue: true, primaryScanCode: true, imageUrl: true,
         location: { select: { id: true, name: true } },
         category: { select: { name: true } }
       }

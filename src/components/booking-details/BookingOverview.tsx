@@ -7,7 +7,6 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import Link from "next/link";
 import DataList from "@/components/DataList";
 import { formatDateTime } from "@/lib/format";
-import { statusBadgeVariant } from "./helpers";
 import { TriangleAlert } from "lucide-react";
 import type { BookingDetail, CheckinProgress, ConflictData } from "./types";
 
@@ -53,17 +52,10 @@ export default function BookingOverview({
       <div className="px-5 py-4">
         <DataList
           items={[
-            { label: "Title", value: booking.title },
-            { label: "Type", value: booking.bookingType },
-            { label: "Status", value: (
-              <Badge variant={(booking.isOverdue ? "red" : (statusBadgeVariant[booking.status] || "gray")) as BadgeProps["variant"]}>
-                {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
-              </Badge>
-            )},
-            { label: "Location", value: booking.location?.name ?? "\u2014" },
             { label: "Start", value: formatDateTime(booking.startsAt) },
             { label: "Due", value: formatDateTime(booking.endsAt) },
             { label: "Requester", value: `${booking.requester?.name ?? "Unknown"} (${booking.requester?.email ?? ""})` },
+            { label: "Location", value: booking.location?.name ?? "\u2014" },
             ...(booking.notes ? [{ label: "Notes", value: booking.notes }] : []),
             ...(booking.event ? [{
               label: "Event",
