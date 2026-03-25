@@ -158,15 +158,17 @@ export async function approveRequest(assignmentId: string) {
  * Decline a shift request. Staff/admin action.
  */
 export async function declineRequest(assignmentId: string) {
-  const assignment = await db.shiftAssignment.findUnique({ where: { id: assignmentId } });
-  if (!assignment) throw new HttpError(404, "Assignment not found");
-  if (assignment.status !== "REQUESTED") {
-    throw new HttpError(400, "Only REQUESTED assignments can be declined");
-  }
+  return db.$transaction(async (tx) => {
+    const assignment = await tx.shiftAssignment.findUnique({ where: { id: assignmentId } });
+    if (!assignment) throw new HttpError(404, "Assignment not found");
+    if (assignment.status !== "REQUESTED") {
+      throw new HttpError(400, "Only REQUESTED assignments can be declined");
+    }
 
-  return db.shiftAssignment.update({
-    where: { id: assignmentId },
-    data: { status: "DECLINED" },
+    return tx.shiftAssignment.update({
+      where: { id: assignmentId },
+      data: { status: "DECLINED" },
+    });
   });
 }
 
@@ -217,11 +219,13 @@ export async function initiateSwap(
  * Remove an assignment (sets to DECLINED).
  */
 export async function removeAssignment(assignmentId: string) {
-  const assignment = await db.shiftAssignment.findUnique({ where: { id: assignmentId } });
-  if (!assignment) throw new HttpError(404, "Assignment not found");
+  return db.$transaction(async (tx) => {
+    const assignment = await tx.shiftAssignment.findUnique({ where: { id: assignmentId } });
+    if (!assignment) throw new HttpError(404, "Assignment not found");
 
-  return db.shiftAssignment.update({
-    where: { id: assignmentId },
-    data: { status: "DECLINED" },
+    return tx.shiftAssignment.update({
+      where: { id: assignmentId },
+      data: { status: "DECLINED" },
+    });
   });
 }

@@ -34,8 +34,8 @@ Last updated: 2026-03-25
 
 ### Notifications
 - [x] **Harden notification center** — Full rewrite: pre-shadcn CSS → Tailwind, skeleton loading, error state with retry (network/server differentiation), shadcn Switch for filter, proper CardContent structure.
-- [ ] **Add Zod + audit to nudge endpoint** — Missing input validation and audit logging.
-- [ ] **Add audit logging to mark-as-read** — Mutation without audit trail.
+- [x] **Add Zod + audit to nudge endpoint** — Added `z.object({ assignmentId: z.string().cuid() })` schema + `createAuditEntry` with action `nudge_sent`.
+- [x] **Add audit logging to mark-as-read** — Added `createAuditEntry` for both `mark_all_read` (with count) and `mark_read` actions.
 
 ### Settings
 - [x] **Harden Categories page** — Error state UI with retry, skeleton loading, inline styles → Tailwind, pre-shadcn CSS → Tailwind.
@@ -45,7 +45,7 @@ Last updated: 2026-03-25
 
 ### Shifts
 - [x] **Harden schedule page** — Decomposed 1,012→117 lines + 4-pass hardening (2026-03-25).
-- [ ] **Wrap decline/remove in transactions** — TOCTOU risk on concurrent shift operations.
+- [x] **Wrap decline/remove in transactions** — `declineRequest()` and `removeAssignment()` now use `db.$transaction()` to prevent TOCTOU races.
 
 ### Reservations
 - [x] **Harden BookingListPage** — Already hardened: AbortController, skeleton, error handling, double-submit guards all present.
@@ -55,21 +55,21 @@ Last updated: 2026-03-25
 - [x] **Add double-submit guard to NewItemSheet** — Already implemented: `submitting` flag disables button, shows "Adding..." text.
 
 ### Importer
-- [ ] **Add Zod validation on mapping JSON** — Raw JSON accepted without schema validation.
+- [x] **Add Zod validation on mapping JSON** — Added `z.record(z.string().min(1), z.string().min(1))` schema to validate user-provided column mapping.
 - [x] **Harden import page** — Full rewrite: pre-shadcn CSS (`data-table`, `summary-grid`, `metric-value`, `alert-error`) → shadcn Table + Tailwind. Hardcoded `#fffbeb` → dark-mode-safe `bg-amber-50 dark:bg-amber-950/20`. All inline styles → Tailwind. `<a href>` → Next.js `<Link>`. `useToast` → sonner.
 
 ### Mobile/Scan
-- [ ] **Fix dark mode unit picker** — Hardcoded `bg-white`, `bg-blue-100` on unit buttons. Will break in dark mode.
+- [x] **Fix dark mode unit picker** — Replaced `bg-white`/`bg-blue-100` with `bg-background`/`text-foreground` + `dark:bg-blue-900/40` tokens.
 
 ### Events
-- [ ] **Resolve duplicate source management** — Multiple calendar sources can create duplicate events.
+- [x] **Resolve duplicate source management** — Added URL uniqueness check in POST handler. Returns 409 if source URL already exists.
 
 ### Dashboard
 - [ ] **Implement student role-adaptive dashboard** (BRIEF AC-3) — Students should see only "My Gear" on mobile.
 - [ ] **Add owned-booking visual distinction** (BRIEF AC-5) — Ownership accent not visible in dashboard lanes.
 
 ### Users
-- [ ] **Add audit logging to avatar upload/delete** — Mutation without audit trail.
+- [x] **Add audit logging to avatar upload/delete** — Added `createAuditEntry` for `avatar_uploaded` and `avatar_deleted` actions.
 
 ---
 

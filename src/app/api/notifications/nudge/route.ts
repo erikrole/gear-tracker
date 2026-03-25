@@ -1,20 +1,29 @@
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { createShiftGearUpNotification } from "@/lib/services/notifications";
+import { createAuditEntry } from "@/lib/audit";
+
+const nudgeSchema = z.object({
+  assignmentId: z.string().cuid(),
+});
 
 export const POST = withAuth(async (req, { user }) => {
   if (user.role === "STUDENT") {
     throw new HttpError(403, "Staff or admin access required");
   }
 
-  const body = await req.json();
-  const assignmentId = body?.assignmentId;
+  const body = nudgeSchema.parse(await req.json());
 
-  if (!assignmentId || typeof assignmentId !== "string") {
-    throw new HttpError(400, "assignmentId is required");
-  }
+  await createShiftGearUpNotification(body.assignmentId);
 
-  await createShiftGearUpNotification(assignmentId);
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "shift_assignment",
+    entityId: body.assignmentId,
+    action: "nudge_sent",
+  });
 
   return ok({ success: true });
 });

@@ -1,9 +1,12 @@
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { downloadImageToBlob, isBlobUrl } from "@/lib/blob";
+
+const mappingSchema = z.record(z.string().min(1), z.string().min(1));
 
 // ── CSV parsing ──────────────────────────────────────────
 
@@ -325,9 +328,11 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(400, "Expected multipart file field named 'file'");
   }
 
-  const userMapping = mappingRaw
-    ? (JSON.parse(mappingRaw as string) as ColumnMapping)
-    : undefined;
+  let userMapping: ColumnMapping | undefined;
+  if (mappingRaw) {
+    const parsed = JSON.parse(mappingRaw as string);
+    userMapping = mappingSchema.parse(parsed);
+  }
 
   const text = await file.text();
   const { headers, rows, mapping } = parseRows(text, userMapping);
