@@ -76,13 +76,20 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const extendingRef = useRef(false);
+  const listAbortRef = useRef<AbortController | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const limit = 20;
 
   // ── Data fetching ──
 
   const reload = useCallback(async () => {
-    setLoading(true);
+    // Abort previous in-flight request to prevent stale data
+    listAbortRef.current?.abort();
+    const controller = new AbortController();
+    listAbortRef.current = controller;
+
+    if (!hasLoadedRef.current) setLoading(true);
     setLoadError(false);
     try {
       const params = new URLSearchParams();
@@ -95,21 +102,31 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
       if (locationFilter) params.set("location_id", locationFilter);
       if (userFilter) params.set("requester_id", userFilter);
-      const res = await fetch(`${config.apiBase}?${params}`);
+      const res = await fetch(`${config.apiBase}?${params}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
       if (res.ok) {
         const json: ListResponse = await res.json();
         setItems(json.data ?? []);
         setTotal(json.total ?? 0);
+        hasLoadedRef.current = true;
       } else {
         setLoadError(true);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setLoadError(true);
     }
-    setLoading(false);
+    if (!controller.signal.aborted) setLoading(false);
   }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.hasSportFilter]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    return () => listAbortRef.current?.abort();
+  }, [reload]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,6 +171,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString() }),
       });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Extend failed", "error");

@@ -23,6 +23,10 @@ async function callAction(
           }
         : {}),
     });
+    if (res.status === 401) {
+      window.location.href = "/login";
+      return { ok: false, error: "Session expired" };
+    }
     if (!res.ok) {
       const json = await res.json().catch(() => ({}));
       return { ok: false, error: (json as Record<string, string>).error || "Action failed" };
@@ -196,6 +200,10 @@ export function useBookingActions(
         headers,
         body: JSON.stringify({ [field]: value }),
       });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
       if (!res.ok) {
         if (res.status === 409) throw new Error("This booking was modified by someone else. Please refresh.");
         throw new Error("Save failed");
