@@ -203,6 +203,7 @@ export default function ItemDetailsPage() {
   const [now, setNow] = useState(() => new Date());
   const abortRef = useRef<AbortController | null>(null);
   const hasLoadedOnce = useRef(false);
+  const fetchErrorRef = useRef<FetchErrorKind | "not-found" | false>(false);
 
   const loadAsset = useCallback(() => {
     abortRef.current?.abort();
@@ -216,21 +217,29 @@ export default function ItemDetailsPage() {
       .then((res) => {
         if (controller.signal.aborted) return null;
         if (handleAuthRedirect(res, `/items/${id}`)) return null;
-        if (res.status === 404) { if (!isRefresh) setFetchError("not-found"); return null; }
+        if (res.status === 404) {
+          if (!isRefresh) { fetchErrorRef.current = "not-found"; setFetchError("not-found"); }
+          return null;
+        }
         if (!res.ok) throw new Error("server");
         return res.json();
       })
       .then((json) => {
         if (!json || controller.signal.aborted) {
-          if (!hasLoadedOnce.current && !controller.signal.aborted && !fetchError) setFetchError("server");
+          if (!hasLoadedOnce.current && !controller.signal.aborted && !fetchErrorRef.current) {
+            fetchErrorRef.current = "server";
+            setFetchError("server");
+          }
           return;
         }
         if (json?.data) {
           setAsset(json.data);
+          fetchErrorRef.current = false;
           setFetchError(false);
           setLastRefreshed(new Date());
           hasLoadedOnce.current = true;
         } else if (!isRefresh) {
+          fetchErrorRef.current = "server";
           setFetchError("server");
         }
       })
@@ -239,13 +248,15 @@ export default function ItemDetailsPage() {
         if (isRefresh) {
           toast("Failed to refresh — your data may be stale.", "error");
         } else {
-          setFetchError(classifyError(err));
+          const kind = classifyError(err);
+          fetchErrorRef.current = kind;
+          setFetchError(kind);
         }
       })
       .finally(() => {
         if (!controller.signal.aborted) setRefreshing(false);
       });
-  }, [id, toast, fetchError]);
+  }, [id, toast]);
 
   const loadCategories = useCallback(() => {
     fetch("/api/categories")

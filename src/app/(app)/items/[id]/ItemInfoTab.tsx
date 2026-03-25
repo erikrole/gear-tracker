@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogBody,
   DialogCloseButton,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -497,6 +498,7 @@ export function QRModal({
       <DialogContent className="max-w-[420px]">
         <DialogHeader>
           <DialogTitle>QR Code</DialogTitle>
+          <DialogDescription className="sr-only">View or generate a QR code for this item</DialogDescription>
           <DialogCloseButton />
         </DialogHeader>
         <DialogBody className="py-6">

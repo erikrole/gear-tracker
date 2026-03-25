@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogCloseButton,
+  DialogDescription,
   DialogBody,
 } from "@/components/ui/dialog";
 import { ImageIcon } from "lucide-react";
@@ -174,6 +175,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Choose image</DialogTitle>
+          <DialogDescription className="sr-only">Upload or paste a URL for the item image</DialogDescription>
           <DialogCloseButton />
         </DialogHeader>
         <DialogBody className="pb-6">
