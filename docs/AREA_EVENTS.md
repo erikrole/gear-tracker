@@ -39,10 +39,10 @@ Make athletics schedule data the operational backbone for booking and checkout w
 2. Event quality scoring for operator confidence.
 
 ## Acceptance Criteria
-1. Event picker shows relevant upcoming events by sport.
-2. Event-linked booking stores and displays event context reliably.
-3. Sync pipeline is idempotent and observable.
-4. Missing fields degrade gracefully without blocking checkout creation.
+- [x] AC-1: Event picker shows relevant upcoming events by sport.
+- [x] AC-2: Event-linked booking stores and displays event context reliably.
+- [x] AC-3: Sync pipeline is idempotent and observable.
+- [x] AC-4: Missing fields degrade gracefully without blocking checkout creation.
 
 ## Edge Cases
 - Event cancellations or updates in source feed.
@@ -62,8 +62,8 @@ Make athletics schedule data the operational backbone for booking and checkout w
 
 ## Developer Brief (No Code)
 1. Core ingest pipeline is implemented — do not rewrite without a Decision record.
-2. Next work: calendar source enable/disable toggle (`CalendarSource.enabled` flag, sync job skips disabled sources).
-3. Next work: sync health UI — surface `lastFetchedAt` and `lastError` from CalendarSource on the Events admin view.
+2. ~~Next work: calendar source enable/disable toggle~~ — Shipped 2026-03-19 at `/settings/calendar-sources`. Enabled toggle, sync status, health badges, error display, add/delete.
+3. ~~Next work: sync health UI~~ — Shipped 2026-03-19. `lastFetchedAt`, `lastError`, event count surfaced in calendar source settings.
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
@@ -71,3 +71,4 @@ Make athletics schedule data the operational backbone for booking and checkout w
 - 2026-03-02: Added explicit dashboard-scope boundary and mobile/dashboard dependency alignment.
 - 2026-03-09: Expanded "Now" to reflect shipped implementation: source deletion, upcoming-default filter, sync hardening, batch DB ops, production diagnostics. Added enable/disable and sync health UI to Next.
 - 2026-03-23: Unified Schedule page shipped (V1). Events + Schedule merged into `/schedule`. Old `/events` list page removed; `/events/[id]` detail unchanged. Venue Mappings moved to `/settings/venue-mappings`. Calendar Sources unchanged at `/settings/calendar-sources`.
+- 2026-03-25: Doc sync — standardized ACs to checkbox format, all 4 checked. Marked developer brief items 2-3 as shipped (calendar source health UI, 2026-03-19).

@@ -186,7 +186,7 @@ Use these questions before adding any feature:
 | ~~Dashboard V2/V3: ops-first layout, live countdown, draft recovery~~ | ✅ Shipped 2026-03-12 |
 | ~~Notification center: in-app + email delivery, Resend, Vercel Cron~~ | ✅ Shipped 2026-03-16 |
 | ~~iPhone polish: input zoom, tap highlight, overscroll, responsive stacking~~ | ✅ Shipped 2026-03-22 |
-| Notifications escalation: D-009 recipient model, alert fatigue controls | ⬜ Not started |
+| ~~Notifications escalation: D-009 recipient model, alert fatigue controls~~ | ✅ Shipped 2026-03-15 (D-009 accepted; recipient model + fatigue controls implemented) |
 | ~~Kit management UI (D-020 — CRUD, members, archive, audit)~~ | ✅ Shipped 2026-03-24 |
 | Dashboard filter chips (Sport, Location) | ⬜ Not started |
 | Student availability tracking (declare unavailable dates) | ⬜ Not started |
@@ -229,13 +229,9 @@ Open items that must be resolved before implementing related features:
 
 ## 12. Recommended Next 2 Planning Docs
 
-**Priority 1: D-009 Recipient Model Acceptance**
-- `AREA_NOTIFICATIONS.md` exists; D-009 escalation schedule is shipped
-- Still pending: recipient model for +24h escalation, alert fatigue controls
-- Blocks: notification center polish, overdue escalation wiring, dashboard badge counts
-- Action: finalize D-009 acceptance criteria
+~~**Priority 1: D-009 Recipient Model Acceptance**~~ — Resolved 2026-03-15. D-009 accepted: requester + all admins at +24h, admin-configurable fatigue controls. See AREA_NOTIFICATIONS.md.
 
-**Priority 2: `BRIEF_KIT_MANAGEMENT_V1.md`**
+**Priority 1: `BRIEF_KIT_MANAGEMENT_V1.md`**
 - D-020 accepted; full Prisma schema exists (Kit, KitItem models)
 - Zero UI — needs brief before implementation
 - Scope: kit CRUD, kit-to-booking integration, kit availability derived from member items
@@ -258,4 +254,4 @@ These are tracked here as candidates for future planning cycles:
 - 2026-03-11: Docs hardening — closed gaps #1 (AREA_NOTIFICATIONS exists) and #8 (DRAFT specced in D-017 + AREA_CHECKOUTS). Added Reservations V1 and Items V1 to Phase A shipped. Updated B&H enrichment status. Refreshed planning doc priorities.
 - 2026-03-15: Docs sync — closed gap #5 (B&H withdrawn, N/A), closed gap #10 (calendar enable/disable shipped). Marked Picker V2 and Calendar Health UI as shipped in Phase B.
 - 2026-03-23: Major refresh — Phase A marked complete (student mobile V1, equipment guidance 3 rules, shadcn migration, booking unification, security hardening, 5-pass page audits, scheduling integration all shipped). Phase B updated with shipped items and remaining work. Cleaned closed gaps from section 11. Scrapped B&H from planning priorities; replaced with Kit Management V1 brief. Updated feature suggestions to reflect shipped items (calendar source health, scan-to-add, 3 guidance rules). Added Game-Day Readiness Score and booking templates as candidates.
-- 2026-03-25: Doc sync — marked PD-5 (student KPIs) as resolved in §11 gaps. Cross-referenced with DECISIONS.md and GAPS_AND_RISKS.md updates.
+- 2026-03-25: Doc sync — marked PD-5 (student KPIs) resolved in §11. Phase B: D-009 escalation marked shipped (was "Not started"). §12 Priority 1 (D-009 acceptance) marked resolved; Kit Management promoted to Priority 1.

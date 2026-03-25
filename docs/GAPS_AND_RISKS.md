@@ -26,7 +26,7 @@
 |---|---|---|---|---|
 | ~~GAP-1~~ | ~~`BRIEF_STUDENT_MOBILE_V1.md` not written~~ | ~~AREA_MOBILE~~ | ~~Closed~~ | ~~Brief written, V1 hardening shipped 2026-03-15~~ |
 | ~~GAP-2~~ | ~~Draft persistence model underspecified~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Shipped 2026-03-16: DRAFT booking CRUD + dashboard section + auto-save on cancel~~ |
-| GAP-3 | Equipment guidance: only 3 rules in production | AREA_CHECKOUTS | Low priority | D-016 defers admin-config to Phase C |
+| ~~GAP-3~~ | ~~Equipment guidance: only 3 rules in production~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~3 rules shipped: body-needs-batteries, lens-needs-body, audio-with-video. Admin-config deferred to Phase C per D-016~~ |
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
 | ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
 | ~~GAP-6~~ | ~~Email notification channel not wired~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Resend email service wired; dual-channel (in-app + email) shipped 2026-03-16~~ |
@@ -55,7 +55,7 @@
 | ~~Dashboard saved filters~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Shipped 2026-03-24: Save view button + localStorage presets + apply/delete~~ |
 | ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter shipped 2026-03-24~~ |
 | ~~Notification center polish (pagination, mark-as-read)~~ | ~~AREA_NOTIFICATIONS~~ | ~~—~~ | ~~Shipped: pagination, mark-as-read, unread filter all implemented~~ |
-| Multi-recipient escalation | AREA_NOTIFICATIONS | D-009 | Pending recipient model decision |
+| ~~Multi-recipient escalation~~ | ~~AREA_NOTIFICATIONS~~ | ~~D-009~~ | ~~Shipped 2026-03-15: +24h escalation reaches requester + all admins; admin-configurable fatigue controls~~ |
 | ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
 | ~~Calendar source health UI~~ | ~~AREA_EVENTS~~ | ~~—~~ | ~~Shipped 2026-03-19: /settings/calendar-sources — enable/disable, sync status, health badges, error display, add/delete~~ |
 | ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board~~ |
@@ -142,4 +142,4 @@
 - 2026-03-24: Closed GAP-13 (`BRIEF_KIT_MANAGEMENT_V1.md` written — V1 scope: kit CRUD, member management, derived availability). Resolved PD-2 (D-027: admin-owned venue mappings with pattern validation) and PD-3 (D-026: hourly cron sync with staleness indicator).
 - 2026-03-24: V1 Cohesive Foundation completion — Dashboard decomposed into `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (GAP-9 closed). Empty state audit across search, scan, bulk-inventory, data-table. `useFormSubmit` hook extracted for standardized form handling (Zod validation → fetch → error classification → toast). Applied to Create User dialog as reference implementation.
 - 2026-03-24: V2 system roadmap revision. Added GAP-14 (scan page 1,038 lines needs decomposition), GAP-15 (schedule page 1,012 lines needs decomposition), GAP-16 (shared hooks extracted but not adopted by most pages), GAP-17 (labels not linked from item workflows), GAP-18 (kit-to-booking integration missing). Added active risk: monolithic page files (scan/schedule). Updated GAP-11 timeline (React Query deferred to V3; V2 focuses on `useFetch` migration). See `tasks/system-roadmap.md` for full V2 plan.
-- 2026-03-25: Doc sync pass — verified all AREA doc dates, cross-referenced audit findings. No new gaps or pending decisions opened.
+- 2026-03-25: Doc sync pass — closed GAP-3 (3 equipment guidance rules shipped, not 1). Struck through multi-recipient escalation row (D-009 shipped 2026-03-15). Verified all AREA doc dates, cross-referenced audit findings. No new gaps or pending decisions opened.

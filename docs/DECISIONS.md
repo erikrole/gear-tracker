@@ -147,7 +147,7 @@
 - Decision (Accepted — Phase B):
   - +24h escalation recipients: the requester AND all admins
   - Alert fatigue controls: admin-configurable escalation intervals and per-booking caps (settings page)
-  - Email channel is Phase B; V1 acceptance = in-app escalation only
+  - Email channel shipped 2026-03-16 via Resend; dual-channel (in-app + email) delivery active
 - Reference: `AREA_NOTIFICATIONS.md` is the full spec for escalation behavior
 - Consequences:
   - Faster recovery of missing gear once full escalation is wired.
@@ -306,16 +306,19 @@
   - Staff and admins can view and edit procurement metadata inline on any item.
   - Students do not see financial fields (role-gated in UI).
 
-## D-019: Department Model Is Phase B
+## D-019: Department Model
 - Date: 2026-03-11
-- Status: Accepted
+- Status: Shipped (2026-03-21)
 - Context:
   - `departmentId` FK exists on Asset, Department model exists in schema, but no filter or display in UI.
 - Decision:
-  - Department is an optional organizational grouping, deferred to Phase B.
-  - Import can populate it, but no filter/dropdown/display in V1.
+  - Department is an optional organizational grouping for items.
+  - Import can populate it. Department combobox filter shipped on items list page.
+- Implementation (2026-03-21):
+  - Department FK on Asset, combobox filter on items page, department selectable in new item form.
+  - GAPS_AND_RISKS.md Phase B entry struck through.
 - Consequences:
-  - No scope creep from adding department features prematurely.
+  - Items can be filtered and organized by department.
 
 ## D-020: Kit Management Is Phase B
 - Date: 2026-03-11
@@ -511,4 +514,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-22: Updated D-002 — UI layer now unified. Checkout and reservation detail pages share single `BookingDetailPage` component. API routes consolidated to `/api/bookings/[id]`.
 - 2026-03-22: Added D-025 — user-facing status labels (OPEN→"Checked out", BOOKED→"Confirmed") via `statusLabel()` helper. DB enum unchanged.
 - 2026-03-24: Added D-026 (event sync hourly cron + staleness indicator — resolves PD-3) and D-027 (venue mapping admin-only + pattern validation — resolves PD-2). All pending decisions now resolved.
-- 2026-03-25: Doc sync — resolved PD-4 (student KPIs defined). Updated D-010 to reflect shipped state (B&H withdrawn, notification center shipped, student dashboard shipped).
+- 2026-03-25: Doc sync — resolved PD-4 (student KPIs defined). Updated D-010 to reflect shipped state (B&H withdrawn, notification center shipped, student dashboard shipped). Updated D-009 email channel from "Phase B" to "Shipped 2026-03-16". Updated D-019 from "Phase B" to "Shipped 2026-03-21" (department filter + combobox).
