@@ -115,10 +115,11 @@ export default function BookingDetailPage({
   }
 
   async function handleCheckinSelected() {
+    if (!booking) return;
     const returning = Array.from(checkinIds);
     // Optimistically mark items as returned before API call
     const returningSet = new Set(returning);
-    const previousItems = booking!.serializedItems;
+    const previousItems = booking.serializedItems;
     patchLocal({
       serializedItems: previousItems.map((item) =>
         returningSet.has(item.asset.id)

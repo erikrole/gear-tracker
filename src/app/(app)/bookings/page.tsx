@@ -8,6 +8,15 @@ import { useToast } from "@/components/Toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ClipboardCheckIcon, CalendarPlusIcon } from "lucide-react";
 
+/** Shared fetch wrapper with 401 redirect */
+async function fetchAction(url: string, method = "POST"): Promise<Response> {
+  const res = await fetch(url, { method });
+  if (res.status === 401) {
+    window.location.href = "/login";
+  }
+  return res;
+}
+
 export default function BookingsPage() {
   const confirm = useConfirm();
   const { toast } = useToast();
@@ -50,20 +59,22 @@ export default function BookingsPage() {
           if (!c) return;
           const ok = await confirm({
             title: "Cancel checkout",
-            message: `Cancel "${c.title}"?`,
+            message: `Cancel "${c.title}"? This action cannot be undone.`,
             confirmLabel: "Cancel checkout",
             variant: "danger",
           });
           if (!ok) return;
           try {
-            const res = await fetch(`/api/bookings/${bookingId}/cancel`, { method: "POST" });
+            const res = await fetchAction(`/api/bookings/${bookingId}/cancel`);
             if (!res.ok) {
               const json = await res.json().catch(() => ({}));
               toast((json as Record<string, string>).error || "Cancel failed", "error");
+            } else {
+              toast("Checkout cancelled", "success");
             }
             await reload();
           } catch {
-            toast("Network error — please try again.", "error");
+            toast("Network error \u2014 please try again.", "error");
           }
         },
       },
@@ -104,9 +115,8 @@ export default function BookingsPage() {
           });
           if (!ok) return;
           try {
-            const res = await fetch(`/api/reservations/${bookingId}/convert`, { method: "POST" });
+            const res = await fetchAction(`/api/reservations/${bookingId}/convert`);
             if (res.ok) {
-              const json = await res.json();
               window.location.href = `/bookings?tab=checkouts`;
             } else {
               const json = await res.json().catch(() => ({}));
@@ -114,7 +124,7 @@ export default function BookingsPage() {
               await reload();
             }
           } catch {
-            toast("Network error — please try again.", "error");
+            toast("Network error \u2014 please try again.", "error");
           }
         },
       },
@@ -123,15 +133,16 @@ export default function BookingsPage() {
         label: "Duplicate",
         handler: async (bookingId) => {
           try {
-            const res = await fetch(`/api/reservations/${bookingId}/duplicate`, { method: "POST" });
+            const res = await fetchAction(`/api/reservations/${bookingId}/duplicate`);
             if (res.ok) {
+              toast("Reservation duplicated", "success");
               window.location.href = `/bookings?tab=reservations`;
             } else {
               const json = await res.json().catch(() => ({}));
               toast((json as Record<string, string>).error || "Duplicate failed", "error");
             }
           } catch {
-            toast("Network error — please try again.", "error");
+            toast("Network error \u2014 please try again.", "error");
           }
         },
       },
@@ -144,20 +155,22 @@ export default function BookingsPage() {
           if (!r) return;
           const ok = await confirm({
             title: "Cancel reservation",
-            message: `Cancel "${r.title}"?`,
+            message: `Cancel "${r.title}"? This action cannot be undone.`,
             confirmLabel: "Cancel reservation",
             variant: "danger",
           });
           if (!ok) return;
           try {
-            const res = await fetch(`/api/reservations/${bookingId}/cancel`, { method: "POST" });
+            const res = await fetchAction(`/api/reservations/${bookingId}/cancel`);
             if (!res.ok) {
               const json = await res.json().catch(() => ({}));
               toast((json as Record<string, string>).error || "Cancel failed", "error");
+            } else {
+              toast("Reservation cancelled", "success");
             }
             await reload();
           } catch {
-            toast("Network error — please try again.", "error");
+            toast("Network error \u2014 please try again.", "error");
           }
         },
       },
