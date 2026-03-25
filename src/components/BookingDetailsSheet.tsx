@@ -605,16 +605,22 @@ export default function BookingDetailsSheet({
       <SheetContent className="sm:max-w-lg">
         {/* Header */}
         <SheetHeader>
-          <SheetTitle>
-            {booking?.refNumber && <span className="text-muted-foreground text-sm font-normal mr-2">{booking.refNumber}</span>}
+          <SheetTitle className="text-2xl font-bold tracking-tight">
             {booking?.title || "Loading..."}
           </SheetTitle>
           {booking && (
-            <div className="flex gap-2 flex-wrap mt-1">
-              <Badge variant={(statusBadgeVariant[booking.status] || "gray") as BadgeProps["variant"]}>
+            <div className="flex gap-1.5 flex-wrap mt-1">
+              {booking.refNumber && (
+                <Badge variant="outline" className="font-mono text-xs">{booking.refNumber}</Badge>
+              )}
+              <Badge variant={(booking.isOverdue ? "red" : (statusBadgeVariant[booking.status] || "gray")) as BadgeProps["variant"]}>
                 {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
               </Badge>
               <Badge variant="gray">{booking.bookingType}</Badge>
+              <Badge variant="secondary" className="text-xs">{booking.requester?.name ?? "Unknown"}</Badge>
+              {booking.location?.name && (
+                <Badge variant="outline" className="text-xs">{booking.location.name}</Badge>
+              )}
               {booking.locationMode === "MIXED" && (
                 <Badge variant="mixed">Mixed locations</Badge>
               )}
