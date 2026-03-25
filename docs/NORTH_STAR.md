@@ -219,7 +219,7 @@ Use these questions before adding any feature:
 
 Open items that must be resolved before implementing related features:
 
-1. Student mobile KPI definitions not yet defined (taps-to-action, task-completion time, scan success rate — pending in DECISIONS.md)
+1. ~~Student mobile KPI definitions~~ — Resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry to measure them deferred to Phase B.
 2. Venue mapping governance owner not assigned (PD-2)
 3. Event sync refresh cadence and staleness thresholds not formalized (PD-3)
 4. Phase C features (kiosk, templates, analytics) unscoped and unbriefed
@@ -258,3 +258,4 @@ These are tracked here as candidates for future planning cycles:
 - 2026-03-11: Docs hardening — closed gaps #1 (AREA_NOTIFICATIONS exists) and #8 (DRAFT specced in D-017 + AREA_CHECKOUTS). Added Reservations V1 and Items V1 to Phase A shipped. Updated B&H enrichment status. Refreshed planning doc priorities.
 - 2026-03-15: Docs sync — closed gap #5 (B&H withdrawn, N/A), closed gap #10 (calendar enable/disable shipped). Marked Picker V2 and Calendar Health UI as shipped in Phase B.
 - 2026-03-23: Major refresh — Phase A marked complete (student mobile V1, equipment guidance 3 rules, shadcn migration, booking unification, security hardening, 5-pass page audits, scheduling integration all shipped). Phase B updated with shipped items and remaining work. Cleaned closed gaps from section 11. Scrapped B&H from planning priorities; replaced with Kit Management V1 brief. Updated feature suggestions to reflect shipped items (calendar source health, scan-to-add, 3 guidance rules). Added Game-Day Readiness Score and booking templates as candidates.
+- 2026-03-25: Doc sync — marked PD-5 (student KPIs) as resolved in §11 gaps. Cross-referenced with DECISIONS.md and GAPS_AND_RISKS.md updates.

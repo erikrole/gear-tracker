@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-02
+- Last Updated: 2026-03-25
 - Status: Active
 
 ## Direction
