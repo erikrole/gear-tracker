@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Importer
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-11
+- Last Updated: 2026-03-25
 - Status: Active
 - Version: V1
 
@@ -177,12 +177,12 @@ No column is discarded.
 - Mixed bulk and serialized rows sharing same category/name.
 
 ## Acceptance Criteria
-1. Every source column is either mapped or stored in `sourcePayload`.
-2. Import does not write authoritative asset status from CSV `Status`.
-3. Serialized and bulk rows follow separate validation rules.
-4. Duplicate handling is deterministic and reported.
-5. Dry run output matches actual import result counts when rerun unchanged.
-6. Import report includes row-level diagnostics.
+- [x] AC-1: Every source column is either mapped or stored in `sourcePayload`.
+- [x] AC-2: Import does not write authoritative asset status from CSV `Status`.
+- [x] AC-3: Serialized and bulk rows follow separate validation rules.
+- [x] AC-4: Duplicate handling is deterministic and reported.
+- [x] AC-5: Dry run output matches actual import result counts when rerun unchanged.
+- [x] AC-6: Import report includes row-level diagnostics.
 
 ## Dependencies
 - `AREA_ITEMS.md` for target field semantics.
@@ -205,3 +205,4 @@ No column is discarded.
 - 2026-03-01: Initial importer area scope created for Cheqroom CSV migration.
 - 2026-03-11: Docs hardening — reframed as generic CSV mapper with Cheqroom preset. Removed Cheqroom-specific framing from title, direction, and pipeline. Added preset architecture section. Updated AREA_PLATFORM_INTEGRITY ref to DECISIONS.md.
 - 2026-03-15: Import API rewritten with batched DB operations (≤15 calls for 181 rows). Added column mapping UI step with Cheqroom auto-detect + manual override. Duplicate detection by assetTag + serialNumber with create/update/skip preview. Re-import safe (reuses existing qrCodeValue).
+- 2026-03-25: Doc sync — standardized ACs to checkbox format, all 6 checked.

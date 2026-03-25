@@ -4,7 +4,7 @@ import { processOverdueNotifications } from "@/lib/services/notifications";
 
 /**
  * GET /api/cron/notifications
- * Called by Vercel Cron every 15 minutes. Validates CRON_SECRET bearer token.
+ * Called by Vercel Cron daily at 8:00 AM UTC (see vercel.json). Validates CRON_SECRET bearer token.
  * No user session required — runs as a system job.
  */
 export const GET = withHandler(async (req) => {

@@ -1,101 +1,153 @@
-# Current Task Queue
+# Task Queue
 
-Last updated: 2026-03-22
-
----
-
-## Active Work
-
-### Booking Detail Page Redesign — Round 3 (Shipped 2026-03-22)
-
-- [x] **1. Fix double breadcrumb** — removed duplicate, global PageBreadcrumb handles it
-- [x] **2. Status vocabulary** — D-025: `statusLabel()` helper. OPEN→"Checked out", BOOKED→"Confirmed"
-- [x] **3. Status strip** — Due-back as urgency-colored Badge with clock icon
-- ~~**4. Remove Title from info card**~~ — keeping per user preference
-- [x] **5. Avatars on people fields** — Avatar initials on Requester and Created by
-- [x] **6. Action buttons redesign** — `[Actions ▼] [Edit] [Extend] [Check in]`
-- [x] **7. Equipment rows: context menu** — hover-reveal "..." with View item, Select for return
-- [x] **8. Equipment: hide qty "1"** — only show status for serialized items
-- [x] **9. Activity formatting** — tighter spacing, natural-language labels
-- [ ] **10. Date range grouping** — deferred (From/To as connected range)
-
-### shadcn/ui Final Migration
-
-- [x] **Slice A**: CommandDialog — replace search overlay with live fuzzy command palette (2026-03-20)
-- [x] **Slice B**: FilterChip → Popover — rewrite internals, zero consumer changes (2026-03-20)
-- [x] **Slice C**: StatusDot + BulkActionBar → Popover (2026-03-20)
-- [x] **Slice D**: BookingContextMenu → ContextMenu + DropdownMenu (2026-03-20)
-- [x] **Slice E**: DateTimePicker — Calendar + Popover + time selects, replaces all datetime-local (2026-03-20)
-- [x] **Slice F**: Tooltips on icon-only buttons (2026-03-20)
-- [x] **Slice 8**: CSS cleanup — remove dead `.search-overlay*`, `.popover`, `.filter-chip-dropdown*` + fix datetime timezone bug + fix MenuItems type (2026-03-20)
-
-### Scheduling + Gear Integration (Research: `tasks/scheduling-gear-integration-research.md`)
-
-**Persona priority**: Student-first | **Gear suggestion**: Event pre-fill only
-
-- [x] Research: competitive analysis + integration strategy (2026-03-17)
-- [x] **Slice 1**: Shift context banner on checkout creation form (2026-03-17)
-- [x] **Slice 2**: "My Shifts" dashboard widget with gear status (2026-03-17)
-- [x] **Slice 3**: "Gear Up" notification on shift assignment approval (2026-03-17)
-- [x] **Slice 4**: Event Command Center — unified staff view (2026-03-18)
-- [ ] **Slice 5** (future): Game-Day Readiness Score
-- [x] **Slice 6**: Shift-Checkout linking (shiftAssignmentId FK) (2026-03-18)
+Last updated: 2026-03-25
 
 ---
 
-## Recently Shipped
+## P0 — Critical (bugs, broken features, data integrity)
 
-- [x] **Kit Management V1 (D-020)** — Kit CRUD, member management via asset search, equipment section grouping, archive/restore, audit logging on all mutations. Kit service layer + 4 API routes + list page (search, location filter, pagination, sort) + creation sheet + detail page (inline edit, member add/remove, delete). Sidebar "Soon" badge removed. (2026-03-24)
-- [x] **Sidebar V1 + Hardening (5-pass)** — Badge awareness (overdue on Checkouts, unread on Notifications). Semantic nav groups (Operations / Admin / Account). STUDENT sees no Admin group. Kits moved to Admin with "Soon" badge. Profile nav item removed (redundant with header). Group separators. Count-aware collapsed tooltips ("Checkouts · 3 overdue"). Logic: AbortController for badge fetch cleanup, isLoggingOut prop disables button during in-flight logout. Resilience: logout network failure now resets to allow retry. Design: 107 lines of dead old-sidebar CSS removed. (2026-03-24)
-- [x] **Users Page Improvements + Hardening** — Create user dialog, activity cursor pagination, member since date. Hardening: dead CSS removal, refresh-preserves-data, form reset on reopen, error differentiation, manual refresh with tooltip. (2026-03-23)
-- [x] **Schedule Page Hardening (4-pass)** — Design system (inline styles → Tailwind classes). Data flow (AbortController race prevention, 401 redirect on all fetches, trade count refreshes on sheet close). Resilience (network vs server error differentiation, refresh preserves existing data). UX polish (filtered "N of M" count indicator, skeleton column fix). (2026-03-23)
-- [x] **Schedule V2 Enhancements** — "My Shifts" filter (student-first, default ON for students, localStorage-persisted). Inline coverage expansion (click badge → per-area breakdown with avatars + assign button). Trade Board as Sheet overlay with open-trade count badge. View mode persistence in localStorage. Auto-scroll to today's date on list load. Shift status badges (Confirmed/Pending) on event rows. (2026-03-23)
-- [x] **Unified Schedule Page (V1)** — Merged `/events` + `/schedule` into single `/schedule` page. List view with date-grouped events + coverage badges. Calendar view with month grid + coverage dots. Unified filters (sport, area, coverage, past events). Trade Board tab. `/events` list page removed; detail page unchanged. Venue Mappings moved to `/settings/venue-mappings`. (2026-03-23)
-- [x] **Dashboard Sport Filter Chips** — Toggleable sport code chips below stat strip, URL-persisted (`?sport=MBB`), scopes all sections client-side. Contextual empty states. Overdue banner unfiltered. Auto-hides with <2 sports. (2026-03-23)
-- [x] **Reports Page Hardening (6-pass)** — Design system alignment (Table, Badge, Alert, Card; -23 lines dead CSS). Data flow hardening (AbortController, 401 redirect, null-safe arrays, race condition prevention, refresh-without-replacement). Resilience (error differentiation: network vs server, retry with loading state). UX polish (Loader2 spinners, high-fidelity skeletons, varied widths). Features: data freshness indicator (RefreshCw + "Updated X ago" tooltip), URL-persisted filters (shareable report URLs), MetricCard tooltips. (2026-03-23)
-- [x] **Profile Page Hardening (5-pass)** — Merged profile into user detail page (`/profile` → redirect to `/users/{id}`). Avatar upload + password change integrated into user detail when viewing self. Fixed student self-edit permissions (name/location via `/api/profile`). Optimistic avatar removal. High-fidelity skeletons. Removed 50 lines dead CSS. (2026-03-23)
-- [x] **Scan Page Hardening (5-pass)** — Design system (Progress, Badge, Alert, Skeleton; -35 lines dead CSS). Data flow (refresh-preserves-data, 401 on all endpoints, ref guards). Resilience (auto-clear feedback, try/catch/finally numbered bulk, spam-click guards). UX (optimistic checklist update, Loader2 spinners). (2026-03-23)
-- [x] **Login Page Hardening (5-pass)** — Design system alignment (Card, Alert, CardHeader/CardDescription; -78 lines dead CSS from all 4 auth pages). Data flow hardening (safe JSON parse, network error differentiation, double-submit guard, error-clears-on-typing). Resilience (disabled inputs during submit, aria-invalid/aria-describedby for accessibility). UX polish (Loader2 spinner on buttons, WifiOff icon for network errors, auto-focus first invalid field, card entrance animation). All 4 auth pages (login, register, forgot-password, reset-password) hardened consistently. (2026-03-23)
-- [x] **Users Page Hardening (5-pass)** — Design system alignment (shadcn tokens, dead CSS removal), data flow hardening (AbortController, race condition prevention), resilience (retry buttons, 401 redirect on all endpoints), UX polish (high-fidelity skeletons, refresh-without-replacement, result count). (2026-03-22)
-- [x] **Items List Page Hardening** — 5-pass audit: design system alignment (Badge/Spinner migration), data flow hardening (AbortController, race condition fix, silent failure elimination, double-click guard), resilience (refresh-preserves-data, shimmer progress bar, error differentiation), UX polish (high-fidelity skeleton, toast feedback on all mutations, confirmation clarity), doc sync. (2026-03-22)
-- [x] **Dashboard Reliability + UX Polish** — shadcn/ui component migration (Avatar, AvatarGroup, Badge, Skeleton, Progress; -140 lines CSS). AbortController fetch race prevention. Refresh-failure-preserves-data pattern. Null-safe API response guards. Optimistic draft delete with rollback. Manual refresh button with "Updated X ago" tooltip. Varied skeleton widths. Differentiated error states (offline vs server). Draft delete double-click guard + 401 handling. Toast ref pattern prevents infinite re-fetch loops. (2026-03-22)
-- [x] **Booking Detail Unification** — Unified checkout + reservation detail into single `BookingDetailPage` with `kind` prop. Extracted `useBookingDetail` + `useBookingActions` hooks. Shared `InlineTitle` component. Old GET/PATCH routes redirect to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit diffs. Accessibility + dark mode fixes. (2026-03-22)
-- [x] **MVP Polish Pass** — Audit logging gaps (departments, notifications/process), skeleton→shadcn, inline style→Tailwind, text-destructive (2026-03-21)
-- [x] **Item Detail Overhaul** — shadcn inputs, save feedback, department combobox, collapsible sections, UserInfoTab parity (2026-03-21)
-- [x] **Items Page DataTable Rebuild** — Sorting, row actions, context menu, column visibility, enhanced pagination, department FK filter (2026-03-21)
-- [x] **Insights Tab Hardening** — Legends, empty states, punctuality accuracy fix (2026-03-21)
-- [x] **shadcn/ui Deep Integration (A-F)** — Command palette, Popover migration, ContextMenu, DateTimePicker, Tooltips (2026-03-20)
-- [x] **shadcn/ui Slice 5.4** — Tabs migration + btn/badge CSS cleanup (2026-03-20)
-- [x] **shadcn/ui Slice 5.3** — Sheet migration (BookingDetailsSheet, ShiftDetailPanel, scan page) (2026-03-20)
-- [x] **shadcn/ui Slice 5.2** — Card migration across 20+ pages (2026-03-20)
-- [x] **shadcn/ui Slice 5.1** — Button migration (182+ usages), Badge migration (2026-03-20)
-- [x] **shadcn/ui Slice 4** — Form components (Input, Label, Textarea, Checkbox) (2026-03-20)
-- [x] **shadcn/ui Slice 3** — Empty, Spinner, Item, Separator (2026-03-20)
-- [x] **shadcn/ui Slice 2** — Dialog, AlertDialog, Sonner migration (2026-03-20)
-- [x] **shadcn/ui Slice 1.5** — Avatar & AvatarGroup (2026-03-20)
-- [x] **shadcn/ui Slice 1** — Foundation + Button/Badge/Skeleton (2026-03-20)
-- [x] **Dashboard Drafts (D-017 / GAP-2)** — DRAFT booking CRUD, dashboard section, auto-save on cancel, resume pre-fill (2026-03-16)
-- [x] **D-018 Doc Sync** — Asset financial fields already in UI; docs updated to reflect shipped (2026-03-16)
-- [x] **Dark mode contrast sweep** — 14 elements fixed across 2 commits (2026-03-16)
-- [x] **Equipment Picker: shadcn + perf + a11y + 4-pass hardening** — shadcn components, O(1) Map + Set lookups, full ARIA keyboard nav, AbortController, scan feedback, availability retry, dead CSS cleanup (2026-03-24)
-- [x] **Equipment Picker V2** — Multi-select, per-section search, availability preview, scan-to-add (2026-03-15)
-- [x] **Dashboard V2/V3** — Ops-first split layout with live countdown timers (2026-03-11/12)
-- [x] **Item Detail: UW Asset Tag Mirror** — uwAssetTag shown in page header (2026-03-11)
-- [x] **Item Detail: Calendar Grid** — Month-view calendar with booking blocks (2026-03-11)
-- [x] **Item Detail: Booking Refresh Fix** — BookingDetailsSheet onUpdated wired to reload data (2026-03-11)
-- [x] **Duplicate/Clone Action** — Duplicate button on reservation detail + list context menu (2026-03-14)
+### Notifications
+- [ ] **Fix icon type mapping** — UI and service use different type strings for notification icons. Notifications render with wrong/missing icons.
+- [ ] **Fix cron schedule mismatch** — `vercel.json` says daily 8AM but escalation windows need sub-hourly checks. Decide: is daily correct (doc updated), or should it be `*/15 * * * *`? Product decision needed.
+
+### Importer
+- [ ] **Add `sourcePayload` to schema + importer** — D-014 requires lossless parsing. Unmapped columns are currently silently dropped. Critical data integrity violation.
+- [ ] **Fix BulkSku routing** — Bulk items created as wrong entity type during import.
+
+### Items
+- [ ] **Wire Export button** — Specced in AREA_ITEMS AC-12, button missing from UI. Either build it or formally descope.
+- [ ] **Add assetTag uniqueness check on create** — No duplicate detection on tag name during item creation.
+
+### Dashboard
+- [ ] **Fix reservation 7-day window filter** — AC-4: code fetches all BOOKED reservations without date filter. Add `startsAt` bounds.
+
+### Events
+- [ ] **Harden Events list page** — 817-line monolith, no loading states, no error recovery, no AbortController. Run /harden-page.
+- [ ] **Harden Event detail page** — 475 lines, same issues.
+
+### Settings
+- [ ] **Add client-side auth guard** — Non-admin users see settings shell + 403 errors. Block at navigation level.
 
 ---
 
-## Phase B Remaining
+## P1 — High (hardening, security, UX gaps)
 
-- [ ] **Dashboard filter chips** (Sport, Location) — deferred from V1
-- [ ] **Dashboard saved filters** — deferred from V1
+### Notifications
+- [ ] **Harden notification center** — No loading skeleton, no error recovery, no pagination guard. Run /harden-page.
+- [ ] **Add Zod + audit to nudge endpoint** — Missing input validation and audit logging.
+- [ ] **Add audit logging to mark-as-read** — Mutation without audit trail.
+
+### Settings
+- [ ] **Harden Categories page** — Run /harden-page.
+- [ ] **Harden Sports page** — Run /harden-page.
+- [ ] **Harden Escalation page** — Run /harden-page.
+- [ ] **Fix layout double breadcrumb** — Settings pages render own breadcrumb + AppShell breadcrumb.
+
+### Shifts
+- [ ] **Harden schedule page** — Run /harden-page.
+- [ ] **Wrap decline/remove in transactions** — TOCTOU risk on concurrent shift operations.
+
+### Reservations
+- [ ] **Harden BookingListPage** — Shared between checkouts and reservations. Needs full hardening pass.
+
+### Items
+- [ ] **Harden item detail page** — Missing 5-pass treatment. Loading states, error recovery, double-submit guards.
+- [ ] **Add double-submit guard to NewItemSheet** — Can fire multiple create requests.
+
+### Importer
+- [ ] **Add Zod validation on mapping JSON** — Raw JSON accepted without schema validation.
+- [ ] **Harden import page** — Run /harden-page.
+
+### Mobile/Scan
+- [ ] **Fix dark mode unit picker** — Hardcoded `bg-white`, `bg-blue-100` on unit buttons. Will break in dark mode.
+
+### Events
+- [ ] **Resolve duplicate source management** — Multiple calendar sources can create duplicate events.
+
+### Dashboard
+- [ ] **Implement student role-adaptive dashboard** (BRIEF AC-3) — Students should see only "My Gear" on mobile.
+- [ ] **Add owned-booking visual distinction** (BRIEF AC-5) — Ownership accent not visible in dashboard lanes.
+
+### Users
+- [ ] **Add audit logging to avatar upload/delete** — Mutation without audit trail.
+
+---
+
+## P2 — Medium (polish, tests, doc completion)
+
+### Notifications
+- [ ] **Implement dashboard badge counts** — Unread notification count on nav items.
+
+### Events
+- [ ] **Replace `<a href>` with `<Link>`** — Missing Next.js client navigation in events pages.
+- [ ] **Add server-side eventId filter for shift groups** — Currently fetches all, filters client-side.
+
+### Items
+- [ ] **Verify numbered bulk item UI end-to-end** — D-022 feature not thoroughly tested.
+- [ ] **Add audit to favorite toggle** — Missing audit trail.
+
+### Reservations
+- [ ] **Resolve equipment conflict badges** (AC-8) — Conflict detection exists but badge display may be incomplete.
+- [ ] **Expand test coverage** — Reservation lifecycle transitions.
+
+### Shifts
+- [ ] **Add pagination to shift groups + trade board** — Lists grow unbounded.
+- [ ] **Tighten trade claim area eligibility** — Students can claim trades outside their sport area.
+
+### Settings
+- [ ] **Clean up legacy CSS** — Dead styles from pre-shadcn era.
+
+### Users
+- [ ] **Add user deactivation brief** — No way to deactivate users with active bookings.
+- [ ] **Add sport/area assignment CRUD** — Currently read-only display.
+- [ ] **Write authorization integration tests** — Role escalation, ownership gating.
+- [ ] **Add pagination to activity endpoint** — Unbounded response.
+
+### Dashboard
+- [ ] **Fix `defaultLocationId()` error handling** — Silent failure on location resolution.
+
+### Importer
+- [ ] **Add progress indicator** — Large imports show no feedback.
+- [ ] **Add import mode toggle** — Create-only vs upsert mode.
+
+### Mobile/Scan
+- [ ] **Improve camera permission UX** — Add explicit "How to enable camera" instructions on denial.
+
+---
+
+## P3 — Low (future planning, nice-to-haves)
+
+### Events
+- [ ] **Better opponent/venue normalization** — Inconsistent naming from ICS source.
+
+### Items
+- [ ] **Implement draft recovery or descope** — Item creation draft persistence.
+
+### Shifts
+- [ ] **Clean up inline styles** — Shift pages have remaining non-Tailwind styles.
+
+### Importer
+- [ ] **Implement dry-run mode** — Preview import results before committing.
+
+### Mobile/Scan
+- [ ] **Plan Phase B scan telemetry** — KPI measurement (scan success rate, task completion timing).
+- [ ] **Deduplicate statusColor helper** — Scan page reimplements logic from booking-details helpers.
+
+### Notifications
+- [ ] **Write BRIEF for Phase B escalation work** — Plan file for remaining escalation features.
+
+---
+
+## Phase B Backlog (needs briefs before implementation)
+
 - [x] **Kit management UI** (D-020) — shipped 2026-03-24
+- [x] **Dashboard filter chips** (Sport, Location) — shipped 2026-03-23/24
+- [x] **Dashboard saved filters** — shipped 2026-03-24
 - [x] **Department filter/display** (D-019) — shipped 2026-03-21
-- [ ] **Notification center pagination** — list grows unbounded
-- [ ] **Shift email notifications** — V1 = in-app audit only
-- [ ] **Student availability tracking** — students declare unavailable dates
+- [ ] **Shift email notifications** — V1 = in-app only
+- [ ] **Student availability tracking** — Declare unavailable dates
+- [ ] **Date range grouping** — Connected From/To on booking detail (deferred from Round 3)
+- [ ] **Game-Day Readiness Score** — Aggregate metric per event (deferred from scheduling Slice 5)
 
 ---
 
@@ -103,12 +155,15 @@ Last updated: 2026-03-22
 
 All pending decisions resolved — see `docs/DECISIONS.md` for D-026 (event sync cadence) and D-027 (venue mapping governance).
 
+Remaining open question:
+- **Cron frequency**: Is daily 8AM correct for notification checks, or should it be every 15 minutes?
+
 ---
 
 ## Notes
 
-- Always write a BRIEF_*.md or Decision record before implementing any new feature
-- Run `npm run build` before any commit — build failures are avoidable
-- Every mutation endpoint needs audit logging — do not skip
-- NORTH_STAR.md is the first read for any new Claude session
-- When shipping a feature, update the relevant AREA file and GAPS_AND_RISKS.md (CLAUDE.md rule 12)
+- Write a `BRIEF_*.md` or Decision record before implementing any new feature
+- Run `npm run build` before any commit
+- Every mutation endpoint needs audit logging (D-007)
+- Read `NORTH_STAR.md` first in any new Claude session
+- When shipping, update the relevant `AREA_*.md` and `GAPS_AND_RISKS.md` (CLAUDE.md rule 12)

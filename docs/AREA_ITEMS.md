@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-09
+- Last Updated: 2026-03-25
 - Status: Active
 - Version: V1
 
@@ -52,7 +52,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 ### Top Bar Actions
 1. `New asset` visible to `ADMIN` and `STAFF`.
 2. `Import` visible to `ADMIN` and `STAFF`.
-3. `Export` visible to `ADMIN` and `STAFF`; hidden for `STUDENT`.
+3. `Export` visible to `ADMIN` and `STAFF`; hidden for `STUDENT`. **(Deferred — not yet implemented)**
 4. `Customize overview` deferred — not in V1.
 
 ### Filters and Controls
@@ -272,20 +272,20 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - Item is in an in-progress checkout draft (`Checking Out`) and detail header must deep-link correctly.
 
 ## Acceptance Criteria
-1. Items list supports required filters, search, and baseline columns.
-2. `tagName` is primary in list and detail for serialized assets.
-3. Header status line supports the defined labels, colors, and deep links for active reservation, checkout, and draft-checkout states.
-4. Item status shown to users is derived, not manually controlled.
-5. Create flow enforces required fields by item kind.
-6. Default `Info` tab shows both operational overview cards and the item information card.
-7. Item detail exposes required tabs and role-appropriate actions.
-8. `Actions` menu includes Duplicate, Retire, Delete, and Needs Maintenance with policy-safe gating.
-9. Category and fiscal year fields use controlled dropdowns.
-10. QR code thumbnail renders from stored text code, and missing-code flow supports generation or manual entry.
-11. Empty optional fields show inline `Add ...` prompts instead of blank values.
-12. Export and import visibility follow role rules.
-13. Image and metadata prefill never overwrite `tagName`.
-14. All item mutations are auditable.
+- [x] AC-1: Items list supports required filters, search, and baseline columns.
+- [x] AC-2: `tagName` is primary in list and detail for serialized assets.
+- [x] AC-3: Header status line supports the defined labels, colors, and deep links for active reservation, checkout, and draft-checkout states.
+- [x] AC-4: Item status shown to users is derived, not manually controlled.
+- [x] AC-5: Create flow enforces required fields by item kind.
+- [x] AC-6: Default `Info` tab shows both operational overview cards and the item information card.
+- [x] AC-7: Item detail exposes required tabs and role-appropriate actions.
+- [x] AC-8: `Actions` menu includes Duplicate, Retire, Delete, and Needs Maintenance with policy-safe gating.
+- [x] AC-9: Category and fiscal year fields use controlled dropdowns.
+- [x] AC-10: QR code thumbnail renders from stored text code, and missing-code flow supports generation or manual entry.
+- [x] AC-11: Empty optional fields show inline `Add ...` prompts instead of blank values.
+- [ ] AC-12: Export visibility follows role rules. **(Deferred — not yet built.** Import visibility shipped.)
+- [x] AC-13: Image and metadata prefill never overwrite `tagName`.
+- [x] AC-14: All item mutations are auditable.
 
 ## Dependencies
 - User role and ownership model from `AREA_USERS.md`.
@@ -369,6 +369,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
   - Bulk action hook now toasts success/failure messages.
 - 2026-03-23: Items page roadmap created — V1 polish, V2 enhanced UX, V3 advanced features. See `tasks/items-roadmap.md`.
 - 2026-03-24: Item details page roadmap created — V1 hardening, V2 enhanced workflows, V3 intelligent features. See `tasks/item-details-roadmap.md`.
+- 2026-03-25: Doc sync — standardized ACs to checkbox format. Marked export feature as deferred (AC-12). Updated Last Updated date.
 
 ## Roadmaps
 - **Items list page**: `tasks/items-roadmap.md` — V1 polish, V2 enhanced UX, V3 advanced features

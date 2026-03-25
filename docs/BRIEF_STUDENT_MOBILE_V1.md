@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
 - Date: 2026-03-15
-- Status: Active
+- Status: Shipped (all ACs met 2026-03-23)
 - Decision Ref: D-015 (Student-first mobile operations contract)
 - KPIs: Taps-to-checkout ≤3, Scan success ≥95%, Task completion <30s
 
@@ -55,12 +55,12 @@ Students are the primary mobile users — checking out gear before practice, ret
 5. `src/app/globals.css` — Ownership indicator styles
 
 ## Acceptance Criteria
-- [ ] AC-1: Student can scan QR to check in their own checkout
-- [ ] AC-2: Student cannot scan on someone else's checkout
-- [ ] AC-3: Student dashboard on mobile shows only "My Gear"
-- [ ] AC-4: Student sidebar hides Users, Settings, Kits
-- [ ] AC-5: Owned bookings have visual distinction in dashboard lists
-- [ ] AC-6: Build passes, no permission regressions
+- [x] AC-1: Student can scan QR to check in their own checkout
+- [x] AC-2: Student cannot scan on someone else's checkout
+- [x] AC-3: Student dashboard on mobile shows only "My Gear"
+- [x] AC-4: Student sidebar hides Users, Settings, Kits
+- [x] AC-5: Owned bookings have visual distinction in dashboard lists
+- [x] AC-6: Build passes, no permission regressions
 
 ## Risk Assessment
 - **Low risk**: Permission change is additive (expanding, not restricting)
