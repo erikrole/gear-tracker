@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useFetch } from "@/hooks/use-fetch";
+import { useDebounce } from "@/hooks/use-url-state";
 
 function LabelQRCode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -17,13 +19,23 @@ function LabelQRCode({ value }: { value: string }) {
     setLoaded(false);
     import("qrcode").then((QRCode) => {
       if (!canvasRef.current) return;
-      QRCode.toCanvas(canvasRef.current, value, { width: 80, margin: 1 }, () => {
-        setLoaded(true);
-      });
+      QRCode.toCanvas(
+        canvasRef.current,
+        value,
+        { width: 80, margin: 1 },
+        () => {
+          setLoaded(true);
+        },
+      );
     });
   }, [value]);
 
-  return <canvas ref={canvasRef} style={{ width: 80, height: 80, opacity: loaded ? 1 : 0.3 }} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ width: 80, height: 80, opacity: loaded ? 1 : 0.3 }}
+    />
+  );
 }
 
 type Asset = {
@@ -40,31 +52,35 @@ type Asset = {
 export default function LabelsPage() {
   const searchParams = useSearchParams();
   const preselectedItems = searchParams.get("items");
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [didPreselect, setDidPreselect] = useState(false);
 
-  useEffect(() => {
-    const params = new URLSearchParams({ limit: "200" });
-    if (search) params.set("q", search);
+  const debouncedSearch = useDebounce(search, 300);
 
-    fetch(`/api/assets?${params}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        const data: Asset[] = json?.data ?? [];
-        setAssets(data);
-        // Auto-select items from URL param on first load
-        if (!didPreselect && preselectedItems) {
-          const ids = new Set(preselectedItems.split(","));
-          const matching = new Set(data.filter((a) => ids.has(a.id)).map((a) => a.id));
-          if (matching.size > 0) setSelectedIds(matching);
-          setDidPreselect(true);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [search, preselectedItems, didPreselect]);
+  // Build fetch URL from search state
+  const fetchUrl = (() => {
+    const params = new URLSearchParams({ limit: "200" });
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    return `/api/assets?${params}`;
+  })();
+
+  const { data: assets, loading } = useFetch<Asset[]>({
+    url: fetchUrl,
+    transform: (json) => (json.data as Asset[]) ?? [],
+  });
+
+  // Auto-select items from URL param on first load
+  useEffect(() => {
+    if (!didPreselect && preselectedItems && assets && assets.length > 0) {
+      const ids = new Set(preselectedItems.split(","));
+      const matching = new Set(
+        assets.filter((a) => ids.has(a.id)).map((a) => a.id),
+      );
+      if (matching.size > 0) setSelectedIds(matching);
+      setDidPreselect(true);
+    }
+  }, [didPreselect, preselectedItems, assets]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -76,21 +92,27 @@ export default function LabelsPage() {
   };
 
   const selectAll = () => {
-    setSelectedIds(new Set(assets.map((a) => a.id)));
+    if (assets) setSelectedIds(new Set(assets.map((a) => a.id)));
   };
 
   const selectNone = () => {
     setSelectedIds(new Set());
   };
 
-  const selectedAssets = assets.filter((a) => selectedIds.has(a.id));
+  const selectedAssets = (assets ?? []).filter((a) => selectedIds.has(a.id));
 
   return (
     <>
       <div className="page-header no-print">
         <h1>Print Labels</h1>
-        <Button onClick={() => window.print()} disabled={selectedAssets.length === 0}>
-          Print {selectedAssets.length > 0 ? `${selectedAssets.length} labels` : "labels"}
+        <Button
+          onClick={() => window.print()}
+          disabled={selectedAssets.length === 0}
+        >
+          Print{" "}
+          {selectedAssets.length > 0
+            ? `${selectedAssets.length} labels`
+            : "labels"}
         </Button>
       </div>
 
@@ -104,15 +126,21 @@ export default function LabelsPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1"
           />
-          <Button variant="outline" size="sm" onClick={selectAll}>Select all</Button>
-          <Button variant="outline" size="sm" onClick={selectNone}>Clear</Button>
+          <Button variant="outline" size="sm" onClick={selectAll}>
+            Select all
+          </Button>
+          <Button variant="outline" size="sm" onClick={selectNone}>
+            Clear
+          </Button>
         </CardHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+          <div className="flex items-center justify-center py-10">
+            <Spinner className="size-8" />
+          </div>
         ) : (
           <div className="max-h-[300px] overflow-y-auto">
-            {assets.map((asset) => (
+            {(assets ?? []).map((asset) => (
               <label
                 key={asset.id}
                 className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer border-b border-border ${selectedIds.has(asset.id) ? "bg-green-50" : "bg-white"}`}
@@ -128,7 +156,9 @@ export default function LabelsPage() {
                     {asset.brand} {asset.model}
                   </span>
                 </div>
-                <span className="text-xs text-secondary">{asset.location.name}</span>
+                <span className="text-xs text-secondary">
+                  {asset.location.name}
+                </span>
               </label>
             ))}
           </div>
@@ -145,7 +175,9 @@ export default function LabelsPage() {
               </div>
               <div className="label-info">
                 <div className="label-tag">{asset.assetTag}</div>
-                <div className="label-detail">{asset.brand} {asset.model}</div>
+                <div className="label-detail">
+                  {asset.brand} {asset.model}
+                </div>
                 {asset.primaryScanCode && (
                   <div className="label-barcode">{asset.primaryScanCode}</div>
                 )}

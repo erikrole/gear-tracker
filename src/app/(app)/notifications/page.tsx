@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useFetch } from "@/hooks/use-fetch";
+import { useUrlState } from "@/hooks/use-url-state";
 
 type Notification = {
   id: string;
@@ -21,11 +23,9 @@ type Notification = {
   createdAt: string;
 };
 
-type NotificationsResponse = {
-  data: Notification[];
+type NotificationsData = {
+  notifications: Notification[];
   total: number;
-  limit: number;
-  offset: number;
   unreadCount: number;
 };
 
@@ -92,49 +92,59 @@ function dayLabel(dateStr: string): string {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const notifDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffDays = Math.floor((today.getTime() - notifDay.getTime()) / 86_400_000);
+  const diffDays = Math.floor(
+    (today.getTime() - notifDay.getTime()) / 86_400_000,
+  );
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return "This week";
-  return notifDay.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  return notifDay.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+  });
 }
+
+const LIMIT = 20;
 
 export default function NotificationsPage() {
   const { toast } = useToast();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [total, setTotal] = useState(0);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [page, setPage] = useState(0);
-  const [unreadOnly, setUnreadOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
-  const limit = 20;
 
-  async function reload() {
-    setLoading(true);
+  // URL-synced filters
+  const [page, setPage] = useUrlState<number>(
+    "page",
+    (v) => (v ? Number(v) : 0),
+    (v) => (v === 0 ? null : String(v)),
+  );
+  const [unreadOnly, setUnreadOnly] = useUrlState<boolean>(
+    "unread",
+    (v) => v === "true",
+    (v) => (v ? "true" : null),
+  );
+
+  // Build fetch URL from filter state
+  const fetchUrl = useMemo(() => {
     const params = new URLSearchParams();
-    params.set("limit", String(limit));
-    params.set("offset", String(page * limit));
+    params.set("limit", String(LIMIT));
+    params.set("offset", String(page * LIMIT));
     if (unreadOnly) params.set("unread", "true");
-
-    try {
-      const res = await fetch(`/api/notifications?${params}`);
-      if (res.ok) {
-        const json: NotificationsResponse = await res.json();
-        setNotifications(json.data ?? []);
-        setTotal(json.total ?? 0);
-        setUnreadCount(json.unreadCount ?? 0);
-      }
-    } catch { /* network error */ }
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return `/api/notifications?${params}`;
   }, [page, unreadOnly]);
+
+  const { data, loading, reload } = useFetch<NotificationsData>({
+    url: fetchUrl,
+    transform: (json) => ({
+      notifications: (json.data as Notification[]) ?? [],
+      total: (json.total as number) ?? 0,
+      unreadCount: (json.unreadCount as number) ?? 0,
+    }),
+  });
+
+  const notifications = data?.notifications ?? [];
+  const total = data?.total ?? 0;
+  const unreadCount = data?.unreadCount ?? 0;
 
   async function markAllRead() {
     setMarkingAll(true);
@@ -142,10 +152,10 @@ export default function NotificationsPage() {
       const res = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "mark_all_read" })
+        body: JSON.stringify({ action: "mark_all_read" }),
       });
       if (!res.ok) toast("Failed to mark notifications as read", "error");
-      await reload();
+      reload();
     } catch {
       toast("Network error", "error");
     }
@@ -158,10 +168,10 @@ export default function NotificationsPage() {
       const res = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "mark_read", id })
+        body: JSON.stringify({ action: "mark_read", id }),
       });
       if (!res.ok) toast("Failed to mark notification as read", "error");
-      await reload();
+      reload();
     } catch {
       toast("Network error", "error");
     }
@@ -171,10 +181,12 @@ export default function NotificationsPage() {
   async function runProcessing() {
     setProcessing(true);
     try {
-      const res = await fetch("/api/notifications/process", { method: "POST" });
+      const res = await fetch("/api/notifications/process", {
+        method: "POST",
+      });
       if (res.ok) {
         toast("Overdue check complete", "success");
-        await reload();
+        reload();
       } else {
         toast("Failed to process overdue notifications", "error");
       }
@@ -199,7 +211,7 @@ export default function NotificationsPage() {
     return groups;
   }, [notifications]);
 
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = Math.ceil(total / LIMIT);
 
   return (
     <>
@@ -222,7 +234,12 @@ export default function NotificationsPage() {
             {processing ? "Processing..." : "Check overdue"}
           </Button>
           {unreadCount > 0 && (
-            <Button variant="outline" size="sm" onClick={markAllRead} disabled={markingAll}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markAllRead}
+              disabled={markingAll}
+            >
               {markingAll ? "Marking..." : "Mark all read"}
             </Button>
           )}
@@ -248,12 +265,22 @@ export default function NotificationsPage() {
         </CardHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+          <div className="flex items-center justify-center py-10">
+            <Spinner className="size-8" />
+          </div>
         ) : notifications.length === 0 ? (
           <EmptyState
             icon="bell"
-            title={unreadOnly ? "No unread notifications" : "No notifications yet"}
-            description={unreadOnly ? "All caught up!" : "You'll see overdue alerts and booking updates here."}
+            title={
+              unreadOnly
+                ? "No unread notifications"
+                : "No notifications yet"
+            }
+            description={
+              unreadOnly
+                ? "All caught up!"
+                : "You'll see overdue alerts and booking updates here."
+            }
           />
         ) : (
           <>
@@ -262,37 +289,50 @@ export default function NotificationsPage() {
                 <div key={group.label}>
                   <div className="notif-day-header">{group.label}</div>
                   {group.items.map((n) => (
-                    <div key={n.id} className={`notif-card${n.readAt ? "" : " notif-unread"}`}>
-                      <div className={`notif-icon ${notifIconClass(n.type)}`}>
+                    <div
+                      key={n.id}
+                      className={`notif-card${n.readAt ? "" : " notif-unread"}`}
+                    >
+                      <div
+                        className={`notif-icon ${notifIconClass(n.type)}`}
+                      >
                         {notifIcon(n.type)}
                       </div>
                       <div className="notif-content">
                         <div className="notif-title-row">
-                          <span className={`notif-title${n.readAt ? "" : " unread"}`}>
+                          <span
+                            className={`notif-title${n.readAt ? "" : " unread"}`}
+                          >
                             {n.title}
                           </span>
                           <span className="notif-time">
                             {formatTime(n.sentAt)}
                           </span>
                         </div>
-                        <div className="notif-body">
-                          {n.body}
-                        </div>
+                        <div className="notif-body">{n.body}</div>
                         <div className="notif-actions">
-                          {n.payload?.bookingId && (() => {
-                            const kind = n.payload?.bookingKind;
-                            const href = kind === "RESERVATION"
-                              ? `/reservations/${n.payload.bookingId}`
-                              : `/checkouts/${n.payload.bookingId}`;
-                            const label = kind === "RESERVATION" ? "View reservation" : "View checkout";
-                            return (
-                              <Button variant="outline" size="sm" className="notif-link-btn" asChild>
-                                <Link href={href}>
-                                  {label} →
-                                </Link>
-                              </Button>
-                            );
-                          })()}
+                          {n.payload?.bookingId &&
+                            (() => {
+                              const kind = n.payload?.bookingKind;
+                              const href =
+                                kind === "RESERVATION"
+                                  ? `/reservations/${n.payload.bookingId}`
+                                  : `/checkouts/${n.payload.bookingId}`;
+                              const label =
+                                kind === "RESERVATION"
+                                  ? "View reservation"
+                                  : "View checkout";
+                              return (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="notif-link-btn"
+                                  asChild
+                                >
+                                  <Link href={href}>{label} →</Link>
+                                </Button>
+                              );
+                            })()}
                           {!n.readAt && (
                             <Button
                               variant="ghost"
@@ -314,8 +354,8 @@ export default function NotificationsPage() {
             {totalPages > 1 && (
               <div className="pagination">
                 <span>
-                  Showing {page * limit + 1}–{Math.min((page + 1) * limit, total)} of{" "}
-                  {total}
+                  Showing {page * LIMIT + 1}–
+                  {Math.min((page + 1) * LIMIT, total)} of {total}
                 </span>
                 <div className="pagination-btns">
                   <Button

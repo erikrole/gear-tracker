@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import EmptyState from "@/components/EmptyState";
+import { useUrlState } from "@/hooks/use-url-state";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation";
@@ -19,10 +19,12 @@ type SearchResult = {
 };
 
 export default function SearchPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialQ = searchParams.get("q") || "";
-  const [query, setQuery] = useState(initialQ);
+  const [urlQuery, setUrlQuery] = useUrlState<string>(
+    "q",
+    (v) => v ?? "",
+    (v) => (v ? v : null),
+  );
+  const [query, setQuery] = useState(urlQuery);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -121,14 +123,14 @@ export default function SearchPage() {
 
   // Auto-search from URL param on mount
   useEffect(() => {
-    if (initialQ) runSearch(initialQ);
-  }, [initialQ, runSearch]);
+    if (urlQuery) runSearch(urlQuery);
+  }, [urlQuery, runSearch]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
-    router.replace(`/search?q=${encodeURIComponent(trimmed)}`, { scroll: false });
+    setUrlQuery(trimmed);
     runSearch(trimmed);
   }
 
