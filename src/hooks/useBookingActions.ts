@@ -92,7 +92,9 @@ export function useBookingActions(
         endsAt: new Date(endsAt).toISOString(),
       });
       if (result.ok) {
-        toast("Booking extended", "success");
+        const d = new Date(endsAt);
+        const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        toast(`Extended to ${formatted}`, "success");
         onSuccess();
       } else {
         toast(result.error!, "error");

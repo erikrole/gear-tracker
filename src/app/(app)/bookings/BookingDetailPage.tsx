@@ -22,7 +22,8 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Clock, ChevronDown, Copy } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertCircle, Clock, ChevronDown, Copy, RefreshCw } from "lucide-react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { useToast } from "@/components/Toast";
 
@@ -387,22 +388,29 @@ export default function BookingDetailPage({
             {countdown}
           </Badge>
         )}
-        {reloading && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-            <Spinner className="size-3" />
-            Refreshing…
-          </span>
-        )}
-        {!reloading && booking.updatedAt && (
-          <span className="text-xs text-muted-foreground ml-auto">
-            Updated{" "}
-            {new Date(booking.updatedAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
-        )}
+        <span className="ml-auto shrink-0">
+          {reloading ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Spinner className="size-3" />
+              Refreshing…
+            </span>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={reload}
+                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <RefreshCw className="size-3" />
+                  {booking.updatedAt
+                    ? `Updated ${new Date(booking.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                    : "Refresh"}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Click to refresh</TooltipContent>
+            </Tooltip>
+          )}
+        </span>
       </div>
 
       {/* ── Extend panel ── */}
