@@ -1,5 +1,28 @@
 /* ── Shared formatting helpers (client-safe) ──────────────── */
 
+// ── Duration helpers ─────────────────────────────────────
+
+/** Explicit duration: "2 days 3 hours", "5 hours 12 minutes", "8 minutes" */
+function formatExplicitDuration(ms: number): string {
+  const absDiff = Math.abs(ms);
+  const days = Math.floor(absDiff / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((absDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+  const minutes = Math.floor((absDiff % (60 * 60 * 1000)) / (60 * 1000));
+
+  if (days > 0) {
+    const parts = [`${days} ${days === 1 ? "day" : "days"}`];
+    if (hours > 0) parts.push(`${hours} ${hours === 1 ? "hour" : "hours"}`);
+    return parts.join(" ");
+  }
+  if (hours > 0) {
+    const parts = [`${hours} ${hours === 1 ? "hour" : "hours"}`];
+    if (minutes > 0) parts.push(`${minutes} ${minutes === 1 ? "minute" : "minutes"}`);
+    return parts.join(" ");
+  }
+  if (minutes > 0) return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  return "less than a minute";
+}
+
 // ── Urgency / countdown ──────────────────────────────────
 
 export type UrgencyLevel = "overdue" | "critical" | "warning" | "normal";
@@ -20,20 +43,7 @@ export function getUrgency(startsAt: string, endsAt: string, now: Date): Urgency
 
 export function formatCountdown(endsAt: string, now: Date): string {
   const diff = new Date(endsAt).getTime() - now.getTime();
-  const absDiff = Math.abs(diff);
-
-  const days = Math.floor(absDiff / (24 * 60 * 60 * 1000));
-  const hours = Math.floor((absDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-  const minutes = Math.floor((absDiff % (60 * 60 * 1000)) / (60 * 1000));
-
-  let timeStr: string;
-  if (days > 0) {
-    timeStr = `${days}d ${hours}h`;
-  } else if (hours > 0) {
-    timeStr = `${hours}h ${minutes}m`;
-  } else {
-    timeStr = `${minutes}m`;
-  }
+  const timeStr = formatExplicitDuration(diff);
 
   if (diff <= 0) return `OVERDUE BY ${timeStr}`;
   return `DUE BACK IN ${timeStr}`;
@@ -85,16 +95,11 @@ export function formatDateTime(iso: string) {
   });
 }
 
-/** Compact overdue elapsed: "3d" or "5h" or "12m" */
+/** Explicit overdue elapsed: "3 days 2 hours overdue" */
 export function formatOverdueElapsed(endsAt: string, now: Date): string {
   const diff = now.getTime() - new Date(endsAt).getTime();
   if (diff <= 0) return "";
-  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-  const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-  if (days > 0) return `${days}d overdue`;
-  if (hours > 0) return `${hours}h overdue`;
-  const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
-  return `${minutes}m overdue`;
+  return `${formatExplicitDuration(diff)} overdue`;
 }
 
 /** Check if endsAt falls on today */
@@ -143,19 +148,12 @@ export function formatRelativeTime(iso: string, now: Date): string {
   return formatDateShort(iso);
 }
 
-/** Compact due label: "2d overdue", "Due in 3h", "Due Mar 24" */
+/** Explicit due label: "2 days 3 hours overdue", "Due in 5 hours 12 minutes", "Due Mar 24" */
 export function formatDueLabel(endsAt: string, now: Date): string {
   const end = new Date(endsAt);
   const diff = end.getTime() - now.getTime();
   if (diff < 0) return formatOverdueElapsed(endsAt, now);
-  if (isDueToday(endsAt, now)) {
-    const hours = Math.floor(diff / (60 * 60 * 1000));
-    if (hours > 0) return `Due in ${hours}h`;
-    const minutes = Math.floor(diff / 60_000);
-    return `Due in ${minutes}m`;
-  }
-  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-  if (days <= 7) return `Due in ${days}d`;
+  if (diff <= 7 * 24 * 60 * 60 * 1000) return `Due in ${formatExplicitDuration(diff)}`;
   return `Due ${formatDateShort(endsAt)}`;
 }
 

@@ -61,6 +61,7 @@ export type OverdueItem = {
   requesterInitials: string;
   assetTags: string[];
   endsAt: string;
+  items: ItemThumb[];
 };
 
 export type DraftSummary = {

@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
@@ -54,16 +53,6 @@ export function ListView({
   setExpandedRowId,
   onSelectGroup,
 }: ListViewProps) {
-  const todayRef = useRef<HTMLDivElement>(null);
-  const didScrollRef = useRef(false);
-
-  // Auto-scroll to today on first list load
-  useEffect(() => {
-    if (!loading && !didScrollRef.current && todayRef.current) {
-      todayRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      didScrollRef.current = true;
-    }
-  }, [loading]);
 
   return (
     <Card>
@@ -129,7 +118,6 @@ export function ListView({
               return (
                 <div
                   key={dateKey}
-                  ref={isGroupToday ? todayRef : undefined}
                 >
                   <div
                     className={`event-date-header ${isGroupToday ? "event-date-header-today" : ""}`}
@@ -181,13 +169,9 @@ export function ListView({
                             >
                               <td>
                                 {entry.sportCode && (
-                                  <Badge
-                                    variant="purple"
-                                    size="sm"
-                                    title={sportLabel(entry.sportCode)}
-                                  >
-                                    {entry.sportCode}
-                                  </Badge>
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    {sportLabel(entry.sportCode)}
+                                  </span>
                                 )}
                               </td>
                               <td className="font-semibold">
@@ -392,7 +376,7 @@ export function ListView({
                         : formatTimeShort(entry.startsAt)}
                     </span>
                     {entry.sportCode && (
-                      <Badge variant="gray">{entry.sportCode}</Badge>
+                      <span className="text-xs font-medium text-muted-foreground">{sportLabel(entry.sportCode)}</span>
                     )}
                     {entry.isPremier && (
                       <Badge variant="blue">Premier</Badge>
