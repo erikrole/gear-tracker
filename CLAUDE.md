@@ -57,10 +57,10 @@
 
 ### 7. Pre-Implementation Audit (NON-NEGOTIABLE)
 Before implementing any feature:
-- Read ALL files in `prompts/` relevant to the feature area
 - Read ALL `docs/BRIEF_*` and `docs/AREA_*` files for the feature area
 - Cross-reference `prisma/schema.prisma` for existing models, field names, and cascade rules
 - Check `docs/DECISIONS.md` for prior architectural choices
+- Review `docs/GAPS_AND_RISKS.md` for related pending decisions or known gaps
 - Skipping this causes missed field requirements, schema mismatches, and rework
 
 ### 8. Vercel Deployment Constraints

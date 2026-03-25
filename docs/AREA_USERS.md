@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-23
+- Last Updated: 2026-03-25
 - Status: Active
 - Version: V1.1
 
@@ -91,12 +91,12 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - API request bypasses UI and attempts unauthorized edit.
 
 ## Acceptance Criteria
-1. Role inheritance is deterministic: `ADMIN > STAFF > STUDENT`.
-2. Students can view all users/items/reservations/check-outs.
-3. Students can modify only owned reservations/check-outs.
-4. Staff can modify all users, items, reservations, and check-outs.
-5. Staff can manage role changes and force location exceptions.
-6. Unauthorized actions are blocked and audited.
+- [x] AC-1: Role inheritance is deterministic: `ADMIN > STAFF > STUDENT`.
+- [x] AC-2: Students can view all users/items/reservations/check-outs.
+- [x] AC-3: Students can modify only owned reservations/check-outs.
+- [x] AC-4: Staff can modify all users, items, reservations, and check-outs.
+- [x] AC-5: Staff can manage role changes and force location exceptions.
+- [x] AC-6: Unauthorized actions are blocked and audited.
 
 ## Developer Brief (No Code)
 1. Define a centralized permission policy map keyed by role and resource.
@@ -139,3 +139,4 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **BRK-004 (CRITICAL)**: STAFF could edit ADMIN user profiles via PATCH. Guard now rejects STAFF modifications to ADMIN users.
   - **BRK-001/002 (HIGH)**: Email uniqueness TOCTOU on create/update. Removed manual findUnique pre-checks, catch P2002 from DB unique constraint instead.
   - **BRK-005 (MEDIUM)**: Profile self-update `/api/profile` missing before-snapshot in audit. Now fetches current state and records field-level diffs.
+- 2026-03-25: Doc sync — standardized ACs to checkbox format, all 6 checked.

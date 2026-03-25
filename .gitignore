@@ -5,3 +5,4 @@ node_modules/
 .env.local
 .env.production
 tsconfig.tsbuildinfo
+.DS_Store

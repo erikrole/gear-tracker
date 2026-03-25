@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-02
+- Last Updated: 2026-03-25
 - Status: Active
 - Version: V1
 
@@ -74,12 +74,12 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 - Mixed-location returns requiring exception handling on mobile.
 
 ## Acceptance Criteria
-1. Student can find and act on own due or overdue check-outs within two taps from dashboard.
-2. Mobile reservations and check-outs views support search, status scope, and row-to-detail navigation.
-3. Overdue visual treatment is red across dashboard and list contexts.
-4. Scan entry point is always one tap from primary mobile navigation.
-5. Role-based action visibility on mobile matches `AREA_USERS.md` and server authorization.
-6. Dashboard remains chart-light and action-first in V1.
+- [x] AC-1: Student can find and act on own due or overdue check-outs within two taps from dashboard.
+- [x] AC-2: Mobile reservations and check-outs views support search, status scope, and row-to-detail navigation.
+- [x] AC-3: Overdue visual treatment is red across dashboard and list contexts.
+- [x] AC-4: Scan entry point is always one tap from primary mobile navigation.
+- [x] AC-5: Role-based action visibility on mobile matches `AREA_USERS.md` and server authorization.
+- [x] AC-6: Dashboard remains chart-light and action-first in V1.
 
 ## Dependencies
 - `AREA_DASHBOARD.md`
@@ -116,3 +116,4 @@ Key planned improvements affecting mobile navigation:
 - 2026-03-22: iPhone polish pass — (1) Fixed iOS input zoom: Input/Textarea/SelectTrigger use `text-base md:text-sm` (16px mobile, 13px desktop). (2) Global `-webkit-tap-highlight-color: transparent` on all interactive elements. (3) `overscroll-behavior-y: none` on body. (4) Booking detail header stacks title above action buttons on mobile (`flex-col sm:flex-row`). (5) Equipment card header stacks title above return buttons on mobile. (6) Row action menus always visible on mobile (hover-reveal only on sm+).
 - 2026-03-23: Scan page hardening (5-pass) — Skeleton loading states, shadcn Alert for errors, optimistic checklist updates, auto-clear feedback, processingRef guards on all scan handlers, network drop recovery via try/catch/finally.
 - 2026-03-24: Sidebar V1 badges shipped — closes §4 of Mobile Navigation Contract. Overdue badge on Checkouts, unread badge on Notifications nav item (both from AppShell parallel fetch). Semantic nav groups (Operations / Admin) with STUDENT seeing no Admin group. Kits moved to Admin group with "Soon" badge. GAP-10 closed. Hardening (5-pass): dead old-sidebar CSS removed (107 lines), AbortController cleanup on badge fetch, isLoggingOut guard on logout button, logout network-failure recovery, profile nav item removed (redundant with header avatar), group separators, count-aware collapsed tooltips. Stress test: fixed overdue badge always showing 0 (wrong response path dashJson.stats vs dashJson.data.stats); fixed system-wide overdue being shown to STUDENT (added user-scoped myOverdueCount to dashboard response).
+- 2026-03-25: Doc sync — standardized ACs to checkbox format, all 6 checked.

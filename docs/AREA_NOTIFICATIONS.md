@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-16
+- Last Updated: 2026-03-25
 - Status: Active — escalation schedule implemented; Vercel Cron + Resend email channel wired
 - Version: V1
 
@@ -46,7 +46,7 @@ Implementation: `src/lib/services/notifications.ts`
 ## Cron / Job Runner
 - **Cron endpoint**: `GET /api/cron/notifications` — validates `CRON_SECRET` bearer token, no user session needed
 - **Manual endpoint**: `POST /api/notifications/process` — admin/staff auth required
-- **Schedule**: Every 15 minutes via Vercel Cron (`vercel.json`)
+- **Schedule**: Daily at 8:00 AM UTC via Vercel Cron (`vercel.json`, schedule: `0 8 * * *`)
 - Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates in-app notifications + sends email for matching windows
 - Job is fully idempotent — safe to call multiple times per hour due to dedup logic
 
@@ -67,7 +67,7 @@ Implementation: `src/lib/services/notifications.ts`
 D-009 (Overdue Escalation Policy) is status `Accepted`. Decisions:
 1. **Recipient model**: +24h escalation goes to the requester AND all admins
 2. **Alert fatigue**: Admin-configurable per-booking notification cap (default: 10). Settings at `/settings/escalation`
-3. **Email channel**: Phase B. Dev mode logs to console; failures are non-fatal
+3. **Email channel**: Shipped (2026-03-16 via Resend). Dev mode logs to console; failures are non-fatal
 4. **Schedule**: DB-driven via `EscalationRule` model, seeded with -4h/0h/+2h/+24h defaults
 
 Current behavior:
@@ -100,17 +100,17 @@ Current behavior:
 - Notification center shows records for soft-deleted or cancelled bookings — handle gracefully in query (null-safe booking join)
 
 ## Acceptance Criteria (V1 — Implemented)
-1. All 4 escalation triggers fire at correct relative times
-2. Deduplication prevents duplicate notifications per booking per type
-3. In-app notification records appear in notification center for the requester
-4. Dev mode shows console output instead of sending SMTP email
-5. Job endpoint is safe to call repeatedly without creating duplicates
+- [x] AC-1: All 4 escalation triggers fire at correct relative times.
+- [x] AC-2: Deduplication prevents duplicate notifications per booking per type.
+- [x] AC-3: In-app notification records appear in notification center for the requester.
+- [x] AC-4: Dev mode shows console output instead of sending SMTP email.
+- [x] AC-5: Job endpoint is safe to call repeatedly without creating duplicates.
 
 ## Acceptance Criteria (D-009 — Accepted 2026-03-15)
-1. ~~Escalation recipient model is formally defined and documented~~ ✅ Requester + all admins
-2. ~~24h trigger reaches admin recipients in addition to student requester~~ ✅ Implemented
-3. ~~Alert fatigue controls implemented (per-booking notification cap)~~ ✅ Admin-configurable cap
-4. ~~Email failure path logged without crashing the job runner~~ ✅ Console.log in dev; non-fatal
+- [x] AC-6: Escalation recipient model is formally defined and documented (requester + all admins).
+- [x] AC-7: 24h trigger reaches admin recipients in addition to student requester.
+- [x] AC-8: Alert fatigue controls implemented (admin-configurable per-booking cap).
+- [x] AC-9: Email failure path logged without crashing the job runner.
 
 ## Dependencies
 - `AREA_CHECKOUTS.md` — booking lifecycle, `endsAt` field, `OPEN` state contract
@@ -144,3 +144,4 @@ Current behavior:
 - 2026-03-01: Initial stub created.
 - 2026-03-09: Rewritten as V1 spec to formalize implemented escalation schedule, dedup behavior, channel model, and D-009 acceptance requirements.
 - 2026-03-16: Vercel Cron wired (`vercel.json`, `GET /api/cron/notifications`). Resend email service (`src/lib/email.ts`) replaces console.log stub. Dual-channel delivery: in-app + email for all triggers. GAP-6 closed.
+- 2026-03-25: Doc sync — standardized ACs to checkbox format (V1: 5 checked, D-009: 4 checked). Fixed cron schedule claim (was "every 15 minutes", actual is daily 8 AM UTC). Marked email channel as shipped.

@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-03-22
+- Last Updated: 2026-03-25
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -147,7 +147,7 @@
 - Decision (Accepted — Phase B):
   - +24h escalation recipients: the requester AND all admins
   - Alert fatigue controls: admin-configurable escalation intervals and per-booking caps (settings page)
-  - Email channel is Phase B; V1 acceptance = in-app escalation only
+  - Email channel shipped 2026-03-16 via Resend; dual-channel (in-app + email) delivery active
 - Reference: `AREA_NOTIFICATIONS.md` is the full spec for escalation behavior
 - Consequences:
   - Faster recovery of missing gear once full escalation is wired.
@@ -164,12 +164,12 @@
 - Decision:
   - Prioritize in this order:
     1. ✅ Checkout UX v2 — Complete (PRs 20–25)
-    2. ✅ Items page finish — Complete for baseline scope (list columns/filters/pagination, status dot + booking popover, detail tabs, inline edit, item-kind create form); detail-dashboard expansion now specified in `AREA_ITEMS.md`
-    3. B&H metadata enrichment — Not started; next up
+    2. ✅ Items page finish — Complete (6-slice redesign, shadcn DataTable, 5-pass hardening 2026-03-22)
+    3. ~~B&H metadata enrichment~~ — Withdrawn (D-005, scraping blocked)
     4. ✅ Event sync phase 1 — Complete (ICS ingest, hardening PRs 26–30)
     5. ✅ Equipment picker upgrade — Complete (sectioned picker, guidance rules, PRs 22–25)
-    6. Notification center improvements — Partial (escalation schedule shipped; D-009 acceptance pending)
-    7. Student dashboard baseline — Not started; brief needed
+    6. ✅ Notification center — Complete (in-app + email via Resend, escalation schedule, D-009 accepted 2026-03-15)
+    7. ✅ Student dashboard baseline — Complete (role-adaptive My Gear, BRIEF_STUDENT_MOBILE_V1 shipped 2026-03-15)
 - Consequences:
   - Maximizes immediate operational impact.
   - Advanced reporting intentionally deferred.
@@ -306,16 +306,19 @@
   - Staff and admins can view and edit procurement metadata inline on any item.
   - Students do not see financial fields (role-gated in UI).
 
-## D-019: Department Model Is Phase B
+## D-019: Department Model
 - Date: 2026-03-11
-- Status: Accepted
+- Status: Shipped (2026-03-21)
 - Context:
   - `departmentId` FK exists on Asset, Department model exists in schema, but no filter or display in UI.
 - Decision:
-  - Department is an optional organizational grouping, deferred to Phase B.
-  - Import can populate it, but no filter/dropdown/display in V1.
+  - Department is an optional organizational grouping for items.
+  - Import can populate it. Department combobox filter shipped on items list page.
+- Implementation (2026-03-21):
+  - Department FK on Asset, combobox filter on items page, department selectable in new item form.
+  - GAPS_AND_RISKS.md Phase B entry struck through.
 - Consequences:
-  - No scope creep from adding department features prematurely.
+  - Items can be filtered and organized by department.
 
 ## D-020: Kit Management Is Phase B
 - Date: 2026-03-11
@@ -497,7 +500,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
 2. ~~Venue mapping governance owner~~ — Resolved: D-027.
 3. ~~Metadata enrichment cache TTL target~~ — withdrawn with D-005.
-4. ~~Student mobile KPI definitions~~ — Resolved: PD-5 (Taps-to-checkout ≤3, scan success ≥95%, task completion <30s).
+4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
 - 2026-03-01: Initial decision log created from project memory dump.
@@ -511,3 +514,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-22: Updated D-002 — UI layer now unified. Checkout and reservation detail pages share single `BookingDetailPage` component. API routes consolidated to `/api/bookings/[id]`.
 - 2026-03-22: Added D-025 — user-facing status labels (OPEN→"Checked out", BOOKED→"Confirmed") via `statusLabel()` helper. DB enum unchanged.
 - 2026-03-24: Added D-026 (event sync hourly cron + staleness indicator — resolves PD-3) and D-027 (venue mapping admin-only + pattern validation — resolves PD-2). All pending decisions now resolved.
+- 2026-03-25: Doc sync — resolved PD-4 (student KPIs defined). Updated D-010 to reflect shipped state (B&H withdrawn, notification center shipped, student dashboard shipped). Updated D-009 email channel from "Phase B" to "Shipped 2026-03-16". Updated D-019 from "Phase B" to "Shipped 2026-03-21" (department filter + combobox).

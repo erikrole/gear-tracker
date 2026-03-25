@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-22
+- Last Updated: 2026-03-25
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -231,13 +231,13 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Check-in at alternate location due to approved exception.
 
 ## Acceptance Criteria
-1. Event-linked checkout can be created without manual title/date entry.
-2. User can create ad hoc checkout without event linkage.
-3. State-based actions are enforced exactly by lifecycle state.
-4. Partial check-in does not complete booking until all items are returned.
-5. Extend flow blocks cleanly with actionable overlap details.
-6. Permission and ownership gates match `AREA_USERS.md`.
-7. Every mutation emits audit records with actor and diff context.
+- [x] AC-1: Event-linked checkout can be created without manual title/date entry.
+- [x] AC-2: User can create ad hoc checkout without event linkage.
+- [x] AC-3: State-based actions are enforced exactly by lifecycle state.
+- [x] AC-4: Partial check-in does not complete booking until all items are returned.
+- [x] AC-5: Extend flow blocks cleanly with actionable overlap details.
+- [x] AC-6: Permission and ownership gates match `AREA_USERS.md`.
+- [x] AC-7: Every mutation emits audit records with actor and diff context.
 
 ## Dependencies
 - Event normalization read model from `AREA_EVENTS.md`.
@@ -281,4 +281,6 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-03-24: **BookingDetailsSheet stress test** — (1) CRITICAL: `cancelBooking()` and `cancelReservation()` upgraded from READ_COMMITTED to SERIALIZABLE isolation, matching all other booking mutations. Prevents concurrent cancel race creating duplicate audit entries. (2) HIGH: null-safe guards on `enterEquipEditMode` array access. (3) MEDIUM: double-submit guards on `handleSave`/`handleEquipSave`. (4) MEDIUM: empty-payload PATCH skipped with "No changes to save" toast.
 - 2026-03-24: **BookingDetailsSheet hardening (4-pass)** — (1) Design system: custom tab buttons → shadcn Tabs, Spinner → Skeleton, raw textarea → shadcn Textarea, .conflict-error → shadcn Alert, .progress-* → shadcn Progress, .filter-chips → ToggleGroup, .timeline-* → Tailwind with cn(). Removed ~120 lines dead CSS. (2) Data flow: AbortController on fetchBooking prevents stale data overwrite, all 7 fetch calls use fetchWithTimeout, silent refresh after mutations preserves visible content, 401 handling redirects to login on all endpoints. (3) Resilience: Retry button on fetch error, null-safe guards (?? []) on all booking arrays, checkinLoading guard on handleCheckinItem. (4) UX: extend toast shows new date ("Extended to Mar 28"), cancel confirmation names type and consequence, checkin toast includes item tag.
 - 2026-03-24: **Equipment Picker hardening (4-pass)** — (1) Design system: removed 48 lines dead CSS (old picker styles, raw checkbox styles, broken `:has(input:disabled)` selector), removed dead `highestReached` state + `sectionIndex` import. (2) Data flow: `selectedIdSet` (Set) replaces O(n) `.includes()` per row; AbortController on availability fetch prevents stale response overwrite on rapid date changes. (3) Resilience: scan already-selected items shows "already selected" feedback; availability errors show orange "retry" link; scan feedback timer cleaned on unmount. (4) UX: scan "not found" gives location context; empty section with "Only available" active links to "show all"; availability retry inline.
+- 2026-03-25: Doc sync — standardized ACs to checkbox format, all 7 checked.
 - 2026-03-25: **Booking page hardening (5-pass)** — (1) Design system: error state → shadcn Alert with destructive variant, removed dead `statusBadge` config and duplicate export. (2) Data flow: `useBookingDetail` rebuilt with AbortController (prevents stale data on rapid id changes), 401/403 redirect, differentiated error types (not-found/network/auth/server), reload-preserves-data pattern. `BookingListPage` list fetch hardened with AbortController + 401 redirect + skeleton-only-on-initial-load. `useBookingActions` callAction + saveField: 401 redirect on all mutation endpoints. (3) Resilience: all 4 context menu handlers (cancel/convert/duplicate) upgraded with 401 redirect via fetchAction helper, success toasts on cancel/duplicate, cancel confirmations state irreversibility, null-safe checkin guard. (4) UX: manual refresh button with RefreshCw icon + tooltip, extend toast shows new date ("Extended to Mar 28").
+- 2026-03-25: **Kit-to-booking integration (GAP-18)** — `kitId` FK on Booking model, kit selector in CreateBookingSheet, kit badge on booking detail page.

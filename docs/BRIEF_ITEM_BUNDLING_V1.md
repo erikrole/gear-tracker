@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
 - Date: 2026-03-15
-- Status: Active
+- Status: Shipped
 - Decision Ref: D-023 (Item bundling — parent/child accessory model)
 
 ---

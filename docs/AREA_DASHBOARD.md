@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-22
+- Last Updated: 2026-03-25
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -127,16 +127,16 @@ Make dashboard an action console for daily operations, not a reporting screen.
 3. Keyboard shortcut layer.
 
 ## Acceptance Criteria
-1. [x] User can reach a checkout or reservation action in one click/tap from dashboard.
-2. [x] Overdue banner and overdue list counts remain consistent.
-3. [x] Check-outs and Reservations lanes each show max 5 rows plus `View all`.
-4. [x] Reservations lane only includes records within next 7 days.
-5. [x] Permission-restricted actions are hidden or disabled correctly.
-6. [x] Drafts can be resumed without losing entered data.
-7. [x] Refresh failures preserve visible data (toast, no error screen wipe).
-8. [x] Concurrent fetch races are prevented (AbortController).
-9. [x] Draft delete is optimistic with rollback on failure.
-10. [x] Manual refresh button shows data freshness ("Updated X ago").
+- [x] AC-1: User can reach a checkout or reservation action in one click/tap from dashboard.
+- [x] AC-2: Overdue banner and overdue list counts remain consistent.
+- [x] AC-3: Check-outs and Reservations lanes each show max 5 rows plus `View all`.
+- [ ] AC-4: Reservations lane only includes records within next 7 days. **(Not enforced — code fetches all BOOKED reservations without date window filter.)**
+- [x] AC-5: Permission-restricted actions are hidden or disabled correctly.
+- [x] AC-6: Drafts can be resumed without losing entered data.
+- [x] AC-7: Refresh failures preserve visible data (toast, no error screen wipe).
+- [x] AC-8: Concurrent fetch races are prevented (AbortController).
+- [x] AC-9: Draft delete is optimistic with rollback on failure.
+- [x] AC-10: Manual refresh button shows data freshness ("Updated X ago").
 
 ## Edge Cases
 - No overdue items: banner hidden.
@@ -178,3 +178,4 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-03-22: **Reliability hardening** — AbortController on dashboard fetch prevents race conditions and cancels on unmount. Refresh failures show toast instead of replacing visible data with error screen. Null-safe array guards on API response prevent crashes from partial backend data. Draft delete has try/catch for network errors, disabled state to prevent double-click, and 401 handling for expired sessions. `toast` dependency removed from `useCallback` deps via ref pattern to prevent infinite re-fetch loops.
 - 2026-03-22: **UX polish** — Manual refresh button (spinning RefreshCw icon) with "Updated X ago" tooltip for data freshness visibility. Optimistic draft delete (instant removal + rollback on failure, no full-page reload). Skeleton loading uses varied widths per row to look like real content. Error states differentiated by icon (bell for offline, box for server) with reassuring copy ("usually temporary"). `lastRefreshed` timestamp tracks data age.
 - 2026-03-23: **Sport filter chips** — Toggleable sport code filter chips below stat strip. Scopes all dashboard sections (My Checkouts, My Reservations, My Shifts, Team Checkouts, Team Reservations, Upcoming Events) to a single sport. URL-persisted via `?sport=MBB` query param. Client-side filtering on already-loaded data (no API changes). Contextual empty states ("No MBB checkouts"). Overdue banner intentionally unfiltered (safety-critical). Auto-hides when fewer than 2 sport codes present in data.
+- 2026-03-25: Doc sync — standardized ACs to checkbox format. Unchecked AC-4 (7-day reservation filter not enforced in code — query fetches all BOOKED reservations without date window).
