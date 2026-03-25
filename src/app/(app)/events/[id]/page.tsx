@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 type CalendarEvent = {
   id: string;
@@ -143,6 +144,7 @@ function EventSkeleton() {
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [fetchError, setFetchError] = useState<"network" | "server" | null>(null);
   const [shiftGroup, setShiftGroup] = useState<ShiftGroupSummary | null>(null);
@@ -172,6 +174,7 @@ export default function EventDetailPage() {
       const json = await res.json();
       if (json?.data) {
         setEvent(json.data);
+        setBreadcrumbLabel(json.data.summary);
         setFetchError(null);
         setLastUpdated(new Date());
       } else {

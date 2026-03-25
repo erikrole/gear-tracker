@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { AlertCircle, Clock, ChevronDown, Copy, RefreshCw } from "lucide-react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { useToast } from "@/components/Toast";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
@@ -52,6 +53,7 @@ export default function BookingDetailPage({
 }) {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { setBreadcrumbLabel } = useBreadcrumbLabel();
 
   // Data fetching
   const { booking, loading, reloading, error, reload, patchLocal } = useBookingDetail(id);
@@ -74,6 +76,10 @@ export default function BookingDetailPage({
   // Edit sheet state
   const [editSheetOpen, setEditSheetOpen] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (booking?.title) setBreadcrumbLabel(booking.title);
+  }, [booking?.title, setBreadcrumbLabel]);
 
   // Live countdown tick — faster for urgent/overdue bookings
   const [now, setNow] = useState(() => new Date());

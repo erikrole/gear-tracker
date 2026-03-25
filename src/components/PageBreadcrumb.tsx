@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Breadcrumb,
@@ -8,8 +9,10 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
+  BreadcrumbEllipsis,
 } from "@/components/ui/breadcrumb";
 import Link from "next/link";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 const LABEL_MAP: Record<string, string> = {
   items: "Items",
@@ -46,6 +49,9 @@ const HREF_OVERRIDE: Record<string, string> = {
   events: "/schedule",
 };
 
+/** Collapse middle crumbs when total exceeds this threshold */
+const COLLAPSE_THRESHOLD = 3;
+
 function formatSegment(segment: string): string {
   return LABEL_MAP[segment] ?? segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -60,6 +66,8 @@ function isDynamicSegment(segment: string): boolean {
 
 export default function PageBreadcrumb() {
   const pathname = usePathname();
+  const { label: entityLabel } = useBreadcrumbLabel();
+  const [expanded, setExpanded] = useState(false);
   const segments = pathname.split("/").filter(Boolean);
 
   // Don't show breadcrumb on the home page
@@ -74,26 +82,62 @@ export default function PageBreadcrumb() {
   }
 
   // If the URL has more segments than visible crumbs, we're on a detail page
-  // — make all visible crumbs clickable links (the page title serves as context)
   const onDetailPage = segments.length > crumbs.length;
+
+  // All crumbs including Home and optional entity label
+  const allItems: Array<{ href: string; label: string; isPage: boolean }> = [
+    { href: "/", label: "Home", isPage: false },
+    ...crumbs.map((crumb, i) => ({
+      ...crumb,
+      // Last static crumb is a page only if we're NOT on a detail page and there's no entity label
+      isPage: i === crumbs.length - 1 && !onDetailPage && !entityLabel,
+    })),
+  ];
+
+  // On detail pages, make all static crumbs links (entity label becomes the page)
+  if (onDetailPage) {
+    allItems.forEach((item) => { item.isPage = false; });
+  }
+
+  // Append entity label as the final page crumb on detail pages
+  if (onDetailPage && entityLabel) {
+    allItems.push({ href: pathname, label: entityLabel, isPage: true });
+  }
+
+  // Collapse logic: when too many crumbs, hide the middle ones behind an ellipsis
+  const shouldCollapse = !expanded && allItems.length > COLLAPSE_THRESHOLD;
+  const visibleItems = shouldCollapse
+    ? [allItems[0], ...allItems.slice(-2)]
+    : allItems;
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href="/">Home</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        {crumbs.map((crumb, i) => (
-          <span key={crumb.href} className="contents">
-            <BreadcrumbSeparator />
+        {visibleItems.map((item, i) => (
+          <span key={item.href + item.label} className="contents">
+            {i > 0 && <BreadcrumbSeparator />}
+            {/* Insert ellipsis after first item when collapsed */}
+            {shouldCollapse && i === 1 && (
+              <>
+                <BreadcrumbItem>
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(true)}
+                    className="flex items-center"
+                    aria-label="Show full breadcrumb path"
+                  >
+                    <BreadcrumbEllipsis />
+                  </button>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+              </>
+            )}
             <BreadcrumbItem>
-              {i === crumbs.length - 1 && !onDetailPage ? (
-                <BreadcrumbPage className="max-w-[200px] truncate">{crumb.label}</BreadcrumbPage>
+              {item.isPage ? (
+                <BreadcrumbPage className="max-w-[200px] truncate">{item.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
-                  <Link href={crumb.href} className="max-w-[200px] truncate">{crumb.label}</Link>
+                  <Link href={item.href} className="max-w-[200px] truncate">{item.label}</Link>
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>
