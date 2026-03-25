@@ -782,9 +782,9 @@ textarea:focus-visible {
 .view-all-link {
   display: block;
   text-align: center;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  padding: 10px 20px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: 8px 16px;
   border-top: 1px solid var(--border-light);
   text-decoration: none;
   transition: color 0.15s ease;
@@ -883,8 +883,7 @@ textarea:focus-visible {
   padding: 14px 16px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius);
 }
 
 .activity-chart-wrap {
@@ -926,23 +925,27 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-light, hsl(var(--border) / 0.5));
   text-decoration: none;
   color: inherit;
   cursor: pointer;
   transition: background 0.15s ease;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .card-header-link:hover {
   background: var(--panel-hover);
   text-decoration: none;
 }
 .card-header-link h2 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  margin: 0;
   transition: color 0.12s ease;
 }
 .card-header-link:hover h2 {
-  color: var(--accent);
+  color: var(--text);
 }
 
 /* ── Event row with hover actions ── */
@@ -977,8 +980,8 @@ textarea:focus-visible {
 /* ── Overdue Banner ── */
 .overdue-banner {
   background: var(--wi-red);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
+  border-radius: var(--radius);
+  padding: 14px 16px;
   margin-bottom: 20px;
   color: #ffffff;
   border-left: 4px solid var(--wi-red-hover);
@@ -1102,8 +1105,8 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 32px 20px;
+  gap: 6px;
+  padding: 24px 16px;
   text-align: center;
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -1123,23 +1126,17 @@ textarea:focus-visible {
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 10px 20px;
+  padding: 8px 16px;
   border: none;
   background: none;
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: background var(--duration-normal) var(--ease-out),
-              padding-left var(--duration-normal) var(--ease-out),
-              box-shadow var(--duration-normal) var(--ease-out);
+  transition: background var(--duration-normal) var(--ease-out);
 }
 
 .ops-row:hover {
   background: var(--panel-hover);
-}
-.ops-row:not(.ops-row-status):hover {
-  padding-left: 22px;
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .ops-row-static {
@@ -1159,10 +1156,7 @@ textarea:focus-visible {
 /* Status color bar on left — matches status dot colors */
 .ops-row-status {
   border-left: 3px solid transparent;
-  padding-left: 17px;
-}
-.ops-row-status:hover {
-  padding-left: 19px;
+  padding-left: 13px;
 }
 
 .ops-row-checked-out {
@@ -1405,7 +1399,7 @@ textarea:focus-visible {
   }
 
   .card-header-link {
-    min-height: 48px;
+    min-height: 44px;
     display: flex;
     align-items: center;
   }
@@ -1431,9 +1425,8 @@ textarea:focus-visible {
 .summary-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius);
+  padding: 20px;
 }
 
 .summary-card-label {
