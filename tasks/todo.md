@@ -65,8 +65,8 @@ Last updated: 2026-03-25
 - [x] **Resolve duplicate source management** — Added URL uniqueness check in POST handler. Returns 409 if source URL already exists.
 
 ### Dashboard
-- [ ] **Implement student role-adaptive dashboard** (BRIEF AC-3) — Students should see only "My Gear" on mobile.
-- [ ] **Add owned-booking visual distinction** (BRIEF AC-5) — Ownership accent not visible in dashboard lanes.
+- [x] **Implement student role-adaptive dashboard** (AC-3) — Students see only "My Gear" column (full width), no stat strip, no quick actions. Team activity hidden.
+- [x] **Add owned-booking visual distinction** (AC-5) — My Gear checkout/reservation rows show `border-l-2 border-l-primary` accent to distinguish from team rows.
 
 ### Users
 - [x] **Add audit logging to avatar upload/delete** — Added `createAuditEntry` for `avatar_uploaded` and `avatar_deleted` actions.
