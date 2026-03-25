@@ -50,6 +50,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
 
+  // Auth check — mount only
   useEffect(() => {
     fetch("/api/me")
       .then((res) => {
@@ -59,20 +60,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       .then((json) => setUser(json.user))
       .catch(() => router.replace("/login"))
       .finally(() => setLoading(false));
+  }, [router]);
 
-    // Fetch unread notification count and overdue badge count in parallel
-    const badgeController = new AbortController();
+  // Badge counts — refresh on navigation so counts stay fresh after user actions
+  useEffect(() => {
+    const controller = new AbortController();
     Promise.all([
-      fetch("/api/notifications?limit=0&unread=true", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
-      fetch("/api/dashboard", { signal: badgeController.signal }).then((res) => res.ok ? res.json() : null),
+      fetch("/api/notifications?limit=0&unread=true", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
+      fetch("/api/dashboard", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
     ]).then(([notifJson, dashJson]) => {
       if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
-      // Use user-scoped overdue count so all roles (including STUDENT) see only their own overdue
+      // User-scoped overdue count so STUDENT sees only their own overdue
       if (dashJson?.data?.myCheckouts?.overdue != null) setOverdueBadgeCount(dashJson.data.myCheckouts.overdue);
     }).catch(() => {});
 
-    return () => { badgeController.abort(); };
-  }, [router, pathname]);
+    return () => { controller.abort(); };
+  }, [pathname]);
 
   // Command palette state
   const [cmdOpen, setCmdOpen] = useState(false);
