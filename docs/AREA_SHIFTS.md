@@ -61,3 +61,4 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-03-23 | Hardening (4-pass): design system (inline styles → Tailwind), data flow (AbortController, 401 redirect, trade count refresh on sheet close), resilience (network vs server error messages, refresh preserves data), UX polish (filtered "N of M" count, skeleton column fix). | — |
 | 2026-03-23 | Stress test: 401 handling on all ShiftDetailPanel + TradeBoard mutations (8+5 handlers). Concurrent mutation guard upgraded from per-item to global (`acting !== null`). | — |
 | 2026-03-25 | Decomposed schedule page from 1,012→117 lines: `useScheduleData` hook + `ScheduleFilters`, `CalendarView`, `ListView` components + shared types (GAP-15 closed) | — |
+| 2026-03-25 | UX polish: removed auto-scroll-to-today on list load, full sport names replace code badges, List/Calendar toggle upgraded to shadcn ToggleGroup with icons, My Shifts filter replaced with shadcn Switch toggle | — |

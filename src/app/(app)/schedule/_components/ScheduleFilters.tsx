@@ -1,6 +1,9 @@
 import { useMemo } from "react";
+import { ListIcon, CalendarIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
-import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import {
   AREAS,
@@ -27,33 +30,30 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
 
   return (
     <div className="filter-chip-bar mb-1">
-      <div className="flex rounded border border-border overflow-hidden">
-        <Button
-          variant={filters.viewMode === "list" ? "default" : "outline"}
-          size="sm"
-          onClick={() => filters.setViewMode("list")}
-          className="rounded-none border-none"
-        >
+      <ToggleGroup
+        type="single"
+        value={filters.viewMode}
+        onValueChange={(v) => { if (v) filters.setViewMode(v as "list" | "calendar"); }}
+        className="h-9"
+      >
+        <ToggleGroupItem value="list" className="h-9 px-3 gap-1.5 text-sm font-medium">
+          <ListIcon className="size-4" />
           List
-        </Button>
-        <Button
-          variant={filters.viewMode === "calendar" ? "default" : "outline"}
-          size="sm"
-          onClick={() => filters.setViewMode("calendar")}
-          className="rounded-none border-none"
-        >
+        </ToggleGroupItem>
+        <ToggleGroupItem value="calendar" className="h-9 px-3 gap-1.5 text-sm font-medium">
+          <CalendarIcon className="size-4" />
           Calendar
-        </Button>
-      </div>
+        </ToggleGroupItem>
+      </ToggleGroup>
       <div className="filter-chips">
-        <FilterChip
-          label="My Shifts"
-          value={filters.myShiftsOnly ? "mine" : ""}
-          displayValue="My shifts"
-          options={[{ value: "mine", label: "My shifts only" }]}
-          onSelect={() => filters.setMyShiftsOnly(true)}
-          onClear={() => filters.setMyShiftsOnly(false)}
-        />
+        <div className="flex items-center gap-2">
+          <Switch
+            id="my-shifts-toggle"
+            checked={filters.myShiftsOnly}
+            onCheckedChange={filters.setMyShiftsOnly}
+          />
+          <Label htmlFor="my-shifts-toggle" className="text-sm cursor-pointer">My Shifts</Label>
+        </div>
         <FilterChip
           label="Sport"
           value={filters.sportFilter}

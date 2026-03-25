@@ -218,7 +218,7 @@ export const GET = withAuth(async (_req, { user }) => {
         serializedItems: {
           take: 3,
           include: {
-            asset: { select: { assetTag: true } },
+            asset: { select: { id: true, assetTag: true, name: true, imageUrl: true } },
           },
         },
       },
@@ -324,6 +324,11 @@ export const GET = withAuth(async (_req, { user }) => {
     requesterInitials: getInitials(b.requester.name),
     assetTags: b.serializedItems.map((si) => si.asset.assetTag),
     endsAt: b.endsAt.toISOString(),
+    items: b.serializedItems.map((si) => ({
+      id: si.asset.id,
+      name: si.asset.name,
+      imageUrl: si.asset.imageUrl,
+    })),
   }));
 
   // Build my shifts with gear status

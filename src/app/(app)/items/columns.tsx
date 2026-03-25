@@ -101,10 +101,11 @@ export function statusBadge(asset: Asset) {
     case "CHECKED_OUT": {
       const name = activeBooking?.requesterName;
       const isOverdue = activeBooking?.isOverdue;
-      const label = name ? `Checked out by ${name}` : "Checked out";
+      const label = name || "Checked out";
       const color = isOverdue ? "red" : "blue";
+      const fullStatus = name ? `Checked out by ${name}` : "Checked out";
       return (
-        <Badge className={STATUS_STYLES[color].badge}>
+        <Badge className={STATUS_STYLES[color].badge} title={fullStatus}>
           <StatusDot color={color} />
           {label}
         </Badge>
@@ -112,9 +113,10 @@ export function statusBadge(asset: Asset) {
     }
     case "RESERVED": {
       const name = activeBooking?.requesterName;
-      const label = name ? `Reserved by ${name}` : "Reserved";
+      const label = name || "Reserved";
+      const fullStatus = name ? `Reserved by ${name}` : "Reserved";
       return (
-        <Badge className={STATUS_STYLES.purple.badge}>
+        <Badge className={STATUS_STYLES.purple.badge} title={fullStatus}>
           <StatusDot color="purple" />
           {label}
         </Badge>
@@ -216,9 +218,9 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       header: "Name",
       accessorKey: "assetTag",
       id: "assetTag",
-      size: 280,
-      minSize: 200,
-      maxSize: 360,
+      size: 260,
+      minSize: 180,
+      maxSize: 340,
       enableSorting: true,
       cell: ({ row }) => {
         const item = row.original;
@@ -260,15 +262,15 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Status",
       id: "status",
-      size: 200,
-      minSize: 140,
+      size: 160,
+      minSize: 120,
       cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
     },
     {
       header: "Category",
       id: "category",
-      size: 140,
+      size: 120,
       accessorFn: (row) => row.category?.name || row.type,
       cell: ({ row }) => row.original.category?.name || row.original.type,
       enableSorting: true,
@@ -276,7 +278,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Department",
       id: "department",
-      size: 140,
+      size: 120,
       accessorFn: (row) => row.department?.name ?? "",
       cell: ({ row }) => row.original.department?.name ?? "—",
       enableSorting: true,
@@ -284,7 +286,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Location",
       id: "location",
-      size: 160,
+      size: 130,
       accessorFn: (row) => row.location.name,
       cell: ({ row }) => row.original.location.name,
       enableSorting: true,

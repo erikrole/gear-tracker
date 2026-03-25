@@ -81,6 +81,21 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
 
   const limit = 20;
 
+  // ── Overdue-first sort: float overdue items to top of current page ──
+  const sortedItems = useMemo(() => {
+    if (!config.overdueStatus) return items;
+    const now = new Date();
+    return [...items].sort((a, b) => {
+      const aOverdue = a.status === config.overdueStatus && new Date(a.endsAt) < now;
+      const bOverdue = b.status === config.overdueStatus && new Date(b.endsAt) < now;
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      // Within overdue group: longest overdue first
+      if (aOverdue && bOverdue) return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
+      return 0;
+    });
+  }, [items, config.overdueStatus]);
+
   // ── Data fetching ──
 
   const reload = useCallback(async () => {
@@ -258,7 +273,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             {viewMode === "cards" ? (
               /* ════════ Card grid ════════ */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-                {items.map((item) => (
+                {sortedItems.map((item) => (
                   <BookingCard
                     key={item.id}
                     item={item}
@@ -290,7 +305,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((item) => (
+                      {sortedItems.map((item) => (
                         <BookingTableRow
                           key={item.id}
                           item={item}
@@ -310,7 +325,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
 
                 {/* Mobile card list */}
                 <div className="booking-mobile-list">
-                  {items.map((item) => (
+                  {sortedItems.map((item) => (
                     <BookingMobileCard
                       key={item.id}
                       item={item}

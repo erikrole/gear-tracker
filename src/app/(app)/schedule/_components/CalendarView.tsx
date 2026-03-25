@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { sportLabel } from "@/lib/sports";
 import type { CalendarEntry } from "./types";
 import { coverageDot } from "./types";
 
@@ -143,7 +144,7 @@ export function CalendarView({
                           )}
                           <span className="truncate">
                             {entry.sportCode && entry.opponent
-                              ? `${entry.sportCode} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
+                              ? `${sportLabel(entry.sportCode)} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
                               : entry.summary}
                           </span>
                         </button>
@@ -155,7 +156,7 @@ export function CalendarView({
                           title={entry.summary}
                         >
                           {entry.sportCode && entry.opponent
-                            ? `${entry.sportCode} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
+                            ? `${sportLabel(entry.sportCode)} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
                             : entry.summary}
                         </Link>
                       ),

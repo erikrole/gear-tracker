@@ -12,6 +12,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, ClockIcon, InboxIcon, PackageIcon } from "lucide-react";
 import { formatDueLabel, formatEventDateTime, isDueToday } from "@/lib/format";
+import { sportLabel } from "@/lib/sports";
 import { UserAvatar, GearAvatarStack, ShiftAvatarStack } from "./dashboard-avatars";
 import type { DashboardData, BookingSummary } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
@@ -144,8 +145,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 <div key={e.id} className="ops-row event-row-clickable">
                   <a href={`/events/${e.id}`} className="ops-row-main no-underline">
                     <span className="ops-row-title">
-                      {e.sportCode && <Badge variant="sport" size="sm" className="mr-1.5">{e.sportCode}</Badge>}
-                      {e.opponent ? `vs ${e.opponent}` : e.title}
+                      {e.sportCode && <span className="text-xs font-medium text-muted-foreground mr-1">{sportLabel(e.sportCode)}</span>}
+                      {e.opponent ? `vs ${e.opponent}` : (!e.sportCode ? e.title : "")}
                     </span>
                     <span className="ops-row-meta">
                       {formatEventDateTime(e.startsAt, e.endsAt, e.allDay)}

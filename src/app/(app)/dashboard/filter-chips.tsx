@@ -103,7 +103,7 @@ export function FilterChips({
   if (availableSports.length <= 1 && availableLocations.length <= 1 && presets.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1.5 mt-2">
+    <div className="flex flex-col gap-1.5">
       {/* Filter chips row */}
       <div className="flex items-center gap-1.5 flex-wrap">
         {availableSports.length > 1 && availableSports.map((code) => (

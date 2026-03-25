@@ -16,7 +16,6 @@ import { formatRelativeTime } from "@/lib/format";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { DashboardSkeleton } from "./dashboard/dashboard-skeleton";
-import { ActivityChart } from "./dashboard/activity-chart";
 import { FilterChips } from "./dashboard/filter-chips";
 import { OverdueBanner } from "./dashboard/overdue-banner";
 import { MyGearColumn } from "./dashboard/my-gear-column";
@@ -160,9 +159,12 @@ export default function DashboardPage() {
             <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
           </Tooltip>
         </div>
-        <div className="quick-actions">
-          <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
-          <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
+        <div className="flex items-center gap-2">
+          <FilterChips {...filters} />
+          <div className="quick-actions">
+            <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
+            <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
+          </div>
         </div>
       </div>
 
@@ -186,12 +188,6 @@ export default function DashboardPage() {
           <span className="stat-strip-label">Reserved</span>
         </a>
       </div>
-
-      {/* ══════ Activity Overview Chart ══════ */}
-      <ActivityChart stats={data.stats} />
-
-      {/* ══════ Filter Chips (Sport + Location) ══════ */}
-      <FilterChips {...filters} />
 
       {/* ══════ Welcome Banner (first-run) ══════ */}
       {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
