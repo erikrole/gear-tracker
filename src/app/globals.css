@@ -491,10 +491,15 @@ body {
 }
 
 /* ===== Heading Font System ===== */
-/* All headings use Gotham Black for editorial authority */
-h1, h2, h3, h4, h5, h6 {
+/* h1-h2: Gotham Black (800) for page titles and major headings.
+   h3-h6: Gotham Bold (700) for section labels and smaller headings. */
+h1, h2 {
   font-family: var(--font-heading);
   font-weight: 800;
+}
+h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
 }
 
 /* Card titles inherit heading font (slightly lighter weight) */
@@ -745,9 +750,7 @@ textarea:focus-visible {
 }
 
 .page-header h1 {
-  font-family: var(--font-heading);
   font-size: var(--text-3xl);
-  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: var(--leading-none);
   margin: 0;

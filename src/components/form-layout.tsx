@@ -43,7 +43,7 @@ export function FormRow2Col({
 
 export function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+    <h3 className="text-sm text-muted-foreground uppercase tracking-wider">
       {children}
     </h3>
   );

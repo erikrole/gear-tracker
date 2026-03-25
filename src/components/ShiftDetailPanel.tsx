@@ -374,7 +374,7 @@ export default function ShiftDetailPanel({
             {/* Shifts by area */}
             {Object.entries(shiftsByArea).map(([area, shifts]) => (
               <div key={area} className="mt-4">
-                <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>
+                <h3 className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
                   {AREA_LABELS[area] ?? area}
                 </h3>
                 {shifts.map((shift) => {

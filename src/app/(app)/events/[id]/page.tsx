@@ -301,7 +301,7 @@ export default function EventDetailPage() {
   return (
     <>
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold">{event.summary}</h1>
+        <h1 className="text-2xl">{event.summary}</h1>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -526,7 +526,7 @@ export default function EventDetailPage() {
             {/* Missing gear list */}
             {commandCenter.missingGear.length > 0 && (
               <div className="mt-4">
-                <h3 className="text-sm font-semibold mb-2">
+                <h3 className="text-sm mb-2">
                   Missing Gear ({commandCenter.missingGear.length})
                 </h3>
                 <div className="flex flex-col gap-2">
