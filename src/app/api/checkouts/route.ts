@@ -70,7 +70,8 @@ export const POST = withAuth(async (req, { user }) => {
     sourceReservationId: body.sourceReservationId,
     eventId,
     sportCode,
-    shiftAssignmentId: body.shiftAssignmentId
+    shiftAssignmentId: body.shiftAssignmentId,
+    kitId: body.kitId
   });
 
   await createAuditEntry({

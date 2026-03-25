@@ -238,6 +238,7 @@ model Booking {
   sportCode           String?                 @map("sport_code")
   refNumber           String?                 @unique @map("ref_number")
   shiftAssignmentId   String?                 @map("shift_assignment_id")
+  kitId               String?                 @map("kit_id")
   createdAt           DateTime                @default(now()) @map("created_at")
   updatedAt           DateTime                @updatedAt @map("updated_at")
   requester           User                    @relation("BookingRequester", fields: [requesterUserId], references: [id])
@@ -247,6 +248,7 @@ model Booking {
   derivedCheckouts    Booking[]               @relation("CheckoutFromReservation")
   event               CalendarEvent?          @relation(fields: [eventId], references: [id])
   shiftAssignment     ShiftAssignment?        @relation(fields: [shiftAssignmentId], references: [id])
+  kit                 Kit?                    @relation(fields: [kitId], references: [id])
   serializedItems     BookingSerializedItem[]
   bulkItems           BookingBulkItem[]
   allocations         AssetAllocation[]
@@ -262,6 +264,7 @@ model Booking {
   @@index([sportCode])
   @@index([shiftAssignmentId])
   @@index([requesterUserId])
+  @@index([kitId])
   @@map("bookings")
 }
 
@@ -490,6 +493,7 @@ model Kit {
   updatedAt   DateTime        @updatedAt @map("updated_at")
   location    Location        @relation(fields: [locationId], references: [id])
   members     KitMembership[]
+  bookings    Booking[]
 
   @@unique([name, locationId])
   @@map("kits")

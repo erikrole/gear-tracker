@@ -33,6 +33,7 @@ export const POST = withAuth(async (req, { user }) => {
     eventId: body.eventId,
     sportCode: body.sportCode,
     shiftAssignmentId: body.shiftAssignmentId,
+    kitId: body.kitId,
   });
 
   await createAuditEntry({

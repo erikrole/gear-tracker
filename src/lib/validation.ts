@@ -35,7 +35,8 @@ export const createReservationSchema = z.object({
   eventId: z.string().cuid().optional(),
   sportCode: z.string().max(10).optional(),
   notes: z.string().max(10000).optional(),
-  shiftAssignmentId: z.string().cuid().optional()
+  shiftAssignmentId: z.string().cuid().optional(),
+  kitId: z.string().cuid().optional()
 });
 
 export const updateReservationSchema = createReservationSchema
@@ -54,7 +55,8 @@ export const createCheckoutSchema = z.object({
   eventId: z.string().cuid().optional(),
   sportCode: z.string().max(10).optional(),
   notes: z.string().max(10000).optional(),
-  shiftAssignmentId: z.string().cuid().optional()
+  shiftAssignmentId: z.string().cuid().optional(),
+  kitId: z.string().cuid().optional()
 });
 
 export const startScanSessionSchema = z.object({
