@@ -319,6 +319,7 @@ export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "asset", "import");
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("mode") || "import";
+  const importMode = searchParams.get("importMode") || "upsert";
 
   const formData = await req.formData();
   const file = formData.get("file");
@@ -489,6 +490,10 @@ export const POST = withAuth(async (req, { user }) => {
     const existing = existingBySerial.get(row.serialNumber) ?? existingByTag.get(row.assetTag);
 
     if (existing) {
+      if (importMode === "create_only") {
+        // Skip existing items in create-only mode
+        continue;
+      }
       // Update: reuse existing qrCodeValue to avoid unique constraint conflicts
       const data = buildAssetData(row, locationId, departmentId);
       const { serialNumber: _sn, qrCodeValue: _qr, ...updateData } = data;

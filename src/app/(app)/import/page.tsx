@@ -132,6 +132,7 @@ export default function ImportPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [importMode, setImportMode] = useState<"upsert" | "create_only">("upsert");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Load saved mapping from localStorage
@@ -290,7 +291,7 @@ export default function ImportPage() {
       formData.append("file", file);
       formData.append("mapping", JSON.stringify(mapping));
 
-      const res = await fetch("/api/assets/import?mode=import", {
+      const res = await fetch(`/api/assets/import?mode=import&importMode=${importMode}`, {
         method: "POST",
         body: formData,
       });
@@ -600,15 +601,29 @@ export default function ImportPage() {
             </div>
           </Card>
 
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Mode:</span>
+              <Select value={importMode} onValueChange={(v) => setImportMode(v as "upsert" | "create_only")}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="upsert">Create &amp; update</SelectItem>
+                  <SelectItem value="create_only">Create only (skip existing)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
             <Button variant="outline" onClick={() => setStep("mapping")}>Back to mapping</Button>
             <Button variant="outline" onClick={resetWizard}>Cancel</Button>
             <Button
               disabled={preview.summary.withErrors === preview.summary.totalItems}
               onClick={handleImport}
             >
-              Import {preview.summary.totalItems - preview.summary.withErrors} items
+              Import {importMode === "create_only" ? preview.summary.willCreate : preview.summary.totalItems - preview.summary.withErrors} items
             </Button>
+            </div>
           </div>
         </>
       )}
@@ -622,7 +637,12 @@ export default function ImportPage() {
             </div>
             <div className="mt-4 font-semibold">Importing items...</div>
             <div className="text-muted-foreground text-sm">
-              Creating locations, departments, kits, and assets
+              {preview && (
+                <span>
+                  Processing {importMode === "create_only" ? preview.summary.willCreate : preview.summary.totalItems - preview.summary.withErrors} items
+                  {importMode === "create_only" ? " (create only)" : ` (${preview.summary.willCreate} new, ${preview.summary.willUpdate} updates)`}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -76,42 +76,42 @@ Last updated: 2026-03-25
 ## P2 — Medium (polish, tests, doc completion)
 
 ### Notifications
-- [ ] **Implement dashboard badge counts** — Unread notification count on nav items.
+- [x] **Implement dashboard badge counts** — Already implemented: AppShell fetches unread count, Sidebar shows SidebarMenuBadge.
 
 ### Events
-- [ ] **Replace `<a href>` with `<Link>`** — Missing Next.js client navigation in events pages.
-- [ ] **Add server-side eventId filter for shift groups** — Currently fetches all, filters client-side.
+- [x] **Replace `<a href>` with `<Link>`** — Already done. All events pages use Next.js `<Link>`.
+- [x] **Add server-side eventId filter for shift groups** — Added `eventId` query param to `/api/shift-groups`. Events detail page now fetches by eventId directly.
 
 ### Items
-- [ ] **Verify numbered bulk item UI end-to-end** — D-022 feature not thoroughly tested.
-- [ ] **Add audit to favorite toggle** — Missing audit trail.
+- [x] **Verify numbered bulk item UI end-to-end** — Verified: bulk-inventory page supports `trackByNumber` toggle, unit grid with status cycling, scan flow unit picker works.
+- [x] **Add audit to favorite toggle** — Added `createAuditEntry` for `favorite_added` and `favorite_removed` actions.
 
 ### Reservations
-- [ ] **Resolve equipment conflict badges** (AC-8) — Conflict detection exists but badge display may be incomplete.
-- [ ] **Expand test coverage** — Reservation lifecycle transitions.
+- [ ] **Resolve equipment conflict badges** (AC-8) — Conflict detection exists in EquipmentPicker; booking detail display pending.
+- [ ] **Expand test coverage** — Reservation lifecycle transitions (deferred to test sprint).
 
 ### Shifts
-- [ ] **Add pagination to shift groups + trade board** — Lists grow unbounded.
-- [ ] **Tighten trade claim area eligibility** — Students can claim trades outside their sport area.
+- [x] **Add pagination to shift groups + trade board** — Added `limit`/`offset` to shift-groups API via `parsePagination`. Trade board already bounded.
+- [x] **Tighten trade claim area eligibility** — Already implemented: `claimTrade()` validates claimant's `primaryArea` against shift area.
 
 ### Settings
-- [ ] **Clean up legacy CSS** — Dead styles from pre-shadcn era.
+- [x] **Clean up legacy CSS** — Verified: no dead CSS found. All classes actively referenced.
 
 ### Users
-- [ ] **Add user deactivation brief** — No way to deactivate users with active bookings.
-- [ ] **Add sport/area assignment CRUD** — Currently read-only display.
-- [ ] **Write authorization integration tests** — Role escalation, ownership gating.
-- [ ] **Add pagination to activity endpoint** — Unbounded response.
+- [x] **Add user deactivation brief** — Written: `docs/BRIEF_USER_DEACTIVATION_V1.md` with V1 scope, ACs, and technical notes.
+- [ ] **Add sport/area assignment CRUD** — Currently read-only. Needs new API endpoints + edit UI (deferred to V2 per users roadmap).
+- [ ] **Write authorization integration tests** — Role escalation, ownership gating (deferred to test sprint).
+- [x] **Add pagination to activity endpoint** — Already implemented: cursor-based pagination with `DEFAULT_LIMIT=50`, `MAX_LIMIT=100`.
 
 ### Dashboard
-- [ ] **Fix `defaultLocationId()` error handling** — Silent failure on location resolution.
+- [x] **Fix `defaultLocationId()` error handling** — Changed `throw Error` to `throw HttpError(500)` with user-facing message.
 
 ### Importer
-- [ ] **Add progress indicator** — Large imports show no feedback.
-- [ ] **Add import mode toggle** — Create-only vs upsert mode.
+- [x] **Add progress indicator** — Importing step now shows item counts and mode breakdown.
+- [x] **Add import mode toggle** — Added create-only vs upsert mode selector. Server skips updates in create_only mode.
 
 ### Mobile/Scan
-- [ ] **Improve camera permission UX** — Add explicit "How to enable camera" instructions on denial.
+- [x] **Improve camera permission UX** — QrScanner detects `NotAllowedError` and shows specific permission instructions.
 
 ---
 
