@@ -10,6 +10,7 @@ export type UserRow = {
   locationId: string | null;
   location: string | null;
   avatarUrl: string | null;
+  active?: boolean;
 };
 
 export type SportAssignment = {

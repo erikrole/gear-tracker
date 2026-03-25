@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import {
   DialogTitle,
   DialogBody,
   DialogCloseButton,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -496,6 +498,7 @@ export function QRModal({
       <DialogContent className="max-w-[420px]">
         <DialogHeader>
           <DialogTitle>QR Code</DialogTitle>
+          <DialogDescription className="sr-only">View or generate a QR code for this item</DialogDescription>
           <DialogCloseButton />
         </DialogHeader>
         <DialogBody className="py-6">
@@ -800,8 +803,58 @@ export default function ItemInfoCard({
               />
             </>
           )}
+          {/* ── Notes section ── */}
+          <NotesField
+            value={asset.metadata?.userNotes || ""}
+            canEdit={canEdit}
+            onSave={(v) => saveField("metadata.userNotes", v)}
+          />
         </div>
       </div>
     </Card>
+  );
+}
+
+/* ── Notes Field (inline-editable textarea) ─────────────── */
+
+function NotesField({
+  value,
+  canEdit,
+  onSave,
+}: {
+  value: string;
+  canEdit: boolean;
+  onSave: (v: string) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(value);
+  const saveField = useSaveField(onSave);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  async function commit() {
+    const trimmed = draft.trim();
+    if (trimmed === (value || "")) return;
+    await saveField.save(trimmed);
+  }
+
+  return (
+    <SaveableField label="Notes" status={saveField.status}>
+      {canEdit ? (
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          placeholder="Add notes..."
+          rows={3}
+          className="text-sm border-transparent bg-transparent shadow-none resize-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
+        />
+      ) : (
+        <p className="text-sm whitespace-pre-wrap py-1.5 px-3">
+          {value || <span className="text-muted-foreground">No notes</span>}
+        </p>
+      )}
+    </SaveableField>
   );
 }

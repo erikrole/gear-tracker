@@ -38,6 +38,8 @@ import { ItemsToolbar } from "./components/items-toolbar";
 import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { useIsMobile } from "./hooks/use-media-query";
+import { Badge } from "@/components/ui/badge";
+import { Download } from "lucide-react";
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -60,7 +62,19 @@ export default function ItemsPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => {
+    try {
+      const saved = localStorage.getItem("items-column-visibility");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  // Persist column visibility to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("items-column-visibility", JSON.stringify(columnVisibility));
+    } catch { /* ignore */ }
+  }, [columnVisibility]);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -87,6 +101,56 @@ export default function ItemsPage() {
     () => selectedIds,
     () => { setRowSelection({}); query.reload(); }
   );
+
+  // Optimistic favorite toggle
+  const handleToggleFavorite = useCallback(async (asset: Asset) => {
+    const prev = asset.isFavorited;
+    // Optimistic update
+    query.setItems((items) =>
+      items.map((a) => a.id === asset.id ? { ...a, isFavorited: !prev } : a)
+    );
+    try {
+      const res = await fetch(`/api/assets/${asset.id}/favorite`, { method: "POST" });
+      if (!res.ok) throw new Error();
+    } catch {
+      // Rollback
+      query.setItems((items) =>
+        items.map((a) => a.id === asset.id ? { ...a, isFavorited: prev } : a)
+      );
+      toast.error("Failed to update favorite");
+    }
+  }, [query]);
+
+  // CSV export
+  const [exporting, setExporting] = useState(false);
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("format", "csv");
+      if (filters.debouncedSearch) params.set("q", filters.debouncedSearch);
+      filters.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
+      filters.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
+      filters.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
+      filters.brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
+      filters.departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
+      if (filters.showAccessories) params.set("show_accessories", "true");
+
+      const res = await fetch(`/api/assets/export?${params}`);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `items-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Export downloaded");
+    } catch {
+      toast.error("Export failed");
+    }
+    setExporting(false);
+  }, [filters]);
 
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     if (actionBusy) return;
@@ -152,8 +216,8 @@ export default function ItemsPage() {
   }
 
   const columns = useMemo(
-    () => getColumns({ canEdit: options.canEdit, onRowAction: handleRowAction }),
-    [options.canEdit, handleRowAction]
+    () => getColumns({ canEdit: options.canEdit, onRowAction: handleRowAction, onToggleFavorite: handleToggleFavorite }),
+    [options.canEdit, handleRowAction, handleToggleFavorite]
   );
 
   // Helper to set filter and reset page
@@ -186,15 +250,40 @@ export default function ItemsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex items-center justify-between mb-6 gap-3">
+      <div className="flex items-center justify-between mb-4 gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Items</h1>
-        {options.canEdit && (
-          <div className="flex gap-2">
-            <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
-            <Button onClick={() => setShowCreate(true)}>New item</Button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          {options.canEdit && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="hidden sm:flex">
+                <Download className="size-4 mr-1.5" />
+                {exporting ? "Exporting…" : "Export"}
+              </Button>
+              <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
+              <Button onClick={() => setShowCreate(true)}>New item</Button>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Inventory summary bar */}
+      {query.statusBreakdown && !query.loading && (
+        <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground flex-wrap">
+          <span className="font-medium text-foreground">{query.total} items</span>
+          {query.statusBreakdown.checkedOut > 0 && (
+            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.checkedOut} checked out</Badge>
+          )}
+          {query.statusBreakdown.reserved > 0 && (
+            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.reserved} reserved</Badge>
+          )}
+          {query.statusBreakdown.maintenance > 0 && (
+            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.maintenance} maintenance</Badge>
+          )}
+          {query.statusBreakdown.retired > 0 && (
+            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.retired} retired</Badge>
+          )}
+        </div>
+      )}
 
       <NewItemSheet
         open={showCreate}

@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { FormEvent, useEffect, useRef } from "react";
+import { z } from "zod";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,16 @@ import {
 } from "@/components/ui/select";
 import type { Location } from "./types";
 
+const createUserSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  role: z.enum(["ADMIN", "STAFF", "STUDENT"]),
+  locationId: z.string().cuid().nullable(),
+});
+
+type CreateUserInput = z.infer<typeof createUserSchema>;
+
 export default function CreateUserDialog({
   open,
   onOpenChange,
@@ -32,50 +43,37 @@ export default function CreateUserDialog({
   locations: Location[];
   onCreated: () => void;
 }) {
-  const { toast } = useToast();
-  const [submitting, setSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const { submit, submitting, fieldErrors, clearErrors } = useFormSubmit<CreateUserInput>({
+    schema: createUserSchema,
+    url: "/api/users",
+    successMessage: "User added successfully",
+    onSuccess: () => {
+      onOpenChange(false);
+      onCreated();
+    },
+  });
 
   // Reset form when dialog opens
   useEffect(() => {
-    if (open) formRef.current?.reset();
-  }, [open]);
+    if (open) {
+      formRef.current?.reset();
+      clearErrors();
+    }
+  }, [open, clearErrors]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitting(true);
     const form = new FormData(e.currentTarget);
-    const payload = {
+    const locValue = String(form.get("locationId") || "");
+    await submit({
       name: String(form.get("name") || ""),
       email: String(form.get("email") || ""),
       password: String(form.get("password") || ""),
-      role: String(form.get("role") || "STAFF"),
-      locationId: (() => { const v = String(form.get("locationId") || ""); return v === "__none__" ? null : v || null; })(),
-    };
-
-    try {
-      const res = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const json = await res.json();
-
-      if (!res.ok) {
-        toast(json.error || "Failed to create user", "error");
-        setSubmitting(false);
-        return;
-      }
-
-      toast(`${payload.name} added successfully`, "success");
-      setSubmitting(false);
-      onOpenChange(false);
-      onCreated();
-    } catch {
-      toast("Network error", "error");
-      setSubmitting(false);
-    }
+      role: String(form.get("role") || "STAFF") as CreateUserInput["role"],
+      locationId: locValue === "__none__" ? null : locValue || null,
+    });
   }
 
   return (
@@ -87,15 +85,18 @@ export default function CreateUserDialog({
         <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="create-name">Full name</Label>
-            <Input id="create-name" name="name" required autoFocus />
+            <Input id="create-name" name="name" required autoFocus aria-invalid={!!fieldErrors.name} />
+            {fieldErrors.name && <p className="text-sm text-destructive">{fieldErrors.name}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="create-email">Email</Label>
-            <Input id="create-email" name="email" type="email" required />
+            <Input id="create-email" name="email" type="email" required aria-invalid={!!fieldErrors.email} />
+            {fieldErrors.email && <p className="text-sm text-destructive">{fieldErrors.email}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="create-password">Temporary password</Label>
-            <Input id="create-password" name="password" type="password" minLength={8} required />
+            <Input id="create-password" name="password" type="password" minLength={8} required aria-invalid={!!fieldErrors.password} />
+            {fieldErrors.password && <p className="text-sm text-destructive">{fieldErrors.password}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

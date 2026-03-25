@@ -117,7 +117,9 @@ export default function BookingHistoryTab({
       ) : (
         <div className="flex flex-col divide-y divide-border/40">
           {filtered.map((entry) => {
-            const actorName = entry.actor?.name ?? "Unknown user";
+            const SYSTEM_ACTIONS = new Set(["auto_escalation", "cron_notification", "auto_complete"]);
+            const actorName = entry.actor?.name
+              ?? (SYSTEM_ACTIONS.has(entry.action) ? "System" : "Deleted user");
             const initial = actorName.slice(0, 1).toUpperCase();
             const label = actionLabels[entry.action] || entry.action;
             const isUpdate = entry.action === "updated" && entry.beforeJson && entry.afterJson;

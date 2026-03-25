@@ -158,7 +158,7 @@ export default function EventDetailPage() {
   }, [loadShiftGroup, loadCommandCenter]);
 
   if (fetchError) {
-    return <div className="py-10 px-5 text-center text-muted-foreground">Event not found or failed to load. <Link href="/events">Back to events</Link></div>;
+    return <div className="py-10 px-5 text-center text-muted-foreground">Event not found or failed to load. <Link href="/schedule">Back to schedule</Link></div>;
   }
 
   if (!event) {
@@ -173,7 +173,7 @@ export default function EventDetailPage() {
   return (
     <>
       <div className="breadcrumb">
-        <Link href="/events">Events</Link> <span>&rsaquo;</span> {event.summary}
+        <Link href="/schedule">Schedule</Link> <span>&rsaquo;</span> {event.summary}
       </div>
 
       <div className="page-header" style={{ marginBottom: 8 }}>

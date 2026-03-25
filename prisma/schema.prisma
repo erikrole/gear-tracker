@@ -72,6 +72,7 @@ model User {
   email          String       @unique
   passwordHash   String       @map("password_hash")
   role           Role
+  active         Boolean      @default(true)
   phone          String?
   avatarUrl      String?      @map("avatar_url")
   primaryArea    ShiftArea?   @map("primary_area")

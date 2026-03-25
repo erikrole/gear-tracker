@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-22
+- Last Updated: 2026-03-24
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -13,8 +13,8 @@
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
-| PD-2 | Venue mapping governance — who owns regex-to-location mapping table? | AREA_EVENTS | Medium | No |
-| PD-3 | Event sync refresh cadence — Vercel Cron schedule and staleness thresholds | AREA_EVENTS | Medium | No |
+| ~~PD-2~~ | ~~Venue mapping governance — who owns regex-to-location mapping table?~~ | ~~AREA_EVENTS~~ | ~~Resolved~~ | ~~D-027: Admin-only, pattern validation, longest-match tie-breaking~~ |
+| ~~PD-3~~ | ~~Event sync refresh cadence — Vercel Cron schedule and staleness thresholds~~ | ~~AREA_EVENTS~~ | ~~Resolved~~ | ~~D-026: Daily cron (6 AM UTC) + manual refresh, staleness indicator, admin failure alerts~~ |
 | ~~PD-4~~ | ~~B&H metadata cache TTL target~~ | ~~AREA_ITEMS~~ | ~~N/A~~ | ~~No — D-005 withdrawn~~ |
 | ~~PD-5~~ | ~~Student mobile KPI definitions~~ | ~~AREA_MOBILE~~ | ~~Resolved~~ | ~~Taps-to-checkout ≤3, scan success ≥95%, task completion <30s~~ |
 
@@ -30,13 +30,18 @@
 | GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
 | ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
 | ~~GAP-6~~ | ~~Email notification channel not wired~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Resend email service wired; dual-channel (in-app + email) shipped 2026-03-16~~ |
-| GAP-7 | No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere | CROSS-CUTTING | Open | See `tasks/system-roadmap.md` V1 §3.1 — extract `useFetch`, `useUrlState` hooks |
-| GAP-8 | Reports page is a navigation dead end — no drill-down to individual bookings/items | AREA_DASHBOARD | Open | V1 quick win: add "View bookings" links from metric cards |
-| GAP-9 | Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters | AREA_DASHBOARD | Open | V1 priority: decompose into hooks + leaf components per items page pattern |
-| GAP-10 | Kit management page exists but is empty — confusing for users navigating via sidebar | AREA_CHECKOUTS | Open | XS fix: add "Coming soon" placeholder card explaining D-020 |
-| GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2: adopt React Query/SWR for shared cache + background refresh |
-| GAP-12 | No stale-data detection across browser tabs or after backgrounding | CROSS-CUTTING | Open | V1: add Page Visibility API refresh in `useFetch` hook |
-| GAP-13 | `BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020) | AREA_CHECKOUTS | Open | Priority 2 planning doc per NORTH_STAR §12 |
+| ~~GAP-7~~ | ~~No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere~~ | ~~CROSS-CUTTING~~ | ~~Closed (partial)~~ | ~~`useFetch`, `useUrlState`, `classifyError` hooks extracted 2026-03-24. Pages not yet migrated to use them (Sprint 2).~~ |
+| ~~GAP-8~~ | ~~Reports page is a navigation dead end — no drill-down to individual bookings/items~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Drill-down links added to MetricCard in checkouts, overdue, and utilization reports 2026-03-24~~ |
+| ~~GAP-9~~ | ~~Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Decomposed: `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (avatars, chart, overdue, filters, columns, skeleton). Page.tsx reduced from 1004 to ~170 lines (2026-03-24)~~ |
+| ~~GAP-10~~ | ~~Kit management page exists but is empty — confusing for users navigating via sidebar~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Placeholder card shipped; Kits moved to Admin group with "Soon" badge in sidebar (2026-03-24)~~ |
+| GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V3: adopt React Query for shared cache + background refresh. V2: migrate pages to `useFetch` for Visibility API refresh. |
+| ~~GAP-12~~ | ~~No stale-data detection across browser tabs or after backgrounding~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~`useFetch` hook includes Page Visibility API refresh; item detail page refreshes on tab focus 2026-03-24~~ |
+| ~~GAP-13~~ | ~~`BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020)~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Brief written 2026-03-24; V1 scope: kit CRUD + member management + derived availability~~ |
+| GAP-14 | Scan page is 1,038 lines — monolithic, blocks feature additions | AREA_CHECKOUTS | Open | V2: decompose into hooks (`useScanSession`) + leaf components (`ScanFeedback`, `ScanChecklist`, `ScanControls`) |
+| GAP-15 | Schedule page is 1,012 lines — monolithic, blocks feature additions | AREA_SHIFTS | Open | V2: decompose into hooks (`useScheduleData`) + leaf components (`CalendarView`, `ListView`, `ScheduleFilters`) |
+| GAP-16 | Shared hooks extracted but not adopted — most pages still use inline fetch+useState | CROSS-CUTTING | Open | V2: incremental migration of scan, schedule, notifications, bulk-inventory, labels to `useFetch`/`useFormSubmit` |
+| GAP-17 | Labels page not linked from item workflows — "Print label" action missing from item detail | AREA_ITEMS | Low priority | V2: add "Print label" action from item detail → `/labels?items=id` |
+| GAP-18 | Kit-to-booking integration missing — kits can't be checked out as a group | AREA_CHECKOUTS | V2 planned | Kit V1 shipped; V2: `kitId` FK on Booking, equipment picker pre-fill from kit members |
 
 ---
 
@@ -46,9 +51,9 @@
 |---|---|---|---|
 | ~~Asset financial fields UI~~ | ~~AREA_ITEMS~~ | ~~D-018~~ | ~~Shipped 2026-03-16: Procurement section in item detail Info tab~~ |
 | ~~Department filter/display~~ | ~~AREA_ITEMS~~ | ~~D-019~~ | ~~Shipped 2026-03-21: department FK, combobox filter on items page~~ |
-| Kit management UI + kit-based checkout | AREA_CHECKOUTS | D-020 | Full schema exists, zero UI. Simple parent-child accessories shipped via D-023. |
-| Dashboard saved filters | AREA_DASHBOARD | — | Deferred from V1 |
-| ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter still deferred~~ |
+| ~~Kit management UI + kit-based checkout~~ | ~~AREA_CHECKOUTS~~ | ~~D-020~~ | ~~V1 shipped 2026-03-24: CRUD + member management + search + archive. V2: checkout integration.~~ |
+| ~~Dashboard saved filters~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Shipped 2026-03-24: Save view button + localStorage presets + apply/delete~~ |
+| ~~Dashboard filter chips (Sport, Location)~~ | ~~AREA_DASHBOARD~~ | ~~—~~ | ~~Sport filter shipped 2026-03-23; Location filter shipped 2026-03-24~~ |
 | ~~Notification center polish (pagination, mark-as-read)~~ | ~~AREA_NOTIFICATIONS~~ | ~~—~~ | ~~Shipped: pagination, mark-as-read, unread filter all implemented~~ |
 | Multi-recipient escalation | AREA_NOTIFICATIONS | D-009 | Pending recipient model decision |
 | ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
@@ -86,8 +91,9 @@
 | ~~Missing SERIALIZABLE on cancel transactions~~ | ~~`cancelBooking()` and `cancelReservation()` used READ_COMMITTED~~ | ~~Fixed 2026-03-24: both upgraded to SERIALIZABLE. Grep `db.$transaction(async` for remaining cases.~~ | ~~Engineering~~ |
 | Equipment guidance stagnation | Only 3 guidance rules in production | Quarterly rule audit with operator input | Product |
 | Alert fatigue from escalation | Repeated overdue notifications overwhelm staff | D-009 fatigue controls required before Phase B | Engineering |
-| Pattern fragmentation | New pages copy-paste fetch/URL/error patterns instead of reusing hooks | V1 roadmap: extract shared hooks before building new features | Engineering |
-| Dashboard monolith | Dashboard page grows with each feature (filters, actions, sections) | V1 roadmap: decompose before adding location filter or inline actions | Engineering |
+| Pattern fragmentation | New pages copy-paste fetch/URL/error patterns instead of reusing hooks | V2: migrate pages to shared hooks before building new features | Engineering |
+| Monolithic page files | Scan (1,038 lines) and schedule (1,012 lines) grow with each feature | V2: decompose before adding complexity; same pattern as dashboard decomposition | Engineering |
+| ~~Dashboard monolith~~ | ~~Dashboard page grows with each feature (filters, actions, sections)~~ | ~~Closed 2026-03-24: decomposed into hooks + 7 leaf components~~ | ~~Engineering~~ |
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
 | ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
 | ~~STAFF editing ADMIN profiles/roles~~ | ~~Role guard only checks grant, not revoke/edit~~ | ~~Closed 2026-03-23: target.role === ADMIN guard on all mutation endpoints~~ | ~~Engineering~~ |
@@ -133,3 +139,6 @@
 - 2026-03-23: Unified Schedule page (V1) shipped. Events + Schedule merged into `/schedule`. Old events list page removed. Venue Mappings moved to `/settings/venue-mappings`. System roadmap updated — calendar merge is item #1 in V1 order.
 - 2026-03-23: Schedule V2 enhancements shipped — "My Shifts" filter (student-first, localStorage-persisted), inline coverage expansion (per-area breakdown with avatars + assign), Trade Board as Sheet overlay with open-trade count badge, view mode persistence, auto-scroll to today.
 - 2026-03-23: Schedule page hardened (4-pass) — design system alignment, AbortController race prevention, 401 redirect, network vs server error differentiation, refresh-preserves-data pattern, filtered count indicator.
+- 2026-03-24: Closed GAP-13 (`BRIEF_KIT_MANAGEMENT_V1.md` written — V1 scope: kit CRUD, member management, derived availability). Resolved PD-2 (D-027: admin-owned venue mappings with pattern validation) and PD-3 (D-026: hourly cron sync with staleness indicator).
+- 2026-03-24: V1 Cohesive Foundation completion — Dashboard decomposed into `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (GAP-9 closed). Empty state audit across search, scan, bulk-inventory, data-table. `useFormSubmit` hook extracted for standardized form handling (Zod validation → fetch → error classification → toast). Applied to Create User dialog as reference implementation.
+- 2026-03-24: V2 system roadmap revision. Added GAP-14 (scan page 1,038 lines needs decomposition), GAP-15 (schedule page 1,012 lines needs decomposition), GAP-16 (shared hooks extracted but not adopted by most pages), GAP-17 (labels not linked from item workflows), GAP-18 (kit-to-booking integration missing). Added active risk: monolithic page files (scan/schedule). Updated GAP-11 timeline (React Query deferred to V3; V2 focuses on `useFetch` migration). See `tasks/system-roadmap.md` for full V2 plan.

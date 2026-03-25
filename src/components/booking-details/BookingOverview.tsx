@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import Link from "next/link";
 import DataList from "@/components/DataList";
 import { formatDateTime } from "@/lib/format";
 import { TriangleAlert } from "lucide-react";
@@ -55,6 +57,35 @@ export default function BookingOverview({
             { label: "Requester", value: `${booking.requester?.name ?? "Unknown"} (${booking.requester?.email ?? ""})` },
             { label: "Location", value: booking.location?.name ?? "\u2014" },
             ...(booking.notes ? [{ label: "Notes", value: booking.notes }] : []),
+            ...(booking.event ? [{
+              label: "Event",
+              value: (
+                <span className="text-sm">
+                  {booking.event.summary}
+                  {booking.event.sportCode && <Badge variant="outline" className="ml-1.5 text-[10px]">{booking.event.sportCode}</Badge>}
+                </span>
+              ),
+            }] : []),
+            ...(booking.shiftAssignment ? [{
+              label: "Shift",
+              value: <Badge variant="outline" className="text-[10px]">{booking.shiftAssignment.shift.area}</Badge>,
+            }] : []),
+            ...(booking.sourceReservation ? [{
+              label: "Converted from",
+              value: (
+                <Link href={`/reservations/${booking.sourceReservation.id}`} className="text-sm text-primary hover:underline">
+                  {booking.sourceReservation.refNumber || booking.sourceReservation.title}
+                </Link>
+              ),
+            }] : []),
+            ...(booking.creator ? [{
+              label: "Created",
+              value: (
+                <span className="text-sm text-muted-foreground">
+                  by {booking.creator.name} on {formatDateTime(booking.createdAt)}
+                </span>
+              ),
+            }] : []),
           ]}
         />
       </div>

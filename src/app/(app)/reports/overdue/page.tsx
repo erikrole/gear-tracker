@@ -238,8 +238,9 @@ export default function OverdueLeaderboardPage() {
           label="Overdue checkouts"
           color={data.totalOverdueBookings > 0 ? "var(--red)" : undefined}
           tooltip="Checkouts currently past their return date"
+          href="/checkouts?status=overdue"
         />
-        <MetricCard value={leaderboard.length} label="People with overdue gear" tooltip="Number of people with at least one overdue checkout" />
+        <MetricCard value={leaderboard.length} label="People with overdue gear" tooltip="Number of people with at least one overdue checkout" href="/users" />
       </div>
 
       {leaderboard.length === 0 ? (

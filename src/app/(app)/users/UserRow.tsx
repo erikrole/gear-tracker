@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TableRow, TableCell } from "@/components/ui/table";
 
@@ -26,7 +27,10 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="font-medium leading-tight truncate">{user.name}</span>
+            <span className="font-medium leading-tight truncate">
+              {user.name}
+              {user.active === false && <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 text-muted-foreground">Inactive</Badge>}
+            </span>
             <span className="text-xs text-muted-foreground leading-tight truncate">{user.email}</span>
           </div>
         </div>

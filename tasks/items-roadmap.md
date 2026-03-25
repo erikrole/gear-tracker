@@ -66,21 +66,21 @@ Good. Card view on <768px, bottom nav includes Items, 44px tap targets, QR scann
 
 ### Features
 
-#### 1. Notes textarea in create form
+#### 1. Notes textarea in create form ✅ Shipped
 Add `notes` field to `SerializedItemForm` and `BulkItemForm` under a "Notes" section.
 - **Component**: shadcn `Textarea`
 - **File**: `src/app/(app)/items/new-item-sheet/SerializedItemForm.tsx`, `BulkItemForm.tsx`
 - **API**: `POST /api/assets` already accepts `notes` field
 - **Schema**: No changes — `notes String?` already exists on Asset
 
-#### 2. Inventory summary bar
+#### 2. Inventory summary bar ✅ Shipped
 Show "X items total · Y checked out · Z maintenance" above the table.
 - **Component**: Simple `div` with shadcn `Badge` variants for counts
 - **File**: New component in `src/app/(app)/items/components/items-summary.tsx`
 - **API**: Extend `GET /api/assets` response to include `statusBreakdown: { available: N, checkedOut: N, reserved: N, maintenance: N, retired: N }`
 - **RBAC**: Visible to all roles
 
-#### 3. CSV export
+#### 3. CSV export ✅ Shipped
 "Export" button in toolbar, ADMIN/STAFF only. Exports current filtered view.
 - **Component**: shadcn `Button` with download icon
 - **File**: Add to `ItemsToolbar`, new `GET /api/assets/export` endpoint
@@ -88,14 +88,14 @@ Show "X items total · Y checked out · Z maintenance" above the table.
 - **RBAC**: ADMIN/STAFF only
 - **Mobile**: Hidden on mobile (not useful on phone in the field)
 
-#### 4. Column visibility persistence
+#### 4. Column visibility persistence ✅ Shipped
 Save column visibility to localStorage on change, restore on mount.
 - **Component**: No new components — wire existing `columnVisibility` state
 - **File**: `src/app/(app)/items/page.tsx`
 - **Key**: `items-column-visibility` in localStorage
 - **Schema**: No changes
 
-#### 5. Favorite star toggle
+#### 5. Favorite star toggle ✅ Shipped
 Star icon on list rows and detail page header. All roles.
 - **Component**: `Star`/`StarOff` from lucide-react, wrapped in shadcn `Button` (ghost, icon size)
 - **File**: `src/app/(app)/items/columns.tsx` (list), `src/app/(app)/items/[id]/page.tsx` (detail)

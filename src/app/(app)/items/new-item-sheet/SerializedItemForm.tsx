@@ -4,6 +4,7 @@ import { forwardRef, useImperativeHandle, useState } from "react";
 import { Dices, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import QrScanner from "@/components/QrScanner";
@@ -46,6 +47,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     const [residualValue, setResidualValue] = useState("");
     const [linkUrl, setLinkUrl] = useState("");
     const [uwAssetTag, setUwAssetTag] = useState("");
+    const [userNotes, setUserNotes] = useState("");
 
     // QR code
     const [qrCodeValue, setQrCodeValue] = useState("");
@@ -80,8 +82,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         return null;
       },
       getSubmitBody() {
-        const notes: Record<string, string> = {};
-        if (fiscalYear) notes.fiscalYear = fiscalYear;
+        const metadata: Record<string, string> = {};
+        if (fiscalYear) metadata.fiscalYear = fiscalYear;
+        if (userNotes.trim()) metadata.userNotes = userNotes.trim();
 
         return {
           assetTag: assetTag.trim(),
@@ -104,7 +107,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           ...(residualValue ? { residualValue: parseFloat(residualValue) } : {}),
           ...(linkUrl.trim() ? { linkUrl: linkUrl.trim() } : {}),
           ...(uwAssetTag.trim() ? { uwAssetTag: uwAssetTag.trim() } : {}),
-          ...(Object.keys(notes).length ? { notes: JSON.stringify(notes) } : {}),
+          ...(Object.keys(metadata).length ? { notes: JSON.stringify(metadata) } : {}),
         };
       },
       reset(keepShared = false) {
@@ -125,6 +128,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setResidualValue("");
         setLinkUrl("");
         setUwAssetTag("");
+        setUserNotes("");
         setQrCodeValue("");
         setShowScanner(false);
         setAvailableForReservation(true);
@@ -293,6 +297,20 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
           <FormRow label="Link">
             <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} type="url" placeholder="https://..." />
+          </FormRow>
+        </section>
+
+        {/* ── Notes ── */}
+        <section className="space-y-4">
+          <SectionHeading>Notes</SectionHeading>
+          <FormRow label="Notes">
+            <Textarea
+              value={userNotes}
+              onChange={(e) => setUserNotes(e.target.value)}
+              placeholder="Add notes about this item (optional)"
+              rows={3}
+              className="resize-none"
+            />
           </FormRow>
         </section>
 

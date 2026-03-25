@@ -25,10 +25,18 @@ export const GET = withAuth(async (req, { user }) => {
   const q = searchParams.get("q")?.trim();
   const roleParam = searchParams.get("role");
   const locationId = searchParams.get("locationId");
+  const activeParam = searchParams.get("active");
   const sort = searchParams.get("sort") || "name";
 
   // Build where clause
   const conditions: Prisma.UserWhereInput[] = [];
+
+  // Default to active-only unless explicitly requesting all or inactive
+  if (activeParam === "false") {
+    conditions.push({ active: false });
+  } else if (activeParam !== "all") {
+    conditions.push({ active: true });
+  }
 
   if (q) {
     conditions.push({
@@ -96,6 +104,7 @@ export const GET = withAuth(async (req, { user }) => {
       locationId: u.locationId,
       location: u.location?.name ?? null,
       avatarUrl: u.avatarUrl ?? null,
+      active: u.active,
     })),
     total,
     limit,

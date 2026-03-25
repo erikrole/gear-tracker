@@ -39,7 +39,9 @@ Both views answer the same question: "What's happening and who's working?" Split
 
 ---
 
-## V1 — Unified Calendar (core merge, feels complete)
+## V1 — Unified Calendar (core merge, feels complete) ✅ Shipped 2026-03-23
+
+> **Note**: Shipped as unified `/schedule` page (not `/calendar`). Events + Schedule merged. Old `/events` list removed. Detail page `/events/[id]` unchanged. Venue Mappings → `/settings/venue-mappings`. Calendar Sources → `/settings/calendar-sources`.
 
 **Goal**: One page, one mental model. "What's happening and who's working?"
 

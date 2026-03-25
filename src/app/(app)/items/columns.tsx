@@ -9,6 +9,7 @@ import {
   Wrench,
   Archive,
   Package,
+  Star,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,7 @@ export type Asset = {
   department: { id: string; name: string } | null;
   imageUrl: string | null;
   activeBooking: ActiveBooking | null;
+  isFavorited?: boolean;
   _count?: { accessories: number };
 };
 
@@ -145,6 +147,7 @@ export function statusBadge(asset: Asset) {
 type ColumnMeta = {
   canEdit: boolean;
   onRowAction?: (action: string, asset: Asset) => void;
+  onToggleFavorite?: (asset: Asset) => void;
 };
 
 export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
@@ -175,6 +178,38 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       enableHiding: false,
     });
   }
+
+  // Favorite star column
+  columns.push({
+    id: "favorite",
+    header: () => <Star className="size-3.5 text-muted-foreground" />,
+    size: 44,
+    enableSorting: false,
+    enableHiding: true,
+    cell: ({ row }) => {
+      const asset = row.original;
+      return (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          onClick={(e) => {
+            e.stopPropagation();
+            meta.onToggleFavorite?.(asset);
+          }}
+          title={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}
+        >
+          <Star
+            className={`size-4 ${
+              asset.isFavorited
+                ? "fill-amber-400 text-amber-400"
+                : "text-muted-foreground"
+            }`}
+          />
+        </Button>
+      );
+    },
+  });
 
   columns.push(
     {

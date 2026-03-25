@@ -29,7 +29,7 @@ export const GET = withAuth(async () => {
     db.bulkSku.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, category: true, unit: true, locationId: true, binQrCodeValue: true, categoryRel: { select: { name: true } } }
+      select: { id: true, name: true, category: true, unit: true, locationId: true, binQrCodeValue: true, categoryRel: { select: { name: true } }, balances: { select: { onHandQuantity: true } } }
     })
   ]);
 
@@ -46,7 +46,9 @@ export const GET = withAuth(async () => {
   const bulkSkusFlat = bulkSkus.map((s) => ({
     ...s,
     categoryName: s.categoryRel?.name ?? null,
+    currentQuantity: s.balances.reduce((sum, b) => sum + b.onHandQuantity, 0),
     categoryRel: undefined,
+    balances: undefined,
   }));
 
   return ok({ data: { locations, departments, users, availableAssets: assetsWithCategory, bulkSkus: bulkSkusFlat } });

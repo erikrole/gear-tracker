@@ -13,38 +13,71 @@ import {
   LayersIcon,
   BoxIcon,
   UsersIcon,
-  CalendarPlusIcon,
-  ClipboardCheckIcon,
-  ScanIcon,
+  BookOpenIcon,
   BarChart3Icon,
-  UserIcon,
   SettingsIcon,
   LogOutIcon,
+  BellIcon,
+  PlusIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+} from "@/components/ui/sidebar";
 
-const navItems = [
-  { label: "Dashboard", href: "/", icon: <LayoutGridIcon /> },
-  { label: "Schedule", href: "/schedule", icon: <CalendarIcon /> },
-  { label: "Items", href: "/items", icon: <LayersIcon /> },
-  { label: "Kits", href: "/kits", icon: <BoxIcon /> },
-  { label: "Users", href: "/users", icon: <UsersIcon /> },
-  { label: "Reservations", href: "/reservations", icon: <CalendarPlusIcon /> },
-  { label: "Checkouts", href: "/checkouts", icon: <ClipboardCheckIcon /> },
-  { label: "Scan", href: "/scan", className: "sidebar-scan-nav", icon: <ScanIcon /> },
-  { label: "Reports", href: "/reports", icon: <BarChart3Icon /> },
-  { label: "Profile", href: "/profile", icon: <UserIcon />, dynamic: true },
-  { label: "Settings", href: "/settings", icon: <SettingsIcon /> },
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: string;
+  quickCreateHref?: string;
+};
+
+type NavGroup = {
+  label?: string;
+  adminOnly?: boolean;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    items: [
+      { label: "Dashboard", href: "/", icon: LayoutGridIcon },
+      { label: "Schedule", href: "/schedule", icon: CalendarIcon },
+      { label: "Items", href: "/items", icon: LayersIcon },
+      { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
+      { label: "Notifications", href: "/notifications", icon: BellIcon },
+    ],
+  },
+  {
+    label: "Admin",
+    adminOnly: true,
+    items: [
+      { label: "Kits", href: "/kits", icon: BoxIcon },
+      { label: "Users", href: "/users", icon: UsersIcon },
+      { label: "Reports", href: "/reports", icon: BarChart3Icon },
+      { label: "Settings", href: "/settings", icon: SettingsIcon },
+    ],
+  },
 ];
 
-/** Nav items hidden from STUDENT role */
-const STUDENT_HIDDEN_HREFS = new Set(["/users", "/kits", "/reports", "/settings"]);
-
-type SidebarProps = {
+type AppSidebarProps = {
   user: { id: string; name: string; email: string; role?: string; avatarUrl?: string | null } | null;
-  open?: boolean;
-  onClose?: () => void;
   onSignOut?: () => void;
+  isLoggingOut?: boolean;
+  overdueBadgeCount?: number;
+  unreadNotifications?: number;
 };
 
 type ThemePref = "system" | "light" | "dark";
@@ -80,69 +113,167 @@ function useTheme() {
   return { theme, setTheme };
 }
 
-export default function Sidebar({ user, open, onClose, onSignOut }: SidebarProps) {
+export default function AppSidebar({
+  user,
+  onSignOut,
+  isLoggingOut = false,
+  overdueBadgeCount = 0,
+  unreadNotifications = 0,
+}: AppSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const isAdmin = user?.role === "ADMIN" || user?.role === "STAFF";
+
+  const initials = user
+    ? user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
 
   return (
-    <aside className={`sidebar${open ? " sidebar-open" : ""}`}>
+    <Sidebar collapsible="icon" className="border-r-0">
       {/* User profile header */}
       {user && (
-        <Link href={`/users/${user.id}`} className="sidebar-profile" onClick={onClose}>
-          <Avatar className="size-[72px] border-2 border-white/15 bg-white/10 mb-2.5">
-            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-            <AvatarFallback className="bg-transparent text-white/90 text-[26px] font-semibold">
-              {user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="sidebar-profile-name">{user.name}</div>
-        </Link>
+        <SidebarHeader className="border-b border-white/[0.08] pb-3 pt-4">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                size="lg"
+                tooltip={user.name}
+                className="hover:bg-white/[0.06] active:bg-white/[0.06] data-[active=true]:bg-white/[0.06]"
+              >
+                <Link href={`/users/${user.id}`} className="flex items-center gap-3">
+                  <Avatar className="size-8 shrink-0 border border-white/15 bg-white/10">
+                    {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                    <AvatarFallback className="bg-transparent text-white/90 text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-semibold text-sidebar-foreground truncate">
+                    {user.name}
+                  </span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
       )}
 
-      {/* Navigation */}
-      <nav className="sidebar-nav">
-        {navItems.filter((item) => !(user?.role === "STUDENT" && STUDENT_HIDDEN_HREFS.has(item.href))).map((item) => {
-          const href = (item as { dynamic?: boolean }).dynamic && user?.id
-            ? `/users/${user.id}`
-            : item.href;
-          const isActive =
-            href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(href);
-          return (
-            <Link
-              key={item.label}
-              href={href}
-              className={[isActive ? "active" : "", (item as { className?: string }).className || ""].filter(Boolean).join(" ")}
-              onClick={onClose}
+      {/* Navigation groups */}
+      <SidebarContent className="py-2">
+        {navGroups
+          .filter((group) => !group.adminOnly || isAdmin)
+          .map((group, groupIdx) => (
+            <div key={groupIdx}>
+              {groupIdx > 0 && (
+                <SidebarSeparator className="mx-4 my-1 bg-white/[0.07] group-data-[collapsible=icon]:mx-2" />
+              )}
+              <SidebarGroup className="px-2 py-0">
+                {group.label && (
+                  <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5">
+                    {group.label}
+                  </SidebarGroupLabel>
+                )}
+                <SidebarMenu className="gap-0.5">
+                  {group.items.map((item) => {
+                    const href = item.href;
+                    const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+                    const Icon = item.icon;
+
+                    // Per-item badge count
+                    const badgeCount =
+                      item.href === "/bookings" && overdueBadgeCount > 0
+                        ? overdueBadgeCount
+                        : item.href === "/notifications" && unreadNotifications > 0
+                        ? unreadNotifications
+                        : 0;
+                    const badgeLabel = item.badge; // static label like "Soon"
+
+                    // Enrich tooltip with count context for collapsed icon-only mode
+                    const tooltip =
+                      item.href === "/bookings" && overdueBadgeCount > 0
+                        ? `Bookings · ${overdueBadgeCount} overdue`
+                        : item.href === "/notifications" && unreadNotifications > 0
+                        ? `Notifications · ${unreadNotifications} unread`
+                        : item.label;
+
+                    return (
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={tooltip}
+                          className={
+                            isActive
+                              ? "border-l-2 border-[var(--wi-red)] rounded-l-none pl-[10px] data-[active=true]:bg-white/[0.10] data-[active=true]:text-white"
+                              : "text-white/65 hover:text-white hover:bg-white/[0.06]"
+                          }
+                        >
+                          <Link href={href}>
+                            <Icon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {badgeCount > 0 && (
+                          <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                            {badgeCount > 99 ? "99+" : badgeCount}
+                          </SidebarMenuBadge>
+                        )}
+                        {!badgeCount && badgeLabel && (
+                          <SidebarMenuBadge className="bg-white/10 text-white/50 text-[9px] font-semibold h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
+                            {badgeLabel}
+                          </SidebarMenuBadge>
+                        )}
+                        {item.quickCreateHref && isAdmin && (
+                          <SidebarMenuAction asChild showOnHover>
+                            <Link href={item.quickCreateHref} aria-label={`New ${item.label.toLowerCase().replace(/s$/, "")}`}>
+                              <PlusIcon />
+                            </Link>
+                          </SidebarMenuAction>
+                        )}
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroup>
+            </div>
+          ))}
+      </SidebarContent>
+
+      {/* Footer: theme toggle + logout */}
+      <SidebarFooter className="border-t border-white/[0.08] pt-2 pb-3">
+        <div className="px-2">
+          <ToggleGroup
+            type="single"
+            value={theme}
+            onValueChange={(v) => { if (v) setTheme(v as ThemePref); }}
+            className="group-data-[collapsible=icon]:hidden"
+          >
+            <ToggleGroupItem value="light" aria-label="Light theme">
+              <SunIcon className="size-3.5" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="dark" aria-label="Dark theme">
+              <MoonIcon className="size-3.5" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="system" aria-label="System theme">
+              <MonitorIcon className="size-3.5" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
+        <SidebarMenu className="px-2">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip={isLoggingOut ? "Logging out…" : "Log out"}
+              onClick={onSignOut}
+              disabled={isLoggingOut}
+              className="text-white/65 hover:text-white hover:bg-white/[0.06] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {item.icon}
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Theme toggle */}
-      <div className="theme-toggle-row">
-        <ToggleGroup type="single" value={theme} onValueChange={(v) => { if (v) setTheme(v as ThemePref); }}>
-          <ToggleGroupItem value="light" aria-label="Light theme">
-            <SunIcon className="size-3.5" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="dark" aria-label="Dark theme">
-            <MoonIcon className="size-3.5" />
-          </ToggleGroupItem>
-          <ToggleGroupItem value="system" aria-label="System theme">
-            <MonitorIcon className="size-3.5" />
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-
-      {/* Log out */}
-      <button className="sidebar-logout" onClick={onSignOut}>
-        <LogOutIcon />
-        Log out
-      </button>
-    </aside>
+              <LogOutIcon />
+              <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

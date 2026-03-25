@@ -116,8 +116,8 @@ export function DataTable({
               />
             ))
           ) : (
-            <div className="py-3 text-center text-muted-foreground">
-              No results.
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              No items match your filters. Try adjusting your search or filters.
             </div>
           )}
         </div>
@@ -170,8 +170,8 @@ export function DataTable({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
+                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                  No items match your filters. Try adjusting your search or filters.
                 </TableCell>
               </TableRow>
             )}

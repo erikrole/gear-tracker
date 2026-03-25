@@ -411,6 +411,48 @@
   - Sequence value obtained inside SERIALIZABLE transaction — race-free.
   - Unique constraint on `ref_number` column prevents duplicates.
 
+## D-026: Event Sync Runs on Daily Cron with Manual Refresh
+- Date: 2026-03-24
+- Status: Accepted
+- Context:
+  - Calendar event sync is currently manual-only (button click in Settings). Staff forget to sync, leading to stale event data that causes shift coverage gaps and missed game-day prep.
+  - Vercel Hobby plan supports only one cron invocation per day. Existing notification cron runs at 8 AM UTC.
+- Decision:
+  - Add `GET /api/cron/calendar-sync` endpoint to `vercel.json` cron schedule, running once daily at 6 AM UTC (`0 6 * * *`) — before the 8 AM notification cron so new events generate shifts before overdue checks run.
+  - Endpoint calls `syncAllCalendarSources()` → `generateShiftsForNewEvents()` for each enabled source.
+  - Auth: `CRON_SECRET` header validation (same pattern as notification cron).
+  - Manual "Sync Now" button remains in Settings for on-demand refresh (existing feature).
+  - Calendar source list in Settings shows staleness indicator: green (< 12h), yellow (12-24h), red (> 24h) based on `lastFetchedAt`.
+  - On repeated sync failure (3+ consecutive errors), create an in-app notification to all admins.
+- Consequences:
+  - Events refresh daily without manual intervention. Staff can still sync on-demand when needed.
+  - Shift auto-generation fires after daily sync — new events produce shifts within ~24 hours.
+  - If upgraded to Vercel Pro, cron frequency can increase without code changes.
+- Guardrails:
+  - Sources with `enabled: false` are skipped by cron (same as manual sync).
+  - Sync is idempotent — manual + cron firing close together is harmless.
+  - Sequential source processing to avoid parallel DB contention.
+
+## D-027: Venue Mapping Is Admin-Owned with Pattern Validation
+- Date: 2026-03-24
+- Status: Accepted
+- Context:
+  - `LocationMapping` table maps ICS venue text to internal locations via regex patterns. Currently any admin can add patterns with no validation. Malformed regex silently falls back to substring match, which may produce unexpected matches.
+  - PD-2 asked "who owns the mapping table?" — answer is admins, since they manage locations and calendar sources.
+- Decision:
+  - Venue mappings are ADMIN-only (not STAFF). Matches location and calendar source management permissions.
+  - Pattern validation on create/update: test `new RegExp(pattern, "i")` and reject with 400 if it throws.
+  - Canonical term is "venue mapping" in UI, `LocationMapping` in code (no rename — too much churn for no user value).
+  - Priority tie-breaking: when multiple patterns match with equal priority, longest pattern wins (most specific match). Add `ORDER BY priority DESC, LENGTH(pattern) DESC` to query.
+  - No audit logging in V1 — mapping changes are low-frequency and admin-only. Revisit if usage patterns change.
+- Consequences:
+  - Only admins manage mappings — reduces accidental misconfiguration.
+  - Invalid regex patterns are rejected upfront — no silent fallback surprises.
+  - Deterministic matching with priority + length tie-breaking.
+- Guardrails:
+  - STAFF users cannot access venue mapping CRUD (403).
+  - Pattern validation is server-side only (client shows friendly error).
+
 ---
 
 ## Platform Invariants
@@ -452,10 +494,10 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Mitigation: threshold controls + dedup keys + policy review.
 
 ## Pending Decisions
-1. Event sync refresh cadence and staleness thresholds.
-2. Venue mapping governance owner.
+1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
+2. ~~Venue mapping governance owner~~ — Resolved: D-027.
 3. ~~Metadata enrichment cache TTL target~~ — withdrawn with D-005.
-4. Student mobile KPI definitions (task completion time, taps to action, scan success rate).
+4. ~~Student mobile KPI definitions~~ — Resolved: PD-5 (Taps-to-checkout ≤3, scan success ≥95%, task completion <30s).
 
 ## Change Log
 - 2026-03-01: Initial decision log created from project memory dump.
@@ -468,3 +510,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-16: Added D-024 (booking reference numbers — CO/RV kind prefix + global sequence).
 - 2026-03-22: Updated D-002 — UI layer now unified. Checkout and reservation detail pages share single `BookingDetailPage` component. API routes consolidated to `/api/bookings/[id]`.
 - 2026-03-22: Added D-025 — user-facing status labels (OPEN→"Checked out", BOOKED→"Confirmed") via `statusLabel()` helper. DB enum unchanged.
+- 2026-03-24: Added D-026 (event sync hourly cron + staleness indicator — resolves PD-3) and D-027 (venue mapping admin-only + pattern validation — resolves PD-2). All pending decisions now resolved.
