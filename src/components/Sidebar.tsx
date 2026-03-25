@@ -134,13 +134,11 @@ export default function AppSidebar({
       {user && (
         <SidebarHeader className="border-b border-white/[0.08] pb-3 pt-4">
           <SidebarMenu>
-            {/* Brand mark */}
+            {/* Brand mark — Motion W */}
             <SidebarMenuItem>
               <div className="flex items-center gap-2.5 px-2 pb-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-                <div className="size-7 shrink-0 rounded bg-[var(--wi-red)] flex items-center justify-center">
-                  <span className="text-white text-xs font-bold" style={{ fontFamily: "var(--font-heading)" }}>G</span>
-                </div>
-                <span className="text-[13px] font-bold tracking-tight text-white group-data-[collapsible=icon]:hidden" style={{ fontFamily: "var(--font-heading)" }}>
+                <img src="/Badgers.png" alt="Wisconsin" className="size-7 shrink-0 object-contain" />
+                <span className="text-[13px] font-bold tracking-tight text-white group-data-[collapsible=icon]:hidden" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>
                   Gear Tracker
                 </span>
               </div>
