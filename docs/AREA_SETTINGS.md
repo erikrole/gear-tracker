@@ -49,5 +49,12 @@ Admin-only configuration hub for system-wide settings. Each sub-page is a focuse
 6. [x] Mobile-responsive layouts for all sub-pages
 7. [x] Component extraction for maintainability (Sports, Categories)
 
+## Breadcrumb Roadmap
+
+Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
+
+Known issue: Settings layout renders its own `.breadcrumb` div (CSS, non-shadcn) in addition to AppShell's global `PageBreadcrumb`. V1 of the breadcrumb roadmap removes this duplicate.
+
 ## Change Log
+- 2026-03-25: Added breadcrumb roadmap reference. Flagged duplicate breadcrumb issue.
 - 2026-03-17: Initial area doc created. Settings layout upgraded to tab navigation pattern. Sports page extracted into ShiftConfigTable + RosterPanel + types. Categories page extracted into CategoryRow + KebabMenu + types + tree utils. Mobile card layouts added for sports and roster. Role badges standardized (ADMIN=purple, STAFF=blue, STUDENT=gray). Escalation and Database pages polished with data-table-wrap for mobile scroll. Sidebar titles normalized to h2 (layout provides h1).

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { toast } from "sonner";
 import {
   BoxIcon,
@@ -86,6 +87,7 @@ type SearchResult = {
 export default function KitDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [kit, setKit] = useState<KitDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -117,6 +119,7 @@ export default function KitDetailPage() {
       }
       const { data } = await res.json();
       setKit(data);
+      if (data?.name) setBreadcrumbLabel(data.name);
       setLoadError(false);
     } catch {
       setLoadError(true);

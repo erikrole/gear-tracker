@@ -10,7 +10,7 @@ const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsShe
 const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -186,6 +186,7 @@ export default function ItemDetailsPage() {
   const searchParams = useSearchParams();
   const confirmDialog = useConfirm();
   const { toast } = useToast();
+  const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
   const initialTab = (searchParams.get("tab") as TabKey) || "info";
   const [activeTab, setActiveTab] = useState<TabKey>(
@@ -234,6 +235,7 @@ export default function ItemDetailsPage() {
         }
         if (json?.data) {
           setAsset(json.data);
+          setBreadcrumbLabel(json.data.assetTag);
           fetchErrorRef.current = false;
           setFetchError(false);
           setLastRefreshed(new Date());
@@ -411,7 +413,6 @@ export default function ItemDetailsPage() {
   if (fetchError && !asset) {
     return (
       <div>
-        <PageBreadcrumb />
         {fetchError === "not-found" ? (
           <EmptyState
             icon="box"
@@ -514,7 +515,6 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <PageBreadcrumb />
       <div className="page-header mb-0">
         <div className="flex gap-4 items-center">
           {/* Hero image — larger square */}

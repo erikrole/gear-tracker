@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage } from "@/components/ui/breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 type CalendarEvent = {
   id: string;
@@ -144,6 +144,7 @@ function EventSkeleton() {
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [fetchError, setFetchError] = useState<"network" | "server" | null>(null);
   const [shiftGroup, setShiftGroup] = useState<ShiftGroupSummary | null>(null);
@@ -173,6 +174,7 @@ export default function EventDetailPage() {
       const json = await res.json();
       if (json?.data) {
         setEvent(json.data);
+        setBreadcrumbLabel(json.data.summary);
         setFetchError(null);
         setLastUpdated(new Date());
       } else {
@@ -298,18 +300,6 @@ export default function EventDetailPage() {
 
   return (
     <>
-      <Breadcrumb className="mb-4">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href="/schedule">Schedule</Link></BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{event.summary}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold">{event.summary}</h1>
         <TooltipProvider>

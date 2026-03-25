@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
+import { BreadcrumbProvider } from "@/components/BreadcrumbContext";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
   CommandDialog,
@@ -345,10 +346,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Tooltip>
           </div>
         </header>
-        <div id="main-content" className="page-content">
-          <PageBreadcrumb />
-          {children}
-        </div>
+        <BreadcrumbProvider key={pathname}>
+          <div id="main-content" className="page-content">
+            <PageBreadcrumb />
+            {children}
+          </div>
+        </BreadcrumbProvider>
       </div>
 
       {/* Mobile bottom nav */}

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UserDetail, Location, Role } from "../types";
 import { useFetch } from "@/hooks/use-fetch";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
 import { useToast } from "@/components/Toast";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { setBreadcrumbLabel } = useBreadcrumbLabel();
 
   const [activeTab, setActiveTab] = useState<TabKey>("info");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -88,6 +90,10 @@ export default function UserDetailPage() {
     refetchOnFocus: false,
   });
   const locations = formOptions?.locations ?? [];
+
+  useEffect(() => {
+    if (user?.name) setBreadcrumbLabel(user.name);
+  }, [user?.name, setBreadcrumbLabel]);
 
   const isSelf = currentUserId != null && currentUserId === id;
   const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
