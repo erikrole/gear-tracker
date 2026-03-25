@@ -33,6 +33,10 @@ function notifIcon(type: string) {
   switch (type) {
     case "OVERDUE_CHECKOUT":
     case "OVERDUE_RESERVATION":
+    case "checkout_due_reminder":
+    case "checkout_due_now":
+    case "checkout_overdue_2h":
+    case "checkout_overdue_24h":
       return "⚠";
     case "BOOKING_APPROVED":
     case "BOOKING_CONFIRMED":
@@ -40,6 +44,8 @@ function notifIcon(type: string) {
     case "BOOKING_CANCELLED":
     case "BOOKING_REJECTED":
       return "✕";
+    case "shift_gear_up":
+      return "🎒";
     default:
       return "●";
   }
@@ -49,6 +55,10 @@ function notifIconClass(type: string) {
   switch (type) {
     case "OVERDUE_CHECKOUT":
     case "OVERDUE_RESERVATION":
+    case "checkout_due_reminder":
+    case "checkout_due_now":
+    case "checkout_overdue_2h":
+    case "checkout_overdue_24h":
       return "notif-icon-overdue";
     case "BOOKING_APPROVED":
     case "BOOKING_CONFIRMED":
@@ -56,6 +66,8 @@ function notifIconClass(type: string) {
     case "BOOKING_CANCELLED":
     case "BOOKING_REJECTED":
       return "notif-icon-cancelled";
+    case "shift_gear_up":
+      return "notif-icon-success";
     default:
       return "notif-icon-default";
   }

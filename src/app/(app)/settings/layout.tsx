@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 const SETTINGS_SECTIONS = [
   { href: "/settings/categories", label: "Categories" },
@@ -14,7 +15,25 @@ const SETTINGS_SECTIONS = [
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const current = SETTINGS_SECTIONS.find((s) => pathname.startsWith(s.href));
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        const role = json?.user?.role;
+        if (role === "ADMIN" || role === "STAFF") {
+          setAuthorized(true);
+        } else {
+          router.replace("/");
+        }
+      })
+      .catch(() => router.replace("/"));
+  }, [router]);
+
+  if (!authorized) return null;
 
   return (
     <>
