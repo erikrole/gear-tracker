@@ -1,11 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { UploadIcon } from "lucide-react";
 import {
   Select,
@@ -103,10 +112,17 @@ const FIELD_OPTIONS = [
   { value: "quantity", label: "Quantity" },
 ];
 
+const STEP_LABELS: { key: Step; label: string }[] = [
+  { key: "upload", label: "Upload" },
+  { key: "mapping", label: "Map columns" },
+  { key: "preview", label: "Preview" },
+  { key: "importing", label: "Import" },
+  { key: "summary", label: "Summary" },
+];
+
 /* ───── Component ───── */
 
 export default function ImportPage() {
-  const { toast } = useToast();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -186,7 +202,6 @@ export default function ImportPage() {
       };
 
       for (const header of headers) {
-        // Use saved mapping if available, otherwise auto-detect
         if (mapping[header]) {
           autoMapping[header] = mapping[header];
         } else if (CHEQROOM_PRESET[header]) {
@@ -252,7 +267,7 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Failed to parse CSV");
-        toast(json.error || "Failed to parse CSV", "error");
+        toast.error(json.error || "Failed to parse CSV");
         setLoading(false);
         return;
       }
@@ -284,17 +299,17 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Import failed");
-        toast(json.error || "Import failed", "error");
+        toast.error(json.error || "Import failed");
         setStep("preview");
         return;
       }
 
       setResult(json);
       setStep("summary");
-      toast(`Imported ${json.created} items successfully`, "success");
+      toast.success(`Imported ${json.created} items successfully`);
     } catch {
       setError("Import failed unexpectedly");
-      toast("Import failed unexpectedly", "error");
+      toast.error("Import failed unexpectedly");
       setStep("preview");
     }
   }
@@ -329,57 +344,54 @@ export default function ImportPage() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  const stepLabels: Step[] = ["upload", "mapping", "preview", "importing", "summary"];
-
   return (
     <>
-      <div className="page-header">
-        <h1>Import Items</h1>
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <h1 className="text-2xl tracking-tight">Import Items</h1>
         {step !== "upload" && step !== "importing" && (
           <Button variant="outline" onClick={resetWizard}>Start over</Button>
         )}
       </div>
 
       {/* Step indicator */}
-      <div className="flex gap-2 mb-6">
-        {stepLabels.map((s, i) => (
-          <div key={s} className="flex-center gap-2">
-            {i > 0 && <div style={{ width: 24, height: 1, background: "var(--border)" }} />}
+      <div className="flex items-center gap-2 mb-6">
+        {STEP_LABELS.map((s, i) => (
+          <div key={s.key} className="flex items-center gap-2">
+            {i > 0 && <div className="w-6 h-px bg-border" />}
             <div
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "4px 12px", borderRadius: 16, fontSize: "var(--text-sm)",
-                fontWeight: step === s ? 600 : 400,
-                background: step === s ? "var(--blue)" : "var(--bg-secondary)",
-                color: step === s ? "white" : "var(--text-secondary)",
-              }}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm ${
+                step === s.key
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "bg-muted text-muted-foreground"
+              }`}
             >
               <span>{i + 1}</span>
-              <span style={{ textTransform: "capitalize" }}>
-                {s === "importing" ? "Import" : s === "mapping" ? "Map columns" : s}
-              </span>
+              <span>{s.label}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {error && <div className="alert-error">{error}</div>}
+      {error && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 text-destructive px-4 py-3 mb-4 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* ── Upload step ── */}
       {step === "upload" && (
         <Card>
           <CardHeader><CardTitle>Upload CSV file</CardTitle></CardHeader>
-          <div className="p-6">
+          <CardContent>
             <div
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
               onClick={() => fileRef.current?.click()}
-              style={{
-                border: "2px dashed var(--border)", borderRadius: 12,
-                padding: "48px 24px", textAlign: "center", cursor: "pointer",
-                background: file ? "var(--green-bg)" : "var(--bg-secondary)",
-                transition: "background 150ms",
-              }}
+              className={`border-2 border-dashed rounded-xl py-12 px-6 text-center cursor-pointer transition-colors ${
+                file
+                  ? "border-green-500/50 bg-green-50 dark:bg-green-950/20"
+                  : "border-border bg-muted/50 hover:bg-muted"
+              }`}
             >
               <input
                 ref={fileRef} type="file" accept=".csv,.CSV"
@@ -388,24 +400,22 @@ export default function ImportPage() {
               {file ? (
                 <>
                   <div className="text-xl font-semibold mb-1">{file.name}</div>
-                  <div className="text-secondary text-sm">
+                  <div className="text-muted-foreground text-sm">
                     {(file.size / 1024).toFixed(1)} KB — Click or drop to replace
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="text-4xl mb-2">
-                    <UploadIcon className="size-12 text-secondary" />
-                  </div>
+                  <UploadIcon className="size-12 text-muted-foreground mx-auto mb-2" />
                   <div className="font-semibold mb-1">Drop your CSV here</div>
-                  <div className="text-secondary text-sm">
+                  <div className="text-muted-foreground text-sm">
                     Supports semicolon and comma delimited CSV
                   </div>
                 </>
               )}
             </div>
 
-            <div className="flex-end mt-4">
+            <div className="flex justify-end mt-4">
               <Button
                 disabled={!file || loading}
                 onClick={handleParseHeaders}
@@ -413,42 +423,42 @@ export default function ImportPage() {
                 {loading ? "Reading..." : "Next: Map columns"}
               </Button>
             </div>
-          </div>
+          </CardContent>
         </Card>
       )}
 
       {/* ── Column mapping step ── */}
       {step === "mapping" && csvHeaders.length > 0 && (
         <>
-          <Card className="mb-1">
+          <Card className="mb-4">
             <CardHeader>
               <CardTitle>Map CSV columns to fields</CardTitle>
-              <span className="text-secondary text-sm">
+              <span className="text-muted-foreground text-sm">
                 {Object.values(mapping).filter(Boolean).length} of {csvHeaders.length} columns mapped
               </span>
             </CardHeader>
             <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>CSV Column</th>
-                    <th>Sample Data</th>
-                    <th>Maps To</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>CSV Column</TableHead>
+                    <TableHead>Sample Data</TableHead>
+                    <TableHead>Maps To</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {csvHeaders.map((header, colIdx) => (
-                    <tr key={header}>
-                      <td className="font-semibold">{header}</td>
-                      <td className="text-sm text-secondary font-mono" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <TableRow key={header}>
+                      <TableCell className="font-semibold">{header}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground font-mono max-w-[200px] truncate">
                         {csvSample[0]?.[colIdx] || "—"}
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell>
                         <Select
                           value={mapping[header] || "__skip__"}
                           onValueChange={(v) => updateMapping(header, v)}
                         >
-                          <SelectTrigger style={{ minWidth: 180 }}>
+                          <SelectTrigger className="min-w-[180px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -457,15 +467,15 @@ export default function ImportPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </Card>
 
-          <div className="flex-end gap-2">
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setStep("upload")}>Back</Button>
             <Button
               disabled={!mapping["Name"] && !Object.values(mapping).includes("assetTag")}
@@ -481,20 +491,20 @@ export default function ImportPage() {
       {step === "preview" && preview && (
         <>
           {/* Summary cards */}
-          <div className="summary-grid mb-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
             <SummaryCard label="Total items" value={preview.summary.totalItems} />
-            <SummaryCard label="Will create" value={preview.summary.willCreate} color="var(--green)" />
-            <SummaryCard label="Will update" value={preview.summary.willUpdate} color="var(--blue)" />
-            <SummaryCard label="With errors" value={preview.summary.withErrors} warn={preview.summary.withErrors > 0} />
+            <SummaryCard label="Will create" value={preview.summary.willCreate} variant="green" />
+            <SummaryCard label="Will update" value={preview.summary.willUpdate} variant="blue" />
+            <SummaryCard label="With errors" value={preview.summary.withErrors} variant={preview.summary.withErrors > 0 ? "red" : undefined} />
             <SummaryCard label="Duplicate names" value={preview.summary.duplicateNames} />
             <SummaryCard label="Retired" value={preview.summary.retiredItems} />
           </div>
 
           {/* New entities to create */}
           {(preview.summary.newLocations.length > 0 || preview.summary.newDepartments.length > 0 || preview.summary.kits.length > 0) && (
-            <Card className="mb-1">
+            <Card className="mb-4">
               <CardHeader><CardTitle>Will be auto-created</CardTitle></CardHeader>
-              <div className="p-4 flex flex-wrap gap-4">
+              <CardContent className="flex flex-wrap gap-4">
                 {preview.summary.newLocations.length > 0 && (
                   <div>
                     <div className="font-semibold text-sm mb-1">New Locations</div>
@@ -519,7 +529,7 @@ export default function ImportPage() {
                     ))}
                   </div>
                 )}
-              </div>
+              </CardContent>
             </Card>
           )}
 
@@ -529,34 +539,34 @@ export default function ImportPage() {
               <CardTitle>Preview ({preview.rows.length}{preview.totalRows > 200 ? ` of ${preview.totalRows}` : ""} rows)</CardTitle>
             </CardHeader>
             <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Action</th>
-                    <th>Asset Tag</th>
-                    <th>Brand</th>
-                    <th>Model</th>
-                    <th>Type</th>
-                    <th>Serial</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Asset Tag</TableHead>
+                    <TableHead>Brand</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Serial</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {preview.rows.map((row) => (
-                    <tr
+                    <TableRow
                       key={row.line}
-                      style={
+                      className={
                         row.errors.length > 0
-                          ? { background: "var(--red-bg)" }
+                          ? "bg-destructive/10 dark:bg-destructive/20"
                           : row.warnings.length > 0
-                          ? { background: "#fffbeb" }
-                          : {}
+                          ? "bg-amber-50 dark:bg-amber-950/20"
+                          : ""
                       }
                     >
-                      <td className="text-xs text-secondary">{row.line}</td>
-                      <td>
+                      <TableCell className="text-xs text-muted-foreground">{row.line}</TableCell>
+                      <TableCell>
                         {row.action === "create" ? (
                           <Badge variant="green">new</Badge>
                         ) : row.action === "update" ? (
@@ -564,17 +574,17 @@ export default function ImportPage() {
                         ) : (
                           <Badge variant="red">skip</Badge>
                         )}
-                      </td>
-                      <td className="font-semibold">
+                      </TableCell>
+                      <TableCell className="font-semibold">
                         {row.assetTag}
                         {row.assetTagDeduped && <Badge variant="orange" size="sm" className="ml-1">renamed</Badge>}
-                      </td>
-                      <td>{row.brand}</td>
-                      <td>{row.model}</td>
-                      <td>{row.type}</td>
-                      <td className="font-mono text-xs">{row.serialNumber}</td>
-                      <td>{row.locationName}</td>
-                      <td>
+                      </TableCell>
+                      <TableCell>{row.brand}</TableCell>
+                      <TableCell>{row.model}</TableCell>
+                      <TableCell>{row.type}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.serialNumber}</TableCell>
+                      <TableCell>{row.locationName}</TableCell>
+                      <TableCell>
                         {row.errors.length > 0 ? (
                           <Badge variant="red" title={row.errors.join(", ")}>error</Badge>
                         ) : row.retired ? (
@@ -582,15 +592,15 @@ export default function ImportPage() {
                         ) : (
                           <Badge variant="green">ok</Badge>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </Card>
 
-          <div className="flex-end gap-2 mt-4">
+          <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setStep("mapping")}>Back to mapping</Button>
             <Button variant="outline" onClick={resetWizard}>Cancel</Button>
             <Button
@@ -606,72 +616,72 @@ export default function ImportPage() {
       {/* ── Importing step ── */}
       {step === "importing" && (
         <Card>
-          <div className="p-12 text-center">
+          <CardContent className="py-12 text-center">
             <div className="flex items-center justify-center py-10">
               <Spinner className="size-8" />
             </div>
             <div className="mt-4 font-semibold">Importing items...</div>
-            <div className="text-secondary text-sm">
+            <div className="text-muted-foreground text-sm">
               Creating locations, departments, kits, and assets
             </div>
-          </div>
+          </CardContent>
         </Card>
       )}
 
       {/* ── Summary step ── */}
       {step === "summary" && result && (
         <>
-          <div className="summary-grid mb-1">
-            <SummaryCard label="Created" value={result.created} color="var(--green)" />
-            <SummaryCard label="Updated" value={result.updated} color="var(--blue)" />
-            <SummaryCard label="Skipped" value={result.skipped} warn={result.skipped > 0} />
-            <SummaryCard label="Kits created" value={result.kitsCreated} color="var(--purple)" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <SummaryCard label="Created" value={result.created} variant="green" />
+            <SummaryCard label="Updated" value={result.updated} variant="blue" />
+            <SummaryCard label="Skipped" value={result.skipped} variant={result.skipped > 0 ? "red" : undefined} />
+            <SummaryCard label="Kits created" value={result.kitsCreated} variant="purple" />
           </div>
 
           {result.errors.length > 0 && (
-            <Card className="mb-1">
+            <Card className="mb-4">
               <CardHeader>
                 <CardTitle>Errors ({result.errors.length})</CardTitle>
                 <Button variant="outline" size="sm" onClick={handleDownloadErrors}>
                   Download error CSV
                 </Button>
               </CardHeader>
-              <div className="overflow-x-auto" style={{ maxHeight: 300 }}>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Line</th>
-                      <th>Asset Tag</th>
-                      <th>Error</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="overflow-x-auto max-h-[300px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Line</TableHead>
+                      <TableHead>Asset Tag</TableHead>
+                      <TableHead>Error</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {result.errors.slice(0, 50).map((e, i) => (
-                      <tr key={i}>
-                        <td>{e.line}</td>
-                        <td className="font-semibold">{e.assetTag}</td>
-                        <td className="text-sm text-red">{e.error}</td>
-                      </tr>
+                      <TableRow key={i}>
+                        <TableCell>{e.line}</TableCell>
+                        <TableCell className="font-semibold">{e.assetTag}</TableCell>
+                        <TableCell className="text-sm text-destructive">{e.error}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </Card>
           )}
 
           <Card>
-            <div className="p-6 text-center">
-              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>
+            <CardContent className="py-8 text-center">
+              <div className="text-2xl font-bold mb-2">
                 {result.created + result.updated > 0 ? "Import complete" : "No items imported"}
               </div>
-              <div className="text-secondary mb-1">
+              <div className="text-muted-foreground mb-4">
                 {result.created} created, {result.updated} updated, {result.skipped} skipped
               </div>
-              <div className="flex gap-2" style={{ justifyContent: "center" }}>
+              <div className="flex gap-2 justify-center">
                 <Button variant="outline" onClick={resetWizard}>Import another file</Button>
-                <Button asChild><a href="/items" className="no-underline">View items</a></Button>
+                <Button asChild><Link href="/items">View items</Link></Button>
               </div>
-            </div>
+            </CardContent>
           </Card>
         </>
       )}
@@ -679,23 +689,28 @@ export default function ImportPage() {
   );
 }
 
+const VARIANT_COLORS: Record<string, string> = {
+  green: "text-green-600 dark:text-green-400",
+  blue: "text-blue-600 dark:text-blue-400",
+  red: "text-destructive",
+  purple: "text-purple-600 dark:text-purple-400",
+};
+
 function SummaryCard({
   label,
   value,
-  warn,
-  color,
+  variant,
 }: {
   label: string;
   value: number;
-  warn?: boolean;
-  color?: string;
+  variant?: string;
 }) {
   return (
     <Card className="p-4 text-center">
-      <div className="metric-value" style={{ color: warn ? "var(--red)" : color || "var(--text-primary)" }}>
+      <div className={`text-3xl font-bold ${variant ? VARIANT_COLORS[variant] || "" : "text-foreground"}`}>
         {value}
       </div>
-      <div className="metric-label">{label}</div>
+      <div className="text-sm text-muted-foreground mt-1">{label}</div>
     </Card>
   );
 }

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
-import { Spinner } from "@/components/ui/spinner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -11,6 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import { WifiOff, AlertTriangle, RefreshCw } from "lucide-react";
 
 type EscalationRule = {
   id: string;
@@ -27,27 +38,43 @@ type EscalationConfig = {
   maxNotificationsPerBooking: number;
 };
 
+type ErrorState = {
+  type: "network" | "server";
+  message: string;
+} | null;
+
 export default function EscalationSettingsPage() {
   const { toast } = useToast();
   const [rules, setRules] = useState<EscalationRule[]>([]);
   const [config, setConfig] = useState<EscalationConfig>({ maxNotificationsPerBooking: 10 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ErrorState>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(null);
+    setLoading(true);
     try {
       const res = await fetch("/api/settings/escalation");
       if (res.ok) {
         const json = await res.json();
         setRules(json.data.rules);
         setConfig(json.data.config);
+      } else {
+        setError({
+          type: "server",
+          message: `Server returned ${res.status}. Please try again.`,
+        });
       }
     } catch {
-      toast("Failed to load escalation settings", "error");
+      setError({
+        type: "network",
+        message: "Could not connect to the server. Check your internet connection and try again.",
+      });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -105,7 +132,67 @@ export default function EscalationSettingsPage() {
           <h2 className="settings-title">Escalation</h2>
         </div>
         <div className="settings-main">
-          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+          <Card className="mb-1">
+            <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
+            <div className="px-4 pb-4 space-y-3">
+              {/* Table header skeleton */}
+              <div className="flex gap-4">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              {/* Table row skeletons */}
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-5 w-9 rounded-full" />
+                  <Skeleton className="h-5 w-9 rounded-full" />
+                  <Skeleton className="h-5 w-9 rounded-full" />
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle>Fatigue Controls</CardTitle></CardHeader>
+            <div className="p-4 space-y-2">
+              <div className="flex gap-3 items-center">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-9 w-20 rounded-md" />
+              </div>
+              <Skeleton className="h-4 w-80" />
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    const Icon = error.type === "network" ? WifiOff : AlertTriangle;
+    return (
+      <div className="settings-split">
+        <div className="settings-sidebar">
+          <h2 className="settings-title">Escalation</h2>
+        </div>
+        <div className="settings-main">
+          <Card>
+            <div className="flex flex-col items-center justify-center gap-4 py-12 px-4 text-center">
+              <Icon className="size-10 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-semibold">
+                  {error.type === "network" ? "Connection Failed" : "Something Went Wrong"}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
+              </div>
+              <Button variant="outline" onClick={load}>
+                <RefreshCw className="size-4" />
+                Retry
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     );
@@ -125,48 +212,46 @@ export default function EscalationSettingsPage() {
         {/* Rules table */}
         <Card className="mb-1">
           <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
-          <div className="data-table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Trigger</th>
-                <th>Timing</th>
-                <th>Requester</th>
-                <th>Admins</th>
-                <th>Enabled</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Trigger</TableHead>
+                <TableHead>Timing</TableHead>
+                <TableHead>Requester</TableHead>
+                <TableHead>Admins</TableHead>
+                <TableHead>Enabled</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rules.map((rule) => (
-                <tr key={rule.id}>
-                  <td>{rule.title}</td>
-                  <td>{formatHours(rule.hoursFromDue)}</td>
-                  <td>
-                    <button
-                      className={`toggle${rule.notifyRequester ? " on" : ""}`}
-                      onClick={() => toggleRule(rule.id, "notifyRequester", rule.notifyRequester)}
+                <TableRow key={rule.id}>
+                  <TableCell>{rule.title}</TableCell>
+                  <TableCell>{formatHours(rule.hoursFromDue)}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={rule.notifyRequester}
+                      onCheckedChange={() => toggleRule(rule.id, "notifyRequester", rule.notifyRequester)}
                       disabled={saving === rule.id + "notifyRequester"}
                     />
-                  </td>
-                  <td>
-                    <button
-                      className={`toggle${rule.notifyAdmins ? " on" : ""}`}
-                      onClick={() => toggleRule(rule.id, "notifyAdmins", rule.notifyAdmins)}
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={rule.notifyAdmins}
+                      onCheckedChange={() => toggleRule(rule.id, "notifyAdmins", rule.notifyAdmins)}
                       disabled={saving === rule.id + "notifyAdmins"}
                     />
-                  </td>
-                  <td>
-                    <button
-                      className={`toggle${rule.enabled ? " on" : ""}`}
-                      onClick={() => toggleRule(rule.id, "enabled", rule.enabled)}
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={rule.enabled}
+                      onCheckedChange={() => toggleRule(rule.id, "enabled", rule.enabled)}
                       disabled={saving === rule.id + "enabled"}
                     />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-          </div>
+            </TableBody>
+          </Table>
         </Card>
 
         {/* Fatigue controls */}
@@ -182,7 +267,7 @@ export default function EscalationSettingsPage() {
                 onValueChange={(v) => updateCap(Number(v))}
                 disabled={saving === "cap"}
               >
-                <SelectTrigger id="cap" style={{ width: 80 }}>
+                <SelectTrigger id="cap" className="w-20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -192,7 +277,7 @@ export default function EscalationSettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-sm text-secondary mt-2 m-0">
+            <p className="text-sm text-muted-foreground mt-2 m-0">
               Once a booking reaches this limit, no further notifications will be sent for it.
               This prevents alert fatigue for long-overdue items.
             </p>

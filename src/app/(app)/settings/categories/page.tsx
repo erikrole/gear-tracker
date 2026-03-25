@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SearchIcon } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import { AlertTriangle, SearchIcon, WifiOff } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import CategoryRow from "./CategoryRow";
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -22,13 +23,18 @@ export default function CategoriesPage() {
 
   async function load() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/categories");
       if (res.ok) {
         const json = await res.json();
         setCategories(json.data ?? []);
+      } else {
+        setError(`server`);
       }
-    } catch { /* network error */ }
+    } catch {
+      setError(`network`);
+    }
     setLoading(false);
   }
 
@@ -71,6 +77,12 @@ export default function CategoriesPage() {
     tree = [...tree].reverse();
   }
 
+  const ErrorIcon = error === "network" ? WifiOff : AlertTriangle;
+  const errorMessage =
+    error === "network"
+      ? "Unable to reach the server. Check your connection and try again."
+      : "Something went wrong loading categories. Please try again.";
+
   return (
     <div className="settings-split">
       <div className="settings-sidebar">
@@ -89,35 +101,65 @@ export default function CategoriesPage() {
 
         <Card>
           <CardHeader>
-            <div className="cat-search-wrap">
-              <SearchIcon className="cat-search-icon size-4" />
+            <div className="relative w-full max-w-[260px]">
+              <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="cat-search-input"
+                className="w-full pl-9 text-sm md:min-h-[44px] md:text-lg"
                 aria-label="Search categories"
               />
             </div>
           </CardHeader>
 
-          <div className="cat-list-header">
-            <button onClick={() => setSortAsc((v) => !v)} className="cat-sort-btn">
+          <div className="px-4 py-2.5 border-b border-border">
+            <button
+              onClick={() => setSortAsc((v) => !v)}
+              className="flex items-center gap-1 bg-transparent border-none cursor-pointer text-xs font-semibold text-muted-foreground uppercase tracking-wider min-h-[44px]"
+            >
               Name {sortAsc ? "\u2191\u2193" : "\u2193\u2191"}
             </button>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+            <div className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between px-4 py-3 min-h-[48px]"
+                >
+                  <div className="flex items-center gap-2">
+                    {i === 1 || i === 3 ? (
+                      <Skeleton className="h-4 w-4 rounded-sm" />
+                    ) : null}
+                    <Skeleton
+                      className={`h-4 rounded ${i % 2 === 0 ? "w-[140px]" : "w-[100px]"}`}
+                    />
+                  </div>
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center gap-3 py-12 px-5 text-center">
+              <ErrorIcon className="size-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground max-w-xs">
+                {errorMessage}
+              </p>
+              <Button variant="outline" size="sm" onClick={load}>
+                Retry
+              </Button>
+            </div>
           ) : (
-            <div className="cat-list">
+            <div className="divide-y divide-border">
               {adding && (
-                <div className="cat-row" style={{ paddingLeft: 16 }}>
-                  <div className="cat-row-name" style={{ fontWeight: 600 }}>
+                <div className="flex items-center justify-between pl-4 pr-4 py-3 min-h-[48px] border-b border-border">
+                  <div className="flex items-center font-semibold">
                     <input
                       ref={addRef}
-                      className="cat-inline-input"
+                      className={`px-2 py-1 border border-border rounded-md text-sm w-full max-w-[200px] md:w-full md:min-h-[44px] md:text-lg font-semibold${creatingRoot ? " opacity-60" : ""}`}
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="Category name"
@@ -127,7 +169,6 @@ export default function CategoriesPage() {
                         if (e.key === "Escape") { setAdding(false); setNewName(""); }
                       }}
                       disabled={creatingRoot}
-                      style={{ fontWeight: 600, opacity: creatingRoot ? 0.6 : 1 }}
                     />
                   </div>
                 </div>

@@ -33,14 +33,14 @@ Last updated: 2026-03-25
 ## P1 — High (hardening, security, UX gaps)
 
 ### Notifications
-- [ ] **Harden notification center** — No loading skeleton, no error recovery, no pagination guard. Run /harden-page.
+- [x] **Harden notification center** — Full rewrite: pre-shadcn CSS → Tailwind, skeleton loading, error state with retry (network/server differentiation), shadcn Switch for filter, proper CardContent structure.
 - [ ] **Add Zod + audit to nudge endpoint** — Missing input validation and audit logging.
 - [ ] **Add audit logging to mark-as-read** — Mutation without audit trail.
 
 ### Settings
-- [ ] **Harden Categories page** — Run /harden-page.
-- [ ] **Harden Sports page** — Run /harden-page.
-- [ ] **Harden Escalation page** — Run /harden-page.
+- [x] **Harden Categories page** — Error state UI with retry, skeleton loading, inline styles → Tailwind, pre-shadcn CSS → Tailwind.
+- [x] **Harden Sports page** — Error state UI (network/server differentiation) with retry, skeleton loading, consistent error handling.
+- [x] **Harden Escalation page** — pre-shadcn `data-table` → shadcn Table components, toggle buttons → shadcn Switch, inline styles → Tailwind, error state with retry, skeleton loading.
 - [x] **Fix layout double breadcrumb** — Settings pages render own breadcrumb + AppShell breadcrumb. Fixed: removed settings layout `.breadcrumb` div, events detail custom breadcrumb, and items detail duplicate `<PageBreadcrumb />`. Added `events→Schedule` route alias + mobile truncation.
 
 ### Shifts
@@ -48,15 +48,15 @@ Last updated: 2026-03-25
 - [ ] **Wrap decline/remove in transactions** — TOCTOU risk on concurrent shift operations.
 
 ### Reservations
-- [ ] **Harden BookingListPage** — Shared between checkouts and reservations. Needs full hardening pass.
+- [x] **Harden BookingListPage** — Already hardened: AbortController, skeleton, error handling, double-submit guards all present.
 
 ### Items
-- [ ] **Harden item detail page** — Missing 5-pass treatment. Loading states, error recovery, double-submit guards.
-- [ ] **Add double-submit guard to NewItemSheet** — Can fire multiple create requests.
+- [x] **Harden item detail page** — Already hardened: AbortController, comprehensive skeleton, error states with retry, double-submit guards. Fixed 2 remaining inline styles → Tailwind `size-[120px]`.
+- [x] **Add double-submit guard to NewItemSheet** — Already implemented: `submitting` flag disables button, shows "Adding..." text.
 
 ### Importer
 - [ ] **Add Zod validation on mapping JSON** — Raw JSON accepted without schema validation.
-- [ ] **Harden import page** — Run /harden-page.
+- [x] **Harden import page** — Full rewrite: pre-shadcn CSS (`data-table`, `summary-grid`, `metric-value`, `alert-error`) → shadcn Table + Tailwind. Hardcoded `#fffbeb` → dark-mode-safe `bg-amber-50 dark:bg-amber-950/20`. All inline styles → Tailwind. `<a href>` → Next.js `<Link>`. `useToast` → sonner.
 
 ### Mobile/Scan
 - [ ] **Fix dark mode unit picker** — Hardcoded `bg-white`, `bg-blue-100` on unit buttons. Will break in dark mode.
