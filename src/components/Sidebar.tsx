@@ -80,16 +80,17 @@ type AppSidebarProps = {
   unreadNotifications?: number;
 };
 
-type ThemePref = "system" | "light" | "dark";
+const THEME_PREFS = ["system", "light", "dark"] as const;
+type ThemePref = (typeof THEME_PREFS)[number];
 
 function useTheme() {
   const [theme, setThemeState] = useState<ThemePref>("system");
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as ThemePref | null;
-    if (stored && ["system", "light", "dark"].includes(stored)) {
-      setThemeState(stored);
-      applyTheme(stored);
+    const stored = localStorage.getItem("theme");
+    if (stored && (THEME_PREFS as readonly string[]).includes(stored)) {
+      setThemeState(stored as ThemePref);
+      applyTheme(stored as ThemePref);
     }
   }, []);
 
@@ -130,20 +131,17 @@ export default function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      {/* Brand mark + user profile header */}
       {user && (
-        <SidebarHeader className="border-b border-white/[0.08] pb-3 pt-4">
+        <SidebarHeader className="pb-2 pt-4">
           <SidebarMenu>
-            {/* Brand mark — Motion W */}
             <SidebarMenuItem>
-              <div className="flex items-center gap-2.5 px-2 pb-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+              <div className="flex items-center gap-2.5 px-2 pb-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
                 <img src="/Badgers.png" alt="Wisconsin" className="size-7 shrink-0 object-contain" />
                 <span className="text-[13px] font-bold tracking-tight text-white group-data-[collapsible=icon]:hidden" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>
                   Gear Tracker
                 </span>
               </div>
             </SidebarMenuItem>
-            {/* User profile */}
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
@@ -152,13 +150,13 @@ export default function AppSidebar({
                 className="hover:bg-white/[0.06] active:bg-white/[0.06] data-[active=true]:bg-white/[0.06]"
               >
                 <Link href={`/users/${user.id}`} className="flex items-center gap-3">
-                  <Avatar className="size-8 shrink-0 border border-white/15 bg-white/10">
+                  <Avatar className="size-8 shrink-0 border border-white/[0.12] bg-white/[0.08]">
                     {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                    <AvatarFallback className="bg-transparent text-white/90 text-xs font-semibold">
+                    <AvatarFallback className="bg-transparent text-white/80 text-xs font-semibold">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-semibold text-sidebar-foreground truncate">
+                  <span className="text-sm font-medium text-white/90 truncate">
                     {user.name}
                   </span>
                 </Link>
@@ -169,42 +167,37 @@ export default function AppSidebar({
       )}
 
       {/* Navigation groups */}
-      <SidebarContent className="py-2">
+      <SidebarContent className="py-1">
         {navGroups
           .filter((group) => !group.adminOnly || isAdmin)
           .map((group, groupIdx) => (
             <div key={groupIdx}>
               {groupIdx > 0 && (
-                <SidebarSeparator className="mx-4 my-1 bg-white/[0.07] group-data-[collapsible=icon]:mx-2" />
+                <SidebarSeparator className="mx-3 my-2 bg-white/[0.08] group-data-[collapsible=icon]:mx-2" />
               )}
               <SidebarGroup className="px-2 py-0">
                 {group.label && (
-                  <SidebarGroupLabel className="text-white/30 text-[10px] uppercase tracking-wider px-2 mb-0.5" style={{ fontFamily: "var(--font-heading)" }}>
+                  <SidebarGroupLabel className="text-white/40 text-[11px] uppercase tracking-widest px-2 mb-0.5 font-medium">
                     {group.label}
                   </SidebarGroupLabel>
                 )}
-                <SidebarMenu className="gap-0.5">
+                <SidebarMenu className="gap-px">
                   {group.items.map((item) => {
                     const href = item.href;
                     const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
                     const Icon = item.icon;
 
-                    // Per-item badge count
-                    const badgeCount =
-                      item.href === "/bookings" && overdueBadgeCount > 0
-                        ? overdueBadgeCount
-                        : item.href === "/notifications" && unreadNotifications > 0
-                        ? unreadNotifications
-                        : 0;
-                    const badgeLabel = item.badge; // static label like "Soon"
-
-                    // Enrich tooltip with count context for collapsed icon-only mode
-                    const tooltip =
-                      item.href === "/bookings" && overdueBadgeCount > 0
-                        ? `Bookings · ${overdueBadgeCount} overdue`
-                        : item.href === "/notifications" && unreadNotifications > 0
-                        ? `Notifications · ${unreadNotifications} unread`
-                        : item.label;
+                    const badgeCfg =
+                      href === "/bookings" && overdueBadgeCount > 0
+                        ? { count: overdueBadgeCount, suffix: "overdue" }
+                        : href === "/notifications" && unreadNotifications > 0
+                        ? { count: unreadNotifications, suffix: "unread" }
+                        : null;
+                    const badgeCount = badgeCfg?.count ?? 0;
+                    const badgeLabel = item.badge;
+                    const tooltip = badgeCfg
+                      ? `${item.label} · ${badgeCfg.count} ${badgeCfg.suffix}`
+                      : item.label;
 
                     return (
                       <SidebarMenuItem key={item.label}>
@@ -214,8 +207,8 @@ export default function AppSidebar({
                           tooltip={tooltip}
                           className={
                             isActive
-                              ? "border-l-2 border-[var(--wi-red)] rounded-l-none pl-[10px] data-[active=true]:bg-white/[0.10] data-[active=true]:text-white"
-                              : "text-white/65 hover:text-white hover:bg-white/[0.06]"
+                              ? "data-[active=true]:bg-white/[0.10] data-[active=true]:text-white font-medium"
+                              : "text-white/50 hover:text-white/90 hover:bg-white/[0.06] font-normal"
                           }
                         >
                           <Link href={href}>
@@ -229,7 +222,7 @@ export default function AppSidebar({
                           </SidebarMenuBadge>
                         )}
                         {!badgeCount && badgeLabel && (
-                          <SidebarMenuBadge className="bg-white/10 text-white/50 text-[9px] font-semibold h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
+                          <SidebarMenuBadge className="bg-white/[0.08] text-white/40 text-[9px] font-medium h-[16px] flex items-center justify-center rounded px-1 tracking-wide">
                             {badgeLabel}
                           </SidebarMenuBadge>
                         )}
@@ -250,13 +243,12 @@ export default function AppSidebar({
       </SidebarContent>
 
       {/* Footer: theme toggle + logout */}
-      <SidebarFooter className="border-t border-white/[0.08] pt-2 pb-3">
-        <div className="px-2">
+      <SidebarFooter className="border-t border-white/[0.08] py-2">
+        <div className="theme-toggle-row group-data-[collapsible=icon]:hidden">
           <ToggleGroup
             type="single"
             value={theme}
             onValueChange={(v) => { if (v) setTheme(v as ThemePref); }}
-            className="group-data-[collapsible=icon]:hidden"
           >
             <ToggleGroupItem value="light" aria-label="Light theme">
               <SunIcon className="size-3.5" />
@@ -269,14 +261,13 @@ export default function AppSidebar({
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
-        <SidebarSeparator className="group-data-[collapsible=icon]:hidden" />
         <SidebarMenu className="px-2">
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={isLoggingOut ? "Logging out…" : "Log out"}
               onClick={onSignOut}
               disabled={isLoggingOut}
-              className="text-white/65 hover:text-white hover:bg-white/[0.06] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-white/40 hover:text-white/80 hover:bg-white/[0.06] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogOutIcon />
               <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
