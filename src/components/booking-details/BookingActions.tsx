@@ -40,7 +40,7 @@ export default function BookingActions({
       )}
       {canCheckin && (
         <Button
-          className="bg-green-600 text-white hover:bg-green-700"
+          className="bg-green-600 text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
           disabled={checkinLoading}
           onClick={onCheckinAll}
         >

@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { statusBadgeVariant } from "@/lib/status-colors";
+import type { BadgeProps } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import EmptyState from "@/components/EmptyState";
+import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
 
 type SearchResult = {
@@ -147,6 +149,12 @@ export default function SearchPage() {
     reservation: "Reservations",
   };
 
+  const sectionViewAllHrefs: Record<string, string> = {
+    item: `/items?q=${encodeURIComponent(query.trim())}`,
+    checkout: `/bookings?tab=checkouts&q=${encodeURIComponent(query.trim())}`,
+    reservation: `/bookings?tab=reservations&q=${encodeURIComponent(query.trim())}`,
+  };
+
   return (
     <div className="p-6">
       <h1 className="m-0 mb-1">Search</h1>
@@ -182,9 +190,16 @@ export default function SearchPage() {
             if (items.length === 0) return null;
             return (
               <div key={type}>
-                <h2 className="text-sm text-secondary text-uppercase mb-2 m-0">
-                  {sectionLabels[type]} ({items.length})
-                </h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm text-secondary text-uppercase m-0">
+                    {sectionLabels[type]} ({items.length}{items.length >= 10 ? "+" : ""})
+                  </h2>
+                  {items.length >= 10 && (
+                    <Link href={sectionViewAllHrefs[type]} className="text-xs text-primary hover:underline">
+                      View all {sectionLabels[type].toLowerCase()}
+                    </Link>
+                  )}
+                </div>
                 <Card>
                   {items.map((r, i) => (
                     <Link
@@ -197,9 +212,9 @@ export default function SearchPage() {
                         {r.subtitle && <div className="text-sm text-secondary">{r.subtitle}</div>}
                       </div>
                       {r.status && (
-                        <span className={`badge badge-sm badge-${statusBadgeVariant(r.status)}`}>
+                        <Badge variant={statusBadgeVariant(r.status) as BadgeProps["variant"]}>
                           {r.status.replace(/_/g, " ")}
-                        </span>
+                        </Badge>
                       )}
                     </Link>
                   ))}

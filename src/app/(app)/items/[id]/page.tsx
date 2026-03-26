@@ -30,7 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PencilIcon, ImageIcon, Copy, Check, RefreshCw, AlertTriangle, WifiOff } from "lucide-react";
+import { PencilIcon, ImageIcon, Copy, Check, RefreshCw, AlertTriangle, WifiOff, Star } from "lucide-react";
 import {
   classifyError,
   isAbortError,
@@ -312,6 +312,19 @@ export default function ItemDetailsPage() {
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
+  const handleToggleFavorite = useCallback(async () => {
+    if (!asset) return;
+    const prev = asset.isFavorited;
+    setAsset((a) => a ? { ...a, isFavorited: !prev } : a);
+    try {
+      const res = await fetch(`/api/assets/${asset.id}/favorite`, { method: "POST" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setAsset((a) => a ? { ...a, isFavorited: prev } : a);
+      toast("Failed to update favorite", "error");
+    }
+  }, [asset, toast]);
+
   // URL-synced tab switching
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
@@ -574,6 +587,20 @@ export default function ItemDetailsPage() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleToggleFavorite}
+            aria-label={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Star
+              className={`size-4 ${
+                asset.isFavorited
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-muted-foreground"
+              }`}
+            />
+          </Button>
           {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
           <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
             <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>

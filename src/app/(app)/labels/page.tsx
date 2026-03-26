@@ -143,7 +143,7 @@ export default function LabelsPage() {
             {(assets ?? []).map((asset) => (
               <label
                 key={asset.id}
-                className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer border-b border-border ${selectedIds.has(asset.id) ? "bg-green-50" : "bg-white"}`}
+                className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer border-b border-border ${selectedIds.has(asset.id) ? "bg-green-50 dark:bg-green-950/30" : "bg-background"}`}
               >
                 <Checkbox
                   checked={selectedIds.has(asset.id)}

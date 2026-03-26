@@ -54,6 +54,7 @@ export default function ItemsPage() {
     brandKey: filters.brandKey,
     departmentKey: filters.departmentKey,
     showAccessories: filters.showAccessories,
+    favoritesOnly: filters.favoritesOnly,
     sorting: filters.sorting,
     sortKey: filters.sortKey,
   });
@@ -377,6 +378,8 @@ export default function ItemsPage() {
                 onDepartmentFilterChange={withPageReset(filters.setDepartmentFilter)}
                 showAccessories={filters.showAccessories}
                 onShowAccessoriesChange={(v) => { filters.setShowAccessories(v); query.setPage(0); }}
+                favoritesOnly={filters.favoritesOnly}
+                onFavoritesOnlyChange={(v) => { filters.setFavoritesOnly(v); query.setPage(0); }}
                 hasActiveFilters={filters.hasActiveFilters}
                 onClearAllFilters={() => { filters.clearAllFilters(); query.setPage(0); }}
                 locations={options.locations}

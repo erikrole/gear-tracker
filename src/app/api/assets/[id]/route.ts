@@ -41,8 +41,8 @@ function parseNotes(notes: string | null) {
   }
 }
 
-export const GET = withAuth<{ id: string }>(async (req, { params }) => {
-  const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations, accessories] = await Promise.all([
+export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
+  const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations, accessories, favoriteRow] = await Promise.all([
     db.asset.findUnique({
       where: { id: params.id },
       include: { location: true, category: true, department: { select: { id: true, name: true } }, parent: { select: { id: true, assetTag: true, name: true, brand: true, model: true } } }
@@ -117,6 +117,10 @@ export const GET = withAuth<{ id: string }>(async (req, { params }) => {
       },
       orderBy: { assetTag: "asc" },
     }),
+    db.favoriteItem.findUnique({
+      where: { userId_assetId: { userId: user.id, assetId: params.id } },
+      select: { id: true },
+    }),
   ]);
 
   if (!asset) {
@@ -147,6 +151,7 @@ export const GET = withAuth<{ id: string }>(async (req, { params }) => {
     data: {
       ...asset,
       computedStatus,
+      isFavorited: !!favoriteRow,
       metadata: parseNotes(asset.notes),
       activeBooking,
       hasBookingHistory,

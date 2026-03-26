@@ -14,6 +14,7 @@ type QueryDeps = {
   brandKey: string;
   departmentKey: string;
   showAccessories: boolean;
+  favoritesOnly: boolean;
   sorting: SortingState;
   sortKey: string;
 };
@@ -76,6 +77,7 @@ export function useItemsQuery(deps: QueryDeps) {
     deps.brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
     deps.departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
     if (deps.showAccessories) params.set("show_accessories", "true");
+    if (deps.favoritesOnly) params.set("favorites_only", "true");
     if (deps.sorting.length > 0) {
       params.set("sort", deps.sorting[0].id);
       if (deps.sorting[0].desc) params.set("order", "desc");
@@ -111,7 +113,7 @@ export function useItemsQuery(deps: QueryDeps) {
     setLoading(false);
     setRefreshing(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, deps.debouncedSearch, deps.statusKey, deps.locationKey, deps.categoryKey, deps.brandKey, deps.departmentKey, deps.showAccessories, deps.sortKey]);
+  }, [page, limit, deps.debouncedSearch, deps.statusKey, deps.locationKey, deps.categoryKey, deps.brandKey, deps.departmentKey, deps.showAccessories, deps.favoritesOnly, deps.sortKey]);
 
   useEffect(() => {
     reload();

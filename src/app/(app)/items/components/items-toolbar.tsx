@@ -1,7 +1,7 @@
 "use client";
 
 import { type RefObject } from "react";
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, Star, XIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -35,6 +35,8 @@ export function ItemsToolbar({
   onDepartmentFilterChange,
   showAccessories,
   onShowAccessoriesChange,
+  favoritesOnly,
+  onFavoritesOnlyChange,
   hasActiveFilters,
   onClearAllFilters,
   locations,
@@ -57,6 +59,8 @@ export function ItemsToolbar({
   onDepartmentFilterChange: (value: Set<string>) => void;
   showAccessories: boolean;
   onShowAccessoriesChange: (value: boolean) => void;
+  favoritesOnly: boolean;
+  onFavoritesOnlyChange: (value: boolean) => void;
   hasActiveFilters: boolean;
   onClearAllFilters: () => void;
   locations: Location[];
@@ -127,6 +131,15 @@ export function ItemsToolbar({
           onSelectionChange={onBrandFilterChange}
         />
       )}
+      <Button
+        variant={favoritesOnly ? "default" : "outline"}
+        size="sm"
+        className="h-9 gap-1.5"
+        onClick={() => onFavoritesOnlyChange(!favoritesOnly)}
+      >
+        <Star className={`size-3.5 ${favoritesOnly ? "fill-current" : ""}`} />
+        Favorites
+      </Button>
       <div className="flex items-center gap-1.5">
         <Switch
           id="show-accessories"
