@@ -31,7 +31,7 @@ type SearchResult = {
   href: string;
   // Item-specific fields for status display
   computedStatus?: string;
-  activeBooking?: { requesterName: string; isOverdue: boolean } | null;
+  activeBooking?: { requesterName: string; isOverdue: boolean; endsAt?: string } | null;
 };
 
 const bottomNavItems = [
@@ -90,11 +90,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCmdOpen(true);
+        return;
+      }
+
+      // Type-to-search: open palette when user starts typing anywhere
+      // Skip if already in an input, or if modifier keys are held (except shift)
+      if (cmdOpen) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if ((e.target as HTMLElement)?.isContentEditable) return;
+      // Only trigger on printable single characters
+      if (e.key.length === 1 && !e.repeat) {
+        setCmdOpen(true);
+        setCmdQuery(e.key);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [cmdOpen]);
 
   // Live search when query changes
   useEffect(() => {
@@ -126,7 +140,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               subtitle: "",
               href: `/items/${item.id}`,
               computedStatus: item.computedStatus,
-              activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName, isOverdue: item.activeBooking.isOverdue } : null,
+              activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName, isOverdue: item.activeBooking.isOverdue, endsAt: item.activeBooking.endsAt } : null,
             });
           }
         }
@@ -253,9 +267,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   : status === "MAINTENANCE" ? "cmd-badge-orange"
                   : status === "RETIRED" ? "cmd-badge-muted"
                   : "cmd-badge-green";
-                const statusLabel = isOverdue ? `Checked out by ${r.activeBooking?.requesterName}`
-                  : status === "CHECKED_OUT" ? `Checked out by ${r.activeBooking?.requesterName}`
-                  : status === "RESERVED" ? `Reserved by ${r.activeBooking?.requesterName}`
+                const dueLabel = r.activeBooking?.endsAt
+                  ? ` · Due ${new Date(r.activeBooking.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                  : "";
+                const statusLabel = isOverdue ? `Overdue — ${r.activeBooking?.requesterName}${dueLabel}`
+                  : status === "CHECKED_OUT" ? `${r.activeBooking?.requesterName}${dueLabel}`
+                  : status === "RESERVED" ? `Reserved — ${r.activeBooking?.requesterName}${dueLabel}`
                   : status === "MAINTENANCE" ? "In maintenance"
                   : status === "RETIRED" ? "Retired"
                   : "Available";
