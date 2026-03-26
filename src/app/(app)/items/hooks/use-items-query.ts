@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { SortingState } from "@tanstack/react-table";
 import type { Asset } from "../columns";
@@ -35,90 +36,75 @@ type AssetsResponse = {
   statusBreakdown?: StatusBreakdown;
 };
 
+function buildUrl(page: number, limit: number, deps: QueryDeps): string {
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  params.set("offset", String(page * limit));
+  if (deps.debouncedSearch) params.set("q", deps.debouncedSearch);
+  deps.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
+  deps.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
+  deps.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
+  deps.brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
+  deps.departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
+  if (deps.showAccessories) params.set("show_accessories", "true");
+  if (deps.favoritesOnly) params.set("favorites_only", "true");
+  if (deps.sorting.length > 0) {
+    params.set("sort", deps.sorting[0].id);
+    if (deps.sorting[0].desc) params.set("order", "desc");
+  }
+  return `/api/assets?${params}`;
+}
+
+async function fetchAssets(url: string, signal?: AbortSignal): Promise<AssetsResponse> {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error("server");
+  return res.json();
+}
+
 export function useItemsQuery(deps: QueryDeps) {
   const searchParams = useSearchParams();
-  const [items, setItems] = useState<Asset[]>([]);
-  const [total, setTotal] = useState(0);
-  const [statusBreakdown, setStatusBreakdown] = useState<StatusBreakdown | null>(null);
+  const queryClient = useQueryClient();
+
   const [page, setPage] = useState(() => {
     const p = parseInt(searchParams.get("page") ?? "", 10);
     return Number.isFinite(p) && p > 0 ? p : 0;
   });
   const [limit, setLimit] = useState(25);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const hasLoadedOnce = useRef(false);
 
+  const url = buildUrl(page, limit, deps);
+  const queryKey = ["items", url];
+
+  const { data: response, isLoading, isFetching, isError, refetch } = useQuery<AssetsResponse>({
+    queryKey,
+    queryFn: ({ signal }) => fetchAssets(url, signal),
+    refetchOnWindowFocus: true,
+  });
+
+  // Toast on background refresh failure
+  const prevFetchingRef = useRef(false);
+  useEffect(() => {
+    if (prevFetchingRef.current && !isFetching && isError && response !== undefined) {
+      toast.error("Failed to refresh items");
+    }
+    prevFetchingRef.current = isFetching;
+  }, [isFetching, isError, response]);
+
+  const items = response?.data ?? [];
+  const total = response?.total ?? 0;
+  const statusBreakdown = response?.statusBreakdown ?? null;
   const totalPages = Math.ceil(total / limit);
 
-  const reload = useCallback(async () => {
-    // Cancel any in-flight request to prevent stale data overwrites
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const isRefresh = hasLoadedOnce.current;
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setLoadError(false);
-
-    const params = new URLSearchParams();
-    params.set("limit", String(limit));
-    params.set("offset", String(page * limit));
-    if (deps.debouncedSearch) params.set("q", deps.debouncedSearch);
-    deps.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
-    deps.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
-    deps.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
-    deps.brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
-    deps.departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
-    if (deps.showAccessories) params.set("show_accessories", "true");
-    if (deps.favoritesOnly) params.set("favorites_only", "true");
-    if (deps.sorting.length > 0) {
-      params.set("sort", deps.sorting[0].id);
-      if (deps.sorting[0].desc) params.set("order", "desc");
-    }
-
-    try {
-      const res = await fetch(`/api/assets?${params}`, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      if (!res.ok) {
-        if (isRefresh) {
-          // Keep existing data visible, toast the error
-          toast.error("Failed to refresh items");
-        } else {
-          setLoadError(true);
-        }
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-      const json: AssetsResponse = await res.json();
-      setItems(json.data ?? []);
-      setTotal(json.total ?? 0);
-      if (json.statusBreakdown) setStatusBreakdown(json.statusBreakdown);
-      hasLoadedOnce.current = true;
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      if (isRefresh) {
-        toast.error("Network error — could not refresh items");
-      } else {
-        setLoadError(true);
-      }
-    }
-    setLoading(false);
-    setRefreshing(false);
+  /** Optimistic update for items array (e.g. favorites toggle) */
+  const setItems = useCallback(
+    (updater: (items: Asset[]) => Asset[]) => {
+      queryClient.setQueryData<AssetsResponse>(queryKey, (prev) =>
+        prev ? { ...prev, data: updater(prev.data) } : prev,
+      );
+    },
+    // queryKey changes with filters, which is correct
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, deps.debouncedSearch, deps.statusKey, deps.locationKey, deps.categoryKey, deps.brandKey, deps.departmentKey, deps.showAccessories, deps.favoritesOnly, deps.sortKey]);
-
-  useEffect(() => {
-    reload();
-    return () => { abortRef.current?.abort(); };
-  }, [reload]);
+    [url, queryClient],
+  );
 
   return {
     items,
@@ -130,9 +116,9 @@ export function useItemsQuery(deps: QueryDeps) {
     limit,
     setLimit,
     totalPages,
-    loading,
-    refreshing,
-    loadError,
-    reload,
+    loading: isLoading,
+    refreshing: isFetching && !isLoading,
+    loadError: isError && isLoading,
+    reload: () => { refetch(); },
   };
 }
