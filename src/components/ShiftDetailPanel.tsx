@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import DataList from "@/components/DataList";
@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { PlusIcon, XIcon, ArrowRightLeftIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "lucide-react";
 
 /* ───── Types ───── */
 
@@ -132,8 +132,9 @@ export default function ShiftDetailPanel({
   const confirm = useConfirm();
   const [group, setGroup] = useState<ShiftGroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [acting, setActing] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Universal user picker
   const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
@@ -151,19 +152,24 @@ export default function ShiftDetailPanel({
 
   const fetchGroup = useCallback(async () => {
     if (!groupId) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     try {
-      const res = await fetch(`/api/shift-groups/${groupId}`);
+      const res = await fetch(`/api/shift-groups/${groupId}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
         setGroup(json.data ?? null);
         setLoadError(false);
       } else {
-        setLoadError(true);
+        setLoadError("server");
       }
-    } catch {
-      setLoadError(true);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setLoadError("network");
     }
     setLoading(false);
   }, [groupId]);
@@ -175,6 +181,7 @@ export default function ShiftDetailPanel({
     } else {
       setGroup(null);
     }
+    return () => { abortRef.current?.abort(); };
   }, [groupId, fetchGroup]);
 
   // Load all active users (universal — not roster-restricted)
@@ -196,7 +203,7 @@ export default function ShiftDetailPanel({
         setAllUsers(users);
         setUsersLoaded(true);
       }
-    } catch { /* silent */ }
+    } catch { /* silent — picker shows empty state */ }
     setUsersLoading(false);
   }, [usersLoaded]);
 
@@ -227,6 +234,33 @@ export default function ShiftDetailPanel({
 
   async function handleAssign(shiftId: string, userId: string) {
     setActing(shiftId);
+    // Optimistic: immediately show the assignment
+    const assignedUser = allUsers.find((u) => u.id === userId);
+    const prevGroup = group;
+    if (group && assignedUser) {
+      setGroup({
+        ...group,
+        shifts: group.shifts.map((s) =>
+          s.id === shiftId
+            ? {
+                ...s,
+                assignments: [
+                  ...s.assignments,
+                  {
+                    id: `optimistic-${Date.now()}`,
+                    status: "DIRECT_ASSIGNED",
+                    notes: null,
+                    createdAt: new Date().toISOString(),
+                    user: { ...assignedUser, email: undefined },
+                    assigner: null,
+                  },
+                ],
+              }
+            : s
+        ),
+      });
+    }
+    setPickerShiftId(null);
     try {
       const res = await fetch("/api/shift-assignments", {
         method: "POST",
@@ -236,14 +270,17 @@ export default function ShiftDetailPanel({
       if (redirectOn401(res)) return;
       if (res.ok) {
         toast("Shift assigned", "success");
-        setPickerShiftId(null);
         await fetchGroup();
         onUpdated?.();
       } else {
+        setGroup(prevGroup); // rollback
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Failed to assign", "error");
       }
-    } catch { toast("Network error", "error"); }
+    } catch {
+      setGroup(prevGroup); // rollback
+      toast("Network error", "error");
+    }
     setActing(null);
   }
 
@@ -425,7 +462,11 @@ export default function ShiftDetailPanel({
           <div className="p-4 text-muted-foreground">Loading shift details...</div>
         ) : loadError ? (
           <div className="p-4 text-center">
-            <p className="text-muted-foreground mb-2">Failed to load shift details.</p>
+            <p className="text-muted-foreground mb-2">
+              {loadError === "network"
+                ? "Check your connection and try again."
+                : "Something went wrong loading shift details."}
+            </p>
             <Button variant="outline" size="sm" onClick={fetchGroup}>Retry</Button>
           </div>
         ) : !group ? (

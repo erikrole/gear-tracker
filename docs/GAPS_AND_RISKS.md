@@ -58,7 +58,7 @@
 | ~~Multi-recipient escalation~~ | ~~AREA_NOTIFICATIONS~~ | ~~D-009~~ | ~~Shipped 2026-03-15: +24h escalation reaches requester + all admins; admin-configurable fatigue controls~~ |
 | ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
 | ~~Calendar source health UI~~ | ~~AREA_EVENTS~~ | ~~—~~ | ~~Shipped 2026-03-19: /settings/calendar-sources — enable/disable, sync status, health badges, error display, add/delete~~ |
-| ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board~~ |
+| ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board. V2 shipped 2026-03-26: per-event shift editing, universal assignment, avatar picker (see BRIEF_SHIFT_REDESIGN_V2)~~ |
 | Shift notification channel (email for trade claims) | AREA_SHIFTS | — | V1 = in-app audit only; email deferred |
 | Student availability tracking | AREA_SHIFTS | — | Students declare unavailable dates; deferred to Phase B |
 | ~~Scheduling + gear deep linking (shiftAssignmentId FK on Booking)~~ | ~~AREA_SHIFTS / AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-18: shiftAssignmentId FK on Booking, wired through creation APIs~~ |
