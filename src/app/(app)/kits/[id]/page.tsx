@@ -325,7 +325,7 @@ export default function KitDetailPage() {
       {/* Header */}
       <div className="page-header">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/kits")}>
+          <Button variant="ghost" size="icon" aria-label="Back to kits" onClick={() => router.push("/kits")}>
             <ArrowLeftIcon className="h-4 w-4" />
           </Button>
           <BoxIcon className="h-5 w-5 text-muted-foreground" />

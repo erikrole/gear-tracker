@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   classifyError,
-  isAbortError,
   handleAuthRedirect,
   type FetchErrorKind,
 } from "@/lib/errors";
@@ -36,102 +36,65 @@ export type UseFetchResult<T> = {
   reload: () => void;
 };
 
+/** Fetch JSON with auth redirect handling. Throws on non-ok responses. */
+async function fetchJson(url: string, returnTo?: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  const res = await fetch(url, { signal });
+  if (handleAuthRedirect(res, returnTo)) {
+    throw new DOMException("Auth redirect", "AbortError");
+  }
+  if (!res.ok) throw new Error("server");
+  return res.json();
+}
+
 /**
- * Shared data-fetching hook with:
- * - AbortController (cancels in-flight on re-fetch or unmount)
+ * Shared data-fetching hook backed by React Query.
+ *
+ * Provides cross-page caching (stale-while-revalidate) while preserving:
  * - Initial load vs refresh distinction (refresh keeps data visible)
  * - 401 → redirect to /login
  * - Classified error state (network / server)
- * - Visibility-based auto-refresh (refetch when tab regains focus)
+ * - Visibility-based auto-refresh (configurable per consumer)
  * - Last refreshed timestamp
+ * - Manual reload trigger
  */
 export function useFetch<T = unknown>(options: UseFetchOptions<T>): UseFetchResult<T> {
   const { url, returnTo, refetchOnFocus = true } = options;
   const transformRef = useRef(options.transform);
   transformRef.current = options.transform;
 
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<FetchErrorKind | false>(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error: queryError,
+    dataUpdatedAt,
+    refetch,
+  } = useQuery<Record<string, unknown>, Error, T>({
+    queryKey: ["fetch", url],
+    queryFn: ({ signal }) => fetchJson(url, returnTo, signal),
+    select: (json) => {
+      const transform = transformRef.current;
+      if (transform) return transform(json);
+      return (json.data ?? json) as T;
+    },
+    refetchOnWindowFocus: refetchOnFocus,
+  });
 
-  const abortRef = useRef<AbortController | null>(null);
-  const hasLoadedOnce = useRef(false);
-
-  const reload = useCallback(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const isRefresh = hasLoadedOnce.current;
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError(false);
-
-    fetch(url, { signal: controller.signal })
-      .then((res) => {
-        if (controller.signal.aborted) return null;
-        if (handleAuthRedirect(res, returnTo)) return null;
-        if (!res.ok) throw new Error("server");
-        return res.json();
-      })
-      .then((json) => {
-        if (!json || controller.signal.aborted) {
-          if (!hasLoadedOnce.current && !controller.signal.aborted) {
-            setError("server");
-          }
-          return;
-        }
-        const transform = transformRef.current;
-        const result = transform ? transform(json) : ((json.data ?? json) as T);
-        setData(result);
-        setError(false);
-        setLastRefreshed(new Date());
-        hasLoadedOnce.current = true;
-      })
-      .catch((err) => {
-        if (isAbortError(err)) return;
-        if (isRefresh) {
-          toast.error("Failed to refresh. Your data may be stale.");
-        } else {
-          setError(classifyError(err));
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      });
-  }, [url, returnTo]);
-
-  // Fetch on mount and when URL changes
+  // Toast on background refresh failure (preserves existing behavior)
+  const prevFetchingRef = useRef(false);
   useEffect(() => {
-    reload();
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, [reload]);
-
-  // Refetch when tab becomes visible
-  useEffect(() => {
-    if (!refetchOnFocus) return;
-
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible" && hasLoadedOnce.current) {
-        reload();
-      }
+    if (prevFetchingRef.current && !isFetching && queryError && data !== undefined) {
+      toast.error("Failed to refresh. Your data may be stale.");
     }
+    prevFetchingRef.current = isFetching;
+  }, [isFetching, queryError, data]);
 
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [refetchOnFocus, reload]);
-
-  return { data, loading, refreshing, error, lastRefreshed, reload };
+  return {
+    data: data ?? null,
+    loading: isLoading,
+    refreshing: isFetching && !isLoading,
+    error: queryError ? classifyError(queryError) : false,
+    lastRefreshed: dataUpdatedAt ? new Date(dataUpdatedAt) : null,
+    reload: () => { refetch(); },
+  };
 }

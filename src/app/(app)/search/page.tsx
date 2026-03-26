@@ -4,14 +4,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { statusBadgeVariant } from "@/lib/status-colors";
+import type { BadgeProps } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import EmptyState from "@/components/EmptyState";
+import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
+import { SearchIcon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type SearchResult = {
-  type: "item" | "checkout" | "reservation";
+  type: "item" | "checkout" | "reservation" | "user";
   id: string;
   title: string;
   subtitle: string;
@@ -26,6 +29,7 @@ export default function SearchPage() {
     (v) => (v ? v : null),
   );
   const [query, setQuery] = useState(urlQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(urlQuery);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -35,6 +39,15 @@ export default function SearchPage() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Debounce query input by 300ms
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQuery(query);
+      setUrlQuery(query.trim() || "");
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query, setUrlQuery]);
 
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -54,18 +67,18 @@ export default function SearchPage() {
     const encoded = encodeURIComponent(trimmed);
 
     try {
-      const [itemsRes, checkoutsRes, reservationsRes] = await Promise.all([
+      const [itemsRes, checkoutsRes, reservationsRes, usersRes] = await Promise.all([
         fetch(`/api/assets?q=${encoded}&limit=10`, { signal: controller.signal }),
         fetch(`/api/checkouts?q=${encoded}&limit=10`, { signal: controller.signal }),
         fetch(`/api/reservations?q=${encoded}&limit=10`, { signal: controller.signal }),
+        fetch(`/api/users?q=${encoded}&limit=10`, { signal: controller.signal }),
       ]);
 
       const merged: SearchResult[] = [];
 
       if (itemsRes.ok) {
         const json = await itemsRes.json();
-        const items = json.data || [];
-        for (const item of items.slice(0, 10)) {
+        for (const item of (json.data || []).slice(0, 10)) {
           merged.push({
             type: "item",
             id: item.id,
@@ -79,8 +92,7 @@ export default function SearchPage() {
 
       if (checkoutsRes.ok) {
         const json = await checkoutsRes.json();
-        const bookings = json.data || [];
-        for (const b of bookings.slice(0, 10)) {
+        for (const b of (json.data || []).slice(0, 10)) {
           merged.push({
             type: "checkout",
             id: b.id,
@@ -94,8 +106,7 @@ export default function SearchPage() {
 
       if (reservationsRes.ok) {
         const json = await reservationsRes.json();
-        const bookings = json.data || [];
-        for (const b of bookings.slice(0, 10)) {
+        for (const b of (json.data || []).slice(0, 10)) {
           merged.push({
             type: "reservation",
             id: b.id,
@@ -103,6 +114,19 @@ export default function SearchPage() {
             subtitle: b.requester?.name || "",
             href: `/reservations/${b.id}`,
             status: b.status,
+          });
+        }
+      }
+
+      if (usersRes.ok) {
+        const json = await usersRes.json();
+        for (const u of (json.data || []).slice(0, 10)) {
+          merged.push({
+            type: "user",
+            id: u.id,
+            title: u.name,
+            subtitle: [u.role, u.email].filter(Boolean).join(" · "),
+            href: `/users/${u.id}`,
           });
         }
       }
@@ -122,50 +146,61 @@ export default function SearchPage() {
     }
   }, []);
 
-  // Auto-search from URL param on mount
+  // Auto-search on debounced query change
   useEffect(() => {
-    if (urlQuery) runSearch(urlQuery);
-  }, [urlQuery, runSearch]);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = query.trim();
-    if (!trimmed) return;
-    setUrlQuery(trimmed);
-    runSearch(trimmed);
-  }
+    runSearch(debouncedQuery);
+  }, [debouncedQuery, runSearch]);
 
   const grouped = {
     item: results.filter((r) => r.type === "item"),
     checkout: results.filter((r) => r.type === "checkout"),
     reservation: results.filter((r) => r.type === "reservation"),
+    user: results.filter((r) => r.type === "user"),
   };
 
   const sectionLabels: Record<string, string> = {
     item: "Items",
     checkout: "Checkouts",
     reservation: "Reservations",
+    user: "Users",
+  };
+
+  const sectionViewAllHrefs: Record<string, string> = {
+    item: `/items?q=${encodeURIComponent(query.trim())}`,
+    checkout: `/bookings?tab=checkouts&q=${encodeURIComponent(query.trim())}`,
+    reservation: `/bookings?tab=reservations&q=${encodeURIComponent(query.trim())}`,
+    user: `/users?q=${encodeURIComponent(query.trim())}`,
   };
 
   return (
     <div className="p-6">
       <h1 className="m-0 mb-1">Search</h1>
 
-      <form onSubmit={handleSubmit} className="mb-6">
-        <div className="flex gap-2">
-          <Input
-            ref={inputRef}
-            type="text"
-            className="flex-1"
-            placeholder="Search items, checkouts, reservations..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Button type="submit" disabled={loading}>
-            {loading ? "Searching..." : "Search"}
-          </Button>
+      <div className="relative mb-6 max-w-xl">
+        <Input
+          ref={inputRef}
+          type="text"
+          className="peer pl-9 pr-9"
+          placeholder="Search items, checkouts, reservations, users..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 peer-disabled:opacity-50">
+          <SearchIcon size={16} />
         </div>
-      </form>
+        {query && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
+            onClick={() => setQuery("")}
+            aria-label="Clear search"
+          >
+            <XIcon size={14} />
+          </Button>
+        )}
+      </div>
 
       {loading && (
         <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
@@ -177,14 +212,21 @@ export default function SearchPage() {
 
       {!loading && results.length > 0 && (
         <div className="flex flex-col gap-6">
-          {(["item", "checkout", "reservation"] as const).map((type) => {
+          {(["item", "checkout", "reservation", "user"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;
             return (
               <div key={type}>
-                <h2 className="text-sm text-secondary text-uppercase mb-2 m-0">
-                  {sectionLabels[type]} ({items.length})
-                </h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-sm text-secondary text-uppercase m-0">
+                    {sectionLabels[type]} ({items.length}{items.length >= 10 ? "+" : ""})
+                  </h2>
+                  {items.length >= 10 && (
+                    <Link href={sectionViewAllHrefs[type]} className="text-xs text-primary hover:underline">
+                      View all {sectionLabels[type].toLowerCase()}
+                    </Link>
+                  )}
+                </div>
                 <Card>
                   {items.map((r, i) => (
                     <Link
@@ -197,9 +239,9 @@ export default function SearchPage() {
                         {r.subtitle && <div className="text-sm text-secondary">{r.subtitle}</div>}
                       </div>
                       {r.status && (
-                        <span className={`badge badge-sm badge-${statusBadgeVariant(r.status)}`}>
+                        <Badge variant={statusBadgeVariant(r.status) as BadgeProps["variant"]}>
                           {r.status.replace(/_/g, " ")}
-                        </span>
+                        </Badge>
                       )}
                     </Link>
                   ))}
@@ -212,5 +254,3 @@ export default function SearchPage() {
     </div>
   );
 }
-
-// statusColor moved to @/lib/status-colors.ts as statusBadgeVariant

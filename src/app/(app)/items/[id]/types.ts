@@ -35,6 +35,7 @@ export type AssetDetail = {
   residualValue: string | number | null;
   status: string;
   computedStatus: string;
+  isFavorited: boolean;
   notes: string | null;
   linkUrl: string | null;
   imageUrl: string | null;

@@ -62,6 +62,7 @@ export const GET = withAuth(async (req, { user }) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const showAccessories = searchParams.get("show_accessories") === "true";
+  const favoritesOnly = searchParams.get("favorites_only") === "true";
 
   // Support multi-value filters: ?status=A&status=B or single ?status=A
   const statusParams = searchParams.getAll("status").filter(Boolean);
@@ -81,6 +82,7 @@ export const GET = withAuth(async (req, { user }) => {
   // Build base where clause (non-status filters)
   const baseWhere: Prisma.AssetWhereInput = {
     ...(!showAccessories ? { parentAssetId: null } : {}),
+    ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
     ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),

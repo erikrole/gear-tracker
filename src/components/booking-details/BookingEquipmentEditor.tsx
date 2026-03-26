@@ -149,6 +149,7 @@ export default function BookingEquipmentEditor({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-destructive hover:text-destructive"
+                  aria-label={`Remove ${resolveSkuName(item.bulkSkuId)}`}
                   onClick={() => onRemoveBulkItem(item.bulkSkuId)}
                 >
                   <X className="size-4" />

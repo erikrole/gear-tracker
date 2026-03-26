@@ -42,6 +42,7 @@ export function useUrlFilters() {
   const [brandFilter, setBrandFilter] = useState<Set<string>>(() => readSet(searchParams, "brand"));
   const [departmentFilter, setDepartmentFilter] = useState<Set<string>>(() => readSet(searchParams, "department"));
   const [showAccessories, setShowAccessories] = useState(() => searchParams.get("accessories") === "1");
+  const [favoritesOnly, setFavoritesOnly] = useState(() => searchParams.get("favorites") === "1");
   const [sorting, setSorting] = useState<SortingState>(() => {
     const s = searchParams.get("sort");
     const o = searchParams.get("order");
@@ -60,7 +61,8 @@ export function useUrlFilters() {
     locationFilter.size > 0 ||
     categoryFilter.size > 0 ||
     brandFilter.size > 0 ||
-    departmentFilter.size > 0;
+    departmentFilter.size > 0 ||
+    favoritesOnly;
 
   // Sync filters to URL search params
   useEffect(() => {
@@ -72,6 +74,7 @@ export function useUrlFilters() {
     brandFilter.forEach((v) => params.append("brand", v));
     departmentFilter.forEach((v) => params.append("department", v));
     if (showAccessories) params.set("accessories", "1");
+    if (favoritesOnly) params.set("favorites", "1");
     if (sorting.length > 0) {
       params.set("sort", sorting[0].id);
       if (sorting[0].desc) params.set("order", "desc");
@@ -79,7 +82,7 @@ export function useUrlFilters() {
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, showAccessories, sorting]);
+  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, showAccessories, favoritesOnly, sorting]);
 
   const clearAllFilters = useCallback(() => {
     setStatusFilter(new Set());
@@ -87,6 +90,7 @@ export function useUrlFilters() {
     setCategoryFilter(new Set());
     setBrandFilter(new Set());
     setDepartmentFilter(new Set());
+    setFavoritesOnly(false);
   }, []);
 
   // Stable serialized keys for dependency tracking
@@ -99,6 +103,7 @@ export function useUrlFilters() {
 
   return {
     // State
+    favoritesOnly,
     showAccessories,
     search,
     debouncedSearch,
@@ -117,6 +122,7 @@ export function useUrlFilters() {
     departmentKey,
     sortKey,
     // Actions
+    setFavoritesOnly,
     setShowAccessories,
     setSearch,
     setStatusFilter,

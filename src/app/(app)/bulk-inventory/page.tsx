@@ -255,7 +255,7 @@ export default function BulkInventoryPage() {
             </div>
 
             {trackByNumber && (
-              <div className="col-span-full text-sm rounded-lg bg-blue-50 px-3.5 py-2.5 text-blue-800">
+              <div className="col-span-full text-sm rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3.5 py-2.5 text-blue-800 dark:text-blue-300">
                 This will create individually numbered units. Make sure to physically label each item with its number.
               </div>
             )}

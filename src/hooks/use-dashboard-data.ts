@@ -1,8 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/Toast";
 import type { DashboardData } from "@/app/(app)/dashboard-types";
+
+const DASHBOARD_KEY = ["dashboard"];
+
+/** Normalize partial API responses with safe defaults */
+function normalizeDashboard(d: DashboardData): DashboardData {
+  d.myCheckouts = d.myCheckouts ?? { total: 0, items: [] };
+  d.myCheckouts.items = d.myCheckouts.items ?? [];
+  d.teamCheckouts = d.teamCheckouts ?? { total: 0, overdue: 0, items: [] };
+  d.teamCheckouts.items = d.teamCheckouts.items ?? [];
+  d.teamReservations = d.teamReservations ?? { total: 0, items: [] };
+  d.teamReservations.items = d.teamReservations.items ?? [];
+  d.upcomingEvents = d.upcomingEvents ?? [];
+  d.myReservations = d.myReservations ?? [];
+  d.overdueItems = d.overdueItems ?? [];
+  d.drafts = d.drafts ?? [];
+  d.myShifts = d.myShifts ?? [];
+  d.stats = d.stats ?? { checkedOut: 0, overdue: 0, reserved: 0, dueToday: 0 };
+  return d;
+}
+
+async function fetchDashboard(signal?: AbortSignal): Promise<DashboardData> {
+  const res = await fetch("/api/dashboard", { signal });
+  if (res.status === 401) {
+    window.location.href = "/login?returnTo=/";
+    throw new DOMException("Auth redirect", "AbortError");
+  }
+  if (!res.ok) throw new Error("server");
+  const json = await res.json();
+  if (!json?.data) throw new Error("server");
+  return normalizeDashboard(json.data as DashboardData);
+}
 
 export type UseDashboardDataResult = {
   data: DashboardData | null;
@@ -13,70 +45,59 @@ export type UseDashboardDataResult = {
   setData: React.Dispatch<React.SetStateAction<DashboardData | null>>;
 };
 
-/**
- * Dashboard data fetching hook.
- * - AbortController race prevention
- * - Initial load vs refresh distinction (refresh keeps data visible)
- * - 401 → redirect to /login
- * - Classified error state (network / server)
- * - Last refreshed timestamp
- */
 export function useDashboardData(): UseDashboardDataResult {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [fetchError, setFetchError] = useState<false | "auth" | "network" | "server">(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const abortRef = useRef<AbortController | null>(null);
-  // Ref for toast so loadData has zero hook deps — prevents infinite re-fetch
   const toastRef = useRef(toast);
   toastRef.current = toast;
 
-  const loadData = useCallback((isRefresh = false) => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error: queryError,
+    dataUpdatedAt,
+    refetch,
+  } = useQuery<DashboardData>({
+    queryKey: DASHBOARD_KEY,
+    queryFn: ({ signal }) => fetchDashboard(signal),
+    refetchOnWindowFocus: true,
+  });
 
-    if (isRefresh) setRefreshing(true);
-    fetch("/api/dashboard", { signal: controller.signal })
-      .then((res) => {
-        if (res.status === 401) { window.location.href = "/login?returnTo=/"; return null; }
-        if (!res.ok) throw new Error("server");
-        return res.json();
-      })
-      .then((json) => {
-        if (!json?.data) {
-          if (!isRefresh) setFetchError("server");
-          return;
+  // Toast on background refresh failure
+  const prevFetchingRef = useRef(false);
+  useEffect(() => {
+    if (prevFetchingRef.current && !isFetching && queryError && data !== undefined) {
+      toastRef.current("Failed to refresh dashboard", "error");
+    }
+    prevFetchingRef.current = isFetching;
+  }, [isFetching, queryError, data]);
+
+  // Classify error — only show error screen when no cached data
+  const fetchError: false | "auth" | "network" | "server" =
+    queryError && !data
+      ? (queryError as Error).name === "TypeError" ? "network" : "server"
+      : false;
+
+  // Preserve setData API for optimistic updates (draft deletion)
+  const setData: React.Dispatch<React.SetStateAction<DashboardData | null>> = useCallback(
+    (updater) => {
+      queryClient.setQueryData<DashboardData>(DASHBOARD_KEY, (prev) => {
+        if (typeof updater === "function") {
+          return updater(prev ?? null) ?? undefined;
         }
-        // Defensive: ensure arrays exist even if API returns partial data
-        const d = json.data as DashboardData;
-        d.myCheckouts = d.myCheckouts ?? { total: 0, items: [] };
-        d.myCheckouts.items = d.myCheckouts.items ?? [];
-        d.teamCheckouts = d.teamCheckouts ?? { total: 0, overdue: 0, items: [] };
-        d.teamCheckouts.items = d.teamCheckouts.items ?? [];
-        d.teamReservations = d.teamReservations ?? { total: 0, items: [] };
-        d.teamReservations.items = d.teamReservations.items ?? [];
-        d.upcomingEvents = d.upcomingEvents ?? [];
-        d.myReservations = d.myReservations ?? [];
-        d.overdueItems = d.overdueItems ?? [];
-        d.drafts = d.drafts ?? [];
-        d.myShifts = d.myShifts ?? [];
-        d.stats = d.stats ?? { checkedOut: 0, overdue: 0, reserved: 0, dueToday: 0 };
-        setData(d);
-        setFetchError(false);
-        setLastRefreshed(new Date());
-      })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        if (isRefresh) { toastRef.current("Failed to refresh dashboard", "error"); return; }
-        if (err instanceof TypeError) setFetchError("network");
-        else setFetchError("server");
-      })
-      .finally(() => setRefreshing(false));
-  }, []);
+        return updater ?? undefined;
+      });
+    },
+    [queryClient],
+  );
 
-  useEffect(() => { loadData(); return () => { abortRef.current?.abort(); }; }, [loadData]);
-
-  return { data, fetchError, refreshing, lastRefreshed, loadData, setData };
+  return {
+    data: data ?? null,
+    fetchError,
+    refreshing: isFetching && !isLoading,
+    lastRefreshed: dataUpdatedAt ? new Date(dataUpdatedAt) : null,
+    loadData: () => { refetch(); },
+    setData,
+  };
 }

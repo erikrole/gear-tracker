@@ -96,7 +96,7 @@ async function getCheckoutReport(days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
   const now = new Date();
 
-  const [totalCheckouts, overdueCheckouts, recentCheckouts, topRequesters] =
+  const [totalCheckouts, overdueCheckouts, recentCheckouts, topRequesters, allInPeriod] =
     await Promise.all([
       db.booking.count({
         where: { kind: "CHECKOUT", createdAt: { gte: since } }
@@ -124,7 +124,12 @@ async function getCheckoutReport(days: number) {
         _count: true,
         orderBy: { _count: { requesterUserId: "desc" } },
         take: 10
-      })
+      }),
+      // Daily checkout counts for trend chart
+      db.booking.findMany({
+        where: { kind: "CHECKOUT", createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
     ]);
 
   // Resolve requester names for top requesters
@@ -138,10 +143,26 @@ async function getCheckoutReport(days: number) {
       : [];
   const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
 
+  // Aggregate daily checkout counts for trend chart
+  const dailyMap = new Map<string, number>();
+  for (const b of allInPeriod) {
+    const day = b.createdAt.toISOString().slice(0, 10);
+    dailyMap.set(day, (dailyMap.get(day) ?? 0) + 1);
+  }
+  // Fill in zero-count days
+  const dailyTrend: { date: string; count: number }[] = [];
+  const cursor = new Date(since);
+  while (cursor <= now) {
+    const key = cursor.toISOString().slice(0, 10);
+    dailyTrend.push({ date: key, count: dailyMap.get(key) ?? 0 });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
   return {
     days,
     totalCheckouts,
     overdueCheckouts,
+    dailyTrend,
     recentCheckouts: recentCheckouts.map((c) => ({
       id: c.id,
       title: c.title,

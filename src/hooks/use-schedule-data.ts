@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type {
   CalendarEvent,
   CalendarEntry,
@@ -49,14 +50,98 @@ export type UseScheduleDataResult = {
   setExpandedDay: (d: number | null) => void;
 };
 
-export function useScheduleData(): UseScheduleDataResult {
-  // Data
-  const [entries, setEntries] = useState<CalendarEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<false | "network" | "server">(
-    false,
-  );
+/** Merge events + shift groups into unified entries */
+function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry[] {
+  const groupByEventId = new Map<string, ShiftGroup>();
+  for (const g of groups) groupByEventId.set(g.eventId, g);
 
+  return events.map((ev) => {
+    const g = groupByEventId.get(ev.id);
+    return {
+      ...ev,
+      shiftGroupId: g?.id ?? null,
+      coverage: g?.coverage ?? null,
+      shifts: g?.shifts ?? [],
+      isPremier: g?.isPremier ?? false,
+    };
+  });
+}
+
+/** Build schedule fetch URL based on current view params */
+function buildScheduleUrls(viewMode: string, calMonth: Date, includePast: boolean, sportFilter: string) {
+  const evParams = new URLSearchParams({ limit: "200" });
+  const sgParams = new URLSearchParams();
+
+  if (viewMode === "calendar") {
+    const startDate = calMonth.toISOString();
+    const endDate = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    evParams.set("startDate", startDate);
+    evParams.set("endDate", endDate);
+    evParams.set("includePast", "true");
+    sgParams.set("startDate", startDate);
+    sgParams.set("endDate", endDate);
+  } else {
+    if (!includePast) {
+      const now = new Date().toISOString();
+      evParams.set("startDate", now);
+      sgParams.set("startDate", now);
+    } else {
+      evParams.set("includePast", "true");
+    }
+  }
+
+  if (sportFilter) {
+    evParams.set("sportCode", sportFilter);
+    sgParams.set("sportCode", sportFilter);
+  }
+
+  return {
+    eventsUrl: `/api/calendar-events?${evParams}`,
+    groupsUrl: `/api/shift-groups?${sgParams}`,
+  };
+}
+
+async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: AbortSignal): Promise<CalendarEntry[]> {
+  const [evRes, sgRes] = await Promise.all([
+    fetch(eventsUrl, { signal }),
+    fetch(groupsUrl, { signal }),
+  ]);
+
+  if (evRes.status === 401 || sgRes.status === 401) {
+    window.location.href = "/login";
+    throw new DOMException("Auth redirect", "AbortError");
+  }
+  if (!evRes.ok) throw new Error("events fetch failed");
+
+  const evJson = await evRes.json();
+  const events: CalendarEvent[] = evJson.data ?? [];
+
+  let groups: ShiftGroup[] = [];
+  if (sgRes.ok) {
+    const sgJson = await sgRes.json();
+    groups = sgJson.data ?? [];
+  }
+
+  return mergeData(events, groups);
+}
+
+type MeResponse = { user: { id: string; role: string } };
+
+async function fetchMe(): Promise<MeResponse | null> {
+  const r = await fetch("/api/me");
+  if (r.status === 401) { window.location.href = "/login"; return null; }
+  if (!r.ok) return null;
+  return r.json();
+}
+
+async function fetchTradeCount(): Promise<number> {
+  const r = await fetch("/api/shift-trades?status=OPEN");
+  if (!r.ok) return 0;
+  const j = await r.json();
+  return j?.data?.length ?? 0;
+}
+
+export function useScheduleData(): UseScheduleDataResult {
   // View — restore from localStorage
   const [viewMode, setViewMode] = useState<"list" | "calendar">(() => {
     if (typeof window === "undefined") return "list";
@@ -79,174 +164,54 @@ export function useScheduleData(): UseScheduleDataResult {
     return localStorage.getItem(LS_MY_SHIFTS) === "true";
   });
 
-  // Inline coverage expansion
+  // UI state
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
-
-  // Trade Board sheet
   const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
-  const [openTradeCount, setOpenTradeCount] = useState(0);
-
-  // Detail panel
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState("");
-  const [currentUserRole, setCurrentUserRole] = useState("STUDENT");
-
-  // AbortController for fetch race prevention
-  const abortRef = useRef<AbortController | null>(null);
-  const hasLoadedRef = useRef(false);
 
   // Persist view mode
+  useEffect(() => { localStorage.setItem(LS_VIEW_MODE, viewMode); }, [viewMode]);
+  useEffect(() => { localStorage.setItem(LS_MY_SHIFTS, String(myShiftsOnly)); }, [myShiftsOnly]);
+
+  // --- React Query: user info ---
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: fetchMe,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const currentUserId = meData?.user?.id ?? "";
+  const currentUserRole = meData?.user?.role ?? "STUDENT";
+
+  // Set default myShiftsOnly for students
   useEffect(() => {
-    localStorage.setItem(LS_VIEW_MODE, viewMode);
-  }, [viewMode]);
-
-  // Persist my-shifts toggle
-  useEffect(() => {
-    localStorage.setItem(LS_MY_SHIFTS, String(myShiftsOnly));
-  }, [myShiftsOnly]);
-
-  // Fetch user info
-  useEffect(() => {
-    fetch("/api/me")
-      .then((r) => {
-        if (r.status === 401) {
-          window.location.href = "/login";
-          return null;
-        }
-        return r.ok ? r.json() : null;
-      })
-      .then((j) => {
-        if (j?.user) {
-          setCurrentUserId(j.user.id);
-          setCurrentUserRole(j.user.role);
-          if (
-            j.user.role === "STUDENT" &&
-            localStorage.getItem(LS_MY_SHIFTS) === null
-          ) {
-            setMyShiftsOnly(true);
-          }
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  // Fetch open trade count
-  const loadTradeCount = useCallback(() => {
-    fetch("/api/shift-trades?status=OPEN")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (j?.data) setOpenTradeCount(j.data.length);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    loadTradeCount();
-  }, [loadTradeCount]);
-
-  // Merge events + shift groups
-  const mergeData = useCallback(
-    (events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry[] => {
-      const groupByEventId = new Map<string, ShiftGroup>();
-      for (const g of groups) groupByEventId.set(g.eventId, g);
-
-      return events.map((ev) => {
-        const g = groupByEventId.get(ev.id);
-        return {
-          ...ev,
-          shiftGroupId: g?.id ?? null,
-          coverage: g?.coverage ?? null,
-          shifts: g?.shifts ?? [],
-          isPremier: g?.isPremier ?? false,
-        };
-      });
-    },
-    [],
-  );
-
-  // Load data
-  const loadData = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    if (!hasLoadedRef.current) setLoading(true);
-    setLoadError(false);
-    try {
-      const evParams = new URLSearchParams({ limit: "200" });
-      const sgParams = new URLSearchParams();
-
-      if (viewMode === "calendar") {
-        const startDate = calMonth.toISOString();
-        const endDate = new Date(
-          calMonth.getFullYear(),
-          calMonth.getMonth() + 1,
-          0,
-          23,
-          59,
-          59,
-        ).toISOString();
-        evParams.set("startDate", startDate);
-        evParams.set("endDate", endDate);
-        evParams.set("includePast", "true");
-        sgParams.set("startDate", startDate);
-        sgParams.set("endDate", endDate);
-      } else {
-        if (!includePast) {
-          const now = new Date().toISOString();
-          evParams.set("startDate", now);
-          sgParams.set("startDate", now);
-        } else {
-          evParams.set("includePast", "true");
-        }
-      }
-
-      if (sportFilter) {
-        evParams.set("sportCode", sportFilter);
-        sgParams.set("sportCode", sportFilter);
-      }
-
-      const [evRes, sgRes] = await Promise.all([
-        fetch(`/api/calendar-events?${evParams}`, {
-          signal: controller.signal,
-        }),
-        fetch(`/api/shift-groups?${sgParams}`, { signal: controller.signal }),
-      ]);
-
-      if (evRes.status === 401 || sgRes.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-
-      if (!evRes.ok) throw new Error("events fetch failed");
-
-      const evJson = await evRes.json();
-      const events: CalendarEvent[] = evJson.data ?? [];
-
-      let groups: ShiftGroup[] = [];
-      if (sgRes.ok) {
-        const sgJson = await sgRes.json();
-        groups = sgJson.data ?? [];
-      }
-
-      setEntries(mergeData(events, groups));
-      hasLoadedRef.current = true;
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      const isNetwork =
-        err instanceof TypeError &&
-        (err as TypeError).message.includes("fetch");
-      setLoadError(isNetwork ? "network" : "server");
+    if (currentUserRole === "STUDENT" && localStorage.getItem(LS_MY_SHIFTS) === null) {
+      setMyShiftsOnly(true);
     }
-    setLoading(false);
-  }, [viewMode, calMonth, includePast, sportFilter, mergeData]);
+  }, [currentUserRole]);
 
-  useEffect(() => {
-    loadData();
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, [loadData]);
+  // --- React Query: trade count ---
+  const { data: tradeCount = 0, refetch: refetchTrades } = useQuery({
+    queryKey: ["shift-trades", "OPEN", "count"],
+    queryFn: fetchTradeCount,
+    refetchOnWindowFocus: true,
+  });
+
+  // --- React Query: schedule entries ---
+  const { eventsUrl, groupsUrl } = buildScheduleUrls(viewMode, calMonth, includePast, sportFilter);
+  const scheduleQueryKey = ["schedule", eventsUrl, groupsUrl];
+
+  const { data: entries = [], isLoading, error: scheduleError, refetch: refetchSchedule } = useQuery({
+    queryKey: scheduleQueryKey,
+    queryFn: ({ signal }) => fetchSchedule(eventsUrl, groupsUrl, signal),
+    refetchOnWindowFocus: true,
+  });
+
+  // Classify error — only show error screen when no cached data
+  const loadError: false | "network" | "server" =
+    scheduleError && entries.length === 0
+      ? (scheduleError as Error).name === "TypeError" ? "network" : "server"
+      : false;
 
   // Client-side filtering
   const filteredEntries = useMemo(() => {
@@ -255,18 +220,12 @@ export function useScheduleData(): UseScheduleDataResult {
       result = result.filter((e) => userHasShift(e, currentUserId));
     }
     if (areaFilter) {
-      result = result.filter((e) =>
-        e.shifts.some((s) => s.area === areaFilter),
-      );
+      result = result.filter((e) => e.shifts.some((s) => s.area === areaFilter));
     }
     if (coverageFilter === "unfilled") {
-      result = result.filter(
-        (e) => !e.coverage || e.coverage.percentage < 100,
-      );
+      result = result.filter((e) => !e.coverage || e.coverage.percentage < 100);
     } else if (coverageFilter === "filled") {
-      result = result.filter(
-        (e) => e.coverage && e.coverage.percentage >= 100,
-      );
+      result = result.filter((e) => e.coverage && e.coverage.percentage >= 100);
     }
     return result;
   }, [entries, areaFilter, coverageFilter, myShiftsOnly, currentUserId]);
@@ -286,19 +245,17 @@ export function useScheduleData(): UseScheduleDataResult {
     return groups;
   }, [filteredEntries]);
 
-  const hasFilters = !!(
-    sportFilter ||
-    areaFilter ||
-    coverageFilter ||
-    includePast ||
-    myShiftsOnly
-  );
+  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || includePast || myShiftsOnly);
+
+  const loadData = useCallback(async () => {
+    await refetchSchedule();
+  }, [refetchSchedule]);
 
   return {
     entries,
     filteredEntries,
     groupedEntries,
-    loading,
+    loading: isLoading,
     loadError,
     loadData,
     filters: {
@@ -327,10 +284,10 @@ export function useScheduleData(): UseScheduleDataResult {
     setCalMonth,
     currentUserId,
     currentUserRole,
-    openTradeCount,
+    openTradeCount: tradeCount,
     tradeSheetOpen,
     setTradeSheetOpen,
-    loadTradeCount,
+    loadTradeCount: () => { refetchTrades(); },
     selectedGroupId,
     setSelectedGroupId,
     expandedRowId,
