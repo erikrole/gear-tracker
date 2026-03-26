@@ -24,7 +24,7 @@ import {
 type User = { id: string; name: string; email: string; role: string; avatarUrl?: string | null };
 
 type SearchResult = {
-  type: "item" | "checkout" | "reservation";
+  type: "item" | "checkout" | "reservation" | "user";
   id: string;
   title: string;
   subtitle: string;
@@ -109,16 +109,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const timer = setTimeout(async () => {
       const encoded = encodeURIComponent(q);
       try {
-        const [itemsRes, checkoutsRes, reservationsRes] = await Promise.all([
-          fetch(`/api/assets?q=${encoded}&limit=5`, { signal: controller.signal }),
-          fetch(`/api/checkouts?q=${encoded}&limit=5`, { signal: controller.signal }),
-          fetch(`/api/reservations?q=${encoded}&limit=5`, { signal: controller.signal }),
+        const [itemsRes, checkoutsRes, reservationsRes, usersRes] = await Promise.all([
+          fetch(`/api/assets?q=${encoded}&limit=8`, { signal: controller.signal }),
+          fetch(`/api/checkouts?q=${encoded}&limit=8`, { signal: controller.signal }),
+          fetch(`/api/reservations?q=${encoded}&limit=8`, { signal: controller.signal }),
+          fetch(`/api/users?q=${encoded}&limit=5`, { signal: controller.signal }),
         ]);
         if (controller.signal.aborted) return;
         const merged: SearchResult[] = [];
         if (itemsRes.ok) {
           const json = await itemsRes.json();
-          for (const item of (json.data || []).slice(0, 5)) {
+          for (const item of (json.data || []).slice(0, 8)) {
             merged.push({
               type: "item", id: item.id,
               title: item.assetTag,
@@ -131,14 +132,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }
         if (checkoutsRes.ok) {
           const json = await checkoutsRes.json();
-          for (const b of (json.data || []).slice(0, 5)) {
+          for (const b of (json.data || []).slice(0, 8)) {
             merged.push({ type: "checkout", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/checkouts/${b.id}` });
           }
         }
         if (reservationsRes.ok) {
           const json = await reservationsRes.json();
-          for (const b of (json.data || []).slice(0, 5)) {
+          for (const b of (json.data || []).slice(0, 8)) {
             merged.push({ type: "reservation", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/reservations/${b.id}` });
+          }
+        }
+        if (usersRes.ok) {
+          const json = await usersRes.json();
+          for (const u of (json.data || []).slice(0, 5)) {
+            merged.push({ type: "user", id: u.id, title: u.name, subtitle: u.email || "", href: `/users/${u.id}` });
           }
         }
         if (!controller.signal.aborted) { setCmdResults(merged); setCmdLoading(false); }
@@ -151,7 +158,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => { clearTimeout(timer); controller.abort(); };
   }, [cmdQuery]);
 
+  // Recent searches (localStorage)
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("recent-searches");
+      if (stored) setRecentSearches(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
+
+  function addRecentSearch(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    const updated = [trimmed, ...recentSearches.filter((s) => s !== trimmed)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem("recent-searches", JSON.stringify(updated));
+  }
+
   function handleCmdSelect(href: string) {
+    if (cmdQuery.trim()) addRecentSearch(cmdQuery.trim());
     setCmdOpen(false);
     setCmdQuery("");
     setCmdResults([]);
@@ -195,8 +220,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Command palette */}
       <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); } }}>
-        <CommandInput placeholder="Search items, checkouts, reservations..." value={cmdQuery} onValueChange={setCmdQuery} />
+        <CommandInput placeholder="Search items, checkouts, reservations, users..." value={cmdQuery} onValueChange={setCmdQuery} />
         <CommandList>
+          {!cmdQuery.trim() && recentSearches.length > 0 && (
+            <CommandGroup heading="Recent searches">
+              {recentSearches.map((q) => (
+                <CommandItem key={q} value={q} onSelect={() => { setCmdQuery(q); }}>
+                  <SearchIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                  {q}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
           {cmdLoading && <div className="py-4 text-center text-sm text-muted-foreground">Searching...</div>}
           {!cmdLoading && cmdQuery.trim() && cmdResults.length === 0 && (
             <CommandEmpty>No results found.</CommandEmpty>
@@ -261,6 +296,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {cmdResults.filter((r) => r.type === "reservation").map((r) => (
                   <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
                     <CalendarCheckIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{r.title}</div>
+                      {r.subtitle && <div className="truncate text-xs text-muted-foreground">{r.subtitle}</div>}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </>
+          )}
+          {cmdResults.filter((r) => r.type === "user").length > 0 && (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="Users">
+                {cmdResults.filter((r) => r.type === "user").map((r) => (
+                  <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
+                    <UserIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0">
                       <div className="truncate font-medium">{r.title}</div>
                       {r.subtitle && <div className="truncate text-xs text-muted-foreground">{r.subtitle}</div>}
