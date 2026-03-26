@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { statusBadgeVariant } from "@/lib/status-colors";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -189,15 +190,14 @@ export default function SearchPage() {
                     <Link
                       key={r.id}
                       href={r.href}
-                      className="search-result-row"
-                      style={i < items.length - 1 ? { borderBottom: "1px solid var(--border-light)" } : undefined}
+                      className={`search-result-row ${i < items.length - 1 ? "border-b border-border" : ""}`}
                     >
                       <div>
                         <div className="font-semibold">{r.title}</div>
                         {r.subtitle && <div className="text-sm text-secondary">{r.subtitle}</div>}
                       </div>
                       {r.status && (
-                        <span className={`badge badge-sm badge-${statusColor(r.status)}`}>
+                        <span className={`badge badge-sm badge-${statusBadgeVariant(r.status)}`}>
                           {r.status.replace(/_/g, " ")}
                         </span>
                       )}
@@ -213,17 +213,4 @@ export default function SearchPage() {
   );
 }
 
-function statusColor(status: string): string {
-  switch (status) {
-    case "AVAILABLE": return "green";
-    case "OPEN": case "BOOKED": return "blue";
-    case "CHECKED_OUT": return "blue";
-    case "RESERVED": return "purple";
-    case "MAINTENANCE": return "orange";
-    case "COMPLETED": return "gray";
-    case "CANCELLED": return "gray";
-    case "OVERDUE": return "red";
-    case "RETIRED": return "gray";
-    default: return "gray";
-  }
-}
+// statusColor moved to @/lib/status-colors.ts as statusBadgeVariant

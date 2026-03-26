@@ -17,6 +17,7 @@ type Props = {
   now: Date;
   deletingDraftId: string | null;
   inlineActionId: string | null;
+  ownedAccent?: boolean;
   onSelectBooking: (id: string) => void;
   onDeleteDraft: (draftId: string) => void;
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
@@ -30,11 +31,13 @@ export function MyGearColumn({
   now,
   deletingDraftId,
   inlineActionId,
+  ownedAccent,
   onSelectBooking,
   onDeleteDraft,
   onExtend,
   onConvert,
 }: Props) {
+  const accentClass = ownedAccent ? " border-l-2 border-l-primary" : "";
   return (
     <div className="dashboard-col dashboard-col-left">
       <span className="dashboard-col-label">My Gear</span>
@@ -54,7 +57,7 @@ export function MyGearColumn({
               return (
                 <button
                   key={c.id}
-                  className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
+                  className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}${accentClass}`}
                   onClick={() => onSelectBooking(c.id)}
                 >
                   <div className="ops-row-main">
@@ -110,7 +113,7 @@ export function MyGearColumn({
             {(filtered?.myReservations ?? data.myReservations).map((r) => (
               <button
                 key={r.id}
-                className="ops-row ops-row-status ops-row-reserved"
+                className={`ops-row ops-row-status ops-row-reserved${accentClass}`}
                 onClick={() => onSelectBooking(r.id)}
               >
                 <div className="ops-row-main">

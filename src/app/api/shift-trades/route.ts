@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { ok } from "@/lib/http";
+import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { postTradeSchema } from "@/lib/validation";
 import { listTrades, postTrade } from "@/lib/services/shift-trades";
@@ -16,13 +16,17 @@ export const GET = withAuth(async (req, { user }) => {
     ? (statusParam as ShiftTradeStatus)
     : undefined;
   const area = url.searchParams.get("area");
+  const { limit: rawLimit, offset } = parsePagination(url.searchParams);
+  const limit = Math.min(rawLimit, 100);
 
-  const trades = await listTrades({
+  const { data: trades, total } = await listTrades({
     status,
     area: area ?? undefined,
+    limit,
+    offset,
   });
 
-  return ok({ data: trades });
+  return ok({ data: trades, total });
 });
 
 export const POST = withAuth(async (req, { user }) => {

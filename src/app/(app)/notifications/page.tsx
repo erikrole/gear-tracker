@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { AlertTriangle, Bell, WifiOff } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
 import { useUrlState } from "@/hooks/use-url-state";
 
@@ -31,19 +34,11 @@ type NotificationsData = {
 
 function notifIcon(type: string) {
   switch (type) {
-    case "OVERDUE_CHECKOUT":
-    case "OVERDUE_RESERVATION":
     case "checkout_due_reminder":
     case "checkout_due_now":
     case "checkout_overdue_2h":
     case "checkout_overdue_24h":
       return "⚠";
-    case "BOOKING_APPROVED":
-    case "BOOKING_CONFIRMED":
-      return "✓";
-    case "BOOKING_CANCELLED":
-    case "BOOKING_REJECTED":
-      return "✕";
     case "shift_gear_up":
       return "🎒";
     default:
@@ -51,25 +46,17 @@ function notifIcon(type: string) {
   }
 }
 
-function notifIconClass(type: string) {
+function notifIconBg(type: string) {
   switch (type) {
-    case "OVERDUE_CHECKOUT":
-    case "OVERDUE_RESERVATION":
     case "checkout_due_reminder":
     case "checkout_due_now":
     case "checkout_overdue_2h":
     case "checkout_overdue_24h":
-      return "notif-icon-overdue";
-    case "BOOKING_APPROVED":
-    case "BOOKING_CONFIRMED":
-      return "notif-icon-success";
-    case "BOOKING_CANCELLED":
-    case "BOOKING_REJECTED":
-      return "notif-icon-cancelled";
+      return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400";
     case "shift_gear_up":
-      return "notif-icon-success";
+      return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400";
     default:
-      return "notif-icon-default";
+      return "bg-muted text-muted-foreground";
   }
 }
 
@@ -104,10 +91,25 @@ function dayLabel(dateStr: string): string {
   });
 }
 
+function NotificationsSkeleton() {
+  return (
+    <div className="space-y-3 p-4">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex gap-3">
+          <Skeleton className="size-9 rounded-full shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const LIMIT = 20;
 
 export default function NotificationsPage() {
-  const { toast } = useToast();
   const [processing, setProcessing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export default function NotificationsPage() {
     return `/api/notifications?${params}`;
   }, [page, unreadOnly]);
 
-  const { data, loading, reload } = useFetch<NotificationsData>({
+  const { data, loading, error, reload } = useFetch<NotificationsData>({
     url: fetchUrl,
     transform: (json) => ({
       notifications: (json.data as Notification[]) ?? [],
@@ -154,10 +156,14 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_all_read" }),
       });
-      if (!res.ok) toast("Failed to mark notifications as read", "error");
+      if (!res.ok) {
+        const { toast } = await import("sonner");
+        toast.error("Failed to mark notifications as read");
+      }
       reload();
     } catch {
-      toast("Network error", "error");
+      const { toast } = await import("sonner");
+      toast.error("Network error");
     }
     setMarkingAll(false);
   }
@@ -170,10 +176,14 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_read", id }),
       });
-      if (!res.ok) toast("Failed to mark notification as read", "error");
+      if (!res.ok) {
+        const { toast } = await import("sonner");
+        toast.error("Failed to mark notification as read");
+      }
       reload();
     } catch {
-      toast("Network error", "error");
+      const { toast } = await import("sonner");
+      toast.error("Network error");
     }
     setMarkingId(null);
   }
@@ -184,11 +194,12 @@ export default function NotificationsPage() {
       const res = await fetch("/api/notifications/process", {
         method: "POST",
       });
+      const { toast } = await import("sonner");
       if (res.ok) {
-        toast("Overdue check complete", "success");
+        toast.success("Overdue check complete");
         reload();
       } else {
-        toast("Failed to process overdue notifications", "error");
+        toast.error("Failed to process overdue notifications");
       }
     } finally {
       setProcessing(false);
@@ -215,16 +226,16 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h1>
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <h1 className="text-2xl tracking-tight flex items-center gap-2">
           Notifications
           {unreadCount > 0 && (
-            <Badge variant="blue" className="notif-badge">
+            <Badge variant="blue" className="ml-1">
               {unreadCount}
             </Badge>
           )}
         </h1>
-        <div className="notif-header-actions">
+        <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -247,70 +258,99 @@ export default function NotificationsPage() {
       </div>
 
       <Card>
-        <CardHeader className="notif-filter-bar">
-          <label className="notif-filter-label">
-            <input
-              type="checkbox"
+        <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="unread-filter"
               checked={unreadOnly}
-              onChange={(e) => {
-                setUnreadOnly(e.target.checked);
+              onCheckedChange={(checked) => {
+                setUnreadOnly(checked);
                 setPage(0);
               }}
+              className="scale-75"
             />
-            Unread only
-          </label>
-          <span className="notif-count">
+            <Label htmlFor="unread-filter" className="text-sm cursor-pointer">
+              Unread only
+            </Label>
+          </div>
+          <span className="text-sm text-muted-foreground">
             {total} notification{total !== 1 ? "s" : ""}
           </span>
         </CardHeader>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-10">
-            <Spinner className="size-8" />
-          </div>
-        ) : notifications.length === 0 ? (
-          <EmptyState
-            icon="bell"
-            title={
-              unreadOnly
-                ? "No unread notifications"
-                : "No notifications yet"
-            }
-            description={
-              unreadOnly
-                ? "All caught up!"
-                : "You'll see overdue alerts and booking updates here."
-            }
-          />
-        ) : (
-          <>
-            <div className="notif-list">
+        <CardContent className="p-0">
+          {loading && !data ? (
+            <NotificationsSkeleton />
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              {error === "network" ? (
+                <WifiOff className="size-8 text-muted-foreground" />
+              ) : (
+                <AlertTriangle className="size-8 text-muted-foreground" />
+              )}
+              <p className="text-sm text-muted-foreground">
+                {error === "network"
+                  ? "Could not reach the server. Check your connection."
+                  : "Something went wrong loading notifications."}
+              </p>
+              <Button variant="outline" size="sm" onClick={reload}>
+                Try again
+              </Button>
+            </div>
+          ) : notifications.length === 0 ? (
+            <EmptyState
+              icon="bell"
+              title={
+                unreadOnly
+                  ? "No unread notifications"
+                  : "No notifications yet"
+              }
+              description={
+                unreadOnly
+                  ? "All caught up!"
+                  : "You'll see overdue alerts and booking updates here."
+              }
+            />
+          ) : (
+            <div className="divide-y">
               {grouped.map((group) => (
                 <div key={group.label}>
-                  <div className="notif-day-header">{group.label}</div>
+                  <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
+                    {group.label}
+                  </div>
                   {group.items.map((n) => (
                     <div
                       key={n.id}
-                      className={`notif-card${n.readAt ? "" : " notif-unread"}`}
+                      className={`flex gap-3 px-4 py-3 transition-colors ${
+                        n.readAt
+                          ? "bg-background"
+                          : "bg-primary/5 dark:bg-primary/10"
+                      }`}
                     >
                       <div
-                        className={`notif-icon ${notifIconClass(n.type)}`}
+                        className={`flex items-center justify-center size-9 rounded-full text-sm shrink-0 ${notifIconBg(n.type)}`}
                       >
                         {notifIcon(n.type)}
                       </div>
-                      <div className="notif-content">
-                        <div className="notif-title-row">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
                           <span
-                            className={`notif-title${n.readAt ? "" : " unread"}`}
+                            className={`text-sm leading-tight ${
+                              n.readAt
+                                ? "text-muted-foreground"
+                                : "font-semibold text-foreground"
+                            }`}
                           >
                             {n.title}
                           </span>
-                          <span className="notif-time">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
                             {formatTime(n.sentAt)}
                           </span>
                         </div>
-                        <div className="notif-body">{n.body}</div>
-                        <div className="notif-actions">
+                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                          {n.body}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1.5">
                           {n.payload?.bookingId &&
                             (() => {
                               const kind = n.payload?.bookingKind;
@@ -326,7 +366,7 @@ export default function NotificationsPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="notif-link-btn"
+                                  className="h-7 text-xs"
                                   asChild
                                 >
                                   <Link href={href}>{label} →</Link>
@@ -337,7 +377,7 @@ export default function NotificationsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="notif-mark-btn"
+                              className="h-7 text-xs text-muted-foreground"
                               onClick={() => markRead(n.id)}
                               disabled={markingId === n.id}
                             >
@@ -351,35 +391,36 @@ export default function NotificationsPage() {
                 </div>
               ))}
             </div>
-            {totalPages > 1 && (
-              <div className="pagination">
-                <span>
-                  Showing {page * LIMIT + 1}–
-                  {Math.min((page + 1) * LIMIT, total)} of {total}
-                </span>
-                <div className="pagination-btns">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page === 0}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+          )}
+        </CardContent>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+          <span>
+            Showing {page * LIMIT + 1}–
+            {Math.min((page + 1) * LIMIT, total)} of {total}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage(page - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

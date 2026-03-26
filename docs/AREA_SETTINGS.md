@@ -11,7 +11,7 @@
 Admin-only configuration hub for system-wide settings. Each sub-page is a focused domain. Keep pages self-contained with clear feedback loops (toasts, inline saves).
 
 ## Core Rules
-1. All settings pages require ADMIN role (enforced at API layer).
+1. All settings pages require ADMIN or STAFF role (enforced at API layer and client-side layout guard).
 2. Settings layout provides unified tab navigation — sub-pages should not render their own page-level `<h1>`.
 3. Each sub-page uses the `settings-split` layout: sidebar (title + description) and main (forms/tables).
 4. Mutations should provide immediate feedback via toast notifications.

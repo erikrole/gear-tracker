@@ -189,12 +189,12 @@ export default function EventDetailPage() {
 
   const loadShiftGroup = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/shift-groups?startDate=2000-01-01&endDate=2100-01-01`, { signal });
+      const res = await fetch(`/api/shift-groups?eventId=${id}`, { signal });
       if (signal?.aborted) return;
       if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
-        const group = (json.data ?? []).find((g: { eventId: string }) => g.eventId === id);
+        const group = (json.data ?? [])[0];
         if (group) setShiftGroup(group);
       }
     } catch (err) {

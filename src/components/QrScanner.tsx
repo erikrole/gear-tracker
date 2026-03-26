@@ -143,8 +143,12 @@ export default function QrScanner({
         rafRef.current = requestAnimationFrame(detect);
       } catch (err) {
         if (mounted) {
+          const isPermissionDenied = err instanceof DOMException &&
+            (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
           onErrorRef.current?.(
-            err instanceof Error ? err.message : "Camera not available"
+            isPermissionDenied
+              ? "Camera permission denied. Go to your browser settings and allow camera access for this site, then reload."
+              : err instanceof Error ? err.message : "Camera not available"
           );
         }
       }

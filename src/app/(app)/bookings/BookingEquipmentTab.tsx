@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { Progress } from "@/components/ui/progress";
@@ -17,6 +18,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
+
+type ConflictInfo = {
+  assetId: string;
+  conflictingBookingTitle?: string;
+  startsAt: string;
+  endsAt: string;
+};
 
 export default function BookingEquipmentTab({
   booking,
@@ -66,6 +74,61 @@ export default function BookingEquipmentTab({
   const totalOut = booking.serializedItems.length + totalBulkOut;
   const totalReturned = returnedSerialized + totalBulkIn;
   const showProgress = isCheckout && totalReturned > 0 && totalOut > 0;
+
+  // ── Conflict checking for active bookings ──
+  const isActive = booking.status === "BOOKED" || booking.status === "DRAFT";
+  const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchConflicts = useCallback(async () => {
+    if (!isActive || booking.serializedItems.length === 0) {
+      setConflicts(new Map());
+      return;
+    }
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const res = await fetch("/api/availability/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          locationId: booking.location.id,
+          startsAt: booking.startsAt,
+          endsAt: booking.endsAt,
+          serializedAssetIds: booking.serializedItems.map((i) => i.asset.id),
+          bulkItems: [],
+          excludeBookingId: booking.id,
+        }),
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      const data = json.data as {
+        conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string; startsAt: string; endsAt: string }>;
+      };
+      const map = new Map<string, ConflictInfo>();
+      if (data.conflicts) {
+        for (const c of data.conflicts) {
+          map.set(c.assetId, {
+            assetId: c.assetId,
+            conflictingBookingTitle: c.conflictingBookingTitle,
+            startsAt: c.startsAt,
+            endsAt: c.endsAt,
+          });
+        }
+      }
+      setConflicts(map);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    }
+  }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems]);
+
+  useEffect(() => {
+    fetchConflicts();
+    return () => { abortRef.current?.abort(); };
+  }, [fetchConflicts]);
 
   const filteredSerialized = useMemo(() => {
     if (!search) return booking.serializedItems;
@@ -170,6 +233,7 @@ export default function BookingEquipmentTab({
                 canCheckin={canCheckin}
                 checked={checkinIds.has(item.asset.id)}
                 onToggle={() => onToggleCheckin(item.asset.id)}
+                conflict={conflicts.get(item.asset.id)}
               />
             ))}
             {filteredBulk.map((item) => (
@@ -223,12 +287,14 @@ function SerializedRow({
   canCheckin,
   checked,
   onToggle,
+  conflict,
 }: {
   item: SerializedItem;
   isCheckout: boolean;
   canCheckin: boolean;
   checked: boolean;
   onToggle: () => void;
+  conflict?: ConflictInfo;
 }) {
   const returned = item.allocationStatus === "returned";
 
@@ -268,6 +334,15 @@ function SerializedRow({
 
       {/* Status + row actions */}
       <div className="shrink-0 flex items-center gap-1.5">
+        {conflict && !returned && (
+          <Badge variant="orange" size="sm" title={
+            conflict.conflictingBookingTitle
+              ? `Conflicts with ${conflict.conflictingBookingTitle}`
+              : "Scheduling conflict"
+          }>
+            Conflict
+          </Badge>
+        )}
         {returned && (
           <span className="text-xs font-medium text-green-600 dark:text-green-400">
             Returned
