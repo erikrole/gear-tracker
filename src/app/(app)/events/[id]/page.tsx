@@ -9,6 +9,7 @@ const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), 
 import DataList from "@/components/DataList";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -425,8 +426,8 @@ export default function EventDetailPage() {
                         {activeAssignment ? (
                           <span className="flex items-center gap-2">
                             <Avatar className="size-6">
-                              <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
-                                {activeAssignment.user.name.charAt(0).toUpperCase()}
+                              <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(activeAssignment.user.name)}`}>
+                                {getInitials(activeAssignment.user.name)}
                               </AvatarFallback>
                             </Avatar>
                             {activeAssignment.user.name}

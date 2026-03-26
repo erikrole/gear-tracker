@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -106,7 +107,7 @@ export default function BookingInfoTab({
       <SaveableField label="User">
         <span className="inline-flex items-center gap-2 text-sm">
           <Avatar className="size-5 text-[10px]">
-            <AvatarFallback>{(booking.requester?.name ?? "U").charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarFallback className={getAvatarColor(booking.requester?.name ?? "U")}>{getInitials(booking.requester?.name ?? "U")}</AvatarFallback>
           </Avatar>
           {booking.requester?.name ?? "Unknown"}
         </span>
@@ -117,7 +118,7 @@ export default function BookingInfoTab({
         <SaveableField label="Created by">
           <span className="inline-flex items-center gap-2 text-sm">
             <Avatar className="size-5 text-[10px]">
-              <AvatarFallback>{booking.creator.name.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className={getAvatarColor(booking.creator.name)}>{getInitials(booking.creator.name)}</AvatarFallback>
             </Avatar>
             {booking.creator.name}
           </span>

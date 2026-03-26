@@ -6,12 +6,13 @@ import { AvatarGroup } from "@/components/ui/avatar-group";
 import { getInitials, getAvatarColor } from "@/lib/avatar";
 import type { ItemThumb, EventSummary } from "../dashboard-types";
 
-export function UserAvatar({ initials, name, avatarUrl, size = "sm" }: { initials: string; name?: string; avatarUrl?: string | null; size?: "sm" | "default" }) {
-  const colorClass = name ? getAvatarColor(name) : "";
+/** User avatar with color-coded initials fallback. Pass `name` for auto-derived initials, or override with `initials`. */
+export function UserAvatar({ name, initials, avatarUrl, size = "sm" }: { name: string; initials?: string; avatarUrl?: string | null; size?: "sm" | "default" }) {
+  const display = initials ?? getInitials(name);
   return (
     <Avatar size={size}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-      <AvatarFallback className={colorClass}>{initials}</AvatarFallback>
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+      <AvatarFallback className={getAvatarColor(name)}>{display}</AvatarFallback>
     </Avatar>
   );
 }
