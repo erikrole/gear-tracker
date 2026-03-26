@@ -92,6 +92,7 @@ export default function ShiftDetailPanel({
   const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [acting, setActing] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const usersAbortRef = useRef<AbortController | null>(null);
 
   // User picker state
   const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
@@ -130,14 +131,18 @@ export default function ShiftDetailPanel({
   useEffect(() => {
     if (groupId) { fetchGroup(); setUsersLoaded(false); }
     else { setGroup(null); }
-    return () => { abortRef.current?.abort(); };
+    return () => { abortRef.current?.abort(); usersAbortRef.current?.abort(); };
   }, [groupId, fetchGroup]);
 
   const loadUsers = useCallback(async () => {
     if (usersLoaded) return;
+    usersAbortRef.current?.abort();
+    const controller = new AbortController();
+    usersAbortRef.current = controller;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true");
+      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
@@ -147,7 +152,10 @@ export default function ShiftDetailPanel({
         })));
         setUsersLoaded(true);
       }
-    } catch { /* picker shows empty state */ }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      /* picker shows empty state */
+    }
     setUsersLoading(false);
   }, [usersLoaded]);
 
