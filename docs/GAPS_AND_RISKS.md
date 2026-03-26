@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-25
+- Last Updated: 2026-03-26
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -34,7 +34,7 @@
 | ~~GAP-8~~ | ~~Reports page is a navigation dead end — no drill-down to individual bookings/items~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Drill-down links added to MetricCard in checkouts, overdue, and utilization reports 2026-03-24~~ |
 | ~~GAP-9~~ | ~~Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Decomposed: `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (avatars, chart, overdue, filters, columns, skeleton). Page.tsx reduced from 1004 to ~170 lines (2026-03-24)~~ |
 | ~~GAP-10~~ | ~~Kit management page exists but is empty — confusing for users navigating via sidebar~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Placeholder card shipped; Kits moved to Admin group with "Soon" badge in sidebar (2026-03-24)~~ |
-| GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V3: adopt React Query for shared cache + background refresh. V2: migrate pages to `useFetch` for Visibility API refresh. |
+| GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2 `useFetch` migration complete (all pages use Visibility API refresh). V3: adopt React Query for shared cache + stale-while-revalidate. |
 | ~~GAP-12~~ | ~~No stale-data detection across browser tabs or after backgrounding~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~`useFetch` hook includes Page Visibility API refresh; item detail page refreshes on tab focus 2026-03-24~~ |
 | ~~GAP-13~~ | ~~`BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020)~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Brief written 2026-03-24; V1 scope: kit CRUD + member management + derived availability~~ |
 | ~~GAP-14~~ | ~~Scan page is 1,038 lines — monolithic, blocks feature additions~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Decomposed 2026-03-25: page.tsx 1,038→251 lines. Extracted `useScanSession`, `useScanSubmission` hooks + 4 leaf components (`ScanControls`, `ScanChecklist`, `UnitPickerSheet`, `ItemPreviewSheet`) + shared types~~ |
@@ -42,6 +42,14 @@
 | ~~GAP-16~~ | ~~Shared hooks extracted but not adopted — some pages still use inline fetch+useState~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~All pages migrated: notifications (`useFetch`+`useUrlState`), labels (`useFetch`+`useDebounce`), search (`useUrlState`), users list (`useFetch`+`useDebounce`), user detail (`useFetch`), UserActivityTab (`useFetch`). Profile redirect uses AbortController.~~ |
 | ~~GAP-17~~ | ~~Labels page not linked from item workflows~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Already shipped: "Print label" action in item detail context menu → `/labels?items=id`~~ |
 | ~~GAP-18~~ | ~~Kit-to-booking integration missing — kits can't be checked out as a group~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Shipped 2026-03-25: `kitId` FK on Booking (migration 0018), kit selector in CreateBookingSheet (location-filtered), kit badge on booking detail page, validation + service + API route wiring~~ |
+| GAP-19 | `useFormSubmit` hook extracted but only adopted by 1 form (Create User) — checkout/reservation/kit creation still use ad-hoc fetch+validation | CROSS-CUTTING | Open | V2: migrate all create/edit forms to `useFormSubmit` for consistent Zod validation, error classification, and toast feedback |
+| GAP-20 | Events list page is 817 lines — monolithic, no loading states, no error recovery, no AbortController | AREA_EVENTS | Open | P0: needs /harden-page treatment. Largest unhardened page in the system. |
+| GAP-21 | `SystemConfig` model has zero UI — key-value config store with no admin surface | AREA_SETTINGS | Expected | Low priority. Used internally for escalation config. Admin UI deferred until more config keys are needed. |
+| GAP-22 | `FavoriteItem` model has API but no UI surface — no favorites filter on items list, no favorites page | AREA_ITEMS | Expected | V3: add "Favorites" filter chip to items list page. API exists at `/api/assets/[id]/favorite`. |
+| GAP-23 | `StudentSportAssignment` and `StudentAreaAssignment` are read-only display — no CRUD UI for editing assignments | AREA_USERS | Open | V2: add assignment editing to user detail page. Currently staff must use direct DB or import to manage. |
+| GAP-24 | No dashboard reservation date filter — AC-4 not enforced, code fetches all BOOKED reservations without 7-day window | AREA_DASHBOARD | Open | P0 bug: reservations lane should only show next 7 days per spec. |
+| GAP-25 | Importer drops unmapped columns silently — `sourcePayload` not wired per D-014 lossless requirement | AREA_IMPORTER | Open | P0 data integrity violation. Every source column must be mapped or stored in `sourcePayload`. |
+| GAP-26 | Settings pages accessible to non-admin users at navigation level — 403 errors shown after page loads | AREA_SETTINGS | Open | P0 UX: add client-side auth guard to block navigation before rendering. |
 
 ---
 
@@ -95,6 +103,9 @@
 | ~~Monolithic page files~~ | ~~Scan (1,038) and schedule (1,012) grew with each feature~~ | ~~Closed 2026-03-25: scan decomposed (1,038→251), schedule decomposed (1,012→117)~~ | ~~Engineering~~ |
 | ~~Dashboard monolith~~ | ~~Dashboard page grows with each feature (filters, actions, sections)~~ | ~~Closed 2026-03-24: decomposed into hooks + 7 leaf components~~ | ~~Engineering~~ |
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
+| Events page monolith | Events list page is 817 lines with no hardening | P0: run /harden-page before adding features | Engineering |
+| Form pattern fragmentation | `useFormSubmit` adopted by 1 form; rest use ad-hoc fetch+validation | Migrate all create/edit forms to `useFormSubmit` in V2 | Engineering |
+| Importer data loss | Unmapped CSV columns silently dropped (D-014 violation) | Wire `sourcePayload` storage before next import cycle | Engineering |
 | ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
 | ~~STAFF editing ADMIN profiles/roles~~ | ~~Role guard only checks grant, not revoke/edit~~ | ~~Closed 2026-03-23: target.role === ADMIN guard on all mutation endpoints~~ | ~~Engineering~~ |
 
@@ -147,3 +158,4 @@
 - 2026-03-25: Closed GAP-15 (schedule page decomposed). `page.tsx` reduced from 1,012→117 lines (88% reduction). Extracted: `useScheduleData` hook (fetch, merge, filter, user info), 3 leaf components (`ScheduleFilters`, `CalendarView`, `ListView`), shared types module. Monolithic page files risk closed — both pages decomposed.
 - 2026-03-25: Closed GAP-16 (shared hooks fully adopted). All data-loading pages migrated to `useFetch`, `useUrlState`, `useDebounce`. Pattern fragmentation risk closed.
 - 2026-03-25: Closed GAP-18 (kit-to-booking integration). `kitId` FK on Booking model (migration 0018, index, SET NULL cascade). Kit selector in CreateBookingSheet (location-filtered, optional). Kit badge display on booking detail page. Validation schemas + service + API routes updated.
+- 2026-03-26: System roadmap V3 revision. Added GAP-19 (`useFormSubmit` not adopted across forms), GAP-20 (events list 817-line monolith), GAP-21 (SystemConfig zero UI), GAP-22 (FavoriteItem no UI surface), GAP-23 (student assignment CRUD missing), GAP-24 (dashboard reservation date filter bug), GAP-25 (importer sourcePayload not wired), GAP-26 (settings auth guard missing). Added 3 active risks (events page monolith, form pattern fragmentation, importer data loss). Updated GAP-11 to reflect V2 `useFetch` migration complete.
