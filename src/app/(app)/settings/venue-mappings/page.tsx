@@ -130,10 +130,11 @@ export default function VenueMappingsPage() {
     <div className="settings-split">
       <div className="settings-sidebar">
         <h2>Venue Mappings</h2>
-        <p className="text-secondary text-sm">
-          Map calendar venue text to locations. Patterns are matched against the
-          combined venue + summary text from calendar events during sync.
-          Supports regex or plain text (case-insensitive).
+        <p className="text-sm text-muted-foreground">
+          Map calendar venue names to your locations. When events sync from the calendar, venue text is matched against these patterns to assign the right location.
+        </p>
+        <p className="text-sm text-muted-foreground mt-2">
+          <strong>Home vs Away:</strong> Currently detected from the event title &mdash; &ldquo;vs&rdquo; = home, &ldquo;at&rdquo; = away. A dedicated home venue setting is planned for a future update.
         </p>
       </div>
 
@@ -206,8 +207,7 @@ export default function VenueMappingsPage() {
               color: "var(--text-secondary)",
             }}
           >
-            No venue mappings configured. Add patterns to automatically map
-            calendar events to locations.
+            No venue mappings configured. Add patterns to automatically assign locations to calendar events (e.g., &ldquo;Camp Randall&rdquo; maps to your Camp Randall location).
           </Card>
         ) : (
           <Card>

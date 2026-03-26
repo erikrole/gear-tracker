@@ -571,20 +571,7 @@ a[data-slot="button"]:hover {
 }
 
 /* ===== Focus & Accessibility ===== */
-:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-button:focus-visible,
-a:focus-visible,
-select:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: var(--radius);
-}
+/* Focus styles handled by shadcn component-level Tailwind classes (focus-visible:ring-*) */
 
 /* .sr-only removed — Tailwind provides this natively */
 

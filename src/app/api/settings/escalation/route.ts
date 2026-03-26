@@ -35,7 +35,7 @@ export const GET = withAuth(async (_req, { user }) => {
     maxNotificationsPerBooking: 10,
   };
 
-  return ok({ rules, config: escalationConfig });
+  return ok({ data: { rules, config: escalationConfig } });
 });
 
 /**

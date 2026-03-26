@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import type { SportConfig } from "./types";
 import { AREAS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
-import RosterPanel from "./RosterPanel";
 
 type FetchError = { type: "network" | "server"; message: string };
 
@@ -18,7 +17,6 @@ export default function SportsSettingsPage() {
   const [configs, setConfigs] = useState<SportConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<FetchError | null>(null);
-  const [expandedSport, setExpandedSport] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
   const loadConfigs = useCallback(async () => {
@@ -88,28 +86,18 @@ export default function SportsSettingsPage() {
     setSaving(null);
   }
 
-  async function updateShiftCount(
-    sportCode: string,
-    area: string,
-    type: "homeCount" | "awayCount",
-    value: number
-  ) {
+  async function updateShiftCount(sportCode: string, area: string, value: number) {
     const config = getConfig(sportCode);
     if (!config) return;
 
+    // Set both homeCount and awayCount to the same value for backward compatibility
     const updatedConfigs = AREAS.map((a) => {
       const existing = config.shiftConfigs.find((sc) => sc.area === a);
-      if (a === area) {
-        return {
-          area: a,
-          homeCount: type === "homeCount" ? value : (existing?.homeCount ?? 0),
-          awayCount: type === "awayCount" ? value : (existing?.awayCount ?? 0),
-        };
-      }
-      return { area: a, homeCount: existing?.homeCount ?? 0, awayCount: existing?.awayCount ?? 0 };
+      const count = a === area ? value : (existing?.homeCount ?? 0);
+      return { area: a, homeCount: count, awayCount: count };
     });
 
-    setSaving(`${sportCode}-${area}-${type}`);
+    setSaving(`${sportCode}-${area}`);
     try {
       const res = await fetch(`/api/sport-configs/${sportCode}`, {
         method: "PATCH",
@@ -126,10 +114,6 @@ export default function SportsSettingsPage() {
       toast("Network error", "error");
     }
     setSaving(null);
-  }
-
-  function handleExpand(sportCode: string) {
-    setExpandedSport(expandedSport === sportCode ? null : sportCode);
   }
 
   /* ---------- Loading skeleton ---------- */
@@ -192,8 +176,9 @@ export default function SportsSettingsPage() {
       <div className="settings-sidebar">
         <h2 className="settings-title">Sports</h2>
         <p className="settings-desc">
-          Configure shift coverage for each sport. Set the number of positions per area
-          for home and away events. Manage the roster of students and staff assigned to each sport.
+          Configure the default number of shifts per area for each sport.
+          When new events are synced from the calendar, shifts are auto-generated using these counts.
+          You can always adjust individual events on the schedule page.
         </p>
       </div>
 
@@ -201,15 +186,9 @@ export default function SportsSettingsPage() {
         <ShiftConfigTable
           configs={configs}
           saving={saving}
-          expandedSport={expandedSport}
           onToggleActive={toggleActive}
           onUpdateShift={updateShiftCount}
-          onExpand={handleExpand}
         />
-
-        {expandedSport && (
-          <RosterPanel sportCode={expandedSport} />
-        )}
       </div>
     </div>
   );

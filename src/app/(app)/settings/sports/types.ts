@@ -11,18 +11,6 @@ export type SportConfig = {
   shiftConfigs: ShiftConfig[];
 };
 
-export type RosterMember = {
-  id: string;
-  userId: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-    primaryArea: string | null;
-  };
-};
-
 export const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 
 export const AREA_LABELS: Record<string, string> = {
@@ -31,6 +19,11 @@ export const AREA_LABELS: Record<string, string> = {
   GRAPHICS: "Graphics",
   COMMS: "Comms",
 };
+
+/** Get the display count for a shift config (uses homeCount as the single source) */
+export function getCount(config: ShiftConfig): number {
+  return config.homeCount;
+}
 
 export function defaultShiftConfigs(): ShiftConfig[] {
   return AREAS.map((area) => ({ area, homeCount: 1, awayCount: 1 }));
