@@ -121,9 +121,9 @@
   --text: #1a1a1a;
   --text-secondary: #64635e;
   --text-muted: #9c9b96;
-  --accent: #A00000;
-  --accent-hover: #900000;
-  --accent-soft: #fef2f2;
+  --accent: #191919;
+  --accent-hover: #000000;
+  --accent-soft: #f5f5f5;
   --border: #e4e4e4;
   --border-light: #ebebeb;
 
@@ -202,10 +202,10 @@
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* Transition durations */
-  --duration-fast: 0.1s;
-  --duration-normal: 0.15s;
-  --duration-slow: 0.25s;
+  /* Transition durations — Notion-like pacing */
+  --duration-fast: 0.12s;
+  --duration-normal: 0.2s;
+  --duration-slow: 0.3s;
 
   /* Z-index scale */
   --z-base: 1;
@@ -219,18 +219,18 @@
   --z-scan-feedback: 1000;
   --z-offline: 9999;
 
-  /* Focus ring — brand red outline */
-  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--wi-red);
+  /* Focus ring — neutral outline */
+  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
 
-  /* Brand — Wisconsin Red as primary identity */
+  /* Brand — Wisconsin Red for identity moments only (sidebar, logo, overdue) */
   --wi-red: #A00000;
   --wi-red-hover: #900000;
   --wi-red-soft: #fef2f2;
   --wi-dark: #1a1a1a;
 
-  /* Button colors — Wisconsin Red primary */
-  --btn-primary-bg: #A00000;
-  --btn-primary-bg-hover: #900000;
+  /* Button colors — dark primary, Notion-like */
+  --btn-primary-bg: #191919;
+  --btn-primary-bg-hover: #000000;
   --btn-primary-text: #ffffff;
 
   /* Aliases for components that reference --primary */
@@ -284,9 +284,9 @@
     --text: #ececec;
     --text-secondary: #a0a0a0;
     --text-muted: #666666;
-    --accent: #d04040;
-    --accent-hover: #e05050;
-    --accent-soft: rgba(160, 0, 0, 0.15);
+    --accent: #ececec;
+    --accent-hover: #ffffff;
+    --accent-soft: rgba(255, 255, 255, 0.07);
     --border: #2a2a2a;
     --border-light: #222222;
 
@@ -302,7 +302,7 @@
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
     --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
 
-    --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--wi-red);
+    --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
 
     --sidebar-bg: #0d0b0e;
 
@@ -311,9 +311,9 @@
     --wi-red-soft: rgba(160, 0, 0, 0.15);
     --wi-dark: #ececec;
 
-    --btn-primary-bg: #d04040;
-    --btn-primary-bg-hover: #e05050;
-    --btn-primary-text: #ffffff;
+    --btn-primary-bg: #ffffff;
+    --btn-primary-bg-hover: #e0e0e0;
+    --btn-primary-text: #111111;
 
     --primary: var(--accent);
     --primary-hover: var(--accent-hover);
@@ -326,7 +326,7 @@
     --card-foreground: var(--text);
     --popover: var(--bg-elevated);
     --popover-foreground: var(--text);
-    --primary-foreground: #ffffff;
+    --primary-foreground: #111111;
     --secondary: rgba(255, 255, 255, 0.07);
     --secondary-foreground: var(--text);
     --muted: var(--bg-surface);
@@ -352,9 +352,9 @@
   --text: #ececec;
   --text-secondary: #a0a0a0;
   --text-muted: #666666;
-  --accent: #d04040;
-  --accent-hover: #e05050;
-  --accent-soft: rgba(160, 0, 0, 0.15);
+  --accent: #ececec;
+  --accent-hover: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.07);
   --border: #2a2a2a;
   --border-light: #222222;
 
@@ -370,7 +370,7 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
 
-  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--wi-red);
+  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
 
   --sidebar-bg: #0d0b0e;
 
@@ -379,9 +379,9 @@
   --wi-red-soft: rgba(160, 0, 0, 0.15);
   --wi-dark: #ececec;
 
-  --btn-primary-bg: #d04040;
-  --btn-primary-bg-hover: #e05050;
-  --btn-primary-text: #ffffff;
+  --btn-primary-bg: #ffffff;
+  --btn-primary-bg-hover: #e0e0e0;
+  --btn-primary-text: #111111;
 
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
@@ -394,7 +394,7 @@
   --card-foreground: var(--text);
   --popover: var(--bg-elevated);
   --popover-foreground: var(--text);
-  --primary-foreground: #ffffff;
+  --primary-foreground: #111111;
   --secondary: rgba(255, 255, 255, 0.07);
   --secondary-foreground: var(--text);
   --muted: var(--bg-surface);
@@ -491,16 +491,47 @@ body {
 }
 
 /* ===== Heading Font System ===== */
-/* All headings use Gotham Black for editorial authority */
-h1, h2, h3, h4, h5, h6 {
+/* h1-h2: Gotham Black (800) for page titles and major headings.
+   h3-h6: Gotham Bold (700) for section labels and smaller headings. */
+h1, h2 {
   font-family: var(--font-heading);
   font-weight: 800;
+}
+h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
 }
 
 /* Card titles inherit heading font (slightly lighter weight) */
 [data-slot="card-title"] {
   font-family: var(--font-heading);
   font-weight: 700;
+}
+
+/* Dialog/Sheet/AlertDialog titles use heading font */
+[data-slot="dialog-title"],
+[data-slot="sheet-title"],
+[data-slot="alert-dialog-title"] {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+/* ===== Card Refinement ===== */
+/* Subtle shadow on all cards for depth. Gentle lift on hover for interactivity. */
+[data-slot="card"] {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-normal) var(--ease-out);
+}
+[data-slot="card"]:hover {
+  box-shadow: var(--shadow);
+}
+
+/* ===== Button Press Feedback ===== */
+[data-slot="button"] {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+[data-slot="button"]:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 /* Remove iOS tap highlight on all interactive elements */
@@ -610,20 +641,16 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  /* Subtle warm noise texture for depth — editorial atmosphere */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 200px;
 }
 
 /* ===== Top Bar ===== */
 .topbar {
   height: 48px;
   background: var(--panel-solid);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 24px;
   gap: 12px;
   position: sticky;
   top: 0;
@@ -699,11 +726,11 @@ textarea:focus-visible {
   background: none;
   color: var(--text-secondary);
   border-radius: var(--radius);
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--duration-normal) var(--ease-out), color var(--duration-normal) var(--ease-out);
 }
 
 .topbar-icon-btn:hover {
-  background: var(--bg);
+  background: rgba(0, 0, 0, 0.05);
   color: var(--text);
 }
 
@@ -725,7 +752,7 @@ textarea:focus-visible {
 
 /* ===== Page Content ===== */
 .page-content {
-  padding: 24px 24px 32px;
+  padding: 28px 32px 40px;
   flex: 1;
 }
 
@@ -733,13 +760,11 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .page-header h1 {
-  font-family: var(--font-heading);
   font-size: var(--text-3xl);
-  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: var(--leading-none);
   margin: 0;
@@ -768,6 +793,13 @@ textarea:focus-visible {
   grid-template-columns: 1fr 1fr;
   gap: 24px;
   align-items: start;
+}
+
+.dashboard-single {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  max-width: 640px;
 }
 
 .dashboard-col {

@@ -413,7 +413,7 @@ export default function UserInfoTab({
         </CardHeader>
         <CardContent>
           {/* Sport Assignments — Multi-select */}
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Sports</h3>
+          <h3 className="text-sm text-muted-foreground mb-2">Sports</h3>
           {canEditAssignments ? (
             <Popover>
               <PopoverTrigger asChild>
@@ -491,7 +491,7 @@ export default function UserInfoTab({
           <Separator className="my-3" />
 
           {/* Area Assignments — Multi-select */}
-          <h3 className="text-sm font-semibold text-muted-foreground mb-2">Areas</h3>
+          <h3 className="text-sm text-muted-foreground mb-2">Areas</h3>
           {canEditAssignments ? (
             <Popover>
               <PopoverTrigger asChild>

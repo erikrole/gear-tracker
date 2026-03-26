@@ -81,7 +81,7 @@ export function CalendarView({
           <Button variant="outline" size="sm" onClick={prevMonth}>
             &lsaquo;
           </Button>
-          <CardTitle className="text-center" style={{ minWidth: 160 }}>
+          <CardTitle className="text-center min-w-[160px]">
             {calMonth.toLocaleDateString("en-US", {
               month: "long",
               year: "numeric",

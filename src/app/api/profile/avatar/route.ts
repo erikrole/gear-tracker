@@ -3,6 +3,7 @@ import { HttpError, ok } from "@/lib/http";
 import { validateImage, deleteImage, isBlobUrl } from "@/lib/blob";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
+import { createAuditEntry } from "@/lib/audit";
 
 /**
  * POST /api/profile/avatar — upload or replace current user's avatar
@@ -43,6 +44,15 @@ export const POST = withAuth(async (req, { user }) => {
     select: { id: true, avatarUrl: true },
   });
 
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "user_avatar",
+    entityId: user.id,
+    action: "avatar_uploaded",
+    after: { avatarUrl: updated.avatarUrl },
+  });
+
   return ok({ data: { avatarUrl: updated.avatarUrl } });
 });
 
@@ -66,6 +76,15 @@ export const DELETE = withAuth(async (_req, { user }) => {
   await db.user.update({
     where: { id: user.id },
     data: { avatarUrl: null },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "user_avatar",
+    entityId: user.id,
+    action: "avatar_deleted",
+    before: { avatarUrl: current.avatarUrl },
   });
 
   return ok({ data: { avatarUrl: null } });

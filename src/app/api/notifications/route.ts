@@ -2,6 +2,7 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 const patchNotificationSchema = z.object({
   action: z.enum(["mark_all_read", "mark_read"]),
@@ -39,9 +40,17 @@ export const PATCH = withAuth(async (req, { user }) => {
   const body = patchNotificationSchema.parse(await req.json());
 
   if (body.action === "mark_all_read") {
-    await db.notification.updateMany({
+    const result = await db.notification.updateMany({
       where: { userId: user.id, readAt: null },
       data: { readAt: new Date() }
+    });
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "notification",
+      entityId: user.id,
+      action: "notifications_marked_all_read",
+      after: { count: result.count },
     });
     return ok({ success: true });
   }
@@ -49,6 +58,13 @@ export const PATCH = withAuth(async (req, { user }) => {
   await db.notification.updateMany({
     where: { id: body.id!, userId: user.id },
     data: { readAt: new Date() }
+  });
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "notification",
+    entityId: body.id!,
+    action: "notification_marked_read",
   });
   return ok({ success: true });
 });

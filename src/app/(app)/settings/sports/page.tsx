@@ -1,33 +1,49 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { WifiOff, AlertTriangle, RotateCcw } from "lucide-react";
 import { useToast } from "@/components/Toast";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { SportConfig } from "./types";
 import { AREAS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
 import RosterPanel from "./RosterPanel";
 
+type FetchError = { type: "network" | "server"; message: string };
+
 export default function SportsSettingsPage() {
   const { toast } = useToast();
   const [configs, setConfigs] = useState<SportConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<FetchError | null>(null);
   const [expandedSport, setExpandedSport] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
   const loadConfigs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/sport-configs");
-      if (res.ok) {
-        const json = await res.json();
-        setConfigs(json.data);
+      if (!res.ok) {
+        setError({
+          type: "server",
+          message: `Server returned ${res.status}`,
+        });
+        return;
       }
+      const json = await res.json();
+      setConfigs(json.data);
     } catch {
-      toast("Failed to load sport configs", "error");
+      setError({
+        type: "network",
+        message: "Could not reach the server. Check your connection and try again.",
+      });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => { loadConfigs(); }, [loadConfigs]);
 
@@ -116,6 +132,7 @@ export default function SportsSettingsPage() {
     setExpandedSport(expandedSport === sportCode ? null : sportCode);
   }
 
+  /* ---------- Loading skeleton ---------- */
   if (loading) {
     return (
       <div className="settings-split">
@@ -123,12 +140,53 @@ export default function SportsSettingsPage() {
           <h2 className="settings-title">Sports</h2>
         </div>
         <div className="settings-main">
-          <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 rounded-md border p-4">
+                <Skeleton className="h-5 w-10 rounded-full" />
+                <Skeleton className="h-5 w-32" />
+                <div className="ml-auto flex gap-2">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
+  /* ---------- Error state ---------- */
+  if (error) {
+    const Icon = error.type === "network" ? WifiOff : AlertTriangle;
+    return (
+      <div className="settings-split">
+        <div className="settings-sidebar">
+          <h2 className="settings-title">Sports</h2>
+        </div>
+        <div className="settings-main">
+          <Card className="mx-auto max-w-md">
+            <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+              <Icon className="size-10 text-muted-foreground" />
+              <div>
+                <p className="font-semibold">
+                  {error.type === "network" ? "Connection failed" : "Something went wrong"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{error.message}</p>
+              </div>
+              <Button variant="outline" onClick={loadConfigs}>
+                <RotateCcw className="mr-2 size-4" />
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Normal render ---------- */
   return (
     <div className="settings-split">
       <div className="settings-sidebar">

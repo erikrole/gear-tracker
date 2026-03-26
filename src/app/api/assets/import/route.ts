@@ -1,9 +1,12 @@
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { downloadImageToBlob, isBlobUrl } from "@/lib/blob";
+
+const mappingSchema = z.record(z.string().min(1), z.string().min(1));
 
 // ── CSV parsing ──────────────────────────────────────────
 
@@ -284,14 +287,6 @@ function buildAssetData(
     link: row.link || undefined,
   };
 
-  // Merge notes-style fields into sourcePayload for lossless preservation (D-014)
-  const fullSourcePayload = {
-    ...row.sourcePayload,
-    ...Object.fromEntries(
-      Object.entries(notesPayload).filter(([, v]) => v !== undefined)
-    ),
-  };
-
   return {
     assetTag: row.assetTag,
     name: row.name || null,
@@ -313,7 +308,8 @@ function buildAssetData(
     uwAssetTag: row.uwAssetTag || null,
     linkUrl: row.link || null,
     notes: JSON.stringify(notesPayload),
-    sourcePayload: Object.keys(fullSourcePayload).length > 0 ? fullSourcePayload : undefined,
+    // D-014: sourcePayload stores only unmapped CSV columns (lossless preservation)
+    sourcePayload: Object.keys(row.sourcePayload).length > 0 ? row.sourcePayload : undefined,
   };
 }
 
@@ -323,6 +319,7 @@ export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "asset", "import");
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("mode") || "import";
+  const importMode = searchParams.get("importMode") || "upsert";
 
   const formData = await req.formData();
   const file = formData.get("file");
@@ -332,9 +329,11 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(400, "Expected multipart file field named 'file'");
   }
 
-  const userMapping = mappingRaw
-    ? (JSON.parse(mappingRaw as string) as ColumnMapping)
-    : undefined;
+  let userMapping: ColumnMapping | undefined;
+  if (mappingRaw) {
+    const parsed = JSON.parse(mappingRaw as string);
+    userMapping = mappingSchema.parse(parsed);
+  }
 
   const text = await file.text();
   const { headers, rows, mapping } = parseRows(text, userMapping);
@@ -491,6 +490,10 @@ export const POST = withAuth(async (req, { user }) => {
     const existing = existingBySerial.get(row.serialNumber) ?? existingByTag.get(row.assetTag);
 
     if (existing) {
+      if (importMode === "create_only") {
+        // Skip existing items in create-only mode
+        continue;
+      }
       // Update: reuse existing qrCodeValue to avoid unique constraint conflicts
       const data = buildAssetData(row, locationId, departmentId);
       const { serialNumber: _sn, qrCodeValue: _qr, ...updateData } = data;

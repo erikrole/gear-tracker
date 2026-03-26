@@ -232,6 +232,8 @@ export async function listTrades(filters: {
   status?: ShiftTradeStatus;
   area?: string;
   userId?: string;
+  limit?: number;
+  offset?: number;
 }) {
   const where: Record<string, unknown> = {};
   if (filters.status) where.status = filters.status;
@@ -241,36 +243,43 @@ export async function listTrades(filters: {
     };
   }
 
-  return db.shiftTrade.findMany({
-    where,
-    include: {
-      shiftAssignment: {
-        include: {
-          shift: {
-            include: {
-              shiftGroup: {
-                include: {
-                  event: {
-                    select: {
-                      id: true,
-                      summary: true,
-                      startsAt: true,
-                      endsAt: true,
-                      sportCode: true,
+  const [total, data] = await Promise.all([
+    db.shiftTrade.count({ where }),
+    db.shiftTrade.findMany({
+      where,
+      take: filters.limit,
+      skip: filters.offset,
+      include: {
+        shiftAssignment: {
+          include: {
+            shift: {
+              include: {
+                shiftGroup: {
+                  include: {
+                    event: {
+                      select: {
+                        id: true,
+                        summary: true,
+                        startsAt: true,
+                        endsAt: true,
+                        sportCode: true,
+                      },
                     },
                   },
                 },
               },
             },
+            user: { select: { id: true, name: true, primaryArea: true } },
           },
-          user: { select: { id: true, name: true, primaryArea: true } },
         },
+        postedBy: { select: { id: true, name: true } },
+        claimedBy: { select: { id: true, name: true } },
       },
-      postedBy: { select: { id: true, name: true } },
-      claimedBy: { select: { id: true, name: true } },
-    },
-    orderBy: { postedAt: "desc" },
-  });
+      orderBy: { postedAt: "desc" },
+    }),
+  ]);
+
+  return { data, total };
 }
 
 /* ── Internal helpers ── */

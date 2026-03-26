@@ -520,8 +520,7 @@ export default function ItemDetailsPage() {
           {/* Hero image — larger square */}
           {asset.imageUrl ? (
             <button
-              className={`asset-hero-image aspect-square ${canEdit ? "cursor-pointer" : "cursor-default"}`}
-              style={{ width: 120, height: 120 }}
+              className={`asset-hero-image aspect-square size-[120px] ${canEdit ? "cursor-pointer" : "cursor-default"}`}
               onClick={() => canEdit && setImageModalOpen(true)}
               title={canEdit ? "Change image" : undefined}
             >
@@ -533,7 +532,7 @@ export default function ItemDetailsPage() {
               )}
             </button>
           ) : canEdit ? (
-            <button className="asset-hero-image asset-hero-image-empty aspect-square" style={{ width: 120, height: 120 }} onClick={() => setImageModalOpen(true)} title="Add image">
+            <button className="asset-hero-image asset-hero-image-empty aspect-square size-[120px]" onClick={() => setImageModalOpen(true)} title="Add image">
               <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
             </button>
           ) : null}

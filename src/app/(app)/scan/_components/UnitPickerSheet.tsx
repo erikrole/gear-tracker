@@ -87,8 +87,8 @@ export function UnitPickerSheet({
                       }}
                       className={`px-1 py-2 rounded-lg border-2 font-semibold cursor-pointer transition-all duration-100 ${
                         isSelected
-                          ? "border-blue-500 bg-blue-100 text-blue-800"
-                          : "border-gray-200 bg-white text-[var(--text)]"
+                          ? "border-blue-500 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-400"
+                          : "border-border bg-background text-foreground"
                       }`}
                     >
                       #{num}
