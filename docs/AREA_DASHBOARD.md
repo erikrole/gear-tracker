@@ -130,7 +130,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - [x] AC-1: User can reach a checkout or reservation action in one click/tap from dashboard.
 - [x] AC-2: Overdue banner and overdue list counts remain consistent.
 - [x] AC-3: Check-outs and Reservations lanes each show max 5 rows plus `View all`.
-- [ ] AC-4: Reservations lane only includes records within next 7 days. **(Not enforced — code fetches all BOOKED reservations without date window filter.)**
+- [x] AC-4: Reservations lane only includes records within next 7 days. **(Enforced — stats count and lane queries both filter `startsAt` within 7-day window.)**
 - [x] AC-5: Permission-restricted actions are hidden or disabled correctly.
 - [x] AC-6: Drafts can be resumed without losing entered data.
 - [x] AC-7: Refresh failures preserve visible data (toast, no error screen wipe).
@@ -180,3 +180,4 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-03-23: **Sport filter chips** — Toggleable sport code filter chips below stat strip. Scopes all dashboard sections (My Checkouts, My Reservations, My Shifts, Team Checkouts, Team Reservations, Upcoming Events) to a single sport. URL-persisted via `?sport=MBB` query param. Client-side filtering on already-loaded data (no API changes). Contextual empty states ("No MBB checkouts"). Overdue banner intentionally unfiltered (safety-critical). Auto-hides when fewer than 2 sport codes present in data.
 - 2026-03-25: Doc sync — standardized ACs to checkbox format. Unchecked AC-4 (7-day reservation filter not enforced in code — query fetches all BOOKED reservations without date window).
 - 2026-03-25: **UX improvements batch** — (1) Removed donut/activity chart (stat strip KPIs remain). (2) Overdue banner now shows gear thumbnail avatars alongside user avatars for overdue items. (3) Time durations switched from compact ("3d") to explicit ("3 days 2 hours") across all dashboard labels. (4) Upcoming events show full sport names ("Men's Hockey vs Dartmouth") instead of code badges ("MHKY"). (5) Filter chips moved from below stat strip into page header toolbar for better integration.
+- 2026-03-25: **Student role-adaptive dashboard** — STUDENT role sees only "My Gear" column (full width via `dashboard-single` layout), no stat strip, no quick actions. Team Activity column and team-wide stats hidden. **Owned-booking accent** — My Gear checkout/reservation rows display `border-l-2 border-l-primary` left accent for instant visual distinction from team rows.

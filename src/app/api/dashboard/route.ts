@@ -156,7 +156,7 @@ export const GET = withAuth(async (_req, { user }) => {
       where: { kind: "CHECKOUT", status: "OPEN", endsAt: { lt: now } },
     }),
     db.booking.count({
-      where: { kind: "RESERVATION", status: "BOOKED" },
+      where: { kind: "RESERVATION", status: "BOOKED", startsAt: { gte: now, lte: sevenDaysFromNow } },
     }),
     db.booking.count({
       where: { kind: "CHECKOUT", status: "OPEN", endsAt: { gte: startOfToday, lt: startOfTomorrow } },

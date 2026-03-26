@@ -47,6 +47,7 @@ Implementation: `src/lib/services/notifications.ts`
 - **Cron endpoint**: `GET /api/cron/notifications` — validates `CRON_SECRET` bearer token, no user session needed
 - **Manual endpoint**: `POST /api/notifications/process` — admin/staff auth required
 - **Schedule**: Daily at 8:00 AM UTC via Vercel Cron (`vercel.json`, schedule: `0 8 * * *`)
+- **Hobby plan constraint**: Vercel Hobby limits crons to once/day. Sub-hourly escalation checks (e.g. `*/15 * * * *`) require upgrading to Pro plan. Current daily cadence means escalation triggers fire with up to ~24h latency relative to their window.
 - Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates in-app notifications + sends email for matching windows
 - Job is fully idempotent — safe to call multiple times per hour due to dedup logic
 

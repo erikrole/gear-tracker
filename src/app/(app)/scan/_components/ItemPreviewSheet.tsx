@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { statusColorClasses } from "@/lib/status-colors";
 import {
   Sheet,
   SheetContent,
@@ -45,28 +46,6 @@ function statusBadgeVariant(
   }
 }
 
-function statusColor(s: string) {
-  switch (s) {
-    case "AVAILABLE":
-      return { bg: "var(--green-bg)", text: "#16a34a" };
-    case "CHECKED_OUT":
-      return { bg: "var(--blue-bg)", text: "#2563eb" };
-    case "RESERVED":
-      return { bg: "var(--purple-bg)", text: "#7c3aed" };
-    case "MAINTENANCE":
-      return { bg: "var(--orange-bg)", text: "#d97706" };
-    case "RETIRED":
-      return {
-        bg: "var(--accent-soft)",
-        text: "var(--text-secondary)",
-      };
-    default:
-      return {
-        bg: "var(--accent-soft)",
-        text: "var(--text-secondary)",
-      };
-  }
-}
 
 type ItemPreviewSheetProps = {
   item: ItemPreview | null;
@@ -153,11 +132,7 @@ export function ItemPreviewSheet({ item, onClose }: ItemPreviewSheetProps) {
             {/* Current holder / active booking */}
             {item.activeBooking && (
               <div
-                className="scan-sheet-booking"
-                style={{
-                  background: statusColor(item.computedStatus).bg,
-                  color: statusColor(item.computedStatus).text,
-                }}
+                className={`scan-sheet-booking ${statusColorClasses(item.computedStatus).bg} ${statusColorClasses(item.computedStatus).text}`}
               >
                 <div className="scan-sheet-booking-label">
                   {item.activeBooking.kind === "CHECKOUT"

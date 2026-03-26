@@ -22,6 +22,14 @@ export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "calendar_source", "create");
   const body = createSourceSchema.parse(await req.json());
 
+  // Prevent duplicate sources with the same URL
+  const existing = await db.calendarSource.findFirst({
+    where: { url: body.url },
+  });
+  if (existing) {
+    throw new HttpError(409, `A calendar source with this URL already exists ("${existing.name}")`);
+  }
+
   const source = await db.calendarSource.create({
     data: { name: body.name, url: body.url }
   });

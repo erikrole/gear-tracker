@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import { z } from "zod";
 
 const saveDraftSchema = z.object({
@@ -137,6 +137,6 @@ export const POST = withAuth(async (req, { user }) => {
 /** Get first location as fallback when none specified */
 async function defaultLocationId(): Promise<string> {
   const loc = await db.location.findFirst({ select: { id: true } });
-  if (!loc) throw new Error("No locations configured");
+  if (!loc) throw new HttpError(500, "No locations configured. Please add a location in Settings.");
   return loc.id;
 }

@@ -795,6 +795,13 @@ textarea:focus-visible {
   align-items: start;
 }
 
+.dashboard-single {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  max-width: 640px;
+}
+
 .dashboard-col {
   display: flex;
   flex-direction: column;

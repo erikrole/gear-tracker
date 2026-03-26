@@ -138,6 +138,8 @@ export default function DashboardPage() {
 
   if (!data) return <DashboardSkeleton />;
 
+  const isStudent = data.role === "STUDENT";
+
   return (
     <>
       {/* ══════ Page Header + Quick Actions ══════ */}
@@ -161,16 +163,18 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <FilterChips {...filters} />
-          <div className="quick-actions">
-            <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
-            <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
-          </div>
+          {!isStudent && (
+            <div className="quick-actions">
+              <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
+              <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ══════ Stat Strip ══════ */}
       {refreshing && <Progress className="h-0.5 mb-1" />}
-      <div className="stat-strip">
+      {!isStudent && <div className="stat-strip">
         <a href="/checkouts?filter=overdue" className={`stat-strip-item stat-strip-clickable ${data.stats.overdue > 0 ? "stat-strip-danger" : ""}`}>
           <span className="stat-strip-value">{data.stats.overdue}</span>
           <span className="stat-strip-label">Overdue</span>
@@ -187,7 +191,7 @@ export default function DashboardPage() {
           <span className="stat-strip-value">{data.stats.reserved}</span>
           <span className="stat-strip-label">Reserved</span>
         </a>
-      </div>
+      </div>}
 
       {/* ══════ Welcome Banner (first-run) ══════ */}
       {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
@@ -222,7 +226,7 @@ export default function DashboardPage() {
       />
 
       {/* ══════ Two-Column Split ══════ */}
-      <div className="dashboard-split">
+      <div className={isStudent ? "dashboard-single" : "dashboard-split"}>
         <MyGearColumn
           data={data}
           filtered={filters.filtered}
@@ -230,21 +234,24 @@ export default function DashboardPage() {
           now={now}
           deletingDraftId={deletingDraftId}
           inlineActionId={inlineActionId}
+          ownedAccent
           onSelectBooking={setSelectedBookingId}
           onDeleteDraft={handleDeleteDraft}
           onExtend={handleExtend}
           onConvert={handleConvert}
         />
-        <TeamActivityColumn
-          data={data}
-          filtered={filters.filtered}
-          activeSport={filters.activeSport}
-          now={now}
-          isStaff={data.role === "STAFF" || data.role === "ADMIN"}
-          inlineActionId={inlineActionId}
-          onSelectBooking={setSelectedBookingId}
-          onExtend={handleExtend}
-        />
+        {!isStudent && (
+          <TeamActivityColumn
+            data={data}
+            filtered={filters.filtered}
+            activeSport={filters.activeSport}
+            now={now}
+            isStaff={data.role === "STAFF" || data.role === "ADMIN"}
+            inlineActionId={inlineActionId}
+            onSelectBooking={setSelectedBookingId}
+            onExtend={handleExtend}
+          />
+        )}
       </div>
 
       {/* ══════ Booking Detail Sheet ══════ */}
