@@ -1,19 +1,17 @@
 import Link from "next/link";
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, UserIcon } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { CalendarEntry } from "./types";
+import type { CalendarEntry, Shift } from "./types";
 import {
-  AREAS,
+  ACTIVE_STATUSES,
   AREA_LABELS,
-  areaCoverage,
   coverageVariant,
   formatDate,
   formatTime,
@@ -36,6 +34,22 @@ type ListViewProps = {
   setExpandedRowId: (id: string | null) => void;
   onSelectGroup: (groupId: string | null) => void;
 };
+
+const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue"> = {
+  VIDEO: "green",
+  PHOTO: "purple",
+  COMMS: "orange",
+  GRAPHICS: "blue",
+};
+
+function shiftAssignee(shift: Shift) {
+  const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
+  return active?.user ?? null;
+}
+
+function initials(name: string): string {
+  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+}
 
 export function ListView({
   entries,
@@ -69,10 +83,10 @@ export function ListView({
         <SkeletonTable rows={6} cols={5} />
       ) : loadError ? (
         <div className="p-4 text-center">
-          <p className="text-secondary mb-2">
+          <p className="text-muted-foreground mb-2">
             {loadError === "network"
               ? "You appear to be offline. Check your connection and try again."
-              : "Something went wrong loading schedule data — usually temporary."}
+              : "Something went wrong loading schedule data."}
           </p>
           <Button variant="outline" size="sm" onClick={loadData}>
             Retry
@@ -109,216 +123,54 @@ export function ListView({
         />
       ) : (
         <>
-          {/* Desktop: date-grouped table */}
-          <div className="event-list-grouped schedule-table-desktop">
+          {/* ── Desktop: Asana-style expandable shift schedule ── */}
+          <div className="schedule-table-desktop">
             {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
               const isGroupToday =
-                new Date(dateKey).toDateString() ===
-                new Date().toDateString();
+                new Date(dateKey).toDateString() === new Date().toDateString();
               return (
-                <div
-                  key={dateKey}
-                >
-                  <div
-                    className={`event-date-header ${isGroupToday ? "event-date-header-today" : ""}`}
-                  >
+                <div key={dateKey}>
+                  <div className={`event-date-header ${isGroupToday ? "event-date-header-today" : ""}`}>
                     {formatDate(groupEntries[0].startsAt)}
                     <span className="event-date-count">
-                      {groupEntries.length} event
-                      {groupEntries.length !== 1 ? "s" : ""}
+                      {groupEntries.length} event{groupEntries.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <table
-                    className={`data-table data-table-grouped${groupIdx === 0 ? " data-table-show-head" : ""}`}
-                  >
+                  <table className={`data-table data-table-grouped${groupIdx === 0 ? " data-table-show-head" : ""}`}>
                     <colgroup>
-                      <col className="col-sport" />
-                      <col className="col-event" />
-                      <col className="col-time" />
-                      <col className="col-location" />
-                      <col className="col-coverage" />
+                      <col style={{ width: 28 }} />
+                      <col />
+                      <col style={{ width: 100 }} />
+                      <col style={{ width: 180 }} />
+                      <col style={{ width: 180 }} />
+                      <col style={{ width: 140 }} />
                     </colgroup>
                     <thead>
                       <tr>
-                        <th>Sport</th>
+                        <th></th>
                         <th>Event</th>
+                        <th>Area</th>
+                        <th>Assigned</th>
                         <th>Time</th>
-                        <th>Location</th>
-                        <th className="text-center">Coverage</th>
+                        <th>Sport</th>
                       </tr>
                     </thead>
                     <tbody>
                       {groupEntries.map((entry) => {
-                        const isExpRow = expandedRowId === entry.id;
-                        const shiftStatus = currentUserId
-                          ? userShiftStatus(entry, currentUserId)
-                          : null;
+                        const isExpanded = expandedRowId === entry.id;
+                        const hasShifts = entry.shifts.length > 0;
+                        const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
+
                         return (
-                          <>
-                            <tr
-                              key={entry.id}
-                              className={
-                                entry.shiftGroupId ? "cursor-pointer" : ""
-                              }
-                              onClick={
-                                entry.shiftGroupId
-                                  ? () =>
-                                      onSelectGroup(entry.shiftGroupId)
-                                  : undefined
-                              }
-                            >
-                              <td>
-                                {entry.sportCode && (
-                                  <span className="text-xs font-medium text-muted-foreground">
-                                    {sportLabel(entry.sportCode)}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="font-semibold">
-                                <Link
-                                  href={`/events/${entry.id}`}
-                                  className="row-link"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {entry.opponent
-                                    ? `${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
-                                    : entry.summary}
-                                </Link>
-                                {entry.isPremier && (
-                                  <Badge
-                                    variant="blue"
-                                    size="sm"
-                                    className="ml-1"
-                                  >
-                                    Premier
-                                  </Badge>
-                                )}
-                                {shiftStatus && (
-                                  <Badge
-                                    variant={
-                                      shiftStatus === "Confirmed"
-                                        ? "green"
-                                        : "orange"
-                                    }
-                                    size="sm"
-                                    className="ml-1"
-                                  >
-                                    {shiftStatus}
-                                  </Badge>
-                                )}
-                              </td>
-                              <td>
-                                {entry.allDay
-                                  ? "All day"
-                                  : `${formatTime(entry.startsAt)} – ${formatTime(entry.endsAt)}`}
-                              </td>
-                              <td className="text-secondary">
-                                {entry.location
-                                  ? entry.location.name
-                                  : entry.rawLocationText ?? null}
-                              </td>
-                              <td className="text-center">
-                                {entry.coverage ? (
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center gap-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setExpandedRowId(
-                                        isExpRow ? null : entry.id,
-                                      );
-                                    }}
-                                    title="Click to expand coverage breakdown"
-                                  >
-                                    {isExpRow ? (
-                                      <ChevronDownIcon className="size-3 text-secondary" />
-                                    ) : (
-                                      <ChevronRightIcon className="size-3 text-secondary" />
-                                    )}
-                                    <Badge
-                                      variant={coverageVariant(
-                                        entry.coverage.percentage,
-                                      )}
-                                    >
-                                      {entry.coverage.filled}/
-                                      {entry.coverage.total}
-                                    </Badge>
-                                  </button>
-                                ) : null}
-                              </td>
-                            </tr>
-                            {/* Inline coverage expansion */}
-                            {isExpRow && entry.coverage && (
-                              <tr
-                                key={`${entry.id}-exp`}
-                                className="bg-muted/30"
-                              >
-                                <td colSpan={5}>
-                                  <div className="flex flex-wrap gap-4 py-2 px-3">
-                                    {AREAS.map((area) => {
-                                      const ac = areaCoverage(
-                                        entry.shifts,
-                                        area,
-                                      );
-                                      if (ac.total === 0) return null;
-                                      return (
-                                        <div
-                                          key={area}
-                                          className="flex flex-col items-center gap-1"
-                                        >
-                                          <span className="text-xs text-secondary font-medium">
-                                            {AREA_LABELS[area]}
-                                          </span>
-                                          <Badge
-                                            variant={coverageVariant(
-                                              ac.total > 0
-                                                ? (ac.filled / ac.total) *
-                                                    100
-                                                : 0,
-                                            )}
-                                          >
-                                            {ac.filled}/{ac.total}
-                                          </Badge>
-                                          {ac.assignedUsers.length > 0 && (
-                                            <AvatarGroup max={3}>
-                                              {ac.assignedUsers.map((u) => (
-                                                <Avatar
-                                                  key={u.id}
-                                                  className="size-6"
-                                                  title={u.name}
-                                                >
-                                                  <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
-                                                    {u.name
-                                                      .charAt(0)
-                                                      .toUpperCase()}
-                                                  </AvatarFallback>
-                                                </Avatar>
-                                              ))}
-                                            </AvatarGroup>
-                                          )}
-                                          {ac.filled < ac.total &&
-                                            entry.shiftGroupId && (
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-xs h-6 px-2"
-                                                onClick={() =>
-                                                  onSelectGroup(
-                                                    entry.shiftGroupId,
-                                                  )
-                                                }
-                                              >
-                                                Assign
-                                              </Button>
-                                            )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </>
+                          <EventRows
+                            key={entry.id}
+                            entry={entry}
+                            isExpanded={isExpanded}
+                            hasShifts={hasShifts}
+                            shiftStatus={shiftStatus}
+                            onToggle={() => setExpandedRowId(isExpanded ? null : entry.id)}
+                            onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
+                          />
                         );
                       })}
                     </tbody>
@@ -328,94 +180,234 @@ export function ListView({
             })}
           </div>
 
-          {/* Mobile cards */}
+          {/* ── Mobile: card list ── */}
           <div className="schedule-mobile-list">
             {filteredEntries.map((entry) => {
-              const shiftStatus = currentUserId
-                ? userShiftStatus(entry, currentUserId)
-                : null;
+              const isExpanded = expandedRowId === entry.id;
+              const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
+
               return (
-                <Link
-                  key={entry.id}
-                  href={`/events/${entry.id}`}
-                  className="schedule-mobile-card no-underline block cursor-pointer"
-                >
-                  <div className="flex-between mb-1">
-                    <span className="font-semibold">
-                      {entry.opponent
-                        ? `${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
-                        : entry.summary}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {shiftStatus && (
-                        <Badge
-                          variant={
-                            shiftStatus === "Confirmed" ? "green" : "orange"
-                          }
-                          size="sm"
-                        >
-                          {shiftStatus}
-                        </Badge>
-                      )}
-                      {entry.coverage && (
-                        <Badge
-                          variant={coverageVariant(
-                            entry.coverage.percentage,
-                          )}
-                        >
-                          {entry.coverage.filled}/{entry.coverage.total}
-                        </Badge>
+                <div key={entry.id} className="schedule-mobile-card">
+                  <button
+                    className="w-full text-left p-3"
+                    onClick={() => entry.shifts.length > 0
+                      ? setExpandedRowId(isExpanded ? null : entry.id)
+                      : undefined}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-sm flex items-center gap-1.5">
+                        {entry.shifts.length > 0 && (
+                          isExpanded
+                            ? <ChevronDownIcon className="size-3.5 text-muted-foreground shrink-0" />
+                            : <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        {entry.opponent
+                          ? `${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
+                          : entry.summary}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {shiftStatus && (
+                          <Badge variant={shiftStatus === "Confirmed" ? "green" : "orange"} size="sm">
+                            {shiftStatus}
+                          </Badge>
+                        )}
+                        {entry.coverage && (
+                          <Badge variant={coverageVariant(entry.coverage.percentage)} size="sm">
+                            {entry.coverage.filled}/{entry.coverage.total}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                      <span>
+                        {formatDateShort(entry.startsAt)}{" "}
+                        {entry.allDay ? "All day" : formatTimeShort(entry.startsAt)}
+                      </span>
+                      {entry.sportCode && (
+                        <span>{sportLabel(entry.sportCode)}</span>
                       )}
                     </div>
-                  </div>
-                  <div className="text-xs text-secondary flex gap-2 flex-wrap">
-                    <span>
-                      {formatDateShort(entry.startsAt)}{" "}
-                      {entry.allDay
-                        ? "All day"
-                        : formatTimeShort(entry.startsAt)}
-                    </span>
-                    {entry.sportCode && (
-                      <span className="text-xs font-medium text-muted-foreground">{sportLabel(entry.sportCode)}</span>
-                    )}
-                    {entry.isPremier && (
-                      <Badge variant="blue">Premier</Badge>
-                    )}
-                    {entry.location && (
-                      <Badge variant="blue" size="sm">
-                        {entry.location.name}
-                      </Badge>
-                    )}
-                  </div>
-                  {entry.coverage && entry.shifts.length > 0 && (
-                    <div className="flex gap-2 mt-1">
-                      {AREAS.map((area) => {
-                        const ac = areaCoverage(entry.shifts, area);
-                        if (ac.total === 0) return null;
+                  </button>
+
+                  {/* Expanded shift rows on mobile */}
+                  {isExpanded && entry.shifts.length > 0 && (
+                    <div className="border-t border-border">
+                      {entry.shifts.map((shift) => {
+                        const user = shiftAssignee(shift);
                         return (
-                          <span key={area} className="text-xs">
-                            {AREA_LABELS[area]}:{" "}
-                            <Badge
-                              variant={coverageVariant(
-                                ac.total > 0
-                                  ? (ac.filled / ac.total) * 100
-                                  : 0,
-                              )}
-                              size="sm"
-                            >
-                              {ac.filled}/{ac.total}
+                          <div
+                            key={shift.id}
+                            className="flex items-center gap-3 px-3 py-2 pl-8 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-accent/50"
+                            onClick={() => onSelectGroup(entry.shiftGroupId)}
+                          >
+                            <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm" className="w-16 justify-center">
+                              {AREA_LABELS[shift.area] ?? shift.area}
                             </Badge>
-                          </span>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {user ? (
+                                <>
+                                  <Avatar className="size-6 shrink-0">
+                                    <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
+                                      {initials(user.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm truncate">{user.name}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
+                                    <UserIcon className="size-3 text-muted-foreground/40" />
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">Unassigned</span>
+                                </>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {shift.workerType === "FT" ? "Staff" : "Student"}
+                            </span>
+                          </div>
                         );
                       })}
                     </div>
                   )}
-                </Link>
+                </div>
               );
             })}
           </div>
         </>
       )}
     </Card>
+  );
+}
+
+/* ── Event parent + shift child rows (desktop) ── */
+
+function EventRows({
+  entry,
+  isExpanded,
+  hasShifts,
+  shiftStatus,
+  onToggle,
+  onSelectGroup,
+}: {
+  entry: CalendarEntry;
+  isExpanded: boolean;
+  hasShifts: boolean;
+  shiftStatus: string | null;
+  onToggle: () => void;
+  onSelectGroup: () => void;
+}) {
+  const eventTitle = entry.opponent
+    ? `${entry.sportCode ? sportLabel(entry.sportCode) + " " : ""}${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
+    : entry.summary;
+
+  const timeStr = entry.allDay
+    ? "All day"
+    : `${formatTime(entry.startsAt)} – ${formatTime(entry.endsAt)}`;
+
+  return (
+    <>
+      {/* Parent event row */}
+      <tr
+        className={`${hasShifts ? "cursor-pointer" : ""} ${isExpanded ? "bg-accent/30" : ""}`}
+        onClick={hasShifts ? onToggle : undefined}
+      >
+        <td className="px-1">
+          {hasShifts && (
+            isExpanded
+              ? <ChevronDownIcon className="size-4 text-muted-foreground" />
+              : <ChevronRightIcon className="size-4 text-muted-foreground" />
+          )}
+        </td>
+        <td>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/events/${entry.id}`}
+              className="font-semibold hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {eventTitle}
+            </Link>
+            {entry.coverage && (
+              <Badge variant={coverageVariant(entry.coverage.percentage)} size="sm">
+                {entry.coverage.filled}/{entry.coverage.total}
+              </Badge>
+            )}
+            {entry.isPremier && (
+              <Badge variant="blue" size="sm">Premier</Badge>
+            )}
+            {shiftStatus && (
+              <Badge variant={shiftStatus === "Confirmed" ? "green" : "orange"} size="sm">
+                {shiftStatus}
+              </Badge>
+            )}
+          </div>
+        </td>
+        <td></td>
+        <td>
+          {/* Unassigned placeholder for the event row */}
+        </td>
+        <td className="text-sm text-muted-foreground whitespace-nowrap">{timeStr}</td>
+        <td>
+          {entry.sportCode && (
+            <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
+          )}
+        </td>
+      </tr>
+
+      {/* Child shift rows */}
+      {isExpanded && entry.shifts.map((shift) => {
+        const user = shiftAssignee(shift);
+        const shiftTime = `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
+        const workerLabel = shift.workerType === "FT" ? "FT" : "ST";
+
+        return (
+          <tr
+            key={shift.id}
+            className="bg-muted/20 hover:bg-accent/40 cursor-pointer"
+            onClick={() => onSelectGroup()}
+          >
+            <td></td>
+            <td>
+              <span className="text-sm text-muted-foreground pl-4">
+                {entry.sportCode ?? ""} {entry.opponent ? `vs ${entry.opponent}` : entry.summary} – {workerLabel} {AREA_LABELS[shift.area] ?? shift.area}
+              </span>
+            </td>
+            <td>
+              <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm">
+                {AREA_LABELS[shift.area] ?? shift.area}
+              </Badge>
+            </td>
+            <td>
+              <div className="flex items-center gap-2">
+                {user ? (
+                  <>
+                    <Avatar className="size-6">
+                      <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
+                        {initials(user.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">{user.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                      <UserIcon className="size-3 text-muted-foreground/40" />
+                    </div>
+                    <span className="text-sm text-muted-foreground">Unassigned</span>
+                  </>
+                )}
+              </div>
+            </td>
+            <td className="text-sm text-muted-foreground whitespace-nowrap">{shiftTime}</td>
+            <td>
+              {entry.sportCode && (
+                <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
+              )}
+            </td>
+          </tr>
+        );
+      })}
+    </>
   );
 }
