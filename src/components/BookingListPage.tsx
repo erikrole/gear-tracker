@@ -46,7 +46,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
   const [statusFilter, setStatusFilter] = useState(urlParams.get("status") || config.defaultStatusFilter || "");
@@ -129,11 +129,11 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         setTotal(json.total ?? 0);
         hasLoadedRef.current = true;
       } else {
-        setLoadError(true);
+        setLoadError("server");
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      setLoadError(true);
+      setLoadError("network");
     }
     if (!controller.signal.aborted) setLoading(false);
   }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.hasSportFilter]);
@@ -267,7 +267,13 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         {loading ? (
           <SkeletonTable rows={6} cols={5} />
         ) : loadError ? (
-          <EmptyState icon="clipboard" title={`Failed to load ${config.labelPlural.toLowerCase()}`} description="Check your connection and try again." actionLabel="Retry" onAction={reload} />
+          <EmptyState
+            icon={loadError === "network" ? "wifi-off" : "clipboard"}
+            title={loadError === "network" ? "You\u2019re offline" : `Failed to load ${config.labelPlural.toLowerCase()}`}
+            description={loadError === "network" ? "Check your connection and try again." : "Something went wrong \u2014 usually temporary."}
+            actionLabel="Retry"
+            onAction={reload}
+          />
         ) : items.length === 0 ? (
           <EmptyState icon="clipboard" title={`No ${config.labelPlural.toLowerCase()} found`} description="Try adjusting your search or filters." />
         ) : (
