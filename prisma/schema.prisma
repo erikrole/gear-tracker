@@ -130,6 +130,7 @@ model Location {
   name           String      @unique
   address        String?
   active         Boolean     @default(true)
+  isHomeVenue    Boolean     @default(false) @map("is_home_venue")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
   users          User[]

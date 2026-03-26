@@ -6,8 +6,9 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ type LocationMapping = {
 type Location = {
   id: string;
   name: string;
+  isHomeVenue: boolean;
 };
 
 export default function VenueMappingsPage() {
@@ -37,6 +39,7 @@ export default function VenueMappingsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [addingMapping, setAddingMapping] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingHome, setTogglingHome] = useState<string | null>(null);
 
   const loadMappings = useCallback(async () => {
     try {
@@ -68,6 +71,27 @@ export default function VenueMappingsPage() {
     loadMappings();
     loadLocations();
   }, [loadMappings, loadLocations]);
+
+  async function toggleHomeVenue(locationId: string, current: boolean) {
+    setTogglingHome(locationId);
+    // Optimistic
+    setLocations((prev) => prev.map((l) => l.id === locationId ? { ...l, isHomeVenue: !current } : l));
+    try {
+      const res = await fetch(`/api/locations/${locationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isHomeVenue: !current }),
+      });
+      if (!res.ok) {
+        setLocations((prev) => prev.map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
+        toast("Failed to update", "error");
+      }
+    } catch {
+      setLocations((prev) => prev.map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
+      toast("Network error", "error");
+    }
+    setTogglingHome(null);
+  }
 
   async function handleAddMapping(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -131,119 +155,143 @@ export default function VenueMappingsPage() {
       <div className="settings-sidebar">
         <h2>Venue Mappings</h2>
         <p className="text-sm text-muted-foreground">
-          Map calendar venue names to your locations. When events sync from the calendar, venue text is matched against these patterns to assign the right location.
-        </p>
-        <p className="text-sm text-muted-foreground mt-2">
-          <strong>Home vs Away:</strong> Currently detected from the event title &mdash; &ldquo;vs&rdquo; = home, &ldquo;at&rdquo; = away. A dedicated home venue setting is planned for a future update.
+          Configure home venues and map calendar venue text to locations. Events at home venues are automatically marked as home games.
         </p>
       </div>
 
       <div className="settings-main">
-        <div className="action-row">
-          {!showAdd && (
-            <Button size="sm" onClick={() => setShowAdd(true)}>
-              Add mapping
-            </Button>
-          )}
-        </div>
-
-        {showAdd && (
-          <Card style={{ padding: 16, marginBottom: 16 }}>
-            <form onSubmit={handleAddMapping}>
-              <div className="flex flex-wrap gap-2 items-end">
-                <Input
-                  name="pattern"
-                  placeholder="Pattern (regex or text)"
-                  required
-                  className="flex-[2] min-w-[150px]"
-                />
-                <Select name="locationId" required defaultValue="">
-                  <SelectTrigger className="flex-1 min-w-[120px]">
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id}>
-                        {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  name="priority"
-                  type="number"
-                  defaultValue="0"
-                  placeholder="Priority"
-                  className="w-20"
-                  title="Higher priority mappings are checked first"
-                />
-                <div className="flex gap-2">
-                  <Button type="submit" size="sm" disabled={addingMapping}>
-                    {addingMapping ? "Adding..." : "Add"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAdd(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </Card>
-        )}
-
-        {loading ? (
-          <Card style={{ padding: 40, textAlign: "center" }}>
-            <Spinner className="size-8" />
-          </Card>
-        ) : mappings.length === 0 ? (
-          <Card
-            style={{
-              padding: 40,
-              textAlign: "center",
-              color: "var(--text-secondary)",
-            }}
-          >
-            No venue mappings configured. Add patterns to automatically assign locations to calendar events (e.g., &ldquo;Camp Randall&rdquo; maps to your Camp Randall location).
-          </Card>
-        ) : (
-          <Card>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Pattern</th>
-                  <th>Location</th>
-                  <th>Priority</th>
-                  <th style={{ textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mappings.map((m) => (
-                  <tr key={m.id}>
-                    <td className="font-mono text-xs">{m.pattern}</td>
-                    <td>
-                      <Badge variant="blue">{m.location.name}</Badge>
-                    </td>
-                    <td>{m.priority}</td>
-                    <td style={{ textAlign: "right" }}>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteMapping(m.id)}
-                        disabled={deletingId === m.id}
-                      >
-                        {deletingId === m.id ? "..." : "Delete"}
-                      </Button>
-                    </td>
-                  </tr>
+        {/* ── Home Venues ── */}
+        <Card className="mb-4">
+          <CardHeader><CardTitle>Home Venues</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              Toggle which locations are home venues. Events mapped to a home venue are marked as home games for shift coverage.
+            </p>
+            {locations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No locations configured.</p>
+            ) : (
+              <div className="space-y-2">
+                {locations.map((loc) => (
+                  <div key={loc.id} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm font-medium">{loc.name}</span>
+                    <div className="flex items-center gap-2">
+                      {loc.isHomeVenue && <Badge variant="green" size="sm">Home</Badge>}
+                      <Switch
+                        checked={loc.isHomeVenue}
+                        onCheckedChange={() => toggleHomeVenue(loc.id, loc.isHomeVenue)}
+                        disabled={togglingHome === loc.id}
+                      />
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </Card>
-        )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Venue Pattern Mappings ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Pattern Mappings</CardTitle>
+            {!showAdd && (
+              <Button size="sm" onClick={() => setShowAdd(true)}>
+                Add mapping
+              </Button>
+            )}
+          </CardHeader>
+
+          {showAdd && (
+            <CardContent>
+              <form onSubmit={handleAddMapping}>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <Input
+                    name="pattern"
+                    placeholder="Venue pattern (e.g. Camp Randall)"
+                    required
+                    className="flex-[2] min-w-[150px]"
+                  />
+                  <Select name="locationId" required defaultValue="">
+                    <SelectTrigger className="flex-1 min-w-[120px]">
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    name="priority"
+                    type="number"
+                    defaultValue="0"
+                    placeholder="Priority"
+                    className="w-20"
+                    title="Higher priority mappings are checked first"
+                  />
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={addingMapping}>
+                      {addingMapping ? "Adding..." : "Add"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAdd(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </CardContent>
+          )}
+
+          {loading ? (
+            <CardContent className="py-10 text-center">
+              <Spinner className="size-8" />
+            </CardContent>
+          ) : mappings.length === 0 ? (
+            <CardContent className="py-10 text-center text-muted-foreground">
+              No venue mappings configured. Add patterns to automatically assign locations to calendar events.
+            </CardContent>
+          ) : (
+            <div className="data-table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Pattern</th>
+                    <th>Location</th>
+                    <th>Priority</th>
+                    <th style={{ textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mappings.map((m) => (
+                    <tr key={m.id}>
+                      <td className="font-mono text-xs">{m.pattern}</td>
+                      <td>
+                        <Badge variant="blue">{m.location.name}</Badge>
+                      </td>
+                      <td>{m.priority}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteMapping(m.id)}
+                          disabled={deletingId === m.id}
+                        >
+                          {deletingId === m.id ? "..." : "Delete"}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

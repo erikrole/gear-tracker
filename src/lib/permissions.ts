@@ -59,6 +59,10 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     delete: ["ADMIN", "STAFF"],
     sync: ["ADMIN", "STAFF"],
   },
+  location: {
+    view: ["ADMIN", "STAFF", "STUDENT"],
+    manage: ["ADMIN", "STAFF"],
+  },
   location_mapping: {
     view: ["ADMIN", "STAFF", "STUDENT"],
     create: ["ADMIN", "STAFF"],
