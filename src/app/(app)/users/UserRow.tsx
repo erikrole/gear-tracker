@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -23,7 +24,7 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
           <Avatar className="size-8 shrink-0">
             {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
             <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-semibold">
-              {user.name.charAt(0).toUpperCase()}
+              {getInitials(user.name)}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -55,7 +56,7 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
             <Avatar className="size-9 shrink-0" aria-hidden="true">
               {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
               <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
-                {user.name.charAt(0).toUpperCase()}
+                {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">

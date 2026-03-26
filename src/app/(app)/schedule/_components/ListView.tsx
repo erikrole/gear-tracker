@@ -4,7 +4,8 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,10 +46,6 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
   return active?.user ?? null;
-}
-
-function initials(name: string): string {
-  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
 export function ListView({
@@ -247,8 +244,8 @@ export function ListView({
                               {user ? (
                                 <>
                                   <Avatar className="size-6 shrink-0">
-                                    <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
-                                      {initials(user.name)}
+                                    <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(user.name)}`}>
+                                      {getInitials(user.name)}
                                     </AvatarFallback>
                                   </Avatar>
                                   <span className="text-sm truncate">{user.name}</span>
@@ -383,8 +380,8 @@ function EventRows({
                 {user ? (
                   <>
                     <Avatar className="size-6">
-                      <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
-                        {initials(user.name)}
+                      <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(user.name)}`}>
+                        {getInitials(user.name)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm">{user.name}</span>

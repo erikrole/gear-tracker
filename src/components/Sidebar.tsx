@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   SunIcon,
@@ -125,8 +126,8 @@ export default function AppSidebar({
   const { theme, setTheme } = useTheme();
   const isAdmin = user?.role === "ADMIN" || user?.role === "STAFF";
 
-  const initials = user
-    ? user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+  const userInitials = user
+    ? getInitials(user.name)
     : "?";
 
   return (
@@ -153,7 +154,7 @@ export default function AppSidebar({
                   <Avatar className="size-8 shrink-0 border border-white/[0.12] bg-white/[0.08]">
                     {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
                     <AvatarFallback className="bg-transparent text-white/80 text-xs font-semibold">
-                      {initials}
+                      {userInitials}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium text-white/90 truncate">

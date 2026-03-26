@@ -22,7 +22,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon, XIcon, UserIcon } from "lucide-react";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 
 /* ───── Types ───── */
 
@@ -110,14 +111,7 @@ const STATUS_BADGES: Record<string, string> = {
   SWAPPED: "gray",
 };
 
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
+// initials + avatar colors from centralized @/lib/avatar
 
 /* ───── Component ───── */
 
@@ -590,8 +584,8 @@ export default function ShiftDetailPanel({
                                   {activeAssignment.user.avatarUrl && (
                                     <AvatarImage src={activeAssignment.user.avatarUrl} alt={activeAssignment.user.name} />
                                   )}
-                                  <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-medium">
-                                    {initials(activeAssignment.user.name)}
+                                  <AvatarFallback className={`text-xs font-medium ${getAvatarColor(activeAssignment.user.name)}`}>
+                                    {getInitials(activeAssignment.user.name)}
                                   </AvatarFallback>
                                 </Avatar>
                                 {activeAssignment.user.name}
@@ -624,8 +618,8 @@ export default function ShiftDetailPanel({
                                 <div key={req.id} className="flex items-center justify-between">
                                   <span className="text-sm text-muted-foreground flex items-center gap-2">
                                     <Avatar className="size-6">
-                                      <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
-                                        {initials(req.user.name)}
+                                      <AvatarFallback className={`text-xs font-medium ${getAvatarColor(req.user.name)}`}>
+                                        {getInitials(req.user.name)}
                                       </AvatarFallback>
                                     </Avatar>
                                     {req.user.name}
@@ -699,8 +693,8 @@ export default function ShiftDetailPanel({
                                           >
                                             <Avatar className="size-7 shrink-0">
                                               {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.name} />}
-                                              <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
-                                                {initials(u.name)}
+                                              <AvatarFallback className={`text-xs font-medium ${getAvatarColor(u.name)}`}>
+                                                {getInitials(u.name)}
                                               </AvatarFallback>
                                             </Avatar>
                                             <div className="min-w-0">
