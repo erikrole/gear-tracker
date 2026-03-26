@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CornerDownRightIcon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import type { TreeNode } from "./types";
@@ -102,7 +103,7 @@ export default function CategoryRow({
     <>
       <div className="cat-row" style={{ paddingLeft: depth > 0 ? 24 + depth * 24 : 16 }}>
         <div className="cat-row-name" style={{ fontWeight: isChild ? 400 : 600 }}>
-          {isChild && <span style={{ color: "var(--text-muted)", marginRight: 8 }}>{"\u21AA"}</span>}
+          {isChild && <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />}
           {renaming ? (
             <input
               ref={inputRef}
@@ -140,7 +141,7 @@ export default function CategoryRow({
       {addingSub && (
         <div className="cat-row" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
           <div className="cat-row-name">
-            <span style={{ color: "var(--text-muted)", marginRight: 8 }}>{"\u21AA"}</span>
+            <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />
             <input
               ref={subInputRef}
               className="cat-inline-input"

@@ -131,10 +131,10 @@ export default function VenueMappingsPage() {
       <div className="settings-sidebar">
         <h2>Venue Mappings</h2>
         <p className="text-sm text-muted-foreground">
-          Map calendar venue names to your locations. When events sync from the calendar, these patterns determine which location each event belongs to.
+          Map calendar venue names to your locations. When events sync from the calendar, venue text is matched against these patterns to assign the right location.
         </p>
         <p className="text-sm text-muted-foreground mt-2">
-          <strong>Home vs Away:</strong> Events with &ldquo;vs&rdquo; in the title are marked as home games. Events with &ldquo;at&rdquo; are away. Venue mappings help assign the correct equipment location for each event.
+          <strong>Home vs Away:</strong> Currently detected from the event title &mdash; &ldquo;vs&rdquo; = home, &ldquo;at&rdquo; = away. A dedicated home venue setting is planned for a future update.
         </p>
       </div>
 

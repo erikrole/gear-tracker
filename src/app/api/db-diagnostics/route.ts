@@ -30,6 +30,17 @@ const EXPECTED_TABLES = [
   "notifications",
   "bulk_sku_units",
   "booking_bulk_unit_allocations",
+  "sport_configs",
+  "sport_shift_configs",
+  "shift_groups",
+  "shifts",
+  "shift_assignments",
+  "shift_trades",
+  "student_sport_assignments",
+  "student_area_assignments",
+  "escalation_rules",
+  "system_configs",
+  "favorite_items",
 ];
 
 const EXPECTED_ENUMS = [
@@ -45,6 +56,10 @@ const EXPECTED_ENUMS = [
   "CalendarEventStatus",
   "NotificationChannel",
   "BulkUnitStatus",
+  "ShiftArea",
+  "ShiftWorkerType",
+  "ShiftAssignmentStatus",
+  "ShiftTradeStatus",
 ];
 
 const EXPECTED_EXTENSIONS = ["btree_gist"];
@@ -240,25 +255,40 @@ export const GET = withAuth(async (_req, { user }) => {
     throw new HttpError(403, "Only admins can view diagnostics");
   }
 
-  const [migrationTable, tables, enums, extensions, columns] =
-    await Promise.all([
-      checkMigrationTable(),
-      checkTables(),
-      checkEnums(),
-      checkExtensions(),
-      checkColumns(),
-    ]);
+  try {
+    const [migrationTable, tables, enums, extensions, columns] =
+      await Promise.all([
+        checkMigrationTable(),
+        checkTables(),
+        checkEnums(),
+        checkExtensions(),
+        checkColumns(),
+      ]);
 
-  const checks = { migrationTable, tables, enums, extensions, columns };
-  const remediation = buildRemediation(checks);
+    const checks = { migrationTable, tables, enums, extensions, columns };
+    const remediation = buildRemediation(checks);
 
-  const healthy =
-    migrationTable.exists &&
-    tables.missing.length === 0 &&
-    enums.missing.length === 0 &&
-    extensions.missing.length === 0 &&
-    columns.drift.length === 0 &&
-    remediation.length === 0;
+    const healthy =
+      migrationTable.exists &&
+      tables.missing.length === 0 &&
+      enums.missing.length === 0 &&
+      extensions.missing.length === 0 &&
+      columns.drift.length === 0 &&
+      remediation.length === 0;
 
-  return ok({ ok: healthy, checks, remediation });
+    return ok({ ok: healthy, checks, remediation });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return ok({
+      ok: false,
+      checks: {
+        migrationTable: { exists: false, migrations: [] },
+        tables: { present: [], missing: [], extra: [] },
+        enums: { present: [], missing: [] },
+        extensions: { present: [], missing: [] },
+        columns: { drift: [] },
+      },
+      remediation: [`Database query failed: ${message}. Ensure the database is accessible and migrations are applied.`],
+    });
+  }
 });
