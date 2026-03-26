@@ -161,8 +161,10 @@ export function useScanSubmission(
         const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
         if (bgMatch) searchTerm = bgMatch[2];
 
+        // Search with both original QR value and stripped term for best match
+        const qrParam = value !== searchTerm ? `&qr=${encodeURIComponent(value)}` : "";
         const res = await fetch(
-          `/api/assets?q=${encodeURIComponent(searchTerm)}&limit=5`,
+          `/api/assets?q=${encodeURIComponent(searchTerm)}${qrParam}&limit=5`,
         );
         if (!res.ok) {
           setFeedback({

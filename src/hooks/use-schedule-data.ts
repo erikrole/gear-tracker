@@ -82,9 +82,12 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, includePast: boolea
     sgParams.set("endDate", endDate);
   } else {
     if (!includePast) {
-      const now = new Date().toISOString();
-      evParams.set("startDate", now);
-      sgParams.set("startDate", now);
+      // Use start-of-today to avoid constantly changing URLs
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startDate = today.toISOString();
+      evParams.set("startDate", startDate);
+      sgParams.set("startDate", startDate);
     } else {
       evParams.set("includePast", "true");
     }

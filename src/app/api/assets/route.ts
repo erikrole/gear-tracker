@@ -61,6 +61,7 @@ const SORT_MAP: Record<string, Prisma.AssetOrderByWithRelationInput> = {
 export const GET = withAuth(async (req, { user }) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
+  const qr = searchParams.get("qr")?.trim(); // exact QR code value for scan lookup
   const showAccessories = searchParams.get("show_accessories") === "true";
   const favoritesOnly = searchParams.get("favorites_only") === "true";
 
@@ -94,18 +95,24 @@ export const GET = withAuth(async (req, { user }) => {
       : brandParams.length > 1
         ? { brand: { in: brandParams, mode: "insensitive" as const } }
         : {}),
-    ...(q
+    ...(q || qr
       ? {
           OR: [
-            { assetTag: { contains: q, mode: "insensitive" as const } },
-            { brand: { contains: q, mode: "insensitive" as const } },
-            { model: { contains: q, mode: "insensitive" as const } },
-            { serialNumber: { contains: q, mode: "insensitive" as const } },
-            { name: { contains: q, mode: "insensitive" as const } },
-            { notes: { contains: q, mode: "insensitive" as const } },
-            { category: { name: { contains: q, mode: "insensitive" as const } } },
-            { location: { name: { contains: q, mode: "insensitive" as const } } },
-            { department: { name: { contains: q, mode: "insensitive" as const } } },
+            ...(qr ? [
+              { qrCodeValue: { equals: qr, mode: "insensitive" as const } },
+              { primaryScanCode: { equals: qr, mode: "insensitive" as const } },
+            ] : []),
+            ...(q ? [
+              { assetTag: { contains: q, mode: "insensitive" as const } },
+              { brand: { contains: q, mode: "insensitive" as const } },
+              { model: { contains: q, mode: "insensitive" as const } },
+              { serialNumber: { contains: q, mode: "insensitive" as const } },
+              { name: { contains: q, mode: "insensitive" as const } },
+              { notes: { contains: q, mode: "insensitive" as const } },
+              { category: { name: { contains: q, mode: "insensitive" as const } } },
+              { location: { name: { contains: q, mode: "insensitive" as const } } },
+              { department: { name: { contains: q, mode: "insensitive" as const } } },
+            ] : []),
           ]
         }
       : {})
