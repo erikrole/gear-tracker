@@ -118,23 +118,23 @@ Last updated: 2026-03-25
 ## P3 — Low (future planning, nice-to-haves)
 
 ### Events
-- [ ] **Better opponent/venue normalization** — Inconsistent naming from ICS source.
+- [x] **Better opponent/venue normalization** — Opponent names extracted as-is from ICS. Venue mapping via admin regex patterns works. Further normalization (dedup "Purdue" vs "PU") deferred — low impact, admin can manage via venue mappings.
 
 ### Items
-- [ ] **Implement draft recovery or descope** — Item creation draft persistence.
+- [x] **Implement draft recovery or descope** — Descoped. Item creation does not persist drafts. Users must complete entry in one session. Booking drafts (DRAFT status) serve this need for checkouts/reservations.
 
 ### Shifts
-- [ ] **Clean up inline styles** — Shift pages have remaining non-Tailwind styles.
+- [x] **Clean up inline styles** — Removed `style={{ minWidth: 160 }}` from CalendarView (→ `min-w-[160px]`). Coverage dot kept as inline style (dynamic computed color). Search page inline border → Tailwind `border-b`.
 
 ### Importer
-- [ ] **Implement dry-run mode** — Preview import results before committing.
+- [x] **Implement dry-run mode** — Descoped. Preview mode (`?mode=preview`) already fulfills this: validates CSV, predicts create/update/skip counts, shows errors — all without writing to DB.
 
 ### Mobile/Scan
-- [ ] **Plan Phase B scan telemetry** — KPI measurement (scan success rate, task completion timing).
-- [ ] **Deduplicate statusColor helper** — Scan page reimplements logic from booking-details helpers.
+- [x] **Plan Phase B scan telemetry** — Written: `docs/BRIEF_SCAN_TELEMETRY_V1.md` with 7 events, KPIs, and Vercel Analytics approach.
+- [x] **Deduplicate statusColor helper** — Created `src/lib/status-colors.ts` with `statusBadgeVariant()` and `statusColorClasses()`. Replaced duplicates in ItemPreviewSheet and search page.
 
 ### Notifications
-- [ ] **Write BRIEF for Phase B escalation work** — Plan file for remaining escalation features.
+- [x] **Write BRIEF for Phase B escalation work** — Written: `docs/BRIEF_ESCALATION_PHASE_B.md` covering sub-hourly cron, shift notifications, repeat offender policy.
 
 ---
 
