@@ -29,7 +29,7 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
     return { created: false, shiftGroupId: null, shiftCount: 0 };
   }
 
-  // Skip if already has a ShiftGroup
+  // Skip if already has a ShiftGroup (never overwrite manual edits)
   if (event.shiftGroup) {
     return { created: false, shiftGroupId: event.shiftGroup.id, shiftCount: 0 };
   }
@@ -229,6 +229,11 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
   });
 
   if (!event || !event.sportCode || !event.shiftGroup) {
+    return { added: 0 };
+  }
+
+  // Skip regeneration for manually-edited shift groups
+  if (event.shiftGroup.manuallyEdited) {
     return { added: 0 };
   }
 

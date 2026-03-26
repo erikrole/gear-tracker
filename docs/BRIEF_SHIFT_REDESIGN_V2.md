@@ -22,7 +22,7 @@
 - **Per-event shift editing**: Add/remove individual shifts from any event's ShiftGroup (not locked to sport config template)
 - **Universal user assignment**: Any active user (student or staff) can be assigned to any shift, regardless of sport roster
 - **Avatar-based assignment UI**: Visual user picker with avatar grid — click to assign, click to remove
-- **Quick-add shift controls**: "+Shift" buttons per area (VIDEO, PHOTO, GRAPHICS, COMMS) on the ShiftDetailPanel
+- **Quick-add shift controls**: "+Shift" buttons per area (VIDEO, PHOTO, GRAPHICS, COMMS) on the ShiftDetailPanel. All areas are optional — no shift or area is required for any event.
 - **Per-shift removal**: Delete individual shifts from a ShiftGroup (with cascade to assignments)
 - **Trade board integration**: "Post to trade board" action accessible from the assignment UI
 - **`manuallyEdited` flag**: When staff edits shifts on a ShiftGroup, flag it so auto-generation doesn't overwrite on next sync
@@ -119,7 +119,7 @@
 - [ ] AC-13: The picker is responsive and usable on mobile (375px viewport)
 
 ## 10) Edge Cases
-- **Event with no sport config**: No shifts auto-generated. Staff must manually add shifts. This is valid — some events (e.g., special shoots) have no sport.
+- **Event with no sport config**: No shifts auto-generated. Staff must manually add shifts. This is valid — some events (e.g., special shoots) have no sport. Every shift and area is optional; nothing is required.
 - **Manually edited event re-synced**: ICS sync updates event metadata (time, location) but must NOT regenerate shifts. Guard on `manuallyEdited` flag.
 - **Removing the last shift in an area**: Allowed. Area row shows empty state with "+" add button.
 - **Assigning a user who already has a shift at the same time**: Time conflict check blocks with clear error message: "User has a conflicting shift at [Event Name] from [time]–[time]"
