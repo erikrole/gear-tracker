@@ -24,6 +24,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { BarChart, Bar, Cell, XAxis, YAxis } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 type OverdueBooking = {
   id: string;
@@ -242,6 +248,27 @@ export default function OverdueLeaderboardPage() {
         />
         <MetricCard value={leaderboard.length} label="People with overdue gear" tooltip="Number of people with at least one overdue checkout" href="/users" />
       </div>
+
+      {/* Overdue hours bar chart */}
+      {leaderboard.length > 0 && (
+        <Card className="mb-2.5">
+          <CardHeader><CardTitle>Overdue hours by person</CardTitle></CardHeader>
+          <CardContent>
+            <ChartContainer config={{ hours: { label: "Overdue hours", color: "hsl(0 70% 55%)" } }} className="w-full" style={{ height: Math.max(150, leaderboard.length * 36) }}>
+              <BarChart data={leaderboard.slice(0, 10).map((e) => ({ name: e.name, hours: e.totalOverdueHours }))} layout="vertical" margin={{ left: 0, right: 12 }}>
+                <YAxis dataKey="name" type="category" width={100} tickLine={false} axisLine={false} className="text-xs" />
+                <XAxis type="number" hide />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="hours" name="Overdue hours" radius={[0, 4, 4, 0]}>
+                  {leaderboard.slice(0, 10).map((_, i) => (
+                    <Cell key={i} fill={`hsl(0 ${70 - i * 4}% ${45 + i * 3}%)`} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {leaderboard.length === 0 ? (
         <Card>
