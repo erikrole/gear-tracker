@@ -190,7 +190,9 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         window.location.href = "/login";
         return;
       }
-      if (!res.ok) {
+      if (res.ok) {
+        toast(`Extended by ${days} day${days !== 1 ? "s" : ""}`, "success");
+      } else {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Extend failed", "error");
       }
