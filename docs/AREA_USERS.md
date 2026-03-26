@@ -140,3 +140,5 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **BRK-001/002 (HIGH)**: Email uniqueness TOCTOU on create/update. Removed manual findUnique pre-checks, catch P2002 from DB unique constraint instead.
   - **BRK-005 (MEDIUM)**: Profile self-update `/api/profile` missing before-snapshot in audit. Now fetches current state and records field-level diffs.
 - 2026-03-25: Doc sync — standardized ACs to checkbox format, all 6 checked.
+- 2026-03-26: Avatar system roadmap created — see `tasks/avatars-roadmap.md`. V1: centralized initials utility, color-coded fallbacks, avatar photos in shift picker/schedule rows. V2: admin avatar upload, bulk import, image resize. V3: role badges, quick actions, team roster view.
+- 2026-03-26: **Avatar hardened (5-pass):** UserAvatar API cleaned — `name` is now required prop (derives initials + color). All inline `charAt(0)` avatar usages migrated to `getInitials()` + `getAvatarColor()`. Zero remaining inline initials across 14 consumers.

@@ -35,7 +35,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
             <div className="overdue-banner-item-main">
               <span className="overdue-banner-item-title">{item.bookingTitle}</span>
               <span className="overdue-banner-item-meta">
-                <UserAvatar initials={item.requesterInitials} />
+                <UserAvatar name={item.requesterName} />
                 {item.requesterName}
                 {item.items.length > 0 && <> &middot; <GearAvatarStack items={item.items} totalCount={item.assetTags.length} /></>}
                 {item.items.length === 0 && item.assetTags.length > 0 && <> &middot; {item.assetTags.join(", ")}</>}

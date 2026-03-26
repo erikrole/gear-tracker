@@ -6,10 +6,8 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import DataList from "@/components/DataList";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -17,12 +15,8 @@ import {
   SheetTitle,
   SheetBody,
 } from "@/components/ui/sheet";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { PlusIcon, XIcon } from "lucide-react";
+import { ShiftAreaSection } from "./shift-detail/ShiftAreaSection";
+import type { PickerUser } from "./shift-detail/UserAvatarPicker";
 
 /* ───── Types ───── */
 
@@ -72,14 +66,6 @@ type ShiftGroupDetail = {
   shifts: Shift[];
 };
 
-type PickerUser = {
-  id: string;
-  name: string;
-  role: string;
-  primaryArea: string | null;
-  avatarUrl?: string | null;
-};
-
 type Props = {
   groupId: string | null;
   onClose: () => void;
@@ -89,35 +75,6 @@ type Props = {
 };
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
-
-const AREA_LABELS: Record<string, string> = {
-  VIDEO: "Video",
-  PHOTO: "Photo",
-  GRAPHICS: "Graphics",
-  COMMS: "Comms",
-};
-
-const WORKER_LABELS: Record<string, string> = {
-  FT: "Full-time",
-  ST: "Student",
-};
-
-const STATUS_BADGES: Record<string, string> = {
-  DIRECT_ASSIGNED: "blue",
-  REQUESTED: "orange",
-  APPROVED: "green",
-  DECLINED: "red",
-  SWAPPED: "gray",
-};
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
 
 /* ───── Component ───── */
 
@@ -135,8 +92,9 @@ export default function ShiftDetailPanel({
   const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [acting, setActing] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const usersAbortRef = useRef<AbortController | null>(null);
 
-  // Universal user picker
+  // User picker state
   const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<PickerUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -145,10 +103,7 @@ export default function ShiftDetailPanel({
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
-  function redirectOn401(res: Response): boolean {
-    if (res.status === 401) { window.location.href = "/login"; return true; }
-    return false;
-  }
+  /* ── Data fetching ── */
 
   const fetchGroup = useCallback(async () => {
     if (!groupId) return;
@@ -161,8 +116,7 @@ export default function ShiftDetailPanel({
       if (controller.signal.aborted) return;
       if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
-        const json = await res.json();
-        setGroup(json.data ?? null);
+        setGroup((await res.json()).data ?? null);
         setLoadError(false);
       } else {
         setLoadError("server");
@@ -175,45 +129,36 @@ export default function ShiftDetailPanel({
   }, [groupId]);
 
   useEffect(() => {
-    if (groupId) {
-      fetchGroup();
-      setUsersLoaded(false);
-    } else {
-      setGroup(null);
-    }
-    return () => { abortRef.current?.abort(); };
+    if (groupId) { fetchGroup(); setUsersLoaded(false); }
+    else { setGroup(null); }
+    return () => { abortRef.current?.abort(); usersAbortRef.current?.abort(); };
   }, [groupId, fetchGroup]);
 
-  // Load all active users (universal — not roster-restricted)
   const loadUsers = useCallback(async () => {
     if (usersLoaded) return;
+    usersAbortRef.current?.abort();
+    const controller = new AbortController();
+    usersAbortRef.current = controller;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true");
-      if (redirectOn401(res)) return;
+      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
-        const users: PickerUser[] = (json.data ?? json.users ?? []).map((u: Record<string, unknown>) => ({
-          id: u.id,
-          name: u.name,
-          role: u.role,
-          primaryArea: u.primaryArea ?? null,
-          avatarUrl: u.avatarUrl ?? null,
-        }));
-        setAllUsers(users);
+        setAllUsers((json.data ?? json.users ?? []).map((u: Record<string, unknown>) => ({
+          id: u.id, name: u.name, role: u.role,
+          primaryArea: u.primaryArea ?? null, avatarUrl: u.avatarUrl ?? null,
+        })));
         setUsersLoaded(true);
       }
-    } catch { /* silent — picker shows empty state */ }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      /* picker shows empty state */
+    }
     setUsersLoading(false);
   }, [usersLoaded]);
 
-  function openPicker(shiftId: string) {
-    setPickerShiftId(shiftId);
-    setUserSearch("");
-    loadUsers();
-  }
-
-  // Filter out users already assigned to this shift
   const filteredUsers = useMemo(() => {
     if (!group || !pickerShiftId) return allUsers;
     const shift = group.shifts.find((s) => s.id === pickerShiftId);
@@ -230,214 +175,115 @@ export default function ShiftDetailPanel({
     return users;
   }, [allUsers, group, pickerShiftId, userSearch]);
 
-  /* ── Actions ── */
+  /* ── Mutation helper ── */
 
-  async function handleAssign(shiftId: string, userId: string) {
-    setActing(shiftId);
-    // Optimistic: immediately show the assignment
-    const assignedUser = allUsers.find((u) => u.id === userId);
-    const prevGroup = group;
-    if (group && assignedUser) {
-      setGroup({
-        ...group,
-        shifts: group.shifts.map((s) =>
-          s.id === shiftId
-            ? {
-                ...s,
-                assignments: [
-                  ...s.assignments,
-                  {
-                    id: `optimistic-${Date.now()}`,
-                    status: "DIRECT_ASSIGNED",
-                    notes: null,
-                    createdAt: new Date().toISOString(),
-                    user: { ...assignedUser, email: undefined },
-                    assigner: null,
-                  },
-                ],
-              }
-            : s
-        ),
-      });
-    }
-    setPickerShiftId(null);
+  async function mutate(
+    key: string,
+    url: string,
+    opts: RequestInit,
+    successMsg: string,
+    preAction?: () => ShiftGroupDetail | null,
+  ) {
+    setActing(key);
+    const prev = preAction?.() ?? null;
     try {
-      const res = await fetch("/api/shift-assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftId, userId }),
-      });
-      if (redirectOn401(res)) return;
+      const res = await fetch(url, opts);
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
-        toast("Shift assigned", "success");
+        toast(successMsg, "success");
         await fetchGroup();
         onUpdated?.();
       } else {
-        setGroup(prevGroup); // rollback
+        if (prev) setGroup(prev);
         const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to assign", "error");
+        toast((json as Record<string, string>).error || "Action failed", "error");
       }
     } catch {
-      setGroup(prevGroup); // rollback
+      if (prev) setGroup(prev);
       toast("Network error", "error");
     }
     setActing(null);
   }
 
-  async function handleApprove(assignmentId: string) {
-    setActing(assignmentId);
-    try {
-      const res = await fetch(`/api/shift-assignments/${assignmentId}/approve`, { method: "PATCH" });
-      if (redirectOn401(res)) return;
-      if (res.ok) {
-        toast("Request approved", "success");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to approve", "error");
-      }
-    } catch { toast("Network error", "error"); }
-    setActing(null);
-  }
+  /* ── Actions ── */
 
-  async function handleDecline(assignmentId: string) {
-    setActing(assignmentId);
-    try {
-      const res = await fetch(`/api/shift-assignments/${assignmentId}/decline`, { method: "PATCH" });
-      if (redirectOn401(res)) return;
-      if (res.ok) {
-        toast("Request declined", "success");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to decline", "error");
+  function handleAssign(shiftId: string, userId: string) {
+    const assignedUser = allUsers.find((u) => u.id === userId);
+    setPickerShiftId(null);
+    mutate(shiftId, "/api/shift-assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shiftId, userId }),
+    }, "Shift assigned", () => {
+      const prev = group;
+      if (group && assignedUser) {
+        setGroup({
+          ...group,
+          shifts: group.shifts.map((s) =>
+            s.id === shiftId ? {
+              ...s,
+              assignments: [...s.assignments, {
+                id: `optimistic-${Date.now()}`, status: "DIRECT_ASSIGNED",
+                notes: null, createdAt: new Date().toISOString(),
+                user: { ...assignedUser, email: undefined }, assigner: null,
+              }],
+            } : s
+          ),
+        });
       }
-    } catch { toast("Network error", "error"); }
-    setActing(null);
-  }
-
-  async function handleRemove(assignmentId: string) {
-    const yes = await confirm({
-      title: "Remove assignment",
-      message: "Remove this shift assignment?",
-      confirmLabel: "Remove",
-      variant: "danger",
+      return prev;
     });
-    if (!yes) return;
-    setActing(assignmentId);
-    try {
-      const res = await fetch(`/api/shift-assignments/${assignmentId}`, { method: "DELETE" });
-      if (redirectOn401(res)) return;
-      if (res.ok) {
-        toast("Assignment removed", "success");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to remove", "error");
-      }
-    } catch { toast("Network error", "error"); }
-    setActing(null);
   }
 
-  async function handleRequest(shiftId: string) {
-    setActing(shiftId);
-    try {
-      const res = await fetch("/api/shift-assignments/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftId }),
-      });
-      if (redirectOn401(res)) return;
-      if (res.ok) {
-        toast("Shift requested", "success");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to request", "error");
-      }
-    } catch { toast("Network error", "error"); }
-    setActing(null);
+  const handleApprove = (id: string) =>
+    mutate(id, `/api/shift-assignments/${id}/approve`, { method: "PATCH" }, "Request approved");
+  const handleDecline = (id: string) =>
+    mutate(id, `/api/shift-assignments/${id}/decline`, { method: "PATCH" }, "Request declined");
+
+  async function handleRemove(id: string) {
+    const yes = await confirm({ title: "Remove assignment", message: "Remove this shift assignment?", confirmLabel: "Remove", variant: "danger" });
+    if (!yes) return;
+    mutate(id, `/api/shift-assignments/${id}`, { method: "DELETE" }, "Assignment removed");
+  }
+
+  function handleRequest(shiftId: string) {
+    mutate(shiftId, "/api/shift-assignments/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shiftId }),
+    }, "Shift requested");
   }
 
   async function handleTogglePremier() {
     if (!group) return;
-    setActing("premier");
-    try {
-      const res = await fetch(`/api/shift-groups/${group.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPremier: !group.isPremier }),
-      });
-      if (redirectOn401(res)) return;
-      if (res.ok) {
-        toast(group.isPremier ? "Removed premier status" : "Marked as premier", "success");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to update", "error");
-      }
-    } catch { toast("Network error", "error"); }
-    setActing(null);
+    mutate("premier", `/api/shift-groups/${group.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isPremier: !group.isPremier }),
+    }, group.isPremier ? "Removed premier status" : "Marked as premier");
   }
 
-  async function handleAddShift(area: string) {
+  function handleAddShift(area: string) {
     if (!group) return;
-    setActing(`add-${area}`);
-    try {
-      const res = await fetch(`/api/shift-groups/${group.id}/shifts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ area, workerType: "ST" }),
-      });
-      if (redirectOn401(res)) return;
-      if (res.ok) {
-        toast(`Added ${AREA_LABELS[area] ?? area} shift`, "success");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to add shift", "error");
-      }
-    } catch { toast("Network error", "error"); }
-    setActing(null);
+    mutate(`add-${area}`, `/api/shift-groups/${group.id}/shifts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ area, workerType: "ST" }),
+    }, `Added ${area.charAt(0) + area.slice(1).toLowerCase()} shift`);
   }
 
   async function handleDeleteShift(shiftId: string, hasAssignment: boolean) {
     if (hasAssignment) {
-      const yes = await confirm({
-        title: "Remove shift",
-        message: "This shift has an assigned worker. Remove it anyway?",
-        confirmLabel: "Remove shift",
-        variant: "danger",
-      });
+      const yes = await confirm({ title: "Remove shift", message: "This shift has an assigned worker. Remove it anyway?", confirmLabel: "Remove shift", variant: "danger" });
       if (!yes) return;
     }
     if (!group) return;
-    setActing(`del-${shiftId}`);
-    try {
-      const force = hasAssignment ? "?force=true" : "";
-      const res = await fetch(`/api/shift-groups/${group.id}/shifts/${shiftId}${force}`, {
-        method: "DELETE",
-      });
-      if (redirectOn401(res)) return;
-      if (res.ok) {
-        toast("Shift removed", "success");
-        await fetchGroup();
-        onUpdated?.();
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to remove shift", "error");
-      }
-    } catch { toast("Network error", "error"); }
-    setActing(null);
+    const force = hasAssignment ? "?force=true" : "";
+    mutate(`del-${shiftId}`, `/api/shift-groups/${group.id}/shifts/${shiftId}${force}`, { method: "DELETE" }, "Shift removed");
   }
 
-  // Group shifts by area
+  /* ── Derived data ── */
+
   const shiftsByArea = useMemo(() => {
     const map: Record<string, Shift[]> = {};
     for (const s of group?.shifts ?? []) {
@@ -447,9 +293,7 @@ export default function ShiftDetailPanel({
     return map;
   }, [group?.shifts]);
 
-  // Areas present + remaining areas for the add button
-  const presentAreas = Object.keys(shiftsByArea);
-  const allAreas = AREAS as readonly string[];
+  /* ── Render ── */
 
   return (
     <Sheet open={!!groupId} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -473,7 +317,6 @@ export default function ShiftDetailPanel({
           <div className="p-4 text-muted-foreground">Shift group not found.</div>
         ) : (
           <SheetBody className="px-6 py-4">
-            {/* Event info */}
             <DataList
               columns={2}
               items={[
@@ -488,13 +331,7 @@ export default function ShiftDetailPanel({
                         {group.isPremier ? "Yes" : "No"}
                       </Badge>
                       {isStaff && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-5 px-1.5 text-[10px]"
-                          onClick={handleTogglePremier}
-                          disabled={acting !== null}
-                        >
+                        <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px]" onClick={handleTogglePremier} disabled={acting !== null}>
                           {acting === "premier" ? "..." : "Toggle"}
                         </Button>
                       )}
@@ -504,240 +341,33 @@ export default function ShiftDetailPanel({
               ]}
             />
 
-            {/* Shifts by area */}
-            {allAreas.map((area) => {
+            {(AREAS as readonly string[]).map((area) => {
               const shifts = shiftsByArea[area] ?? [];
               if (shifts.length === 0 && !isStaff) return null;
-
               return (
-                <div key={area} className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-muted-foreground">
-                      {AREA_LABELS[area] ?? area}
-                      {shifts.length > 0 && (
-                        <span className="ml-1.5 text-xs font-normal">({shifts.length})</span>
-                      )}
-                    </h3>
-                    {isStaff && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-1.5 text-xs text-muted-foreground"
-                        onClick={() => handleAddShift(area)}
-                        disabled={acting !== null}
-                        title={`Add ${AREA_LABELS[area]} shift`}
-                      >
-                        <PlusIcon className="size-3.5 mr-0.5" />
-                        Shift
-                      </Button>
-                    )}
-                  </div>
-
-                  {shifts.length === 0 ? (
-                    <p className="text-xs text-muted-foreground mb-2">No shifts configured</p>
-                  ) : (
-                    shifts.map((shift) => {
-                      const activeAssignment = shift.assignments.find(
-                        (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED"
-                      );
-                      const pendingRequests = shift.assignments.filter(
-                        (a) => a.status === "REQUESTED"
-                      );
-                      const isAssigned = !!activeAssignment;
-                      const userHasRequested = pendingRequests.some(
-                        (a) => a.user.id === currentUserId
-                      );
-
-                      return (
-                        <div
-                          key={shift.id}
-                          className={`p-3 mb-2 rounded-md border ${isAssigned ? "border-green-200 bg-green-50/50 dark:border-green-900/30 dark:bg-green-950/20" : "border-border bg-card"}`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">
-                              {WORKER_LABELS[shift.workerType] ?? shift.workerType}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              {isAssigned ? (
-                                <Badge variant="green" size="sm">Filled</Badge>
-                              ) : pendingRequests.length > 0 ? (
-                                <Badge variant="orange" size="sm">
-                                  {pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""}
-                                </Badge>
-                              ) : (
-                                <Badge variant="red" size="sm">Open</Badge>
-                              )}
-                              {isStaff && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
-                                  onClick={() => handleDeleteShift(shift.id, isAssigned)}
-                                  disabled={acting !== null}
-                                  title="Remove shift"
-                                >
-                                  <XIcon className="size-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Active assignment — avatar display */}
-                          {activeAssignment && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm flex items-center gap-2">
-                                <Avatar className="size-7">
-                                  {activeAssignment.user.avatarUrl && (
-                                    <AvatarImage src={activeAssignment.user.avatarUrl} alt={activeAssignment.user.name} />
-                                  )}
-                                  <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-medium">
-                                    {initials(activeAssignment.user.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {activeAssignment.user.name}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">
-                                  {activeAssignment.status.replace("_", " ")}
-                                </Badge>
-                                {isStaff && (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-5 px-1 text-[10px] text-destructive"
-                                      onClick={() => handleRemove(activeAssignment.id)}
-                                      disabled={acting !== null}
-                                    >
-                                      {acting === activeAssignment.id ? "..." : "Remove"}
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Pending requests */}
-                          {pendingRequests.length > 0 && (
-                            <div className="mt-2 space-y-1">
-                              {pendingRequests.map((req) => (
-                                <div key={req.id} className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground flex items-center gap-2">
-                                    <Avatar className="size-6">
-                                      <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
-                                        {initials(req.user.name)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    {req.user.name}
-                                  </span>
-                                  {isStaff && (
-                                    <div className="flex gap-1">
-                                      <Button
-                                        size="sm"
-                                        className="h-5 px-1.5 text-[10px]"
-                                        onClick={() => handleApprove(req.id)}
-                                        disabled={acting !== null}
-                                      >
-                                        {acting === req.id ? "..." : "Approve"}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 px-1.5 text-[10px] text-destructive"
-                                        onClick={() => handleDecline(req.id)}
-                                        disabled={acting !== null}
-                                      >
-                                        Decline
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Assignment actions */}
-                          {!isAssigned && (
-                            <div className="flex items-center gap-1 mt-2">
-                              {isStaff && (
-                                <Popover
-                                  open={pickerShiftId === shift.id}
-                                  onOpenChange={(open) => {
-                                    if (open) openPicker(shift.id);
-                                    else setPickerShiftId(null);
-                                  }}
-                                >
-                                  <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
-                                      <PlusIcon className="size-3" />
-                                      Assign
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-64 p-2" align="start">
-                                    <Input
-                                      type="text"
-                                      className="mb-2 h-8 text-xs"
-                                      placeholder="Search all users..."
-                                      value={userSearch}
-                                      onChange={(e) => setUserSearch(e.target.value)}
-                                      autoFocus
-                                    />
-                                    {usersLoading ? (
-                                      <p className="text-xs text-muted-foreground p-2">Loading users...</p>
-                                    ) : filteredUsers.length === 0 ? (
-                                      <p className="text-xs text-muted-foreground p-2">
-                                        {allUsers.length === 0 ? "No active users found." : "No matching users."}
-                                      </p>
-                                    ) : (
-                                      <div className="max-h-52 overflow-y-auto space-y-0.5">
-                                        {filteredUsers.map((u) => (
-                                          <button
-                                            key={u.id}
-                                            className="w-full flex items-center gap-2 p-1.5 rounded-md text-left text-sm hover:bg-accent transition-colors disabled:opacity-50"
-                                            onClick={() => handleAssign(shift.id, u.id)}
-                                            disabled={acting !== null}
-                                          >
-                                            <Avatar className="size-7 shrink-0">
-                                              {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.name} />}
-                                              <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
-                                                {initials(u.name)}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                            <div className="min-w-0">
-                                              <div className="truncate font-medium text-xs">{u.name}</div>
-                                              <div className="text-[10px] text-muted-foreground">
-                                                {u.role === "STUDENT" ? "Student" : "Staff"}
-                                                {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
-                                              </div>
-                                            </div>
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </PopoverContent>
-                                </Popover>
-                              )}
-                              {!isStaff && group.isPremier && !userHasRequested && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => handleRequest(shift.id)}
-                                  disabled={acting !== null}
-                                >
-                                  {acting === shift.id ? "Requesting..." : "Request this shift"}
-                                </Button>
-                              )}
-                              {userHasRequested && (
-                                <span className="text-xs text-muted-foreground">You have requested this shift</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                <ShiftAreaSection
+                  key={area}
+                  area={area}
+                  shifts={shifts}
+                  isStaff={isStaff}
+                  isPremier={group.isPremier}
+                  currentUserId={currentUserId}
+                  acting={acting}
+                  pickerShiftId={pickerShiftId}
+                  pickerUsers={filteredUsers}
+                  pickerLoading={usersLoading}
+                  pickerSearch={userSearch}
+                  onPickerSearchChange={setUserSearch}
+                  onOpenPicker={(shiftId) => { setPickerShiftId(shiftId); setUserSearch(""); loadUsers(); }}
+                  onClosePicker={() => setPickerShiftId(null)}
+                  onAddShift={() => handleAddShift(area)}
+                  onDeleteShift={handleDeleteShift}
+                  onAssign={handleAssign}
+                  onRemove={handleRemove}
+                  onApprove={handleApprove}
+                  onDecline={handleDecline}
+                  onRequest={handleRequest}
+                />
               );
             })}
 

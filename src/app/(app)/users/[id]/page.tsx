@@ -12,6 +12,7 @@ import { useToast } from "@/components/Toast";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -265,7 +266,7 @@ export default function UserDetailPage() {
                     <Avatar className="size-12 cursor-pointer">
                       {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
                       <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
-                        {user.name.charAt(0).toUpperCase()}
+                        {getInitials(user.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -295,7 +296,7 @@ export default function UserDetailPage() {
             <Avatar className="size-12" aria-hidden="true">
               {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
               <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
-                {user.name.charAt(0).toUpperCase()}
+                {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>
           )}

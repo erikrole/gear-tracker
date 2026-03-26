@@ -207,7 +207,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
               {urlError && <p className="text-sm mt-2" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
               <div className="flex-end gap-2 mt-4">
                 {currentImageUrl && (
-                  <Button variant="destructive" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
+                  <Button variant="destructive" onClick={removeImage} disabled={saving} className="mr-auto">
                     Remove
                   </Button>
                 )}
@@ -250,7 +250,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
               {fileError && <p className="text-sm mt-2" style={{ color: "var(--red)" }}>{fileError}</p>}
               <div className="flex-end gap-2 mt-4">
                 {currentImageUrl && (
-                  <Button variant="destructive" onClick={removeImage} disabled={saving} style={{ marginRight: "auto" }}>
+                  <Button variant="destructive" onClick={removeImage} disabled={saving} className="mr-auto">
                     Remove
                   </Button>
                 )}

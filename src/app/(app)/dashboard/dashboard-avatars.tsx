@@ -1,14 +1,18 @@
 "use client";
 
+import { UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import type { ItemThumb, EventSummary } from "../dashboard-types";
 
-export function UserAvatar({ initials, avatarUrl, size = "sm" }: { initials: string; avatarUrl?: string | null; size?: "sm" | "default" }) {
+/** User avatar with color-coded initials fallback. Pass `name` for auto-derived initials, or override with `initials`. */
+export function UserAvatar({ name, initials, avatarUrl, size = "sm" }: { name: string; initials?: string; avatarUrl?: string | null; size?: "sm" | "default" }) {
+  const display = initials ?? getInitials(name);
   return (
     <Avatar size={size}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-      <AvatarFallback>{initials}</AvatarFallback>
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+      <AvatarFallback className={getAvatarColor(name)}>{display}</AvatarFallback>
     </Avatar>
   );
 }
@@ -47,13 +51,15 @@ export function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers:
     <AvatarGroup max={99}>
       {showUsers.map((u) => (
         <Avatar key={u.id} size="sm" className="ring-2 ring-background" title={u.name}>
-          {u.avatarUrl ? <AvatarImage src={u.avatarUrl} alt="" /> : <AvatarFallback>{u.initials}</AvatarFallback>}
+          {u.avatarUrl ? (
+            <AvatarImage src={u.avatarUrl} alt="" />
+          ) : (
+            <AvatarFallback className={getAvatarColor(u.name)}>{u.initials}</AvatarFallback>
+          )}
         </Avatar>
       ))}
       {Array.from({ length: showEmpty }).map((_, i) => (
-        <Avatar key={`empty-${i}`} size="sm" className="ring-2 ring-background">
-          <AvatarFallback className="border border-dashed border-muted-foreground/30 bg-transparent" />
-        </Avatar>
+        <EmptySlotAvatar key={`empty-${i}`} />
       ))}
       {overflow > 0 && (
         <Avatar size="sm" className="ring-2 ring-background">
@@ -61,5 +67,16 @@ export function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers:
         </Avatar>
       )}
     </AvatarGroup>
+  );
+}
+
+/** Standardized empty shift slot placeholder */
+export function EmptySlotAvatar({ size = "sm" }: { size?: "sm" | "default" }) {
+  return (
+    <Avatar size={size} className="ring-2 ring-background">
+      <AvatarFallback className="border-2 border-dashed border-muted-foreground/30 bg-transparent">
+        <UserIcon className="size-3 text-muted-foreground/40" />
+      </AvatarFallback>
+    </Avatar>
   );
 }

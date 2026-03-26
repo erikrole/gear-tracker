@@ -1,16 +1,13 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
+import { getInitials } from "@/lib/avatar";
 
 // Sort comparator: overdue first, then nearest due date
 const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOverdue: boolean; endsAt: string }) => {
   if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
   return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
 };
-
-function getInitials(name: string) {
-  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-}
 
 // Prioritize bodies and lenses in gear avatar display
 function sortItemsByCategory(

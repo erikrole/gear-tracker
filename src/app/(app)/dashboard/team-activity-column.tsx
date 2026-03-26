@@ -57,7 +57,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                       {c.title}
                     </span>
                     <span className="ops-row-meta">
-                      <UserAvatar initials={c.requesterInitials} avatarUrl={c.requesterAvatarUrl} />
+                      <UserAvatar name={c.requesterName} avatarUrl={c.requesterAvatarUrl} />
                       {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                     </span>
                   </div>
@@ -113,7 +113,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                     {r.title}
                   </span>
                   <span className="ops-row-meta">
-                    <UserAvatar initials={r.requesterInitials} avatarUrl={r.requesterAvatarUrl} />
+                    <UserAvatar name={r.requesterName} avatarUrl={r.requesterAvatarUrl} />
                     {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                   </span>
                 </div>

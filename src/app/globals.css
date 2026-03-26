@@ -219,8 +219,6 @@
   --z-scan-feedback: 1000;
   --z-offline: 9999;
 
-  /* Focus ring — neutral outline */
-  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
 
   /* Brand — Wisconsin Red for identity moments only (sidebar, logo, overdue) */
   --wi-red: #A00000;
@@ -302,8 +300,6 @@
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
     --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
 
-    --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
-
     --sidebar-bg: #0d0b0e;
 
     --wi-red: #d04040;
@@ -369,8 +365,6 @@
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
-
-  --focus-ring: 0 0 0 2px var(--panel-solid), 0 0 0 4px var(--accent);
 
   --sidebar-bg: #0d0b0e;
 

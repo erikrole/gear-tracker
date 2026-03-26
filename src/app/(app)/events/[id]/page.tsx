@@ -5,10 +5,12 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { RefreshCw, WifiOff, AlertTriangle } from "lucide-react";
+import { useToast } from "@/components/Toast";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import DataList from "@/components/DataList";
 import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -145,6 +147,7 @@ function EventSkeleton() {
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
+  const { toast } = useToast();
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [fetchError, setFetchError] = useState<"network" | "server" | null>(null);
   const [shiftGroup, setShiftGroup] = useState<ShiftGroupSummary | null>(null);
@@ -425,8 +428,8 @@ export default function EventDetailPage() {
                         {activeAssignment ? (
                           <span className="flex items-center gap-2">
                             <Avatar className="size-6">
-                              <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px] font-medium">
-                                {activeAssignment.user.name.charAt(0).toUpperCase()}
+                              <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(activeAssignment.user.name)}`}>
+                                {getInitials(activeAssignment.user.name)}
                               </AvatarFallback>
                             </Avatar>
                             {activeAssignment.user.name}
@@ -555,7 +558,14 @@ export default function EventDetailPage() {
                                 body: JSON.stringify({ assignmentId: m.assignmentId }),
                               });
                               if (res.status === 401) { window.location.href = "/login"; return; }
-                            } catch { /* network error — nudge is fire-and-forget */ }
+                              if (res.ok) {
+                                toast(`Nudge sent to ${m.userName}`, "success");
+                              } else {
+                                toast("Failed to send nudge", "error");
+                              }
+                            } catch {
+                              toast("Network error — nudge not sent", "error");
+                            }
                             setNudgingId(null);
                           }}
                         >
@@ -584,9 +594,10 @@ export default function EventDetailPage() {
           groupId={selectedGroupId}
           onClose={() => setSelectedGroupId(null)}
           onUpdated={() => {
-            loadShiftGroup();
+            const signal = abortRef.current?.signal;
+            loadShiftGroup(signal);
             if (currentUserRole === "STAFF" || currentUserRole === "ADMIN") {
-              loadCommandCenter();
+              loadCommandCenter(signal);
             }
           }}
           currentUserId={currentUserId}
