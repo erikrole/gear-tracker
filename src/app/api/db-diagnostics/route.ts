@@ -103,7 +103,7 @@ async function checkMigrationTable() {
   try {
     const rows: { migration_name: string; finished_at: Date | null }[] =
       await db.$queryRawUnsafe(
-        `SELECT migration_name, finished_at FROM "_prisma_migrations" ORDER BY migration_name`,
+        `SELECT migration_name::text, finished_at FROM "_prisma_migrations" ORDER BY migration_name`,
       );
     return {
       exists: true,
