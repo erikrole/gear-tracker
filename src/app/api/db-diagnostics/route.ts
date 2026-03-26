@@ -94,6 +94,7 @@ const EXPECTED_MIGRATIONS = [
   "0004_event_booking_linkage",
   "0005_add_categories",
   "0006_asset_policy_toggles",
+  "0019_add_location_is_home_venue",
 ];
 
 // ── Diagnostic queries (batched into one round-trip where Neon allows) ─

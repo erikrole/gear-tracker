@@ -319,7 +319,7 @@ export type ParsedIcsEvent = {
 export function splitEventsForSync(
   parsedEvents: ParsedIcsEvent[],
   existingRows: ExistingEventRow[],
-  mappings: Array<{ pattern: string; locationId: string }>,
+  mappings: Array<{ pattern: string; locationId: string; isHomeVenue?: boolean }>,
 ) {
   const existingMap = new Map(existingRows.map((r) => [r.externalId, r]));
 
@@ -338,18 +338,26 @@ export function splitEventsForSync(
 
       const status = mapIcsStatus(event.status);
       let locationId: string | null = null;
+      let matchedHomeVenue: boolean | undefined;
       const searchText = `${event.location} ${event.summary}`.toLowerCase();
 
       for (const mapping of mappings) {
         try {
-          if (new RegExp(mapping.pattern, "i").test(searchText)) { locationId = mapping.locationId; break; }
+          if (new RegExp(mapping.pattern, "i").test(searchText)) { locationId = mapping.locationId; matchedHomeVenue = mapping.isHomeVenue; break; }
         } catch {
-          if (searchText.includes(mapping.pattern.toLowerCase())) { locationId = mapping.locationId; break; }
+          if (searchText.includes(mapping.pattern.toLowerCase())) { locationId = mapping.locationId; matchedHomeVenue = mapping.isHomeVenue; break; }
         }
       }
 
       const cleaned = cleanSummary(event.summary);
-      const { sportCode, opponent, isHome } = extractSportInfo(cleaned);
+      let { sportCode, opponent, isHome } = extractSportInfo(cleaned);
+
+      // Override isHome based on venue if title parsing was inconclusive
+      if (locationId && matchedHomeVenue !== undefined) {
+        if (isHome === null) {
+          isHome = matchedHomeVenue;
+        }
+      }
 
       const data: ValidatedEventData = {
         externalId: event.uid,
@@ -462,9 +470,17 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   // ── Phase 1: Bulk-load existing data (2 queries) ──
 
-  let mappings: Array<{ pattern: string; locationId: string }> = [];
+  let mappings: Array<{ pattern: string; locationId: string; isHomeVenue?: boolean }> = [];
   try {
-    mappings = await db.locationMapping.findMany({ orderBy: { priority: "desc" } });
+    const rawMappings = await db.locationMapping.findMany({
+      orderBy: { priority: "desc" },
+      include: { location: { select: { isHomeVenue: true } } },
+    });
+    mappings = rawMappings.map((m) => ({
+      pattern: m.pattern,
+      locationId: m.locationId,
+      isHomeVenue: m.location.isHomeVenue,
+    }));
   } catch { /* table may not exist */ }
 
   const existingRows = await db.calendarEvent.findMany({
