@@ -585,9 +585,10 @@ export default function EventDetailPage() {
           groupId={selectedGroupId}
           onClose={() => setSelectedGroupId(null)}
           onUpdated={() => {
-            loadShiftGroup();
+            const signal = abortRef.current?.signal;
+            loadShiftGroup(signal);
             if (currentUserRole === "STAFF" || currentUserRole === "ADMIN") {
-              loadCommandCenter();
+              loadCommandCenter(signal);
             }
           }}
           currentUserId={currentUserId}
