@@ -178,7 +178,7 @@ Use these questions before adding any feature:
 | 5-pass page hardening (dashboard, items, users, scan, auth, profile) | ✅ Complete |
 | Scheduling + gear integration (6 slices: shift banner, My Shifts, Gear Up, Event Command Center) | ✅ Complete |
 
-### Phase B — Active
+### Phase B — Complete (Beta Release 2026-03-27)
 | Item | Status |
 |---|---|
 | ~~Picker improvements: multi-select, availability preview, scan-to-add~~ | ✅ Shipped 2026-03-15 (Equipment Picker V2) |
@@ -188,8 +188,20 @@ Use these questions before adding any feature:
 | ~~iPhone polish: input zoom, tap highlight, overscroll, responsive stacking~~ | ✅ Shipped 2026-03-22 |
 | ~~Notifications escalation: D-009 recipient model, alert fatigue controls~~ | ✅ Shipped 2026-03-15 (D-009 accepted; recipient model + fatigue controls implemented) |
 | ~~Kit management UI (D-020 — CRUD, members, archive, audit)~~ | ✅ Shipped 2026-03-24 |
-| Dashboard filter chips (Sport, Location) | ⬜ Not started |
-| Student availability tracking (declare unavailable dates) | ⬜ Not started |
+| ~~Dashboard filter chips (Sport, Location)~~ | ✅ Shipped 2026-03-23/24 (sport + location filters, saved views) |
+| ~~Kit-to-booking integration (kitId FK, selector, display)~~ | ✅ Shipped 2026-03-25 |
+| ~~React Query adoption for cross-page caching~~ | ✅ Shipped 2026-03-26 (GAP-11 closed) |
+| ~~Reports with charts (utilization donut, checkout trends, overdue bars)~~ | ✅ Shipped 2026-03-26 |
+| ~~Search overhaul (debounced auto-search, users scope, recent searches)~~ | ✅ Shipped 2026-03-26 |
+| ~~Favorites UI surface~~ | ✅ Shipped 2026-03-26 |
+
+### Phase B+ — Post-Beta Polish
+| Item | Status |
+|---|---|
+| Student availability tracking (declare unavailable dates) | ⬜ Deferred |
+| Shift email notifications (trade claims via Resend) | ⬜ Deferred |
+| Inline dashboard actions (extend/checkin on overdue rows) | ⬜ Planned |
+| Cross-page state awareness (eventId propagation, scroll preservation) | ⬜ Planned |
 
 ### Phase C — Later
 1. Kiosk mode (self-serve scan station)
@@ -255,3 +267,4 @@ These are tracked here as candidates for future planning cycles:
 - 2026-03-15: Docs sync — closed gap #5 (B&H withdrawn, N/A), closed gap #10 (calendar enable/disable shipped). Marked Picker V2 and Calendar Health UI as shipped in Phase B.
 - 2026-03-23: Major refresh — Phase A marked complete (student mobile V1, equipment guidance 3 rules, shadcn migration, booking unification, security hardening, 5-pass page audits, scheduling integration all shipped). Phase B updated with shipped items and remaining work. Cleaned closed gaps from section 11. Scrapped B&H from planning priorities; replaced with Kit Management V1 brief. Updated feature suggestions to reflect shipped items (calendar source health, scan-to-add, 3 guidance rules). Added Game-Day Readiness Score and booking templates as candidates.
 - 2026-03-25: Doc sync — marked PD-5 (student KPIs) resolved in §11. Phase B: D-009 escalation marked shipped (was "Not started"). §12 Priority 1 (D-009 acceptance) marked resolved; Kit Management promoted to Priority 1.
+- 2026-03-27: **Alpha → Beta release.** Phase B marked complete. All shipped items updated (dashboard filters, kit integration, React Query, reports charts, search overhaul, favorites UI). Created Phase B+ section for post-Beta polish items (student availability, shift email, inline actions, state awareness). Version bumped to 0.2.0.

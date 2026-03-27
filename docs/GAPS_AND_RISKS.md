@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-26
+- Last Updated: 2026-03-27
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -47,9 +47,9 @@
 | GAP-21 | `SystemConfig` model has zero UI — key-value config store with no admin surface | AREA_SETTINGS | Expected | Low priority. Used internally for escalation config. Admin UI deferred until more config keys are needed. |
 | GAP-22 | `FavoriteItem` model has API but no UI surface — no favorites filter on items list, no favorites page | AREA_ITEMS | Expected | V3: add "Favorites" filter chip to items list page. API exists at `/api/assets/[id]/favorite`. |
 | GAP-23 | `StudentSportAssignment` and `StudentAreaAssignment` are read-only display — no CRUD UI for editing assignments | AREA_USERS | Open | V2: add assignment editing to user detail page. Currently staff must use direct DB or import to manage. |
-| GAP-24 | No dashboard reservation date filter — AC-4 not enforced, code fetches all BOOKED reservations without 7-day window | AREA_DASHBOARD | Open | P0 bug: reservations lane should only show next 7 days per spec. |
-| GAP-25 | Importer drops unmapped columns silently — `sourcePayload` not wired per D-014 lossless requirement | AREA_IMPORTER | Open | P0 data integrity violation. Every source column must be mapped or stored in `sourcePayload`. |
-| GAP-26 | Settings pages accessible to non-admin users at navigation level — 403 errors shown after page loads | AREA_SETTINGS | Open | P0 UX: add client-side auth guard to block navigation before rendering. |
+| ~~GAP-24~~ | ~~No dashboard reservation date filter — AC-4 not enforced~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Fixed 2026-03-25: Added 7-day window filter to stats count query. AC-4 enforced.~~ |
+| ~~GAP-25~~ | ~~Importer drops unmapped columns silently~~ | ~~AREA_IMPORTER~~ | ~~Closed~~ | ~~Fixed 2026-03-25: `buildAssetData()` stores unmapped CSV columns in `sourcePayload` per D-014.~~ |
+| ~~GAP-26~~ | ~~Settings pages accessible to non-admin users~~ | ~~AREA_SETTINGS~~ | ~~Closed~~ | ~~Verified 2026-03-25: Layout (ADMIN+STAFF) and Sidebar (ADMIN+STAFF) both enforce correctly.~~ |
 
 ---
 
@@ -105,7 +105,7 @@
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
 | Events page monolith | Events list page is 817 lines with no hardening | P0: run /harden-page before adding features | Engineering |
 | Form pattern fragmentation | `useFormSubmit` adopted by 1 form; rest use ad-hoc fetch+validation | Migrate all create/edit forms to `useFormSubmit` in V2 | Engineering |
-| Importer data loss | Unmapped CSV columns silently dropped (D-014 violation) | Wire `sourcePayload` storage before next import cycle | Engineering |
+| ~~Importer data loss~~ | ~~Unmapped CSV columns silently dropped (D-014 violation)~~ | ~~Closed 2026-03-25: `sourcePayload` now stores unmapped columns per D-014~~ | ~~Engineering~~ |
 | ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
 | ~~STAFF editing ADMIN profiles/roles~~ | ~~Role guard only checks grant, not revoke/edit~~ | ~~Closed 2026-03-23: target.role === ADMIN guard on all mutation endpoints~~ | ~~Engineering~~ |
 
@@ -159,3 +159,4 @@
 - 2026-03-25: Closed GAP-16 (shared hooks fully adopted). All data-loading pages migrated to `useFetch`, `useUrlState`, `useDebounce`. Pattern fragmentation risk closed.
 - 2026-03-25: Closed GAP-18 (kit-to-booking integration). `kitId` FK on Booking model (migration 0018, index, SET NULL cascade). Kit selector in CreateBookingSheet (location-filtered, optional). Kit badge display on booking detail page. Validation schemas + service + API routes updated.
 - 2026-03-26: System roadmap V3 revision. Added GAP-19 (`useFormSubmit` not adopted across forms), GAP-20 (events list 817-line monolith), GAP-21 (SystemConfig zero UI), GAP-22 (FavoriteItem no UI surface), GAP-23 (student assignment CRUD missing), GAP-24 (dashboard reservation date filter bug), GAP-25 (importer sourcePayload not wired), GAP-26 (settings auth guard missing). Added 3 active risks (events page monolith, form pattern fragmentation, importer data loss). Updated GAP-11 to reflect V2 `useFetch` migration complete.
+- 2026-03-27: Alpha → Beta release. Closed GAP-24 (reservation 7-day filter shipped), GAP-25 (sourcePayload wired per D-014), GAP-26 (settings auth guard verified). Removed importer data loss from active risks. All P0 gaps resolved — system enters Beta.
