@@ -2,10 +2,10 @@
 
 ## Document Control
 - Author: System Architecture Review
-- Date: 2026-03-26
+- Date: 2026-03-27
 - Status: Living roadmap — update when shipping features or revising priorities
 - Scope: Full-system analysis and three-version evolution plan
-- Previous: 2026-03-24 (V2 planning); this revision reflects V2 near-completion and V3 planning
+- Previous: 2026-03-26 (V2 near-completion); this revision marks Beta release (v0.2.0)
 
 ---
 
@@ -37,10 +37,10 @@ Gear Tracker is the internal gear management system for Wisconsin Athletics Crea
 | **Shifts** (scheduling, trades) | `/schedule` | **Polished** | Decomposed (1,012→117 lines), auto-generation, trade board, gear integration, V2 enhancements |
 | **Dashboard** (ops console) | `/` | **Polished** | V3 shipped, decomposed into hooks + 7 leaf components, sport/location filters, saved filters, overdue banner, drafts |
 | **Notifications** (escalation, email) | `/notifications` | **MVP** | In-app + email dual-channel, 4 escalation triggers, dedup, pagination, mark-as-read |
-| **Reports** | `/reports/*` | **MVP** | 5 report types (checkouts, overdue, utilization, audit, scans), URL-persisted filters, drill-down links |
+| **Reports** | `/reports/*` | **Solid** | 5 report types with charts (utilization donut, checkout trends, overdue bars), URL-persisted filters, drill-down links |
 | **Settings** (admin config) | `/settings/*` | **Solid** | Categories, sports, escalation, calendar sources, venue mappings, DB diagnostics |
 | **Import** | `/import` | **Solid** | Generic CSV with Cheqroom preset, dry-run, lossless, batched DB ops |
-| **Search** | `/search`, Cmd+K | **MVP** | Command palette searches assets/checkouts/reservations; no unified cross-domain |
+| **Search** | `/search`, Cmd+K | **Solid** | Debounced auto-search, users scope, recent searches, "who has my gear" |
 | **Scan** | `/scan` | **Polished** | Decomposed (1,038→251 lines), 5-pass hardened, optimistic updates, spam-click guards |
 | **Labels** | `/labels` | **Scaffold** | Label generation exists; linked from item detail context menu but isolated |
 
@@ -175,7 +175,7 @@ All V1 items shipped:
 
 ---
 
-### V2 — Connected Experience ✅ MOSTLY COMPLETE (2026-03-25)
+### V2 — Connected Experience ✅ COMPLETE (Beta Release 2026-03-27)
 
 **Goal**: Reduce friction between pages. The system remembers context, reduces manual work, and surfaces actionable information proactively.
 
@@ -194,47 +194,43 @@ All V1 items shipped:
 | Labels cross-linking | ✅ | 2026-03-24 | "Print label" in item detail context menu → `/labels?items=id` |
 | Event detail hardening | ✅ | 2026-03-25 | 4-pass: design system, data flow, resilience, UX polish |
 
-#### V2 Remaining Items
+#### V2 Late Additions (Shipped 2026-03-26/27)
 
-##### 3.1 Inline Dashboard Actions (Size: M)
+| Item | Status | Date | Notes |
+|------|--------|------|-------|
+| React Query adoption | ✅ | 2026-03-26 | Cross-page data caching (GAP-11 closed) |
+| Reports with charts | ✅ | 2026-03-26 | Utilization donut, checkout trends, overdue bars |
+| Search overhaul | ✅ | 2026-03-26 | Debounced auto-search, users scope, recent searches |
+| Favorites UI | ✅ | 2026-03-26 | Favorites surface wired to existing API |
+| Quick wins batch | ✅ | 2026-03-26 | Dark mode fixes, accessibility improvements |
+| Overdue nudge button | ✅ | 2026-03-26 | "Who has my gear" in Cmd+K |
+
+#### V2 Deferred to Post-Beta
+
+##### Inline Dashboard Actions (Size: M)
 
 Dashboard is decomposed and ready for inline actions:
 
 - **Overdue quick actions**: Extend and check-in buttons directly on overdue rows
-  - Extend: `POST /api/bookings/[id]/extend` — API exists
-  - Check-in all: `POST /api/checkouts/[id]/checkin-items` — API exists
-  - Confirm dialog inline, success toast, row updates optimistically
 - **Reservation convert**: "Start checkout" button on reservation dashboard rows
-  - `POST /api/reservations/[id]/convert` — API exists
-- **Notification actions**: Each notification row gets a primary CTA (View booking, Check in, Extend)
+- **Notification actions**: Each notification row gets a primary CTA
 
-##### 3.2 Cross-Page State Awareness (Size: M)
+##### Cross-Page State Awareness (Size: M)
 
-Reduce the "amnesia" between pages:
+- **Event context propagation**: Event Command Center → Create Checkout passes `?eventId=X`
+- **Scroll position preservation**: Dashboard → detail sheet → back preserves scroll
+- **Item availability timeline**: Item detail calendar tab shows conflict warnings
 
-- **Event context propagation**: Event Command Center → Create Checkout passes `?eventId=X`; form pre-selects event
-- **Scroll position preservation**: Dashboard → detail sheet → back preserves scroll (currently resets)
-- **Notification deep-links**: Overdue notification links to booking detail with check-in action pre-highlighted
-- **Item availability timeline**: Item detail calendar tab shows conflict warnings for overlapping reservations
-
-##### 3.3 Smarter Defaults & Persistence (Size: S)
-
-- **Remember filters**: Last-used sport/location filter in `localStorage`, restored on load (URL param overrides)
-- **Auto-select current event**: During active event, checkout creation pre-selects it
-- **Recent searches**: Cmd+K remembers last 5 searches in localStorage
-
-##### 3.4 Student Availability Tracking (Size: M)
+##### Student Availability Tracking (Size: M)
 
 - Students declare unavailable dates
 - Shift auto-generation skips unavailable students
-- Admin override available
 - Schema: new `StudentAvailability` model (userId, date, reason)
 
-##### 3.5 Shift Email Notifications (Size: S)
+##### Shift Email Notifications (Size: S)
 
 - Email channel for trade claims and shift assignment changes
-- V1 = in-app audit only; email extends existing Resend infrastructure
-- Non-fatal on failure (same pattern as checkout notifications)
+- Extends existing Resend infrastructure
 
 ---
 
@@ -242,15 +238,9 @@ Reduce the "amnesia" between pages:
 
 **Goal**: The system anticipates needs, automates repetitive tasks, and provides operational intelligence.
 
-#### 3.6 React Query Migration (Size: L)
+#### ~~3.6 React Query Migration (Size: L)~~ ✅ Shipped 2026-03-26
 
-Replace manual `useState` + `fetch` + `AbortController` with React Query:
-- Automatic shared cache — Dashboard → Detail → Dashboard reuses cached data instead of 3 full fetches
-- Background refresh with stale-while-revalidate
-- Optimistic updates with automatic rollback
-- Request deduplication across components
-- **Migration path**: One page at a time, starting with dashboard (highest traffic)
-- **Prerequisite**: V2 hook adoption complete ✅ — `useFetch` is the stepping stone
+Adopted React Query for cross-page data caching (GAP-11 closed). `@tanstack/react-query` installed and wired.
 
 #### 3.7 Game-Day Mode (Size: L)
 
@@ -323,7 +313,7 @@ Dashboard adapts when an event is within 4 hours:
 | **Local state** | `useState` for form inputs, modals, loading flags | All pages |
 | **Derived state** | `useMemo` for filtered/sorted views | Dashboard (filtered sections), items (derived status), schedule |
 | **Persisted local** | `localStorage` for saved filters, view mode, My Shifts toggle | Dashboard, schedule |
-| **No shared cache** | Each page re-fetches on mount; no cross-page cache | All pages |
+| **React Query cache** | Shared cache with stale-while-revalidate, background refresh | Adopted 2026-03-26 (GAP-11 closed) |
 
 ### How Data Flows Across Pages
 
@@ -546,3 +536,4 @@ Several pages still need the 5-pass hardening treatment (from `tasks/todo.md`):
 - 2026-03-23: Initial system roadmap created. Full architecture analysis, three-version plan.
 - 2026-03-24: V2 revision. V1 marked complete. V2 plan detailed with decomposition, hook adoption, inline actions, notification completion.
 - 2026-03-26: V3 revision. V2 mostly complete: scan decomposed (1,038→251), schedule decomposed (1,012→117), all pages migrated to shared hooks, kit-to-booking integration shipped, booking pages hardened, overdue priority sort shipped. Updated domain maturity levels (Booking→Polished, Kits→Solid, Scan→Polished, Shifts→Polished). V2 remaining items reduced to 5 (inline actions, state awareness, defaults, student availability, shift email). P0 bug fix queue formalized from todo.md. V3 plan refined with phased rollout (V3-A through V3-F). Page hardening backlog consolidated. New systemic gaps identified (GAP-19 through GAP-23).
+- 2026-03-27: **Alpha → Beta release (v0.2.0).** V2 marked COMPLETE. Late additions: React Query, reports charts, search overhaul, favorites UI, quick wins. Remaining V2 items (inline actions, state awareness, student availability, shift email) deferred to post-Beta. Reports and Search maturity upgraded to Solid. Version bumped 0.1.0 → 0.2.0.

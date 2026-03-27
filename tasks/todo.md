@@ -1,6 +1,9 @@
 # Task Queue
 
-Last updated: 2026-03-25
+Last updated: 2026-03-27
+
+**Current release**: Beta (2026.03.27.1) — CalVer versioning adopted.
+**Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
 
 ---
 

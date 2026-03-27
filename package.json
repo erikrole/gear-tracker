@@ -1,6 +1,6 @@
 {
   "name": "creative-ops",
-  "version": "0.1.0",
+  "version": "2026.03.27",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,8 @@
     "db:seed": "node prisma/seed.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "import:cheqroom": "node scripts/import-cheqroom-items.mjs"
+    "import:cheqroom": "node scripts/import-cheqroom-items.mjs",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.2.8",
