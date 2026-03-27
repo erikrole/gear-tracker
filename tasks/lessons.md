@@ -671,3 +671,13 @@ Always use shadcn Empty component:
 - **`selectedAssetsCache` Map is the key insight for search-on-type pickers**: When search results change, previously-selected items disappear from the result set. A persistent Map keyed by ID survives across searches and provides O(1) lookups for display, counts, and guidance.
 - **Strip unbounded queries last, not first**: Build the replacement (picker-search API) → refactor consumers to use it → then remove the old query. Doing it in reverse breaks everything.
 - **`onSelectedAssetsChange` callback bridges the picker's internal cache to parent state**: Parents need selected asset details for confirmation dialogs and error messages. A callback that fires on selection change, resolving IDs from the cache, threads this through cleanly without exposing the Map.
+
+### Backlog Audit
+
+**Dead code detection:**
+- **Check barrel exports → imports → actual usage before deleting**: `CreateBookingCard` was exported from the barrel, imported in `BookingListPage`, but never rendered. All three references (file, export, import) must be cleaned in one pass.
+- **Search for duplicate utility functions before writing new ones**: `getInitials` was defined inline in `BookingCard.tsx` despite already existing in `@/lib/avatar`. Rule: grep for the function name project-wide before adding a local copy.
+
+**Pagination pattern:**
+- **Fetch N+1 to detect hasMore**: For cursor pagination, always fetch one extra row (`take: limit + 1`). If you get limit+1 results, there are more pages. Slice to limit before returning. This avoids a separate COUNT query.
+- **Audit logs are a prime candidate for lazy pagination**: Initial detail fetch includes up to 50 entries (covering 95%+ of bookings). A separate paginated endpoint handles the long tail without bloating the primary response.
