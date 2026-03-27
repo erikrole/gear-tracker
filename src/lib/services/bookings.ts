@@ -240,17 +240,22 @@ async function upsertBulkBalancesAndMovements(
     items: BulkRequest[];
   }
 ) {
-  for (const item of args.items) {
-    const existing = await tx.bulkStockBalance.findUnique({
-      where: {
-        bulkSkuId_locationId: {
-          bulkSkuId: item.bulkSkuId,
-          locationId: args.locationId
-        }
-      }
-    });
+  if (args.items.length === 0) return;
 
-    const current = existing?.onHandQuantity ?? 0;
+  // Pre-fetch all balances in one query instead of N individual findUnique calls
+  const skuIds = args.items.map((item) => item.bulkSkuId);
+  const existingBalances = await tx.bulkStockBalance.findMany({
+    where: {
+      locationId: args.locationId,
+      bulkSkuId: { in: skuIds }
+    }
+  });
+  const balanceMap = new Map(existingBalances.map((b) => [b.bulkSkuId, b.onHandQuantity]));
+
+  // Validate all items before writing (fail fast)
+  const updates: Array<{ bulkSkuId: string; next: number }> = [];
+  for (const item of args.items) {
+    const current = balanceMap.get(item.bulkSkuId) ?? 0;
     const delta = args.kind === BulkMovementKind.CHECKIN ? item.quantity : -item.quantity;
     const next = current + delta;
 
@@ -260,16 +265,20 @@ async function upsertBulkBalancesAndMovements(
         `Insufficient bulk stock for ${item.bulkSkuId}. On hand: ${current}, required: ${item.quantity}`
       );
     }
+    updates.push({ bulkSkuId: item.bulkSkuId, next });
+  }
 
+  // Upsert balances (Prisma doesn't support batched upserts, but we eliminated N reads above)
+  for (const { bulkSkuId, next } of updates) {
     await tx.bulkStockBalance.upsert({
       where: {
         bulkSkuId_locationId: {
-          bulkSkuId: item.bulkSkuId,
+          bulkSkuId,
           locationId: args.locationId
         }
       },
       create: {
-        bulkSkuId: item.bulkSkuId,
+        bulkSkuId,
         locationId: args.locationId,
         onHandQuantity: next
       },
@@ -277,18 +286,19 @@ async function upsertBulkBalancesAndMovements(
         onHandQuantity: next
       }
     });
-
-    await tx.bulkStockMovement.create({
-      data: {
-        bulkSkuId: item.bulkSkuId,
-        locationId: args.locationId,
-        bookingId: args.bookingId,
-        actorUserId: args.actorUserId,
-        kind: args.kind,
-        quantity: item.quantity
-      }
-    });
   }
+
+  // Batch create all movements in one INSERT
+  await tx.bulkStockMovement.createMany({
+    data: args.items.map((item) => ({
+      bulkSkuId: item.bulkSkuId,
+      locationId: args.locationId,
+      bookingId: args.bookingId,
+      actorUserId: args.actorUserId,
+      kind: args.kind,
+      quantity: item.quantity
+    }))
+  });
 }
 
 export async function createBooking(input: CreateBookingInput) {
