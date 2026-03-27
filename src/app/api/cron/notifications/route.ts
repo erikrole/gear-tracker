@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { withHandler } from "@/lib/api";
 import { processOverdueNotifications } from "@/lib/services/notifications";
+
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 /**
  * GET /api/cron/notifications
@@ -18,7 +24,7 @@ export const GET = withHandler(async (req) => {
     );
   }
 
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!authHeader || !safeCompare(authHeader, `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -4,8 +4,15 @@ import { createSession, hashPassword } from "@/lib/auth";
 import { HttpError, ok } from "@/lib/http";
 import { registerSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
+const REGISTER_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 attempts per 15 min
 
 export const POST = withHandler(async (req) => {
+  const ip = getClientIp(req);
+  const { allowed } = checkRateLimit(`register:${ip}`, REGISTER_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many registration attempts. Please try again later.");
+
   const body = registerSchema.parse(await req.json());
   const email = body.email.toLowerCase();
 
