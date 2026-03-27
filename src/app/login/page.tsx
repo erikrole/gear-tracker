@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 
 function validateEmail(email: string): string {
   if (!email) return "Email is required";
@@ -32,10 +33,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState("");
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+
+  const { submit, submitting, formError, clearErrors } = useFormSubmit({
+    url: "/api/auth/login",
+    skipAuthRedirect: true,
+    onSuccess: () => router.replace("/"),
+    onError: (kind) => setIsNetworkError(kind === "network"),
+  });
 
   function handleBlur(field: string) {
     const msg = field === "email" ? validateEmail(email) : validatePassword(password);
@@ -46,17 +52,14 @@ export default function LoginPage() {
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: "" }));
     }
-    if (error) {
-      setError("");
+    if (formError) {
+      clearErrors();
       setIsNetworkError(false);
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (loading) return;
-    setError("");
-    setIsNetworkError(false);
 
     const emailErr = validateEmail(email);
     const passErr = validatePassword(password);
@@ -67,37 +70,8 @@ export default function LoginPage() {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, rememberMe }),
-      });
-
-      if (!res.ok) {
-        let message = "Invalid credentials";
-        try {
-          const json = await res.json();
-          message = json.error || message;
-        } catch {
-          // Non-JSON response (e.g., proxy error page)
-        }
-        throw new Error(message);
-      }
-
-      router.replace("/");
-    } catch (err) {
-      if (err instanceof TypeError) {
-        setIsNetworkError(true);
-        setError("You're offline — check your internet connection and try again");
-      } else {
-        setError(err instanceof Error ? err.message : "Login failed");
-      }
-    } finally {
-      setLoading(false);
-    }
+    setIsNetworkError(false);
+    await submit({ email, password, rememberMe });
   }
 
   return (
@@ -128,7 +102,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 autoFocus
-                disabled={loading}
+                disabled={submitting}
                 aria-invalid={!!fieldErrors.email}
                 aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 className="h-11 text-base transition-colors"
@@ -156,7 +130,7 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   required
-                  disabled={loading}
+                  disabled={submitting}
                   aria-invalid={!!fieldErrors.password}
                   aria-describedby={fieldErrors.password ? "password-error" : undefined}
                   className="h-11 text-base pr-11 transition-colors"
@@ -167,7 +141,7 @@ export default function LoginPage() {
                   size="icon"
                   className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
+                  disabled={submitting}
                   tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -191,19 +165,19 @@ export default function LoginPage() {
               </Label>
             </div>
 
-            <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+            <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!formError}>
               <div className="overflow-hidden">
-                {error && (
+                {formError && (
                   <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
                     {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{formError}</AlertDescription>
                   </Alert>
                 )}
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={submitting}>
+              {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   Signing in...

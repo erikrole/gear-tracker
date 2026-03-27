@@ -8,50 +8,24 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
   const [isNetworkError, setIsNetworkError] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  const { submit, submitting, formError, clearErrors } = useFormSubmit({
+    url: "/api/auth/forgot-password",
+    skipAuthRedirect: true,
+    onSuccess: () => setSubmitted(true),
+    onError: (kind) => setIsNetworkError(kind === "network"),
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (loading) return;
-    setError("");
     setIsNetworkError(false);
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!res.ok) {
-        let message = "Something went wrong";
-        try {
-          const json = await res.json();
-          message = json.error || message;
-        } catch {
-          // Non-JSON response
-        }
-        throw new Error(message);
-      }
-
-      setSubmitted(true);
-    } catch (err) {
-      if (err instanceof TypeError) {
-        setIsNetworkError(true);
-        setError("You're offline — check your internet connection and try again");
-      } else {
-        setError(err instanceof Error ? err.message : "Something went wrong");
-      }
-    } finally {
-      setLoading(false);
-    }
+    await submit({ email });
   }
 
   return (
@@ -87,29 +61,29 @@ export default function ForgotPasswordPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); if (error) { setError(""); setIsNetworkError(false); } }}
+                  onChange={(e) => { setEmail(e.target.value); if (formError) { clearErrors(); setIsNetworkError(false); } }}
                   placeholder="you@example.com"
                   autoComplete="email"
                   required
                   autoFocus
-                  disabled={loading}
+                  disabled={submitting}
                   className="h-11 text-base transition-colors"
                 />
               </div>
 
-              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!error}>
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!formError}>
                 <div className="overflow-hidden">
-                  {error && (
+                  {formError && (
                     <Alert variant="destructive" className="animate-in fade-in-0 slide-in-from-top-1 duration-200">
                       {isNetworkError ? <WifiOff className="size-4" /> : <AlertCircle className="size-4" />}
-                      <AlertDescription>{error}</AlertDescription>
+                      <AlertDescription>{formError}</AlertDescription>
                     </Alert>
                   )}
                 </div>
               </div>
 
-              <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={loading}>
-                {loading ? (
+              <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={submitting}>
+                {submitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
                     Sending...
