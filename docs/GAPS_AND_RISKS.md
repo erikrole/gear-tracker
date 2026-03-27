@@ -104,7 +104,7 @@
 | ~~Dashboard monolith~~ | ~~Dashboard page grows with each feature (filters, actions, sections)~~ | ~~Closed 2026-03-24: decomposed into hooks + 7 leaf components~~ | ~~Engineering~~ |
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
 | Events page monolith | Events list page is 817 lines with no hardening | P0: run /harden-page before adding features | Engineering |
-| Form pattern fragmentation | `useFormSubmit` adopted by 1 form; rest use ad-hoc fetch+validation | Migrate all create/edit forms to `useFormSubmit` in V2 | Engineering |
+| ~~Form pattern fragmentation~~ | ~~`useFormSubmit` adopted by 1 form; rest use ad-hoc fetch+validation~~ | ~~Closed 2026-03-27: all create/edit forms migrated to `useFormSubmit` (auth forms, kit, bulk inventory). `skipAuthRedirect` option added for auth pages.~~ | ~~Engineering~~ |
 | ~~Importer data loss~~ | ~~Unmapped CSV columns silently dropped (D-014 violation)~~ | ~~Closed 2026-03-25: `sourcePayload` now stores unmapped columns per D-014~~ | ~~Engineering~~ |
 | ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
 | ~~STAFF editing ADMIN profiles/roles~~ | ~~Role guard only checks grant, not revoke/edit~~ | ~~Closed 2026-03-23: target.role === ADMIN guard on all mutation endpoints~~ | ~~Engineering~~ |
