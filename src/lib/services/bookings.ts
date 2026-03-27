@@ -727,7 +727,7 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
     });
 
     return { success: true };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function updateCheckout(
