@@ -18,7 +18,6 @@ import {
   BookingTableRow,
   BookingMobileCard,
   BookingCard,
-  CreateBookingCard,
   roundTo15Min,
   toLocalDateTimeValue,
   type BookingItem,

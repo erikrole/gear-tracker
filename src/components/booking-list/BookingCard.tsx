@@ -3,6 +3,7 @@
 import { formatDuration, getStatusVisual, type BookingItem } from "./types";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/avatar";
 import { MoreHorizontalIcon, MapPinIcon, CalendarIcon } from "lucide-react";
 
 /* ───── Helpers ───── */
@@ -14,15 +15,6 @@ function formatCardDate(iso: string) {
 
 function formatCardTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase();
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 }
 
 /* ───── Gear avatar stack ───── */
