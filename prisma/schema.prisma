@@ -218,7 +218,7 @@ model Asset {
   @@index([departmentId])
   @@index([categoryId])
   @@index([brand, model])
-  @@index([primaryScanCode])
+  @@index([status])
   @@index([parentAssetId])
   @@map("assets")
 }
@@ -266,6 +266,10 @@ model Booking {
   @@index([shiftAssignmentId])
   @@index([requesterUserId])
   @@index([kitId])
+  @@index([kind, status, endsAt])
+  @@index([kind, status, requesterUserId, endsAt])
+  @@index([startsAt, endsAt])
+  @@index([createdBy, status])
   @@map("bookings")
 }
 
@@ -314,6 +318,7 @@ model AssetAllocation {
   booking           Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([assetId, active])
+  @@index([assetId, active, startsAt, endsAt])
   @@index([bookingId])
   @@map("asset_allocations")
 }

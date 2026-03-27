@@ -57,21 +57,18 @@ export async function processOverdueNotifications(): Promise<{
     return { scanned: 0, notificationsCreated: 0 };
   }
 
-  // Batch-fetch all existing dedupeKeys to avoid N+1 lookups
+  // Batch-fetch existing dedupeKeys for relevant bookings only (not entire table)
   const bookingIds = openCheckouts.map((c) => c.id);
-  const [existingNotifications, notifCounts] = await Promise.all([
-    db.notification.findMany({
-      where: { dedupeKey: { startsWith: "" } },
-      select: { dedupeKey: true },
-    }).then((rows) => new Set(rows.map((r) => r.dedupeKey).filter(Boolean))),
-    db.notification.groupBy({
-      by: ["userId"],
-      where: {
-        payload: { path: ["bookingId"], string_contains: "" },
-      },
-      _count: { id: true },
-    }),
-  ]).catch(() => [new Set<string>(), []] as const);
+  const existingNotifications = await db.notification.findMany({
+    where: {
+      dedupeKey: { not: null },
+      OR: bookingIds.map((id) => ({ dedupeKey: { startsWith: id } })),
+    },
+    select: { dedupeKey: true },
+  }).then(
+    (rows) => new Set(rows.map((r) => r.dedupeKey).filter(Boolean)),
+    () => new Set<string>()
+  );
 
   // Build per-booking notification count from payload.bookingId
   // Since JSON filtering with groupBy is tricky, fall back to batch count

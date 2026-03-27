@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { getInitials } from "@/lib/avatar";
+import { Prisma } from "@prisma/client";
 
 // Sort comparator: overdue first, then nearest due date
 const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOverdue: boolean; endsAt: string }) => {
@@ -79,24 +80,42 @@ export const GET = withAuth(async (_req, { user }) => {
     },
   } as const;
 
+  // Consolidate 9 count queries into a single raw SQL query with conditional aggregation
+  type CountRow = {
+    team_checkouts: bigint;
+    team_checkouts_overdue: bigint;
+    team_reservations: bigint;
+    my_checkouts: bigint;
+    my_overdue: bigint;
+    total_checked_out: bigint;
+    total_overdue: bigint;
+    total_reserved: bigint;
+    due_today: bigint;
+  };
+  const countsPromise = db.$queryRaw<CountRow[]>(Prisma.sql`
+    SELECT
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN') AS total_checked_out,
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at < ${now}) AS total_overdue,
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at >= ${startOfToday} AND ends_at < ${startOfTomorrow}) AS due_today,
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id}) AS team_checkouts,
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id} AND ends_at < ${now}) AS team_checkouts_overdue,
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id}) AS my_checkouts,
+      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id} AND ends_at < ${now}) AS my_overdue,
+      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
+      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${user.id} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations
+    FROM bookings
+    WHERE (kind = 'CHECKOUT' AND status = 'OPEN')
+       OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow})
+  `);
+
   const [
+    counts,
     // Team: checkouts excluding current user
     teamCheckoutsRaw,
-    teamCheckoutsTotalCount,
-    teamCheckoutsOverdueCount,
     // Team: reservations excluding current user
     teamReservationsRaw,
-    teamReservationsTotalCount,
     // My checkouts (booking-level)
     myCheckoutsRaw,
-    myCheckoutsTotalCount,
-    // My overdue count (user-scoped, used for sidebar badge)
-    myOverdueCount,
-    // Stats: totals across all users
-    totalCheckedOut,
-    totalOverdue,
-    totalReserved,
-    dueTodayCount,
     // Upcoming events (next 7 days)
     upcomingEvents,
     // Personal: my reservations
@@ -108,18 +127,13 @@ export const GET = withAuth(async (_req, { user }) => {
     // My shift assignments
     myShiftsRaw,
   ] = await Promise.all([
+    countsPromise,
     // Team checkouts (excl. me)
     db.booking.findMany({
       where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: { not: user.id } },
       orderBy: { endsAt: "asc" },
       take: 5,
       include: bookingInclude,
-    }),
-    db.booking.count({
-      where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: { not: user.id } },
-    }),
-    db.booking.count({
-      where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: { not: user.id }, endsAt: { lt: now } },
     }),
     // Team reservations (excl. me) — next 7 days only (AC-4)
     db.booking.findMany({
@@ -128,35 +142,12 @@ export const GET = withAuth(async (_req, { user }) => {
       take: 5,
       include: bookingInclude,
     }),
-    db.booking.count({
-      where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id }, startsAt: { gte: now, lte: sevenDaysFromNow } },
-    }),
     // My checkouts (booking-level summaries)
     db.booking.findMany({
       where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id },
       orderBy: { endsAt: "asc" },
       take: 5,
       include: bookingInclude,
-    }),
-    db.booking.count({
-      where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id },
-    }),
-    // My overdue count (user-scoped — for sidebar badge, works correctly for all roles)
-    db.booking.count({
-      where: { kind: "CHECKOUT", status: "OPEN", requesterUserId: user.id, endsAt: { lt: now } },
-    }),
-    // Stats: totals across all users
-    db.booking.count({
-      where: { kind: "CHECKOUT", status: "OPEN" },
-    }),
-    db.booking.count({
-      where: { kind: "CHECKOUT", status: "OPEN", endsAt: { lt: now } },
-    }),
-    db.booking.count({
-      where: { kind: "RESERVATION", status: "BOOKED", startsAt: { gte: now, lte: sevenDaysFromNow } },
-    }),
-    db.booking.count({
-      where: { kind: "CHECKOUT", status: "OPEN", endsAt: { gte: startOfToday, lt: startOfTomorrow } },
     }),
     // Upcoming events (with shift assignment data)
     db.calendarEvent.findMany({
@@ -267,6 +258,17 @@ export const GET = withAuth(async (_req, { user }) => {
       },
     }),
   ]);
+
+  const c = counts[0];
+  const teamCheckoutsTotalCount = Number(c.team_checkouts);
+  const teamCheckoutsOverdueCount = Number(c.team_checkouts_overdue);
+  const teamReservationsTotalCount = Number(c.team_reservations);
+  const myCheckoutsTotalCount = Number(c.my_checkouts);
+  const myOverdueCount = Number(c.my_overdue);
+  const totalCheckedOut = Number(c.total_checked_out);
+  const totalOverdue = Number(c.total_overdue);
+  const totalReserved = Number(c.total_reserved);
+  const dueTodayCount = Number(c.due_today);
 
   // Format team checkouts
   const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));

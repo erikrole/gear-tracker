@@ -33,3 +33,26 @@ export async function createAuditEntry(entry: AuditEntry) {
     },
   });
 }
+
+/**
+ * Batch create audit log entries in a single INSERT.
+ * Use this instead of calling createAuditEntry in a loop.
+ */
+export async function createAuditEntries(entries: AuditEntry[]) {
+  if (entries.length === 0) return;
+  await db.auditLog.createMany({
+    data: entries.map((entry) => ({
+      actorUserId: entry.actorId,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      action: entry.action,
+      beforeJson: entry.before
+        ? (entry.before as Prisma.InputJsonValue)
+        : undefined,
+      afterJson: {
+        ...(entry.after ?? {}),
+        _actorRole: entry.actorRole,
+      } as Prisma.InputJsonValue,
+    })),
+  });
+}

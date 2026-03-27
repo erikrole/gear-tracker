@@ -649,3 +649,17 @@ Always use shadcn Empty component:
 
 **UX:**
 - **Extend toast should name the outcome, not the action**: "Booking extended" is accurate but doesn't help the user verify correctness. "Extended to Mar 28" tells them the operation did what they intended. Low cost, high trust signal.
+
+## Session 2026-03-27
+
+### Database Performance Audit
+
+**Transaction Safety:**
+- **Scan flows are the most dangerous untransactioned code path**: `recordScan` (serialized), `completeCheckoutScan`, and `completeCheckinScan` all had multi-step read-then-write flows with no transaction wrapping. Concurrent scans could bypass dedup, concurrent completions could both succeed. Rule: any multi-step mutation touching booking/allocation state MUST be in a SERIALIZABLE transaction.
+- **`markCheckoutCompleted` was the one booking mutation missing SERIALIZABLE**: All other booking mutations had it. The omission meant concurrent check-in completions could double-return bulk stock. Rule: grep for `$transaction` without `isolationLevel` — if it mutates booking/allocation/stock state, it needs SERIALIZABLE.
+
+**Query Patterns:**
+- **Dashboard count queries are the first thing to consolidate**: 9 individual `booking.count` calls can be replaced by one raw SQL with `COUNT(*) FILTER (WHERE ...)`. The single query scans the table once instead of 9 times.
+- **Audit log loops in bulk operations are low-hanging N+1 fruit**: `createAuditEntry` in a loop means N individual INSERTs. `createMany` is a one-line fix for up to 50x fewer queries.
+- **`startsWith: ""` matches everything**: The notification dedup pre-fetch loaded the entire notifications table. Always scope pre-fetches to relevant IDs.
+- **Parallel agents for deep research tasks**: A single monolithic agent timed out at 30 minutes (101 tool calls) without writing output. Splitting into 3 focused parallel agents (N+1 audit, index audit, transaction audit) completed in ~5 minutes each.

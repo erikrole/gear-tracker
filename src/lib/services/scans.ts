@@ -1,4 +1,4 @@
-import { BookingKind, BookingStatus, BulkUnitStatus, Role, ScanPhase, ScanSessionStatus, ScanType } from "@prisma/client";
+import { BookingKind, BookingStatus, BulkUnitStatus, Prisma, Role, ScanPhase, ScanSessionStatus, ScanType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
@@ -53,83 +53,91 @@ export async function recordScan(args: {
   unitNumbers?: number[];
   deviceContext?: string;
 }) {
-  // Dedup: reject if an identical successful scan was recorded in the last 5 seconds
-  // TODO: implement proper idempotency key tracking via a dedicated DB column
-  // for stronger dedup than the time-window approach below
-  const dedupeWindow = new Date(Date.now() - 5000);
-  const recentDupe = await db.scanEvent.findFirst({
-    where: {
-      bookingId: args.bookingId,
-      scanValue: args.scanValue,
-      phase: args.phase,
-      success: true,
-      createdAt: { gte: dedupeWindow },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  if (recentDupe) {
-    throw new HttpError(409, "Duplicate scan detected — this item was just scanned", {
-      code: "DUPLICATE_SCAN",
+  // Wrap dedup check + booking fetch + scan creation in a transaction to prevent
+  // race conditions (concurrent identical scans both passing the dedup window).
+  const { booking, earlyReturn } = await db.$transaction(async (tx) => {
+    // Dedup: reject if an identical successful scan was recorded in the last 5 seconds
+    const dedupeWindow = new Date(Date.now() - 5000);
+    const recentDupe = await tx.scanEvent.findFirst({
+      where: {
+        bookingId: args.bookingId,
+        scanValue: args.scanValue,
+        phase: args.phase,
+        success: true,
+        createdAt: { gte: dedupeWindow },
+      },
+      orderBy: { createdAt: "desc" },
     });
-  }
-
-  const booking = await db.booking.findUnique({
-    where: { id: args.bookingId },
-    include: {
-      serializedItems: { include: { asset: true } },
-      bulkItems: { include: { bulkSku: true } }
+    if (recentDupe) {
+      throw new HttpError(409, "Duplicate scan detected — this item was just scanned", {
+        code: "DUPLICATE_SCAN",
+      });
     }
-  });
 
-  if (!booking || booking.kind !== BookingKind.CHECKOUT) {
-    throw new HttpError(404, "Checkout not found");
-  }
+    const booking = await tx.booking.findUnique({
+      where: { id: args.bookingId },
+      include: {
+        serializedItems: { include: { asset: true } },
+        bulkItems: { include: { bulkSku: true } }
+      }
+    });
 
-  // Prevent scans on completed/cancelled bookings
-  if (booking.status !== BookingStatus.OPEN) {
-    throw new HttpError(400, "Cannot scan — this checkout is no longer open");
-  }
+    if (!booking || booking.kind !== BookingKind.CHECKOUT) {
+      throw new HttpError(404, "Checkout not found");
+    }
 
-  if (args.scanType === ScanType.SERIALIZED) {
-    const asset = booking.serializedItems.find((item) => {
-      const a = item.asset;
-      return a.qrCodeValue === args.scanValue
-        || a.primaryScanCode === args.scanValue
-        || a.assetTag === args.scanValue;
-    })?.asset;
+    // Prevent scans on completed/cancelled bookings
+    if (booking.status !== BookingStatus.OPEN) {
+      throw new HttpError(400, "Cannot scan — this checkout is no longer open");
+    }
 
-    if (!asset) {
-      await db.scanEvent.create({
+    if (args.scanType === ScanType.SERIALIZED) {
+      const asset = booking.serializedItems.find((item) => {
+        const a = item.asset;
+        return a.qrCodeValue === args.scanValue
+          || a.primaryScanCode === args.scanValue
+          || a.assetTag === args.scanValue;
+      })?.asset;
+
+      if (!asset) {
+        await tx.scanEvent.create({
+          data: {
+            bookingId: args.bookingId,
+            actorUserId: args.actorUserId,
+            scanType: ScanType.SERIALIZED,
+            scanValue: args.scanValue,
+            phase: args.phase,
+            success: false,
+            deviceContext: args.deviceContext
+          }
+        });
+
+        throw new HttpError(400, "Scanned item does not belong to this checkout", {
+          code: "SCAN_NOT_IN_CHECKOUT",
+        });
+      }
+
+      const event = await tx.scanEvent.create({
         data: {
           bookingId: args.bookingId,
           actorUserId: args.actorUserId,
           scanType: ScanType.SERIALIZED,
           scanValue: args.scanValue,
+          assetId: asset.id,
           phase: args.phase,
-          success: false,
+          success: true,
           deviceContext: args.deviceContext
         }
       });
 
-      throw new HttpError(400, "Scanned item does not belong to this checkout", {
-        code: "SCAN_NOT_IN_CHECKOUT",
-      });
+      return { booking, earlyReturn: { success: true as const, event } };
     }
 
-    const event = await db.scanEvent.create({
-      data: {
-        bookingId: args.bookingId,
-        actorUserId: args.actorUserId,
-        scanType: ScanType.SERIALIZED,
-        scanValue: args.scanValue,
-        assetId: asset.id,
-        phase: args.phase,
-        success: true,
-        deviceContext: args.deviceContext
-      }
-    });
+    return { booking, earlyReturn: null };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-    return { success: true, event };
+  if (earlyReturn) {
+    return earlyReturn;
   }
 
   const bulkItem = booking.bulkItems.find((item) => item.bulkSku.binQrCodeValue === args.scanValue);
@@ -246,7 +254,7 @@ export async function recordScan(args: {
       });
 
       return { event };
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     return { success: true, event };
   }
@@ -301,13 +309,10 @@ export async function recordScan(args: {
   return { success: true, event };
 }
 
-async function hasAdminOverride(bookingId: string) {
-  const count = await db.overrideEvent.count({ where: { bookingId } });
-  return count > 0;
-}
+type TxClient = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
-async function buildScanCompletionState(bookingId: string, phase: ScanPhase) {
-  const booking = await db.booking.findUnique({
+async function buildScanCompletionState(tx: TxClient, bookingId: string, phase: ScanPhase) {
+  const booking = await tx.booking.findUnique({
     where: { id: bookingId },
     include: {
       serializedItems: true,
@@ -389,81 +394,93 @@ async function buildScanCompletionState(bookingId: string, phase: ScanPhase) {
 }
 
 export async function completeCheckoutScan(bookingId: string, actorUserId: string, actorRole: Role) {
-  const state = await buildScanCompletionState(bookingId, ScanPhase.CHECKOUT);
+  return db.$transaction(async (tx) => {
+    const state = await buildScanCompletionState(tx, bookingId, ScanPhase.CHECKOUT);
 
-  if (state.booking.status !== BookingStatus.OPEN) {
-    throw new HttpError(400, "Checkout must be open");
-  }
-
-  const override = await hasAdminOverride(bookingId);
-
-  if (!override && (state.missingSerialized.length > 0 || state.missingBulk.length > 0)) {
-    throw new HttpError(400, "Scan requirements not met", {
-      missingSerialized: state.missingSerialized,
-      missingBulk: state.missingBulk
-    });
-  }
-
-  await db.scanSession.updateMany({
-    where: {
-      bookingId,
-      phase: ScanPhase.CHECKOUT,
-      status: ScanSessionStatus.OPEN
-    },
-    data: {
-      status: ScanSessionStatus.COMPLETED,
-      completedAt: new Date()
+    if (state.booking.status !== BookingStatus.OPEN) {
+      throw new HttpError(400, "Checkout must be open");
     }
-  });
 
-  await createAuditEntry({
-    actorId: actorUserId,
-    actorRole,
-    entityType: "booking",
-    entityId: bookingId,
-    action: "checkout_scan_completed",
-  });
+    const overrideCount = await tx.overrideEvent.count({ where: { bookingId } });
+    const override = overrideCount > 0;
 
-  return {
-    success: true,
-    missingSerialized: state.missingSerialized,
-    missingBulk: state.missingBulk,
-    missingUnits: state.missingUnits,
-    overrideUsed: override
-  };
+    if (!override && (state.missingSerialized.length > 0 || state.missingBulk.length > 0)) {
+      throw new HttpError(400, "Scan requirements not met", {
+        missingSerialized: state.missingSerialized,
+        missingBulk: state.missingBulk
+      });
+    }
+
+    await tx.scanSession.updateMany({
+      where: {
+        bookingId,
+        phase: ScanPhase.CHECKOUT,
+        status: ScanSessionStatus.OPEN
+      },
+      data: {
+        status: ScanSessionStatus.COMPLETED,
+        completedAt: new Date()
+      }
+    });
+
+    await createAuditEntry({
+      actorId: actorUserId,
+      actorRole,
+      entityType: "booking",
+      entityId: bookingId,
+      action: "checkout_scan_completed",
+    });
+
+    return {
+      success: true,
+      missingSerialized: state.missingSerialized,
+      missingBulk: state.missingBulk,
+      missingUnits: state.missingUnits,
+      overrideUsed: override
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 export async function completeCheckinScan(bookingId: string, actorUserId: string, actorRole: Role) {
-  const state = await buildScanCompletionState(bookingId, ScanPhase.CHECKIN);
-  const override = await hasAdminOverride(bookingId);
+  // Wrap state validation + session close in a transaction to prevent concurrent completions
+  const result = await db.$transaction(async (tx) => {
+    const state = await buildScanCompletionState(tx, bookingId, ScanPhase.CHECKIN);
+    const overrideCount = await tx.overrideEvent.count({ where: { bookingId } });
+    const override = overrideCount > 0;
 
-  if (!override && (state.missingSerialized.length > 0 || state.missingBulk.length > 0)) {
-    throw new HttpError(400, "Scan requirements not met", {
-      missingSerialized: state.missingSerialized,
-      missingBulk: state.missingBulk
-    });
-  }
-
-  await db.scanSession.updateMany({
-    where: {
-      bookingId,
-      phase: ScanPhase.CHECKIN,
-      status: ScanSessionStatus.OPEN
-    },
-    data: {
-      status: ScanSessionStatus.COMPLETED,
-      completedAt: new Date()
+    if (!override && (state.missingSerialized.length > 0 || state.missingBulk.length > 0)) {
+      throw new HttpError(400, "Scan requirements not met", {
+        missingSerialized: state.missingSerialized,
+        missingBulk: state.missingBulk
+      });
     }
-  });
 
+    await tx.scanSession.updateMany({
+      where: {
+        bookingId,
+        phase: ScanPhase.CHECKIN,
+        status: ScanSessionStatus.OPEN
+      },
+      data: {
+        status: ScanSessionStatus.COMPLETED,
+        completedAt: new Date()
+      }
+    });
+
+    return {
+      missingSerialized: state.missingSerialized,
+      missingBulk: state.missingBulk,
+      missingUnits: state.missingUnits,
+      overrideUsed: override
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  // markCheckoutCompleted runs its own SERIALIZABLE transaction
   await markCheckoutCompleted(bookingId, actorUserId);
 
   return {
     success: true,
-    missingSerialized: state.missingSerialized,
-    missingBulk: state.missingBulk,
-    missingUnits: state.missingUnits,
-    overrideUsed: override
+    ...result
   };
 }
 
