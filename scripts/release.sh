@@ -2,15 +2,21 @@
 set -euo pipefail
 
 # Release script for Gear Tracker
-# Usage: npm run release [-- --dry-run]
+# Usage: npm run release [-- --dry-run] [-- --yes]
 #
 # Creates a CalVer tag (YYYY.MM.DD.N) and updates package.json.
 # If on main, also creates a GitHub Release with auto-generated notes.
+#
+# Flags:
+#   --dry-run   Show what would happen without creating anything
+#   --yes       Skip confirmation prompts (for automated use)
 
 DRY_RUN=false
+AUTO_YES=false
 for arg in "$@"; do
   case $arg in
     --dry-run) DRY_RUN=true ;;
+    --yes|-y) AUTO_YES=true ;;
   esac
 done
 
@@ -24,10 +30,12 @@ fi
 BRANCH=$(git branch --show-current)
 if [ "$BRANCH" != "main" ]; then
   echo "Warning: Not on main branch (currently on '$BRANCH')."
-  read -rp "Continue anyway? [y/N] " confirm
-  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
-    exit 0
+  if [ "$AUTO_YES" = false ]; then
+    read -rp "Continue anyway? [y/N] " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo "Aborted."
+      exit 0
+    fi
   fi
 fi
 
@@ -64,10 +72,12 @@ if [ "$DRY_RUN" = true ]; then
   exit 0
 fi
 
-read -rp "Create release ${VERSION}? [y/N] " confirm
-if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-  echo "Aborted."
-  exit 0
+if [ "$AUTO_YES" = false ]; then
+  read -rp "Create release ${VERSION}? [y/N] " confirm
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    exit 0
+  fi
 fi
 
 # Update package.json version

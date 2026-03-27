@@ -2,5 +2,19 @@
   "enabledPlugins": {
     "frontend-design@claude-code-plugins": true,
     "code-review@claude-code-plugins": true
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/release.sh --yes 2>&1 || true",
+            "timeout": 60,
+            "statusMessage": "Creating CalVer release..."
+          }
+        ]
+      }
+    ]
   }
 }
