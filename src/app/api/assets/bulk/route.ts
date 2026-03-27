@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntries } from "@/lib/audit";
 
 const bulkSchema = z
   .object({
@@ -52,9 +52,10 @@ export const POST = withAuth(async (req, { user }) => {
     updated = result.count;
 
     // Audit each affected asset
-    for (const asset of assets) {
-      if (asset.locationId !== body.locationId) {
-        await createAuditEntry({
+    await createAuditEntries(
+      assets
+        .filter((asset) => asset.locationId !== body.locationId)
+        .map((asset) => ({
           actorId: user.id,
           actorRole: user.role,
           entityType: "asset",
@@ -62,9 +63,8 @@ export const POST = withAuth(async (req, { user }) => {
           action: "bulk_move_location",
           before: { locationId: asset.locationId },
           after: { locationId: body.locationId! },
-        });
-      }
-    }
+        }))
+    );
   } else if (action === "change_category") {
     if (body.categoryId) {
       const cat = await db.category.findUnique({ where: { id: body.categoryId } });
@@ -77,9 +77,10 @@ export const POST = withAuth(async (req, { user }) => {
     });
     updated = result.count;
 
-    for (const asset of assets) {
-      if (asset.categoryId !== (body.categoryId ?? null)) {
-        await createAuditEntry({
+    await createAuditEntries(
+      assets
+        .filter((asset) => asset.categoryId !== (body.categoryId ?? null))
+        .map((asset) => ({
           actorId: user.id,
           actorRole: user.role,
           entityType: "asset",
@@ -87,9 +88,8 @@ export const POST = withAuth(async (req, { user }) => {
           action: "bulk_change_category",
           before: { categoryId: asset.categoryId },
           after: { categoryId: body.categoryId ?? null },
-        });
-      }
-    }
+        }))
+    );
   } else if (action === "retire") {
     const result = await db.asset.updateMany({
       where: { id: { in: ids }, status: { not: "RETIRED" } },
@@ -97,9 +97,10 @@ export const POST = withAuth(async (req, { user }) => {
     });
     updated = result.count;
 
-    for (const asset of assets) {
-      if (asset.status !== "RETIRED") {
-        await createAuditEntry({
+    await createAuditEntries(
+      assets
+        .filter((asset) => asset.status !== "RETIRED")
+        .map((asset) => ({
           actorId: user.id,
           actorRole: user.role,
           entityType: "asset",
@@ -107,9 +108,8 @@ export const POST = withAuth(async (req, { user }) => {
           action: "bulk_retired",
           before: { status: asset.status },
           after: { status: "RETIRED" },
-        });
-      }
-    }
+        }))
+    );
   } else if (action === "maintenance") {
     // Toggle: MAINTENANCE → AVAILABLE, others → MAINTENANCE
     const toMaintenance = assets.filter((a) => a.status !== "MAINTENANCE");
@@ -131,18 +131,20 @@ export const POST = withAuth(async (req, { user }) => {
     ]);
     updated = r1.count + r2.count;
 
-    for (const asset of assets) {
-      const newStatus = asset.status === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
-      await createAuditEntry({
-        actorId: user.id,
-        actorRole: user.role,
-        entityType: "asset",
-        entityId: asset.id,
-        action: newStatus === "MAINTENANCE" ? "bulk_marked_maintenance" : "bulk_cleared_maintenance",
-        before: { status: asset.status },
-        after: { status: newStatus },
-      });
-    }
+    await createAuditEntries(
+      assets.map((asset) => {
+        const newStatus = asset.status === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
+        return {
+          actorId: user.id,
+          actorRole: user.role,
+          entityType: "asset",
+          entityId: asset.id,
+          action: newStatus === "MAINTENANCE" ? "bulk_marked_maintenance" : "bulk_cleared_maintenance",
+          before: { status: asset.status },
+          after: { status: newStatus },
+        };
+      })
+    );
   }
 
   return ok({ updated });

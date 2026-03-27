@@ -601,16 +601,16 @@ export async function updateReservation(
         });
       }
 
-      for (const entry of equipEntries) {
-        await tx.auditLog.create({
-          data: {
+      if (equipEntries.length > 0) {
+        await tx.auditLog.createMany({
+          data: equipEntries.map((entry) => ({
             actorUserId,
             entityType: "booking",
             entityId: bookingId,
             action: entry.action,
             beforeJson: entry.beforeJson as Prisma.InputJsonValue,
             afterJson: entry.afterJson as Prisma.InputJsonValue
-          }
+          }))
         });
       }
 
@@ -861,16 +861,16 @@ export async function updateCheckout(
         });
       }
 
-      for (const entry of equipEntries) {
-        await tx.auditLog.create({
-          data: {
+      if (equipEntries.length > 0) {
+        await tx.auditLog.createMany({
+          data: equipEntries.map((entry) => ({
             actorUserId,
             entityType: "booking",
             entityId: bookingId,
             action: entry.action,
             beforeJson: entry.beforeJson as Prisma.InputJsonValue,
             afterJson: entry.afterJson as Prisma.InputJsonValue
-          }
+          }))
         });
       }
 
