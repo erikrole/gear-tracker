@@ -134,7 +134,7 @@ export type CreateBookingSheetProps = {
   config: BookingListConfig;
   users: FormUser[];
   locations: Location[];
-  availableAssets: AvailableAsset[];
+  availableAssets?: AvailableAsset[];
   bulkSkus: BulkSkuOption[];
   onCreated: (bookingId: string) => void;
   draftId: string | null;
@@ -155,7 +155,7 @@ export default function CreateBookingSheet({
   config,
   users,
   locations,
-  availableAssets,
+  availableAssets = [],
   bulkSkus,
   onCreated,
   draftId,
@@ -910,7 +910,6 @@ export default function CreateBookingSheet({
               <CollapsibleContent>
                 <div className="border-b px-6 py-4">
                   <EquipmentPicker
-                    assets={availableAssets}
                     bulkSkus={bulkSkus}
                     selectedAssetIds={selectedAssetIds}
                     setSelectedAssetIds={setSelectedAssetIds}

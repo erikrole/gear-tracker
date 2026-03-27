@@ -60,7 +60,7 @@ export type CreateBookingCardProps = {
   users: FormUser[];
   locations: Location[];
   /* Equipment */
-  availableAssets: AvailableAsset[];
+  availableAssets?: AvailableAsset[];
   bulkSkus: BulkSkuOption[];
   showEquipPicker: boolean;
   onShowEquipPickerChange: (v: boolean) => void;
@@ -294,7 +294,6 @@ export function CreateBookingCard({
 
         {/* Equipment picker */}
         <EquipmentPicker
-          assets={availableAssets}
           bulkSkus={bulkSkus}
           selectedAssetIds={selectedAssetIds}
           setSelectedAssetIds={onSelectedAssetIdsChange}

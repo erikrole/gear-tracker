@@ -505,8 +505,19 @@ export default function EquipmentPicker({
   }
 
   function deselectAllInSection() {
-    const sectionIds = new Set((assetsBySection[activeSection] || []).map((a) => a.id));
-    setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
+    if (legacyMode) {
+      const sectionIds = new Set((assetsBySection[activeSection] || []).map((a) => a.id));
+      setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
+    } else {
+      // In search mode, find selected assets in this section via cache
+      const sectionIds = new Set<string>();
+      selectedAssetsCache.forEach((a, id) => {
+        if (selectedAssetIds.includes(id) && classifyAssetType(a.type, a.categoryName) === activeSection) {
+          sectionIds.add(id);
+        }
+      });
+      setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
+    }
     const sectionBulkIds = new Set((bulkBySection[activeSection] || []).map((s) => s.id));
     setSelectedBulkItems((prev) => prev.filter((i) => !sectionBulkIds.has(i.bulkSkuId)));
   }
@@ -539,11 +550,11 @@ export default function EquipmentPicker({
 
   // ── Scan-to-add ──
 
-  function handleScanToAdd(value: string) {
+  function handleScanToAddLegacy(value: string) {
     const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
     const searchValue = bgMatch ? bgMatch[2] : value;
 
-    const asset = assets.find((a) =>
+    const asset = legacyAssets.find((a) =>
       a.qrCodeValue === value ||
       a.id === searchValue ||
       a.primaryScanCode === value ||
@@ -551,59 +562,103 @@ export default function EquipmentPicker({
     );
 
     if (asset) {
-      // BRK-001: Check computedStatus — don't add unavailable items via scan
-      const isAvailable = asset.computedStatus === "AVAILABLE";
-      const hasConflict = conflicts.has(asset.id);
-      if (!isAvailable && !hasConflict) {
-        const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
-        showScanFeedbackMsg(`${asset.assetTag} is ${statusLabel}`, "error");
-        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-        // Still navigate to the section so user can see the item
-        setActiveSection(classifyAssetType(asset.type, asset.categoryName));
-        return;
-      }
-
-      // BRK-002: Guard inside callback to prevent duplicate IDs from rapid scans
-      let wasAdded = false;
-      setSelectedAssetIds((prev) => {
-        if (prev.includes(asset.id)) return prev;
-        wasAdded = true;
-        return [...prev, asset.id];
-      });
-      const section = classifyAssetType(asset.type, asset.categoryName);
-      setActiveSection(section);
-      // Use callback result for feedback — selectedIdSet may be stale under rapid scans
-      const alreadySelected = selectedIdSet.has(asset.id);
-      showScanFeedbackMsg(
-        alreadySelected && !wasAdded ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
-        alreadySelected && !wasAdded ? "error" : "success",
-      );
-      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+      handleScannedAsset(asset);
       return;
     }
 
     const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
     if (sku) {
-      // BRK-002: Guard inside callback for bulk items too
-      let wasAdded = false;
-      setSelectedBulkItems((prev) => {
-        if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
-        wasAdded = true;
-        return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
-      });
-      const section = classifyAssetType(sku.category, sku.categoryName);
-      setActiveSection(section);
-      const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
-      showScanFeedbackMsg(
-        alreadySelected && !wasAdded ? `${sku.name} already selected` : `Added ${sku.name}`,
-        alreadySelected && !wasAdded ? "error" : "success",
-      );
-      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+      handleScannedBulk(sku, value);
       return;
     }
 
-    showScanFeedbackMsg("No matching item — check this location\u2019s inventory", "error");
+    showScanFeedbackMsg("No matching item \u2014 check this location\u2019s inventory", "error");
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+  }
+
+  async function handleScanToAddSearch(value: string) {
+    try {
+      const params = new URLSearchParams();
+      params.set("qr", value);
+      params.set("only_available", "false");
+      params.set("limit", "1");
+      const res = await fetch(`/api/assets/picker-search?${params}`);
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: null };
+        if (data.assets.length > 0) {
+          const asset = data.assets[0];
+          selectedAssetsCache.set(asset.id, asset);
+          handleScannedAsset(asset);
+          return;
+        }
+      }
+    } catch {
+      // Fall through to bulk check
+    }
+
+    const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
+    if (sku) {
+      handleScannedBulk(sku, value);
+      return;
+    }
+
+    showScanFeedbackMsg("No matching item \u2014 check this location\u2019s inventory", "error");
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+  }
+
+  function handleScannedAsset(asset: PickerAsset) {
+    // BRK-001: Check computedStatus — don't add unavailable items via scan
+    const isAvailable = asset.computedStatus === "AVAILABLE";
+    const hasConflict = conflicts.has(asset.id);
+    if (!isAvailable && !hasConflict) {
+      const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
+      showScanFeedbackMsg(`${asset.assetTag} is ${statusLabel}`, "error");
+      if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+      setActiveSection(classifyAssetType(asset.type, asset.categoryName));
+      return;
+    }
+
+    // BRK-002: Guard inside callback to prevent duplicate IDs from rapid scans
+    let wasAdded = false;
+    setSelectedAssetIds((prev) => {
+      if (prev.includes(asset.id)) return prev;
+      wasAdded = true;
+      return [...prev, asset.id];
+    });
+    const section = classifyAssetType(asset.type, asset.categoryName);
+    setActiveSection(section);
+    const alreadySelected = selectedIdSet.has(asset.id);
+    showScanFeedbackMsg(
+      alreadySelected && !wasAdded ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
+      alreadySelected && !wasAdded ? "error" : "success",
+    );
+    if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+  }
+
+  function handleScannedBulk(sku: PickerBulkSku, _value: string) {
+    let wasAdded = false;
+    setSelectedBulkItems((prev) => {
+      if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
+      wasAdded = true;
+      return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
+    });
+    const section = classifyAssetType(sku.category, sku.categoryName);
+    setActiveSection(section);
+    const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
+    showScanFeedbackMsg(
+      alreadySelected && !wasAdded ? `${sku.name} already selected` : `Added ${sku.name}`,
+      alreadySelected && !wasAdded ? "error" : "success",
+    );
+    if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+  }
+
+  function handleScanToAdd(value: string) {
+    if (legacyMode) {
+      handleScanToAddLegacy(value);
+    } else {
+      handleScanToAddSearch(value);
+    }
   }
 
   function showScanFeedbackMsg(message: string, type: "success" | "error") {
@@ -701,7 +756,9 @@ export default function EquipmentPicker({
           {isGlobalSearchActive ? (
             <div className="section-content">
               <div className="picker-scroll" role="listbox" aria-label="Search results">
-                {globalSearchResults.length === 0 ? (
+                {globalSearchLoading ? (
+                  <div className="picker-empty" role="status">Searching...</div>
+                ) : globalSearchResults.length === 0 ? (
                   <div className="picker-empty" role="status">No matching items across any section</div>
                 ) : (
                   <>
@@ -1026,7 +1083,10 @@ export default function EquipmentPicker({
                   </>
                 )}
 
-                {sectionAssets.length === 0 && sectionBulk.length === 0 && (
+                {searchLoading && !legacyMode && (
+                  <div className="picker-empty" role="status">Searching...</div>
+                )}
+                {sectionAssets.length === 0 && sectionBulk.length === 0 && !(searchLoading && !legacyMode) && (
                   <div className="picker-empty" role="status">
                     {equipSearch
                       ? "No matching items"
