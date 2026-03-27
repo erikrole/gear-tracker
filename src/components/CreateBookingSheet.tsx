@@ -134,7 +134,6 @@ export type CreateBookingSheetProps = {
   config: BookingListConfig;
   users: FormUser[];
   locations: Location[];
-  availableAssets?: AvailableAsset[];
   bulkSkus: BulkSkuOption[];
   onCreated: (bookingId: string) => void;
   draftId: string | null;
@@ -155,7 +154,6 @@ export default function CreateBookingSheet({
   config,
   users,
   locations,
-  availableAssets = [],
   bulkSkus,
   onCreated,
   draftId,
@@ -183,6 +181,7 @@ export default function CreateBookingSheet({
   // ── Equipment state (needs Dispatch<SetStateAction> for EquipmentPicker) ──
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
+  const [selectedAssetDetails, setSelectedAssetDetails] = useState<AvailableAsset[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(true);
 
   // ── Kit state ──
@@ -467,13 +466,13 @@ export default function CreateBookingSheet({
           };
           if (d.conflicts?.length) {
             for (const c of d.conflicts) {
-              const tag = availableAssets.find((a) => a.id === c.assetId)?.assetTag || c.assetId;
+              const tag = selectedAssetDetails.find((a) => a.id === c.assetId)?.assetTag || c.assetId;
               msgs.push(`${tag} conflicts with "${c.conflictingBookingTitle || "another booking"}"`);
             }
           }
           if (d.unavailableAssets?.length) {
             for (const u of d.unavailableAssets) {
-              const tag = availableAssets.find((a) => a.id === u.assetId)?.assetTag || u.assetId;
+              const tag = selectedAssetDetails.find((a) => a.id === u.assetId)?.assetTag || u.assetId;
               msgs.push(`${tag} is ${u.status === "MAINTENANCE" ? "in maintenance" : u.status.toLowerCase()}`);
             }
           }
@@ -921,6 +920,7 @@ export default function CreateBookingSheet({
                     startsAt={form.startsAt}
                     endsAt={form.endsAt}
                     locationId={form.locationId}
+                    onSelectedAssetsChange={setSelectedAssetDetails}
                   />
                 </div>
               </CollapsibleContent>
@@ -957,8 +957,7 @@ export default function CreateBookingSheet({
         endsAt={new Date(form.endsAt).toISOString()}
         locationName={locations.find((l) => l.id === form.locationId)?.name || ""}
         requesterName={users.find((u) => u.id === form.requester)?.name || ""}
-        selectedAssetIds={selectedAssetIds}
-        availableAssets={availableAssets}
+        selectedAssetDetails={selectedAssetDetails}
         selectedBulkItems={selectedBulkItems}
         bulkSkus={bulkSkus}
         submitting={submitting}

@@ -79,7 +79,10 @@ export default function BookingDetailsSheet({
   const [pickerTab, setPickerTab] = useState<"serialized" | "bulk">(
     "serialized"
   );
-  const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
+  const [pickerSearchResults, setPickerSearchResults] = useState<AvailableAsset[]>([]);
+  const [pickerSearchLoading, setPickerSearchLoading] = useState(false);
+  const pickerSearchAbortRef = useRef<AbortController | null>(null);
+  const pickerSearchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [equipSaving, setEquipSaving] = useState(false);
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
@@ -158,7 +161,6 @@ export default function BookingDetailsSheet({
       if (handle401(res)) return;
       if (res.ok) {
         const json = await res.json();
-        setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       } else {
         setOptionsError(true);
@@ -168,6 +170,29 @@ export default function BookingDetailsSheet({
       toast("Failed to load equipment options", "error");
     }
   }, [toast]);
+
+  // Fetch assets for inline picker via picker-search API
+  const fetchPickerAssets = useCallback(async (q: string) => {
+    pickerSearchAbortRef.current?.abort();
+    const controller = new AbortController();
+    pickerSearchAbortRef.current = controller;
+    setPickerSearchLoading(true);
+    try {
+      const params = new URLSearchParams({ only_available: "true", limit: "50" });
+      if (q) params.set("q", q);
+      const res = await fetchWithTimeout(`/api/assets/picker-search?${params}`, {
+        signal: controller.signal,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setPickerSearchResults(json.data?.assets || []);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    } finally {
+      setPickerSearchLoading(false);
+    }
+  }, []);
 
   /* ───── Derived state ───── */
 
@@ -190,19 +215,31 @@ export default function BookingDetailsSheet({
     return logs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
   }, [booking, historyFilter]);
 
+  // Debounced search for inline picker
+  useEffect(() => {
+    if (!addingItems) return;
+    if (pickerSearchDebounceRef.current) clearTimeout(pickerSearchDebounceRef.current);
+    pickerSearchDebounceRef.current = setTimeout(() => {
+      fetchPickerAssets(pickerSearch);
+    }, 300);
+    return () => {
+      if (pickerSearchDebounceRef.current) clearTimeout(pickerSearchDebounceRef.current);
+    };
+  }, [pickerSearch, addingItems, fetchPickerAssets]);
+
+  // Trigger initial fetch when entering add-items mode
+  useEffect(() => {
+    if (addingItems) fetchPickerAssets(pickerSearch);
+    return () => { pickerSearchAbortRef.current?.abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addingItems]);
+
   const pickerAssets = useMemo(() => {
     if (!booking) return [];
-    const q = pickerSearch.toLowerCase();
-    return availableAssets.filter((a) => {
-      if (editSerializedIds.includes(a.id)) return false;
-      if (!q) return true;
-      return (
-        a.assetTag.toLowerCase().includes(q) ||
-        a.brand.toLowerCase().includes(q) ||
-        a.model.toLowerCase().includes(q)
-      );
-    });
-  }, [availableAssets, editSerializedIds, pickerSearch, booking]);
+    // Filter out already-selected assets from search results
+    const editSet = new Set(editSerializedIds);
+    return pickerSearchResults.filter((a) => !editSet.has(a.id));
+  }, [pickerSearchResults, editSerializedIds, booking]);
 
   const pickerBulkSkus = useMemo(() => {
     if (!booking) return [];
@@ -234,12 +271,12 @@ export default function BookingDetailsSheet({
       );
       if (fromBooking)
         return `${fromBooking.asset.assetTag} - ${fromBooking.asset.brand} ${fromBooking.asset.model}`;
-      const fromAvailable = availableAssets.find((a) => a.id === assetId);
-      if (fromAvailable)
-        return `${fromAvailable.assetTag} - ${fromAvailable.brand} ${fromAvailable.model}`;
+      const fromSearch = pickerSearchResults.find((a) => a.id === assetId);
+      if (fromSearch)
+        return `${fromSearch.assetTag} - ${fromSearch.brand} ${fromSearch.model}`;
       return assetId;
     },
-    [booking, availableAssets]
+    [booking, pickerSearchResults]
   );
 
   const resolveSkuName = useCallback(

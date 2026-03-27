@@ -83,6 +83,8 @@ export type EquipmentPickerProps = {
   locationId?: string;
   /** Pre-selected assets to seed the cache in search mode */
   initialSelectedAssets?: PickerAsset[];
+  /** Called when selection changes with resolved asset objects (search mode only) */
+  onSelectedAssetsChange?: (assets: PickerAsset[]) => void;
 };
 
 /* ───── Component ───── */
@@ -101,6 +103,7 @@ export default function EquipmentPicker({
   endsAt,
   locationId,
   initialSelectedAssets,
+  onSelectedAssetsChange,
 }: EquipmentPickerProps) {
   const legacyMode = !!assets;
 
@@ -284,6 +287,15 @@ export default function EquipmentPicker({
   useEffect(() => {
     setHighlightedIdx(globalSearchResults.length > 0 ? 0 : -1);
   }, [globalSearchResults]);
+
+  // Notify parent of selected asset details (search mode)
+  useEffect(() => {
+    if (legacyMode || !onSelectedAssetsChange) return;
+    const resolved = selectedAssetIds
+      .map((id) => selectedAssetsCache.get(id))
+      .filter((a): a is PickerAsset => !!a);
+    onSelectedAssetsChange(resolved);
+  }, [selectedAssetIds, legacyMode, onSelectedAssetsChange, selectedAssetsCache]);
 
   const isGlobalSearchActive = globalSearch.trim().length > 0;
 

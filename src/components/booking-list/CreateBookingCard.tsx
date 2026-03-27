@@ -10,7 +10,6 @@ import {
   type CalendarEvent,
   type FormUser,
   type Location,
-  type AvailableAsset,
   type BulkSkuOption,
 } from "./types";
 import { ClockIcon } from "lucide-react";
@@ -60,7 +59,6 @@ export type CreateBookingCardProps = {
   users: FormUser[];
   locations: Location[];
   /* Equipment */
-  availableAssets?: AvailableAsset[];
   bulkSkus: BulkSkuOption[];
   showEquipPicker: boolean;
   onShowEquipPickerChange: (v: boolean) => void;
@@ -98,7 +96,6 @@ export function CreateBookingCard({
   onCreateEndsAtChange,
   users,
   locations,
-  availableAssets,
   bulkSkus,
   showEquipPicker,
   onShowEquipPickerChange,
