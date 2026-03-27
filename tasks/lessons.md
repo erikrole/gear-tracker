@@ -663,3 +663,11 @@ Always use shadcn Empty component:
 - **Audit log loops in bulk operations are low-hanging N+1 fruit**: `createAuditEntry` in a loop means N individual INSERTs. `createMany` is a one-line fix for up to 50x fewer queries.
 - **`startsWith: ""` matches everything**: The notification dedup pre-fetch loaded the entire notifications table. Always scope pre-fetches to relevant IDs.
 - **Parallel agents for deep research tasks**: A single monolithic agent timed out at 30 minutes (101 tool calls) without writing output. Splitting into 3 focused parallel agents (N+1 audit, index audit, transaction audit) completed in ~5 minutes each.
+
+### Search-on-Type Refactor
+
+**Architecture:**
+- **Dual-mode `legacyMode = !!assets` preserves backwards compat during migration**: Making the `assets` prop optional and branching on its presence lets you ship incrementally — old consumers keep working while new ones opt into search mode. Clean migration path.
+- **`selectedAssetsCache` Map is the key insight for search-on-type pickers**: When search results change, previously-selected items disappear from the result set. A persistent Map keyed by ID survives across searches and provides O(1) lookups for display, counts, and guidance.
+- **Strip unbounded queries last, not first**: Build the replacement (picker-search API) → refactor consumers to use it → then remove the old query. Doing it in reverse breaks everything.
+- **`onSelectedAssetsChange` callback bridges the picker's internal cache to parent state**: Parents need selected asset details for confirmation dialogs and error messages. A callback that fires on selection change, resolving IDs from the cache, threads this through cleanly without exposing the Map.

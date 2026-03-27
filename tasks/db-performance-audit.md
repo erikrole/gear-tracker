@@ -16,7 +16,7 @@ The gear-tracker codebase has **solid foundations** (SERIALIZABLE on most bookin
 ### Deferred (acceptable risk)
 - Asset status breakdown counts (5 parallel queries using derived-status logic — can't simplify to `groupBy` without raw SQL rewrite)
 - `bookingInclude` asset field narrowing (detail views, low volume, risk of breaking fields)
-- `form-options` pagination (equipment picker needs full asset list; real fix is search-on-type refactor)
+- ~~`form-options` pagination~~ (RESOLVED 2026-03-27: search-on-type refactor shipped — `form-options` no longer loads assets)
 
 ---
 
