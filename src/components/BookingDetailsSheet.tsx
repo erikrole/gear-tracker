@@ -88,9 +88,13 @@ export default function BookingDetailsSheet({
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
   const [optionsError, setOptionsError] = useState(false);
 
-  // History filter
+  // History filter + audit log pagination
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
   const [expandedDiffs, setExpandedDiffs] = useState<Set<string>>(new Set());
+  const [extraAuditLogs, setExtraAuditLogs] = useState<BookingDetail["auditLogs"]>([]);
+  const [auditLogCursor, setAuditLogCursor] = useState<string | null>(null);
+  const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
+  const [loadingMoreAuditLogs, setLoadingMoreAuditLogs] = useState(false);
 
   const isAdmin = currentUserRole === "ADMIN";
 
@@ -123,7 +127,12 @@ export default function BookingDetailsSheet({
       });
       if (res.ok) {
         const json = await res.json();
-        if (json?.data) setBooking(json.data);
+        if (json?.data) {
+          setBooking(json.data);
+          setExtraAuditLogs([]);
+          setAuditLogCursor(json.data.auditLogNextCursor ?? null);
+          setHasMoreAuditLogs(json.data.hasMoreAuditLogs ?? false);
+        }
       } else if (res.status === 401) {
         window.location.href = "/login";
         return;
@@ -194,6 +203,27 @@ export default function BookingDetailsSheet({
     }
   }, []);
 
+  /* ───── Audit log load-more ───── */
+
+  const loadMoreAuditLogs = useCallback(async () => {
+    if (!bookingId || !auditLogCursor || loadingMoreAuditLogs) return;
+    setLoadingMoreAuditLogs(true);
+    try {
+      const res = await fetchWithTimeout(
+        `/api/bookings/${bookingId}/audit-logs?cursor=${encodeURIComponent(auditLogCursor)}`
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setExtraAuditLogs((prev) => [...prev, ...(json.data ?? [])]);
+        setAuditLogCursor(json.nextCursor ?? null);
+        setHasMoreAuditLogs(json.hasMore ?? false);
+      }
+    } catch {
+      // Silently fail — user can retry
+    }
+    setLoadingMoreAuditLogs(false);
+  }, [bookingId, auditLogCursor, loadingMoreAuditLogs]);
+
   /* ───── Derived state ───── */
 
   const checkinProgress = useMemo(() => {
@@ -205,14 +235,17 @@ export default function BookingDetailsSheet({
     return { returned, total, percent: Math.round((returned / total) * 100) };
   }, [booking]);
 
-  const filteredAuditLogs = useMemo(() => {
+  const allAuditLogs = useMemo(() => {
     if (!booking) return [];
-    const logs = booking.auditLogs ?? [];
-    if (historyFilter === "all") return logs;
+    return [...(booking.auditLogs ?? []), ...extraAuditLogs];
+  }, [booking, extraAuditLogs]);
+
+  const filteredAuditLogs = useMemo(() => {
+    if (historyFilter === "all") return allAuditLogs;
     if (historyFilter === "equipment") {
-      return logs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
+      return allAuditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
     }
-    return logs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    return allAuditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
   }, [booking, historyFilter]);
 
   // Debounced search for inline picker
@@ -799,6 +832,9 @@ export default function BookingDetailsSheet({
                   isAdmin={isAdmin}
                   expandedDiffs={expandedDiffs}
                   onToggleDiff={toggleDiff}
+                  hasMore={hasMoreAuditLogs}
+                  loadingMore={loadingMoreAuditLogs}
+                  onLoadMore={loadMoreAuditLogs}
                 />
               )}
             </>
