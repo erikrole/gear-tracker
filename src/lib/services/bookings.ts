@@ -1270,12 +1270,15 @@ export async function getBookingDetail(bookingId: string) {
     throw new HttpError(404, "Booking not found");
   }
 
-  const auditLogs = await db.auditLog.findMany({
+  const AUDIT_LOG_LIMIT = 50;
+  const auditLogsRaw = await db.auditLog.findMany({
     where: { entityType: "booking", entityId: bookingId },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: AUDIT_LOG_LIMIT + 1,
     include: { actor: { select: { id: true, name: true } } }
   });
+  const hasMoreAuditLogs = auditLogsRaw.length > AUDIT_LOG_LIMIT;
+  const auditLogs = hasMoreAuditLogs ? auditLogsRaw.slice(0, AUDIT_LOG_LIMIT) : auditLogsRaw;
 
   const isOverdue = booking.status === BookingStatus.OPEN && booking.endsAt < new Date();
   const isActive = booking.status === BookingStatus.OPEN || booking.status === BookingStatus.BOOKED;
@@ -1297,6 +1300,8 @@ export async function getBookingDetail(bookingId: string) {
     isActive,
     bookingType: booking.kind === BookingKind.RESERVATION ? "Reservation" : "Checkout",
     auditLogs,
+    hasMoreAuditLogs,
+    auditLogNextCursor: hasMoreAuditLogs ? auditLogs[auditLogs.length - 1]?.id : null,
     itemLocations,
     locationMode
   };

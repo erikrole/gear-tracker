@@ -20,6 +20,8 @@ export type UseFormSubmitOptions<TInput, TOutput = unknown> = {
   transformBody?: (data: TInput) => Record<string, unknown>;
   /** Path for 401 redirect returnTo param. Default: current pathname. */
   returnTo?: string;
+  /** Skip the automatic 401 → /login redirect (use for auth pages themselves). */
+  skipAuthRedirect?: boolean;
   /** Toast message on success. Omit to skip toast. */
   successMessage?: string;
   /** Called after successful submission with the parsed response data. */
@@ -74,6 +76,7 @@ export function useFormSubmit<TInput, TOutput = unknown>(
     method = "POST",
     transformBody,
     returnTo,
+    skipAuthRedirect,
     successMessage,
     onSuccess,
     onError,
@@ -127,7 +130,7 @@ export function useFormSubmit<TInput, TOutput = unknown>(
         body: JSON.stringify(body),
       });
 
-      if (handleAuthRedirect(res, returnTo)) {
+      if (!skipAuthRedirect && handleAuthRedirect(res, returnTo)) {
         busyRef.current = false;
         return false;
       }
@@ -168,7 +171,7 @@ export function useFormSubmit<TInput, TOutput = unknown>(
       onError?.(kind);
       return false;
     }
-  }, [schema, url, method, transformBody, returnTo, successMessage, onSuccess, onError, clearErrors]);
+  }, [schema, url, method, transformBody, returnTo, skipAuthRedirect, successMessage, onSuccess, onError, clearErrors]);
 
   return {
     state,

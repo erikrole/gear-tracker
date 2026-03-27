@@ -67,7 +67,8 @@ type ConflictInfo = {
 };
 
 export type EquipmentPickerProps = {
-  assets: PickerAsset[];
+  /** Pass assets to use legacy (load-all) mode. Omit for search-on-type mode. */
+  assets?: PickerAsset[];
   bulkSkus: PickerBulkSku[];
   selectedAssetIds: string[];
   setSelectedAssetIds: React.Dispatch<React.SetStateAction<string[]>>;
@@ -80,6 +81,10 @@ export type EquipmentPickerProps = {
   startsAt?: string;
   endsAt?: string;
   locationId?: string;
+  /** Pre-selected assets to seed the cache in search mode */
+  initialSelectedAssets?: PickerAsset[];
+  /** Called when selection changes with resolved asset objects (search mode only) */
+  onSelectedAssetsChange?: (assets: PickerAsset[]) => void;
 };
 
 /* ───── Component ───── */
@@ -97,7 +102,11 @@ export default function EquipmentPicker({
   startsAt,
   endsAt,
   locationId,
+  initialSelectedAssets,
+  onSelectedAssetsChange,
 }: EquipmentPickerProps) {
+  const legacyMode = !!assets;
+
   // ── Internal UI state ──
   const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
   const [searchBySection, setSearchBySection] = useState<Record<EquipmentSectionKey, string>>({
@@ -119,19 +128,50 @@ export default function EquipmentPicker({
   const [conflictsError, setConflictsError] = useState(false);
   const availDebounce = useRef<ReturnType<typeof setTimeout>>(null);
 
+  // ── Search mode state (only used when legacyMode is false) ──
+  const [sectionResults, setSectionResults] = useState<PickerAsset[]>([]);
+  const [apiSectionCounts, setApiSectionCounts] = useState<Record<EquipmentSectionKey, number>>({
+    cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
+  });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const [globalSearchApiResults, setGlobalSearchApiResults] = useState<PickerAsset[]>([]);
+  const [selectedAssetsCache] = useState<Map<string, PickerAsset>>(() => {
+    const m = new Map<string, PickerAsset>();
+    if (initialSelectedAssets) {
+      for (const a of initialSelectedAssets) m.set(a.id, a);
+    }
+    return m;
+  });
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const globalSearchAbortRef = useRef<AbortController | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const globalSearchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const initialFetchDoneRef = useRef(false);
+
   // ── Indexed lookups (O(1) instead of O(n)) ──
-  const assetById = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
+  const legacyAssets = assets || [];
+  const assetById = useMemo(() => {
+    if (legacyMode) return new Map(legacyAssets.map((a) => [a.id, a]));
+    // In search mode, merge sectionResults + globalSearchApiResults + cache
+    const m = new Map<string, PickerAsset>();
+    for (const a of sectionResults) m.set(a.id, a);
+    for (const a of globalSearchApiResults) m.set(a.id, a);
+    selectedAssetsCache.forEach((a, id) => { if (!m.has(id)) m.set(id, a); });
+    return m;
+  }, [legacyMode, legacyAssets, sectionResults, globalSearchApiResults, selectedAssetsCache]);
   const bulkById = useMemo(() => new Map(bulkSkus.map((s) => [s.id, s])), [bulkSkus]);
   const selectedIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
-  // ── Section grouping ──
-  const assetsBySection = useMemo(() => groupAssetsBySection(assets), [assets]);
+  // ── Section grouping (legacy mode only) ──
+  const assetsBySection = useMemo(() => groupAssetsBySection(legacyAssets), [legacyAssets]);
   const bulkBySection = useMemo(() => groupBulkBySection(bulkSkus), [bulkSkus]);
 
   const equipSearch = searchBySection[activeSection] || "";
 
   const sectionAssets = useMemo(() => {
     if (!activeSection) return [];
+    if (!legacyMode) return sectionResults;
     const q = equipSearch.toLowerCase();
     return (assetsBySection[activeSection] || []).filter((a) => {
       if (onlyAvailable && a.computedStatus !== "AVAILABLE") return false;
@@ -145,7 +185,7 @@ export default function EquipmentPicker({
         (a.name && a.name.toLowerCase().includes(q))
       );
     });
-  }, [assetsBySection, activeSection, equipSearch, onlyAvailable]);
+  }, [legacyMode, assetsBySection, activeSection, equipSearch, onlyAvailable, sectionResults]);
 
   const sectionBulk = useMemo(() => {
     if (!activeSection) return [];
@@ -162,7 +202,7 @@ export default function EquipmentPicker({
       cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
     };
     for (const id of selectedAssetIds) {
-      const asset = assetById.get(id);
+      const asset = legacyMode ? assetById.get(id) : (selectedAssetsCache.get(id) || assetById.get(id));
       if (asset) {
         const sec = classifyAssetType(asset.type, asset.categoryName);
         counts[sec]++;
@@ -176,9 +216,17 @@ export default function EquipmentPicker({
       }
     }
     return counts;
-  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById]);
+  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, legacyMode, selectedAssetsCache]);
 
   const sectionTotalCounts = useMemo(() => {
+    if (!legacyMode) {
+      // In search mode, use API-provided section counts + bulk counts
+      const counts = { ...apiSectionCounts };
+      for (const key of Object.keys(counts) as EquipmentSectionKey[]) {
+        counts[key] = (counts[key] || 0) + (bulkBySection[key]?.length || 0);
+      }
+      return counts;
+    }
     const counts: Record<EquipmentSectionKey, number> = {
       cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
     };
@@ -186,14 +234,14 @@ export default function EquipmentPicker({
       counts[key] = (assetsBySection[key]?.length || 0) + (bulkBySection[key]?.length || 0);
     }
     return counts;
-  }, [assetsBySection, bulkBySection]);
+  }, [legacyMode, assetsBySection, bulkBySection, apiSectionCounts]);
 
   const equipmentCount = selectedAssetIds.length + selectedBulkItems.length;
 
   const selectedSectionKeys = useMemo(() => {
     const keys = new Set<EquipmentSectionKey>();
     for (const id of selectedAssetIds) {
-      const asset = assetById.get(id);
+      const asset = legacyMode ? assetById.get(id) : (selectedAssetsCache.get(id) || assetById.get(id));
       if (asset) keys.add(classifyAssetType(asset.type, asset.categoryName));
     }
     for (const item of selectedBulkItems) {
@@ -201,12 +249,20 @@ export default function EquipmentPicker({
       if (sku) keys.add(classifyAssetType(sku.category, sku.categoryName));
     }
     return Array.from(keys);
-  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById]);
+  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, legacyMode, selectedAssetsCache]);
 
   // ── Global search results (flat list across all sections) ──
   const globalSearchResults = useMemo(() => {
     const q = globalSearch.toLowerCase().trim();
     if (!q) return [];
+    if (!legacyMode) {
+      // In search mode, use API results
+      return globalSearchApiResults.map((a) => ({
+        type: "asset" as const,
+        item: a,
+        section: classifyAssetType(a.type, a.categoryName),
+      }));
+    }
     const results: { type: "asset"; item: PickerAsset; section: EquipmentSectionKey }[] = [];
     for (const sec of EQUIPMENT_SECTIONS) {
       const sectionItems = assetsBySection[sec.key] || [];
@@ -225,12 +281,21 @@ export default function EquipmentPicker({
       }
     }
     return results;
-  }, [globalSearch, assetsBySection, onlyAvailable]);
+  }, [globalSearch, assetsBySection, onlyAvailable, legacyMode, globalSearchApiResults]);
 
   // Reset highlight when results change
   useEffect(() => {
     setHighlightedIdx(globalSearchResults.length > 0 ? 0 : -1);
   }, [globalSearchResults]);
+
+  // Notify parent of selected asset details (search mode)
+  useEffect(() => {
+    if (legacyMode || !onSelectedAssetsChange) return;
+    const resolved = selectedAssetIds
+      .map((id) => selectedAssetsCache.get(id))
+      .filter((a): a is PickerAsset => !!a);
+    onSelectedAssetsChange(resolved);
+  }, [selectedAssetIds, legacyMode, onSelectedAssetsChange, selectedAssetsCache]);
 
   const isGlobalSearchActive = globalSearch.trim().length > 0;
 
@@ -260,7 +325,7 @@ export default function EquipmentPicker({
       setConflicts(new Map());
       return;
     }
-    const allAssetIds = assets.map((a) => a.id);
+    const allAssetIds = legacyMode ? legacyAssets.map((a) => a.id) : selectedAssetIds;
     if (allAssetIds.length === 0) return;
 
     // Abort any in-flight request to prevent stale data overwriting fresh
@@ -308,7 +373,7 @@ export default function EquipmentPicker({
       setConflictsError(true);
     }
     setConflictsLoading(false);
-  }, [startsAt, endsAt, locationId, assets]);
+  }, [startsAt, endsAt, locationId, legacyMode, legacyAssets, selectedAssetIds]);
 
   useEffect(() => {
     if (availDebounce.current) clearTimeout(availDebounce.current);
@@ -318,6 +383,97 @@ export default function EquipmentPicker({
       abortRef.current?.abort();
     };
   }, [fetchConflicts]);
+
+  // ── Search mode: fetch section results from API ──
+  const fetchSectionResults = useCallback(async (section: EquipmentSectionKey, q: string, available: boolean) => {
+    if (legacyMode) return;
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setSearchLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("section", section);
+      if (q) params.set("q", q);
+      params.set("only_available", String(available));
+      params.set("limit", "50");
+      const res = await fetch(`/api/assets/picker-search?${params}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: Record<string, number> | null };
+        setSectionResults(data.assets);
+        if (data.sectionCounts) {
+          setApiSectionCounts(data.sectionCounts as Record<EquipmentSectionKey, number>);
+        }
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    }
+    if (!controller.signal.aborted) setSearchLoading(false);
+  }, [legacyMode]);
+
+  // Trigger search on section change, search text change, or onlyAvailable change
+  useEffect(() => {
+    if (legacyMode) return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      fetchSectionResults(activeSection, equipSearch, onlyAvailable);
+    }, initialFetchDoneRef.current ? 300 : 0);
+    initialFetchDoneRef.current = true;
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [legacyMode, activeSection, equipSearch, onlyAvailable, fetchSectionResults]);
+
+  // ── Search mode: global search API call ──
+  const fetchGlobalSearchResults = useCallback(async (q: string, available: boolean) => {
+    if (legacyMode) return;
+    globalSearchAbortRef.current?.abort();
+    if (!q.trim()) {
+      setGlobalSearchApiResults([]);
+      setGlobalSearchLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    globalSearchAbortRef.current = controller;
+    setGlobalSearchLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("q", q.trim());
+      params.set("only_available", String(available));
+      params.set("limit", "30");
+      const res = await fetch(`/api/assets/picker-search?${params}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: Record<string, number> | null };
+        setGlobalSearchApiResults(data.assets);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    }
+    if (!controller.signal.aborted) setGlobalSearchLoading(false);
+  }, [legacyMode]);
+
+  useEffect(() => {
+    if (legacyMode) return;
+    if (globalSearchDebounceRef.current) clearTimeout(globalSearchDebounceRef.current);
+    globalSearchDebounceRef.current = setTimeout(() => {
+      fetchGlobalSearchResults(globalSearch, onlyAvailable);
+    }, 300);
+    return () => {
+      if (globalSearchDebounceRef.current) clearTimeout(globalSearchDebounceRef.current);
+    };
+  }, [legacyMode, globalSearch, onlyAvailable, fetchGlobalSearchResults]);
+
+  // Cleanup search abort controllers on unmount
+  useEffect(() => {
+    return () => {
+      searchAbortRef.current?.abort();
+      globalSearchAbortRef.current?.abort();
+    };
+  }, []);
 
   // Clean up scan feedback timer on unmount
   useEffect(() => {
@@ -335,6 +491,13 @@ export default function EquipmentPicker({
   }
 
   function toggleAsset(id: string) {
+    if (!legacyMode) {
+      // Cache the asset when toggling on so we can display it later
+      const asset = assetById.get(id);
+      if (asset && !selectedAssetsCache.has(id)) {
+        selectedAssetsCache.set(id, asset);
+      }
+    }
     setSelectedAssetIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
@@ -354,8 +517,19 @@ export default function EquipmentPicker({
   }
 
   function deselectAllInSection() {
-    const sectionIds = new Set((assetsBySection[activeSection] || []).map((a) => a.id));
-    setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
+    if (legacyMode) {
+      const sectionIds = new Set((assetsBySection[activeSection] || []).map((a) => a.id));
+      setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
+    } else {
+      // In search mode, find selected assets in this section via cache
+      const sectionIds = new Set<string>();
+      selectedAssetsCache.forEach((a, id) => {
+        if (selectedAssetIds.includes(id) && classifyAssetType(a.type, a.categoryName) === activeSection) {
+          sectionIds.add(id);
+        }
+      });
+      setSelectedAssetIds((prev) => prev.filter((id) => !sectionIds.has(id)));
+    }
     const sectionBulkIds = new Set((bulkBySection[activeSection] || []).map((s) => s.id));
     setSelectedBulkItems((prev) => prev.filter((i) => !sectionBulkIds.has(i.bulkSkuId)));
   }
@@ -388,11 +562,11 @@ export default function EquipmentPicker({
 
   // ── Scan-to-add ──
 
-  function handleScanToAdd(value: string) {
+  function handleScanToAddLegacy(value: string) {
     const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
     const searchValue = bgMatch ? bgMatch[2] : value;
 
-    const asset = assets.find((a) =>
+    const asset = legacyAssets.find((a) =>
       a.qrCodeValue === value ||
       a.id === searchValue ||
       a.primaryScanCode === value ||
@@ -400,59 +574,103 @@ export default function EquipmentPicker({
     );
 
     if (asset) {
-      // BRK-001: Check computedStatus — don't add unavailable items via scan
-      const isAvailable = asset.computedStatus === "AVAILABLE";
-      const hasConflict = conflicts.has(asset.id);
-      if (!isAvailable && !hasConflict) {
-        const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
-        showScanFeedbackMsg(`${asset.assetTag} is ${statusLabel}`, "error");
-        if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-        // Still navigate to the section so user can see the item
-        setActiveSection(classifyAssetType(asset.type, asset.categoryName));
-        return;
-      }
-
-      // BRK-002: Guard inside callback to prevent duplicate IDs from rapid scans
-      let wasAdded = false;
-      setSelectedAssetIds((prev) => {
-        if (prev.includes(asset.id)) return prev;
-        wasAdded = true;
-        return [...prev, asset.id];
-      });
-      const section = classifyAssetType(asset.type, asset.categoryName);
-      setActiveSection(section);
-      // Use callback result for feedback — selectedIdSet may be stale under rapid scans
-      const alreadySelected = selectedIdSet.has(asset.id);
-      showScanFeedbackMsg(
-        alreadySelected && !wasAdded ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
-        alreadySelected && !wasAdded ? "error" : "success",
-      );
-      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+      handleScannedAsset(asset);
       return;
     }
 
     const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
     if (sku) {
-      // BRK-002: Guard inside callback for bulk items too
-      let wasAdded = false;
-      setSelectedBulkItems((prev) => {
-        if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
-        wasAdded = true;
-        return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
-      });
-      const section = classifyAssetType(sku.category, sku.categoryName);
-      setActiveSection(section);
-      const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
-      showScanFeedbackMsg(
-        alreadySelected && !wasAdded ? `${sku.name} already selected` : `Added ${sku.name}`,
-        alreadySelected && !wasAdded ? "error" : "success",
-      );
-      if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+      handleScannedBulk(sku, value);
       return;
     }
 
-    showScanFeedbackMsg("No matching item — check this location\u2019s inventory", "error");
+    showScanFeedbackMsg("No matching item \u2014 check this location\u2019s inventory", "error");
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+  }
+
+  async function handleScanToAddSearch(value: string) {
+    try {
+      const params = new URLSearchParams();
+      params.set("qr", value);
+      params.set("only_available", "false");
+      params.set("limit", "1");
+      const res = await fetch(`/api/assets/picker-search?${params}`);
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: null };
+        if (data.assets.length > 0) {
+          const asset = data.assets[0];
+          selectedAssetsCache.set(asset.id, asset);
+          handleScannedAsset(asset);
+          return;
+        }
+      }
+    } catch {
+      // Fall through to bulk check
+    }
+
+    const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
+    if (sku) {
+      handleScannedBulk(sku, value);
+      return;
+    }
+
+    showScanFeedbackMsg("No matching item \u2014 check this location\u2019s inventory", "error");
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+  }
+
+  function handleScannedAsset(asset: PickerAsset) {
+    // BRK-001: Check computedStatus — don't add unavailable items via scan
+    const isAvailable = asset.computedStatus === "AVAILABLE";
+    const hasConflict = conflicts.has(asset.id);
+    if (!isAvailable && !hasConflict) {
+      const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
+      showScanFeedbackMsg(`${asset.assetTag} is ${statusLabel}`, "error");
+      if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+      setActiveSection(classifyAssetType(asset.type, asset.categoryName));
+      return;
+    }
+
+    // BRK-002: Guard inside callback to prevent duplicate IDs from rapid scans
+    let wasAdded = false;
+    setSelectedAssetIds((prev) => {
+      if (prev.includes(asset.id)) return prev;
+      wasAdded = true;
+      return [...prev, asset.id];
+    });
+    const section = classifyAssetType(asset.type, asset.categoryName);
+    setActiveSection(section);
+    const alreadySelected = selectedIdSet.has(asset.id);
+    showScanFeedbackMsg(
+      alreadySelected && !wasAdded ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
+      alreadySelected && !wasAdded ? "error" : "success",
+    );
+    if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+  }
+
+  function handleScannedBulk(sku: PickerBulkSku, _value: string) {
+    let wasAdded = false;
+    setSelectedBulkItems((prev) => {
+      if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
+      wasAdded = true;
+      return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
+    });
+    const section = classifyAssetType(sku.category, sku.categoryName);
+    setActiveSection(section);
+    const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
+    showScanFeedbackMsg(
+      alreadySelected && !wasAdded ? `${sku.name} already selected` : `Added ${sku.name}`,
+      alreadySelected && !wasAdded ? "error" : "success",
+    );
+    if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
+  }
+
+  function handleScanToAdd(value: string) {
+    if (legacyMode) {
+      handleScanToAddLegacy(value);
+    } else {
+      handleScanToAddSearch(value);
+    }
   }
 
   function showScanFeedbackMsg(message: string, type: "success" | "error") {
@@ -550,7 +768,9 @@ export default function EquipmentPicker({
           {isGlobalSearchActive ? (
             <div className="section-content">
               <div className="picker-scroll" role="listbox" aria-label="Search results">
-                {globalSearchResults.length === 0 ? (
+                {globalSearchLoading ? (
+                  <div className="picker-empty" role="status">Searching...</div>
+                ) : globalSearchResults.length === 0 ? (
                   <div className="picker-empty" role="status">No matching items across any section</div>
                 ) : (
                   <>
@@ -875,7 +1095,10 @@ export default function EquipmentPicker({
                   </>
                 )}
 
-                {sectionAssets.length === 0 && sectionBulk.length === 0 && (
+                {searchLoading && !legacyMode && (
+                  <div className="picker-empty" role="status">Searching...</div>
+                )}
+                {sectionAssets.length === 0 && sectionBulk.length === 0 && !(searchLoading && !legacyMode) && (
                   <div className="picker-empty" role="status">
                     {equipSearch
                       ? "No matching items"

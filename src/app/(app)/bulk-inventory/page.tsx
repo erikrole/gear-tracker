@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 import { PlusIcon, ChevronDownIcon } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -61,8 +62,8 @@ export default function BulkInventoryPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const createFormRef = useRef<HTMLFormElement>(null);
   const [expandedSku, setExpandedSku] = useState<string | null>(null);
   const [trackByNumber, setTrackByNumber] = useState(false);
   const [addingUnits, setAddingUnits] = useState<string | null>(null);
@@ -93,10 +94,21 @@ export default function BulkInventoryPage() {
       .then((json) => { if (json?.data) setCategories(json.data); });
   }, []);
 
+  const { submit: submitCreate, submitting: createSubmitting, formError, clearErrors } = useFormSubmit({
+    url: "/api/bulk-skus",
+    successMessage: "SKU created",
+    onSuccess: () => {
+      createFormRef.current?.reset();
+      setTrackByNumber(false);
+      setShowCreate(false);
+      reload();
+    },
+  });
+
+  const submitting = createSubmitting || actionLoading;
+
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitting(true);
-    setError("");
     const form = new FormData(e.currentTarget);
     const rawCategoryId = String(form.get("categoryId") || "");
     const selectedCategoryId = rawCategoryId === "__none__" ? "" : rawCategoryId;
@@ -113,29 +125,12 @@ export default function BulkInventoryPage() {
       active: true,
     };
 
-    const res = await fetch("/api/bulk-skus", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "Failed to create SKU");
-      setSubmitting(false);
-      return;
-    }
-
-    e.currentTarget.reset();
-    setTrackByNumber(false);
-    setShowCreate(false);
-    setSubmitting(false);
-    reload();
+    await submitCreate(payload);
   }
 
   async function handleAddUnits(skuId: string) {
     if (addCount <= 0) return;
-    setSubmitting(true);
+    setActionLoading(true);
     const res = await fetch(`/api/bulk-skus/${skuId}/units`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -145,15 +140,15 @@ export default function BulkInventoryPage() {
       setAddingUnits(null);
       reload();
     }
-    setSubmitting(false);
+    setActionLoading(false);
   }
 
   async function handleConvertToNumbered(skuId: string) {
     if (!confirm("Convert this SKU to numbered tracking? This will create individual unit records from the current on-hand quantity.")) return;
-    setSubmitting(true);
+    setActionLoading(true);
     const res = await fetch(`/api/bulk-skus/${skuId}/convert-to-numbered`, { method: "POST" });
     if (res.ok) reload();
-    setSubmitting(false);
+    setActionLoading(false);
   }
 
   async function handleUnitStatusChange(skuId: string, unitNumber: number, status: string) {
@@ -204,7 +199,7 @@ export default function BulkInventoryPage() {
       {showCreate && (
         <Card className="mb-1">
           <CardHeader><CardTitle>Add bulk SKU</CardTitle></CardHeader>
-          <form onSubmit={handleCreate} className="form-grid form-grid-3 p-4">
+          <form ref={createFormRef} onSubmit={handleCreate} className="form-grid form-grid-3 p-4">
             <Input name="name" placeholder="Name" required />
             <Select name="categoryId" defaultValue="__none__">
               <SelectTrigger>
@@ -263,7 +258,7 @@ export default function BulkInventoryPage() {
             <div className="col-span-full flex-end">
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create SKU"}</Button>
             </div>
-            {error && <div className="col-span-full text-destructive">{error}</div>}
+            {formError && <div className="col-span-full text-destructive">{formError}</div>}
           </form>
         </Card>
       )}

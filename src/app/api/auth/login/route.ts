@@ -3,8 +3,15 @@ import { createSession, verifyPassword } from "@/lib/auth";
 import { HttpError, ok } from "@/lib/http";
 import { loginSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
+const LOGIN_LIMIT = { max: 10, windowMs: 15 * 60 * 1000 }; // 10 attempts per 15 min
 
 export const POST = withHandler(async (req) => {
+  const ip = getClientIp(req);
+  const { allowed } = checkRateLimit(`login:${ip}`, LOGIN_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many login attempts. Please try again later.");
+
   const body = loginSchema.parse(await req.json());
   const user = await db.user.findUnique({ where: { email: body.email.toLowerCase() } });
 

@@ -2,11 +2,21 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+
 export const GET = withAuth<{ id: string }>(async (req, { params }) => {
   const { id } = params;
 
   const asset = await db.asset.findUnique({ where: { id }, select: { id: true } });
   if (!asset) throw new HttpError(404, "Asset not found");
+
+  const url = new URL(req.url);
+  const cursor = url.searchParams.get("cursor") || undefined;
+  const limit = Math.min(
+    Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT),
+    MAX_LIMIT,
+  );
 
   // Fetch audit logs for this asset + any bookings that included this asset
   const bookingIds = await db.bookingSerializedItem.findMany({
@@ -27,11 +37,16 @@ export const GET = withAuth<{ id: string }>(async (req, { params }) => {
       ],
     },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: {
       actor: { select: { name: true, email: true } },
     },
   });
 
-  return ok({ data: logs });
+  const hasMore = logs.length > limit;
+  const data = hasMore ? logs.slice(0, limit) : logs;
+  const nextCursor = hasMore ? data[data.length - 1].id : null;
+
+  return ok({ data, nextCursor });
 });

@@ -52,6 +52,8 @@ export type BookingDetail = {
   isActive: boolean;
   bookingType: string;
   auditLogs: AuditEntry[];
+  hasMoreAuditLogs?: boolean;
+  auditLogNextCursor?: string | null;
   itemLocations: LocationInfo[];
   locationMode: "SINGLE" | "MIXED";
   allowedActions?: string[];

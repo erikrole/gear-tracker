@@ -1,11 +1,17 @@
 import { db } from "@/lib/db";
 import { tokenHash, hashPassword } from "@/lib/auth";
-import { ok } from "@/lib/http";
-import { HttpError } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import { resetPasswordSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+
+const RESET_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min
 
 export const POST = withHandler(async (req) => {
+  const ip = getClientIp(req);
+  const { allowed } = checkRateLimit(`reset:${ip}`, RESET_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many attempts. Please try again later.");
+
   const body = resetPasswordSchema.parse(await req.json());
 
   const hashed = await tokenHash(body.token);

@@ -79,15 +79,22 @@ export default function BookingDetailsSheet({
   const [pickerTab, setPickerTab] = useState<"serialized" | "bulk">(
     "serialized"
   );
-  const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
+  const [pickerSearchResults, setPickerSearchResults] = useState<AvailableAsset[]>([]);
+  const [pickerSearchLoading, setPickerSearchLoading] = useState(false);
+  const pickerSearchAbortRef = useRef<AbortController | null>(null);
+  const pickerSearchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [equipSaving, setEquipSaving] = useState(false);
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
   const [optionsError, setOptionsError] = useState(false);
 
-  // History filter
+  // History filter + audit log pagination
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
   const [expandedDiffs, setExpandedDiffs] = useState<Set<string>>(new Set());
+  const [extraAuditLogs, setExtraAuditLogs] = useState<BookingDetail["auditLogs"]>([]);
+  const [auditLogCursor, setAuditLogCursor] = useState<string | null>(null);
+  const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
+  const [loadingMoreAuditLogs, setLoadingMoreAuditLogs] = useState(false);
 
   const isAdmin = currentUserRole === "ADMIN";
 
@@ -120,7 +127,12 @@ export default function BookingDetailsSheet({
       });
       if (res.ok) {
         const json = await res.json();
-        if (json?.data) setBooking(json.data);
+        if (json?.data) {
+          setBooking(json.data);
+          setExtraAuditLogs([]);
+          setAuditLogCursor(json.data.auditLogNextCursor ?? null);
+          setHasMoreAuditLogs(json.data.hasMoreAuditLogs ?? false);
+        }
       } else if (res.status === 401) {
         window.location.href = "/login";
         return;
@@ -158,7 +170,6 @@ export default function BookingDetailsSheet({
       if (handle401(res)) return;
       if (res.ok) {
         const json = await res.json();
-        setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       } else {
         setOptionsError(true);
@@ -168,6 +179,50 @@ export default function BookingDetailsSheet({
       toast("Failed to load equipment options", "error");
     }
   }, [toast]);
+
+  // Fetch assets for inline picker via picker-search API
+  const fetchPickerAssets = useCallback(async (q: string) => {
+    pickerSearchAbortRef.current?.abort();
+    const controller = new AbortController();
+    pickerSearchAbortRef.current = controller;
+    setPickerSearchLoading(true);
+    try {
+      const params = new URLSearchParams({ only_available: "true", limit: "50" });
+      if (q) params.set("q", q);
+      const res = await fetchWithTimeout(`/api/assets/picker-search?${params}`, {
+        signal: controller.signal,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setPickerSearchResults(json.data?.assets || []);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    } finally {
+      setPickerSearchLoading(false);
+    }
+  }, []);
+
+  /* ───── Audit log load-more ───── */
+
+  const loadMoreAuditLogs = useCallback(async () => {
+    if (!bookingId || !auditLogCursor || loadingMoreAuditLogs) return;
+    setLoadingMoreAuditLogs(true);
+    try {
+      const res = await fetchWithTimeout(
+        `/api/bookings/${bookingId}/audit-logs?cursor=${encodeURIComponent(auditLogCursor)}`
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setExtraAuditLogs((prev) => [...prev, ...(json.data ?? [])]);
+        setAuditLogCursor(json.nextCursor ?? null);
+        setHasMoreAuditLogs(json.hasMore ?? false);
+      }
+    } catch {
+      // Silently fail — user can retry
+    }
+    setLoadingMoreAuditLogs(false);
+  }, [bookingId, auditLogCursor, loadingMoreAuditLogs]);
 
   /* ───── Derived state ───── */
 
@@ -180,29 +235,44 @@ export default function BookingDetailsSheet({
     return { returned, total, percent: Math.round((returned / total) * 100) };
   }, [booking]);
 
-  const filteredAuditLogs = useMemo(() => {
+  const allAuditLogs = useMemo(() => {
     if (!booking) return [];
-    const logs = booking.auditLogs ?? [];
-    if (historyFilter === "all") return logs;
+    return [...(booking.auditLogs ?? []), ...extraAuditLogs];
+  }, [booking, extraAuditLogs]);
+
+  const filteredAuditLogs = useMemo(() => {
+    if (historyFilter === "all") return allAuditLogs;
     if (historyFilter === "equipment") {
-      return logs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
+      return allAuditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
     }
-    return logs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
+    return allAuditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
   }, [booking, historyFilter]);
+
+  // Debounced search for inline picker
+  useEffect(() => {
+    if (!addingItems) return;
+    if (pickerSearchDebounceRef.current) clearTimeout(pickerSearchDebounceRef.current);
+    pickerSearchDebounceRef.current = setTimeout(() => {
+      fetchPickerAssets(pickerSearch);
+    }, 300);
+    return () => {
+      if (pickerSearchDebounceRef.current) clearTimeout(pickerSearchDebounceRef.current);
+    };
+  }, [pickerSearch, addingItems, fetchPickerAssets]);
+
+  // Trigger initial fetch when entering add-items mode
+  useEffect(() => {
+    if (addingItems) fetchPickerAssets(pickerSearch);
+    return () => { pickerSearchAbortRef.current?.abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addingItems]);
 
   const pickerAssets = useMemo(() => {
     if (!booking) return [];
-    const q = pickerSearch.toLowerCase();
-    return availableAssets.filter((a) => {
-      if (editSerializedIds.includes(a.id)) return false;
-      if (!q) return true;
-      return (
-        a.assetTag.toLowerCase().includes(q) ||
-        a.brand.toLowerCase().includes(q) ||
-        a.model.toLowerCase().includes(q)
-      );
-    });
-  }, [availableAssets, editSerializedIds, pickerSearch, booking]);
+    // Filter out already-selected assets from search results
+    const editSet = new Set(editSerializedIds);
+    return pickerSearchResults.filter((a) => !editSet.has(a.id));
+  }, [pickerSearchResults, editSerializedIds, booking]);
 
   const pickerBulkSkus = useMemo(() => {
     if (!booking) return [];
@@ -234,12 +304,12 @@ export default function BookingDetailsSheet({
       );
       if (fromBooking)
         return `${fromBooking.asset.assetTag} - ${fromBooking.asset.brand} ${fromBooking.asset.model}`;
-      const fromAvailable = availableAssets.find((a) => a.id === assetId);
-      if (fromAvailable)
-        return `${fromAvailable.assetTag} - ${fromAvailable.brand} ${fromAvailable.model}`;
+      const fromSearch = pickerSearchResults.find((a) => a.id === assetId);
+      if (fromSearch)
+        return `${fromSearch.assetTag} - ${fromSearch.brand} ${fromSearch.model}`;
       return assetId;
     },
-    [booking, availableAssets]
+    [booking, pickerSearchResults]
   );
 
   const resolveSkuName = useCallback(
@@ -762,6 +832,9 @@ export default function BookingDetailsSheet({
                   isAdmin={isAdmin}
                   expandedDiffs={expandedDiffs}
                   onToggleDiff={toggleDiff}
+                  hasMore={hasMoreAuditLogs}
+                  loadingMore={loadingMoreAuditLogs}
+                  onLoadMore={loadMoreAuditLogs}
                 />
               )}
             </>

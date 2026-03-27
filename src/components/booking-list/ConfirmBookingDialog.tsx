@@ -24,8 +24,7 @@ type ConfirmBookingDialogProps = {
   endsAt: string;
   locationName: string;
   requesterName: string;
-  selectedAssetIds: string[];
-  availableAssets: AvailableAsset[];
+  selectedAssetDetails: AvailableAsset[];
   selectedBulkItems: BulkSelection[];
   bulkSkus: BulkSkuOption[];
   submitting: boolean;
@@ -50,17 +49,12 @@ export function ConfirmBookingDialog({
   endsAt,
   locationName,
   requesterName,
-  selectedAssetIds,
-  availableAssets,
+  selectedAssetDetails,
   selectedBulkItems,
   bulkSkus,
   submitting,
 }: ConfirmBookingDialogProps) {
-  const totalItems = selectedAssetIds.length + selectedBulkItems.length;
-
-  const selectedAssets = selectedAssetIds
-    .map((id) => availableAssets.find((a) => a.id === id))
-    .filter(Boolean);
+  const totalItems = selectedAssetDetails.length + selectedBulkItems.length;
 
   const selectedBulkDisplay = selectedBulkItems.map((bi) => {
     const sku = bulkSkus.find((s) => s.id === bi.bulkSkuId);
@@ -102,10 +96,10 @@ export function ConfirmBookingDialog({
                 <Badge variant="secondary" className="text-xs">{totalItems} item{totalItems !== 1 ? "s" : ""}</Badge>
               </div>
               <ul className="space-y-0.5 text-muted-foreground max-h-40 overflow-y-auto">
-                {selectedAssets.map((a) => (
-                  <li key={a!.id} className="flex items-center gap-1.5">
-                    <span className="text-foreground font-mono text-xs">{a!.assetTag}</span>
-                    <span className="truncate">{a!.brand} {a!.model}</span>
+                {selectedAssetDetails.map((a) => (
+                  <li key={a.id} className="flex items-center gap-1.5">
+                    <span className="text-foreground font-mono text-xs">{a.assetTag}</span>
+                    <span className="truncate">{a.brand} {a.model}</span>
                   </li>
                 ))}
                 {selectedBulkDisplay.map((bi) => (

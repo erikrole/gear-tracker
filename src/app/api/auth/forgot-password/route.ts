@@ -2,13 +2,19 @@ import { db } from "@/lib/db";
 import { tokenHash, randomHex } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { env } from "@/lib/env";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { forgotPasswordSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const RESET_TOKEN_EXPIRY_MS = 1000 * 60 * 60; // 1 hour
+const FORGOT_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min
 
 export const POST = withHandler(async (req) => {
+  const ip = getClientIp(req);
+  const { allowed } = checkRateLimit(`forgot:${ip}`, FORGOT_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many requests. Please try again later.");
+
   const body = forgotPasswordSchema.parse(await req.json());
   const email = body.email.toLowerCase();
 

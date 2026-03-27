@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { z } from "zod";
+import { useFormSubmit } from "@/hooks/use-form-submit";
 import {
   Sheet,
   SheetContent,
@@ -32,63 +34,47 @@ interface NewKitSheetProps {
   onCreated: (kitId: string) => void;
 }
 
+const createKitSchema = z.object({
+  name: z.string().min(1, "Kit name is required"),
+  description: z.string(),
+  locationId: z.string().min(1, "Location is required"),
+});
+
+type CreateKitInput = z.infer<typeof createKitSchema>;
+
 export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKitSheetProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   function reset() {
     setName("");
     setDescription("");
     setLocationId(locations[0]?.id ?? "");
-    setError("");
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError("Kit name is required");
-      return;
-    }
-    if (!locationId) {
-      setError("Location is required");
-      return;
-    }
-
-    setSubmitting(true);
-    setError("");
-
-    try {
-      const res = await fetch("/api/kits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || null,
-          locationId,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "Failed to create kit");
-      }
-
-      const { data } = await res.json();
+  const { submit, submitting, fieldErrors, formError, clearErrors } = useFormSubmit<CreateKitInput, { id: string }>({
+    schema: createKitSchema,
+    url: "/api/kits",
+    successMessage: "Kit created",
+    onSuccess: (data) => {
       reset();
       onOpenChange(false);
       onCreated(data.id);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
+    },
+  });
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await submit({
+      name: name.trim(),
+      description: description.trim(),
+      locationId,
+    });
   }
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (!submitting) { onOpenChange(v); if (!v) reset(); } }}>
+    <Sheet open={open} onOpenChange={(v) => { if (!submitting) { onOpenChange(v); if (!v) { reset(); clearErrors(); } } }}>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>New Kit</SheetTitle>
@@ -98,9 +84,9 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
         </SheetHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-4">
-          {error && (
+          {formError && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}
 

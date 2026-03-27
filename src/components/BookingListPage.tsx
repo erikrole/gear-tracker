@@ -18,7 +18,6 @@ import {
   BookingTableRow,
   BookingMobileCard,
   BookingCard,
-  CreateBookingCard,
   roundTo15Min,
   toLocalDateTimeValue,
   type BookingItem,
@@ -27,7 +26,6 @@ import {
   type ContextMenuExtra,
   type FormUser,
   type Location,
-  type AvailableAsset,
   type BulkSkuOption,
   type ListResponse,
 } from "./booking-list";
@@ -58,7 +56,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   // ── Form options (shared with filters and create sheet) ──
   const [users, setUsers] = useState<FormUser[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [availableAssets, setAvailableAssets] = useState<AvailableAsset[]>([]);
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
 
   // ── Create sheet state ──
@@ -152,7 +149,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         if (signal.aborted || !json?.data) return;
         setUsers(json.data.users || []);
         setLocations(json.data.locations || []);
-        setAvailableAssets(json.data.availableAssets || []);
         setBulkSkus(json.data.bulkSkus || []);
       })
       .catch((err) => { if (err?.name !== "AbortError") toast("Failed to load filter options", "error"); });
@@ -379,7 +375,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         config={config}
         users={users}
         locations={locations}
-        availableAssets={availableAssets}
         bulkSkus={bulkSkus}
         onCreated={handleCreated}
         draftId={draftId}
