@@ -1,10 +1,22 @@
 # Database Performance Audit
 
 *Generated: 2026-03-27*
+*Remediation applied: 2026-03-27 (P0-P3 fixes committed)*
 
 ## Executive Summary
 
-The gear-tracker codebase has **solid foundations** (SERIALIZABLE on most booking mutations, parallelized queries on key endpoints, proper singleton PrismaClient) but suffers from three systemic issues: **(1)** audit log and bulk stock operations use per-item INSERT loops instead of batched writes, **(2)** the dashboard fires 17-18 queries per load, and **(3)** several critical mutations (`markCheckoutCompleted`, `recordScan`, scan completion) are missing SERIALIZABLE isolation, creating race conditions that also degrade performance under contention. Additionally, 13 missing database indexes were identified that affect the highest-traffic query patterns.
+The gear-tracker codebase has **solid foundations** (SERIALIZABLE on most booking mutations, parallelized queries on key endpoints, proper singleton PrismaClient) but suffered from three systemic issues: **(1)** audit log and bulk stock operations used per-item INSERT loops instead of batched writes, **(2)** the dashboard fired 17-18 queries per load, and **(3)** several critical mutations (`markCheckoutCompleted`, `recordScan`, scan completion) were missing SERIALIZABLE isolation.
+
+### Fixes Applied
+- **P0 (Transaction Safety):** Added SERIALIZABLE to `markCheckoutCompleted`, `recordScan` numbered bulk; wrapped serialized scan flow and scan completion in SERIALIZABLE transactions
+- **P1 (Indexes + Queries):** Added 6 performance indexes (migration 0020); replaced audit log loops with `createMany`; consolidated 9 dashboard counts into 1 raw SQL query (17→9 queries per load)
+- **P2 (Bulk Batching):** Batched `upsertBulkBalancesAndMovements` — pre-fetch all balances in one query, batch create movements (3N→N+2 queries)
+- **P3 (Search + Notifications):** Added `pg_trgm` GIN indexes for ILIKE search (migration 0021); fixed notification pre-fetch that loaded entire table
+
+### Deferred (acceptable risk)
+- Asset status breakdown counts (5 parallel queries using derived-status logic — can't simplify to `groupBy` without raw SQL rewrite)
+- `bookingInclude` asset field narrowing (detail views, low volume, risk of breaking fields)
+- `form-options` pagination (equipment picker needs full asset list; real fix is search-on-type refactor)
 
 ---
 
