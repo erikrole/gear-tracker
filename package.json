@@ -1,6 +1,6 @@
 {
   "name": "creative-ops",
-  "version": "2026.03.27.24",
+  "version": "2026.03.27.25",
   "private": true,
   "scripts": {
     "dev": "next dev",
