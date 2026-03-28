@@ -7,6 +7,8 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ClipboardCheckIcon, CalendarPlusIcon } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
+import { PageHeader } from "@/components/PageHeader";
 
 /** Shared fetch wrapper with 401 redirect */
 async function fetchAction(url: string, method = "POST"): Promise<Response> {
@@ -178,10 +180,8 @@ export default function BookingsPage() {
   }), [confirm, toast]);
 
   return (
-    <div>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1>Bookings</h1>
-      </div>
+    <FadeUp>
+      <PageHeader title="Bookings" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="px-4">
@@ -203,6 +203,6 @@ export default function BookingsPage() {
           <BookingListPage config={reservationConfig} viewMode="cards" hideHeader />
         </TabsContent>
       </Tabs>
-    </div>
+    </FadeUp>
   );
 }

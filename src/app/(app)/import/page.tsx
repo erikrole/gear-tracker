@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -347,12 +348,11 @@ export default function ImportPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1>Import Items</h1>
+      <PageHeader title="Import Items">
         {step !== "upload" && step !== "importing" && (
           <Button variant="outline" onClick={resetWizard}>Start over</Button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-6">

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PageHeader } from "@/components/PageHeader";
 import { useFetch } from "@/hooks/use-fetch";
 import { useDebounce } from "@/hooks/use-url-state";
 
@@ -103,8 +104,7 @@ export default function LabelsPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8 no-print">
-        <h1>Print Labels</h1>
+      <PageHeader title="Print Labels" className="no-print">
         <Button
           onClick={() => window.print()}
           disabled={selectedAssets.length === 0}
@@ -114,7 +114,7 @@ export default function LabelsPage() {
             ? `${selectedAssets.length} labels`
             : "labels"}
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Selection UI (hidden when printing) */}
       <Card className="no-print mb-1">

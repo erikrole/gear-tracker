@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import EmptyState from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -40,6 +41,7 @@ import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { useIsMobile } from "./hooks/use-media-query";
 import { Badge } from "@/components/ui/badge";
 import { Download } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -228,7 +230,7 @@ export default function ItemsPage() {
   };
 
   return (
-    <>
+    <FadeUp>
       {/* Single-item retire confirmation */}
       <AlertDialog open={!!retireTarget} onOpenChange={(open) => { if (!open) setRetireTarget(null); }}>
         <AlertDialogContent>
@@ -251,8 +253,7 @@ export default function ItemsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1>Items</h1>
+      <PageHeader title="Items">
         <div className="flex items-center gap-2">
           {options.canEdit && (
             <>
@@ -265,7 +266,7 @@ export default function ItemsPage() {
             </>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {/* Inventory summary bar */}
       {query.statusBreakdown && !query.loading && (
@@ -418,6 +419,6 @@ export default function ItemsPage() {
           />
         )}
       </div>
-    </>
+    </FadeUp>
   );
 }

@@ -13,6 +13,7 @@ import {
   ArrowDown,
   ArrowUpDown,
 } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import EmptyState from "@/components/EmptyState";
+import { FadeUp } from "@/components/ui/motion";
 import { useKitsQuery } from "./hooks/use-kits-query";
 import { NewKitSheet } from "./new-kit-sheet";
 
@@ -103,9 +105,7 @@ export default function KitsPage() {
   if (query.loading) {
     return (
       <>
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-          <h1>Kits</h1>
-        </div>
+        <PageHeader title="Kits" />
         <Card className="p-4 space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4">
@@ -121,14 +121,13 @@ export default function KitsPage() {
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1>Kits</h1>
+    <FadeUp>
+      <PageHeader title="Kits">
         <Button onClick={() => setSheetOpen(true)}>
           <PlusIcon className="mr-2 h-4 w-4" />
           New Kit
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -303,6 +302,6 @@ export default function KitsPage() {
         locations={locations}
         onCreated={handleCreated}
       />
-    </>
+    </FadeUp>
   );
 }

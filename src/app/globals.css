@@ -219,7 +219,6 @@
   --z-scan-feedback: 1000;
   --z-offline: 9999;
 
-
   /* Brand — Wisconsin Red for identity moments only (sidebar, logo, overdue) */
   --wi-red: #A00000;
   --wi-red-hover: #900000;
@@ -518,8 +517,6 @@ a[data-slot="button"]:hover {
 /* ===== Focus & Accessibility ===== */
 /* Focus styles handled by shadcn component-level Tailwind classes (focus-visible:ring-*) */
 
-/* .sr-only removed — Tailwind provides this natively */
-
 /* Skip to content link */
 .skip-link {
   position: absolute;
@@ -577,7 +574,6 @@ a[data-slot="button"]:hover {
   }
 }
 
-
 .pulse-dot {
   width: 8px;
   height: 8px;
@@ -591,7 +587,6 @@ a[data-slot="button"]:hover {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.8); }
 }
-
 
 /* ── Empty section placeholder ── */
 .empty-section {
@@ -692,7 +687,6 @@ a[data-slot="button"]:hover {
   flex-shrink: 0;
 }
 
-
 .ops-row-main {
   display: flex;
   flex-direction: column;
@@ -764,7 +758,6 @@ a[data-slot="button"]:hover {
   gap: 8px;
   flex-shrink: 0;
 }
-
 
 /* ── Possession Card (right column items) ── */
 .possession-card {
@@ -841,34 +834,7 @@ a[data-slot="button"]:hover {
   color: var(--text);
 }
 
-.possession-countdown {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  margin-top: 4px;
-}
-
-.countdown-text-overdue { color: #ef4444; }
-.countdown-text-critical { color: #f59e0b; }
-.countdown-text-warning { color: #f59e0b; }
-.countdown-text-normal { color: var(--text-secondary); }
-
-/* ── History card — subtle de-emphasis vs active cards ── */
-.history-card {
-  opacity: 0.85;
-}
-
-/* .ops-row-owned replaced by .ops-row-status + .ops-row-checked-out / .ops-row-reserved */
-
-
-/* Summary Cards, Stat Rows, Donut Chart — removed (unused, dashboard uses shadcn Card + Tailwind) */
-
 /* ===== Data Table ===== */
-/* ── Date-grouped event list ── */
-.event-list-grouped {
-  overflow-x: auto;
-}
 
 .event-date-header {
   position: sticky;
@@ -974,8 +940,6 @@ a[data-slot="button"]:hover {
   background: var(--panel-hover);
 }
 
-/* Status Badges — removed, now handled by shadcn Badge component (src/components/ui/badge.tsx) */
-
 /* ===== Empty State ===== */
 @keyframes empty-fade-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -1015,24 +979,10 @@ a[data-slot="button"]:hover {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-
 /* ===== Checkout table responsive ===== */
 @media (max-width: 768px) {
   .hide-mobile {
     display: none;
-  }
-
-  .field-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ===== Responsive ===== */
-@media (max-width: 768px) {
-  /* .sidebar hidden on mobile — shadcn Sidebar renders as a Sheet on mobile instead */
-  /* .app-main margin-left: 0 removed — flex layout handles this automatically */
-  .summary-cards {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1052,29 +1002,6 @@ a[data-slot="button"]:hover {
   min-height: 360px;
 }
 
-.details-list {
-  margin: 0;
-  padding: 16px;
-  display: grid;
-  gap: 14px;
-}
-
-.details-list > div {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 16px;
-}
-
-.details-list dt {
-  color: var(--text-secondary);
-  font-weight: var(--weight-medium);
-}
-
-.details-list dd {
-  margin: 0;
-  font-weight: var(--weight-medium);
-}
-
 /* ===== Item page tabs ===== */
 .cal-month-label {
   min-width: 160px;
@@ -1082,79 +1009,8 @@ a[data-slot="button"]:hover {
   margin: 0;
 }
 
-.cal-legend {
-  display: flex;
-  gap: 16px;
-  margin-top: 12px;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-}
-
-.cal-legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-
-.tracking-row {
-  display: flex;
-  justify-content: flex-start;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-}
-
-.tracking-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-muted, rgba(255,255,255,0.06));
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  padding: 6px 14px 6px 10px;
-  font-size: var(--text-sm);
-}
-
-.tracking-pill-label {
-  color: var(--text-secondary);
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-3xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-}
-
-.tracking-pill-value {
-  font-family: var(--font-mono, "SF Mono", "Fira Code", monospace);
-  font-weight: var(--weight-semibold);
-  color: var(--text);
-}
-
 /* ===== Sidebar trigger (replaces mobile-nav-toggle) ===== */
 /* SidebarTrigger is visible on all breakpoints: collapses on desktop, opens Sheet on mobile */
-
-/* Mobile bottom nav — removed, now Tailwind inline in AppShell.tsx */
-
-/* Asset Images */
-.item-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.item-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
 
 /* Dark mode: soften bright product images with white backgrounds */
 [data-theme="dark"] .item-thumb img,
@@ -1202,35 +1058,13 @@ a[data-slot="button"]:hover {
 
 /* ===== Toast ===== */
 
-/* DataList — removed, now Tailwind inline in DataList.tsx */
-
-/* Item Detail Inline Edit — removed (unused, replaced by SaveableField component) */
-
-/* text-center, justify-center, items-baseline, items-start, m-0, mb-0,
-   mt-2, py-1 removed — Tailwind v4 provides all of these natively */
-
 .qr-canvas {
   display: block;
   border-radius: 6px;
   border: 1px solid var(--border-light);
 }
 
-.cal-legend-dot-checkout { background: #3b82f6; }
-.cal-legend-dot-reservation { background: #8b5cf6; }
-
-/* Filter Chips (old) — removed, now Tailwind inline / shadcn FilterChip */
-
-/* Qty Stepper — removed (unused) */
-
 /* ===== Equipment Picker ===== */
-
-/* Location Badge — removed (unused) */
-
-/* Create Card — removed (no longer used, replaced by shadcn Card / Sheet) */
-
-/* Toggle switch — removed (using shadcn Switch) */
-/* Event picker row — removed (no longer used) */
-/* Sport badge — removed (using shadcn Badge variant) */
 
 /* ── Scan page keyframes (used via Tailwind animate-[...]) ── */
 @keyframes scan-feedback-in {
@@ -1249,24 +1083,12 @@ a[data-slot="button"]:hover {
   to { opacity: 1; }
 }
 
-/* Overflow menu — removed, now Tailwind inline in BookingRow.tsx */
-
-/* .field-row — removed (unused) */
-
-/* Settings Split Layout — removed, now Tailwind inline in settings pages */
-
-/* Category search — removed, now Tailwind inline in categories page */
-
-/* Settings/category mobile rules — most removed (Tailwind inline).
-   Keeping diag-table mobile override only. */
 @media (max-width: 768px) {
   .diag-table th,
   .diag-table td {
     padding: 6px 10px;
   }
 }
-
-/* Category List — removed, now Tailwind inline in CategoryRow.tsx */
 
 /* ===== Calendar Grid ===== */
 .cal-grid {
@@ -1491,31 +1313,6 @@ a[data-slot="button"]:hover {
   /* Remove QR canvas margin so black bg merges with label */
 }
 
-/* ── QR Modal ────────────────────────────────────────── */
-
-.qr-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-sidebar);
-}
-
-.qr-modal {
-  background: var(--surface);
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-/* Header Action Buttons — removed (unused) */
-
-/* Booking List Table — removed, now Tailwind inline in BookingRow.tsx, SortHeader.tsx, BookingListPage.tsx */
-
 /* Status visual states — kept as CSS since they reference dynamic className from types.ts */
 tr.status-cancelled .row-link {
   text-decoration: line-through;
@@ -1564,47 +1361,24 @@ tr.status-overdue .status-label {
   .text-blue { color: var(--blue); }
 }
 
-
-
-/* border-b, border-t, rounded, rounded-sm, flex-1, inline-flex,
-   items-center removed — Tailwind provides these natively */
-
 /* Custom layout helpers */
 @layer utilities {
   .flex-end { display: flex; justify-content: flex-end; }
 }
 
-/* Grid */
-.grid-2col { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
-
 /* Responsive form grids */
 .form-grid { display: grid; gap: 10px; }
-.form-grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .form-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-.summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-
 @media (max-width: 768px) {
-  .grid-2col { grid-template-columns: 1fr; }
-  .form-grid-5 { grid-template-columns: 1fr; }
   .form-grid-3 { grid-template-columns: 1fr; }
-  .summary-grid { grid-template-columns: repeat(2, 1fr); }
 }
-
-/* relative, absolute, cursor-pointer, cursor-default, ml-auto,
-   text-right, text-left, w-full, overflow-x-auto, col-span-full,
-   mb-4, mt-14, gap-2, p-24, p-48, mb-24, mt-10, gap-24, mr-4, ml-4, ml-8
-   removed — Tailwind provides these (spacing classes renamed in usages) */
 
 /* Custom color utilities (no Tailwind equivalent) */
 @layer utilities {
   .text-orange { color: var(--orange); }
   .text-purple { color: var(--purple); }
 }
-
-/* Metric display (summary cards) */
-.metric-value { font-size: 28px; font-weight: var(--weight-bold); }
-.metric-label { font-size: var(--text-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* Misc — only keep utilities Tailwind v4 doesn't provide natively */
 
@@ -1622,17 +1396,6 @@ tr.status-overdue .status-label {
 }
 .diag-table td { padding: 8px 16px; }
 .diag-table tbody tr { border-bottom: 1px solid var(--border-light); }
-
-/* Filter chips — removed, now Tailwind inline in BookingFilters.tsx, ScheduleFilters.tsx, etc.
-   FilterChip component uses shadcn Popover + Button. */
-
-/* Filter bar (compact inputs) */
-.filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 
 /* Alert banners */
 .alert-warning {
@@ -1701,8 +1464,6 @@ input[type="date"],
 textarea {
   min-height: 44px;
 }
-
-/* Creation Flow Mobile Fixes — removed (create-card no longer used) */
 
 /* ===== Item Detail Page Mobile Fixes ===== */
 @media (max-width: 768px) {

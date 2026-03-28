@@ -20,6 +20,7 @@ import { FilterChips } from "./dashboard/filter-chips";
 import { OverdueBanner } from "./dashboard/overdue-banner";
 import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
+import { PageTransition, StaggerList, StaggerItem } from "@/components/ui/motion";
 import type { BookingSummary } from "./dashboard-types";
 
 export default function DashboardPage() {
@@ -141,7 +142,7 @@ export default function DashboardPage() {
   const isStudent = data.role === "STUDENT";
 
   return (
-    <>
+    <PageTransition>
       {/* ══════ Page Header + Quick Actions ══════ */}
       <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
         <div className="flex items-center gap-3">
@@ -174,24 +175,32 @@ export default function DashboardPage() {
 
       {/* ══════ Stat Strip ══════ */}
       {refreshing && <Progress className="h-0.5 mb-1" />}
-      {!isStudent && <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 md:gap-3 mb-5">
-        <a href="/checkouts?filter=overdue" className={`flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] ${data.stats.overdue > 0 ? "border-red-600/25 bg-red-600/[0.04]" : ""}`}>
-          <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.overdue > 0 ? "text-red-600" : "text-foreground"}`}>{data.stats.overdue}</span>
-          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Overdue</span>
-        </a>
-        <a href="/bookings?tab=checkouts&filter=due-today" className={`flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] [animation-delay:0.05s] ${data.stats.dueToday > 0 ? "border-amber-600/25 bg-amber-600/[0.04]" : ""}`}>
-          <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.dueToday > 0 ? "text-amber-600" : "text-foreground"}`}>{data.stats.dueToday}</span>
-          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Due today</span>
-        </a>
-        <a href="/bookings?tab=checkouts" className="flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] [animation-delay:0.1s]">
-          <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.checkedOut}</span>
-          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Active checkouts</span>
-        </a>
-        <a href="/bookings?tab=reservations" className="flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] [animation-delay:0.15s]">
-          <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.reserved}</span>
-          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Reserved</span>
-        </a>
-      </div>}
+      {!isStudent && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-1.5 md:gap-3 mb-5">
+        <StaggerItem>
+          <a href="/checkouts?filter=overdue" className={`flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 ${data.stats.overdue > 0 ? "border-red-600/25 bg-red-600/[0.04]" : ""}`}>
+            <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.overdue > 0 ? "text-red-600" : "text-foreground"}`}>{data.stats.overdue}</span>
+            <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Overdue</span>
+          </a>
+        </StaggerItem>
+        <StaggerItem>
+          <a href="/bookings?tab=checkouts&filter=due-today" className={`flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 ${data.stats.dueToday > 0 ? "border-amber-600/25 bg-amber-600/[0.04]" : ""}`}>
+            <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.dueToday > 0 ? "text-amber-600" : "text-foreground"}`}>{data.stats.dueToday}</span>
+            <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Due today</span>
+          </a>
+        </StaggerItem>
+        <StaggerItem>
+          <a href="/bookings?tab=checkouts" className="flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50">
+            <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.checkedOut}</span>
+            <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Active checkouts</span>
+          </a>
+        </StaggerItem>
+        <StaggerItem>
+          <a href="/bookings?tab=reservations" className="flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50">
+            <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.reserved}</span>
+            <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Reserved</span>
+          </a>
+        </StaggerItem>
+      </StaggerList>}
 
       {/* ══════ Welcome Banner (first-run) ══════ */}
       {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
@@ -260,6 +269,6 @@ export default function DashboardPage() {
         onClose={() => setSelectedBookingId(null)}
         onUpdated={() => loadData(true)}
       />
-    </>
+    </PageTransition>
   );
 }

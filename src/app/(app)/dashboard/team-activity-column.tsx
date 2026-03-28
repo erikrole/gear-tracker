@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, ClockIcon, InboxIcon, PackageIcon } from "lucide-react";
+import { ScaleIn } from "@/components/ui/motion";
 import { formatDueLabel, formatEventDateTime, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { UserAvatar, GearAvatarStack, ShiftAvatarStack } from "./dashboard-avatars";
@@ -34,7 +35,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       <span className="text-xs font-semibold text-muted-foreground pl-0.5">Team Activity</span>
 
       {/* Team Checkouts */}
-      <Card>
+      <ScaleIn delay={0}>
+      <Card elevation="elevated">
         <a href="/bookings?tab=checkouts" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
           <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Checked out</h2>
           <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
@@ -90,8 +92,10 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           </CardContent>
         )}
       </Card>
+      </ScaleIn>
 
       {/* Team Reservations */}
+      <ScaleIn delay={0.05}>
       <Card>
         <a href="/bookings?tab=reservations" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
           <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Reserved</h2>
@@ -126,8 +130,10 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           </CardContent>
         )}
       </Card>
+      </ScaleIn>
 
       {/* Upcoming Events */}
+      <ScaleIn delay={0.1}>
       <Card>
         <a href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
           <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Upcoming events</h2>
@@ -193,6 +199,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           </CardContent>
         )}
       </Card>
+      </ScaleIn>
     </div>
   );
 }

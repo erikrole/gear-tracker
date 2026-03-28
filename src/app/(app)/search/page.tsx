@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
 import { SearchIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -174,9 +175,7 @@ export default function SearchPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1>Search</h1>
-      </div>
+      <PageHeader title="Search" />
 
       <div className="relative mb-6 max-w-xl">
         <Input

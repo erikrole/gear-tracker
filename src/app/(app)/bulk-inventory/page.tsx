@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 import { PlusIcon, ChevronDownIcon } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
@@ -184,8 +185,7 @@ export default function BulkInventoryPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1>Bulk Inventory</h1>
+      <PageHeader title="Bulk Inventory">
         <Button onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Close" : (
             <>
@@ -194,7 +194,7 @@ export default function BulkInventoryPage() {
             </>
           )}
         </Button>
-      </div>
+      </PageHeader>
 
       {showCreate && (
         <Card className="mb-1">

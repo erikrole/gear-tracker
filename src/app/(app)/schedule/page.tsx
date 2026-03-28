@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetBody,
 } from "@/components/ui/sheet";
+import { PageHeader } from "@/components/PageHeader";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import { ScheduleFilters } from "./_components/ScheduleFilters";
 import { CalendarView } from "./_components/CalendarView";
@@ -28,8 +29,7 @@ export default function SchedulePage() {
 
   return (
     <>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1>Schedule</h1>
+      <PageHeader title="Schedule">
         <Button
           variant="outline"
           size="sm"
@@ -42,7 +42,7 @@ export default function SchedulePage() {
             </Badge>
           )}
         </Button>
-      </div>
+      </PageHeader>
 
       {/* View toggle + filters */}
       <ScheduleFilters filters={data.filters} entries={data.entries} />

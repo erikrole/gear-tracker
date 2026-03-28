@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
+import { ScaleIn } from "@/components/ui/motion";
 import { formatDueLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
 import type { DashboardData, BookingSummary } from "../dashboard-types";
@@ -43,7 +44,8 @@ export function MyGearColumn({
       <span className="text-xs font-semibold text-muted-foreground pl-0.5">My Gear</span>
 
       {/* My Checkouts */}
-      <Card>
+      <ScaleIn delay={0}>
+      <Card elevation="elevated">
         <a href="/checkouts?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
           <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My checkouts</h2>
           <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
@@ -99,8 +101,10 @@ export function MyGearColumn({
           </CardContent>
         )}
       </Card>
+      </ScaleIn>
 
       {/* My Reservations */}
+      <ScaleIn delay={0.05}>
       <Card>
         <a href="/reservations?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
           <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My reservations</h2>
@@ -151,9 +155,11 @@ export function MyGearColumn({
           </CardContent>
         )}
       </Card>
+      </ScaleIn>
 
       {/* My Shifts */}
       {(filtered?.myShifts ?? data.myShifts).length > 0 && (
+        <ScaleIn delay={0.1}>
         <Card>
           <a href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
             <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My shifts</h2>
@@ -200,11 +206,13 @@ export function MyGearColumn({
             })}
           </CardContent>
         </Card>
+        </ScaleIn>
       )}
 
       {/* Drafts */}
       {data.drafts.length > 0 && (
-        <Card>
+        <ScaleIn delay={0.15}>
+        <Card elevation="elevated">
           <CardHeader className="border-b border-border/50">
             <CardTitle>Drafts</CardTitle>
             <Badge variant="gray" size="sm">{data.drafts.length}</Badge>
@@ -241,6 +249,7 @@ export function MyGearColumn({
             ))}
           </CardContent>
         </Card>
+        </ScaleIn>
       )}
     </div>
   );
