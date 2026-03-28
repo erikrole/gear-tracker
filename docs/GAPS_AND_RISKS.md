@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-27
+- Last Updated: 2026-03-28
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -163,3 +163,4 @@
 - 2026-03-27: Database performance audit complete — P0-P3 fixes shipped (SERIALIZABLE on all scan/booking mutations, 6 indexes, dashboard query consolidation 17→9, audit log batching, notification pre-fetch fix, pg_trgm GIN indexes). Search-on-type equipment picker shipped — form-options no longer loads all assets (unbounded query eliminated). New `/api/assets/picker-search` endpoint with section filtering, text search, QR lookup, and pagination.
 - 2026-03-27: Form pattern fragmentation closed — all create/edit forms migrated to `useFormSubmit`. API security audit: rate limiting on all auth endpoints (login/register/forgot/reset), timing-safe CRON_SECRET comparison, asset activity cursor pagination.
 - 2026-03-27: Backlog audit pass — centralized duplicate `getInitials` in BookingCard (now imports from `@/lib/avatar`), deleted dead `CreateBookingCard` component + barrel export, booking audit log cursor pagination (initial 50 + "Load older entries" via `/api/bookings/[id]/audit-logs`).
+- 2026-03-28: Silent-failure fixes — calendar sync now surfaces shift generation errors (warning toast instead of false success), CSV export warns when truncated at 5,000 items (X-Truncated header + UI warning). Closed stale GAP-19, GAP-20 risk, GAP-22, GAP-23. Toast hook gains "warning" variant.
