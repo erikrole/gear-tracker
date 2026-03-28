@@ -34,13 +34,13 @@ export function ItemsPagination({
 
   return (
     <div className="flex items-center justify-between text-sm text-muted-foreground">
-      <div className="flex-1">
+      <div className="flex-1 hidden sm:block">
         {selectedCount > 0
           ? `${selectedCount} of ${total} selected`
           : `Showing ${rangeStart}\u2013${rangeEnd} of ${total} items`}
       </div>
-      <div className="flex items-center gap-1.5 lg:gap-8">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-1.5 lg:gap-8 w-full sm:w-auto">
+        <div className="hidden md:flex items-center gap-2">
           <p className="text-sm">Rows per page</p>
           <Select
             value={String(limit)}

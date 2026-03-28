@@ -27,8 +27,11 @@ export function BookingTableRow({
   return (
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <tr
-        className={`${sv.className} cursor-pointer`}
+        className={`${sv.className} cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]`}
+        tabIndex={0}
+        role="link"
         onClick={onClick}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       >
         <td>
           <div className="flex flex-col gap-0.5">
@@ -87,8 +90,11 @@ export function BookingMobileCard({
 
   return (
     <div
-      className={`px-3 py-3 border-b border-[var(--border-light)] cursor-pointer flex flex-col gap-1 active:bg-[var(--panel-hover)] last:border-b-0 ${sv.className}`}
+      className={`px-3 py-3 border-b border-[var(--border-light)] cursor-pointer flex flex-col gap-1 active:bg-[var(--panel-hover)] last:border-b-0 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px] ${sv.className}`}
+      tabIndex={0}
+      role="link"
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
     >
       <div className="flex justify-between items-start gap-2">
         <div className="flex flex-col gap-0.5 min-w-0">

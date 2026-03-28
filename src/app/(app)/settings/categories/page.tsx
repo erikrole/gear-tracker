@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { AlertTriangle, SearchIcon, WifiOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -53,7 +54,7 @@ export default function CategoriesPage() {
       setNewName("");
       setAdding(false);
       load();
-    } catch { /* network */ }
+    } catch { toast.error("Failed to create category — please try again"); }
     setCreatingRoot(false);
   }
 

@@ -27,6 +27,7 @@ export type BookingMenuProps = {
   onExtend: (bookingId: string, days: number) => void;
   items: BookingItem[];
   reload: () => Promise<void>;
+  setItems: (updater: (items: BookingItem[]) => BookingItem[]) => void;
 };
 
 /** Shared menu items used by both ContextMenu and DropdownMenu */
@@ -40,6 +41,7 @@ function MenuItems({
   onExtend,
   items,
   reload,
+  setItems,
   Separator,
   Item,
 }: BookingMenuProps & {
@@ -89,7 +91,7 @@ function MenuItems({
               className={extra.danger ? "text-destructive focus:text-destructive" : undefined}
               onSelect={() => {
                 if (extra.opensSheet) onViewDetails(item.id);
-                else extra.handler?.(item.id, items, reload);
+                else extra.handler?.(item.id, items, reload, setItems);
               }}
             >
               {extra.label}

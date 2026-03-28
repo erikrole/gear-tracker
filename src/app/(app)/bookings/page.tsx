@@ -56,7 +56,7 @@ export default function BookingsPage() {
         action: "cancel",
         label: "Cancel checkout",
         danger: true,
-        handler: async (bookingId, items, reload) => {
+        handler: async (bookingId, items, reload, setItems) => {
           const c = items.find((i: BookingItem) => i.id === bookingId);
           if (!c) return;
           const ok = await confirm({
@@ -66,17 +66,27 @@ export default function BookingsPage() {
             variant: "danger",
           });
           if (!ok) return;
+
+          // Optimistic update: mark as CANCELLED in local state
+          const prevItems = [...items];
+          setItems?.((list) =>
+            list.map((i) => (i.id === bookingId ? { ...i, status: "CANCELLED" } : i)),
+          );
+
           try {
             const res = await fetchAction(`/api/bookings/${bookingId}/cancel`);
             if (!res.ok) {
+              // Rollback on server error
+              setItems?.(() => prevItems);
               const json = await res.json().catch(() => ({}));
               toast((json as Record<string, string>).error || "Cancel failed", "error");
             } else {
               toast("Checkout cancelled", "success");
             }
-            await reload();
           } catch {
-            toast("Network error \u2014 please try again.", "error");
+            // Rollback on network error
+            setItems?.(() => prevItems);
+            toast("Failed to cancel checkout. Please try again.", "error");
           }
         },
       },
@@ -152,7 +162,7 @@ export default function BookingsPage() {
         action: "cancel",
         label: "Cancel reservation",
         danger: true,
-        handler: async (bookingId, items, reload) => {
+        handler: async (bookingId, items, reload, setItems) => {
           const r = items.find((i: BookingItem) => i.id === bookingId);
           if (!r) return;
           const ok = await confirm({
@@ -162,17 +172,27 @@ export default function BookingsPage() {
             variant: "danger",
           });
           if (!ok) return;
+
+          // Optimistic update: mark as CANCELLED in local state
+          const prevItems = [...items];
+          setItems?.((list) =>
+            list.map((i) => (i.id === bookingId ? { ...i, status: "CANCELLED" } : i)),
+          );
+
           try {
             const res = await fetchAction(`/api/reservations/${bookingId}/cancel`);
             if (!res.ok) {
+              // Rollback on server error
+              setItems?.(() => prevItems);
               const json = await res.json().catch(() => ({}));
               toast((json as Record<string, string>).error || "Cancel failed", "error");
             } else {
               toast("Reservation cancelled", "success");
             }
-            await reload();
           } catch {
-            toast("Network error \u2014 please try again.", "error");
+            // Rollback on network error
+            setItems?.(() => prevItems);
+            toast("Failed to cancel reservation. Please try again.", "error");
           }
         },
       },

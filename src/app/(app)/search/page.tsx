@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, WifiOff, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 
@@ -34,6 +34,7 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -64,6 +65,7 @@ export default function SearchPage() {
 
     setLoading(true);
     setSearched(true);
+    setSearchError(false);
 
     const encoded = encodeURIComponent(trimmed);
 
@@ -139,6 +141,7 @@ export default function SearchPage() {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (!controller.signal.aborted) {
         setResults([]);
+        setSearchError(true);
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -207,7 +210,14 @@ export default function SearchPage() {
         <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
       )}
 
-      {!loading && searched && results.length === 0 && (
+      {!loading && searchError && query.trim() && (
+        <div className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+          <WifiOff className="size-8 opacity-40" />
+          <p className="text-sm">Search failed. Check your connection and try again.</p>
+        </div>
+      )}
+
+      {!loading && !searchError && searched && results.length === 0 && (
         <EmptyState icon="search" title="No results found" description={`Nothing matched "${query}". Try a different search term.`} />
       )}
 

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AlertTriangle, Bell, WifiOff } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -135,6 +137,9 @@ export default function NotificationsPage() {
     return `/api/notifications?${params}`;
   }, [page, unreadOnly]);
 
+  const queryClient = useQueryClient();
+  const queryKey = ["fetch", fetchUrl];
+
   const { data, loading, error, reload } = useFetch<NotificationsData>({
     url: fetchUrl,
     transform: (json) => ({
@@ -148,8 +153,34 @@ export default function NotificationsPage() {
   const total = data?.total ?? 0;
   const unreadCount = data?.unreadCount ?? 0;
 
+  /** Optimistically update the raw query cache for notifications */
+  const setNotificationsData = useCallback(
+    (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => {
+      queryClient.setQueryData<Record<string, unknown>>(queryKey, (prev) =>
+        prev ? updater(prev) : prev,
+      );
+    },
+    // queryKey changes with fetchUrl which is correct
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fetchUrl, queryClient],
+  );
+
   async function markAllRead() {
     setMarkingAll(true);
+
+    // Save previous state for rollback
+    const prevData = queryClient.getQueryData<Record<string, unknown>>(queryKey);
+
+    // Optimistic update: mark all notifications as read
+    const now = new Date().toISOString();
+    setNotificationsData((prev) => ({
+      ...prev,
+      unreadCount: 0,
+      data: ((prev.data as Notification[]) ?? []).map((n) =>
+        n.readAt ? n : { ...n, readAt: now },
+      ),
+    }));
+
     try {
       const res = await fetch("/api/notifications", {
         method: "PATCH",
@@ -157,19 +188,34 @@ export default function NotificationsPage() {
         body: JSON.stringify({ action: "mark_all_read" }),
       });
       if (!res.ok) {
-        const { toast } = await import("sonner");
-        toast.error("Failed to mark notifications as read");
+        // Rollback on server error
+        if (prevData) queryClient.setQueryData(queryKey, prevData);
+        toast.error("Failed to mark notifications as read. Please try again.");
       }
-      reload();
     } catch {
-      const { toast } = await import("sonner");
-      toast.error("Network error");
+      // Rollback on network error
+      if (prevData) queryClient.setQueryData(queryKey, prevData);
+      toast.error("Failed to mark notifications as read. Please try again.");
     }
     setMarkingAll(false);
   }
 
   async function markRead(id: string) {
     setMarkingId(id);
+
+    // Save previous state for rollback
+    const prevData = queryClient.getQueryData<Record<string, unknown>>(queryKey);
+
+    // Optimistic update: mark the single notification as read
+    const now = new Date().toISOString();
+    setNotificationsData((prev) => ({
+      ...prev,
+      unreadCount: Math.max(0, ((prev.unreadCount as number) ?? 0) - 1),
+      data: ((prev.data as Notification[]) ?? []).map((n) =>
+        n.id === id ? { ...n, readAt: now } : n,
+      ),
+    }));
+
     try {
       const res = await fetch("/api/notifications", {
         method: "PATCH",
@@ -177,13 +223,14 @@ export default function NotificationsPage() {
         body: JSON.stringify({ action: "mark_read", id }),
       });
       if (!res.ok) {
-        const { toast } = await import("sonner");
-        toast.error("Failed to mark notification as read");
+        // Rollback on server error
+        if (prevData) queryClient.setQueryData(queryKey, prevData);
+        toast.error("Failed to mark notification as read. Please try again.");
       }
-      reload();
     } catch {
-      const { toast } = await import("sonner");
-      toast.error("Network error");
+      // Rollback on network error
+      if (prevData) queryClient.setQueryData(queryKey, prevData);
+      toast.error("Failed to mark notification as read. Please try again.");
     }
     setMarkingId(null);
   }
