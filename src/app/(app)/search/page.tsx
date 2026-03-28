@@ -174,7 +174,9 @@ export default function SearchPage() {
 
   return (
     <div className="p-6">
-      <h1 className="m-0 mb-1">Search</h1>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <h1>Search</h1>
+      </div>
 
       <div className="relative mb-6 max-w-xl">
         <Input
@@ -232,7 +234,7 @@ export default function SearchPage() {
                     <Link
                       key={r.id}
                       href={r.href}
-                      className={`search-result-row ${i < items.length - 1 ? "border-b border-border" : ""}`}
+                      className={`flex items-center justify-between gap-3 py-3 px-4 no-underline text-inherit cursor-pointer hover:bg-accent/50 ${i < items.length - 1 ? "border-b border-border" : ""}`}
                     >
                       <div>
                         <div className="font-semibold">{r.title}</div>

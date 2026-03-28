@@ -102,7 +102,9 @@ function useTheme() {
     } else if (pref === "light") {
       root.setAttribute("data-theme", "light");
     } else {
-      root.removeAttribute("data-theme");
+      // System: resolve to explicit attribute so CSS only needs [data-theme="dark"]
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
     }
   }
 
@@ -208,8 +210,8 @@ export default function AppSidebar({
                           tooltip={tooltip}
                           className={
                             isActive
-                              ? "data-[active=true]:bg-white/[0.10] data-[active=true]:text-white font-medium"
-                              : "text-white/50 hover:text-white/90 hover:bg-white/[0.06] font-normal"
+                              ? "data-[active=true]:bg-[var(--wi-red)]/15 data-[active=true]:text-white font-medium border-l-2 border-l-[var(--wi-red)] transition-all duration-200"
+                              : "text-white/50 hover:text-white/90 hover:bg-white/[0.06] font-normal border-l-2 border-l-transparent transition-all duration-200"
                           }
                         >
                           <Link href={href}>

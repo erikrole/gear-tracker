@@ -303,8 +303,8 @@ export default function EventDetailPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl">{event.summary}</h1>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <h1>{event.summary}</h1>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

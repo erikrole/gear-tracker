@@ -146,7 +146,7 @@ export default function UsersPage() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-7 flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div className="flex items-center gap-2">
           <h1>Users</h1>
           <Tooltip>

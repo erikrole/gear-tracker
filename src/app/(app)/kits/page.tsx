@@ -103,7 +103,7 @@ export default function KitsPage() {
   if (query.loading) {
     return (
       <>
-        <div className="page-header">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
           <h1>Kits</h1>
         </div>
         <Card className="p-4 space-y-3">
@@ -122,7 +122,7 @@ export default function KitsPage() {
 
   return (
     <>
-      <div className="page-header">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <h1>Kits</h1>
         <Button onClick={() => setSheetOpen(true)}>
           <PlusIcon className="mr-2 h-4 w-4" />

@@ -65,7 +65,7 @@ export function ItemPreviewSheet({ item, onClose }: ItemPreviewSheetProps) {
           <div className="flex items-center justify-between">
             <div>
               <SheetTitle>{item?.assetTag}</SheetTitle>
-              <div className="scan-sheet-subtitle">
+              <div className="text-sm text-muted-foreground mt-0.5">
                 {item?.brand} {item?.model}
               </div>
             </div>
@@ -79,27 +79,27 @@ export function ItemPreviewSheet({ item, onClose }: ItemPreviewSheetProps) {
 
         {item && (
           <SheetBody className="px-6 py-4">
-            <div className="scan-sheet-details">
+            <div className="flex flex-col gap-2.5">
               {item.serialNumber && (
-                <div className="scan-sheet-row">
-                  <span className="scan-sheet-label">Serial</span>
-                  <span className="scan-sheet-value font-mono">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Serial</span>
+                  <span className="text-right font-mono">
                     {item.serialNumber}
                   </span>
                 </div>
               )}
               {item.location && (
-                <div className="scan-sheet-row">
-                  <span className="scan-sheet-label">Location</span>
-                  <span className="scan-sheet-value">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Location</span>
+                  <span className="text-right">
                     {item.location.name}
                   </span>
                 </div>
               )}
               {item.category && (
-                <div className="scan-sheet-row">
-                  <span className="scan-sheet-label">Category</span>
-                  <span className="scan-sheet-value">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Category</span>
+                  <span className="text-right">
                     {item.category.name}
                   </span>
                 </div>
@@ -109,21 +109,21 @@ export function ItemPreviewSheet({ item, onClose }: ItemPreviewSheetProps) {
             {/* Parent asset banner */}
             {item.parentAsset && (
               <div
-                className="scan-sheet-booking"
+                className="rounded-[10px] mx-4 px-3.5 py-3"
                 style={{
                   background: "var(--bg-muted)",
                   color: "var(--text-primary)",
                 }}
               >
-                <div className="scan-sheet-booking-label">Accessory of</div>
+                <div className="text-[13px] font-semibold mb-1">Accessory of</div>
                 <Link
                   href={`/items/${item.parentAsset.id}`}
-                  className="scan-sheet-booking-name font-medium"
+                  className="text-[15px] font-bold font-medium"
                   style={{ color: "var(--primary)" }}
                 >
                   {item.parentAsset.assetTag}
                 </Link>
-                <div className="scan-sheet-booking-title">
+                <div className="text-[13px] opacity-85 mt-0.5">
                   {item.parentAsset.brand} {item.parentAsset.model}
                 </div>
               </div>
@@ -132,20 +132,20 @@ export function ItemPreviewSheet({ item, onClose }: ItemPreviewSheetProps) {
             {/* Current holder / active booking */}
             {item.activeBooking && (
               <div
-                className={`scan-sheet-booking ${statusColorClasses(item.computedStatus).bg} ${statusColorClasses(item.computedStatus).text}`}
+                className={`rounded-[10px] mx-4 px-3.5 py-3 ${statusColorClasses(item.computedStatus).bg} ${statusColorClasses(item.computedStatus).text}`}
               >
-                <div className="scan-sheet-booking-label">
+                <div className="text-[13px] font-semibold mb-1">
                   {item.activeBooking.kind === "CHECKOUT"
                     ? "Currently with"
                     : "Reserved by"}
                 </div>
-                <div className="scan-sheet-booking-name">
+                <div className="text-[15px] font-bold">
                   {item.activeBooking.requesterName}
                 </div>
-                <div className="scan-sheet-booking-title">
+                <div className="text-[13px] opacity-85 mt-0.5">
                   {item.activeBooking.title}
                 </div>
-                <div className="scan-sheet-booking-dates">
+                <div className="text-xs opacity-70 mt-1">
                   {new Date(item.activeBooking.startsAt).toLocaleDateString()}{" "}
                   &ndash;{" "}
                   {new Date(item.activeBooking.endsAt).toLocaleDateString()}
@@ -159,12 +159,12 @@ export function ItemPreviewSheet({ item, onClose }: ItemPreviewSheetProps) {
           <SheetFooter className="flex-row gap-2">
             <Button
               variant="outline"
-              className="scan-sheet-btn"
+              className="flex-1 min-h-12 flex items-center justify-center no-underline"
               onClick={onClose}
             >
               Dismiss
             </Button>
-            <Button className="scan-sheet-btn" asChild>
+            <Button className="flex-1 min-h-12 flex items-center justify-center no-underline" asChild>
               <Link href={`/items/${item.id}`}>View Details</Link>
             </Button>
           </SheetFooter>

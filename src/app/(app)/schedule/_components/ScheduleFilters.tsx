@@ -29,7 +29,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   }, [entries]);
 
   return (
-    <div className="filter-chip-bar mb-1">
+    <div className="flex flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap mb-1">
       <ToggleGroup
         type="single"
         value={filters.viewMode}
@@ -45,7 +45,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           Calendar
         </ToggleGroupItem>
       </ToggleGroup>
-      <div className="filter-chips">
+      <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
         <div className="flex items-center gap-2">
           <Switch
             id="my-shifts-toggle"
@@ -106,7 +106,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         {filters.hasFilters && (
           <button
             type="button"
-            className="filter-chip-clear-all"
+            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none font-medium whitespace-nowrap"
             onClick={filters.clearAll}
           >
             Clear all

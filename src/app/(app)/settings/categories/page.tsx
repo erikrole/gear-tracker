@@ -84,16 +84,16 @@ export default function CategoriesPage() {
       : "Something went wrong loading categories. Please try again.";
 
   return (
-    <div className="settings-split">
-      <div className="settings-sidebar">
-        <h2 className="settings-title">Categories</h2>
-        <p className="settings-desc">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <div className="sticky top-20 max-md:static">
+        <h2 className="text-[22px] font-bold mb-2">Categories</h2>
+        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
           Organize your inventory under categories and subcategories to make equipment easier to find and manage.
         </p>
       </div>
 
-      <div className="settings-main">
-        <div className="settings-action-row">
+      <div className="min-w-0">
+        <div className="flex justify-end mb-3">
           <Button onClick={() => setAdding(true)}>
             Add new category
           </Button>

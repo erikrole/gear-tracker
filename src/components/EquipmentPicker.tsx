@@ -686,12 +686,12 @@ export default function EquipmentPicker({
   const currentSectionSelected = selectedCountBySection[activeSection] || 0;
 
   return (
-    <div className="equip-picker-wrap">
-      <div className="equip-picker-header">
-        <label className="equip-picker-label">
+    <div className="mt-2">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[length:var(--text-xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)]">
           Equipment
         </label>
-        <div className="equip-picker-header-actions">
+        <div className="flex gap-1.5 items-center">
           {visible && (
             <>
               <Button
@@ -718,13 +718,13 @@ export default function EquipmentPicker({
 
       {/* Sectioned picker */}
       {visible && (
-        <div className="section-picker" role="region" aria-label="Equipment picker">
+        <div className="border border-[var(--border)] rounded-[var(--radius)] overflow-hidden" role="region" aria-label="Equipment picker">
           {/* Global search bar */}
-          <div className="picker-global-search">
-            <SearchIcon className="picker-search-icon size-3.5" aria-hidden="true" />
+          <div className="relative flex items-center mb-2">
+            <SearchIcon className="absolute left-2.5 max-md:left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none size-3.5" aria-hidden="true" />
             <input
               ref={globalSearchRef}
-              className="picker-search"
+              className="w-full py-2 pr-3 pl-8 border border-[var(--border)] rounded-[var(--radius)] text-[length:var(--text-sm)] outline-none box-border focus:border-[var(--primary,#3b82f6)] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.15)] max-md:min-h-[44px] max-md:text-[length:var(--text-lg)] max-md:pl-9"
               placeholder="Search all equipment..."
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
@@ -755,7 +755,7 @@ export default function EquipmentPicker({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="picker-search-clear"
+                className="absolute right-1 top-1/2 -translate-y-1/2 bg-none border-none shadow-none text-[length:var(--text-lg)] text-[var(--text-secondary)] cursor-pointer p-1 leading-none h-auto min-h-0 hover:bg-[var(--accent-soft)]"
                 onClick={() => { setGlobalSearch(""); globalSearchRef.current?.focus(); }}
                 aria-label="Clear global search"
               >
@@ -766,15 +766,15 @@ export default function EquipmentPicker({
 
           {/* Global search results (replaces tabs when active) */}
           {isGlobalSearchActive ? (
-            <div className="section-content">
-              <div className="picker-scroll" role="listbox" aria-label="Search results">
+            <div className="p-3 max-md:p-2">
+              <div className="max-h-[280px] overflow-y-auto max-md:max-h-[300px] max-md:[overflow-scrolling:touch]" role="listbox" aria-label="Search results">
                 {globalSearchLoading ? (
-                  <div className="picker-empty" role="status">Searching...</div>
+                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">Searching...</div>
                 ) : globalSearchResults.length === 0 ? (
-                  <div className="picker-empty" role="status">No matching items across any section</div>
+                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">No matching items across any section</div>
                 ) : (
                   <>
-                    <div className="picker-match-count px-2 pb-1" aria-live="polite">
+                    <div className="text-[length:var(--text-3xs)] text-[var(--text-muted)] ml-auto px-2 pb-1" aria-live="polite">
                       {globalSearchResults.length} result{globalSearchResults.length !== 1 ? "s" : ""}
                     </div>
                     {globalSearchResults.map((hit, idx) => {
@@ -796,10 +796,10 @@ export default function EquipmentPicker({
                           aria-disabled={isDisabled}
                           tabIndex={0}
                           className={cn(
-                            "picker-row",
-                            isSelected && "picker-row-selected",
-                            conflict && "picker-row-conflict",
-                            isHighlighted && "picker-row-highlighted",
+                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] data-[unavailable]:cursor-default data-[unavailable]:opacity-50 data-[unavailable]:hover:bg-transparent max-md:py-3 max-md:min-h-[52px]",
+                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
+                            conflict && "border-l-[var(--orange)]",
+                            isHighlighted && "outline-2 outline-[var(--primary,#3b82f6)] -outline-offset-2",
                           )}
                           data-unavailable={isDisabled ? true : undefined}
                           onClick={() => { if (!isDisabled) toggleAsset(asset.id); }}
@@ -820,26 +820,26 @@ export default function EquipmentPicker({
                             tabIndex={-1}
                           />
                           <span
-                            className="picker-row-dot"
+                            className="size-2 rounded-full shrink-0"
                             style={{ backgroundColor: dotColor }}
                             title={conflict ? "Scheduling conflict" : statusLabel}
                             aria-hidden="true"
                           />
-                          <div className="picker-row-info">
-                            <div className="picker-row-name">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">
                               {asset.assetTag}
                               <Badge variant="gray" size="sm" className="ml-1.5">
                                 {EQUIPMENT_SECTIONS.find((s) => s.key === hit.section)?.label || hit.section}
                               </Badge>
                             </div>
-                            <div className="picker-row-meta">
+                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">
                               {asset.name || `${asset.brand} ${asset.model}`}
                               {asset.serialNumber ? ` \u00b7 ${asset.serialNumber}` : ""}
                               {asset.location ? ` \u00b7 ${asset.location.name}` : ""}
                               {!isAvailable && !conflict && ` \u00b7 ${statusLabel}`}
                             </div>
                             {conflict && (
-                              <div className="picker-row-conflict-detail">
+                              <div className="text-[length:var(--text-3xs)] text-[var(--orange)] mt-0.5">
                                 {"\u26a0"} {conflict.conflictingBookingTitle || "another booking"} ({formatConflictDate(conflict.startsAt)}{"\u2013"}{formatConflictDate(conflict.endsAt)})
                               </div>
                             )}
@@ -854,7 +854,7 @@ export default function EquipmentPicker({
           ) : (
           <>
           {/* Section tabs */}
-          <div className="section-tabs" role="tablist" aria-label="Equipment sections">
+          <div className="flex flex-wrap border-b border-b-[var(--border)]" role="tablist" aria-label="Equipment sections">
             {EQUIPMENT_SECTIONS.map((sec, idx) => {
               const isActive = activeSection === sec.key;
               const selCount = selectedCountBySection[sec.key] || 0;
@@ -868,17 +868,17 @@ export default function EquipmentPicker({
                   aria-controls={`picker-panel-${sec.key}`}
                   tabIndex={isActive ? 0 : -1}
                   className={cn(
-                    "section-tab",
-                    isActive && "active",
+                    "flex-auto py-2.5 px-3 text-[length:var(--text-xs)] font-[number:var(--weight-medium)] bg-transparent border-none border-b-2 border-b-transparent cursor-pointer text-[var(--text-secondary)] whitespace-nowrap min-h-[40px] max-md:min-h-[44px] max-md:px-2.5 transition-[color,border-color] duration-150 hover:text-[var(--text-primary)]",
+                    isActive && "font-[number:var(--weight-bold)] border-b-[var(--primary,#3b82f6)] text-[var(--primary,#3b82f6)]",
                   )}
                   onClick={() => setActiveSection(sec.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
                 >
                   {sec.label}
                   {selCount > 0 ? (
-                    <span className="section-tab-count section-tab-count-selected">({selCount})</span>
+                    <span className="ml-1 text-[length:var(--text-3xs)] text-[var(--primary,#3b82f6)] font-[number:var(--weight-bold)] opacity-100">({selCount})</span>
                   ) : sectionTotalCounts[sec.key] > 0 ? (
-                    <span className="section-tab-count">({sectionTotalCounts[sec.key]})</span>
+                    <span className="ml-1 text-[length:var(--text-3xs)] opacity-60">({sectionTotalCounts[sec.key]})</span>
                   ) : null}
                 </button>
               );
@@ -888,17 +888,17 @@ export default function EquipmentPicker({
           {/* Active section content */}
           {activeSection && (
             <div
-              className="section-content"
+              className="p-3 max-md:p-2"
               role="tabpanel"
               id={`picker-panel-${activeSection}`}
               aria-labelledby={`picker-tab-${activeSection}`}
             >
               {/* Search + "Only available" filter */}
-              <div className="picker-toolbar">
-                <div className="picker-search-wrap">
-                  <SearchIcon className="picker-search-icon size-3.5" aria-hidden="true" />
+              <div className="flex gap-2 mb-2 items-stretch max-md:flex-wrap">
+                <div className="flex-1 relative">
+                  <SearchIcon className="absolute left-2.5 max-md:left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none size-3.5" aria-hidden="true" />
                   <input
-                    className="picker-search"
+                    className="w-full py-2 pr-3 pl-8 border border-[var(--border)] rounded-[var(--radius)] text-[length:var(--text-sm)] outline-none box-border focus:border-[var(--primary,#3b82f6)] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.15)] max-md:min-h-[44px] max-md:text-[length:var(--text-lg)] max-md:pl-9"
                     placeholder={`Search ${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label.toLowerCase() || "items"}...`}
                     value={equipSearch}
                     onChange={(e) => setSearch(e.target.value)}
@@ -909,7 +909,7 @@ export default function EquipmentPicker({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="picker-search-clear"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 bg-none border-none shadow-none text-[length:var(--text-lg)] text-[var(--text-secondary)] cursor-pointer p-1 leading-none h-auto min-h-0 hover:bg-[var(--accent-soft)]"
                       onClick={() => setSearch("")}
                       aria-label="Clear search"
                     >
@@ -922,8 +922,8 @@ export default function EquipmentPicker({
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "picker-filter-chip",
-                    onlyAvailable && "picker-filter-chip-active",
+                    "py-1.5 px-3 text-[length:var(--text-xs)] font-[number:var(--weight-medium)] rounded-full border border-[var(--border)] bg-[var(--panel)] shadow-none cursor-pointer h-auto text-[var(--text-secondary)] whitespace-nowrap transition-all duration-150 hover:bg-[var(--accent-soft)] max-md:min-h-[40px] max-md:py-2 max-md:px-3.5 max-md:text-[length:var(--text-sm)]",
+                    onlyAvailable && "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] border-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-bg-hover)]",
                   )}
                   onClick={() => setOnlyAvailable((v) => !v)}
                   aria-pressed={onlyAvailable}
@@ -935,38 +935,38 @@ export default function EquipmentPicker({
 
               {/* Column header with select-all checkbox */}
               {sectionAssets.length > 0 && (
-                <div className="picker-col-header">
-                  <div className="picker-col-header-check">
+                <div className="flex items-center gap-2 py-1.5 border-b border-b-[var(--border-light)] mb-0.5">
+                  <div className="flex items-center cursor-pointer">
                     <Checkbox
                       checked={allSectionSelected ? true : someSectionSelected ? "indeterminate" : false}
                       onCheckedChange={toggleAllInSection}
                       aria-label={allSectionSelected ? "Deselect all items in section" : "Select all available items in section"}
                     />
                   </div>
-                  <span className="picker-col-header-label">Item</span>
+                  <span className="text-[length:var(--text-3xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)] uppercase tracking-[var(--tracking-wider)]">Item</span>
                   {currentSectionSelected > 0 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="picker-col-header-deselect"
+                      className="ml-auto text-[length:var(--text-3xs)] text-[var(--text-secondary)] bg-none border-none shadow-none cursor-pointer py-0.5 px-1.5 rounded-[var(--radius)] h-auto min-h-0 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
                       onClick={deselectAllInSection}
                     >
                       Deselect ({currentSectionSelected})
                     </Button>
                   )}
                   {equipSearch && (
-                    <span className="picker-match-count" aria-live="polite">
+                    <span className="text-[length:var(--text-3xs)] text-[var(--text-muted)] ml-auto" aria-live="polite">
                       {sectionAssets.length + sectionBulk.length} results
                     </span>
                   )}
                   {conflictsLoading && (
-                    <span className="picker-avail-loading" aria-live="polite">Checking availability...</span>
+                    <span className="text-[length:var(--text-3xs)] text-[var(--text-muted)] italic ml-auto" aria-live="polite">Checking availability...</span>
                   )}
                   {conflictsError && !conflictsLoading && (
                     <button
                       type="button"
-                      className="picker-avail-loading text-[var(--orange)] underline cursor-pointer"
+                      className="text-[length:var(--text-3xs)] text-[var(--orange)] italic ml-auto underline cursor-pointer"
                       onClick={fetchConflicts}
                       aria-live="polite"
                     >
@@ -976,7 +976,7 @@ export default function EquipmentPicker({
                 </div>
               )}
 
-              <div className="picker-scroll" role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label || "Items"} list`}>
+              <div className="max-h-[280px] overflow-y-auto max-md:max-h-[300px] max-md:[overflow-scrolling:touch]" role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label || "Items"} list`}>
                 {/* Serialized assets */}
                 {sectionAssets.length > 0 && (
                   <>
@@ -997,9 +997,9 @@ export default function EquipmentPicker({
                           aria-disabled={isDisabled}
                           tabIndex={0}
                           className={cn(
-                            "picker-row",
-                            isSelected && "picker-row-selected",
-                            conflict && "picker-row-conflict",
+                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] data-[unavailable]:cursor-default data-[unavailable]:opacity-50 data-[unavailable]:hover:bg-transparent max-md:py-3 max-md:min-h-[52px]",
+                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
+                            conflict && "border-l-[var(--orange)]",
                           )}
                           data-unavailable={isDisabled ? true : undefined}
                           onClick={() => { if (!isDisabled) toggleAsset(asset.id); }}
@@ -1019,23 +1019,23 @@ export default function EquipmentPicker({
                             tabIndex={-1}
                           />
                           <span
-                            className="picker-row-dot"
+                            className="size-2 rounded-full shrink-0"
                             style={{ backgroundColor: dotColor }}
                             title={conflict ? "Scheduling conflict" : statusLabel}
                             aria-hidden="true"
                           />
-                          <div className="picker-row-info">
-                            <div className="picker-row-name">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">
                               {asset.assetTag}
                             </div>
-                            <div className="picker-row-meta">
+                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">
                               {asset.name || `${asset.brand} ${asset.model}`}
                               {asset.serialNumber ? ` \u00b7 ${asset.serialNumber}` : ""}
                               {asset.location ? ` \u00b7 ${asset.location.name}` : ""}
                               {!isAvailable && !conflict && ` \u00b7 ${statusLabel}`}
                             </div>
                             {conflict && (
-                              <div className="picker-row-conflict-detail">
+                              <div className="text-[length:var(--text-3xs)] text-[var(--orange)] mt-0.5">
                                 {"\u26a0"} {conflict.conflictingBookingTitle || "another booking"} ({formatConflictDate(conflict.startsAt)}{"\u2013"}{formatConflictDate(conflict.endsAt)})
                               </div>
                             )}
@@ -1050,7 +1050,7 @@ export default function EquipmentPicker({
                 {sectionBulk.length > 0 && (
                   <>
                     {sectionAssets.length > 0 && (
-                      <div className="section-subheading" role="separator">Bulk Items</div>
+                      <div className="text-[length:var(--text-2xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)] pt-2.5 pb-1 uppercase tracking-[0.05em]" role="separator">Bulk Items</div>
                     )}
                     {sectionBulk.map((sku) => {
                       const isSelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
@@ -1061,8 +1061,8 @@ export default function EquipmentPicker({
                           aria-selected={isSelected}
                           tabIndex={0}
                           className={cn(
-                            "picker-row picker-row-bulk",
-                            isSelected && "picker-row-selected",
+                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] pl-10 max-md:py-3 max-md:min-h-[52px]",
+                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
                           )}
                           onClick={() => {
                             setSelectedBulkItems((prev) =>
@@ -1082,9 +1082,9 @@ export default function EquipmentPicker({
                             }
                           }}
                         >
-                          <div className="picker-row-info">
-                            <div className="picker-row-name">{sku.name}</div>
-                            <div className="picker-row-meta">{sku.category} {"\u00b7"} {sku.unit}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">{sku.name}</div>
+                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">{sku.category} {"\u00b7"} {sku.unit}</div>
                           </div>
                           {isSelected && (
                             <Badge variant="green" size="sm">Added</Badge>
@@ -1096,10 +1096,10 @@ export default function EquipmentPicker({
                 )}
 
                 {searchLoading && !legacyMode && (
-                  <div className="picker-empty" role="status">Searching...</div>
+                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">Searching...</div>
                 )}
                 {sectionAssets.length === 0 && sectionBulk.length === 0 && !(searchLoading && !legacyMode) && (
-                  <div className="picker-empty" role="status">
+                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">
                     {equipSearch
                       ? "No matching items"
                       : onlyAvailable && (sectionTotalCounts[activeSection] || 0) > 0
@@ -1117,8 +1117,8 @@ export default function EquipmentPicker({
                   key={rule.id}
                   data-guidance={rule.id}
                   className={cn(
-                    "guidance-hint",
-                    rule.level === "warning" ? "guidance-warning" : "guidance-info",
+                    "py-2 px-3 mt-2 rounded-[var(--radius)] text-[length:var(--text-xs)]",
+                    rule.level === "warning" ? "bg-[var(--bg-warning,#fef9c3)] text-[var(--text-warning,#92400e)]" : "bg-[var(--bg-info,#eff6ff)] text-[var(--text-info,#1e40af)]",
                   )}
                   role="alert"
                 >
@@ -1127,7 +1127,7 @@ export default function EquipmentPicker({
               ))}
 
               {/* Section navigation */}
-              <div className="section-nav">
+              <div className="flex justify-between mt-2.5 pt-2.5 border-t border-t-[var(--border-light)]">
                 {(() => {
                   const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
                   const prev = idx > 0 ? EQUIPMENT_SECTIONS[idx - 1] : null;
@@ -1159,23 +1159,23 @@ export default function EquipmentPicker({
 
           {/* Sticky selection footer */}
           {equipmentCount > 0 && (
-            <div className="picker-footer" aria-live="polite">
-              <div className="picker-footer-count">
-                <Badge variant="default" className="picker-footer-badge">{equipmentCount}</Badge>
+            <div className="border-t border-t-[var(--border)] py-2.5 px-3 bg-[var(--panel)]" aria-live="polite">
+              <div className="text-[length:var(--text-sm)] font-[number:var(--weight-semibold)] mb-1.5 flex items-center gap-1.5">
+                <Badge variant="default" className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[var(--primary,#3b82f6)] text-white text-[length:var(--text-xs)] font-[number:var(--weight-bold)]">{equipmentCount}</Badge>
                 item{equipmentCount !== 1 ? "s" : ""} selected
               </div>
-              <div className="picker-footer-items">
+              <div className="flex flex-wrap gap-1 max-md:overflow-x-auto max-md:flex-nowrap max-md:[overflow-scrolling:touch] max-md:pb-0.5">
                 {selectedAssetIds.map((assetId) => {
                   const asset = assetById.get(assetId);
                   if (!asset) return null;
                   const conflict = conflicts.get(assetId);
                   return (
-                    <span key={assetId} className={cn("picker-footer-tag", conflict && "picker-footer-tag-conflict")}>
+                    <span key={assetId} className={cn("inline-flex items-center gap-0.5 py-[3px] px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-xs)] font-[number:var(--weight-medium)]", conflict && "border-[var(--orange)] bg-[rgba(234,179,8,0.08)]")}>
                       {asset.imageUrl && (
                         <img
                           src={asset.imageUrl}
                           alt=""
-                          className="picker-footer-tag-img"
+                          className="size-[18px] rounded-[3px] object-cover shrink-0"
                         />
                       )}
                       {asset.assetTag}
@@ -1183,7 +1183,7 @@ export default function EquipmentPicker({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="picker-footer-tag-remove"
+                        className="bg-none border-none shadow-none cursor-pointer text-[length:var(--text-sm)] text-[var(--text-secondary)] px-0.5 py-0 leading-none h-auto min-h-0 hover:text-[var(--red)] hover:bg-none max-md:min-w-7 max-md:min-h-7 max-md:inline-flex max-md:items-center max-md:justify-center"
                         onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}
                         aria-label={`Remove ${asset.assetTag}`}
                       >
@@ -1195,14 +1195,14 @@ export default function EquipmentPicker({
                 {selectedBulkItems.map((item) => {
                   const sku = bulkById.get(item.bulkSkuId);
                   return (
-                    <span key={item.bulkSkuId} className="picker-footer-tag">
+                    <span key={item.bulkSkuId} className="inline-flex items-center gap-0.5 py-[3px] px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-xs)] font-[number:var(--weight-medium)]">
                       {sku?.name || item.bulkSkuId}
-                      <span className="picker-footer-tag-qty">
+                      <span className="inline-flex items-center gap-0.5 ml-0.5 text-[length:var(--text-3xs)]">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="picker-footer-tag-qty-btn"
+                          className="text-[length:var(--text-xs)] font-[number:var(--weight-bold)] h-auto min-h-0 px-0.5 py-0 bg-none border-none shadow-none cursor-pointer leading-none"
                           onClick={() => {
                             if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
                             else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
@@ -1216,7 +1216,7 @@ export default function EquipmentPicker({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="picker-footer-tag-qty-btn"
+                          className="text-[length:var(--text-xs)] font-[number:var(--weight-bold)] h-auto min-h-0 px-0.5 py-0 bg-none border-none shadow-none cursor-pointer leading-none"
                           onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}
                           disabled={!!sku && sku.currentQuantity > 0 && item.quantity >= sku.currentQuantity}
                           aria-label={`Increase ${sku?.name || "item"} quantity`}
@@ -1228,7 +1228,7 @@ export default function EquipmentPicker({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="picker-footer-tag-remove"
+                        className="bg-none border-none shadow-none cursor-pointer text-[length:var(--text-sm)] text-[var(--text-secondary)] px-0.5 py-0 leading-none h-auto min-h-0 hover:text-[var(--red)] hover:bg-none max-md:min-w-7 max-md:min-h-7 max-md:inline-flex max-md:items-center max-md:justify-center"
                         onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}
                         aria-label={`Remove ${sku?.name || "item"}`}
                       >
@@ -1244,8 +1244,8 @@ export default function EquipmentPicker({
       )}
 
       {equipmentCount === 0 && !visible && (
-        <div className="equip-empty-hint">
-          <div className="equip-empty-text">
+        <div className="flex justify-between items-center">
+          <div className="text-xs text-muted-foreground">
             No equipment selected. You can also add equipment after creating.
           </div>
           <Button
@@ -1260,25 +1260,25 @@ export default function EquipmentPicker({
 
       {/* When picker is closed but items are selected, show compact summary */}
       {equipmentCount > 0 && !visible && (
-        <div className="picker-closed-summary">
-          <div className="picker-closed-summary-count">
-            <Badge variant="default" className="picker-footer-badge">{equipmentCount}</Badge>
+        <div className="flex items-center gap-2.5 py-2 flex-wrap max-md:flex-col max-md:items-start max-md:gap-1.5">
+          <div className="text-[length:var(--text-sm)] font-[number:var(--weight-semibold)] flex items-center gap-1.5 shrink-0">
+            <Badge variant="default" className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[var(--primary,#3b82f6)] text-white text-[length:var(--text-xs)] font-[number:var(--weight-bold)]">{equipmentCount}</Badge>
             item{equipmentCount !== 1 ? "s" : ""} selected
           </div>
-          <div className="picker-closed-summary-tags">
+          <div className="flex flex-wrap gap-1 flex-1 min-w-0">
             {selectedAssetIds.map((assetId) => {
               const asset = assetById.get(assetId);
               if (!asset) return null;
               return (
-                <span key={assetId} className="picker-footer-tag picker-footer-tag-compact">
-                  {asset.imageUrl && <img src={asset.imageUrl} alt="" className="picker-footer-tag-img" />}
+                <span key={assetId} className="inline-flex items-center gap-0.5 py-0.5 px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-3xs)] font-[number:var(--weight-medium)]">
+                  {asset.imageUrl && <img src={asset.imageUrl} alt="" className="size-[18px] rounded-[3px] object-cover shrink-0" />}
                   {asset.assetTag}
                 </span>
               );
             })}
             {selectedBulkItems.map((item) => {
               const sku = bulkById.get(item.bulkSkuId);
-              return <span key={item.bulkSkuId} className="picker-footer-tag picker-footer-tag-compact">{sku?.name || item.bulkSkuId} &times;{item.quantity}</span>;
+              return <span key={item.bulkSkuId} className="inline-flex items-center gap-0.5 py-0.5 px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-3xs)] font-[number:var(--weight-medium)]">{sku?.name || item.bulkSkuId} &times;{item.quantity}</span>;
             })}
           </div>
           <Button type="button" variant="outline" size="sm" onClick={onReopen}>Edit</Button>
@@ -1288,21 +1288,21 @@ export default function EquipmentPicker({
       {/* Scan-to-add overlay */}
       {showScanner && (
         <div
-          className="scan-overlay"
+          className="fixed inset-0 z-[var(--z-scan-feedback)] bg-black/70 flex items-center max-md:items-end justify-center p-4 max-md:p-0"
           role="dialog"
           aria-modal="true"
           aria-label="Scan equipment QR code"
           onClick={(e) => { if (e.target === e.currentTarget) setShowScanner(false); }}
           onKeyDown={(e) => { if (e.key === "Escape") setShowScanner(false); }}
         >
-          <div className="scan-overlay-content">
-            <div className="scan-overlay-header">
-              <h3>Scan to add equipment</h3>
+          <div className="bg-[var(--panel,#fff)] rounded-2xl max-md:rounded-b-none p-5 max-w-[440px] w-full max-h-[90vh] max-md:max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold m-0">Scan to add equipment</h3>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="scan-overlay-close"
+                className="text-[22px] text-muted-foreground p-1 px-2 leading-none h-auto min-h-0 max-md:min-w-11 max-md:min-h-11 max-md:inline-flex max-md:items-center max-md:justify-center"
                 onClick={() => setShowScanner(false)}
                 aria-label="Close scanner"
               >
@@ -1315,11 +1315,15 @@ export default function EquipmentPicker({
               active={showScanner}
             />
             {scanFeedback && (
-              <div className={cn("scan-feedback", `scan-feedback-${scanFeedback.type}`)} role="status" aria-live="assertive">
+              <div className={cn(
+                "text-center py-2 px-3 rounded-md mt-2 text-sm font-semibold animate-in fade-in slide-in-from-top-1",
+                scanFeedback.type === "success" && "text-[var(--green,#16a34a)] bg-[var(--green-bg)]",
+                scanFeedback.type === "error" && "text-[var(--red,#dc2626)] bg-[var(--red-bg)]"
+              )} role="status" aria-live="assertive">
                 {scanFeedback.message}
               </div>
             )}
-            <div className="scan-overlay-hint">
+            <div className="text-center text-xs text-muted-foreground mt-3">
               Point camera at a QR code on equipment to add it
             </div>
           </div>

@@ -184,7 +184,7 @@ export default function BulkInventoryPage() {
 
   return (
     <>
-      <div className="page-header">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <h1>Bulk Inventory</h1>
         <Button onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Close" : (
@@ -264,9 +264,9 @@ export default function BulkInventoryPage() {
       )}
 
       <Card>
-        <CardHeader className="filter-chip-bar">
+        <CardHeader className="!flex !flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap">
           <Input
-            className="filter-chip-search"
+            className="flex-1 min-w-[120px] max-w-full max-md:flex-[1_1_100%] max-md:min-w-0"
             type="text"
             placeholder="Search by name or category..."
             value={search}

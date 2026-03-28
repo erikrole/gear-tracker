@@ -78,13 +78,13 @@ export default function ScanPage() {
 
   // ── Render ──
   return (
-    <div className="scan-page">
+    <div className="flex flex-col gap-3 pb-4 md:max-w-[640px] md:mx-auto max-md:gap-2.5 max-md:pb-[100px]">
       {/* ══════ Sticky header with progress (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && (
-        <div className="scan-sticky-header">
+        <div className="flex items-center gap-2.5 sticky top-[56px] z-[1] bg-[var(--bg)] -mx-4 -mt-4 px-4 py-2.5 max-md:border-b max-md:border-[var(--border-light)] md:static md:mx-0 md:px-0 md:py-2">
           <button
             type="button"
-            className="scan-header-link"
+            className="flex items-center gap-2 flex-1 min-w-0 no-underline text-inherit [-webkit-tap-highlight-color:transparent]"
             onClick={async () => {
               if (hasScannedItems) {
                 const ok = await confirm({
@@ -99,15 +99,21 @@ export default function ScanPage() {
             }}
           >
             <ChevronLeftIcon className="size-[18px]" />
-            <div className="scan-header-info">
-              <span className="scan-header-title">{session.scanStatus.title}</span>
-              <span className="scan-header-meta">
+            <div className="flex flex-col min-w-0">
+              <span className="text-base font-bold whitespace-nowrap overflow-hidden text-ellipsis">{session.scanStatus.title}</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
                 {session.scanStatus.requester.name} &middot; {session.scanStatus.location.name}
               </span>
             </div>
           </button>
-          <div className={`scan-mode-pill scan-mode-${mode}`}>
-            <div className="scan-mode-dot" />
+          <div className={`inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 ${
+            mode === "checkout"
+              ? "bg-[var(--blue-bg)] text-[#2563eb]"
+              : "bg-[var(--green-bg)] text-[#16a34a]"
+          }`}>
+            <div className={`w-[7px] h-[7px] rounded-full animate-[pulse-dot-anim_2s_ease-in-out_infinite] ${
+              mode === "checkout" ? "bg-[var(--blue)]" : "bg-[var(--green)]"
+            }`} />
             {mode === "checkout" ? "Out" : "In"}
           </div>
         </div>
@@ -115,10 +121,10 @@ export default function ScanPage() {
 
       {/* ══════ Lookup mode header ══════ */}
       {mode === "lookup" && (
-        <div className="scan-lookup-header">
-          <h1>Scan</h1>
-          <div className="scan-mode-pill scan-mode-lookup">
-            <div className="scan-mode-dot" />
+        <div className="flex items-center justify-between gap-3 py-1">
+          <h1 className="font-[var(--font-heading)] text-[26px] font-bold m-0">Scan</h1>
+          <div className="inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 bg-[var(--accent-soft)] text-muted-foreground">
+            <div className="w-[7px] h-[7px] rounded-full bg-[#9ca3af]" />
             Look Up
           </div>
         </div>
@@ -126,11 +132,11 @@ export default function ScanPage() {
 
       {/* ══════ Progress bar (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && totalItems > 0 && (
-        <div className="scan-progress">
-          <div className="scan-progress-text">
-            <span className="scan-progress-count">{scannedItems}/{totalItems}</span>
-            <span className="scan-progress-label">items scanned</span>
-            <span className="scan-progress-pct">{progressPct}%</span>
+        <div>
+          <div className="flex items-baseline gap-1.5 mb-1.5">
+            <span className="text-xl font-extrabold font-[var(--font-heading)] leading-none">{scannedItems}/{totalItems}</span>
+            <span className="text-[13px] text-muted-foreground">items scanned</span>
+            <span className="text-[13px] font-bold ml-auto text-muted-foreground">{progressPct}%</span>
           </div>
           <Progress
             value={progressPct}
@@ -179,7 +185,7 @@ export default function ScanPage() {
 
       {/* ══════ Lookup mode hint ══════ */}
       {mode === "lookup" && !scanning && !submission.feedback && (
-        <div className="scan-hint">
+        <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-muted-foreground text-sm opacity-60">
           <ScanIcon className="size-12" />
           <span>Scan any item&apos;s QR code or enter its asset tag to view details.</span>
         </div>
@@ -207,10 +213,10 @@ export default function ScanPage() {
 
       {/* ══════ Sticky bottom bar (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && (
-        <div className="scan-bottom-bar">
+        <div className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-[calc(12px+56px+env(safe-area-inset-bottom,0px))] bg-[var(--panel)] border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.08)] z-[25] md:static md:p-0 md:bg-transparent md:border-none md:shadow-none">
           <Button
             variant={allComplete ? "default" : "outline"}
-            className="scan-complete-btn"
+            className="w-full py-3.5 px-6 text-base font-bold min-h-[52px] justify-center disabled:opacity-60 disabled:font-medium"
             onClick={session.handleComplete}
             disabled={!allComplete || session.completing}
           >
@@ -230,11 +236,14 @@ export default function ScanPage() {
 
       {/* ══════ Celebration overlay ══════ */}
       {session.showCelebration && (
-        <div className="scan-celebration" onClick={() => session.setShowCelebration(false)}>
-          <div className="scan-celebration-card">
-            <div className="scan-celebration-icon">{"\u2705"}</div>
-            <div className="scan-celebration-title">All items scanned!</div>
-            <div className="scan-celebration-desc">
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/40 z-40 animate-[fadeIn_0.2s_ease] p-[env(safe-area-inset-top)_env(safe-area-inset-right)_env(safe-area-inset-bottom)_env(safe-area-inset-left)]"
+          onClick={() => session.setShowCelebration(false)}
+        >
+          <div className="bg-[var(--panel-solid)] rounded-[20px] px-10 py-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-[scale-in_0.3s_ease] max-md:mx-6 max-md:px-6 max-md:py-7">
+            <div className="text-5xl mb-2">{"\u2705"}</div>
+            <div className="text-xl font-bold mb-1">All items scanned!</div>
+            <div className="text-sm text-muted-foreground">
               Tap to dismiss, then complete {mode === "checkin" ? "check-in" : "checkout"} below
             </div>
           </div>

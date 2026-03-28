@@ -28,7 +28,7 @@ export default function SchedulePage() {
 
   return (
     <>
-      <div className="page-header">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <h1>Schedule</h1>
         <Button
           variant="outline"

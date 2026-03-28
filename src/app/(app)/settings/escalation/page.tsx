@@ -127,11 +127,11 @@ export default function EscalationSettingsPage() {
 
   if (loading) {
     return (
-      <div className="settings-split">
-        <div className="settings-sidebar">
-          <h2 className="settings-title">Escalation</h2>
+      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+        <div className="sticky top-20 max-md:static">
+          <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
         </div>
-        <div className="settings-main">
+        <div className="min-w-0">
           <Card className="mb-1">
             <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
             <div className="px-4 pb-4 space-y-3">
@@ -173,11 +173,11 @@ export default function EscalationSettingsPage() {
   if (error) {
     const Icon = error.type === "network" ? WifiOff : AlertTriangle;
     return (
-      <div className="settings-split">
-        <div className="settings-sidebar">
-          <h2 className="settings-title">Escalation</h2>
+      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+        <div className="sticky top-20 max-md:static">
+          <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
         </div>
-        <div className="settings-main">
+        <div className="min-w-0">
           <Card>
             <div className="flex flex-col items-center justify-center gap-4 py-12 px-4 text-center">
               <Icon className="size-10 text-muted-foreground" />
@@ -199,16 +199,16 @@ export default function EscalationSettingsPage() {
   }
 
   return (
-    <div className="settings-split">
-      <div className="settings-sidebar">
-        <h2 className="settings-title">Escalation</h2>
-        <p className="settings-desc">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <div className="sticky top-20 max-md:static">
+        <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
+        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
           Configure when and how overdue checkout notifications are sent.
           Notifications are deduped per booking — each trigger fires at most once.
         </p>
       </div>
 
-      <div className="settings-main">
+      <div className="min-w-0">
         {/* Rules table */}
         <Card className="mb-1">
           <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>

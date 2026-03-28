@@ -366,12 +366,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <div className="app-main">
-        <header className="topbar">
-          <SidebarTrigger className="topbar-sidebar-trigger text-[var(--text)] hover:bg-[var(--panel)] hover:text-[var(--text)]" />
+      <div className="flex flex-1 flex-col min-w-0 max-md:pl-[env(safe-area-inset-left,0px)] max-md:pr-[env(safe-area-inset-right,0px)] print:ml-0">
+        <header className="h-12 bg-[var(--panel-solid)] border-b border-black/[0.06] flex items-center px-6 gap-3 sticky top-0 z-10 max-md:px-3 max-md:gap-2 print:hidden">
+          <SidebarTrigger className="shrink-0 text-[var(--text)] hover:bg-[var(--panel)] hover:text-[var(--text)]" />
           {/* Search trigger (desktop + mobile) */}
           <button
-            className="topbar-search topbar-search-desktop"
+            className="flex-1 max-w-[400px] flex items-center gap-2 w-full py-2 px-3 border border-border rounded-lg bg-background cursor-pointer transition-colors text-[13px] text-muted-foreground hover:border-[var(--accent)] max-md:hidden [&_svg]:shrink-0 [&_svg]:text-muted-foreground"
             onClick={() => setCmdOpen(true)}
             type="button"
           >
@@ -383,7 +383,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="topbar-search-mobile topbar-icon-btn"
+                className="hidden max-md:flex relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:items-center max-md:justify-center"
                 onClick={() => setCmdOpen(true)}
               >
                 <SearchIcon className="size-5" />
@@ -391,14 +391,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </TooltipTrigger>
             <TooltipContent>Search (⌘K)</TooltipContent>
           </Tooltip>
-          <div className="topbar-actions">
+          <div className="flex items-center gap-1 ml-auto">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
+                <Button variant="ghost" size="icon" className="relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:flex max-md:items-center max-md:justify-center [&_a]:no-underline" asChild>
                   <Link href="/notifications">
                     <BellIcon className="size-5" />
                     {unreadNotifications > 0 && (
-                      <span className="topbar-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+                      <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
                     )}
                   </Link>
                 </Button>
@@ -407,7 +407,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="topbar-icon-btn" asChild>
+                <Button variant="ghost" size="icon" className="relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:flex max-md:items-center max-md:justify-center [&_a]:no-underline" asChild>
                   <Link href={`/users/${user.id}`}>
                     <UserIcon className="size-5" />
                   </Link>
@@ -418,7 +418,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <BreadcrumbProvider>
-          <div id="main-content" className="page-content">
+          <div id="main-content" className="py-7 px-8 flex-1 max-md:p-4 max-md:pb-[calc(80px+env(safe-area-inset-bottom,0px))] print:pb-0">
             <PageBreadcrumb />
             {children}
           </div>
@@ -426,7 +426,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="bottom-nav">
+      <nav className="hidden max-md:flex fixed bottom-0 left-0 right-0 z-[var(--z-overlay)] bg-[var(--panel-solid)] border-t border-border shadow-[0_-1px_3px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,4px)] pt-1 justify-around items-stretch print:hidden">
         {bottomNavItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -436,7 +436,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`bottom-nav-item${isActive ? " active" : ""}`}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 min-w-14 min-h-12 no-underline text-[var(--text-secondary)] text-[11px] font-medium border-none bg-transparent cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent] hover:text-[var(--text)]${isActive ? " !text-[var(--wi-red)]" : ""}`}
             >
               {item.icon}
               <span>{item.label}</span>

@@ -6,17 +6,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function DashboardSkeleton() {
   return (
     <>
-      <div className="page-header"><h1>Dashboard</h1></div>
-      <div className="stat-strip">
+      <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3"><h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">Dashboard</h1></div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 md:gap-3 mb-5">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="stat-strip-item">
+          <div key={i} className="flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)]">
             <Skeleton className="h-7 w-10 mb-1" />
             <Skeleton className="h-3 w-16" />
           </div>
         ))}
       </div>
-      <div className="dashboard-split">
-        <div className="dashboard-col dashboard-col-left">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
+        <div className="flex flex-col gap-5">
           {[3, 3].map((rows, i) => (
             <Card key={i}>
               <CardHeader className="border-b border-border/50">
@@ -36,7 +36,7 @@ export function DashboardSkeleton() {
             </Card>
           ))}
         </div>
-        <div className="dashboard-col dashboard-col-right">
+        <div className="flex flex-col gap-5">
           {[4, 3].map((rows, i) => (
             <Card key={i}>
               <CardHeader className="border-b border-border/50">

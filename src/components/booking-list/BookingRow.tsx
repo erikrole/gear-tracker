@@ -31,25 +31,25 @@ export function BookingTableRow({
         onClick={onClick}
       >
         <td>
-          <div className="booking-name-cell">
-            {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
+          <div className="flex flex-col gap-0.5">
+            {item.refNumber && <span className="font-mono text-xs text-[var(--text-secondary)] bg-[var(--surface-secondary,var(--bg-subtle,#f3f4f6))] px-1.5 py-px rounded mr-1.5 whitespace-nowrap tracking-[0.02em]">{item.refNumber}</span>}
             <span className="row-link" style={isOverdue ? { color: "var(--red)" } : undefined}>{item.title}</span>
-            <span className="booking-status-line">
-              <span className="status-dot" style={{ background: sv.dot }} />
-              <span className="status-label">{sv.label}</span>
+            <span className="inline-flex items-center gap-1.5 text-xs">
+              <span className="size-2 rounded-full shrink-0" style={{ background: sv.dot }} />
+              <span className="text-[var(--text-secondary)]">{sv.label}</span>
             </span>
           </div>
         </td>
         <td className="hide-mobile">
-          <div className="date-cell">
-            <span className="date-main">{from.date}</span>
-            <span className="date-sub">{from.day} {from.time}</span>
+          <div className="flex flex-col gap-px">
+            <span className="font-semibold text-sm">{from.date}</span>
+            <span className="text-[10px] text-[var(--text-secondary)]">{from.day} {from.time}</span>
           </div>
         </td>
         <td className="hide-mobile">
-          <div className="date-cell">
-            <span className="date-main">{to.date}</span>
-            <span className="date-sub">{to.day} {to.time}</span>
+          <div className="flex flex-col gap-px">
+            <span className="font-semibold text-sm">{to.date}</span>
+            <span className="text-[10px] text-[var(--text-secondary)]">{to.day} {to.time}</span>
           </div>
         </td>
         <td className="hide-mobile">{formatDuration(item.startsAt, item.endsAt)}</td>
@@ -57,7 +57,7 @@ export function BookingTableRow({
         <td className="hide-mobile">{(item.serializedItems?.length ?? 0) + (item.bulkItems?.length ?? 0)}</td>
         <td onClick={(e) => e.stopPropagation()}>
           <BookingOverflowMenu item={item} {...menuProps}>
-            <button className="overflow-btn" aria-label="More actions">
+            <button className="bg-transparent border-none text-[var(--text-secondary)] text-xl p-1 px-2 cursor-pointer leading-none tracking-[2px] min-w-9 min-h-11 grid place-items-center [-webkit-tap-highlight-color:transparent] hover:text-[var(--text)] hover:bg-[var(--accent-soft)] hover:rounded-[var(--radius)]" aria-label="More actions">
               {"\u2026"}
             </button>
           </BookingOverflowMenu>
@@ -87,28 +87,28 @@ export function BookingMobileCard({
 
   return (
     <div
-      className={`booking-mobile-card ${sv.className}`}
+      className={`px-3 py-3 border-b border-[var(--border-light)] cursor-pointer flex flex-col gap-1 active:bg-[var(--panel-hover)] last:border-b-0 ${sv.className}`}
       onClick={onClick}
     >
-      <div className="booking-mobile-top">
-        <div className="booking-mobile-name">
-          {item.refNumber && <span className="ref-number">{item.refNumber}</span>}
-          <span className="row-link" style={isOverdue ? { color: "var(--red)" } : undefined}>{item.title}</span>
-          <span className="booking-status-line">
-            <span className="status-dot" style={{ background: sv.dot }} />
-            <span className="status-label">{sv.label}</span>
+      <div className="flex justify-between items-start gap-2">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          {item.refNumber && <span className="font-mono text-xs text-[var(--text-secondary)] bg-[var(--surface-secondary,var(--bg-subtle,#f3f4f6))] px-1.5 py-px rounded mr-1.5 whitespace-nowrap tracking-[0.02em]">{item.refNumber}</span>}
+          <span className="row-link overflow-hidden text-ellipsis whitespace-nowrap" style={isOverdue ? { color: "var(--red)" } : undefined}>{item.title}</span>
+          <span className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-2 rounded-full shrink-0" style={{ background: sv.dot }} />
+            <span className="text-[var(--text-secondary)]">{sv.label}</span>
           </span>
         </div>
         <BookingOverflowMenu item={item} {...menuProps}>
           <button
-            className="overflow-btn" aria-label="More actions"
+            className="bg-transparent border-none text-[var(--text-secondary)] text-xl p-1 px-2 cursor-pointer leading-none tracking-[2px] min-w-9 min-h-11 grid place-items-center [-webkit-tap-highlight-color:transparent] hover:text-[var(--text)] hover:bg-[var(--accent-soft)] hover:rounded-[var(--radius)]" aria-label="More actions"
             onClick={(e) => e.stopPropagation()}
           >
             {"\u2026"}
           </button>
         </BookingOverflowMenu>
       </div>
-      <div className="booking-mobile-meta">
+      <div className="flex flex-wrap gap-1 text-xs text-[var(--text-secondary)]">
         <span>{formatDateShort(item.startsAt)} {"\u2013"} {formatDateShort(item.endsAt)}</span>
         <span>{"\u00b7"}</span>
         <span>{item.requester?.name ?? "Unknown"}</span>

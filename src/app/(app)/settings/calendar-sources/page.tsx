@@ -150,16 +150,16 @@ export default function CalendarSourcesPage() {
   }
 
   return (
-    <div className="settings-split">
-      <div className="settings-sidebar">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <div className="sticky top-20 max-md:static">
         <h2>Calendar Sources</h2>
         <p className="text-secondary text-sm">
           Manage ICS calendar feeds for event syncing. Events are automatically imported and used for shift scheduling.
         </p>
       </div>
 
-      <div className="settings-main">
-        <div className="action-row">
+      <div className="min-w-0">
+        <div className="flex gap-2">
           {!showAdd && (
             <Button size="sm" onClick={() => setShowAdd(true)}>
               Add source

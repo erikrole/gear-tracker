@@ -226,8 +226,8 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4 gap-3">
-        <h1 className="text-2xl tracking-tight flex items-center gap-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <h1 className="flex items-center gap-2">
           Notifications
           {unreadCount > 0 && (
             <Badge variant="blue" className="ml-1">

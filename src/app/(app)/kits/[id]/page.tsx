@@ -286,7 +286,7 @@ export default function KitDetailPage() {
   if (loading) {
     return (
       <>
-        <div className="page-header">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
           <Skeleton className="h-8 w-48" />
         </div>
         <div className="grid gap-4">
@@ -323,13 +323,13 @@ export default function KitDetailPage() {
   return (
     <>
       {/* Header */}
-      <div className="page-header">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" aria-label="Back to kits" onClick={() => router.push("/kits")}>
             <ArrowLeftIcon className="h-4 w-4" />
           </Button>
           <BoxIcon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl">{kit.name}</h1>
+          <h1>{kit.name}</h1>
           {!kit.active && <Badge variant="outline">Archived</Badge>}
         </div>
         <div className="flex items-center gap-2">

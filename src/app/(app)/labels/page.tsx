@@ -103,7 +103,7 @@ export default function LabelsPage() {
 
   return (
     <>
-      <div className="page-header no-print">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8 no-print">
         <h1>Print Labels</h1>
         <Button
           onClick={() => window.print()}

@@ -33,7 +33,7 @@ export default function ShiftConfigTable({
       <CardHeader><CardTitle>Default Shift Coverage</CardTitle></CardHeader>
 
       {/* Desktop table */}
-      <div className="data-table-wrap hide-mobile-only">
+      <div className="data-table-wrap max-md:hidden">
         <table className="data-table">
           <thead>
             <tr>
@@ -89,14 +89,14 @@ export default function ShiftConfigTable({
       </div>
 
       {/* Mobile cards */}
-      <div className="show-mobile-only">
+      <div className="hidden max-md:block">
         {SPORT_CODES.map(({ code }) => {
           const config = getConfig(code);
           const isActive = config?.active ?? false;
 
           return (
-            <div key={code} className="sport-mobile-card">
-              <div className="sport-mobile-top">
+            <div key={code} className="flex flex-col gap-2 px-4 py-3 border-b border-[var(--border-light)] last:border-b-0">
+              <div className="flex justify-between items-center">
                 <div>
                   <span className="font-semibold">{code}</span>
                   <span className="text-muted-foreground ml-2 text-sm">{sportLabel(code)}</span>
@@ -108,9 +108,9 @@ export default function ShiftConfigTable({
                 />
               </div>
               {isActive && (
-                <div className="sport-mobile-shifts">
+                <div className="flex flex-col gap-1">
                   {AREAS.map((area) => (
-                    <div key={area} className="sport-mobile-shift-row">
+                    <div key={area} className="flex justify-between items-center py-0.5">
                       <span className="text-sm text-muted-foreground">{AREA_LABELS[area]}</span>
                       <Input
                         type="number"

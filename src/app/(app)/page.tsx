@@ -143,9 +143,9 @@ export default function DashboardPage() {
   return (
     <>
       {/* ══════ Page Header + Quick Actions ══════ */}
-      <div className="page-header">
+      <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
         <div className="flex items-center gap-3">
-          <h1>Dashboard</h1>
+          <h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">Dashboard</h1>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -164,7 +164,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <FilterChips {...filters} />
           {!isStudent && (
-            <div className="quick-actions">
+            <div className="flex gap-2">
               <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
               <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
             </div>
@@ -174,22 +174,22 @@ export default function DashboardPage() {
 
       {/* ══════ Stat Strip ══════ */}
       {refreshing && <Progress className="h-0.5 mb-1" />}
-      {!isStudent && <div className="stat-strip">
-        <a href="/checkouts?filter=overdue" className={`stat-strip-item stat-strip-clickable ${data.stats.overdue > 0 ? "stat-strip-danger" : ""}`}>
-          <span className="stat-strip-value">{data.stats.overdue}</span>
-          <span className="stat-strip-label">Overdue</span>
+      {!isStudent && <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 md:gap-3 mb-5">
+        <a href="/checkouts?filter=overdue" className={`flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] ${data.stats.overdue > 0 ? "border-red-600/25 bg-red-600/[0.04]" : ""}`}>
+          <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.overdue > 0 ? "text-red-600" : "text-foreground"}`}>{data.stats.overdue}</span>
+          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Overdue</span>
         </a>
-        <a href="/bookings?tab=checkouts&filter=due-today" className={`stat-strip-item stat-strip-clickable ${data.stats.dueToday > 0 ? "stat-strip-warning" : ""}`}>
-          <span className="stat-strip-value">{data.stats.dueToday}</span>
-          <span className="stat-strip-label">Due today</span>
+        <a href="/bookings?tab=checkouts&filter=due-today" className={`flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] [animation-delay:0.05s] ${data.stats.dueToday > 0 ? "border-amber-600/25 bg-amber-600/[0.04]" : ""}`}>
+          <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.dueToday > 0 ? "text-amber-600" : "text-foreground"}`}>{data.stats.dueToday}</span>
+          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Due today</span>
         </a>
-        <a href="/bookings?tab=checkouts" className="stat-strip-item stat-strip-clickable">
-          <span className="stat-strip-value">{data.stats.checkedOut}</span>
-          <span className="stat-strip-label">Active checkouts</span>
+        <a href="/bookings?tab=checkouts" className="flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] [animation-delay:0.1s]">
+          <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.checkedOut}</span>
+          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Active checkouts</span>
         </a>
-        <a href="/bookings?tab=reservations" className="stat-strip-item stat-strip-clickable">
-          <span className="stat-strip-value">{data.stats.reserved}</span>
-          <span className="stat-strip-label">Reserved</span>
+        <a href="/bookings?tab=reservations" className="flex flex-col items-center min-h-16 md:min-h-auto px-2 md:px-3 py-2.5 md:py-3.5 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 animate-[dash-fade-up_0.35s_ease_both] [animation-delay:0.15s]">
+          <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.reserved}</span>
+          <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Reserved</span>
         </a>
       </div>}
 
@@ -197,20 +197,20 @@ export default function DashboardPage() {
       {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
         && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0
         && data.myReservations.length === 0 && data.drafts.length === 0 && data.myShifts.length === 0 && (
-        <div className="welcome-banner">
-          <h2>Welcome to Gear Tracker</h2>
-          <p>Get started by setting up your equipment inventory.</p>
-          <div className="welcome-steps">
-            <Link href="/items" className="welcome-step">
-              <span className="welcome-step-num">1</span>
+        <div className="bg-card border border-border rounded-xl p-6 mb-4 animate-[empty-fade-in_0.4s_ease-out] max-md:p-4">
+          <h2 className="font-[var(--font-heading)] text-lg font-extrabold m-0 mb-1">Welcome to Gear Tracker</h2>
+          <p className="text-sm text-muted-foreground m-0 mb-4">Get started by setting up your equipment inventory.</p>
+          <div className="flex gap-3 max-md:flex-col">
+            <Link href="/items" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
+              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">1</span>
               <span>Add equipment</span>
             </Link>
-            <Link href="/import" className="welcome-step">
-              <span className="welcome-step-num">2</span>
+            <Link href="/import" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
+              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">2</span>
               <span>Import from spreadsheet</span>
             </Link>
-            <Link href="/settings/calendar-sources" className="welcome-step">
-              <span className="welcome-step-num">3</span>
+            <Link href="/settings/calendar-sources" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
+              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">3</span>
               <span>Set up calendar sync</span>
             </Link>
           </div>
@@ -226,7 +226,7 @@ export default function DashboardPage() {
       />
 
       {/* ══════ Two-Column Split ══════ */}
-      <div className={isStudent ? "dashboard-single" : "dashboard-split"}>
+      <div className={isStudent ? "grid grid-cols-1 gap-6 max-w-[640px]" : "grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start"}>
         <MyGearColumn
           data={data}
           filtered={filters.filtered}

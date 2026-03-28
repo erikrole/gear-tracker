@@ -44,7 +44,7 @@ export function BookingFilters({
   users,
 }: BookingFiltersProps) {
   return (
-    <CardHeader className="filter-chip-bar">
+    <CardHeader className="!flex !flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap">
       <CardTitle style={{ margin: 0, whiteSpace: "nowrap" }}>
         {statusFilter
           ? config.statusOptions.find((s) => s.value === statusFilter)?.label ?? "Filtered"
@@ -55,21 +55,21 @@ export function BookingFilters({
       </CardTitle>
       <Input
         type="text"
-        className="filter-chip-search"
+        className="flex-1 min-w-[120px] max-w-full max-md:flex-[1_1_100%] max-md:min-w-0"
         placeholder="Search by title or requester..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
       />
-      <div className="filter-chips">
+      <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
         {specialFilter ? (
           <button
             type="button"
-            className="filter-chip filter-chip-active"
+            className="inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-[var(--text-muted)] bg-[var(--accent-soft)] text-sm font-medium text-[var(--text)] cursor-pointer transition-all whitespace-nowrap min-h-8 hover:bg-[var(--border-light)] hover:border-[var(--text-secondary)]"
             onClick={() => onSpecialFilterChange("")}
           >
-            <span className="filter-chip-label">Showing:</span>
-            <span className="filter-chip-value">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>
-            <span className="filter-chip-clear">&times;</span>
+            <span className="font-medium">Showing:</span>
+            <span className="font-semibold">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>
+            <span className="text-base leading-none ml-0.5 opacity-60 hover:opacity-100 cursor-pointer">&times;</span>
           </button>
         ) : (
           <FilterChip
@@ -113,7 +113,7 @@ export function BookingFilters({
         {(statusFilter || sportFilter || locationFilter || userFilter || specialFilter) && (
           <button
             type="button"
-            className="filter-chip-clear-all"
+            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none font-medium whitespace-nowrap"
             onClick={() => {
               onStatusFilterChange("");
               onSportFilterChange("");

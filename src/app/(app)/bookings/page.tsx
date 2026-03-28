@@ -179,7 +179,7 @@ export default function BookingsPage() {
 
   return (
     <div>
-      <div className="page-header">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <h1>Bookings</h1>
       </div>
 

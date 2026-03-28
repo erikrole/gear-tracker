@@ -251,9 +251,9 @@ export default function ItemsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex items-center justify-between mb-4 gap-3">
-        <h1 className="text-2xl tracking-tight">Items</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <h1>Items</h1>
+        <div className="flex items-center gap-2">
           {options.canEdit && (
             <>
               <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="hidden sm:flex">

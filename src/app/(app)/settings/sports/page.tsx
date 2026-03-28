@@ -119,11 +119,11 @@ export default function SportsSettingsPage() {
   /* ---------- Loading skeleton ---------- */
   if (loading) {
     return (
-      <div className="settings-split">
-        <div className="settings-sidebar">
-          <h2 className="settings-title">Sports</h2>
+      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+        <div className="sticky top-20 max-md:static">
+          <h2 className="text-[22px] font-bold mb-2">Sports</h2>
         </div>
-        <div className="settings-main">
+        <div className="min-w-0">
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 rounded-md border p-4">
@@ -145,11 +145,11 @@ export default function SportsSettingsPage() {
   if (error) {
     const Icon = error.type === "network" ? WifiOff : AlertTriangle;
     return (
-      <div className="settings-split">
-        <div className="settings-sidebar">
-          <h2 className="settings-title">Sports</h2>
+      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+        <div className="sticky top-20 max-md:static">
+          <h2 className="text-[22px] font-bold mb-2">Sports</h2>
         </div>
-        <div className="settings-main">
+        <div className="min-w-0">
           <Card className="mx-auto max-w-md">
             <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
               <Icon className="size-10 text-muted-foreground" />
@@ -172,17 +172,17 @@ export default function SportsSettingsPage() {
 
   /* ---------- Normal render ---------- */
   return (
-    <div className="settings-split">
-      <div className="settings-sidebar">
-        <h2 className="settings-title">Sports</h2>
-        <p className="settings-desc">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <div className="sticky top-20 max-md:static">
+        <h2 className="text-[22px] font-bold mb-2">Sports</h2>
+        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
           Configure the default number of shifts per area for each sport.
           When new events are synced from the calendar, shifts are auto-generated using these counts.
           You can always adjust individual events on the schedule page.
         </p>
       </div>
 
-      <div className="settings-main">
+      <div className="min-w-0">
         <ShiftConfigTable
           configs={configs}
           saving={saving}

@@ -192,8 +192,8 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   return (
     <>
       {/* Filters */}
-      <div className="filter-chip-bar mb-1">
-        <div className="filter-chips">
+      <div className="flex flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap mb-1">
+        <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
           <FilterChip
             label="Area"
             value={areaFilter}
@@ -218,7 +218,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
           {hasFilters && (
             <button
               type="button"
-              className="filter-chip-clear-all"
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none font-medium whitespace-nowrap"
               onClick={() => { setAreaFilter(""); setStatusFilter(""); }}
             >
               Clear all
@@ -248,7 +248,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         ) : (
           <>
             {/* Desktop table */}
-            <table className="data-table schedule-table-desktop">
+            <table className="data-table max-md:hidden">
               <thead>
                 <tr>
                   <th>Event</th>
@@ -342,12 +342,12 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
             </table>
 
             {/* Mobile cards */}
-            <div className="schedule-mobile-list">
+            <div className="hidden max-md:flex flex-col">
               {filteredTrades.map((t) => {
                 const ev = t.shiftAssignment.shift.shiftGroup.event;
                 const area = t.shiftAssignment.shift.area;
                 return (
-                  <div key={t.id} className="schedule-mobile-card">
+                  <div key={t.id} className="block px-4 py-3 border-b border-[var(--border-light)] last:border-b-0 no-underline text-inherit active:bg-[var(--panel-hover)]">
                     <div className="flex-between mb-1">
                       <span className="font-semibold">{ev.summary}</span>
                       <Badge variant={(STATUS_BADGES[t.status] ?? "gray") as BadgeProps["variant"]}>

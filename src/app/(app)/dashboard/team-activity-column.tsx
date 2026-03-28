@@ -30,13 +30,13 @@ type Props = {
 
 export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, inlineActionId, onSelectBooking, onExtend }: Props) {
   return (
-    <div className="dashboard-col dashboard-col-right">
-      <span className="dashboard-col-label">Team Activity</span>
+    <div className="flex flex-col gap-5">
+      <span className="text-xs font-semibold text-muted-foreground pl-0.5">Team Activity</span>
 
       {/* Team Checkouts */}
       <Card>
-        <a href="/bookings?tab=checkouts" className="card-header-link">
-          <h2>Checked out</h2>
+        <a href="/bookings?tab=checkouts" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
+          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Checked out</h2>
           <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
         </a>
         {(filtered?.teamCheckouts ?? data.teamCheckouts.items).length === 0 ? (
@@ -85,7 +85,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               );
             })}
             {!activeSport && data.teamCheckouts.total > data.teamCheckouts.items.length && (
-              <a href="/bookings?tab=checkouts" className="view-all-link">View all {data.teamCheckouts.total} &rarr;</a>
+              <a href="/bookings?tab=checkouts" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamCheckouts.total} &rarr;</a>
             )}
           </CardContent>
         )}
@@ -93,8 +93,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
 
       {/* Team Reservations */}
       <Card>
-        <a href="/bookings?tab=reservations" className="card-header-link">
-          <h2>Reserved</h2>
+        <a href="/bookings?tab=reservations" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
+          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Reserved</h2>
           <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
         </a>
         {(filtered?.teamReservations ?? data.teamReservations.items).length === 0 ? (
@@ -121,7 +121,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               </button>
             ))}
             {!activeSport && data.teamReservations.total > data.teamReservations.items.length && (
-              <a href="/bookings?tab=reservations" className="view-all-link">View all {data.teamReservations.total} &rarr;</a>
+              <a href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamReservations.total} &rarr;</a>
             )}
           </CardContent>
         )}
@@ -129,8 +129,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
 
       {/* Upcoming Events */}
       <Card>
-        <a href="/schedule" className="card-header-link">
-          <h2>Upcoming events</h2>
+        <a href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
+          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Upcoming events</h2>
         </a>
         {(filtered?.upcomingEvents ?? data.upcomingEvents).length === 0 ? (
           <div className="empty-section"><CalendarIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} events` : "No upcoming events"}</div>
@@ -142,7 +142,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               const endsParam = encodeURIComponent(e.endsAt);
               const locParam = e.locationId ? `&locationId=${e.locationId}` : "";
               return (
-                <div key={e.id} className="ops-row event-row-clickable">
+                <div key={e.id} className="ops-row no-underline text-inherit">
                   <a href={`/events/${e.id}`} className="ops-row-main no-underline">
                     <span className="ops-row-title">
                       {e.sportCode && <span className="text-xs font-medium text-muted-foreground mr-1">{sportLabel(e.sportCode)}</span>}
@@ -164,7 +164,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="event-action-trigger">
+                            <Button variant="ghost" size="icon" className="size-7 transition-opacity">
                               <PackageIcon className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
