@@ -234,8 +234,11 @@ export function ListView({
                         return (
                           <div
                             key={shift.id}
-                            className="flex items-center gap-3 px-3 py-2 pl-8 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-accent/50"
+                            className="flex items-center gap-3 px-3 py-2 pl-8 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                            tabIndex={0}
+                            role="link"
                             onClick={() => onSelectGroup(entry.shiftGroupId)}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGroup(entry.shiftGroupId); } }}
                           >
                             <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm" className="w-16 justify-center">
                               {AREA_LABELS[shift.area] ?? shift.area}
@@ -306,8 +309,11 @@ function EventRows({
     <>
       {/* Parent event row */}
       <tr
-        className={`${hasShifts ? "cursor-pointer" : ""} ${isExpanded ? "bg-accent/30" : ""}`}
+        className={`${hasShifts ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]" : ""} ${isExpanded ? "bg-accent/30" : ""}`}
+        tabIndex={hasShifts ? 0 : undefined}
+        role={hasShifts ? "link" : undefined}
         onClick={hasShifts ? onToggle : undefined}
+        onKeyDown={hasShifts ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } } : undefined}
       >
         <td className="px-1">
           {hasShifts && (
@@ -361,8 +367,11 @@ function EventRows({
         return (
           <tr
             key={shift.id}
-            className="bg-muted/20 hover:bg-accent/40 cursor-pointer"
+            className="bg-muted/20 hover:bg-accent/40 cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+            tabIndex={0}
+            role="link"
             onClick={() => onSelectGroup()}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGroup(); } }}
           >
             <td></td>
             <td>

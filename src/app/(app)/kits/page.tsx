@@ -196,9 +196,41 @@ export default function KitsPage() {
         </Card>
       )}
 
-      {/* Table */}
+      {/* Table + Mobile Cards */}
       {!query.loadError && query.kits.length > 0 && (
         <Card>
+          {/* Mobile card layout */}
+          <div className="md:hidden space-y-3 p-3">
+            {query.kits.map((kit) => (
+              <div
+                key={kit.id}
+                className="bg-card border border-border rounded-lg p-4 active:bg-accent/50 transition-colors cursor-pointer"
+                role="link"
+                tabIndex={0}
+                onClick={() => router.push(`/kits/${kit.id}`)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/kits/${kit.id}`); } }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold">{kit.name}</span>
+                  <div className="flex items-center gap-2">
+                    {kit.active ? (
+                      <Badge variant="default">Active</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">Archived</Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                  <span>{kit._count.members} item{kit._count.members !== 1 ? "s" : ""}</span>
+                  <span>&middot;</span>
+                  <span>{kit.location.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table layout */}
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -228,8 +260,11 @@ export default function KitsPage() {
               {query.kits.map((kit) => (
                 <TableRow
                   key={kit.id}
-                  className="cursor-pointer"
+                  className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                  tabIndex={0}
+                  role="link"
                   onClick={() => router.push(`/kits/${kit.id}`)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/kits/${kit.id}`); } }}
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -263,6 +298,7 @@ export default function KitsPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
 
           {/* Pagination */}
           {query.totalPages > 1 && (

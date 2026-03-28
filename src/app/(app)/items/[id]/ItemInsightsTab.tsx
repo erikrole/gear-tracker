@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import {
   AreaChart, Area,
   BarChart, Bar,
@@ -10,6 +11,7 @@ import {
 } from "recharts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -84,13 +86,17 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
   const [error, setError] = useState(false);
   const [window, setWindow] = useState<WindowKey>("90d");
 
-  useEffect(() => {
+  const loadInsights = useCallback(() => {
+    setLoading(true);
+    setError(false);
     fetch(`/api/assets/${assetId}/insights`)
       .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
       .then((json) => { if (json?.data) setData(json.data); else setError(true); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [assetId]);
+
+  useEffect(() => { loadInsights(); }, [loadInsights]);
 
   if (loading) {
     return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
@@ -99,7 +105,11 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
   if (error || !data) {
     return (
       <Empty className="py-8 mt-3.5">
+        <AlertTriangle className="size-8 text-muted-foreground opacity-50 mx-auto mb-2" />
         <EmptyDescription>Failed to load insights.</EmptyDescription>
+        <Button variant="outline" size="sm" className="mt-3" onClick={loadInsights}>
+          Retry
+        </Button>
       </Empty>
     );
   }

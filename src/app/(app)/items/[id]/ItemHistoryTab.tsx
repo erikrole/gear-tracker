@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { Spinner } from "@/components/ui/spinner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -96,7 +98,9 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  useEffect(() => {
+  const loadActivity = useCallback(() => {
+    setLoading(true);
+    setFetchError(false);
     fetch(`/api/assets/${assetId}/activity`)
       .then((res) => { if (!res.ok) { setFetchError(true); return null; } return res.json(); })
       .then((json) => { if (json?.data) setEntries(json.data); })
@@ -104,12 +108,18 @@ export default function ActivityFeed({ assetId }: { assetId: string }) {
       .finally(() => setLoading(false));
   }, [assetId]);
 
+  useEffect(() => { loadActivity(); }, [loadActivity]);
+
   if (loading) return <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>;
 
   if (fetchError) {
     return (
       <Empty className="py-8 border-0">
+        <AlertTriangle className="size-8 text-muted-foreground opacity-50 mx-auto mb-2" />
         <EmptyDescription>Failed to load activity history.</EmptyDescription>
+        <Button variant="outline" size="sm" className="mt-3" onClick={loadActivity}>
+          Retry
+        </Button>
       </Empty>
     );
   }
