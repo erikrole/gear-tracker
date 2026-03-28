@@ -28,8 +28,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   return (
     <>
-      <div className="page-header mb-0">
-        <h1>Settings</h1>
+      <div className="flex items-center justify-between mb-0 max-md:flex-col max-md:items-start max-md:gap-3">
+        <h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">Settings</h1>
       </div>
 
       <nav className="flex gap-0 border-b mb-5">

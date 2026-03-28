@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
 import { SearchIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -174,7 +175,7 @@ export default function SearchPage() {
 
   return (
     <div className="p-6">
-      <h1 className="m-0 mb-1">Search</h1>
+      <PageHeader title="Search" />
 
       <div className="relative mb-6 max-w-xl">
         <Input
@@ -232,7 +233,7 @@ export default function SearchPage() {
                     <Link
                       key={r.id}
                       href={r.href}
-                      className={`search-result-row ${i < items.length - 1 ? "border-b border-border" : ""}`}
+                      className={`flex items-center justify-between gap-3 py-3 px-4 no-underline text-inherit cursor-pointer hover:bg-accent/50 ${i < items.length - 1 ? "border-b border-border" : ""}`}
                     >
                       <div>
                         <div className="font-semibold">{r.title}</div>

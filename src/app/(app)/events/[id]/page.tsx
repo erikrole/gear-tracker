@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { PageHeader } from "@/components/PageHeader";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 type CalendarEvent = {
@@ -303,8 +304,7 @@ export default function EventDetailPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl">{event.summary}</h1>
+      <PageHeader title={event.summary}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -317,7 +317,7 @@ export default function EventDetailPage() {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      </div>
+      </PageHeader>
 
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         <Badge variant={event.status === "CANCELLED" ? "red" : "green"}>

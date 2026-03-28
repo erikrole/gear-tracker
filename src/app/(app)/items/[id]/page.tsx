@@ -459,7 +459,7 @@ export default function ItemDetailsPage() {
     return (
       <div>
         {/* Header skeleton */}
-        <div className="page-header mb-0">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
           <div className="flex gap-4 items-center">
             <Skeleton className="size-[80px] rounded-lg shrink-0" />
             <div className="space-y-2">
@@ -528,24 +528,24 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <div className="page-header mb-0">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div className="flex gap-4 items-center">
           {/* Hero image — larger square */}
           {asset.imageUrl ? (
             <button
-              className={`asset-hero-image aspect-square size-[120px] ${canEdit ? "cursor-pointer" : "cursor-default"}`}
+              className={`relative rounded-lg border border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 aspect-square size-[120px] ${canEdit ? "cursor-pointer" : "cursor-default"} group`}
               onClick={() => canEdit && setImageModalOpen(true)}
               title={canEdit ? "Change image" : undefined}
             >
               <Image src={asset.imageUrl} alt={asset.assetTag} width={240} height={240} sizes="120px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
               {canEdit && (
-                <div className="asset-hero-image-overlay">
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
                   <PencilIcon className="size-5" />
                 </div>
               )}
             </button>
           ) : canEdit ? (
-            <button className="asset-hero-image asset-hero-image-empty aspect-square size-[120px]" onClick={() => setImageModalOpen(true)} title="Add image">
+            <button className="relative rounded-lg border border-dashed border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] aspect-square size-[120px]" onClick={() => setImageModalOpen(true)} title="Add image">
               <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
             </button>
           ) : null}

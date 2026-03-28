@@ -245,7 +245,7 @@ export default function UserDetailPage() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between flex-col sm:flex-row gap-3 mb-0">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div className="flex gap-3 items-center">
           {isSelf ? (
             <>

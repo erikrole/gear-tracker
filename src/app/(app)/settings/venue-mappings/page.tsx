@@ -151,15 +151,15 @@ export default function VenueMappingsPage() {
   }
 
   return (
-    <div className="settings-split">
-      <div className="settings-sidebar">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <div className="sticky top-20 max-md:static">
         <h2>Venue Mappings</h2>
         <p className="text-sm text-muted-foreground">
           Configure home venues and map calendar venue text to locations. Events at home venues are automatically marked as home games.
         </p>
       </div>
 
-      <div className="settings-main">
+      <div className="min-w-0">
         {/* ── Home Venues ── */}
         <Card className="mb-4">
           <CardHeader><CardTitle>Home Venues</CardTitle></CardHeader>

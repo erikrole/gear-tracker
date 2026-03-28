@@ -223,8 +223,8 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   return (
     <>
       {!hideHeader && (
-        <div className="page-header">
-          <h1>{config.labelPlural}</h1>
+        <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
+          <h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">{config.labelPlural}</h1>
           <Button onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Close" : `New ${config.label}`}
           </Button>
@@ -295,8 +295,8 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             ) : (
               <>
                 {/* Desktop table */}
-                <div className="booking-table-wrap">
-                  <table className="data-table booking-table">
+                <div className="overflow-x-auto max-md:hidden">
+                  <table className="data-table">
                     <thead>
                       <tr>
                         <SortHeader label="Name" sortKey="title" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
@@ -305,7 +305,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                         <th className="hide-mobile">Duration</th>
                         <th className="hide-mobile">User</th>
                         <th className="hide-mobile">Items</th>
-                        <th className="col-overflow"></th>
+                        <th className="w-11"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -328,7 +328,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                 </div>
 
                 {/* Mobile card list */}
-                <div className="booking-mobile-list">
+                <div className="hidden max-md:flex max-md:flex-col">
                   {sortedItems.map((item) => (
                     <BookingMobileCard
                       key={item.id}

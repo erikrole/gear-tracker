@@ -101,13 +101,13 @@ export default function CategoryRow({
 
   return (
     <>
-      <div className="cat-row" style={{ paddingLeft: depth > 0 ? 24 + depth * 24 : 16 }}>
-        <div className="cat-row-name" style={{ fontWeight: isChild ? 400 : 600 }}>
+      <div className="flex items-center justify-between py-3 px-4 border-b border-[var(--border-light)] min-h-12 last:border-b-0 hover:bg-[var(--panel-hover)] max-md:!pl-3 max-md:!pr-3" style={{ paddingLeft: depth > 0 ? 24 + depth * 24 : 16 }}>
+        <div className="flex items-center text-base min-w-0" style={{ fontWeight: isChild ? 400 : 600 }}>
           {isChild && <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />}
           {renaming ? (
             <input
               ref={inputRef}
-              className="cat-inline-input"
+              className="py-1 px-2 border border-border rounded-md text-sm w-[min(200px,100%)] max-md:w-full max-md:min-h-11 max-md:text-lg"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onBlur={saveRename}
@@ -122,7 +122,7 @@ export default function CategoryRow({
             node.name
           )}
         </div>
-        <div className="cat-row-actions">
+        <div className="flex items-center gap-2 shrink-0">
           {displayCount > 0 && (
             <Badge variant="purple" size="sm">
               {displayCount} item{displayCount !== 1 ? "s" : ""}
@@ -139,12 +139,12 @@ export default function CategoryRow({
       </div>
 
       {addingSub && (
-        <div className="cat-row" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
-          <div className="cat-row-name">
+        <div className="flex items-center justify-between py-3 px-4 border-b border-[var(--border-light)] min-h-12 last:border-b-0 hover:bg-[var(--panel-hover)]" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
+          <div className="flex items-center text-base min-w-0">
             <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />
             <input
               ref={subInputRef}
-              className="cat-inline-input"
+              className="py-1 px-2 border border-border rounded-md text-sm w-[min(200px,100%)] max-md:w-full max-md:min-h-11 max-md:text-lg"
               value={subName}
               onChange={(e) => setSubName(e.target.value)}
               placeholder="Subcategory name"

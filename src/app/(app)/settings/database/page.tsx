@@ -46,16 +46,16 @@ export default function DatabasePage() {
   }
 
   return (
-    <div className="settings-split">
-      <div className="settings-sidebar">
-        <h2 className="settings-title">Database Health</h2>
-        <p className="settings-desc">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <div className="sticky top-20 max-md:static">
+        <h2 className="text-[22px] font-bold mb-2">Database Health</h2>
+        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
           Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift.
         </p>
       </div>
 
-      <div className="settings-main">
-        <div className="settings-action-row">
+      <div className="min-w-0">
+        <div className="flex justify-end mb-3">
           <Button onClick={runCheck} disabled={loading}>
             {loading ? "Checking\u2026" : "Run diagnostics"}
           </Button>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
+import { ScaleIn } from "@/components/ui/motion";
 import { formatDueLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
 import type { DashboardData, BookingSummary } from "../dashboard-types";
@@ -39,17 +40,18 @@ export function MyGearColumn({
 }: Props) {
   const accentClass = ownedAccent ? " border-l-2 border-l-primary" : "";
   return (
-    <div className="dashboard-col dashboard-col-left">
-      <span className="dashboard-col-label">My Gear</span>
+    <div className="flex flex-col gap-5">
+      <span className="text-xs font-semibold text-muted-foreground pl-0.5">My Gear</span>
 
       {/* My Checkouts */}
-      <Card>
-        <a href="/checkouts?mine=true" className="card-header-link">
-          <h2>My checkouts</h2>
+      <ScaleIn delay={0}>
+      <Card elevation="elevated">
+        <a href="/checkouts?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
+          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My checkouts</h2>
           <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
         </a>
         {(filtered?.myCheckouts ?? data.myCheckouts.items).length === 0 ? (
-          <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myCheckouts ?? data.myCheckouts.items).map((c) => {
@@ -94,20 +96,22 @@ export function MyGearColumn({
               );
             })}
             {!activeSport && data.myCheckouts.total > data.myCheckouts.items.length && (
-              <a href="/checkouts?mine=true" className="view-all-link">View all {data.myCheckouts.total} &rarr;</a>
+              <a href="/checkouts?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.myCheckouts.total} &rarr;</a>
             )}
           </CardContent>
         )}
       </Card>
+      </ScaleIn>
 
       {/* My Reservations */}
+      <ScaleIn delay={0.05}>
       <Card>
-        <a href="/reservations?mine=true" className="card-header-link">
-          <h2>My reservations</h2>
+        <a href="/reservations?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
+          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My reservations</h2>
           <Badge variant="gray" size="sm">{data.myReservations.length}</Badge>
         </a>
         {(filtered?.myReservations ?? data.myReservations).length === 0 ? (
-          <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myReservations ?? data.myReservations).map((r) => (
@@ -146,17 +150,19 @@ export function MyGearColumn({
               </button>
             ))}
             {!activeSport && data.myReservations.length >= 5 && (
-              <a href="/reservations?mine=true" className="view-all-link">View all &rarr;</a>
+              <a href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</a>
             )}
           </CardContent>
         )}
       </Card>
+      </ScaleIn>
 
       {/* My Shifts */}
       {(filtered?.myShifts ?? data.myShifts).length > 0 && (
+        <ScaleIn delay={0.1}>
         <Card>
-          <a href="/schedule" className="card-header-link">
-            <h2>My shifts</h2>
+          <a href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
+            <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My shifts</h2>
             <Badge variant="gray" size="sm">{data.myShifts.length}</Badge>
           </a>
           <CardContent className="p-0 py-1">
@@ -173,7 +179,7 @@ export function MyGearColumn({
                       {eventTitle}
                     </span>
                     <span className="ops-row-meta">
-                      <span className="shift-widget-area">{s.area}</span>
+                      <span className="font-semibold text-xs uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--panel-hover)] text-muted-foreground shrink-0">{s.area}</span>
                       {" "}
                       {new Date(s.startsAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toLowerCase()}
                       {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
@@ -200,18 +206,20 @@ export function MyGearColumn({
             })}
           </CardContent>
         </Card>
+        </ScaleIn>
       )}
 
       {/* Drafts */}
       {data.drafts.length > 0 && (
-        <Card>
+        <ScaleIn delay={0.15}>
+        <Card elevation="elevated">
           <CardHeader className="border-b border-border/50">
             <CardTitle>Drafts</CardTitle>
             <Badge variant="gray" size="sm">{data.drafts.length}</Badge>
           </CardHeader>
           <CardContent className="p-0 py-1">
             {data.drafts.map((d) => (
-              <div key={d.id} className="ops-row draft-row">
+              <div key={d.id} className="ops-row flex items-center gap-3">
                 <div className="ops-row-main">
                   <span className="ops-row-title">
                     <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
@@ -222,7 +230,7 @@ export function MyGearColumn({
                     Edited {formatRelativeTime(d.updatedAt, now)}
                   </span>
                 </div>
-                <div className="draft-actions">
+                <div className="flex gap-1.5 shrink-0">
                   <Button variant="outline" size="sm" asChild>
                     <a href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
                       Resume
@@ -241,6 +249,7 @@ export function MyGearColumn({
             ))}
           </CardContent>
         </Card>
+        </ScaleIn>
       )}
     </div>
   );

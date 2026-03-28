@@ -46,30 +46,30 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
   if (overdueCount === 0) return null;
 
   return (
-    <div className="overdue-banner">
-      <div className="overdue-banner-header">
-        <div className="overdue-banner-title">
-          <AlertTriangleIcon className="overdue-banner-icon size-[18px]" />
-          <span className="pulse-dot" />
+    <div className="bg-[var(--wi-red)] rounded-[var(--radius)] p-3.5 md:px-4 mb-5 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both]">
+      <div className="flex items-center justify-between gap-3 mb-2.5 max-md:flex-wrap">
+        <div className="flex items-center gap-2 text-[var(--text-md)] font-semibold">
+          <AlertTriangleIcon className="shrink-0 size-[18px]" />
+          <span className="size-2 rounded-full bg-[var(--panel-solid)] shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite]" />
           <strong>{overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}</strong>
         </div>
-        <a href="/checkouts?filter=overdue" className="overdue-banner-viewall">Resolve all overdue &rarr;</a>
+        <a href="/checkouts?filter=overdue" className="text-white/85 text-[var(--text-sm)] font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">Resolve all overdue &rarr;</a>
       </div>
-      <div className="overdue-banner-list">
+      <div className="flex flex-col gap-1.5">
         {overdueItems.map((item) => (
           <button
             key={item.bookingId}
-            className="overdue-banner-item"
+            className="flex flex-col gap-0.5 bg-white/10 border-none rounded-md px-3 py-2 cursor-pointer font-[inherit] text-white text-left w-full transition-colors hover:bg-white/[0.18]"
             onClick={() => onSelectBooking(item.bookingId)}
           >
-            <div className="overdue-banner-item-main">
-              <span className="overdue-banner-item-title">{item.bookingTitle}</span>
-              <span className="overdue-banner-item-meta">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-[var(--text-sm)] font-semibold flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
+              <span className="flex items-center gap-1 text-xs opacity-75 [&_[data-slot=avatar-fallback]]:bg-white/20 [&_[data-slot=avatar-fallback]]:text-white">
                 <UserAvatar name={item.requesterName} />
                 {item.requesterName}
                 {item.items.length > 0 && <> &middot; <GearAvatarStack items={item.items} totalCount={item.assetTags.length} /></>}
                 {item.items.length === 0 && item.assetTags.length > 0 && <> &middot; {item.assetTags.join(", ")}</>}
-                 &middot; <span className="overdue-elapsed">{formatOverdueElapsed(item.endsAt, now)}</span>
+                 &middot; <span className="text-[var(--text-3xs)] font-bold bg-white/20 px-2 py-0.5 rounded-full whitespace-nowrap">{formatOverdueElapsed(item.endsAt, now)}</span>
               </span>
             </div>
             <Tooltip>

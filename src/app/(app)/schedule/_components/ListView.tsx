@@ -121,7 +121,7 @@ export function ListView({
       ) : (
         <>
           {/* ── Desktop: Asana-style expandable shift schedule ── */}
-          <div className="schedule-table-desktop">
+          <div className="max-md:hidden">
             {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
               const isGroupToday =
                 new Date(dateKey).toDateString() === new Date().toDateString();
@@ -178,13 +178,13 @@ export function ListView({
           </div>
 
           {/* ── Mobile: card list ── */}
-          <div className="schedule-mobile-list">
+          <div className="hidden max-md:flex flex-col">
             {filteredEntries.map((entry) => {
               const isExpanded = expandedRowId === entry.id;
               const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
 
               return (
-                <div key={entry.id} className="schedule-mobile-card">
+                <div key={entry.id} className="block px-4 py-3 border-b border-[var(--border-light)] last:border-b-0 no-underline text-inherit active:bg-[var(--panel-hover)]">
                   <button
                     className="w-full text-left p-3"
                     onClick={() => entry.shifts.length > 0
