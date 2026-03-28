@@ -50,6 +50,7 @@
 | ~~GAP-24~~ | ~~No dashboard reservation date filter — AC-4 not enforced~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Fixed 2026-03-25: Added 7-day window filter to stats count query. AC-4 enforced.~~ |
 | ~~GAP-25~~ | ~~Importer drops unmapped columns silently~~ | ~~AREA_IMPORTER~~ | ~~Closed~~ | ~~Fixed 2026-03-25: `buildAssetData()` stores unmapped CSV columns in `sourcePayload` per D-014.~~ |
 | ~~GAP-26~~ | ~~Settings pages accessible to non-admin users~~ | ~~AREA_SETTINGS~~ | ~~Closed~~ | ~~Verified 2026-03-25: Layout (ADMIN+STAFF) and Sidebar (ADMIN+STAFF) both enforce correctly.~~ |
+| GAP-27 | Reports use `Promise.all` — one slow query fails entire report with no partial results | AREA_DASHBOARD | Open | V2+: Switch to `Promise.allSettled` for partial failure resilience. Low severity — only affects high-load scenarios. |
 
 ---
 
