@@ -2,7 +2,7 @@
 
 import { toast as sonnerToast } from "sonner";
 
-type ToastType = "success" | "error" | "info";
+type ToastType = "success" | "error" | "warning" | "info";
 
 /**
  * Drop-in replacement for the old useToast() hook.
@@ -17,6 +17,9 @@ export function useToast() {
         break;
       case "error":
         sonnerToast.error(message);
+        break;
+      case "warning":
+        sonnerToast.warning(message);
         break;
       case "info":
         sonnerToast.info(message);
