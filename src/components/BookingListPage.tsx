@@ -287,7 +287,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                       currentUserId, currentUserRole, config, extendingId,
                       onViewDetails: (id) => setSelectedBookingId(id),
                       onExtend: handleExtendFromMenu,
-                      items, reload,
+                      items, reload, setItems,
                     }}
                   />
                 ))}
@@ -319,7 +319,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                             currentUserId, currentUserRole, config, extendingId,
                             onViewDetails: (id) => setSelectedBookingId(id),
                             onExtend: handleExtendFromMenu,
-                            items, reload,
+                            items, reload, setItems,
                           }}
                         />
                       ))}
@@ -339,7 +339,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                         currentUserId, currentUserRole, config, extendingId,
                         onViewDetails: (id) => setSelectedBookingId(id),
                         onExtend: handleExtendFromMenu,
-                        items, reload,
+                        items, reload, setItems,
                       }}
                     />
                   ))}

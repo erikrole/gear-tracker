@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { formatDateFull, formatRelativeTime } from "@/lib/format";
 import EmptyState from "@/components/EmptyState";
@@ -25,13 +26,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
+
+const LazyCheckoutTrendChart = dynamic(
+  () => import("./charts").then((m) => ({ default: m.CheckoutTrendChart })),
+  { ssr: false, loading: () => <Card className="p-4"><Skeleton className="h-[200px] w-full" /></Card> }
+);
+const LazyTopRequestersChart = dynamic(
+  () => import("./charts").then((m) => ({ default: m.TopRequestersChart })),
+  { ssr: false, loading: () => <Card className="p-4"><Skeleton className="h-[200px] w-full" /></Card> }
+);
 
 type CheckoutRow = {
   id: string;
@@ -54,22 +57,6 @@ type CheckoutData = {
   recentCheckouts: CheckoutRow[];
   topRequesters: { name: string; count: number }[];
 };
-
-const trendConfig: ChartConfig = {
-  count: { label: "Checkouts", color: "hsl(220 70% 55%)" },
-};
-
-const BAR_COLORS = [
-  "hsl(220 70% 55%)", "hsl(270 60% 60%)", "hsl(142 60% 45%)",
-  "hsl(25 90% 55%)", "hsl(340 70% 55%)", "hsl(180 50% 45%)",
-  "hsl(45 80% 50%)", "hsl(0 0% 60%)", "hsl(200 60% 50%)", "hsl(120 40% 50%)",
-];
-
-function formatDateLabel(dateStr: unknown) {
-  if (typeof dateStr !== "string") return String(dateStr);
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
   const variant = isOverdue ? "red" : status === "OPEN" ? "green" : "gray";
@@ -247,44 +234,11 @@ export default function CheckoutsReportPage() {
 
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-2.5 mb-2.5">
-        {/* Checkout trend */}
         {(data.dailyTrend ?? []).length > 1 && (
-          <Card>
-            <CardHeader><CardTitle>Checkout trend ({days}d)</CardTitle></CardHeader>
-            <CardContent>
-              <ChartContainer config={trendConfig} className="w-full h-[200px]">
-                <AreaChart data={data.dailyTrend} margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} className="text-xs" tickFormatter={formatDateLabel}
-                    interval={Math.max(0, Math.floor((data.dailyTrend?.length ?? 0) / 7) - 1)} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} className="text-xs" width={30} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area type="monotone" dataKey="count" name="Checkouts" fill="hsl(220 70% 55% / 0.2)" stroke="hsl(220 70% 55%)" strokeWidth={2} />
-                </AreaChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+          <LazyCheckoutTrendChart dailyTrend={data.dailyTrend!} days={days} />
         )}
-
-        {/* Top requesters bar chart */}
         {(data.topRequesters ?? []).length > 0 && (
-          <Card>
-            <CardHeader><CardTitle>Top requesters ({days}d)</CardTitle></CardHeader>
-            <CardContent>
-              <ChartContainer config={{ count: { label: "Checkouts" } }} className="w-full" style={{ height: Math.max(150, data.topRequesters.length * 36) }}>
-                <BarChart data={data.topRequesters} layout="vertical" margin={{ left: 0, right: 12 }}>
-                  <YAxis dataKey="name" type="category" width={100} tickLine={false} axisLine={false} className="text-xs" />
-                  <XAxis type="number" hide />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" name="Checkouts" radius={[0, 4, 4, 0]}>
-                    {data.topRequesters.map((_, i) => (
-                      <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+          <LazyTopRequestersChart topRequesters={data.topRequesters} days={days} />
         )}
       </div>
 

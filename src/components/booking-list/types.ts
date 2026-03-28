@@ -47,7 +47,7 @@ export type ContextMenuExtra = {
   label: string;
   danger?: boolean;
   opensSheet?: boolean;
-  handler?: (bookingId: string, items: BookingItem[], reload: () => Promise<void>) => void | Promise<void>;
+  handler?: (bookingId: string, items: BookingItem[], reload: () => Promise<void>, setItems?: (updater: (items: BookingItem[]) => BookingItem[]) => void) => void | Promise<void>;
 };
 
 export type BookingListConfig = {
