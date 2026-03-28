@@ -80,7 +80,12 @@ export default function CalendarSourcesPage() {
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}/sync`, { method: "POST" });
       if (res.ok) {
-        toast(`Synced ${source.name}`, "success");
+        const json = await res.json().catch(() => null);
+        if (json?.data?.shiftGenerationError) {
+          toast(`Synced ${source.name}, but shift generation failed`, "warning");
+        } else {
+          toast(`Synced ${source.name}`, "success");
+        }
         load();
       } else {
         const json = await res.json().catch(() => ({}));
