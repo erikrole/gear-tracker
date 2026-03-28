@@ -230,7 +230,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <a href="#main-content" className="skip-link">Skip to content</a>
+      <a href="#main-content" className="absolute -top-[100px] left-4 z-[var(--z-sidebar)] px-4 py-2 bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] rounded-[var(--radius)] font-[var(--weight-semibold)] text-[var(--text-base)] no-underline transition-[top] duration-200 focus:top-4">Skip to content</a>
 
       {/* Command palette */}
       <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); } }}>
@@ -361,7 +361,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       />
 
       {!online && (
-        <div className="offline-banner" role="status">
+        <div className="fixed top-0 left-0 right-0 z-[var(--z-offline)] bg-[var(--orange)] text-black text-center px-4 py-1.5 text-[var(--text-sm)] font-[var(--weight-semibold)]" role="status">
           You&apos;re offline. Changes will sync when connected.
         </div>
       )}

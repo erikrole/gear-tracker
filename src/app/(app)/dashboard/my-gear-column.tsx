@@ -51,7 +51,7 @@ export function MyGearColumn({
           <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
         </a>
         {(filtered?.myCheckouts ?? data.myCheckouts.items).length === 0 ? (
-          <div className="empty-section"><ClipboardCheckIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myCheckouts ?? data.myCheckouts.items).map((c) => {
@@ -111,7 +111,7 @@ export function MyGearColumn({
           <Badge variant="gray" size="sm">{data.myReservations.length}</Badge>
         </a>
         {(filtered?.myReservations ?? data.myReservations).length === 0 ? (
-          <div className="empty-section"><CalendarCheckIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myReservations ?? data.myReservations).map((r) => (

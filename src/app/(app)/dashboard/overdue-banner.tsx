@@ -50,7 +50,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
       <div className="flex items-center justify-between gap-3 mb-2.5 max-md:flex-wrap">
         <div className="flex items-center gap-2 text-[var(--text-md)] font-semibold">
           <AlertTriangleIcon className="shrink-0 size-[18px]" />
-          <span className="pulse-dot" />
+          <span className="size-2 rounded-full bg-[var(--panel-solid)] shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite]" />
           <strong>{overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}</strong>
         </div>
         <a href="/checkouts?filter=overdue" className="text-white/85 text-[var(--text-sm)] font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">Resolve all overdue &rarr;</a>

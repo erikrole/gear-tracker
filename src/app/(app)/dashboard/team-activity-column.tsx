@@ -42,7 +42,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
         </a>
         {(filtered?.teamCheckouts ?? data.teamCheckouts.items).length === 0 ? (
-          <div className="empty-section"><InboxIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.teamCheckouts ?? data.teamCheckouts.items).map((c) => {
@@ -102,7 +102,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
         </a>
         {(filtered?.teamReservations ?? data.teamReservations.items).length === 0 ? (
-          <div className="empty-section"><InboxIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.teamReservations ?? data.teamReservations.items).map((r) => (
@@ -139,7 +139,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Upcoming events</h2>
         </a>
         {(filtered?.upcomingEvents ?? data.upcomingEvents).length === 0 ? (
-          <div className="empty-section"><CalendarIcon className="empty-section-icon" />{activeSport ? `No ${activeSport} events` : "No upcoming events"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><CalendarIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} events` : "No upcoming events"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.upcomingEvents ?? data.upcomingEvents).map((e) => {
