@@ -255,18 +255,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {cmdResults.filter((r) => r.type === "item").map((r) => {
                 const status = r.computedStatus ?? "AVAILABLE";
                 const isOverdue = r.activeBooking?.isOverdue ?? false;
-                const dotClass = isOverdue ? "status-overdue"
-                  : status === "CHECKED_OUT" ? "status-checked-out"
-                  : status === "RESERVED" ? "status-reserved"
-                  : status === "MAINTENANCE" ? "status-maintenance"
-                  : status === "RETIRED" ? "status-retired"
-                  : "status-available";
-                const badgeClass = isOverdue ? "cmd-badge-red"
-                  : status === "CHECKED_OUT" ? "cmd-badge-blue"
-                  : status === "RESERVED" ? "cmd-badge-purple"
-                  : status === "MAINTENANCE" ? "cmd-badge-orange"
-                  : status === "RETIRED" ? "cmd-badge-muted"
-                  : "cmd-badge-green";
+                const dotColor = isOverdue ? "bg-red-600"
+                  : status === "CHECKED_OUT" ? "bg-[var(--blue)]"
+                  : status === "RESERVED" ? "bg-[var(--purple)]"
+                  : status === "MAINTENANCE" ? "bg-[var(--orange)]"
+                  : status === "RETIRED" ? "bg-[var(--text-muted)]"
+                  : "bg-[var(--green)]";
+                const badgeStyle = isOverdue ? "bg-red-600/12 text-red-600"
+                  : status === "CHECKED_OUT" ? "bg-blue-500/12 text-blue-600"
+                  : status === "RESERVED" ? "bg-purple-500/12 text-purple-600"
+                  : status === "MAINTENANCE" ? "bg-amber-500/12 text-amber-600"
+                  : status === "RETIRED" ? "bg-neutral-400/12 text-[var(--text-muted)]"
+                  : "bg-green-500/12 text-green-600";
                 const dueLabel = r.activeBooking?.endsAt
                   ? ` · Due ${new Date(r.activeBooking.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                   : "";
@@ -278,11 +278,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   : "Available";
                 return (
                   <CommandItem key={r.id} value={r.title} onSelect={() => handleCmdSelect(r.href)}>
-                    <span className={`status-dot ${dotClass} mr-2.5 shrink-0`} />
+                    <span className={`size-2.5 rounded-full shrink-0 ${dotColor} mr-2.5`} />
                     <div className="min-w-0">
                       <div className="truncate font-medium">{r.title}</div>
                       <div className="mt-0.5">
-                        <span className={`cmd-status-badge ${badgeClass}`}>{statusLabel}</span>
+                        <span className={`inline-block text-[11px] font-medium leading-none px-2 py-[3px] rounded-full ${badgeStyle}`}>{statusLabel}</span>
                       </div>
                     </div>
                   </CommandItem>

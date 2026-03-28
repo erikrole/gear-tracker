@@ -42,16 +42,14 @@ export function FilterChip({
           <span className="font-medium">{label}{active && ":"}</span>
           {active && <span className="font-semibold text-foreground">{displayValue || value}</span>}
           {active ? (
-            <span
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               aria-label={`Clear ${label} filter`}
               className="ml-0.5 hover:text-foreground transition-colors"
               onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onClear(); setOpen(false); } }}
             >
               <X className="size-3" />
-            </span>
+            </button>
           ) : (
             <ChevronDown className="size-3 opacity-50" />
           )}

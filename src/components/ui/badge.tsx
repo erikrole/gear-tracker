@@ -25,7 +25,7 @@ const badgeVariants = cva(
         purple: "bg-[var(--purple-bg)] text-[#7c3aed]",
         gray: "bg-[var(--accent-soft)] text-[var(--text-secondary)]",
         yellow: "bg-[var(--orange-bg)] text-[#ca8a04]",
-        mixed: "bg-[var(--orange-bg)] text-[#d97706]",
+        mixed: "bg-[var(--purple-bg)] text-[#7c3aed]",
         sport: "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)]",
       },
       size: {

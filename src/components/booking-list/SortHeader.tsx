@@ -24,7 +24,7 @@ export function SortHeader({ label, sortKey, currentSort, onSort }: {
 
   return (
     <th onClick={handleClick}>
-      <button type="button" className="all-unset cursor-pointer select-none w-full font-inherit text-inherit hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--primary)] focus-visible:outline-offset-2 focus-visible:rounded-sm" style={{ font: "inherit", fontWeight: "inherit", textAlign: "inherit", color: "inherit" }}>
+      <button type="button" className="appearance-none bg-transparent border-none cursor-pointer select-none w-full hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--primary)] focus-visible:outline-offset-2 focus-visible:rounded-sm" style={{ font: "inherit", fontWeight: "inherit", textAlign: "inherit", color: "inherit", padding: 0 }}>
         <span className="inline-flex items-center gap-1">
           {label}
           {isActive && (
