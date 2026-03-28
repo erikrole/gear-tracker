@@ -51,16 +51,21 @@ export const GET = withAuth(async (req, { user }) => {
     where = baseWhere;
   }
 
-  const rawAssets = await db.asset.findMany({
-    where,
-    include: {
-      location: { select: { name: true } },
-      category: { select: { name: true } },
-      department: { select: { name: true } },
-    },
-    orderBy: { assetTag: "asc" },
-    take: 5000, // Safety cap
-  });
+  const EXPORT_LIMIT = 5000;
+  const [rawAssets, totalCount] = await Promise.all([
+    db.asset.findMany({
+      where,
+      include: {
+        location: { select: { name: true } },
+        category: { select: { name: true } },
+        department: { select: { name: true } },
+      },
+      orderBy: { assetTag: "asc" },
+      take: EXPORT_LIMIT,
+    }),
+    db.asset.count({ where }),
+  ]);
+  const truncated = totalCount > EXPORT_LIMIT;
 
   let assets;
   try {
@@ -91,6 +96,10 @@ export const GET = withAuth(async (req, { user }) => {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="items-export-${new Date().toISOString().slice(0, 10)}.csv"`,
+      ...(truncated ? {
+        "X-Total-Count": String(totalCount),
+        "X-Truncated": "true",
+      } : {}),
     },
   });
 });

@@ -10,13 +10,21 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const result = await syncCalendarSource(id);
 
   // Post-sync: auto-generate shifts for newly synced events
-  let shiftGeneration = { groupsCreated: 0, shiftsCreated: 0 };
+  let shiftGeneration: { groupsCreated: number; shiftsCreated: number } | null = null;
+  let shiftGenerationError: string | null = null;
   try {
     shiftGeneration = await generateShiftsForNewEvents(id);
   } catch (err) {
     console.error("Shift generation after sync failed:", err);
+    shiftGenerationError = err instanceof Error ? err.message : "Unknown error";
   }
 
-  // Return 200 even for partial failures — the result contains error details
-  return ok({ data: { ...result, shiftGeneration } });
+  // Return 200 even for partial failures — include error detail so UI can surface it
+  return ok({
+    data: {
+      ...result,
+      shiftGeneration: shiftGeneration ?? { groupsCreated: 0, shiftsCreated: 0 },
+      shiftGenerationError,
+    },
+  });
 });

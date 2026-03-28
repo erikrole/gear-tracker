@@ -141,6 +141,8 @@ export default function ItemsPage() {
 
       const res = await fetch(`/api/assets/export?${params}`);
       if (!res.ok) throw new Error();
+      const truncated = res.headers.get("X-Truncated") === "true";
+      const totalCount = res.headers.get("X-Total-Count");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -148,7 +150,11 @@ export default function ItemsPage() {
       a.download = `items-export-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Export downloaded");
+      if (truncated) {
+        toast.warning(`Export limited to 5,000 items (${totalCount} total). Narrow your filters for a complete export.`);
+      } else {
+        toast.success("Export downloaded");
+      }
     } catch {
       toast.error("Export failed");
     }

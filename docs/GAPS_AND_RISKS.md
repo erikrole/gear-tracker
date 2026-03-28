@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-27
+- Last Updated: 2026-03-28
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -42,14 +42,15 @@
 | ~~GAP-16~~ | ~~Shared hooks extracted but not adopted — some pages still use inline fetch+useState~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~All pages migrated: notifications (`useFetch`+`useUrlState`), labels (`useFetch`+`useDebounce`), search (`useUrlState`), users list (`useFetch`+`useDebounce`), user detail (`useFetch`), UserActivityTab (`useFetch`). Profile redirect uses AbortController.~~ |
 | ~~GAP-17~~ | ~~Labels page not linked from item workflows~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Already shipped: "Print label" action in item detail context menu → `/labels?items=id`~~ |
 | ~~GAP-18~~ | ~~Kit-to-booking integration missing — kits can't be checked out as a group~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Shipped 2026-03-25: `kitId` FK on Booking (migration 0018), kit selector in CreateBookingSheet (location-filtered), kit badge on booking detail page, validation + service + API route wiring~~ |
-| GAP-19 | `useFormSubmit` hook extracted but only adopted by 1 form (Create User) — checkout/reservation/kit creation still use ad-hoc fetch+validation | CROSS-CUTTING | Open | V2: migrate all create/edit forms to `useFormSubmit` for consistent Zod validation, error classification, and toast feedback |
+| ~~GAP-19~~ | ~~`useFormSubmit` hook extracted but only adopted by 1 form (Create User) — checkout/reservation/kit creation still use ad-hoc fetch+validation~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~All create/edit forms migrated to `useFormSubmit` 2026-03-27: auth forms (login, register, forgot-password, reset-password), kit creation, bulk inventory. `skipAuthRedirect` option added for auth pages.~~ |
 | ~~GAP-20~~ | ~~Events list page is 817 lines — monolithic, no loading states, no error recovery, no AbortController~~ | ~~AREA_EVENTS~~ | ~~Closed~~ | ~~Event detail page hardened 2026-03-26: AbortController on all fetches + onUpdated, error differentiation, skeleton loading, nudge toast feedback, color-coded avatars. Page reduced from 817→607 lines in prior pass, 6-pass audit complete.~~ |
 | GAP-21 | `SystemConfig` model has zero UI — key-value config store with no admin surface | AREA_SETTINGS | Expected | Low priority. Used internally for escalation config. Admin UI deferred until more config keys are needed. |
-| GAP-22 | `FavoriteItem` model has API but no UI surface — no favorites filter on items list, no favorites page | AREA_ITEMS | Expected | V3: add "Favorites" filter chip to items list page. API exists at `/api/assets/[id]/favorite`. |
-| GAP-23 | `StudentSportAssignment` and `StudentAreaAssignment` are read-only display — no CRUD UI for editing assignments | AREA_USERS | Open | V2: add assignment editing to user detail page. Currently staff must use direct DB or import to manage. |
+| ~~GAP-22~~ | ~~`FavoriteItem` model has API but no UI surface — no favorites filter on items list, no favorites page~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Fully shipped: star column in items DataTable, optimistic toggle on item detail page, "Favorites" filter chip in toolbar, `favorites_only` query param in API. Batched favorite lookup (no N+1).~~ |
+| ~~GAP-23~~ | ~~`StudentSportAssignment` and `StudentAreaAssignment` are read-only display — no CRUD UI for editing assignments~~ | ~~AREA_USERS~~ | ~~Closed~~ | ~~Full CRUD shipped in UserInfoTab.tsx: sport popover multi-select + area popover with primary toggle. Permission-gated (admin/staff can edit, students read-only). APIs: POST/DELETE sport roster + POST/DELETE student-areas.~~ |
 | ~~GAP-24~~ | ~~No dashboard reservation date filter — AC-4 not enforced~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Fixed 2026-03-25: Added 7-day window filter to stats count query. AC-4 enforced.~~ |
 | ~~GAP-25~~ | ~~Importer drops unmapped columns silently~~ | ~~AREA_IMPORTER~~ | ~~Closed~~ | ~~Fixed 2026-03-25: `buildAssetData()` stores unmapped CSV columns in `sourcePayload` per D-014.~~ |
 | ~~GAP-26~~ | ~~Settings pages accessible to non-admin users~~ | ~~AREA_SETTINGS~~ | ~~Closed~~ | ~~Verified 2026-03-25: Layout (ADMIN+STAFF) and Sidebar (ADMIN+STAFF) both enforce correctly.~~ |
+| GAP-27 | Reports use `Promise.all` — one slow query fails entire report with no partial results | AREA_DASHBOARD | Open | V2+: Switch to `Promise.allSettled` for partial failure resilience. Low severity — only affects high-load scenarios. |
 
 ---
 
@@ -103,7 +104,7 @@
 | ~~Monolithic page files~~ | ~~Scan (1,038) and schedule (1,012) grew with each feature~~ | ~~Closed 2026-03-25: scan decomposed (1,038→251), schedule decomposed (1,012→117)~~ | ~~Engineering~~ |
 | ~~Dashboard monolith~~ | ~~Dashboard page grows with each feature (filters, actions, sections)~~ | ~~Closed 2026-03-24: decomposed into hooks + 7 leaf components~~ | ~~Engineering~~ |
 | Audit log unbounded growth | Audit table has no retention policy or archival | Monitor table size quarterly; implement archival at 10x scale | Engineering |
-| Events page monolith | Events list page is 817 lines with no hardening | P0: run /harden-page before adding features | Engineering |
+| ~~Events page monolith~~ | ~~Events list page is 817 lines with no hardening~~ | ~~Closed 2026-03-26: GAP-20 hardening complete (AbortController, error differentiation, skeleton, toast feedback). 817→607 lines.~~ | ~~Engineering~~ |
 | ~~Form pattern fragmentation~~ | ~~`useFormSubmit` adopted by 1 form; rest use ad-hoc fetch+validation~~ | ~~Closed 2026-03-27: all create/edit forms migrated to `useFormSubmit` (auth forms, kit, bulk inventory). `skipAuthRedirect` option added for auth pages.~~ | ~~Engineering~~ |
 | ~~Importer data loss~~ | ~~Unmapped CSV columns silently dropped (D-014 violation)~~ | ~~Closed 2026-03-25: `sourcePayload` now stores unmapped columns per D-014~~ | ~~Engineering~~ |
 | ~~TOCTOU on unique constraints~~ | ~~findUnique pre-check before create/update~~ | ~~Closed 2026-03-23: catch P2002 instead of manual pre-check~~ | ~~Engineering~~ |
@@ -163,3 +164,4 @@
 - 2026-03-27: Database performance audit complete — P0-P3 fixes shipped (SERIALIZABLE on all scan/booking mutations, 6 indexes, dashboard query consolidation 17→9, audit log batching, notification pre-fetch fix, pg_trgm GIN indexes). Search-on-type equipment picker shipped — form-options no longer loads all assets (unbounded query eliminated). New `/api/assets/picker-search` endpoint with section filtering, text search, QR lookup, and pagination.
 - 2026-03-27: Form pattern fragmentation closed — all create/edit forms migrated to `useFormSubmit`. API security audit: rate limiting on all auth endpoints (login/register/forgot/reset), timing-safe CRON_SECRET comparison, asset activity cursor pagination.
 - 2026-03-27: Backlog audit pass — centralized duplicate `getInitials` in BookingCard (now imports from `@/lib/avatar`), deleted dead `CreateBookingCard` component + barrel export, booking audit log cursor pagination (initial 50 + "Load older entries" via `/api/bookings/[id]/audit-logs`).
+- 2026-03-28: Silent-failure fixes — calendar sync now surfaces shift generation errors (warning toast instead of false success), CSV export warns when truncated at 5,000 items (X-Truncated header + UI warning). Closed stale GAP-19, GAP-20 risk, GAP-22, GAP-23. Toast hook gains "warning" variant.
