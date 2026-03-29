@@ -10,6 +10,15 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/**/*.test.ts"]
+    include: ["tests/**/*.test.ts"],
+    setupFiles: ["tests/_setup.ts"],
+    coverage: {
+      include: [
+        "src/lib/services/**",
+        "src/lib/rbac.ts",
+        "src/lib/permissions.ts",
+        "src/lib/api.ts"
+      ]
+    }
   }
 });
