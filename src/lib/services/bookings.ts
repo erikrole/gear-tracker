@@ -1,4 +1,5 @@
 import {
+  AllocationKind,
   BookingKind,
   BookingStatus,
   BulkMovementKind,
@@ -395,7 +396,7 @@ export async function createBooking(input: CreateBookingInput) {
             startsAt: input.startsAt,
             endsAt: input.endsAt,
             active: true,
-            kind: input.kind === BookingKind.RESERVATION ? "RESERVATION" : "CHECKOUT"
+            kind: input.kind === BookingKind.RESERVATION ? AllocationKind.RESERVATION : AllocationKind.CHECKOUT
           }))
         });
       }

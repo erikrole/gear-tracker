@@ -1,4 +1,4 @@
-import { BookingKind, BookingStatus, Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
+import { BookingStatus, Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 
@@ -128,9 +128,6 @@ export const resetPasswordSchema = z.object({
 
 export const roleSchema = z.nativeEnum(Role);
 
-export const bookingKindSchema = z.nativeEnum(BookingKind);
-
-
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
@@ -180,7 +177,6 @@ export const upsertSportConfigSchema = z.object({
 
 export const updateSportConfigSchema = z.object({
   active: z.boolean().optional(),
-  isPremierDefault: z.boolean().optional(),
   shiftConfigs: z.array(sportShiftConfigSchema).optional(),
 });
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
@@ -15,13 +15,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const { id } = params;
   const existing = await db.category.findUnique({ where: { id } });
-  if (!existing) return ok({ error: "Category not found" }, 404);
+  if (!existing) throw new HttpError(404, "Category not found");
 
   const body = updateSchema.parse(await req.json());
 
   // Prevent circular parent reference
   if (body.parentId === id) {
-    return ok({ error: "Category cannot be its own parent" }, 400);
+    throw new HttpError(400, "Category cannot be its own parent");
   }
 
   const category = await db.category.update({
@@ -50,7 +50,7 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
 
   const { id } = params;
   const existing = await db.category.findUnique({ where: { id } });
-  if (!existing) return ok({ error: "Category not found" }, 404);
+  if (!existing) throw new HttpError(404, "Category not found");
 
   // Check for linked items
   const [assetCount, bulkCount, childCount] = await Promise.all([
@@ -60,14 +60,11 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
   ]);
 
   if (assetCount > 0 || bulkCount > 0) {
-    return ok(
-      { error: `Cannot delete: ${assetCount + bulkCount} items are linked to this category` },
-      409
-    );
+    throw new HttpError(409, `Cannot delete: ${assetCount + bulkCount} items are linked to this category`);
   }
 
   if (childCount > 0) {
-    return ok({ error: "Cannot delete: category has subcategories" }, 409);
+    throw new HttpError(409, "Cannot delete: category has subcategories");
   }
 
   await db.category.delete({ where: { id } });
