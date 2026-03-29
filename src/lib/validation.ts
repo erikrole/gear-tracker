@@ -1,4 +1,4 @@
-import { BookingStatus, Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
+import { Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 
@@ -38,10 +38,6 @@ export const createReservationSchema = z.object({
   shiftAssignmentId: z.string().cuid().optional(),
   kitId: z.string().cuid().optional()
 });
-
-export const updateReservationSchema = createReservationSchema
-  .partial()
-  .extend({ status: z.nativeEnum(BookingStatus).optional() });
 
 export const createCheckoutSchema = createReservationSchema.extend({
   sourceReservationId: z.string().cuid().optional(),
@@ -145,9 +141,6 @@ export const updateBookingSchema = z.object({
 export const extendBookingSchema = z.object({
   endsAt: z.string()
 });
-
-export const shiftAreaSchema = z.nativeEnum(ShiftArea);
-export const shiftWorkerTypeSchema = z.nativeEnum(ShiftWorkerType);
 
 export const sportShiftConfigSchema = z.object({
   area: z.nativeEnum(ShiftArea),

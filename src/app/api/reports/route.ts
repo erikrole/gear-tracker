@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
@@ -40,7 +40,7 @@ export const GET = withAuth(async (req, { user }) => {
     return ok(await getScanHistoryReport(limit, offset, startDate, endDate, phase));
   }
 
-  return ok({ error: "Unknown report type" });
+  throw new HttpError(400, "Unknown report type");
 });
 
 async function getUtilizationReport() {

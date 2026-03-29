@@ -76,7 +76,7 @@ export const POST = withAuth(async (req, { user }) => {
       where: { id: body.id, status: "DRAFT", createdBy: user.id },
     });
     if (!existing) {
-      return ok({ error: "Draft not found" }, 404);
+      throw new HttpError(404, "Draft not found");
     }
 
     await db.$transaction(async (tx) => {
