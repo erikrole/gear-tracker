@@ -1,4 +1,4 @@
-import { BookingKind, BookingStatus, Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
+import { Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 
@@ -39,24 +39,8 @@ export const createReservationSchema = z.object({
   kitId: z.string().cuid().optional()
 });
 
-export const updateReservationSchema = createReservationSchema
-  .partial()
-  .extend({ status: z.nativeEnum(BookingStatus).optional() });
-
-export const createCheckoutSchema = z.object({
-  title: z.string().trim().min(1).max(500),
-  requesterUserId: z.string().cuid(),
-  locationId: z.string().cuid(),
-  startsAt: z.string(),
-  endsAt: z.string(),
-  serializedAssetIds: z.array(z.string().cuid()).default([]),
-  bulkItems: z.array(bulkItemSchema).default([]),
+export const createCheckoutSchema = createReservationSchema.extend({
   sourceReservationId: z.string().cuid().optional(),
-  eventId: z.string().cuid().optional(),
-  sportCode: z.string().max(10).optional(),
-  notes: z.string().max(10000).optional(),
-  shiftAssignmentId: z.string().cuid().optional(),
-  kitId: z.string().cuid().optional()
 });
 
 export const startScanSessionSchema = z.object({
@@ -128,9 +112,6 @@ export const resetPasswordSchema = z.object({
 
 export const roleSchema = z.nativeEnum(Role);
 
-export const bookingKindSchema = z.nativeEnum(BookingKind);
-
-
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
@@ -161,11 +142,6 @@ export const extendBookingSchema = z.object({
   endsAt: z.string()
 });
 
-// ── Shift Calendar Schemas ──────────────────────────────
-
-export const shiftAreaSchema = z.nativeEnum(ShiftArea);
-export const shiftWorkerTypeSchema = z.nativeEnum(ShiftWorkerType);
-
 export const sportShiftConfigSchema = z.object({
   area: z.nativeEnum(ShiftArea),
   homeCount: z.number().int().min(0).max(20),
@@ -180,7 +156,6 @@ export const upsertSportConfigSchema = z.object({
 
 export const updateSportConfigSchema = z.object({
   active: z.boolean().optional(),
-  isPremierDefault: z.boolean().optional(),
   shiftConfigs: z.array(sportShiftConfigSchema).optional(),
 });
 

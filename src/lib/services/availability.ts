@@ -1,4 +1,4 @@
-import { BookingStatus, PrismaClient, type Prisma } from "@prisma/client";
+import { BookingKind, BookingStatus, PrismaClient, type Prisma } from "@prisma/client";
 
 export type BulkRequest = {
   bulkSkuId: string;
@@ -72,7 +72,7 @@ export async function checkAssetStatuses(
   tx: Prisma.TransactionClient | PrismaClient,
   args: {
     serializedAssetIds: string[];
-    bookingKind?: "CHECKOUT" | "RESERVATION";
+    bookingKind?: BookingKind;
   }
 ): Promise<AvailabilityResult["unavailableAssets"]> {
   if (args.serializedAssetIds.length === 0) {
@@ -97,9 +97,9 @@ export async function checkAssetStatuses(
   for (const a of assets) {
     if (a.status !== "AVAILABLE") {
       unavailable.push({ assetId: a.id, status: a.status as string });
-    } else if (args.bookingKind === "CHECKOUT" && !a.availableForCheckout) {
+    } else if (args.bookingKind === BookingKind.CHECKOUT && !a.availableForCheckout) {
       unavailable.push({ assetId: a.id, status: "NOT_AVAILABLE_FOR_CHECKOUT" });
-    } else if (args.bookingKind === "RESERVATION" && !a.availableForReservation) {
+    } else if (args.bookingKind === BookingKind.RESERVATION && !a.availableForReservation) {
       unavailable.push({ assetId: a.id, status: "NOT_AVAILABLE_FOR_RESERVATION" });
     }
   }
@@ -157,7 +157,7 @@ export async function checkAvailability(
     serializedAssetIds: string[];
     bulkItems: BulkRequest[];
     excludeBookingId?: string;
-    bookingKind?: "CHECKOUT" | "RESERVATION";
+    bookingKind?: BookingKind;
   }
 ): Promise<AvailabilityResult> {
   const [conflicts, shortages, unavailableAssets] = await Promise.all([

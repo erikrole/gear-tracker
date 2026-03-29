@@ -1,6 +1,7 @@
 # Search-on-Type Equipment Picker Refactor
 
 *Created: 2026-03-27*
+*Shipped: 2026-03-27 — All 4 slices complete. Archived to `tasks/archive/`.*
 
 ## Problem
 

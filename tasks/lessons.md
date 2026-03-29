@@ -681,3 +681,16 @@ Always use shadcn Empty component:
 **Pagination pattern:**
 - **Fetch N+1 to detect hasMore**: For cursor pagination, always fetch one extra row (`take: limit + 1`). If you get limit+1 results, there are more pages. Slice to limit before returning. This avoids a separate COUNT query.
 - **Audit logs are a prime candidate for lazy pagination**: Initial detail fetch includes up to 50 entries (covering 95%+ of bookings). A separate paginated endpoint handles the long tail without bloating the primary response.
+
+## Session 2026-03-29
+
+### Testing Infrastructure Patterns
+
+- **Test the service layer, not utilities**: The original 208 tests all covered pure utility functions (formatters, status labels). Zero tests touched the DB-dependent service layer where real bugs live. Prioritize testing code where bugs corrupt data over code where bugs show wrong labels.
+- **`vi.mock("@/lib/db")` + `_mockTx` is the canonical pattern**: Mock `db.$transaction` to intercept the callback, track `transactionCalls` array for isolation assertions, expose `_mockTx` for test access. Every service test follows this shape.
+- **Track transaction calls to verify isolation levels**: Push `{ options }` on every `$transaction` call. Assert `isolationLevel: "Serializable"` where required. This catches silent regressions if someone removes isolation from a critical path.
+- **Write "bug proof" tests that assert current broken behavior**: Name them `BUG: <description>` and comment what the correct behavior should be. When someone fixes the bug, the test fails and guides them. Better than a ticket that gets lost.
+- **Functions that accept `tx` as a parameter don't need module mocks**: `checkAvailability`, `checkSerializedConflicts`, etc. accept a tx client. Create a local mock object and pass it directly — simpler than `vi.mock`.
+- **`upsertBulkBalancesAndMovements` has a negativity guard**: When mocking bulk operations, `bulkStockBalance.findMany` must return sufficient stock for CHECKOUT movements or the function throws 409. Easy to miss when writing create-booking tests.
+- **Data factories should be minimal and override-friendly**: `makeBooking({ status: "COMPLETED" })` is cleaner than constructing 15-field objects inline. Every factory returns valid defaults — override only what your test cares about.
+- **Archive plan files aggressively**: 23 active plans with 55 already archived = planning confusion. After any feature ships, immediately `mv tasks/plan.md tasks/archive/`. The archive preserves context without cluttering the active queue.
