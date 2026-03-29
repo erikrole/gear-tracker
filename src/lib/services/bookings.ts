@@ -345,7 +345,7 @@ export async function createBooking(input: CreateBookingInput) {
         endsAt: input.endsAt,
         serializedAssetIds: resolvedSerializedAssetIds,
         bulkItems: resolvedBulkItems,
-        bookingKind: input.kind as "CHECKOUT" | "RESERVATION",
+        bookingKind: input.kind,
       });
 
       if (availability.conflicts.length > 0 || availability.shortages.length > 0 || availability.unavailableAssets.length > 0) {
@@ -354,10 +354,16 @@ export async function createBooking(input: CreateBookingInput) {
 
       const status = input.kind === BookingKind.RESERVATION ? BookingStatus.BOOKED : BookingStatus.OPEN;
 
+      const seqResult = await tx.$queryRaw<[{ nextval: bigint }]>`SELECT nextval('booking_ref_seq')`;
+      const seq = Number(seqResult[0].nextval);
+      const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
+      const refNumber = `${prefix}-${String(seq).padStart(4, "0")}`;
+
       const booking = await tx.booking.create({
         data: {
           kind: input.kind,
           title: input.title,
+          refNumber,
           requesterUserId: input.requesterUserId,
           locationId: input.locationId,
           startsAt: input.startsAt,
@@ -372,13 +378,6 @@ export async function createBooking(input: CreateBookingInput) {
           kitId: input.kitId ?? null
         }
       });
-
-      // Generate human-readable reference number (CO-0001 / RV-0002)
-      const seqResult = await tx.$queryRaw<[{ nextval: bigint }]>`SELECT nextval('booking_ref_seq')`;
-      const seq = Number(seqResult[0].nextval);
-      const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
-      const refNumber = `${prefix}-${String(seq).padStart(4, "0")}`;
-      await tx.booking.update({ where: { id: booking.id }, data: { refNumber } });
 
       if (resolvedSerializedAssetIds.length > 0) {
         await tx.bookingSerializedItem.createMany({
@@ -935,7 +934,7 @@ export async function extendBooking(
         serializedAssetIds,
         bulkItems,
         excludeBookingId: bookingId,
-        bookingKind: existing.kind as "CHECKOUT" | "RESERVATION",
+        bookingKind: existing.kind,
       });
 
       if (availability.conflicts.length > 0) {

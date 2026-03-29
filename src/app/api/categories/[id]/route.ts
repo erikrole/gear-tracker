@@ -14,12 +14,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "category", "edit");
 
   const { id } = params;
-  const existing = await db.category.findUnique({ where: { id } });
+  const [existing, body] = await Promise.all([
+    db.category.findUnique({ where: { id } }),
+    req.json().then(updateSchema.parse),
+  ]);
   if (!existing) throw new HttpError(404, "Category not found");
-
-  const body = updateSchema.parse(await req.json());
-
-  // Prevent circular parent reference
   if (body.parentId === id) {
     throw new HttpError(400, "Category cannot be its own parent");
   }

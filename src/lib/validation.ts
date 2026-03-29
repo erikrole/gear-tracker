@@ -43,20 +43,8 @@ export const updateReservationSchema = createReservationSchema
   .partial()
   .extend({ status: z.nativeEnum(BookingStatus).optional() });
 
-export const createCheckoutSchema = z.object({
-  title: z.string().trim().min(1).max(500),
-  requesterUserId: z.string().cuid(),
-  locationId: z.string().cuid(),
-  startsAt: z.string(),
-  endsAt: z.string(),
-  serializedAssetIds: z.array(z.string().cuid()).default([]),
-  bulkItems: z.array(bulkItemSchema).default([]),
+export const createCheckoutSchema = createReservationSchema.extend({
   sourceReservationId: z.string().cuid().optional(),
-  eventId: z.string().cuid().optional(),
-  sportCode: z.string().max(10).optional(),
-  notes: z.string().max(10000).optional(),
-  shiftAssignmentId: z.string().cuid().optional(),
-  kitId: z.string().cuid().optional()
 });
 
 export const startScanSessionSchema = z.object({
@@ -157,8 +145,6 @@ export const updateBookingSchema = z.object({
 export const extendBookingSchema = z.object({
   endsAt: z.string()
 });
-
-// ── Shift Calendar Schemas ──────────────────────────────
 
 export const shiftAreaSchema = z.nativeEnum(ShiftArea);
 export const shiftWorkerTypeSchema = z.nativeEnum(ShiftWorkerType);

@@ -4,6 +4,9 @@ import { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { HttpError } from "@/lib/http";
+import { randomHex } from "@/lib/crypto";
+
+export { randomHex };
 
 export type AuthUser = {
   id: string;
@@ -16,12 +19,6 @@ export type AuthUser = {
 const SESSION_12H_MS = 1000 * 60 * 60 * 12;
 const SESSION_30D_MS = 1000 * 60 * 60 * 24 * 30;
 
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 export async function tokenHash(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -32,13 +29,8 @@ export async function tokenHash(token: string): Promise<string> {
     ["sign"]
   );
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(token));
-  return toHex(signature);
-}
-
-export function randomHex(bytes: number): string {
-  const array = new Uint8Array(bytes);
-  crypto.getRandomValues(array);
-  return toHex(array.buffer);
+  const buf = new Uint8Array(signature);
+  return Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export async function hashPassword(password: string) {

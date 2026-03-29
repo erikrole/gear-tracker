@@ -104,18 +104,18 @@ describe("createBooking", () => {
 
   it("generates ref number with CO- prefix for checkout", async () => {
     await createBooking(baseInput({ kind: "CHECKOUT" }));
-    expect(mockTx.booking.update).toHaveBeenCalledWith(
+    expect(mockTx.booking.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { refNumber: "CO-0001" },
+        data: expect.objectContaining({ refNumber: "CO-0001" }),
       })
     );
   });
 
   it("generates ref number with RV- prefix for reservation", async () => {
     await createBooking(baseInput({ kind: "RESERVATION" }));
-    expect(mockTx.booking.update).toHaveBeenCalledWith(
+    expect(mockTx.booking.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { refNumber: "RV-0001" },
+        data: expect.objectContaining({ refNumber: "RV-0001" }),
       })
     );
   });

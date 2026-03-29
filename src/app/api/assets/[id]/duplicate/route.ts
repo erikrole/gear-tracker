@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { randomHex } from "@/lib/auth";
+import { randomHex } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
