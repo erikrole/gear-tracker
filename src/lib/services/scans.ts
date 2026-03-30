@@ -92,11 +92,13 @@ export async function recordScan(args: {
     }
 
     if (args.scanType === ScanType.SERIALIZED) {
+      const sv = args.scanValue.toLowerCase();
       const asset = booking.serializedItems.find((item) => {
         const a = item.asset;
-        return a.qrCodeValue === args.scanValue
-          || a.primaryScanCode === args.scanValue
-          || a.assetTag === args.scanValue;
+        const qr = a.qrCodeValue.toLowerCase();
+        const sc = a.primaryScanCode?.toLowerCase() ?? "";
+        const tag = a.assetTag.toLowerCase();
+        return qr === sv || qr === `qr-${sv}` || sc === sv || sc === `qr-${sv}` || tag === sv;
       })?.asset;
 
       if (!asset) {
