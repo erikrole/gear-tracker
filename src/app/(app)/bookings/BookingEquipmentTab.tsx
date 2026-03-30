@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
@@ -28,36 +26,13 @@ type ConflictInfo = {
 
 export default function BookingEquipmentTab({
   booking,
-  canCheckin,
-  checkinIds,
-  onToggleCheckin,
-  onCheckinSelected,
-  onSelectAll,
-  onClearSelection,
-  bulkReturnQty,
-  onBulkReturnQtyChange,
-  onBulkReturn,
-  actionLoading,
 }: {
   booking: BookingDetail;
-  canCheckin: boolean;
-  checkinIds: Set<string>;
-  onToggleCheckin: (assetId: string) => void;
-  onCheckinSelected: () => void;
-  onSelectAll: () => void;
-  onClearSelection: () => void;
-  bulkReturnQty: Record<string, number>;
-  onBulkReturnQtyChange: (id: string, qty: number) => void;
-  onBulkReturn: (bulkItemId: string) => void;
-  actionLoading: string | null;
 }) {
   const [search, setSearch] = useState("");
   const isCheckout = booking.kind === "CHECKOUT";
 
   const itemCount = booking.serializedItems.length + booking.bulkItems.length;
-  const returnableCount = booking.serializedItems.filter(
-    (i) => i.allocationStatus !== "returned",
-  ).length;
 
   // Checkin progress for checkouts
   const returnedSerialized = booking.serializedItems.filter(
@@ -174,28 +149,6 @@ export default function BookingEquipmentTab({
               </div>
             )}
           </div>
-          {canCheckin && (
-            <div className="flex items-center gap-2 shrink-0">
-              {returnableCount > 0 && (
-                checkinIds.size === returnableCount ? (
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={onClearSelection}>
-                    Clear selection
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={onSelectAll}>
-                    Select all
-                  </Button>
-                )
-              )}
-              {checkinIds.size > 0 && (
-                <Button size="sm" onClick={onCheckinSelected} disabled={!!actionLoading}>
-                  {actionLoading === "checkin"
-                    ? "Returning..."
-                    : `Return ${checkinIds.size} item${checkinIds.size > 1 ? "s" : ""}`}
-                </Button>
-              )}
-            </div>
-          )}
         </div>
       </CardHeader>
 
@@ -230,9 +183,6 @@ export default function BookingEquipmentTab({
                 key={item.id}
                 item={item}
                 isCheckout={isCheckout}
-                canCheckin={canCheckin}
-                checked={checkinIds.has(item.asset.id)}
-                onToggle={() => onToggleCheckin(item.asset.id)}
                 conflict={conflicts.get(item.asset.id)}
               />
             ))}
@@ -241,11 +191,6 @@ export default function BookingEquipmentTab({
                 key={item.id}
                 item={item}
                 isCheckout={isCheckout}
-                canCheckin={canCheckin}
-                returnQty={bulkReturnQty[item.id] || 0}
-                onQtyChange={(qty) => onBulkReturnQtyChange(item.id, qty)}
-                onReturn={() => onBulkReturn(item.id)}
-                actionLoading={actionLoading}
               />
             ))}
           </div>
@@ -284,32 +229,22 @@ function ItemThumbnail({ src, alt }: { src?: string | null; alt: string }) {
 function SerializedRow({
   item,
   isCheckout,
-  canCheckin,
-  checked,
-  onToggle,
   conflict,
 }: {
   item: SerializedItem;
   isCheckout: boolean;
-  canCheckin: boolean;
-  checked: boolean;
-  onToggle: () => void;
   conflict?: ConflictInfo;
 }) {
   const returned = item.allocationStatus === "returned";
 
   return (
     <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${returned ? "opacity-60" : "hover:bg-muted/50"}`}>
-      {/* Checkbox / returned indicator */}
-      {isCheckout && canCheckin && (
+      {/* Returned indicator */}
+      {isCheckout && returned && (
         <div className="shrink-0">
-          {returned ? (
-            <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
-              <Check className="size-3" />
-            </div>
-          ) : (
-            <Checkbox checked={checked} onCheckedChange={onToggle} aria-label={`Select ${item.asset.assetTag} for return`} />
-          )}
+          <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
+            <Check className="size-3" />
+          </div>
         </div>
       )}
 
@@ -359,11 +294,6 @@ function SerializedRow({
             <DropdownMenuItem asChild>
               <Link href={`/items/${item.asset.id}`}>View item</Link>
             </DropdownMenuItem>
-            {isCheckout && canCheckin && !returned && (
-              <DropdownMenuItem onSelect={onToggle}>
-                {checked ? "Deselect for return" : "Select for return"}
-              </DropdownMenuItem>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -376,19 +306,9 @@ function SerializedRow({
 function BulkRow({
   item,
   isCheckout,
-  canCheckin,
-  returnQty,
-  onQtyChange,
-  onReturn,
-  actionLoading,
 }: {
   item: BulkItem;
   isCheckout: boolean;
-  canCheckin: boolean;
-  returnQty: number;
-  onQtyChange: (qty: number) => void;
-  onReturn: () => void;
-  actionLoading: string | null;
 }) {
   const outQty = item.checkedOutQuantity ?? item.plannedQuantity;
   const inQty = item.checkedInQuantity ?? 0;
@@ -396,14 +316,12 @@ function BulkRow({
 
   return (
     <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
-      {/* Spacer for checkbox column */}
-      {isCheckout && canCheckin && (
-        <div className="shrink-0 w-5">
-          {allReturned && (
-            <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
-              <Check className="size-3" />
-            </div>
-          )}
+      {/* Returned indicator */}
+      {isCheckout && allReturned && (
+        <div className="shrink-0">
+          <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
+            <Check className="size-3" />
+          </div>
         </div>
       )}
 
@@ -425,34 +343,12 @@ function BulkRow({
         </div>
       </div>
 
-      {/* Return controls / status */}
+      {/* Status */}
       <div className="shrink-0 text-right">
         {allReturned ? (
           <span className="text-xs font-medium text-green-600 dark:text-green-400">
             Returned
           </span>
-        ) : isCheckout && canCheckin ? (
-          <div className="flex items-center gap-1.5">
-            <Input
-              type="number"
-              min={1}
-              max={outQty - inQty}
-              value={returnQty || ""}
-              onChange={(e) => onQtyChange(parseInt(e.target.value) || 0)}
-              placeholder={String(outQty - inQty)}
-              aria-label={`Return quantity for ${item.bulkSku?.name}`}
-              className="h-7 w-14 text-center text-xs"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              disabled={!returnQty || actionLoading === `bulk-${item.id}`}
-              onClick={onReturn}
-            >
-              {actionLoading === `bulk-${item.id}` ? "..." : "Return"}
-            </Button>
-          </div>
         ) : (
           <span className="text-sm text-muted-foreground tabular-nums">
             {isCheckout ? outQty : item.plannedQuantity}

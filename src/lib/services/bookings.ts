@@ -1263,6 +1263,7 @@ export async function getBookingDetail(bookingId: string) {
       sourceReservation: { select: { id: true, refNumber: true, title: true } },
       shiftAssignment: { select: { id: true, shift: { select: { area: true } } } },
       kit: { select: { id: true, name: true } },
+      photos: { select: { id: true, phase: true, imageUrl: true, createdAt: true, actor: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
     }
   });
 
