@@ -182,12 +182,14 @@ export function useScanSubmission(
         const json = await res.json();
         const assets: LookupResult[] = json.data ?? [];
 
-        const exact = assets.find(
-          (a) =>
-            a.qrCodeValue === value ||
-            a.primaryScanCode === value ||
-            a.assetTag === searchTerm,
-        );
+        const v = value.toLowerCase();
+        const s = searchTerm.toLowerCase();
+        const exact = assets.find((a) => {
+          const qr = a.qrCodeValue?.toLowerCase() ?? "";
+          const sc = a.primaryScanCode?.toLowerCase() ?? "";
+          const tag = a.assetTag.toLowerCase();
+          return qr === v || qr === `qr-${v}` || sc === v || sc === `qr-${v}` || tag === s;
+        });
         const match = exact ?? assets[0];
 
         if (match) {

@@ -67,11 +67,15 @@ export const GET = withAuth(async (req) => {
   }
 
   // Exact QR/scan code lookup (for scan-to-add)
+  // Also try QR-{value} prefix since generated codes use "QR-XXXX" format
   if (qr) {
+    const qrPrefixed = `QR-${qr}`;
     conditions.push({
       OR: [
         { qrCodeValue: { equals: qr, mode: "insensitive" } },
+        { qrCodeValue: { equals: qrPrefixed, mode: "insensitive" } },
         { primaryScanCode: { equals: qr, mode: "insensitive" } },
+        { primaryScanCode: { equals: qrPrefixed, mode: "insensitive" } },
         { assetTag: { equals: qr, mode: "insensitive" } },
       ],
     });
