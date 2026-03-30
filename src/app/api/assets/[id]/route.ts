@@ -73,7 +73,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
             title: true,
             startsAt: true,
             endsAt: true,
-            requester: { select: { name: true } },
+            requester: { select: { name: true, avatarUrl: true } },
           },
         },
       },
@@ -130,7 +130,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   const computedStatus = derivedStatus ?? asset.status;
 
   // Build active booking info for status line
-  let activeBooking: { id: string; kind: string; status: string; title: string; startsAt: string; endsAt: string; requesterName: string } | null = null;
+  let activeBooking: { id: string; kind: string; status: string; title: string; startsAt: string; endsAt: string; requesterName: string; requesterAvatarUrl: string | null } | null = null;
   for (const alloc of activeAllocs) {
     activeBooking = {
       id: alloc.booking.id,
@@ -140,6 +140,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
       startsAt: alloc.booking.startsAt.toISOString(),
       endsAt: alloc.booking.endsAt.toISOString(),
       requesterName: alloc.booking.requester?.name ?? "Unknown",
+      requesterAvatarUrl: alloc.booking.requester?.avatarUrl ?? null,
     };
     break;
   }

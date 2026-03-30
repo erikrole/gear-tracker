@@ -52,9 +52,11 @@ export type LookupResult = {
 export type ItemPreview = {
   id: string;
   assetTag: string;
+  name?: string | null;
   brand: string;
   model: string;
   serialNumber: string;
+  imageUrl?: string | null;
   computedStatus: string;
   location: { name: string } | null;
   category: { name: string } | null;
@@ -72,6 +74,7 @@ export type ItemPreview = {
     startsAt: string;
     endsAt: string;
     requesterName: string;
+    requesterAvatarUrl?: string | null;
   } | null;
 };
 
