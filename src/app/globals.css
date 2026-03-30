@@ -41,7 +41,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --color-sidebar-background: var(--sidebar-bg);
+  --color-sidebar: var(--sidebar-bg);
   --color-sidebar-foreground: var(--sidebar-text-active);
   --color-sidebar-primary: var(--sidebar-text-active);
   --color-sidebar-primary-foreground: var(--sidebar-bg);
