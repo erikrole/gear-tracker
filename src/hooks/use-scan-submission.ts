@@ -162,7 +162,8 @@ export function useScanSubmission(
         if (bgMatch) searchTerm = bgMatch[2];
 
         // Search with both original QR value and stripped term for best match
-        const qrParam = value !== searchTerm ? `&qr=${encodeURIComponent(value)}` : "";
+        // Always pass qr= so the API checks qrCodeValue/primaryScanCode fields
+        const qrParam = `&qr=${encodeURIComponent(value)}`;
         const res = await fetch(
           `/api/assets?q=${encodeURIComponent(searchTerm)}${qrParam}&limit=5`,
         );
