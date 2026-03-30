@@ -360,6 +360,15 @@
   ::file-selector-button {
     border-color: var(--color-border, currentColor);
   }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Theme toggle in sidebar */
@@ -492,15 +501,6 @@ button {
 input, select, textarea {
   font-family: inherit;
   font-size: inherit;
-}
-
-a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
 }
 
 /* Links inside buttons inherit the button's text color */
