@@ -143,8 +143,8 @@ describe("markCheckoutCompleted", () => {
     );
   });
 
-  // ── BUG PROOF: double-return of stock ─────────────────────────────────
-  it("BUG: returns checkedOutQuantity to stock without subtracting checkedInQuantity", async () => {
+  // ── REGRESSION: only return unreturned items to stock ──────────────────
+  it("subtracts checkedInQuantity from return amount (no double-return)", async () => {
     const bulkItem = makeBulkItem({
       bulkSkuId: "sku-1",
       plannedQuantity: 10,
@@ -162,11 +162,27 @@ describe("markCheckoutCompleted", () => {
 
     await markCheckoutCompleted("b-1", "actor-1");
 
-    // BUG: The function uses `checkedOutQuantity ?? plannedQuantity` as the return amount,
-    // but doesn't subtract `checkedInQuantity`. When checkinBulkItem already returned 5,
-    // this returns the full 10 again — double-returning 5 units.
-    // The correct amount to return should be: checkedOutQuantity - checkedInQuantity = 5
+    // Only the unreturned quantity (10 - 5 = 5) should be returned to stock
     const movementCall = mockTx.bulkStockMovement.createMany.mock.calls[0]?.[0];
-    expect(movementCall?.data?.[0]?.quantity).toBe(10); // BUG: should be 5
+    expect(movementCall?.data?.[0]?.quantity).toBe(5);
+  });
+
+  it("skips stock return when all items already checked in", async () => {
+    const bulkItem = makeBulkItem({
+      bulkSkuId: "sku-1",
+      plannedQuantity: 10,
+      checkedOutQuantity: 10,
+      checkedInQuantity: 10, // all already returned
+    });
+    mockTx.booking.findUnique.mockResolvedValue(openCheckout([bulkItem]));
+    mockTx.booking.update.mockResolvedValue({});
+    mockTx.assetAllocation.updateMany.mockResolvedValue({});
+    mockTx.scanSession.updateMany.mockResolvedValue({});
+    mockTx.auditLog.create.mockResolvedValue({});
+
+    await markCheckoutCompleted("b-1", "actor-1");
+
+    // No stock movement should be created since all items were already returned
+    expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
   });
 });

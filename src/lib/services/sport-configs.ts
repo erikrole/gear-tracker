@@ -1,4 +1,4 @@
-import { ShiftArea } from "@prisma/client";
+import { Prisma, ShiftArea } from "@prisma/client";
 import { db } from "@/lib/db";
 
 export type SportShiftConfigInput = {
@@ -63,7 +63,7 @@ export async function upsertSportConfig(
       where: { id: config.id },
       include: { shiftConfigs: true },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /** Toggle a sport config active/inactive */

@@ -44,14 +44,19 @@ export const GET = withAuth(async (req, { user }) => {
 });
 
 async function getUtilizationReport() {
-  const [statusCounts, totalAssets, byLocation, byType, byDepartment] =
-    await Promise.all([
-      countAssetsByEffectiveStatus(),
-      db.asset.count(),
-      db.asset.groupBy({ by: ["locationId"], _count: true }),
-      db.asset.groupBy({ by: ["type"], _count: true, orderBy: { _count: { type: "desc" } } }),
-      db.asset.groupBy({ by: ["departmentId"], _count: true })
-    ]);
+  const results = await Promise.allSettled([
+    countAssetsByEffectiveStatus(),
+    db.asset.count(),
+    db.asset.groupBy({ by: ["locationId"], _count: true }),
+    db.asset.groupBy({ by: ["type"], _count: true, orderBy: { _count: { type: "desc" } } }),
+    db.asset.groupBy({ by: ["departmentId"], _count: true })
+  ]);
+
+  const statusCounts = results[0].status === "fulfilled" ? results[0].value : {};
+  const totalAssets = results[1].status === "fulfilled" ? results[1].value : 0;
+  const byLocation = results[2].status === "fulfilled" ? results[2].value : [];
+  const byType = results[3].status === "fulfilled" ? results[3].value : [];
+  const byDepartment = results[4].status === "fulfilled" ? results[4].value : [];
 
   const locationIds = byLocation.map((g) => g.locationId);
   const locations =
@@ -96,41 +101,46 @@ async function getCheckoutReport(days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
   const now = new Date();
 
-  const [totalCheckouts, overdueCheckouts, recentCheckouts, topRequesters, allInPeriod] =
-    await Promise.all([
-      db.booking.count({
-        where: { kind: "CHECKOUT", createdAt: { gte: since } }
-      }),
-      db.booking.count({
-        where: {
-          kind: "CHECKOUT",
-          status: "OPEN",
-          endsAt: { lt: now }
-        }
-      }),
-      db.booking.findMany({
-        where: { kind: "CHECKOUT", createdAt: { gte: since } },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        include: {
-          requester: { select: { id: true, name: true } },
-          location: { select: { id: true, name: true } },
-          _count: { select: { serializedItems: true, bulkItems: true } }
-        }
-      }),
-      db.booking.groupBy({
-        by: ["requesterUserId"],
-        where: { kind: "CHECKOUT", createdAt: { gte: since } },
-        _count: true,
-        orderBy: { _count: { requesterUserId: "desc" } },
-        take: 10
-      }),
-      // Daily checkout counts for trend chart
-      db.booking.findMany({
-        where: { kind: "CHECKOUT", createdAt: { gte: since } },
-        select: { createdAt: true },
-      }),
-    ]);
+  const checkoutResults = await Promise.allSettled([
+    db.booking.count({
+      where: { kind: "CHECKOUT", createdAt: { gte: since } }
+    }),
+    db.booking.count({
+      where: {
+        kind: "CHECKOUT",
+        status: "OPEN",
+        endsAt: { lt: now }
+      }
+    }),
+    db.booking.findMany({
+      where: { kind: "CHECKOUT", createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: {
+        requester: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+        _count: { select: { serializedItems: true, bulkItems: true } }
+      }
+    }),
+    db.booking.groupBy({
+      by: ["requesterUserId"],
+      where: { kind: "CHECKOUT", createdAt: { gte: since } },
+      _count: true,
+      orderBy: { _count: { requesterUserId: "desc" } },
+      take: 10
+    }),
+    // Daily checkout counts for trend chart
+    db.booking.findMany({
+      where: { kind: "CHECKOUT", createdAt: { gte: since } },
+      select: { createdAt: true },
+    }),
+  ]);
+
+  const totalCheckouts = checkoutResults[0].status === "fulfilled" ? checkoutResults[0].value : 0;
+  const overdueCheckouts = checkoutResults[1].status === "fulfilled" ? checkoutResults[1].value : 0;
+  const recentCheckouts = checkoutResults[2].status === "fulfilled" ? checkoutResults[2].value : [];
+  const topRequesters = checkoutResults[3].status === "fulfilled" ? checkoutResults[3].value : [];
+  const allInPeriod = checkoutResults[4].status === "fulfilled" ? checkoutResults[4].value : [];
 
   // Resolve requester names for top requesters
   const requesterIds = topRequesters.map((r) => r.requesterUserId);
@@ -285,7 +295,7 @@ async function getScanHistoryReport(
   if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
   if (phase && (phase === "CHECKOUT" || phase === "CHECKIN")) where.phase = phase;
 
-  const [data, total, successCount] = await Promise.all([
+  const scanResults = await Promise.allSettled([
     db.scanEvent.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -301,6 +311,10 @@ async function getScanHistoryReport(
     db.scanEvent.count({ where }),
     db.scanEvent.count({ where: { ...where, success: true } }),
   ]);
+
+  const data = scanResults[0].status === "fulfilled" ? scanResults[0].value : [];
+  const total = scanResults[1].status === "fulfilled" ? scanResults[1].value : 0;
+  const successCount = scanResults[2].status === "fulfilled" ? scanResults[2].value : 0;
 
   return {
     data: data.map((s) => ({
@@ -341,7 +355,7 @@ async function getAuditReport(
   if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
   if (action) where.action = action;
 
-  const [data, total] = await Promise.all([
+  const auditResults = await Promise.allSettled([
     db.auditLog.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -353,6 +367,9 @@ async function getAuditReport(
     }),
     db.auditLog.count({ where })
   ]);
+
+  const data = auditResults[0].status === "fulfilled" ? auditResults[0].value : [];
+  const total = auditResults[1].status === "fulfilled" ? auditResults[1].value : 0;
 
   return {
     data: data.map((entry) => ({

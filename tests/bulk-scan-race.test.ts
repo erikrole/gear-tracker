@@ -9,7 +9,7 @@ vi.mock("@/lib/db", () => {
   const mockTx = {
     booking: { findUnique: vi.fn() },
     scanEvent: { findFirst: vi.fn(), create: vi.fn() },
-    bookingBulkItem: { update: vi.fn() },
+    bookingBulkItem: { findUnique: vi.fn(), update: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
     bulkStockMovement: { createMany: vi.fn() },
     scanSession: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
@@ -58,9 +58,9 @@ beforeEach(() => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// BUG PROOF: Non-numbered bulk scan TOCTOU
-// The quantity guard runs before the transaction, but the increment runs inside
-// a separate transaction without SERIALIZABLE isolation.
+// REGRESSION: Non-numbered bulk scan quantity guard + increment must be atomic
+// Previously the guard ran outside the transaction (TOCTOU gap). Now both the
+// guard and increment run inside a single SERIALIZABLE transaction.
 // ═════════════════════════════════════════════════════════════════════════════
 describe("non-numbered bulk scan TOCTOU", () => {
   function setupBulkScan(checkedOut = 0, planned = 10) {
@@ -79,11 +79,19 @@ describe("non-numbered bulk scan TOCTOU", () => {
         bulkSku: { id: "sku-1", binQrCodeValue: "BIN-QR-1", trackByNumber: false },
       }],
     });
+    // Mock the fresh re-read inside the guard transaction
+    mockTx.bookingBulkItem.findUnique.mockResolvedValue({
+      id: "bi-1",
+      bulkSkuId: "sku-1",
+      plannedQuantity: planned,
+      checkedOutQuantity: checkedOut,
+      checkedInQuantity: 0,
+    });
     mockTx.scanEvent.create.mockResolvedValue({ id: "event-1" });
     mockTx.bookingBulkItem.update.mockResolvedValue({});
   }
 
-  it("BUG: quantity guard reads outside the increment transaction (TOCTOU gap)", async () => {
+  it("uses SERIALIZABLE on both transactions (guard + increment are atomic)", async () => {
     setupBulkScan(0, 10);
 
     await recordScan({
@@ -95,13 +103,26 @@ describe("non-numbered bulk scan TOCTOU", () => {
       quantity: 5,
     });
 
-    // The first transaction is SERIALIZABLE (dedup + booking lookup).
-    // The second transaction (increment) has NO isolation specified — that's the bug.
+    // Both transactions must use SERIALIZABLE isolation
     expect(transactionCalls.length).toBeGreaterThanOrEqual(2);
-    expectSerializableIsolation(transactionCalls, 0);
-    // BUG: Second tx has no isolation level. A concurrent scan could read stale
-    // checkedOutQuantity, pass the guard, and both scans increment — exceeding planned.
-    expect(transactionCalls[1].options).toBeUndefined();
+    expectSerializableIsolation(transactionCalls, 0); // dedup + booking lookup
+    expectSerializableIsolation(transactionCalls, 1); // guard + increment
+  });
+
+  it("re-reads bulkItem inside transaction for fresh quantity", async () => {
+    setupBulkScan(0, 10);
+
+    await recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: "CHECKOUT" as any,
+      scanType: "BULK_BIN" as any,
+      scanValue: "BIN-QR-1",
+      quantity: 5,
+    });
+
+    // The guard transaction re-reads the bulkItem to get fresh quantity
+    expect(mockTx.bookingBulkItem.findUnique).toHaveBeenCalled();
   });
 
   it("creates scan event and increments quantity on success", async () => {

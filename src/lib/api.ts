@@ -29,7 +29,13 @@ export function withAuth<P extends Record<string, string> = Record<string, strin
       // CSRF: validate Origin header on mutating requests
       if (req.method !== "GET" && req.method !== "HEAD") {
         const origin = req.headers.get("origin");
-        if (origin) {
+        if (!origin) {
+          // Allow cron/internal requests that authenticate via secret instead of session
+          const isCronRequest = req.headers.get("authorization")?.startsWith("Bearer ");
+          if (!isCronRequest) {
+            throw new HttpError(403, "Origin header required for mutating requests");
+          }
+        } else {
           const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
           const expected = host ? new URL(`https://${host}`).origin : null;
           if (expected && origin !== expected) {

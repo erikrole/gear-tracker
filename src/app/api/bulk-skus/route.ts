@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
@@ -78,7 +79,7 @@ export const POST = withAuth(async (req, { user }) => {
       where: { id: sku.id },
       include: { balances: true, units: body.trackByNumber }
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

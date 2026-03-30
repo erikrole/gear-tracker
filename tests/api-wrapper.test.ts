@@ -137,18 +137,31 @@ describe("withAuth", () => {
     expect(res.status).toBe(200);
   });
 
-  it("BUG: allows POST when Origin header is absent (CSRF bypass)", async () => {
-    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+  it("blocks POST when Origin header is absent (CSRF protection)", async () => {
+    const handler = vi.fn();
     const wrapped = withAuth(handler);
 
-    // No origin header at all — the CSRF check is skipped entirely
+    // No origin header at all — should be blocked
     const res = await wrapped(
       makeRequest("POST"),
       { params: Promise.resolve({}) }
     );
 
-    // BUG: This should arguably be blocked for security, but the current
-    // implementation allows it. Missing Origin means no CSRF protection.
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain("Origin header required");
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("allows POST without Origin when Bearer auth is present (cron/internal)", async () => {
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      makeRequest("POST", { authorization: "Bearer cron-secret-123" }),
+      { params: Promise.resolve({}) }
+    );
+
     expect(res.status).toBe(200);
     expect(handler).toHaveBeenCalled();
   });

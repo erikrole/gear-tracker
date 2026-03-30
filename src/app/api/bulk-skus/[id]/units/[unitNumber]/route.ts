@@ -1,4 +1,4 @@
-import { BulkUnitStatus } from "@prisma/client";
+import { BulkUnitStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
@@ -60,7 +60,7 @@ export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { 
     }
 
     return { before, updated };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

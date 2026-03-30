@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
@@ -54,7 +55,7 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
 
     // Cascade deletes associated CalendarEvent rows (schema onDelete: Cascade)
     await tx.calendarSource.delete({ where: { id } });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

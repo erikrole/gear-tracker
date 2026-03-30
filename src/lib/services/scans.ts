@@ -264,18 +264,31 @@ export async function recordScan(args: {
     throw new HttpError(400, "Bulk scans require a positive quantity");
   }
 
-  // Guard against exceeding planned quantity
-  const currentQty = args.phase === ScanPhase.CHECKOUT
-    ? (bulkItem.checkedOutQuantity ?? 0)
-    : (bulkItem.checkedInQuantity ?? 0);
-  const maxQty = args.phase === ScanPhase.CHECKOUT
-    ? bulkItem.plannedQuantity
-    : (bulkItem.checkedOutQuantity ?? bulkItem.plannedQuantity);
-  if (currentQty + args.quantity > maxQty) {
-    throw new HttpError(400, `Scan would exceed ${args.phase === ScanPhase.CHECKOUT ? "planned" : "checked-out"} quantity. Current: ${currentQty}, scanning: ${args.quantity}, max: ${maxQty}`);
-  }
-
+  // Guard + increment inside a single SERIALIZABLE transaction to prevent TOCTOU race
   const { event } = await db.$transaction(async (tx) => {
+    // Re-read bulkItem inside transaction for fresh quantity values
+    const freshBulkItem = await tx.bookingBulkItem.findUnique({
+      where: {
+        bookingId_bulkSkuId: {
+          bookingId: args.bookingId,
+          bulkSkuId: bulkSku.id
+        }
+      }
+    });
+    if (!freshBulkItem) {
+      throw new HttpError(404, "Bulk item not found on this booking");
+    }
+
+    const currentQty = args.phase === ScanPhase.CHECKOUT
+      ? (freshBulkItem.checkedOutQuantity ?? 0)
+      : (freshBulkItem.checkedInQuantity ?? 0);
+    const maxQty = args.phase === ScanPhase.CHECKOUT
+      ? freshBulkItem.plannedQuantity
+      : (freshBulkItem.checkedOutQuantity ?? freshBulkItem.plannedQuantity);
+    if (currentQty + args.quantity! > maxQty) {
+      throw new HttpError(400, `Scan would exceed ${args.phase === ScanPhase.CHECKOUT ? "planned" : "checked-out"} quantity. Current: ${currentQty}, scanning: ${args.quantity}, max: ${maxQty}`);
+    }
+
     const event = await tx.scanEvent.create({
       data: {
         bookingId: args.bookingId,
@@ -304,7 +317,7 @@ export async function recordScan(args: {
     });
 
     return { event };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   return { success: true, event };
 }

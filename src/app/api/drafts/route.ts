@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
@@ -102,7 +103,7 @@ export const POST = withAuth(async (req, { user }) => {
           })),
         });
       }
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     draftId = body.id;
   } else {
     // Create new draft
@@ -127,7 +128,7 @@ export const POST = withAuth(async (req, { user }) => {
         });
       }
       return booking;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     draftId = draft.id;
   }
 
