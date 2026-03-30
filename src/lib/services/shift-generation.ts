@@ -1,4 +1,4 @@
-import { ShiftArea, ShiftWorkerType } from "@prisma/client";
+import { Prisma, ShiftArea, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 
 const WRITE_CHUNK_SIZE = 500;
@@ -92,7 +92,7 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
     });
 
     return { sg, alreadyExisted: false };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   if (group.alreadyExisted) {
     return { created: false, shiftGroupId: group.sg.id, shiftCount: 0 };
@@ -207,7 +207,7 @@ export async function generateShiftsForNewEvents(sourceId: string): Promise<{
     }
 
     return { groupsCreated: createdGroups.length, shiftsCreated: allShifts.length };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   return result;
 }

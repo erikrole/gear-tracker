@@ -694,3 +694,13 @@ Always use shadcn Empty component:
 - **`upsertBulkBalancesAndMovements` has a negativity guard**: When mocking bulk operations, `bulkStockBalance.findMany` must return sufficient stock for CHECKOUT movements or the function throws 409. Easy to miss when writing create-booking tests.
 - **Data factories should be minimal and override-friendly**: `makeBooking({ status: "COMPLETED" })` is cleaner than constructing 15-field objects inline. Every factory returns valid defaults — override only what your test cares about.
 - **Archive plan files aggressively**: 23 active plans with 55 already archived = planning confusion. After any feature ships, immediately `mv tasks/plan.md tasks/archive/`. The archive preserves context without cluttering the active queue.
+
+## Session 2026-03-30
+
+### Patterns (Cross-Cutting Security Audit)
+- **SERIALIZABLE must be enforced uniformly, not just on "critical" paths**: The booking/scan services had SERIALIZABLE on every transaction, but the shift/trade services had ZERO — a complete blind spot. When D-006 says "all booking mutations use SERIALIZABLE", audit the definition of "all". Shifts mutate assignment state that affects scheduling integrity just as much.
+- **Bug proof tests flip naturally into regression tests**: Tests named `BUG: ...` with `expectNoIsolation()` assertions become regression tests by changing to `expectSerializableIsolation()`. The test infrastructure (transaction tracking mocks) was already perfect for this — only the assertion direction changed.
+- **CSRF: Origin-header-only protection has a gap**: Missing Origin headers bypass the check entirely. Modern browsers send Origin on POST, but server-side clients, cURL, and some redirect flows may not. Block missing Origin by default; exempt internal/cron routes via Bearer auth detection.
+- **Quantity guard + increment must be atomic**: Any pattern where you read a value, check a condition, and then increment in a separate transaction is a TOCTOU race. The fix is always the same: re-read inside the transaction, check, then write — all in SERIALIZABLE.
+- **`Promise.allSettled` is the right default for read-only parallel queries**: When combining multiple independent DB queries for a single response, `Promise.allSettled` with fallback values is strictly better than `Promise.all`. The extra code is minimal and prevents total failure from one slow query.
+- **`markCheckoutCompleted` double-return pattern**: When completing a multi-step process that has intermediate partial operations (partial check-in), the final cleanup must account for work already done. Always subtract `alreadyDone` from `totalToDo`.

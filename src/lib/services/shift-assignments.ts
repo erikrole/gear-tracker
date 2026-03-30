@@ -1,5 +1,4 @@
-import { ShiftAssignmentStatus } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
+import { Prisma, ShiftAssignmentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
@@ -73,7 +72,7 @@ export async function directAssignShift(
         user: { select: { id: true, name: true, role: true, primaryArea: true } },
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -120,7 +119,7 @@ export async function requestShift(shiftId: string, userId: string) {
         user: { select: { id: true, name: true, role: true, primaryArea: true } },
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -151,7 +150,7 @@ export async function approveRequest(assignmentId: string) {
         user: { select: { id: true, name: true, role: true, primaryArea: true } },
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -169,7 +168,7 @@ export async function declineRequest(assignmentId: string) {
       where: { id: assignmentId },
       data: { status: "DECLINED" },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -212,7 +211,7 @@ export async function initiateSwap(
         user: { select: { id: true, name: true, role: true, primaryArea: true } },
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -227,5 +226,5 @@ export async function removeAssignment(assignmentId: string) {
       where: { id: assignmentId },
       data: { status: "DECLINED" },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }

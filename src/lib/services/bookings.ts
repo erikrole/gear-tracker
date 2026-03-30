@@ -702,8 +702,8 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
 
     const checkinItems = booking.bulkItems.map((item) => ({
       bulkSkuId: item.bulkSkuId,
-      quantity: item.checkedOutQuantity ?? item.plannedQuantity
-    }));
+      quantity: (item.checkedOutQuantity ?? item.plannedQuantity) - (item.checkedInQuantity ?? 0)
+    })).filter((item) => item.quantity > 0);
 
     if (checkinItems.length > 0) {
       await upsertBulkBalancesAndMovements(tx, {

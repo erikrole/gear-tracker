@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { makeShiftTrade, makeShiftAssignment, makeShift, makeUser } from "./_helpers/factories";
-import { expectNoIsolation } from "./_helpers/assert-transaction";
+import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
@@ -145,8 +145,8 @@ describe("claimTrade", () => {
     };
   }
 
-  // ── BUG PROOF: claimTrade uses no isolation level ─────────────────────
-  it("BUG: uses no transaction isolation level (double-claim possible)", async () => {
+  // ── REGRESSION: claimTrade must use SERIALIZABLE to prevent double-claim ──
+  it("uses SERIALIZABLE isolation to prevent double-claim", async () => {
     const trade = openTrade();
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Field" }));
@@ -157,8 +157,7 @@ describe("claimTrade", () => {
 
     await claimTrade(trade.id, "claimer-1");
 
-    // BUG: No isolation level specified. Should be Serializable to prevent double-claim.
-    expectNoIsolation(transactionCalls, 0);
+    expectSerializableIsolation(transactionCalls, 0);
   });
 
   it("throws 404 when trade not found", async () => {

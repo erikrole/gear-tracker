@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-03-29
+Last updated: 2026-03-30
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -16,10 +16,10 @@ Last updated: 2026-03-29
 - [ ] **Add sport/area assignment CRUD** — Currently read-only. Needs new API endpoints + edit UI (deferred to V2 per users roadmap).
 
 ### Known Bugs (documented with proof tests)
-- [ ] **Fix `claimTrade()` missing isolation** — No SERIALIZABLE on `$transaction`, double-claim possible. See `tests/shift-trades.test.ts`.
-- [ ] **Fix bulk scan TOCTOU** — Quantity guard reads outside increment transaction. See `tests/bulk-scan-race.test.ts`.
-- [ ] **Fix `markCheckoutCompleted` double-return** — Returns `checkedOutQuantity` without subtracting `checkedInQuantity`. See `tests/mark-checkout-completed.test.ts`.
-- [ ] **Fix CSRF bypass with missing Origin** — `withAuth` skips CSRF check when Origin header absent. See `tests/api-wrapper.test.ts`.
+- [x] ~~**Fix `claimTrade()` missing isolation**~~ — Fixed 2026-03-30: SERIALIZABLE added to all shift-trades.ts + shift-assignments.ts transactions.
+- [x] ~~**Fix bulk scan TOCTOU**~~ — Fixed 2026-03-30: Quantity guard moved inside SERIALIZABLE transaction.
+- [x] ~~**Fix `markCheckoutCompleted` double-return**~~ — Fixed 2026-03-30: Now subtracts `checkedInQuantity` from return amount.
+- [x] ~~**Fix CSRF bypass with missing Origin**~~ — Fixed 2026-03-30: Origin header required on all mutating requests (cron exempted via Bearer auth).
 
 ---
 

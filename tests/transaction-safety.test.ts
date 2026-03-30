@@ -8,7 +8,7 @@ vi.mock("@/lib/db", () => {
   const mockTx = {
     booking: { findUnique: vi.fn(), update: vi.fn() },
     bookingSerializedItem: { updateMany: vi.fn() },
-    bookingBulkItem: { update: vi.fn() },
+    bookingBulkItem: { findUnique: vi.fn(), update: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
     bulkStockMovement: { createMany: vi.fn() },
     scanEvent: { findFirst: vi.fn(), create: vi.fn() },
@@ -296,6 +296,14 @@ describe("recordScan", () => {
           bulkSku: { id: "sku-1", binQrCodeValue: "BIN-QR-1", trackByNumber: false },
         },
       ],
+    });
+    // Guard now re-reads inside the transaction
+    mockTx.bookingBulkItem.findUnique.mockResolvedValue({
+      id: "bi-1",
+      bulkSkuId: "sku-1",
+      plannedQuantity: 5,
+      checkedOutQuantity: 3,
+      checkedInQuantity: 0,
     });
 
     await expect(

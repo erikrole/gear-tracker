@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
@@ -66,7 +67,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     });
 
     return { startNumber, endNumber: startNumber + body.count - 1 };
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

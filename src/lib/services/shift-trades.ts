@@ -62,7 +62,7 @@ export async function postTrade(
         postedBy: { select: { id: true, name: true } },
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -147,7 +147,7 @@ export async function claimTrade(tradeId: string, userId: string) {
         claimedBy: { select: { id: true, name: true } },
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -176,7 +176,7 @@ export async function approveTrade(tradeId: string) {
         status: "COMPLETED",
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -198,7 +198,7 @@ export async function declineTrade(tradeId: string) {
         status: "OPEN",
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
@@ -222,7 +222,7 @@ export async function cancelTrade(tradeId: string, userId: string) {
         status: "CANCELLED",
       },
     });
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
 /**
