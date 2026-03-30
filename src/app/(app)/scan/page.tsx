@@ -14,7 +14,7 @@ import { useScanSubmission } from "@/hooks/use-scan-submission";
 import { ScanControls } from "./_components/ScanControls";
 import { ScanChecklist } from "./_components/ScanChecklist";
 import { UnitPickerSheet } from "./_components/UnitPickerSheet";
-import { ItemPreviewSheet } from "./_components/ItemPreviewSheet";
+import { ItemPreviewDrawer } from "./_components/ItemPreviewDrawer";
 import type { ScanMode } from "./_components/types";
 
 export default function ScanPage() {
@@ -250,8 +250,8 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* ══════ Item preview bottom sheet (lookup mode) ══════ */}
-      <ItemPreviewSheet
+      {/* ══════ Item preview drawer (lookup mode) ══════ */}
+      <ItemPreviewDrawer
         item={submission.itemPreview}
         onClose={() => submission.setItemPreview(null)}
       />
