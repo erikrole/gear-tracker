@@ -229,7 +229,7 @@ export default function AppSidebar({
                             {badgeLabel}
                           </SidebarMenuBadge>
                         )}
-                        {item.quickCreateHref && isAdmin && (
+                        {item.quickCreateHref && isAdmin && !badgeCount && (
                           <SidebarMenuAction asChild showOnHover>
                             <Link href={item.quickCreateHref} aria-label={`New ${item.label.toLowerCase().replace(/s$/, "")}`}>
                               <PlusIcon />
