@@ -104,73 +104,117 @@ model UserBadge {
 - `npm run build` must pass after schema migration — check for type propagation in any place that spreads the User type
 
 ### 2. Guides Sidebar Section
-**Goal:** Walkthrough tutorials, guides, contact info, FAQ housed under a new sidebar item
-**Current state:** No guides/help/FAQ pages exist. Onboarding banner on dashboard only.
+**Goal:** Walkthrough tutorials, guides, contact info, FAQ — Notion-like editing experience for admins, clean read view for all users
+**Current state:** No guides/help/FAQ pages exist. Team currently uses a Google Doc (hard to format, no photos). Onboarding banner on dashboard only.
+
+**Decision: DB-backed rich-text editor** (upgraded from static MDX)
+- Admins can create, edit, reorder guides in the app without touching code or deploying
+- Photos uploaded via Vercel Blob (same pattern as booking photos)
+- All roles can read; **ADMIN only** can create/edit/publish
+- **Complexity:** M (up from S-M — editor library + schema + image upload, but no MDX build pipeline)
 
 **What's needed:**
-- **Decision: Static MDX** — version-controlled markdown files, devs update via PRs
-- New route group: `src/app/(app)/guides/` with sub-pages (getting-started, faq, contacts, etc.)
-- Sidebar: Add "Guides" item to `src/lib/nav-sections.ts` (visible to all roles)
-- UI: Left sidebar TOC within guides section for navigation between articles
-- Use `@next/mdx` or `next-mdx-remote` for rendering
-- **Files:** `src/lib/nav-sections.ts`, `src/app/(app)/guides/` (new), `src/components/Sidebar.tsx`
-- **Complexity:** S-M
+- Schema: `Guide` model (slug, title, content as JSON, order, published, updatedAt, updatedById)
+- Editor: `BlockNote` for Notion-style block editing (built on Tiptap, supports headings, lists, images, callouts out of the box)
+- Image upload: Vercel Blob upload endpoint, same as `BookingPhoto`
+- API: CRUD `/api/guides` + `/api/guides/[slug]`
+- UI: `/guides` layout with left TOC, reader view per guide, editor mode toggled inline for ADMIN only
+- Sidebar: Add "Guides" to `nav-sections.ts` (all roles)
+- **Files:** `prisma/schema.prisma`, `src/app/(app)/guides/` (new), `src/app/api/guides/` (new), `src/lib/nav-sections.ts`
 
-**Content structure (file-based routing):**
-```
-src/app/(app)/guides/
-  layout.tsx              ← shell with left TOC sidebar
-  page.tsx                ← redirects to /guides/getting-started
-  getting-started/page.tsx
-  faq/page.tsx
-  contacts/page.tsx
-  equipment-care/page.tsx
-  shift-scheduling/page.tsx
+**Schema design:**
+```prisma
+model Guide {
+  id          String   @id @default(cuid())
+  slug        String   @unique       // URL-safe, e.g. "getting-started"
+  title       String
+  content     Json                   // BlockNote JSON document
+  published   Boolean  @default(false)
+  order       Int      @default(0)   // controls sidebar sort order
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt    @map("updated_at")
+  updatedById String?  @map("updated_by_id")
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
-content/guides/           ← MDX source files (co-located with routes or separate)
-  getting-started.mdx
-  faq.mdx
-  contacts.mdx
-  equipment-care.mdx
-  shift-scheduling.mdx
+  @@index([published, order])
+  @@map("guides")
+}
 ```
-*Prefer `next-mdx-remote` over `@next/mdx` — allows MDX files outside `app/` dir, cleaner separation of content from routes.*
+
+**Editor library: BlockNote**
+- `@blocknote/react` + `@blocknote/mantine` (or `@blocknote/shadcn` if available) — Notion-style block editor with slash commands, drag-to-reorder blocks, image upload hook
+- Stores document as structured JSON (not HTML) — portable and safe
+- Built-in block types: paragraph, heading (h1-h3), bullet list, numbered list, image, callout, code block, divider
+- Custom upload handler wired to Vercel Blob: `uploadFile: async (file) => { const url = await uploadToBlob(file); return url; }`
+- Renders read-only with the same component — no separate markdown renderer needed
 
 **Intended UX flows:**
 
-*Navigation:*
-1. User clicks "Guides" in sidebar → lands on Getting Started article (default)
-2. Left TOC sidebar (within guides layout, separate from app sidebar) lists all articles with active-state highlight
-3. On mobile: TOC collapses to a dropdown/sheet above article content
-4. Each article renders as a full-width readable column (max-w-3xl, centered)
-5. Code blocks, callout components, and images supported via MDX custom components
+*Admin creates a new guide:*
+1. In left TOC sidebar: "+ New Guide" button (ADMIN only) → creates a draft guide with placeholder title, navigates to it
+2. Page loads in edit mode automatically for new guides
+3. Admin types title inline (InlineTitle pattern), then writes body content in the BlockNote editor
+4. Type `/` → slash command menu: insert image, callout, heading, etc.
+5. Drag block handle on left edge to reorder blocks within the article
+6. "Publish" toggle in the header → sets `published = true`, makes it visible to all roles
+7. Auto-saves content on change (debounced 1s) via PATCH `/api/guides/[slug]`
 
-*TOC within an article:*
-- Auto-generated from headings (h2, h3) in the MDX
-- Sticky on desktop, scrolls with page on mobile
-- Smooth-scroll to section on click
+*Admin edits an existing guide:*
+1. Admin views any guide → "Edit" button appears in page header (ADMIN only)
+2. Click "Edit" → editor activates in-place (same page, no navigation)
+3. Changes auto-save; "Last saved X seconds ago" indicator in header
+4. "Stop editing" button returns to read-only view
+
+*All users reading guides:*
+1. Click "Guides" in sidebar → lands on first published guide (lowest `order`)
+2. Left TOC: list of all published guides, active guide highlighted, click to navigate
+3. Guide content renders read-only, full-width (max-w-3xl, centered), with Tailwind Typography prose styles
+4. Images render inline, full-width or constrained
+5. Unpublished guides hidden from TOC and routes for non-editors
+
+*Reordering guides in TOC:*
+- ADMIN only: drag guide entries in the TOC sidebar to reorder → PATCH `/api/guides/reorder` with new order array
 
 **Edge cases:**
-- **Broken MDX frontmatter:** Build fails loudly at `npm run build` — this is acceptable (it's a dev error, not a runtime error). Static MDX means errors are caught pre-deploy.
-- **Missing slug route:** `/guides/nonexistent` → Next.js 404 page. No custom handling needed since routes are file-based (only real files get routes).
-- **No articles yet:** Guides landing page should have a meaningful empty state, not a blank page — at minimum a "Coming soon" placeholder that still satisfies the nav link.
-- **Long article with no headings:** In-article TOC simply renders empty/hidden. Not an error.
-- **Contacts page with PII:** Contacts are staff/org contacts (names, emails, roles) — not user data. Keep it general (role names + shared email aliases, not personal phones).
-- **Search within guides:** Deferred. Static content search (e.g. Pagefind) is a Phase C3 enhancement if demand exists.
+- **Unpublished guide accessed directly by URL (`/guides/my-draft`):** Return 404 for STUDENT. Show with "Draft" badge for ADMIN/STAFF — they can preview before publishing.
+- **Slug collision on create:** Append `-2`, `-3` etc. automatically (same pattern as most CMS tools). Never surface the collision error to the user.
+- **Image upload fails mid-edit:** BlockNote's image block shows an error state with a retry button. The rest of the document is unaffected.
+- **Large image uploaded:** Resize/compress via Vercel Blob's image transform, or enforce a client-side size check before upload (max 5MB). Oversized images make the guide slow to load.
+- **Auto-save conflict (two editors on same guide):** Last write wins. ADMIN/STAFF editing the same guide simultaneously is an edge case — show "Last edited by [name] X minutes ago" so editors are aware. Full locking/collab is a V2 concern.
+- **Guide deleted while another user is reading it:** Reader gets a 404 on next navigation. Current page session is unaffected.
+- **Empty guide (no content blocks):** Publishing allowed — admin may want a stub that they'll fill in later. Show an "empty article" placeholder in read view.
+- **TOC with 0 published guides:** Empty state with a prompt for admins ("No guides yet — create one"), clean "coming soon" message for other roles.
+- **BlockNote JSON schema version changes (library upgrade):** Document content stored as JSON could break if BlockNote changes its block format. Mitigate: store the BlockNote version in the `Guide` model (`editorVersion String?`) so content can be migrated if needed.
+- **Search within guides:** Deferred to V2. Postgres full-text search on `content::text` is viable if needed later.
 
-**MDX component toolkit:**
-- `<Callout type="info|warning|tip">` — styled alert boxes
-- `<Steps>` — numbered step list (common in setup guides)
-- `<CodeBlock>` — syntax-highlighted code (uses shadcn's approach)
-- Standard prose: h1-h4, ul/ol, table, blockquote — all styled via Tailwind Typography (`@tailwindcss/typography`)
+**Image upload flow:**
+```
+Admin drops/pastes image in editor
+  → BlockNote calls uploadFile(file)
+  → POST /api/guides/upload (multipart, ADMIN/STAFF only)
+  → Server uploads to Vercel Blob, returns public URL
+  → BlockNote stores URL in image block JSON
+  → URL rendered via next/image in read view
+```
+
+**API design:**
+```
+GET    /api/guides              → list (published only for STUDENT; all for ADMIN/STAFF)
+POST   /api/guides              → create new guide, ADMIN only
+GET    /api/guides/[slug]       → single guide (404 if unpublished + non-ADMIN)
+PATCH  /api/guides/[slug]       → update title/content/published/order, ADMIN only
+DELETE /api/guides/[slug]       → hard delete, ADMIN only
+PATCH  /api/guides/reorder      → body: { orderedIds: string[] }, ADMIN only
+POST   /api/guides/upload       → image upload → Vercel Blob, ADMIN only
+```
 
 **Hardening:**
-- All MDX renders at build time — zero runtime DB queries, zero auth requirements
-- Guides are visible to all authenticated roles (ADMIN, STAFF, STUDENT)
-- No user-generated content; no XSS surface
-- Add `guides` to nav-sections with `roles: ['ADMIN', 'STAFF', 'STUDENT']` (or omit roles to mean "all")
-- Validate MDX files compile cleanly in CI (`npm run build`)
-- TOC sidebar must not conflict visually with the app's main sidebar — use a different visual weight (border-r vs full sidebar treatment)
+- BlockNote content is stored as JSON, not raw HTML — no XSS surface from stored content; the renderer is always BlockNote's own read-only component
+- Image upload endpoint validates MIME type (images only), enforces max size (5MB)
+- All write endpoints return 403 for non-ADMIN — no partial permission surface to reason about
+- `slug` is validated as URL-safe on create (regex: `^[a-z0-9-]+$`), cannot be changed after creation
+- Deleting a guide with images: images in Vercel Blob are orphaned (not cleaned up automatically in V1 — acceptable; add a blob cleanup job in V2 if storage becomes a concern)
+- AuditLog entry on guide create/delete (publish/unpublish changes are captured by `updatedBy` + `updatedAt` on the model)
 
 ### 3. Smart Gear Frequency Surfacing
 **Goal:** Identify most-used gear and surface those items near the top of actions
@@ -953,7 +997,7 @@ All other features are independent and can be parallelized.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Guides content model | Static MDX | Version-controlled, simpler, no schema changes. CMS upgrade path available later. |
+| Guides content model | DB-backed BlockNote editor | Admins need to edit content and upload photos without dev involvement. Static MDX requires a Git commit + deploy per content change — too much friction. BlockNote gives a Notion-like WYSIWYG experience. Content stored as JSON in Postgres; images in Vercel Blob. |
 | Org chart hierarchy | Hybrid (area groups + reporting lines) | Leverages existing `primaryArea` for top-level grouping; `managerId` for within-area hierarchy. |
 | Slack integration approach | Webhook-based | Post to shared channel via incoming webhook. No OAuth, no per-user mapping. Upgradeable to Web API later. |
 | Shift type derivation | Role-based auto-detect | Assigning a user reads their role — student assignment = student shift, staff = staff shift. Badged accordingly. |
