@@ -92,11 +92,13 @@ export async function recordScan(args: {
     }
 
     if (args.scanType === ScanType.SERIALIZED) {
+      const sv = args.scanValue.toLowerCase();
       const asset = booking.serializedItems.find((item) => {
         const a = item.asset;
-        return a.qrCodeValue === args.scanValue
-          || a.primaryScanCode === args.scanValue
-          || a.assetTag === args.scanValue;
+        const qr = a.qrCodeValue.toLowerCase();
+        const sc = a.primaryScanCode?.toLowerCase() ?? "";
+        const tag = a.assetTag.toLowerCase();
+        return qr === sv || qr === `qr-${sv}` || sc === sv || sc === `qr-${sv}` || tag === sv;
       })?.asset;
 
       if (!asset) {
@@ -424,6 +426,14 @@ export async function completeCheckoutScan(bookingId: string, actorUserId: strin
       });
     }
 
+    // Require a condition photo before completing checkout
+    const photoCount = await tx.bookingPhoto.count({
+      where: { bookingId, phase: ScanPhase.CHECKOUT },
+    });
+    if (!override && photoCount === 0) {
+      throw new HttpError(400, "A condition photo is required before completing checkout");
+    }
+
     await tx.scanSession.updateMany({
       where: {
         bookingId,
@@ -466,6 +476,14 @@ export async function completeCheckinScan(bookingId: string, actorUserId: string
         missingSerialized: state.missingSerialized,
         missingBulk: state.missingBulk
       });
+    }
+
+    // Require a condition photo before completing checkin
+    const photoCount = await tx.bookingPhoto.count({
+      where: { bookingId, phase: ScanPhase.CHECKIN },
+    });
+    if (!override && photoCount === 0) {
+      throw new HttpError(400, "A condition photo is required before completing check-in");
     }
 
     await tx.scanSession.updateMany({

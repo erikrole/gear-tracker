@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -65,11 +65,6 @@ export default function BookingDetailPage({
   const [showExtend, setShowExtend] = useState(false);
   const [extendDate, setExtendDate] = useState("");
 
-  // Checkout-specific: checkin state — select all returnable items by default
-  const [checkinIds, setCheckinIds] = useState<Set<string>>(new Set());
-  const [bulkReturnQty, setBulkReturnQty] = useState<Record<string, number>>({});
-  const checkinIdsInitialised = useRef(false);
-
   // History collapse state
   const [historyExpanded, setHistoryExpanded] = useState(false);
 
@@ -89,15 +84,6 @@ export default function BookingDetailPage({
     const timer = setInterval(() => setNow(new Date()), interval);
     return () => clearInterval(timer);
   }, [liveUrgency]);
-
-  const toggleCheckin = useCallback((assetId: string) => {
-    setCheckinIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(assetId)) next.delete(assetId);
-      else next.add(assetId);
-      return next;
-    });
-  }, []);
 
   async function handleExtend() {
     if (!extendDate) return;
@@ -121,38 +107,6 @@ export default function BookingDetailPage({
     setShowExtend(true);
   }
 
-  async function handleCheckinSelected() {
-    if (!booking) return;
-    const returning = Array.from(checkinIds);
-    // Optimistically mark items as returned before API call
-    const returningSet = new Set(returning);
-    const previousItems = booking.serializedItems;
-    patchLocal({
-      serializedItems: previousItems.map((item) =>
-        returningSet.has(item.asset.id)
-          ? { ...item, allocationStatus: "returned" }
-          : item,
-      ),
-    });
-    setCheckinIds(new Set());
-    const ok = await actions.checkinItems(returning);
-    if (ok) {
-      // Allow auto-select to re-fire on reload for remaining items
-      checkinIdsInitialised.current = false;
-    } else {
-      // Rollback optimistic update on failure
-      patchLocal({ serializedItems: previousItems });
-      setCheckinIds(returningSet);
-    }
-  }
-
-  async function handleBulkReturn(bulkItemId: string) {
-    const qty = bulkReturnQty[bulkItemId];
-    if (!qty || qty <= 0) return;
-    const ok = await actions.checkinBulk(bulkItemId, qty);
-    if (ok) setBulkReturnQty((prev) => ({ ...prev, [bulkItemId]: 0 }));
-  }
-
   // Derived
   const allowedActions = booking?.allowedActions ?? [];
   const canEdit = allowedActions.includes("edit");
@@ -164,18 +118,6 @@ export default function BookingDetailPage({
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
   const hasAnyAction = canEdit || canExtend || canConvert || canCancel || canDuplicate || canCheckin;
-
-  // Auto-select all returnable serialized items on first load
-  useEffect(() => {
-    if (checkinIdsInitialised.current || !booking || !canCheckin) return;
-    const returnable = booking.serializedItems
-      .filter((i) => i.allocationStatus !== "returned")
-      .map((i) => i.asset.id);
-    if (returnable.length > 0) {
-      setCheckinIds(new Set(returnable));
-      checkinIdsInitialised.current = true;
-    }
-  }, [booking, canCheckin]);
 
   // Keyboard shortcut: E to open edit sheet
   useEffect(() => {
@@ -302,14 +244,6 @@ export default function BookingDetailPage({
                     disabled={!!actions.actionLoading}
                   >
                     {actions.actionLoading === "duplicate" ? "Duplicating..." : "Duplicate"}
-                  </DropdownMenuItem>
-                )}
-                {kind === "CHECKOUT" && canCheckin && (
-                  <DropdownMenuItem
-                    onSelect={actions.completeCheckin}
-                    disabled={!!actions.actionLoading}
-                  >
-                    {actions.actionLoading === "complete-checkin" ? "Completing..." : "Complete check in"}
                   </DropdownMenuItem>
                 )}
                 {canCancel && (
@@ -480,23 +414,6 @@ export default function BookingDetailPage({
         <div>
           <BookingEquipmentTab
             booking={booking}
-            canCheckin={kind === "CHECKOUT" && canCheckin}
-            checkinIds={checkinIds}
-            onToggleCheckin={toggleCheckin}
-            onCheckinSelected={handleCheckinSelected}
-            onSelectAll={() => {
-              const all = booking.serializedItems
-                .filter((i) => i.allocationStatus !== "returned")
-                .map((i) => i.asset.id);
-              setCheckinIds(new Set(all));
-            }}
-            onClearSelection={() => setCheckinIds(new Set())}
-            bulkReturnQty={bulkReturnQty}
-            onBulkReturnQtyChange={(itemId, qty) =>
-              setBulkReturnQty((prev) => ({ ...prev, [itemId]: qty }))
-            }
-            onBulkReturn={handleBulkReturn}
-            actionLoading={actions.actionLoading}
           />
         </div>
       </div>

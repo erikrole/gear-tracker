@@ -100,7 +100,10 @@ export const GET = withAuth(async (req, { user }) => {
           OR: [
             ...(qr ? [
               { qrCodeValue: { equals: qr, mode: "insensitive" as const } },
+              { qrCodeValue: { equals: `QR-${qr}`, mode: "insensitive" as const } },
               { primaryScanCode: { equals: qr, mode: "insensitive" as const } },
+              { primaryScanCode: { equals: `QR-${qr}`, mode: "insensitive" as const } },
+              { assetTag: { equals: qr, mode: "insensitive" as const } },
             ] : []),
             ...(q ? [
               { assetTag: { contains: q, mode: "insensitive" as const } },

@@ -14,7 +14,8 @@ import { useScanSubmission } from "@/hooks/use-scan-submission";
 import { ScanControls } from "./_components/ScanControls";
 import { ScanChecklist } from "./_components/ScanChecklist";
 import { UnitPickerSheet } from "./_components/UnitPickerSheet";
-import { ItemPreviewSheet } from "./_components/ItemPreviewSheet";
+import { ItemPreviewDrawer } from "./_components/ItemPreviewDrawer";
+import PhotoCaptureDialog from "@/components/PhotoCaptureDialog";
 import type { ScanMode } from "./_components/types";
 
 export default function ScanPage() {
@@ -234,6 +235,17 @@ export default function ScanPage() {
         </div>
       )}
 
+      {/* ══════ Photo capture before completion ══════ */}
+      {isBookingMode && checkoutId && (
+        <PhotoCaptureDialog
+          open={session.showPhotoCapture}
+          onOpenChange={session.setShowPhotoCapture}
+          checkoutId={checkoutId}
+          phase={mode === "checkin" ? "CHECKIN" : "CHECKOUT"}
+          onPhotoUploaded={session.proceedAfterPhoto}
+        />
+      )}
+
       {/* ══════ Celebration overlay ══════ */}
       {session.showCelebration && (
         <div
@@ -250,8 +262,8 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* ══════ Item preview bottom sheet (lookup mode) ══════ */}
-      <ItemPreviewSheet
+      {/* ══════ Item preview drawer (lookup mode) ══════ */}
+      <ItemPreviewDrawer
         item={submission.itemPreview}
         onClose={() => submission.setItemPreview(null)}
       />

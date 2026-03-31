@@ -162,7 +162,8 @@ export function useScanSubmission(
         if (bgMatch) searchTerm = bgMatch[2];
 
         // Search with both original QR value and stripped term for best match
-        const qrParam = value !== searchTerm ? `&qr=${encodeURIComponent(value)}` : "";
+        // Always pass qr= so the API checks qrCodeValue/primaryScanCode fields
+        const qrParam = `&qr=${encodeURIComponent(value)}`;
         const res = await fetch(
           `/api/assets?q=${encodeURIComponent(searchTerm)}${qrParam}&limit=5`,
         );
@@ -181,12 +182,14 @@ export function useScanSubmission(
         const json = await res.json();
         const assets: LookupResult[] = json.data ?? [];
 
-        const exact = assets.find(
-          (a) =>
-            a.qrCodeValue === value ||
-            a.primaryScanCode === value ||
-            a.assetTag === searchTerm,
-        );
+        const v = value.toLowerCase();
+        const s = searchTerm.toLowerCase();
+        const exact = assets.find((a) => {
+          const qr = a.qrCodeValue?.toLowerCase() ?? "";
+          const sc = a.primaryScanCode?.toLowerCase() ?? "";
+          const tag = a.assetTag.toLowerCase();
+          return qr === v || qr === `qr-${v}` || sc === v || sc === `qr-${v}` || tag === s;
+        });
         const match = exact ?? assets[0];
 
         if (match) {

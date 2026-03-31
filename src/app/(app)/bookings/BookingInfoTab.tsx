@@ -10,10 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
-import { BoxesIcon, Copy, TriangleAlert } from "lucide-react";
+import { BoxesIcon, CameraIcon, Copy, TriangleAlert } from "lucide-react";
 import { formatDateTime, formatDuration } from "@/lib/format";
 import { useToast } from "@/components/Toast";
-import type { BookingDetail } from "@/components/booking-details/types";
+import type { BookingDetail, BookingPhoto } from "@/components/booking-details/types";
 
 export default function BookingInfoTab({
   booking,
@@ -165,6 +165,11 @@ export default function BookingInfoTab({
         <span className="text-sm">{formatDateTime(booking.createdAt)}</span>
       </SaveableField>
 
+      {/* Condition photos */}
+      {booking.photos && booking.photos.length > 0 && (
+        <ConditionPhotos photos={booking.photos} />
+      )}
+
       {/* Mixed location warning */}
       {booking.locationMode === "MIXED" && booking.itemLocations.length > 1 && (
         <Alert className="rounded-t-none border-x-0 border-b-0">
@@ -176,5 +181,56 @@ export default function BookingInfoTab({
         </Alert>
       )}
     </Card>
+  );
+}
+
+/* ── Condition Photos ── */
+
+function ConditionPhotos({ photos }: { photos: BookingPhoto[] }) {
+  const checkoutPhotos = photos.filter((p) => p.phase === "CHECKOUT");
+  const checkinPhotos = photos.filter((p) => p.phase === "CHECKIN");
+
+  return (
+    <div className="px-4 pb-3 space-y-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <CameraIcon className="size-3.5" />
+        Condition Photos
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {checkoutPhotos.length > 0 && (
+          <PhotoGroup label="Checkout" photos={checkoutPhotos} />
+        )}
+        {checkinPhotos.length > 0 && (
+          <PhotoGroup label="Check-in" photos={checkinPhotos} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PhotoGroup({ label, photos }: { label: string; photos: BookingPhoto[] }) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {photos.map((photo) => (
+        <a
+          key={photo.id}
+          href={photo.imageUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-lg overflow-hidden border border-border hover:border-foreground/20 transition-colors"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photo.imageUrl}
+            alt={`${label} condition photo`}
+            className="w-full h-auto object-cover"
+          />
+        </a>
+      ))}
+      <span className="text-[11px] text-muted-foreground">
+        by {photos[0].actor.name} &middot; {formatDateTime(photos[0].createdAt)}
+      </span>
+    </div>
   );
 }
