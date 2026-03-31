@@ -493,20 +493,99 @@ type CalendarEventBarProps = {
 ### 7. Slack Integration
 **Goal:** Replace/supplement email and SMS notifications with Slack
 **Current state:** Notifications use in-app + email (Resend). No SMS exists. No Slack integration.
+
 **What's needed:**
 - **Decision: Webhook-based** — post to a shared Slack channel via incoming webhook (simplest)
-- Schema: Add `slackWebhookUrl` to `SystemConfig` (or env var)
+- Config stored in `SystemConfig` key `"slack"` — no migration needed, no env var
 - Integration: Simple `fetch()` POST to Slack webhook URL — no OAuth, no per-user DMs
-- Notification service: Extend `src/lib/services/notifications.ts` with Slack webhook channel (overdue alerts, shift changes, escalations posted to shared channel)
-- Settings: Admin config for webhook URL + which notification types post to Slack
+- New service: `src/lib/services/slack.ts` — fire-and-forget, never throws to caller
+- Settings: Admin config page `/settings/slack` for webhook URL + per-event toggles + test button
 - No per-user Slack mapping needed — all notifications go to one channel
-- Future: Upgrade to Slack Web API with per-user DMs if webhook proves insufficient
-- **Files:** `src/lib/services/notifications.ts`, `src/app/(app)/settings/integrations/` (new), `src/app/api/settings/slack/` (new)
+- Future: Upgrade to Slack Web API with per-user DMs or interactive buttons if needed
+- **Files:** `src/lib/services/slack.ts` (new), `src/app/(app)/settings/slack/page.tsx` (new), `src/app/api/settings/slack/route.ts` (new); wire into 3 existing API routes
 - **Complexity:** M (down from XL with webhook approach)
+
+*Full research and design in `tasks/slack-integration-research.md` — this section summarizes decisions and adds edge cases not covered there.*
+
+**Resolved open questions (from research doc):**
+1. **Single channel:** One webhook URL → one channel. Multiple channels (per-event) is a V2 upgrade if needed.
+2. **ADMIN-only settings:** Webhook URL is sensitive (it's the secret). ADMIN-only PATCH, consistent with escalation settings.
+3. **App base URL:** Require `NEXT_PUBLIC_APP_URL` env var on Vercel for deep links in Block Kit messages. Fail gracefully (omit the link) if unset rather than crashing.
+4. **Bulk check-in:** `checkin-bulk` route should also trigger Slack — same event, same message format.
+5. **Checkout open vs reservation:** Notify on **reservation created** (pre-planning signal) AND **checkout completed** (gear-leaving signal). Two separate toggle entries in settings.
+
+**Notification event roster (V1):**
+| Event key | Trigger | Channel purpose |
+|-----------|---------|-----------------|
+| `gear_checkin` | Gear returned (checkout completed) | Ops visibility |
+| `gear_checkin_bulk` | Bulk gear returned | Ops visibility |
+| `gear_reservation` | Reservation created | Planning awareness |
+| `gear_checkout` | Checkout opened (gear leaves) | Ops visibility |
+| `shift_request` | Student requests a shift | Scheduling awareness |
+
+**Service design (`src/lib/services/slack.ts`):**
+```ts
+// Config shape stored in SystemConfig.value for key "slack"
+interface SlackConfig {
+  webhookUrl: string;
+  enabled: boolean;
+  notifications: Record<SlackEventType, boolean>;
+}
+
+export async function sendSlackNotification(
+  event: SlackEventType,
+  data: SlackEventData[typeof event]
+): Promise<void> {
+  try {
+    const config = await getSlackConfig();  // single DB read, ~1ms
+    if (!config?.enabled || !config.notifications[event] || !config.webhookUrl) return;
+    const payload = buildPayload(event, data);
+    const res = await fetch(config.webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000),  // don't hang indefinitely
+    });
+    if (!res.ok) console.error(`[Slack] ${event} failed: ${res.status}`);
+  } catch (err) {
+    console.error("[Slack] notification threw:", err);
+    // Never rethrow — Slack failure must not affect user flows
+  }
+}
+```
+
+All callers use `void sendSlackNotification(...)` — fire-and-forget.
+
+**Settings UX flow:**
+1. Admin navigates to `/settings/slack`
+2. Master toggle: "Enable Slack notifications" (disabling this silences all Slack without losing config)
+3. Webhook URL field + "Send test message" button → posts a test Block Kit message, shows inline success/error
+4. Per-event toggles for each event in the roster above
+5. "Save Changes" via `useFormSubmit` pattern, PATCH `/api/settings/slack`
+6. URL field shows a masked preview of the current URL if already set (show last 8 chars only — the URL is a secret)
+
+**Edge cases:**
+- **Invalid/expired webhook URL:** Slack returns `{"error": "invalid_payload"}` with a 200 or returns a non-200. Either way `res.ok` check catches it. The test button surfaces this to admin immediately; production events fail silently (logged).
+- **Slack is down (5xx):** `AbortSignal.timeout(5000)` prevents indefinite hang. Error is logged, user never sees it.
+- **Rate limiting (429):** Logged. No retry in V1 — at this org's scale, hitting 1 msg/sec is unlikely. Add retry logic only if it becomes a real problem.
+- **`NEXT_PUBLIC_APP_URL` not set:** `buildPayload` checks for this before constructing deep links. If unset, the context element with the link is omitted from the Block Kit payload rather than including a broken URL.
+- **Admin saves webhook URL then disables master toggle:** Config is preserved. Re-enabling master toggle restores all notification settings without re-entering the URL.
+- **Config not yet initialized (null row in SystemConfig):** `getSlackConfig()` returns null → service exits early without error. Settings page shows empty/disabled state with a prompt to configure.
+- **Concurrent settings saves (two admins):** Last write wins. Acceptable at this scale.
+- **Test button before saving URL:** Disable test button unless the URL field has a value. Test uses the current field value (not saved value), so admins can test before committing.
+
+**Hardening:**
+- Slack calls are always `void` — never `await`-ed in the API route handler
+- `AbortSignal.timeout(5000)` on every fetch call
+- PATCH `/api/settings/slack` validates: `webhookUrl` must start with `https://hooks.slack.com/` (prevents storing arbitrary URLs as a Slack config)
+- AuditLog entry when webhook URL is changed (actor, "slack config updated" — don't log the URL value itself)
+- Settings page is ADMIN-only (both UI and API)
+- No Slack URL ever appears in client-side code or responses — it's read server-side only
 
 ### 8. Better Events/Schedules UI
 **Goal:** More intuitive UI surrounding events and schedules
 **Current state:** Schedule page (`src/app/(app)/schedule/page.tsx`) has calendar + list views with shift management. Event detail page (`src/app/(app)/events/[id]/page.tsx`) has Command Center. Both are functional but could be more intuitive.
+
 **What's needed:**
 - UX audit: Identify specific pain points (this is broad — needs user feedback to scope)
 - Potential improvements:
@@ -516,8 +595,80 @@ type CalendarEventBarProps = {
   - Quick filters: "This week", "Next week", sport-specific views
   - Event cards with at-a-glance gear readiness indicator
 - Depends on: Calendar multi-day enhancement (#6) as foundation
-- **Files:** `src/app/(app)/schedule/page.tsx`, `src/components/CalendarView.tsx`, `src/components/ListView.tsx`, `src/app/(app)/events/[id]/page.tsx`
+- **Files:** `src/app/(app)/schedule/page.tsx`, `src/app/(app)/schedule/_components/CalendarView.tsx`, `src/app/(app)/schedule/_components/ListView.tsx`, `src/app/(app)/events/[id]/page.tsx`
 - **Complexity:** L-XL (scope-dependent)
+
+**Scope decision — what to build vs. defer:**
+This feature is intentionally broad. Rather than building everything at once (XL risk), scope it as a series of focused improvements. Prioritized below by value/effort ratio.
+
+**Tier 1 — Ship in Phase C3 (high value, moderate effort):**
+
+*Quick filters on schedule page:*
+- "This week" / "Next week" / "This month" shortcut chips above the calendar
+- Sport filter (already exists on dashboard — reuse the same dropdown)
+- These replace the manual "navigate to date" pattern — reduce clicks to find relevant events
+- URL state: `?filter=this-week|next-week|this-month&sport=` via `useUrlState`
+
+*Gear readiness badge on event cards (list view):*
+- Each event in ListView shows a colored dot: green = all gear booked, yellow = partial gear, red = no gear booked, gray = no gear needed / unknown
+- Computed from: count of active CHECKOUT or RESERVATION bookings linked to this event vs. expected gear (if sport has a gear template — deferred; for now, just "has any booking")
+- Single additional query per event batch: `SELECT event_id, COUNT(*) FROM bookings WHERE event_id IN (...) AND status NOT IN ('CANCELLED', 'DRAFT') GROUP BY event_id`
+- This is a read-only display improvement — zero schema changes
+
+*Inline event creation from calendar (click empty day):*
+- Clicking an empty day cell on the CalendarView opens a minimal "Create Event" sheet
+- Sheet pre-fills `startsAt` with the clicked date
+- On submit → POST `/api/events` (existing endpoint) → calendar refreshes
+- This removes the friction of navigating to `/events/new` from the calendar
+
+**Tier 2 — Defer to Phase C3+ (high effort, lower immediate urgency):**
+
+*Drag-to-assign shifts on calendar:*
+- Requires `@dnd-kit` integration on the calendar grid
+- Complex drop targets (shift slot + user card)
+- Defer until Availability Tracking (#9) ships — knowing who's available makes drag-assign much more useful
+- Pre-requisite: Feature #9 availability overlay
+
+*Timeline/Gantt view for shift coverage:*
+- Horizontal axis = time of day, rows = shift areas (VIDEO/PHOTO/GRAPHICS/COMMS)
+- Shows gaps in coverage at a glance for an event
+- High implementation effort; most useful for large events
+- Defer until there's user demand signal
+
+**Intended UX flows (Tier 1):**
+
+*Quick filters:*
+1. User lands on `/schedule` — calendar shows current month
+2. Filter chips row above calendar: "This week" | "Next week" | "This month" | [Sport dropdown]
+3. Clicking "This week" → calendar jumps to current week view (or highlights the week in month view) and list view filters to events in that range
+4. Sport filter narrows both calendar event bars and list rows to the selected sport
+5. Active filter chips are visually highlighted; "×" to clear
+
+*Gear readiness on event cards:*
+1. ListView renders event rows as before, now with a colored dot in a "Gear" column
+2. Hover dot → tooltip: "2 bookings linked" or "No gear booked"
+3. Dot is not a link — it's informational only (click the row to go to event detail for full gear view)
+
+*Inline create from calendar:*
+1. User clicks empty day in CalendarView → CreateEventSheet slides in
+2. Sheet has minimal fields: title (required), sport, location, start/end date (pre-filled)
+3. On save → event appears on calendar immediately (optimistic update or refetch)
+4. Escape or "×" cancels without navigation
+
+**Edge cases:**
+- **Click on existing event bar vs. empty day cell:** Click on a bar → navigate to event detail (existing behavior). Click on empty space within that day → open create sheet. The hit targets must not overlap — event bars should have `stopPropagation` on click.
+- **"This week" filter at end of month:** The week may span two months. Calendar should show the full week even if it crosses a month boundary.
+- **Sport filter with no events matching:** Show empty state in list view ("No events for [sport] this period"). Don't show a broken or confused calendar.
+- **Gear readiness for draft bookings:** Draft bookings don't count toward "gear covered" — only ACTIVE/RESERVED statuses. Don't show the wrong green dot.
+- **Inline create on a day far in the past:** Allow — operators sometimes need to log historical events. No validation block on past dates.
+- **Multiple admins creating events simultaneously:** Standard last-write-wins, no locking needed.
+
+**Hardening:**
+- Quick filters are purely client-side URL state — no new API endpoints
+- Gear readiness batch query is a single aggregation, not N+1
+- Inline create reuses existing `POST /api/events` — no new API route
+- All new UI components follow the existing schedule page decomposition pattern (small, focused components, data managed in parent via `useFetch`)
+- `npm run build` check after each tier's changes
 
 ### 9. Availability Tracking
 **Goal:** Users declare availability (daily, weekly, 'until XX' patterns)
@@ -627,6 +778,7 @@ GET    /api/availability/check?userId=&date= → boolean: is this user available
 ### 10. Performance Enhancements
 **Goal:** Perf improvements across the board
 **Current state:** GAP-11 notes no cross-page cache (every navigation re-fetches). DB perf audit shipped 2026-03-27 (indexes, query consolidation). `useFetch` with Page Visibility API refresh is standard.
+
 **What's needed:**
 - React Query migration: Replace `useFetch` with `@tanstack/react-query` for shared cache, stale-while-revalidate, background refetch, optimistic updates (GAP-11 V3)
 - Bundle analysis: Run `@next/bundle-analyzer` (already in devDeps), identify heavy chunks, add dynamic imports
@@ -636,6 +788,106 @@ GET    /api/availability/check?userId=&date= → boolean: is this user available
 - Lighthouse audit for Core Web Vitals baseline
 - **Files:** All pages using `useFetch`, `package.json`, `next.config.ts`
 - **Complexity:** L (incremental, spread across codebase)
+
+**Work streams — broken down by impact tier:**
+
+---
+
+#### 10a. React Query Migration (biggest win)
+
+The current `useFetch` hook does one fetch per mount and refetches on Page Visibility. There is no shared cache — navigating dashboard → bookings → dashboard triggers two full re-fetches of dashboard data. React Query fixes this with a cross-component, cross-navigation cache.
+
+**Migration strategy:**
+1. Install `@tanstack/react-query` + wrap `AppLayout` in `QueryClientProvider`
+2. Define a central `queryKeys.ts` file with typed key factories per resource
+3. Replace `useFetch<T>(url)` calls with `useQuery({ queryKey: queryKeys.xxx, queryFn: () => fetch(url) })`
+4. Replace form submits with `useMutation` + `queryClient.invalidateQueries` on success
+5. Migrate pages in order: Dashboard (highest traffic) → Bookings → Items → Schedule → Users → others
+
+**Stale time defaults:**
+| Resource | `staleTime` | Rationale |
+|----------|------------|-----------|
+| Dashboard stats | 30s | Changes frequently, short staleness ok |
+| Bookings list | 15s | Operational data, needs to be fresh |
+| Items/assets | 60s | Changes less often |
+| Nav badge counts | 30s | Unread notifications, reasonably fresh |
+| Static config (sports, locations) | 5 min | Changes rarely |
+
+**Optimistic mutations (high-value targets):**
+- Toggle favorite item (already instant-feeling — make it truly optimistic)
+- Mark notification as read
+- Availability block create/delete (Feature #9)
+
+**Rollout safety:**
+- Migrate one page at a time, verify no regression in behavior
+- Keep `useFetch` hook in place during migration — don't delete until all callers are gone
+- DevTools: `ReactQueryDevtools` in dev mode only (`process.env.NODE_ENV === 'development'`)
+
+**Edge cases:**
+- **Query key collisions:** `queryKeys.ts` must be the single source of truth. If two components use different string keys for the same endpoint, they won't share cache. Enforce via the key factory pattern.
+- **Mutation success on one page invalidating another page's cache:** Use broad invalidation on mutations (e.g., `invalidateQueries({ queryKey: ['bookings'] })` invalidates all booking queries). This is intentionally over-broad — correctness over minimal invalidation.
+- **Auth expiry mid-session:** React Query's `onError` handler should detect 401 responses and redirect to login (same as current `useFetch` behavior).
+- **Background refetch on tab focus conflicts with Page Visibility API in `useFetch`:** Once a page is migrated to React Query, remove the Page Visibility listener from that page. Don't run both.
+
+---
+
+#### 10b. Bundle Analysis + Dynamic Imports
+
+**Approach:**
+1. Run `ANALYZE=true npm run build` to generate bundle report (already configured in `next.config.ts`)
+2. Identify chunks over 100KB that load on initial navigation
+3. Add `dynamic(() => import(...), { ssr: false })` for:
+   - `CalendarView` component (likely heavy with date logic)
+   - `DataTable` (shadcn + tanstack table)
+   - Any new heavy additions from Phase C features (reactflow if added, fullcalendar if added)
+   - MDX renderer (Guides feature)
+
+**Expected wins:**
+- Calendar and DataTable are only needed on specific pages — lazy-loading them saves ~50-100KB on initial load for pages that don't use them
+- Guides MDX renderer is never needed on non-guide pages
+
+**Edge cases:**
+- **Dynamic import with SSR disabled causes hydration mismatch:** Use `{ ssr: false }` only for client-heavy components (charts, canvas, drag-and-drop). Keep SSR on for anything that affects layout.
+- **Loading flash:** Dynamic imports show a fallback skeleton. Use `loading: () => <Skeleton />` in the dynamic import options rather than showing nothing.
+
+---
+
+#### 10c. API Route Optimization (N+1 and Select Clauses)
+
+**Audit targets** (most likely to have missed optimizations post-Phase B):
+- `GET /api/org-chart` — newly added in Phase C; build it right from the start with a single query
+- `GET /api/assets/picker-search` with frequency — ensure frequency aggregation is a single JOIN, not N+1
+- `GET /api/users` list — ensure `include` only fetches what the list UI needs (not full user graph)
+- `GET /api/availability/check` — must be a single indexed lookup, not a table scan
+
+**Pattern:** Every Prisma `findMany` should have an explicit `select` or narrow `include`. Never `include: { relation: true }` if only one field from that relation is needed.
+
+---
+
+#### 10d. Image Optimization
+
+- All `<img>` tags must use `next/image`
+- Avatars: use `next/image` with `width={32} height={32}` (or the displayed size) + `sizes` prop
+- Booking photos: use `next/image` with responsive `sizes`
+- Check for any avatar URLs coming from Vercel Blob — ensure they're served through `/_next/image` optimization
+
+---
+
+#### 10e. Lighthouse Baseline
+
+Run once before Phase C work begins to capture baseline scores. Re-run after each phase to confirm improvements, not regressions.
+
+**Target metrics (Hobby tier Vercel):**
+- LCP < 2.5s
+- CLS < 0.1
+- FID/INP < 200ms
+- Bundle size per route < 200KB JS
+
+**Hardening (cross-stream):**
+- React Query DevTools must not ship in production builds — guard with `NODE_ENV` check
+- `queryClient` should be created per-request in SSR contexts if RSC migration happens
+- Dynamic imports must have meaningful loading skeletons — blank flashes are worse than synchronous loads
+- Bundle analysis must be re-run after any new heavy library addition (reactflow, fullcalendar, etc.) before merging
 
 ---
 
