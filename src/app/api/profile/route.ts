@@ -1,9 +1,15 @@
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { changePasswordSchema, updateProfileSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+
+const profilePatchSchema = z.union([
+  changePasswordSchema.extend({ action: z.literal("change_password") }),
+  updateProfileSchema,
+]);
 
 export const GET = withAuth(async (_req, { user }) => {
   const profile = await db.user.findUniqueOrThrow({
@@ -35,10 +41,18 @@ export const GET = withAuth(async (_req, { user }) => {
 });
 
 export const PATCH = withAuth(async (req, { user }) => {
-  const body = await req.json();
+  let body: z.infer<typeof profilePatchSchema>;
+  try {
+    body = profilePatchSchema.parse(await req.json());
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      throw new HttpError(400, err.errors.map((e) => e.message).join(", "));
+    }
+    throw err;
+  }
 
-  if (body.action === "change_password") {
-    const payload = changePasswordSchema.parse(body);
+  if ("action" in body && body.action === "change_password") {
+    const payload = body;
     const existing = await db.user.findUniqueOrThrow({ where: { id: user.id } });
     const valid = await verifyPassword(existing.passwordHash, payload.currentPassword);
 
@@ -63,7 +77,7 @@ export const PATCH = withAuth(async (req, { user }) => {
     return ok({ message: "Password updated" });
   }
 
-  const payload = updateProfileSchema.parse(body);
+  const payload = body as z.infer<typeof updateProfileSchema>;
 
   const current = await db.user.findUniqueOrThrow({
     where: { id: user.id },

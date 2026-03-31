@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
@@ -10,6 +11,11 @@ import {
 } from "@/lib/services/sport-configs";
 import { createAuditEntry } from "@/lib/audit";
 
+const rosterBodySchema = z.union([
+  z.object({ userIds: z.array(z.string().cuid()).min(1) }),
+  z.object({ userId: z.string().cuid() }),
+]);
+
 export const GET = withAuth<{ sportCode: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "student_sport", "view");
   const { sportCode } = params;
@@ -20,10 +26,19 @@ export const GET = withAuth<{ sportCode: string }>(async (_req, { user, params }
 export const POST = withAuth<{ sportCode: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "student_sport", "manage");
   const { sportCode } = params;
-  const body = await req.json();
+
+  let body: z.infer<typeof rosterBodySchema>;
+  try {
+    body = rosterBodySchema.parse(await req.json());
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      throw new HttpError(400, err.errors.map((e) => e.message).join(", "));
+    }
+    throw err;
+  }
 
   // Support both single and bulk add
-  if (body.userIds) {
+  if ("userIds" in body) {
     const parsed = sportRosterBulkSchema.parse({ ...body, sportCode });
     const roster = await bulkAddToRoster(parsed.userIds, sportCode);
 
