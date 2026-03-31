@@ -33,6 +33,7 @@
 - D-023: Item Bundling via Parent-Child Accessories
 - D-024: Booking reference numbers use kind prefix (CO/RV) with global sequence
 - D-025: User-facing status labels are display-only — DB enum stays unchanged
+- D-028: Photo requirement on checkout/checkin — camera-only, scan-only checkin
 
 ---
 
@@ -496,6 +497,28 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Risk: Alert fatigue from escalation.
   - Mitigation: threshold controls + dedup keys + policy review.
 
+## D-028: Photo Requirement on Checkout/Checkin
+
+**Decision (2026-03-30):** Every checkout and checkin completion requires a condition photo captured via the device camera. Manual checkbox-based item return is removed — all checkins must go through the scan flow.
+
+**Context:** Equipment accountability requires documenting condition at both handoff points. Without photos, damage disputes lack evidence. Without scan-based checkin, items can be marked as returned without physical verification.
+
+**Constraints:**
+- Camera-only capture (no gallery upload) to ensure photo is taken at the moment of handoff
+- One photo per booking per phase (equipment laid out together)
+- Photos stored in Vercel Blob under `bookings/{id}/{phase}/`
+- `BookingPhoto` model tracks phase, image URL, actor, and timestamp
+- Completion endpoints (`completeCheckoutScan`, `completeCheckinScan`) enforce photo existence
+- Admin override bypasses photo requirement (consistent with scan override pattern)
+- Photos displayed on booking detail page in the info tab
+
+**Downstream Effects:**
+- Manual checkin UI removed from `BookingEquipmentTab` (checkboxes, bulk return inputs)
+- "Complete check in" dropdown action removed from detail page
+- All checkins now flow through `/scan?checkout={id}&phase=CHECKIN`
+
+---
+
 ## Pending Decisions
 1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
 2. ~~Venue mapping governance owner~~ — Resolved: D-027.
@@ -515,3 +538,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-22: Added D-025 — user-facing status labels (OPEN→"Checked out", BOOKED→"Confirmed") via `statusLabel()` helper. DB enum unchanged.
 - 2026-03-24: Added D-026 (event sync hourly cron + staleness indicator — resolves PD-3) and D-027 (venue mapping admin-only + pattern validation — resolves PD-2). All pending decisions now resolved.
 - 2026-03-25: Doc sync — resolved PD-4 (student KPIs defined). Updated D-010 to reflect shipped state (B&H withdrawn, notification center shipped, student dashboard shipped). Updated D-009 email channel from "Phase B" to "Shipped 2026-03-16". Updated D-019 from "Phase B" to "Shipped 2026-03-21" (department filter + combobox).
+- 2026-03-30: Added D-028 (photo requirement on checkout/checkin — camera-only capture, scan-only checkin, BookingPhoto model).

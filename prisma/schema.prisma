@@ -97,6 +97,7 @@ model User {
   favorites           FavoriteItem[]
   passwordResetTokens PasswordResetToken[]
   notifications       Notification[]
+  bookingPhotos       BookingPhoto[]     @relation("BookingPhotoActor")
 
   @@map("users")
 }
@@ -257,6 +258,7 @@ model Booking {
   scanSessions        ScanSession[]
   overrides           OverrideEvent[]
   bulkMovements       BulkStockMovement[]
+  photos              BookingPhoto[]
 
   @@index([locationId, startsAt, endsAt])
   @@index([status, kind])
@@ -804,4 +806,19 @@ model ShiftTrade {
   @@index([postedByUserId])
   @@index([claimedByUserId])
   @@map("shift_trades")
+}
+
+model BookingPhoto {
+  id        String    @id @default(cuid())
+  bookingId String    @map("booking_id")
+  phase     ScanPhase
+  imageUrl  String    @map("image_url")
+  actorId   String    @map("actor_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor     User      @relation("BookingPhotoActor", fields: [actorId], references: [id])
+
+  @@index([bookingId, phase])
+  @@map("booking_photos")
 }

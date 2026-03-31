@@ -62,6 +62,15 @@ export type BookingDetail = {
   sportCode?: string | null;
   shiftAssignment?: { id: string; shift: { area: string } } | null;
   kit?: { id: string; name: string } | null;
+  photos?: BookingPhoto[];
+};
+
+export type BookingPhoto = {
+  id: string;
+  phase: "CHECKOUT" | "CHECKIN";
+  imageUrl: string;
+  createdAt: string;
+  actor: { id: string; name: string };
 };
 
 export type AvailableAsset = {

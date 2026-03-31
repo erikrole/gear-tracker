@@ -22,6 +22,11 @@ type UseScanSessionResult = {
   completing: boolean;
   loadScanStatus: () => Promise<void>;
   handleComplete: () => Promise<void>;
+  /** True when the photo capture dialog should be shown before completion */
+  showPhotoCapture: boolean;
+  setShowPhotoCapture: (v: boolean) => void;
+  /** Call after photo is uploaded to proceed with completion */
+  proceedAfterPhoto: () => Promise<void>;
 };
 
 function vibrate(ms = 100) {
@@ -40,6 +45,7 @@ export function useScanSession(
   const [loadError, setLoadError] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [showPhotoCapture, setShowPhotoCapture] = useState(false);
 
   const toastRef = useRef(toast);
   toastRef.current = toast;
@@ -120,8 +126,8 @@ export function useScanSession(
     return () => clearInterval(interval);
   }, [isBookingMode, checkoutId, phase, loadScanStatus]);
 
-  // Complete checkout/checkin
-  const handleComplete = useCallback(async () => {
+  // Actually call the completion endpoint (used after photo is uploaded)
+  const doComplete = useCallback(async () => {
     if (!checkoutId || completingRef.current) return;
     completingRef.current = true;
     setCompleting(true);
@@ -157,6 +163,18 @@ export function useScanSession(
     setCompleting(false);
   }, [checkoutId, mode, router]);
 
+  // Complete checkout/checkin — opens photo dialog first
+  const handleComplete = useCallback(async () => {
+    if (!checkoutId) return;
+    setShowPhotoCapture(true);
+  }, [checkoutId]);
+
+  // Called after photo upload succeeds — proceed with actual completion
+  const proceedAfterPhoto = useCallback(async () => {
+    setShowPhotoCapture(false);
+    await doComplete();
+  }, [doComplete]);
+
   return {
     scanStatus,
     setScanStatus,
@@ -167,5 +185,8 @@ export function useScanSession(
     completing,
     loadScanStatus,
     handleComplete,
+    showPhotoCapture,
+    setShowPhotoCapture,
+    proceedAfterPhoto,
   };
 }
