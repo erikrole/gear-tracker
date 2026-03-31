@@ -245,6 +245,7 @@ Add DB index on `asset_allocations(created_at)` if not already present. Both que
 ### 4. Creative Org Chart
 **Goal:** Visual, drag-and-drop org chart that auto-updates backend on changes
 **Current state:** No hierarchy model exists. Users have role (ADMIN/STAFF/STUDENT) and primaryArea (ShiftArea enum: VIDEO/PHOTO/GRAPHICS/COMMS). No reporting relationships.
+
 **What's needed:**
 - **Decision: Hybrid** — area/team groupings (VIDEO/PHOTO/GRAPHICS/COMMS) with reporting lines within each area
 - Schema: Add `managerId` self-referential FK on `User` (nullable, SET NULL on delete) + `title` field
@@ -257,9 +258,82 @@ Add DB index on `asset_allocations(created_at)` if not already present. Both que
 - **Files:** `prisma/schema.prisma`, `src/lib/nav-sections.ts`, `src/app/(app)/org-chart/` (new), `src/app/api/org-chart/` (new), `src/app/api/users/[id]/route.ts`
 - **Complexity:** L
 
+**Schema design:**
+```prisma
+model User {
+  // ... existing fields ...
+  title      String?  // added in Feature #1 migration — reused here
+  managerId  String?  @map("manager_id")
+  manager    User?    @relation("UserReports", fields: [managerId], references: [id], onDelete: SetNull)
+  reports    User[]   @relation("UserReports")
+}
+```
+*`title` and `managerId` ship in the same migration as Feature #1's clothing sizes and Badge models. One migration, no orphaned schema drift.*
+
+**Library decision — skip reactflow:**
+- `@xyflow/react` (reactflow v12) is 180KB+ and built for general-purpose node graphs. Overkill for a fixed area-column layout.
+- **Recommended: CSS-only tree layout** — area columns rendered as flex/grid, hierarchy within each column using indentation + connecting lines via CSS borders. Drag-and-drop via `@dnd-kit/core` (already likely in the project or lightweight to add).
+- Revisit reactflow only if the layout requirement becomes truly graph-like (cross-area reporting lines, non-tree structures).
+
+**API design:**
+```
+GET  /api/org-chart         → grouped tree: { VIDEO: [...tree], PHOTO: [...tree], ... }
+PATCH /api/org-chart/[userId] → body: { managerId: string | null }
+```
+
+Tree node shape:
+```ts
+type OrgNode = {
+  id: string
+  name: string
+  title: string | null
+  avatarUrl: string | null
+  role: Role
+  primaryArea: ShiftArea | null
+  reports: OrgNode[]  // recursive
+}
+```
+
+`GET /api/org-chart` query: fetch all active users, build tree in-memory (single DB query, recursive assembly in JS). No recursive CTE needed — org depth is shallow (≤4 levels).
+
+**Intended UX flows:**
+
+*View mode (all roles):*
+1. Page loads with 4 area columns: VIDEO / PHOTO / GRAPHICS / COMMS
+2. Users with no `primaryArea` appear in an "Unassigned" column at the right
+3. Within each column: root nodes (no manager, or manager in a different area) at the top; direct reports indented below, connected by a vertical line
+4. Each node: avatar + name + title badge. Click node → navigates to `/users/[id]`
+5. Inactive users excluded from the chart
+
+*Edit mode (ADMIN only):*
+1. "Edit" button in top-right toggles edit mode — nodes get drag handles
+2. Drag a node onto another node → sets `managerId` via PATCH, updates tree optimistically
+3. Drag a node to the column header or an empty area → sets `managerId = null` (becomes a root node)
+4. "Save" is implicit — each drop triggers an API call immediately
+5. Exit edit mode → drag handles disappear, back to view mode
+
+**Edge cases:**
+- **Circular reporting chain** (A manages B manages A): Must be caught at the API layer before writing. Algorithm: when setting `managerId = X` for user U, walk X's ancestor chain — if U appears anywhere in it, reject with 400 "Would create a circular reporting chain."
+- **User with no `primaryArea`:** Renders in "Unassigned" column. Their reports still render under them in Unassigned.
+- **Manager in a different area than their reports:** Allowed — the tree groups by the *report's* `primaryArea`, not the manager's. A VIDEO manager can have a PHOTO direct report; the PHOTO person appears in the PHOTO column with a note or visual indicator that their manager is in VIDEO.
+- **Self-assignment as manager:** API rejects `managerId === userId` with 400.
+- **User deleted while set as manager:** `onDelete: SetNull` on the FK handles this — their reports become root nodes automatically.
+- **Deactivated user as manager:** Filtered from the chart display. Their reports show as root nodes (or show a "manager inactive" indicator). API should skip inactive users in tree assembly.
+- **Very deep tree (5+ levels):** Indented layout becomes visually cramped. Cap displayed depth at 3; show "Show N more levels" expand for deeper trees. In practice, org depth should be ≤3.
+- **Drag race condition (two admins editing simultaneously):** Last write wins (no locking needed at this scale). Both see the updated chart on next load.
+
+**Hardening:**
+- Cycle detection is non-negotiable — implement before any write is accepted
+- ADMIN-only writes; STAFF/STUDENT get read-only view (no edit button rendered, PATCH endpoint returns 403 for non-ADMIN)
+- `PATCH /api/org-chart/[userId]` validates that the target user exists and is active
+- AuditLog entry on every `managerId` change (actor, target user, old managerId → new managerId)
+- Page is ADMIN+STAFF visible in sidebar; STUDENT role cannot access the route (middleware guard)
+- Empty state: if no users have `primaryArea` set, show a prompt directing admins to set areas on user profiles
+
 ### 5. Bookings View Options (List, Card, Calendar)
 **Goal:** Toggle between list view, card view, and calendar view on the bookings page
 **Current state:** Bookings page (`src/app/(app)/bookings/page.tsx`) has card-style layout with tabs for Checkouts/Reservations. No list/table view or calendar view.
+
 **What's needed:**
 - UI: Add view toggle (icons: list/grid/calendar) with localStorage persistence (pattern exists in schedule page)
 - List view: Reuse DataTable pattern from items page (shadcn Table with sorting/filtering)
@@ -269,17 +343,152 @@ Add DB index on `asset_allocations(created_at)` if not already present. Both que
 - **Files:** `src/app/(app)/bookings/page.tsx`, new `BookingListView.tsx`, `BookingCalendarView.tsx` components
 - **Complexity:** M-L
 
+**View toggle architecture:**
+- View state lives in URL: `?view=list|card|calendar` (via `useUrlState`) — shareable/bookmarkable
+- localStorage mirrors the last-used view as the default when no `?view` param is present
+- The existing Checkouts/Reservations tab (BookingKind filter) persists across all views — it's orthogonal to the view toggle
+- All three views consume the same data fetch; no separate API endpoints per view
+
+**List view columns (DataTable):**
+| Column | Sortable | Notes |
+|--------|----------|-------|
+| Ref # | yes | link to booking detail |
+| Kind | no | CHECKOUT / RESERVATION badge |
+| Status | yes | color-coded badge |
+| Requester | yes | avatar + name |
+| Items | no | count badge, e.g. "3 items" |
+| Starts | yes | formatted date |
+| Ends | yes | formatted date |
+| Location | yes | |
+| Actions | no | "View" button, context menu |
+
+Default sort: `startsAt DESC`. Row click navigates to booking detail.
+
+**Calendar view behavior:**
+- Month grid (same structure as schedule CalendarView)
+- Each booking appears as a colored bar on its `startsAt` date, spanning to `endsAt` — multi-day bookings span cells (requires Feature #6 for full fidelity, but basic single-day pins work without it)
+- Color by status: ACTIVE=blue, OVERDUE=red, COMPLETED=gray, DRAFT=muted
+- Click a bar → navigates to booking detail
+- Click an empty day → opens CreateBookingSheet pre-filled with that date (optional, Phase C2+)
+- Calendar shows the current month by default; prev/next month navigation
+
+**Intended UX flows:**
+
+*Switching views:*
+1. User lands on `/bookings` → default view (card, or last-used from localStorage)
+2. View toggle row: three icon buttons (List / Grid / Calendar) at top-right of the page header
+3. Clicking a view icon updates `?view=` in the URL, re-renders the active view component
+4. All active filters (kind tab, search, date range) carry through the view switch
+
+*List view — bulk selection (future):*
+- Checkbox column for future bulk actions (export, bulk status change) — scaffold the column now, wire actions later
+
+**Edge cases:**
+- **Draft bookings in calendar view:** Show as a dashed/muted bar. Don't hide them — admins need to see drafts.
+- **Bookings with no `endsAt`** (open-ended checkouts): In calendar view, show a bar with an open-ended arrow indicator on the right edge of the month. In list view, show "—" in Ends column.
+- **Very dense calendar day** (10+ bookings): Show first 3 bars, then "+N more" overflow chip. Clicking the chip opens a popover listing all bookings that day.
+- **Filter state preservation across view switch:** Search query, kind tab, date range filter all persist in URL params — they're view-agnostic.
+- **Calendar view + kind filter:** Calendar only shows bookings matching the active kind tab (CHECKOUT or RESERVATION). "All" tab shows both.
+- **Bookings spanning month boundary in calendar:** Show bar from start through end of visible month; "continued →" indicator on the last cell of the month. Requires Feature #6 multi-day bars for full implementation.
+- **Student user on bookings page:** Should only see their own bookings (existing authorization rule). All three views respect this filter.
+- **Long requester name in list view:** Truncate with ellipsis at 20 chars, full name on hover tooltip.
+- **Empty state per view:** List = "No bookings found" with DataTable empty state. Card = existing empty state. Calendar = empty month grid (no special message needed).
+
+**Hardening:**
+- View toggle is purely presentational — no new API endpoints, no auth changes
+- DataTable in list view must support keyboard navigation (shadcn Table already does)
+- Calendar view must not load ALL bookings — use the same date-windowed query as the existing card view (current month ± 1 month buffer)
+- `BookingCalendarView` and `BookingListView` are dumb display components — all data fetching stays in the parent page via `useFetch`
+- `npm run build` check: DataTable columns must be typed; no `any` in column definitions
+
 ### 6. Calendar Multi-Day Enhancement
 **Goal:** Seamless bars across the grid for multi-day events (not split per day), hover actions
-**Current state:** `CalendarView` component in schedule page (`src/components/CalendarView.tsx`) renders events per-day. Multi-day events likely repeat or truncate.
+**Current state:** `CalendarView` component in schedule page (`src/app/(app)/schedule/_components/CalendarView.tsx`) renders events per-day. Multi-day events likely repeat or truncate.
+
 **What's needed:**
 - UI: Implement spanning bars across calendar grid cells (CSS grid with `grid-column: span N`)
 - Logic: Group multi-day events, calculate start column + span within week rows
 - Handle events that cross week boundaries (split into continued bars with visual indicators)
 - Hover actions: Popover or tooltip on hover showing event details + quick actions (reserve gear, view shifts)
-- Consider existing libraries: `@fullcalendar/react` or custom implementation
-- **Files:** `src/components/CalendarView.tsx`, potentially new `CalendarEventBar.tsx`
+- **Decision: custom CSS grid implementation** — `@fullcalendar/react` is 400KB+, and the existing `CalendarView` is already custom. Extending it is far less disruptive than replacing it.
+- **Files:** `src/app/(app)/schedule/_components/CalendarView.tsx`, new `src/app/(app)/schedule/_components/CalendarEventBar.tsx`
 - **Complexity:** L
+
+**Layout algorithm:**
+
+The month grid is a 7-column CSS grid. Each week is a row. Multi-day events span columns within a row.
+
+```
+Week row: Mon  Tue  Wed  Thu  Fri  Sat  Sun
+          [col1][col2][col3][col4][col5][col6][col7]
+
+Event A:  ████████████████████  (spans col2–col5, Wednesday-Saturday)
+Event B:            ████        (col4 only, Thursday)
+```
+
+For each week row:
+1. Collect all events that overlap that week (start ≤ weekEnd AND end ≥ weekStart)
+2. For each event, compute `startCol` = max(1, dayOfWeek(event.start)) and `endCol` = min(7, dayOfWeek(event.end))
+3. Assign a "track" (vertical slot/row within the day cells) to avoid visual overlap — greedy track assignment
+4. Render as absolutely-positioned bars within the week row using `left` + `width` percentages, or CSS `grid-column: startCol / endCol+1`
+
+**Week-boundary splits:**
+- Event spanning Mon–Wed of week 1 AND Thu–Sun of week 2 renders as:
+  - Week 1 row: bar from Mon to Sun with a `→` continuation indicator on the right edge
+  - Week 2 row: bar from Mon to Wed with a `←` continuation indicator on the left edge
+- Visual style: continuation bars get a slightly lighter/dashed left or right border
+
+**New component: `CalendarEventBar`**
+```tsx
+type CalendarEventBarProps = {
+  event: CalendarEvent
+  startCol: number   // 1-7
+  endCol: number     // 1-7
+  track: number      // vertical slot index (0, 1, 2...) for stacking
+  isContinuedFrom: boolean  // ← indicator
+  continuesInto: boolean    // → indicator
+  onClick: () => void
+}
+```
+
+**Hover popover content:**
+- Event title (full, not truncated)
+- Date range: "Mar 15 – Mar 18"
+- Location (if set)
+- Quick actions: "Reserve Gear →" (links to create reservation tied to this event), "View Shifts →" (links to event detail)
+- Popover appears on hover after 200ms delay, disappears on mouse-leave with 100ms grace period
+
+**Intended UX flows:**
+
+*Viewing multi-day events:*
+1. Month grid renders with colored bars spanning multiple columns
+2. Event title shown truncated within bar (ellipsis); full title in hover popover
+3. Up to 3 event tracks visible per day row; overflow shows "+N more" chip
+4. "+N more" chip click → day popover listing all events that day
+
+*Interacting:*
+1. Hover bar → popover appears (200ms delay)
+2. Click bar → navigate to event detail page
+3. Click "Reserve Gear" in popover → CreateBookingSheet opens with event pre-selected
+4. Click date cell (not a bar) → existing behavior (day view or create event, TBD)
+
+**Edge cases:**
+- **Event spans entire month (30+ days):** Show as a single full-width bar across every week row with continuation indicators. Cap bar title to first week only; subsequent weeks show only the colored bar.
+- **Two events on the same days:** Stacked in tracks 0 and 1. If 3+ events overlap, track 2 used, then "+N more" for remaining.
+- **Single-day event:** `startCol === endCol`. Renders as a short bar in one cell — same as current behavior but now using the new bar component for visual consistency.
+- **Event starts Saturday, ends Sunday (2-day event across weekend):** `startCol=6, endCol=7`. Renders within one week row, no split needed.
+- **Event starts Sunday, ends next Monday:** Splits across two week rows. Sunday week gets a `→` tail; next Monday week gets a `←` head.
+- **All-day vs timed events:** All-day events always render as bars. Timed events (e.g. 2pm–11pm) should also render as bars at the day level (time-of-day is not shown in month view).
+- **Track overflow** (more than 3 events on one day): Render 3 bars + "+N more" chip. The chip opens a popover list. N = total events on that day minus 3.
+- **Event with no end date:** Treat as single-day. Show with a `→` open-end indicator on the right edge.
+
+**Hardening:**
+- Track assignment algorithm must be deterministic — same data always produces same layout (sort events by start date then id for stable ordering)
+- Accessibility: each bar needs `aria-label` with event title + date range; keyboard focus should work (tab through bars)
+- Performance: track assignment runs in-component on each render — should be O(n log n) at worst; memoize with `useMemo` keyed on the events array
+- CalendarEventBar is a pure presentational component — no data fetching, no side effects
+- Existing CalendarView tests (if any) must still pass; new unit tests for the track assignment algorithm
+- The component is shared between the schedule page and the new BookingCalendarView (#5) — design it to accept a generic event shape via generics or an adapter pattern
 
 ### 7. Slack Integration
 **Goal:** Replace/supplement email and SMS notifications with Slack
@@ -313,6 +522,7 @@ Add DB index on `asset_allocations(created_at)` if not already present. Both que
 ### 9. Availability Tracking
 **Goal:** Users declare availability (daily, weekly, 'until XX' patterns)
 **Current state:** No general availability model. Listed as Phase B deferred feature in GAPS_AND_RISKS.md.
+
 **What's needed:**
 - Schema: New `Availability` model (userId, dayOfWeek or specificDate, startTime, endTime, recurrence type: DAILY/WEEKLY/UNTIL, untilDate, notes)
 - API: CRUD `/api/availability` — users manage own, admins view all
@@ -322,6 +532,97 @@ Add DB index on `asset_allocations(created_at)` if not already present. Both que
 - Integration: Warn when assigning someone who has marked themselves unavailable
 - **Files:** `prisma/schema.prisma`, `src/app/(app)/availability/` (new) or extend profile page, `src/app/api/availability/` (new), `src/components/ShiftDetailPanel.tsx`
 - **Complexity:** L
+
+**Scope clarification — what this feature covers:**
+Availability here means *unavailability declarations* ("I can't work these dates/times"), not a full scheduling preference system. Users mark when they're NOT available; absence of a block = assumed available. This is simpler to implement and matches the stated use case (students declare unavailable dates before assignment).
+
+**Schema design:**
+```prisma
+enum AvailabilityKind {
+  UNAVAILABLE  // "I cannot work this time"
+  // PREFERRED / AVAILABLE could be added later; keep it simple for V1
+}
+
+enum RecurrenceType {
+  ONCE      // specific date only
+  WEEKLY    // repeats every week on this dayOfWeek
+  UNTIL     // repeats weekly until untilDate
+}
+
+model Availability {
+  id            String          @id @default(cuid())
+  userId        String          @map("user_id")
+  kind          AvailabilityKind @default(UNAVAILABLE)
+  recurrence    RecurrenceType  @default(ONCE)
+  // For ONCE: specificDate is set. For WEEKLY/UNTIL: dayOfWeek is set.
+  specificDate  DateTime?       @map("specific_date")   // date only (normalize to midnight UTC)
+  dayOfWeek     Int?            @map("day_of_week")     // 0=Sun, 1=Mon ... 6=Sat
+  startTime     String?         @map("start_time")      // "HH:MM" — null = all day
+  endTime       String?         @map("end_time")        // "HH:MM" — null = all day
+  untilDate     DateTime?       @map("until_date")      // for UNTIL recurrence
+  note          String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([specificDate])
+  @@map("availability")
+}
+```
+
+**API design:**
+```
+GET    /api/availability?userId=&from=&to=   → list blocks (own or all if ADMIN/STAFF)
+POST   /api/availability                      → create block (own only for STUDENT)
+PATCH  /api/availability/[id]                → edit own block (own only for STUDENT)
+DELETE /api/availability/[id]                → delete own block (own only for STUDENT)
+
+GET    /api/availability/check?userId=&date= → boolean: is this user available on this date?
+```
+
+**Intended UX flows:**
+
+*Student declares unavailability ("My Availability" tab on profile page):*
+1. New "Availability" tab on user detail page (alongside Info + Activity)
+2. Weekly grid: 7 columns (Mon–Sun), 3 rows (Morning / Afternoon / Evening) — click a cell to mark unavailable
+3. "Add date block" button → sheet with: date picker (or date range), recurrence (Once / Weekly / Until), time range (optional, defaults to "All day"), note field
+4. Existing blocks shown as red chips on the grid with delete button
+5. STUDENT can only manage their own; page shows own availability by default
+
+*Admin views availability during shift assignment:*
+1. In `ShiftDetailPanel`, when opening the user picker / assignment dialog, show availability status next to each candidate
+2. Green dot = available, red dot = has a block covering this shift's date, gray = unknown
+3. If admin selects an unavailable user → inline warning banner: "This person marked themselves unavailable on [date]. Assign anyway?"
+4. Admin can proceed — it's a warning, not a hard block
+
+*Admin views a user's availability:*
+1. Navigate to any user's detail page → Availability tab
+2. Shows that user's availability grid read-only (STUDENT viewing another user's page: tab hidden)
+
+**Edge cases:**
+- **Overlapping blocks (same user, same date):** Allowed — two blocks can cover the same date/time. The check endpoint returns `unavailable` if ANY block covers the queried date. No deduplication needed.
+- **Block in the past:** Allow creating historical blocks (audit trail). Delete them normally. The check endpoint ignores blocks with `specificDate < today` to avoid false warnings.
+- **Recurring block with no `untilDate` (type=WEEKLY):** Treated as indefinitely recurring. UI should warn the user: "This will repeat every [day] indefinitely. Add an end date?" — soft prompt, not required.
+- **Recurring block `untilDate` in the past:** Effectively expired. Check endpoint treats it as no-longer-active. UI shows it as dimmed/expired, not deleted.
+- **User deactivated with pending availability blocks:** Cascade delete via `onDelete: Cascade`. No orphaned blocks.
+- **All-day vs. timed blocks on the same date:** If a shift is 2pm–6pm and the user has an all-day UNAVAILABLE block, they show as unavailable. If the user has a "9am–12pm" block only, a 2pm–6pm shift should show them as available. The check endpoint must compare time ranges, not just dates.
+- **Time range validation:** `startTime < endTime` enforced at API. Overnight blocks ("10pm–2am") not supported in V1 — reject with a clear error message.
+- **Timezone:** Store all times in the org's local timezone (no UTC conversion for time-of-day strings). Document this assumption. Revisit if multi-timezone orgs become a requirement.
+- **STUDENT views another student's availability:** Tab is hidden. ADMIN/STAFF can view any user's availability tab.
+
+**Integration with shift assignment:**
+- The warning is a soft block — admins can override. Never hard-block an admin.
+- Warning message includes the specific conflicting availability block's note (if set), so admin has context: "Unavailable: 'Spring break'"
+- Warning shown inline in `ShiftDetailPanel`, not as a modal interrupt
+
+**Hardening:**
+- `POST /api/availability` enforces: STUDENT can only create for `userId === session.user.id`; ADMIN/STAFF can create for any user
+- `specificDate` and `untilDate` are normalized to date-only (strip time component) on write
+- `dayOfWeek` must be 0–6 if set; API validates range
+- Recurring UNTIL blocks: `untilDate` must be after today if creating new; warn but allow if editing
+- Index on `(userId, specificDate)` for fast per-user date lookups
+- The availability check in shift assignment must not add a significant query — it runs once per candidate user when the assignment panel opens, not on every keystroke
 
 ### 10. Performance Enhancements
 **Goal:** Perf improvements across the board
