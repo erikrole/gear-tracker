@@ -144,6 +144,8 @@ export type CreateBookingSheetProps = {
   initialEndsAt?: string;
   initialLocationId?: string;
   initialRequester?: string;
+  /** Pre-select assets (e.g. from item detail page deep-link) */
+  initialAssetIds?: string[];
 };
 
 /* ───── Component ───── */
@@ -163,6 +165,7 @@ export default function CreateBookingSheet({
   initialEndsAt,
   initialLocationId,
   initialRequester = "",
+  initialAssetIds,
 }: CreateBookingSheetProps) {
   const { toast } = useToast();
 
@@ -179,7 +182,7 @@ export default function CreateBookingSheet({
   });
 
   // ── Equipment state (needs Dispatch<SetStateAction> for EquipmentPicker) ──
-  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(initialAssetIds ?? []);
   const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
   const [selectedAssetDetails, setSelectedAssetDetails] = useState<AvailableAsset[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(true);
@@ -229,7 +232,9 @@ export default function CreateBookingSheet({
   const submittingRef = useRef(false);
 
   // ── Collapsible sections ──
-  const [openSection, setOpenSection] = useState<Section>("event");
+  const [openSection, setOpenSection] = useState<Section>(
+    initialAssetIds?.length ? "details" : "event",
+  );
 
   // ── Draft loaded flag ──
   const draftLoadedRef = useRef(false);
