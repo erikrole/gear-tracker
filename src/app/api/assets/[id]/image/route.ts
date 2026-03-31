@@ -1,9 +1,14 @@
+import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { requirePermission } from "@/lib/rbac";
 import { HttpError, ok } from "@/lib/http";
 import { validateImage, uploadImage, deleteImage, downloadImageToBlob, isBlobUrl } from "@/lib/blob";
 import { db } from "@/lib/db";
+
+const setImageUrlSchema = z.object({
+  url: z.string().url().max(2048),
+});
 
 /**
  * POST /api/assets/:id/image — upload or replace an asset image
@@ -67,14 +72,21 @@ export const PUT = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "asset", "edit");
 
   const { id } = params;
-  const body = await req.json();
-  const url = typeof body?.url === "string" ? body.url.trim() : "";
 
-  if (!url || !url.startsWith("https://")) {
-    throw new HttpError(400, "A valid HTTPS image URL is required");
+  let body: z.infer<typeof setImageUrlSchema>;
+  try {
+    body = setImageUrlSchema.parse(await req.json());
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      throw new HttpError(400, err.errors.map((e) => e.message).join(", "));
+    }
+    throw err;
   }
-  if (url.length > 2048) {
-    throw new HttpError(400, "URL is too long");
+
+  const url = body.url.trim();
+
+  if (!url.startsWith("https://")) {
+    throw new HttpError(400, "A valid HTTPS image URL is required");
   }
 
   const asset = await db.asset.findUnique({
