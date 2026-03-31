@@ -110,7 +110,7 @@ model UserBadge {
 **Decision: DB-backed rich-text editor** (upgraded from static MDX)
 - Admins can create, edit, reorder guides in the app without touching code or deploying
 - Photos uploaded via Vercel Blob (same pattern as booking photos)
-- All roles can read; ADMIN/STAFF can edit
+- All roles can read; **ADMIN only** can create/edit/publish
 - **Complexity:** M (up from S-M — editor library + schema + image upload, but no MDX build pipeline)
 
 **What's needed:**
@@ -118,7 +118,7 @@ model UserBadge {
 - Editor: `BlockNote` for Notion-style block editing (built on Tiptap, supports headings, lists, images, callouts out of the box)
 - Image upload: Vercel Blob upload endpoint, same as `BookingPhoto`
 - API: CRUD `/api/guides` + `/api/guides/[slug]`
-- UI: `/guides` layout with left TOC, reader view per guide, editor mode toggled inline for ADMIN/STAFF
+- UI: `/guides` layout with left TOC, reader view per guide, editor mode toggled inline for ADMIN only
 - Sidebar: Add "Guides" to `nav-sections.ts` (all roles)
 - **Files:** `prisma/schema.prisma`, `src/app/(app)/guides/` (new), `src/app/api/guides/` (new), `src/lib/nav-sections.ts`
 
@@ -151,7 +151,7 @@ model Guide {
 **Intended UX flows:**
 
 *Admin creates a new guide:*
-1. In left TOC sidebar: "+ New Guide" button (ADMIN/STAFF only) → creates a draft guide with placeholder title, navigates to it
+1. In left TOC sidebar: "+ New Guide" button (ADMIN only) → creates a draft guide with placeholder title, navigates to it
 2. Page loads in edit mode automatically for new guides
 3. Admin types title inline (InlineTitle pattern), then writes body content in the BlockNote editor
 4. Type `/` → slash command menu: insert image, callout, heading, etc.
@@ -160,7 +160,7 @@ model Guide {
 7. Auto-saves content on change (debounced 1s) via PATCH `/api/guides/[slug]`
 
 *Admin edits an existing guide:*
-1. Admin views any guide → "Edit" button appears in page header (ADMIN/STAFF only)
+1. Admin views any guide → "Edit" button appears in page header (ADMIN only)
 2. Click "Edit" → editor activates in-place (same page, no navigation)
 3. Changes auto-save; "Last saved X seconds ago" indicator in header
 4. "Stop editing" button returns to read-only view
@@ -200,18 +200,18 @@ Admin drops/pastes image in editor
 **API design:**
 ```
 GET    /api/guides              → list (published only for STUDENT; all for ADMIN/STAFF)
-POST   /api/guides              → create new guide, ADMIN/STAFF only
-GET    /api/guides/[slug]       → single guide (404 if unpublished + STUDENT)
-PATCH  /api/guides/[slug]       → update title/content/published/order, ADMIN/STAFF only
-DELETE /api/guides/[slug]       → soft-delete or hard delete, ADMIN only
+POST   /api/guides              → create new guide, ADMIN only
+GET    /api/guides/[slug]       → single guide (404 if unpublished + non-ADMIN)
+PATCH  /api/guides/[slug]       → update title/content/published/order, ADMIN only
+DELETE /api/guides/[slug]       → hard delete, ADMIN only
 PATCH  /api/guides/reorder      → body: { orderedIds: string[] }, ADMIN only
-POST   /api/guides/upload       → image upload → Vercel Blob, ADMIN/STAFF only
+POST   /api/guides/upload       → image upload → Vercel Blob, ADMIN only
 ```
 
 **Hardening:**
 - BlockNote content is stored as JSON, not raw HTML — no XSS surface from stored content; the renderer is always BlockNote's own read-only component
 - Image upload endpoint validates MIME type (images only), enforces max size (5MB)
-- PATCH endpoint strips any fields the caller isn't allowed to set (e.g., STAFF cannot change `published` status — ADMIN only for that field)
+- All write endpoints return 403 for non-ADMIN — no partial permission surface to reason about
 - `slug` is validated as URL-safe on create (regex: `^[a-z0-9-]+$`), cannot be changed after creation
 - Deleting a guide with images: images in Vercel Blob are orphaned (not cleaned up automatically in V1 — acceptable; add a blob cleanup job in V2 if storage becomes a concern)
 - AuditLog entry on guide create/delete (publish/unpublish changes are captured by `updatedBy` + `updatedAt` on the model)
