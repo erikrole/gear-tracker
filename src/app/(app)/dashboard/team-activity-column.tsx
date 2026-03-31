@@ -15,7 +15,7 @@ import { ScaleIn } from "@/components/ui/motion";
 import { formatDueLabel, formatEventDateTime, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { UserAvatar, GearAvatarStack, ShiftAvatarStack } from "./dashboard-avatars";
-import type { DashboardData, BookingSummary } from "../dashboard-types";
+import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type Props = {
@@ -27,9 +27,10 @@ type Props = {
   inlineActionId: string | null;
   onSelectBooking: (id: string) => void;
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
+  onCreateBooking?: (ctx: CreateBookingContext) => void;
 };
 
-export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, inlineActionId, onSelectBooking, onExtend }: Props) {
+export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, inlineActionId, onSelectBooking, onExtend, onCreateBooking }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <span className="text-xs font-semibold text-muted-foreground pl-0.5">Team Activity</span>
@@ -143,10 +144,6 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.upcomingEvents ?? data.upcomingEvents).map((e) => {
-              const titleParam = encodeURIComponent(e.title);
-              const startsParam = encodeURIComponent(e.startsAt);
-              const endsParam = encodeURIComponent(e.endsAt);
-              const locParam = e.locationId ? `&locationId=${e.locationId}` : "";
               return (
                 <div key={e.id} className="ops-row no-underline text-inherit">
                   <a href={`/events/${e.id}`} className="ops-row-main no-underline">
@@ -178,17 +175,29 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                         <TooltipContent>Create booking for this event</TooltipContent>
                       </Tooltip>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <a href={`/checkouts?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}>
-                            <ClipboardCheckIcon className="mr-2 size-4" />
-                            New checkout
-                          </a>
+                        <DropdownMenuItem onClick={() => onCreateBooking?.({
+                          kind: "CHECKOUT",
+                          title: e.title,
+                          startsAt: e.startsAt,
+                          endsAt: e.endsAt,
+                          locationId: e.locationId || undefined,
+                          eventId: e.id,
+                          sportCode: e.sportCode || undefined,
+                        })}>
+                          <ClipboardCheckIcon className="mr-2 size-4" />
+                          New checkout
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <a href={`/reservations?title=${titleParam}&startsAt=${startsParam}&endsAt=${endsParam}${locParam}`}>
-                            <CalendarCheckIcon className="mr-2 size-4" />
-                            New reservation
-                          </a>
+                        <DropdownMenuItem onClick={() => onCreateBooking?.({
+                          kind: "RESERVATION",
+                          title: e.title,
+                          startsAt: e.startsAt,
+                          endsAt: e.endsAt,
+                          locationId: e.locationId || undefined,
+                          eventId: e.id,
+                          sportCode: e.sportCode || undefined,
+                        })}>
+                          <CalendarCheckIcon className="mr-2 size-4" />
+                          New reservation
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -94,6 +94,16 @@ export type MyShift = {
   gearItemCount: number;
 };
 
+export type CreateBookingContext = {
+  kind: "CHECKOUT" | "RESERVATION";
+  title?: string;
+  startsAt?: string;
+  endsAt?: string;
+  locationId?: string;
+  eventId?: string;
+  sportCode?: string;
+};
+
 export type DashboardData = {
   role: string;
   stats: {

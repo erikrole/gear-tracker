@@ -8,7 +8,7 @@ import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon 
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDueLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
-import type { DashboardData, BookingSummary } from "../dashboard-types";
+import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type Props = {
@@ -23,6 +23,7 @@ type Props = {
   onDeleteDraft: (draftId: string) => void;
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
   onConvert: (bookingId: string, e: React.MouseEvent) => void;
+  onCreateBooking?: (ctx: CreateBookingContext) => void;
 };
 
 export function MyGearColumn({
@@ -37,6 +38,7 @@ export function MyGearColumn({
   onDeleteDraft,
   onExtend,
   onConvert,
+  onCreateBooking,
 }: Props) {
   const accentClass = ownedAccent ? " border-l-2 border-l-primary" : "";
   return (
@@ -194,10 +196,20 @@ export function MyGearColumn({
                         </Badge>
                       </>
                     ) : (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={`/checkouts?create=true&title=${encodeURIComponent(eventTitle)}&startsAt=${encodeURIComponent(s.event.startsAt)}&endsAt=${encodeURIComponent(s.event.endsAt)}${s.event.locationId ? `&locationId=${s.event.locationId}` : ""}`}>
-                          Prep gear
-                        </a>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onCreateBooking?.({
+                          kind: "CHECKOUT",
+                          title: eventTitle,
+                          startsAt: s.event.startsAt,
+                          endsAt: s.event.endsAt,
+                          locationId: s.event.locationId || undefined,
+                          eventId: s.event.id,
+                          sportCode: s.event.sportCode || undefined,
+                        })}
+                      >
+                        Prep gear
                       </Button>
                     )}
                   </div>
