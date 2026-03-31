@@ -11,6 +11,7 @@ Gear Tracker has completed Phase A (core workflows) and Phase B (polish, decompo
 ### 1. User Pages Enhancement
 **Goal:** Central hub for contact info, clothing sizes, sport assignments, badges
 **Current state:** User detail page exists (`src/app/(app)/users/[id]/page.tsx`) with Info + Activity tabs, avatar, role, location, sport/area assignments (GAP-23 closed). No clothing sizes, no badges.
+
 **What's needed:**
 - Schema: Add clothing size fields to `User` model (shirtSize, pantsSize, shoeSize, hatSize enums or strings)
 - Schema: New `Badge` model (id, name, icon, description) + `UserBadge` join table (userId, badgeId, awardedAt, awardedBy)
@@ -20,9 +21,92 @@ Gear Tracker has completed Phase A (core workflows) and Phase B (polish, decompo
 - **Files:** `prisma/schema.prisma`, `src/app/(app)/users/[id]/page.tsx`, `src/app/(app)/users/[id]/UserInfoTab.tsx`, `src/app/api/users/[id]/route.ts`
 - **Complexity:** M
 
+**Schema design:**
+```prisma
+// Strings, not enums — sizes vary by brand; free text avoids migration churn
+model User {
+  // ... existing fields ...
+  shirtSize  String? @map("shirt_size")
+  pantsSize  String? @map("pants_size")
+  shoeSize   String? @map("shoe_size")
+  hatSize    String? @map("hat_size")
+  title      String? // job title, e.g. "Lead Photographer" — also used by Org Chart (#4)
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  icon        String      // emoji or lucide icon name
+  description String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  awardedTo   UserBadge[]
+  @@map("badges")
+}
+
+model UserBadge {
+  userId     String   @map("user_id")
+  badgeId    String   @map("badge_id")
+  awardedAt  DateTime @default(now()) @map("awarded_at")
+  awardedById String? @map("awarded_by_id")  // null = system-awarded
+  note       String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge      Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  awardedBy  User?    @relation("BadgeAwarder", fields: [awardedById], references: [id], onDelete: SetNull)
+  @@id([userId, badgeId])  // one badge per user; revoke + re-award updates the row
+  @@map("user_badges")
+}
+```
+*Note: `title` field added here feeds Feature #4 (Org Chart) — add both in one migration.*
+
+**Intended UX flows:**
+
+*Sizes (inline edit, SaveableField pattern):*
+1. Staff/Admin opens any user's detail page → Info tab
+2. "Sizes" section appears below contact info with 4 rows: Shirt, Pants, Shoe, Hat
+3. Each row shows current value (or "—") with pencil icon on hover
+4. Click pencil → inline text input, press Enter or click checkmark → PATCH `/api/users/[id]`
+5. Student viewing their own page can edit their own sizes; viewing another user's page: read-only
+
+*Badge award flow:*
+1. Admin/Staff clicks "+ Award Badge" button in Badges section of any user's page
+2. Sheet/popover opens with list of all defined badges (name + icon + description)
+3. Optional: "Note" text field for context (e.g. "Awarded for covering all home games")
+4. Submit → POST `/api/users/[id]/badges` → badge appears in user's list with awarded date + awarder avatar
+5. Badge can be revoked: Admin only, confirmation dialog, DELETE `/api/users/[id]/badges/[badgeId]`
+
+*Badge management (Admin settings):*
+- `/settings/badges` page: create/edit/delete badge definitions
+- Deleting a badge definition cascades to remove all UserBadge rows (CASCADE on delete)
+
+**Edge cases:**
+- **Duplicate badge award:** Composite PK `[userId, badgeId]` prevents it at DB level; UI should disable already-awarded badges in the picker (show as "awarded" with checkmark)
+- **Award to deactivated user:** Allow — a user's badge history should persist. Warn in UI if user is inactive.
+- **Badge definition deleted while user has it:** CASCADE removes the UserBadge rows. Soft-delete badges instead? Decision: use soft-delete (`active` flag on Badge) so existing awards display as "[Archived Badge]" rather than disappearing.
+- **Student edits own sizes:** Permitted. Student editing another user's sizes: blocked at API (check `session.user.id !== params.id && session.user.role === STUDENT`).
+- **Sizes as free text:** Risk of inconsistent values ("XL" vs "X-Large"). Mitigate: placeholder shows format hint ("e.g. M, L, XL, 32x30, 10.5")
+- **`title` field length:** Cap at 100 chars in API validation.
+
+**API changes:**
+- `PATCH /api/users/[id]`: extend zod schema to accept `shirtSize`, `pantsSize`, `shoeSize`, `hatSize`, `title` (all optional strings)
+- `GET /api/users/[id]`: include `userBadges` with badge name/icon in the response
+- `POST /api/users/[id]/badges`: body `{ badgeId, note? }`, ADMIN/STAFF only
+- `DELETE /api/users/[id]/badges/[badgeId]`: ADMIN only
+- `GET /api/badges`: list all badge definitions (for award picker)
+- `POST /api/badges`: create badge definition, ADMIN only
+- `PATCH /api/badges/[id]`: edit badge definition, ADMIN only
+- `DELETE /api/badges/[id]`: soft-delete (set `active = false`), ADMIN only
+
+**Hardening:**
+- Authorization: size edits allowed by ADMIN, STAFF, or the user themselves. STUDENT cannot edit other users.
+- Badge awards/revocations: ADMIN/STAFF only — never self-award
+- API validates string fields are not excessively long (sizes ≤ 50 chars, title ≤ 100)
+- AuditLog entry on badge award/revoke (actor, target user, badge name)
+- `npm run build` must pass after schema migration — check for type propagation in any place that spreads the User type
+
 ### 2. Guides Sidebar Section
 **Goal:** Walkthrough tutorials, guides, contact info, FAQ housed under a new sidebar item
 **Current state:** No guides/help/FAQ pages exist. Onboarding banner on dashboard only.
+
 **What's needed:**
 - **Decision: Static MDX** — version-controlled markdown files, devs update via PRs
 - New route group: `src/app/(app)/guides/` with sub-pages (getting-started, faq, contacts, etc.)
@@ -32,9 +116,66 @@ Gear Tracker has completed Phase A (core workflows) and Phase B (polish, decompo
 - **Files:** `src/lib/nav-sections.ts`, `src/app/(app)/guides/` (new), `src/components/Sidebar.tsx`
 - **Complexity:** S-M
 
+**Content structure (file-based routing):**
+```
+src/app/(app)/guides/
+  layout.tsx              ← shell with left TOC sidebar
+  page.tsx                ← redirects to /guides/getting-started
+  getting-started/page.tsx
+  faq/page.tsx
+  contacts/page.tsx
+  equipment-care/page.tsx
+  shift-scheduling/page.tsx
+
+content/guides/           ← MDX source files (co-located with routes or separate)
+  getting-started.mdx
+  faq.mdx
+  contacts.mdx
+  equipment-care.mdx
+  shift-scheduling.mdx
+```
+*Prefer `next-mdx-remote` over `@next/mdx` — allows MDX files outside `app/` dir, cleaner separation of content from routes.*
+
+**Intended UX flows:**
+
+*Navigation:*
+1. User clicks "Guides" in sidebar → lands on Getting Started article (default)
+2. Left TOC sidebar (within guides layout, separate from app sidebar) lists all articles with active-state highlight
+3. On mobile: TOC collapses to a dropdown/sheet above article content
+4. Each article renders as a full-width readable column (max-w-3xl, centered)
+5. Code blocks, callout components, and images supported via MDX custom components
+
+*TOC within an article:*
+- Auto-generated from headings (h2, h3) in the MDX
+- Sticky on desktop, scrolls with page on mobile
+- Smooth-scroll to section on click
+
+**Edge cases:**
+- **Broken MDX frontmatter:** Build fails loudly at `npm run build` — this is acceptable (it's a dev error, not a runtime error). Static MDX means errors are caught pre-deploy.
+- **Missing slug route:** `/guides/nonexistent` → Next.js 404 page. No custom handling needed since routes are file-based (only real files get routes).
+- **No articles yet:** Guides landing page should have a meaningful empty state, not a blank page — at minimum a "Coming soon" placeholder that still satisfies the nav link.
+- **Long article with no headings:** In-article TOC simply renders empty/hidden. Not an error.
+- **Contacts page with PII:** Contacts are staff/org contacts (names, emails, roles) — not user data. Keep it general (role names + shared email aliases, not personal phones).
+- **Search within guides:** Deferred. Static content search (e.g. Pagefind) is a Phase C3 enhancement if demand exists.
+
+**MDX component toolkit:**
+- `<Callout type="info|warning|tip">` — styled alert boxes
+- `<Steps>` — numbered step list (common in setup guides)
+- `<CodeBlock>` — syntax-highlighted code (uses shadcn's approach)
+- Standard prose: h1-h4, ul/ol, table, blockquote — all styled via Tailwind Typography (`@tailwindcss/typography`)
+
+**Hardening:**
+- All MDX renders at build time — zero runtime DB queries, zero auth requirements
+- Guides are visible to all authenticated roles (ADMIN, STAFF, STUDENT)
+- No user-generated content; no XSS surface
+- Add `guides` to nav-sections with `roles: ['ADMIN', 'STAFF', 'STUDENT']` (or omit roles to mean "all")
+- Validate MDX files compile cleanly in CI (`npm run build`)
+- TOC sidebar must not conflict visually with the app's main sidebar — use a different visual weight (border-r vs full sidebar treatment)
+
 ### 3. Smart Gear Frequency Surfacing
 **Goal:** Identify most-used gear and surface those items near the top of actions
 **Current state:** Equipment picker (`src/components/EquipmentPicker.tsx`) uses sections defined in `src/lib/equipment-sections.ts`. Items page has favorites. Dashboard has "My Gear" column. No usage frequency tracking.
+
 **What's needed:**
 - Analytics: Query `AssetAllocation` (or `BookingBulkUnitAllocation`) to compute per-asset checkout frequency (count of allocations in last 90 days)
 - API: New endpoint or extend `/api/assets/picker-search` with `sort=frequency` option
@@ -43,6 +184,63 @@ Gear Tracker has completed Phase A (core workflows) and Phase B (polish, decompo
 - No schema changes needed — derived from existing `AssetAllocation` data
 - **Files:** `src/app/api/assets/picker-search/route.ts`, `src/lib/equipment-sections.ts`, `src/components/EquipmentPicker.tsx`
 - **Complexity:** M
+
+**Frequency model decision — per-user vs. org-wide:**
+- **Recommended: both, layered.** Show "Your Recent" first (per-user, last 30 days, max 5 items), then "Most Used" org-wide (last 90 days, max 5 items) as a secondary section. Per-user is more actionable for repeat workflows; org-wide helps new users discover popular gear.
+- If the current user has <3 personal allocations, skip "Your Recent" and show only org-wide.
+
+**Query design:**
+```sql
+-- Per-user recent (last 30 days, top 5 assets by count)
+SELECT asset_id, COUNT(*) as freq
+FROM asset_allocations
+WHERE booking_id IN (
+  SELECT id FROM bookings WHERE requester_id = :userId
+)
+AND created_at > NOW() - INTERVAL '30 days'
+GROUP BY asset_id
+ORDER BY freq DESC
+LIMIT 5
+
+-- Org-wide popular (last 90 days, top 5)
+SELECT asset_id, COUNT(*) as freq
+FROM asset_allocations
+WHERE created_at > NOW() - INTERVAL '90 days'
+GROUP BY asset_id
+ORDER BY freq DESC
+LIMIT 5
+```
+Add DB index on `asset_allocations(created_at)` if not already present. Both queries are fast aggregations on a bounded time window.
+
+**Intended UX flows:**
+
+*Equipment picker:*
+1. Picker opens (from checkout/reservation creation)
+2. Top section: "Your Recent" — horizontal scroll row or compact list of up to 5 assets with asset tag + name
+3. Below that: "Most Used" (org-wide) — same compact format, deduplicated against "Your Recent"
+4. Below that: existing category sections (unchanged)
+5. If user types in search box → frequency sections collapse, search results take over
+6. If a "frequent" item is already added to the booking → show it with a checkmark, still tappable to remove
+
+*Items page (secondary surface):*
+- Add "Sort by: Frequency" option to the sort dropdown alongside Name/Tag/Status
+- Frequency sort uses org-wide 90-day count; no UI for per-user sort here
+
+**Edge cases:**
+- **New asset with zero history:** Never appears in frequency sections. Still discoverable via search and category sections. No suppression needed.
+- **Archived/retired asset in frequency list:** Filter out assets where `status = RETIRED` or `active = false` from frequency results.
+- **User with no checkout history:** Skip "Your Recent" section entirely. Show only org-wide.
+- **Frequency section item already selected:** Show with checkmark + visual dim, remain clickable (to deselect).
+- **Tie-breaking in org-wide frequency:** Secondary sort by `asset_tag` for determinism.
+- **Picker used in bulk/reservation context:** Same frequency logic applies — allocations from either BookingKind count.
+- **90-day window returns 0 results:** Skip that section silently. Don't render an empty "Most Used" header.
+
+**Hardening:**
+- Frequency queries run on picker open — add a brief loading skeleton for the frequency sections (separate from the main picker load)
+- Cache frequency results per-user for 5 minutes (use `unstable_cache` or memoize in the API handler) — these don't need real-time accuracy
+- Frequency section capped at 5 items each — no pagination, no "show more"
+- Graceful degradation: if frequency query throws, log error and render picker without frequency sections (don't break the whole picker)
+- Deduplication: an asset in "Your Recent" must not also appear in "Most Used" in the same open picker session
 
 ### 4. Creative Org Chart
 **Goal:** Visual, drag-and-drop org chart that auto-updates backend on changes
