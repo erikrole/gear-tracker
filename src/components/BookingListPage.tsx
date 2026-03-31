@@ -60,7 +60,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
 
   // ── Create sheet state ──
   const [showCreate, setShowCreate] = useState(
-    urlParams.get("create") === "true" || !!urlParams.get("title") || !!urlParams.get("draftId")
+    urlParams.get("create") === "true" || !!urlParams.get("title") || !!urlParams.get("draftId") || !!urlParams.get("newFor")
   );
   const [draftId, setDraftId] = useState<string | null>(urlParams.get("draftId"));
 
@@ -384,6 +384,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         initialEndsAt={urlParams.get("endsAt") ? toLocalDateTimeValue(new Date(urlParams.get("endsAt")!)) : undefined}
         initialLocationId={urlParams.get("locationId") || undefined}
         initialRequester={initialRequester}
+        initialAssetIds={urlParams.get("newFor") ? [urlParams.get("newFor")!] : undefined}
       />
     </>
   );
