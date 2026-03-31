@@ -385,6 +385,8 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         initialLocationId={urlParams.get("locationId") || undefined}
         initialRequester={initialRequester}
         initialAssetIds={urlParams.get("newFor") ? [urlParams.get("newFor")!] : undefined}
+        initialEventId={urlParams.get("eventId") || undefined}
+        initialSportCode={urlParams.get("sportCode") || undefined}
       />
     </>
   );

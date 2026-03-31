@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
+const CreateBookingSheet = dynamic(() => import("@/components/CreateBookingSheet"), { ssr: false });
 import EmptyState from "@/components/EmptyState";
 import { Progress } from "@/components/ui/progress";
 import { RefreshCwIcon } from "lucide-react";
@@ -21,7 +22,47 @@ import { OverdueBanner } from "./dashboard/overdue-banner";
 import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
 import { PageTransition, StaggerList, StaggerItem } from "@/components/ui/motion";
-import type { BookingSummary } from "./dashboard-types";
+import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
+import type { BookingListConfig } from "@/components/booking-list";
+import { toLocalDateTimeValue } from "@/components/booking-list";
+
+/* ── Minimal configs for the create sheet (only used for dashboard) ── */
+
+const CHECKOUT_CONFIG: BookingListConfig = {
+  kind: "CHECKOUT",
+  apiBase: "/api/checkouts",
+  label: "checkout",
+  labelPlural: "Checkouts",
+  actionLabel: "Check out equipment",
+  actionLabelProgress: "Checking out\u2026",
+  requesterLabel: "Checked out to",
+  startLabel: "Pickup",
+  endLabel: "Return by",
+  statusOptions: [],
+  defaultTieToEvent: true,
+  hasSportFilter: true,
+  overdueStatus: "OPEN",
+  showEventBadge: true,
+  contextMenuExtras: [],
+};
+
+const RESERVATION_CONFIG: BookingListConfig = {
+  kind: "RESERVATION",
+  apiBase: "/api/reservations",
+  label: "reservation",
+  labelPlural: "Reservations",
+  actionLabel: "Reserve equipment",
+  actionLabelProgress: "Reserving\u2026",
+  requesterLabel: "Reserved for",
+  startLabel: "Start",
+  endLabel: "End",
+  statusOptions: [],
+  defaultTieToEvent: true,
+  hasSportFilter: true,
+  overdueStatus: "BOOKED",
+  showEventBadge: true,
+  contextMenuExtras: [],
+};
 
 export default function DashboardPage() {
   const { data, fetchError, refreshing, lastRefreshed, loadData, setData } = useDashboardData();
@@ -31,6 +72,35 @@ export default function DashboardPage() {
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
   const confirm = useConfirm();
   const { toast } = useToast();
+
+  // ── Create booking sheet state ──
+  const [createCtx, setCreateCtx] = useState<CreateBookingContext | null>(null);
+  const [formOptions, setFormOptions] = useState<{ users: any[]; locations: any[]; bulkSkus: any[] } | null>(null);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [draftId, setDraftId] = useState<string | null>(null);
+
+  // Fetch form options + current user once (lazy: on first sheet open)
+  useEffect(() => {
+    if (!createCtx || formOptions) return;
+    const controller = new AbortController();
+    Promise.all([
+      fetch("/api/form-options", { signal: controller.signal }).then((r) => r.ok ? r.json() : null),
+      fetch("/api/me", { signal: controller.signal }).then((r) => r.ok ? r.json() : null),
+    ]).then(([opts, me]) => {
+      if (controller.signal.aborted) return;
+      setFormOptions({
+        users: opts?.data?.users || [],
+        locations: opts?.data?.locations || [],
+        bulkSkus: opts?.data?.bulkSkus || [],
+      });
+      if (me?.user?.id) setCurrentUserId(me.user.id);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [createCtx, formOptions]);
+
+  const handleCreateBooking = useCallback((ctx: CreateBookingContext) => {
+    setCreateCtx(ctx);
+  }, []);
 
   // Live countdown tick every 60 seconds
   useEffect(() => {
@@ -166,8 +236,8 @@ export default function DashboardPage() {
           <FilterChips {...filters} />
           {!isStudent && (
             <div className="flex gap-2">
-              <Button variant="outline" asChild><a href="/checkouts?create=true">New checkout</a></Button>
-              <Button variant="outline" asChild><a href="/reservations?create=true">New reservation</a></Button>
+              <Button variant="outline" onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>New checkout</Button>
+              <Button variant="outline" onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>New reservation</Button>
             </div>
           )}
         </div>
@@ -248,6 +318,7 @@ export default function DashboardPage() {
           onDeleteDraft={handleDeleteDraft}
           onExtend={handleExtend}
           onConvert={handleConvert}
+          onCreateBooking={handleCreateBooking}
         />
         {!isStudent && (
           <TeamActivityColumn
@@ -259,6 +330,7 @@ export default function DashboardPage() {
             inlineActionId={inlineActionId}
             onSelectBooking={setSelectedBookingId}
             onExtend={handleExtend}
+            onCreateBooking={handleCreateBooking}
           />
         )}
       </div>
@@ -269,6 +341,32 @@ export default function DashboardPage() {
         onClose={() => setSelectedBookingId(null)}
         onUpdated={() => loadData(true)}
       />
+
+      {/* ══════ Create Booking Sheet (in-place on dashboard) ══════ */}
+      {createCtx && formOptions && (
+        <CreateBookingSheet
+          open
+          onOpenChange={(open) => { if (!open) setCreateCtx(null); }}
+          config={createCtx.kind === "CHECKOUT" ? CHECKOUT_CONFIG : RESERVATION_CONFIG}
+          users={formOptions.users}
+          locations={formOptions.locations}
+          bulkSkus={formOptions.bulkSkus}
+          onCreated={(bookingId) => {
+            setCreateCtx(null);
+            setSelectedBookingId(bookingId);
+            loadData(true);
+          }}
+          draftId={draftId}
+          onDraftIdChange={setDraftId}
+          initialTitle={createCtx.title}
+          initialStartsAt={createCtx.startsAt ? toLocalDateTimeValue(new Date(createCtx.startsAt)) : undefined}
+          initialEndsAt={createCtx.endsAt ? toLocalDateTimeValue(new Date(createCtx.endsAt)) : undefined}
+          initialLocationId={createCtx.locationId}
+          initialRequester={currentUserId}
+          initialEventId={createCtx.eventId}
+          initialSportCode={createCtx.sportCode}
+        />
+      )}
     </PageTransition>
   );
 }

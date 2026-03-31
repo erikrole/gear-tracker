@@ -146,6 +146,9 @@ export type CreateBookingSheetProps = {
   initialRequester?: string;
   /** Pre-select assets (e.g. from item detail page deep-link) */
   initialAssetIds?: string[];
+  /** Auto-fill event tie-in from deep link */
+  initialEventId?: string;
+  initialSportCode?: string;
 };
 
 /* ───── Component ───── */
@@ -166,13 +169,15 @@ export default function CreateBookingSheet({
   initialLocationId,
   initialRequester = "",
   initialAssetIds,
+  initialEventId,
+  initialSportCode,
 }: CreateBookingSheetProps) {
   const { toast } = useToast();
 
   // ── Form state ──
   const [form, dispatch] = useReducer(formReducer, {
-    tieToEvent: config.defaultTieToEvent,
-    sport: "",
+    tieToEvent: config.defaultTieToEvent || !!initialSportCode,
+    sport: initialSportCode || "",
     selectedEvent: null,
     title: initialTitle,
     requester: initialRequester,
@@ -278,6 +283,17 @@ export default function CreateBookingSheet({
       });
     return () => controller.abort();
   }, [form.sport, form.tieToEvent, open]);
+
+  // ── Auto-select event when initialEventId matches a loaded event ──
+  const autoSelectedEventRef = useRef(false);
+  useEffect(() => {
+    if (!initialEventId || autoSelectedEventRef.current || events.length === 0) return;
+    const match = events.find((e) => e.id === initialEventId);
+    if (match) {
+      autoSelectedEventRef.current = true;
+      selectEvent(match);
+    }
+  }, [events, initialEventId]);
 
   // ── Fetch shift context when event changes ──
   useEffect(() => {
