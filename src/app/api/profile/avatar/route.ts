@@ -23,17 +23,10 @@ export const POST = withAuth(async (req, { user }) => {
   // Upload to Vercel Blob
   const ext = file.name.split(".").pop() || "jpg";
   const pathname = `avatars/${user.id}/${Date.now()}.${ext}`;
-  let blob;
-  try {
-    blob = await put(pathname, file.stream(), {
-      access: "public",
-      contentType: file.type,
-    });
-  } catch (blobErr) {
-    const msg = blobErr instanceof Error ? blobErr.message : String(blobErr);
-    console.error(`[avatar-upload] blob.put failed — name=${file.name} type=${file.type} size=${file.size} pathname=${pathname} error=${msg}`);
-    throw blobErr;
-  }
+  const blob = await put(pathname, file.stream(), {
+    access: "public",
+    contentType: file.type,
+  });
 
   // Delete previous avatar if it was a blob URL
   const current = await db.user.findUnique({
