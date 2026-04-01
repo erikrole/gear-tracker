@@ -366,8 +366,17 @@
     text-decoration: none;
   }
 
+  /* Links rendered as buttons via asChild should inherit the button's text color */
+  a[data-slot="button"] {
+    color: inherit;
+  }
+
   a:hover {
     text-decoration: underline;
+  }
+
+  a[data-slot="button"]:hover {
+    text-decoration: none;
   }
 }
 
