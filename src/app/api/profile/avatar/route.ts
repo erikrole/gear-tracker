@@ -26,7 +26,6 @@ export const POST = withAuth(async (req, { user }) => {
   const blob = await put(pathname, file.stream(), {
     access: "public",
     contentType: file.type,
-    token: process.env.BLOB_READ_WRITE_TOKEN,
   });
 
   // Delete previous avatar if it was a blob URL
