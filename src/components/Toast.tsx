@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { toast as sonnerToast } from "sonner";
 
 type ToastType = "success" | "error" | "warning" | "info";
@@ -10,7 +11,7 @@ type ToastType = "success" | "error" | "warning" | "info";
  * No provider needed; just render <Toaster /> once in the layout.
  */
 export function useToast() {
-  function toast(message: string, type: ToastType = "info") {
+  const toast = useCallback(function toast(message: string, type: ToastType = "info") {
     switch (type) {
       case "success":
         sonnerToast.success(message);
@@ -25,7 +26,7 @@ export function useToast() {
         sonnerToast.info(message);
         break;
     }
-  }
+  }, []);
 
   return { toast };
 }
