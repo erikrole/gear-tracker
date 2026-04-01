@@ -23,7 +23,7 @@ export const POST = withAuth(async (req, { user }) => {
   // Upload to Vercel Blob
   const ext = file.name.split(".").pop() || "jpg";
   const pathname = `avatars/${user.id}/${Date.now()}.${ext}`;
-  const blob = await put(pathname, file, {
+  const blob = await put(pathname, file.stream(), {
     access: "public",
     contentType: file.type,
     token: process.env.BLOB_READ_WRITE_TOKEN,
