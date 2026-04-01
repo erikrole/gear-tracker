@@ -37,7 +37,7 @@ export async function uploadImage(
   const ext = file.name.split(".").pop() || "jpg";
   const pathname = `assets/${assetId}/${Date.now()}.${ext}`;
 
-  const blob = await put(pathname, file, {
+  const blob = await put(pathname, file.stream(), {
     access: "public",
     contentType: file.type,
     token: process.env.BLOB_READ_WRITE_TOKEN,
@@ -54,7 +54,7 @@ export async function uploadBookingPhoto(
   const ext = file.name.split(".").pop() || "jpg";
   const pathname = `bookings/${bookingId}/${phase.toLowerCase()}/${Date.now()}.${ext}`;
 
-  const blob = await put(pathname, file, {
+  const blob = await put(pathname, file.stream(), {
     access: "public",
     contentType: file.type,
     token: process.env.BLOB_READ_WRITE_TOKEN,
