@@ -376,7 +376,7 @@ function EventRows({
             <td></td>
             <td>
               <span className="text-sm text-muted-foreground pl-4">
-                {entry.sportCode ?? ""} {entry.opponent ? `vs ${entry.opponent}` : entry.summary} – {workerLabel} {AREA_LABELS[shift.area] ?? shift.area}
+                {workerLabel} · {AREA_LABELS[shift.area] ?? shift.area}
               </span>
             </td>
             <td>
@@ -406,11 +406,7 @@ function EventRows({
               </div>
             </td>
             <td className="text-sm text-muted-foreground whitespace-nowrap">{shiftTime}</td>
-            <td>
-              {entry.sportCode && (
-                <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
-              )}
-            </td>
+            <td></td>
           </tr>
         );
       })}
