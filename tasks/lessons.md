@@ -77,7 +77,7 @@
 ### Detail Page Architecture (Item Detail Overhaul)
 
 **Layout patterns:**
-- Global `a { color }` in CSS will override button text color when using `asChild` + `<Link>`. Always add a CSS rule: `[data-slot="button"] a { color: inherit; text-decoration: none; }`. Check this on ALL pages with button-wrapped links.
+- Global `a { color }` in CSS will override button text color when using `asChild` + `<Link>`. Add `[data-slot="button"] a { color: inherit; }` for anchors INSIDE buttons. But do NOT add `a[data-slot="button"] { color: inherit; }` — that targets the asChild case where the anchor IS the button, and its specificity (0,1,1) overrides `text-primary-foreground` (0,1,0), making default-variant button text invisible. Only set `text-decoration: none` on `a[data-slot="button"]`.
 - `TooltipTrigger asChild > Button asChild > Link` creates broken double-`asChild` nesting. Don't wrap buttons in tooltips when the button already uses `asChild`. Pick one: tooltip OR asChild link.
 - AppShell already renders a `<PageBreadcrumb />`. Pages should NOT render their own breadcrumbs — it causes double breadcrumb.
 - PageBreadcrumb must detect CUIDs (not just UUIDs) as dynamic segments. Regex: `/^c[a-z0-9]{20,}$/` in addition to the hex/UUID pattern.
