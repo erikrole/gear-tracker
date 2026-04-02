@@ -295,6 +295,74 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
   }
 }
 
+/**
+ * Notifies all ADMIN and STAFF users when a student reports an item as damaged or lost
+ * during check-in scanning.
+ */
+export async function notifyItemReport(args: {
+  bookingId: string;
+  bookingTitle: string;
+  assetId: string;
+  assetTag: string;
+  itemDescription: string;
+  reportType: "DAMAGED" | "LOST";
+  damageDescription?: string;
+  reporterName: string;
+}): Promise<void> {
+  const supervisors = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "STAFF"] }, active: true },
+    select: { id: true, email: true },
+  });
+
+  const now = new Date();
+  const typeLower = args.reportType.toLowerCase();
+  const notifType = `checkin_item_${typeLower}`;
+  const title = `Item reported ${typeLower}: ${args.assetTag}`;
+  const body = args.reportType === "DAMAGED"
+    ? `${args.reporterName} reported ${args.itemDescription} (${args.assetTag}) as damaged during check-in of "${args.bookingTitle}".${args.damageDescription ? ` Description: ${args.damageDescription}` : ""}`
+    : `${args.reporterName} reported ${args.itemDescription} (${args.assetTag}) as lost during check-in of "${args.bookingTitle}".`;
+
+  for (const supervisor of supervisors) {
+    const dedupeKey = `${args.bookingId}:item_report:${args.assetId}:${supervisor.id}`;
+    try {
+      await db.notification.create({
+        data: {
+          userId: supervisor.id,
+          type: notifType,
+          title,
+          body,
+          payload: {
+            bookingId: args.bookingId,
+            bookingTitle: args.bookingTitle,
+            assetId: args.assetId,
+            assetTag: args.assetTag,
+            reportType: args.reportType,
+            reporterName: args.reporterName,
+          },
+          channel: "IN_APP",
+          sentAt: now,
+          dedupeKey,
+        },
+      });
+
+      if (supervisor.email) {
+        await sendEmail({
+          to: supervisor.email,
+          subject: title,
+          html: buildNotificationEmail({
+            title,
+            body,
+            bookingTitle: args.bookingTitle,
+            dueAt: now.toISOString(),
+          }),
+        });
+      }
+    } catch (err) {
+      console.error(`[NOTIFY] Failed to create item report notification for supervisor ${supervisor.id}:`, err);
+    }
+  }
+}
+
 function formatRelative(dueAt: Date, now: Date): string {
   const diffMs = now.getTime() - dueAt.getTime();
   if (diffMs < 0) {

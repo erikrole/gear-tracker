@@ -12,6 +12,8 @@ type UseScanSessionOptions = {
   toast: ToastFn;
 };
 
+type SummaryCounts = { returned: number; damaged: number; lost: number };
+
 type UseScanSessionResult = {
   scanStatus: ScanStatus | null;
   setScanStatus: React.Dispatch<React.SetStateAction<ScanStatus | null>>;
@@ -27,6 +29,12 @@ type UseScanSessionResult = {
   setShowPhotoCapture: (v: boolean) => void;
   /** Call after photo is uploaded to proceed with completion */
   proceedAfterPhoto: () => Promise<void>;
+  /** Check-in summary screen state */
+  showSummary: boolean;
+  setShowSummary: (v: boolean) => void;
+  summaryData: SummaryCounts | null;
+  /** Confirm the summary and complete the check-in */
+  confirmSummary: () => Promise<void>;
 };
 
 function vibrate(ms = 100) {
@@ -46,6 +54,8 @@ export function useScanSession(
   const [showCelebration, setShowCelebration] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<SummaryCounts | null>(null);
 
   const toastRef = useRef(toast);
   toastRef.current = toast;
@@ -172,6 +182,25 @@ export function useScanSession(
   // Called after photo upload succeeds — proceed with actual completion
   const proceedAfterPhoto = useCallback(async () => {
     setShowPhotoCapture(false);
+
+    // For check-in with damage/lost reports, show summary before completing
+    if (mode === "checkin" && scanStatus) {
+      const damaged = scanStatus.progress.damagedCount ?? 0;
+      const lost = scanStatus.progress.lostCount ?? 0;
+      if (damaged > 0 || lost > 0) {
+        const returned = scanStatus.progress.serializedScanned - lost;
+        setSummaryData({ returned, damaged, lost });
+        setShowSummary(true);
+        return;
+      }
+    }
+
+    await doComplete();
+  }, [doComplete, mode, scanStatus]);
+
+  // Confirm the check-in summary and complete
+  const confirmSummary = useCallback(async () => {
+    setShowSummary(false);
     await doComplete();
   }, [doComplete]);
 
@@ -188,5 +217,9 @@ export function useScanSession(
     showPhotoCapture,
     setShowPhotoCapture,
     proceedAfterPhoto,
+    showSummary,
+    setShowSummary,
+    summaryData,
+    confirmSummary,
   };
 }

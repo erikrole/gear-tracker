@@ -1,11 +1,17 @@
 export type ScanMode = "lookup" | "checkout" | "checkin";
 
+export type ItemReport = {
+  type: "DAMAGED" | "LOST";
+  description?: string;
+};
+
 export type SerializedItemStatus = {
   assetId: string;
   assetTag: string;
   brand: string;
   model: string;
   scanned: boolean;
+  report?: ItemReport | null;
 };
 
 export type AllocatedUnit = {
@@ -37,6 +43,8 @@ export type ScanStatus = {
     serializedTotal: number;
     bulkComplete: boolean;
     allComplete: boolean;
+    damagedCount: number;
+    lostCount: number;
   };
 };
 

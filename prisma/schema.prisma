@@ -66,6 +66,11 @@ enum ScanSessionStatus {
   CANCELLED
 }
 
+enum CheckinReportType {
+  DAMAGED
+  LOST
+}
+
 model User {
   id             String       @id @default(cuid())
   name           String
@@ -98,6 +103,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   notifications       Notification[]
   bookingPhotos       BookingPhoto[]     @relation("BookingPhotoActor")
+  checkinReports      CheckinItemReport[] @relation("CheckinReports")
 
   @@map("users")
 }
@@ -214,6 +220,7 @@ model Asset {
   scans            ScanEvent[]
   kitMemberships   KitMembership[]
   favoritedBy      FavoriteItem[]
+  checkinReports   CheckinItemReport[]
 
   @@index([locationId])
   @@index([departmentId])
@@ -259,6 +266,7 @@ model Booking {
   overrides           OverrideEvent[]
   bulkMovements       BulkStockMovement[]
   photos              BookingPhoto[]
+  checkinReports      CheckinItemReport[]
 
   @@index([locationId, startsAt, endsAt])
   @@index([status, kind])
@@ -821,4 +829,22 @@ model BookingPhoto {
 
   @@index([bookingId, phase])
   @@map("booking_photos")
+}
+
+model CheckinItemReport {
+  id           String             @id @default(cuid())
+  bookingId    String             @map("booking_id")
+  assetId      String             @map("asset_id")
+  type         CheckinReportType
+  description  String?
+  reportedById String             @map("reported_by_id")
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  booking      Booking            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  asset        Asset              @relation(fields: [assetId], references: [id])
+  reportedBy   User               @relation("CheckinReports", fields: [reportedById], references: [id])
+
+  @@unique([bookingId, assetId])
+  @@index([bookingId])
+  @@map("checkin_item_reports")
 }

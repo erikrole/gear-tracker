@@ -62,10 +62,22 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
 
   // Get successful scan events for this phase
-  const scanEvents = await db.scanEvent.findMany({
-    where: { bookingId: id, phase, success: true },
-    select: { assetId: true, bulkSkuId: true, quantity: true, scanType: true },
-  });
+  const [scanEvents, checkinReports] = await Promise.all([
+    db.scanEvent.findMany({
+      where: { bookingId: id, phase, success: true },
+      select: { assetId: true, bulkSkuId: true, quantity: true, scanType: true },
+    }),
+    phase === "CHECKIN"
+      ? db.checkinItemReport.findMany({
+          where: { bookingId: id },
+          select: { assetId: true, type: true, description: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const reportMap = new Map(
+    checkinReports.map((r) => [r.assetId, { type: r.type, description: r.description }])
+  );
 
   const scannedAssetIds = new Set(
     scanEvents.filter((e) => e.scanType === ScanType.SERIALIZED && e.assetId).map((e) => e.assetId!)
@@ -87,6 +99,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
       brand: item.asset.brand,
       model: item.asset.model,
       scanned: scannedAssetIds.has(item.asset.id),
+      report: reportMap.get(item.asset.id) ?? null,
     }));
 
   const bulkItems = booking.bulkItems.map((item) => ({
@@ -105,9 +118,14 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   }));
 
   const serializedTotal = serializedItems.length;
-  const serializedScanned = serializedItems.filter((i) => i.scanned).length;
+  // Items with LOST reports count as "accounted for" even if not scanned
+  const serializedScanned = serializedItems.filter(
+    (i) => i.scanned || i.report?.type === "LOST"
+  ).length;
   const bulkComplete = bulkItems.every((i) => i.scanned >= i.required);
   const allComplete = serializedScanned === serializedTotal && bulkComplete;
+  const damagedCount = serializedItems.filter((i) => i.report?.type === "DAMAGED").length;
+  const lostCount = serializedItems.filter((i) => i.report?.type === "LOST").length;
 
   return ok({
     data: {
@@ -124,6 +142,8 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
         serializedTotal,
         bulkComplete,
         allComplete,
+        damagedCount,
+        lostCount,
       },
     },
   });

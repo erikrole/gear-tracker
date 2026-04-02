@@ -57,6 +57,12 @@ export const scanSchema = z.object({
   deviceContext: z.string().max(500).optional()
 });
 
+export const checkinReportSchema = z.object({
+  assetId: z.string().min(1),
+  type: z.enum(["DAMAGED", "LOST"]),
+  description: z.string().max(1000).optional(),
+});
+
 export const overrideSchema = z.object({
   reason: z.string().min(5).max(1000),
   details: z.record(z.unknown()).optional()
