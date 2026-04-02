@@ -18,7 +18,6 @@ import { ItemPreviewDrawer } from "./_components/ItemPreviewDrawer";
 import { ReportDamageDialog } from "./_components/ReportDamageDialog";
 import { ReportLostDialog } from "./_components/ReportLostDialog";
 import { CheckinSummaryDialog } from "./_components/CheckinSummaryDialog";
-import PhotoCaptureDialog from "@/components/PhotoCaptureDialog";
 import type { ScanMode, SerializedItemStatus } from "./_components/types";
 
 export default function ScanPage() {
@@ -297,17 +296,6 @@ export default function ScanPage() {
             )}
           </Button>
         </div>
-      )}
-
-      {/* ══════ Photo capture before completion ══════ */}
-      {isBookingMode && checkoutId && (
-        <PhotoCaptureDialog
-          open={session.showPhotoCapture}
-          onOpenChange={session.setShowPhotoCapture}
-          checkoutId={checkoutId}
-          phase={mode === "checkin" ? "CHECKIN" : "CHECKOUT"}
-          onPhotoUploaded={session.proceedAfterPhoto}
-        />
       )}
 
       {/* ══════ Celebration overlay ══════ */}

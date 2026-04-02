@@ -24,11 +24,6 @@ type UseScanSessionResult = {
   completing: boolean;
   loadScanStatus: () => Promise<void>;
   handleComplete: () => Promise<void>;
-  /** True when the photo capture dialog should be shown before completion */
-  showPhotoCapture: boolean;
-  setShowPhotoCapture: (v: boolean) => void;
-  /** Call after photo is uploaded to proceed with completion */
-  proceedAfterPhoto: () => Promise<void>;
   /** Check-in summary screen state */
   showSummary: boolean;
   setShowSummary: (v: boolean) => void;
@@ -53,7 +48,6 @@ export function useScanSession(
   const [loadError, setLoadError] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [showPhotoCapture, setShowPhotoCapture] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState<SummaryCounts | null>(null);
 
@@ -173,15 +167,9 @@ export function useScanSession(
     setCompleting(false);
   }, [checkoutId, mode, router]);
 
-  // Complete checkout/checkin — opens photo dialog first
+  // Complete checkout/checkin — show summary if reports exist, otherwise complete directly
   const handleComplete = useCallback(async () => {
     if (!checkoutId) return;
-    setShowPhotoCapture(true);
-  }, [checkoutId]);
-
-  // Called after photo upload succeeds — proceed with actual completion
-  const proceedAfterPhoto = useCallback(async () => {
-    setShowPhotoCapture(false);
 
     // For check-in with damage/lost reports, show summary before completing
     if (mode === "checkin" && scanStatus) {
@@ -196,7 +184,7 @@ export function useScanSession(
     }
 
     await doComplete();
-  }, [doComplete, mode, scanStatus]);
+  }, [checkoutId, doComplete, mode, scanStatus]);
 
   // Confirm the check-in summary and complete
   const confirmSummary = useCallback(async () => {
@@ -214,9 +202,6 @@ export function useScanSession(
     completing,
     loadScanStatus,
     handleComplete,
-    showPhotoCapture,
-    setShowPhotoCapture,
-    proceedAfterPhoto,
     showSummary,
     setShowSummary,
     summaryData,
