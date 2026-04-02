@@ -336,11 +336,6 @@ export default function EventDetailPage() {
         ) : (
           <Badge variant="orange">needs location mapping</Badge>
         )}
-        {event.source && (
-          <span className="text-xs text-muted-foreground">
-            via {event.source.name}
-          </span>
-        )}
       </div>
 
       {/* Action CTAs */}
@@ -363,14 +358,8 @@ export default function EventDetailPage() {
         <CardContent>
           <DataList
             items={[
-              ...(event.sportCode
-                ? [{ label: "Sport", value: sportLabel(event.sportCode) }]
-                : []),
               ...(event.opponent
                 ? [{ label: "Opponent", value: event.opponent }]
-                : []),
-              ...(event.isHome !== null
-                ? [{ label: "Home/Away", value: event.isHome ? "Home" : "Away" }]
                 : []),
               {
                 label: "When",
@@ -381,15 +370,12 @@ export default function EventDetailPage() {
               ...(event.rawLocationText
                 ? [{ label: "Venue", value: event.rawLocationText }]
                 : []),
-              ...(event.description
-                ? [{ label: "Description", value: <span className="whitespace-pre-wrap">{event.description}</span> }]
-                : []),
             ]}
           />
         </CardContent>
       </Card>
 
-      {/* Shift coverage */}
+      {/* Shift coverage (merged with command center for staff) */}
       {shiftGroup && (
         <Card className="mt-4">
           <CardHeader className="flex-row items-center justify-between">
@@ -405,184 +391,178 @@ export default function EventDetailPage() {
                 <span className="text-xs text-muted-foreground ml-1.5">Students can request shifts</span>
               </div>
             )}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Area</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Assigned</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shiftGroup.shifts.map((shift) => {
-                  const activeAssignment = shift.assignments.find(
-                    (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED"
-                  );
-                  const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
-                  return (
-                    <TableRow key={shift.id}>
-                      <TableCell>{AREA_LABELS[shift.area] ?? shift.area}</TableCell>
-                      <TableCell>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</TableCell>
-                      <TableCell>
-                        {activeAssignment ? (
-                          <span className="flex items-center gap-2">
-                            <Avatar className="size-6">
-                              <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(activeAssignment.user.name)}`}>
-                                {getInitials(activeAssignment.user.name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            {activeAssignment.user.name}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">&mdash;</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {activeAssignment ? (
-                          <Badge variant="green">Filled</Badge>
-                        ) : pendingCount > 0 ? (
-                          <Badge variant="orange">{pendingCount} request{pendingCount > 1 ? "s" : ""}</Badge>
-                        ) : (
-                          <Badge variant="red">Open</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Command Center (staff/admin only) */}
-      {commandCenter && commandCenter.shifts.length > 0 && (currentUserRole === "STAFF" || currentUserRole === "ADMIN") && (
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle>Command Center</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Gear status pills */}
-            <div className="flex gap-2 flex-wrap mb-4">
-              <Badge variant="gray">
-                {commandCenter.gearSummary.byStatus.draft} Draft
-              </Badge>
-              <Badge variant="orange">
-                {commandCenter.gearSummary.byStatus.reserved} Reserved
-              </Badge>
-              <Badge variant="green">
-                {commandCenter.gearSummary.byStatus.checkedOut} Checked out
-              </Badge>
-              <Badge variant="blue">
-                {commandCenter.gearSummary.byStatus.completed} Returned
-              </Badge>
-            </div>
-
-            {/* Shift + gear grid */}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Area</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Assigned</TableHead>
-                  <TableHead>Shift</TableHead>
-                  <TableHead>Gear</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {commandCenter.shifts.map((shift) => {
-                  const hasMissingGear = shift.assignment && commandCenter.missingGear.some(
-                    (m) => m.shiftId === shift.id
-                  );
-                  return (
-                    <TableRow key={shift.id}>
-                      <TableCell>{AREA_LABELS[shift.area] ?? shift.area}</TableCell>
-                      <TableCell>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</TableCell>
-                      <TableCell>{shift.assignment ? shift.assignment.userName : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
-                      <TableCell>
-                        {shift.assignment ? (
-                          <Badge variant="green">Filled</Badge>
-                        ) : shift.pendingRequests > 0 ? (
-                          <Badge variant="orange">{shift.pendingRequests} req</Badge>
-                        ) : (
-                          <Badge variant="red">Open</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!shift.assignment ? (
-                          <span className="text-muted-foreground">&mdash;</span>
-                        ) : hasMissingGear ? (
-                          <Badge variant="red">None</Badge>
-                        ) : shift.assignment.linkedBookingId ? (
-                          <Badge variant="green">Linked</Badge>
-                        ) : (
-                          <Badge variant="orange">Unlinked</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-
-            {/* Missing gear list */}
-            {commandCenter.missingGear.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-sm mb-2">
-                  Missing Gear ({commandCenter.missingGear.length})
-                </h3>
-                <div className="flex flex-col gap-2">
-                  {commandCenter.missingGear.map((m) => (
-                    <div
-                      key={`${m.shiftId}-${m.userId}`}
-                      className="flex items-center justify-between px-3 py-2 bg-muted rounded-lg text-sm"
-                    >
-                      <div>
-                        <strong>{m.userName}</strong>
-                        <span className="text-muted-foreground ml-2">
-                          {AREA_LABELS[m.area] ?? m.area}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={nudgingId === m.assignmentId}
-                          onClick={async () => {
-                            setNudgingId(m.assignmentId);
-                            try {
-                              const res = await fetch("/api/notifications/nudge", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ assignmentId: m.assignmentId }),
-                              });
-                              if (res.status === 401) { window.location.href = "/login"; return; }
-                              if (res.ok) {
-                                toast(`Nudge sent to ${m.userName}`, "success");
-                              } else {
-                                toast("Failed to send nudge", "error");
-                              }
-                            } catch {
-                              toast("Network error — nudge not sent", "error");
-                            }
-                            setNudgingId(null);
-                          }}
-                        >
-                          {nudgingId === m.assignmentId ? "Sending..." : "Nudge"}
-                        </Button>
-                        <Button size="sm" asChild>
-                          <Link
-                            href={`/checkouts?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}&requesterUserId=${m.userId}`}
-                          >
-                            Create checkout
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+            {/* Staff/admin: enhanced view with gear status */}
+            {commandCenter && commandCenter.shifts.length > 0 && (currentUserRole === "STAFF" || currentUserRole === "ADMIN") ? (
+              <>
+                <div className="flex gap-2 flex-wrap mb-4">
+                  <Badge variant="gray">
+                    {commandCenter.gearSummary.byStatus.draft} Draft
+                  </Badge>
+                  <Badge variant="orange">
+                    {commandCenter.gearSummary.byStatus.reserved} Reserved
+                  </Badge>
+                  <Badge variant="green">
+                    {commandCenter.gearSummary.byStatus.checkedOut} Checked out
+                  </Badge>
+                  <Badge variant="blue">
+                    {commandCenter.gearSummary.byStatus.completed} Returned
+                  </Badge>
                 </div>
-              </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Area</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Assigned</TableHead>
+                      <TableHead>Shift</TableHead>
+                      <TableHead>Gear</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commandCenter.shifts.map((shift) => {
+                      const hasMissingGear = shift.assignment && commandCenter.missingGear.some(
+                        (m) => m.shiftId === shift.id
+                      );
+                      return (
+                        <TableRow key={shift.id}>
+                          <TableCell>{AREA_LABELS[shift.area] ?? shift.area}</TableCell>
+                          <TableCell>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</TableCell>
+                          <TableCell>{shift.assignment ? shift.assignment.userName : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
+                          <TableCell>
+                            {shift.assignment ? (
+                              <Badge variant="green">Filled</Badge>
+                            ) : shift.pendingRequests > 0 ? (
+                              <Badge variant="orange">{shift.pendingRequests} req</Badge>
+                            ) : (
+                              <Badge variant="red">Open</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!shift.assignment ? (
+                              <span className="text-muted-foreground">&mdash;</span>
+                            ) : hasMissingGear ? (
+                              <Badge variant="red">None</Badge>
+                            ) : shift.assignment.linkedBookingId ? (
+                              <Badge variant="green">Linked</Badge>
+                            ) : (
+                              <Badge variant="orange">Unlinked</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                {commandCenter.missingGear.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-sm mb-2">
+                      Missing Gear ({commandCenter.missingGear.length})
+                    </h3>
+                    <div className="flex flex-col gap-2">
+                      {commandCenter.missingGear.map((m) => (
+                        <div
+                          key={`${m.shiftId}-${m.userId}`}
+                          className="flex items-center justify-between px-3 py-2 bg-muted rounded-lg text-sm"
+                        >
+                          <div>
+                            <strong>{m.userName}</strong>
+                            <span className="text-muted-foreground ml-2">
+                              {AREA_LABELS[m.area] ?? m.area}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={nudgingId === m.assignmentId}
+                              onClick={async () => {
+                                setNudgingId(m.assignmentId);
+                                try {
+                                  const res = await fetch("/api/notifications/nudge", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ assignmentId: m.assignmentId }),
+                                  });
+                                  if (res.status === 401) { window.location.href = "/login"; return; }
+                                  if (res.ok) {
+                                    toast(`Nudge sent to ${m.userName}`, "success");
+                                  } else {
+                                    toast("Failed to send nudge", "error");
+                                  }
+                                } catch {
+                                  toast("Network error — nudge not sent", "error");
+                                }
+                                setNudgingId(null);
+                              }}
+                            >
+                              {nudgingId === m.assignmentId ? "Sending..." : "Nudge"}
+                            </Button>
+                            <Button size="sm" asChild>
+                              <Link
+                                href={`/checkouts?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}&requesterUserId=${m.userId}`}
+                              >
+                                Create checkout
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Non-staff: basic shift table */
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Area</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Assigned</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {shiftGroup.shifts.map((shift) => {
+                    const activeAssignment = shift.assignments.find(
+                      (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED"
+                    );
+                    const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
+                    return (
+                      <TableRow key={shift.id}>
+                        <TableCell>{AREA_LABELS[shift.area] ?? shift.area}</TableCell>
+                        <TableCell>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</TableCell>
+                        <TableCell>
+                          {activeAssignment ? (
+                            <span className="flex items-center gap-2">
+                              <Avatar className="size-6">
+                                <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(activeAssignment.user.name)}`}>
+                                  {getInitials(activeAssignment.user.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {activeAssignment.user.name}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">&mdash;</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {activeAssignment ? (
+                            <Badge variant="green">Filled</Badge>
+                          ) : pendingCount > 0 ? (
+                            <Badge variant="orange">{pendingCount} request{pendingCount > 1 ? "s" : ""}</Badge>
+                          ) : (
+                            <Badge variant="red">Open</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
@@ -606,12 +586,14 @@ export default function EventDetailPage() {
       )}
 
       {/* Debug info for admins */}
-      <details className="mt-4 text-xs text-muted-foreground">
-        <summary className="cursor-pointer">Raw ICS data</summary>
-        <pre className="bg-muted p-3 rounded-lg mt-2 overflow-auto">
-          {JSON.stringify({ rawSummary: event.rawSummary, rawLocationText: event.rawLocationText, rawDescription: event.rawDescription }, null, 2)}
-        </pre>
-      </details>
+      {currentUserRole === "ADMIN" && (
+        <details className="mt-4 text-xs text-muted-foreground">
+          <summary className="cursor-pointer">Raw ICS data</summary>
+          <pre className="bg-muted p-3 rounded-lg mt-2 overflow-auto">
+            {JSON.stringify({ rawSummary: event.rawSummary, rawLocationText: event.rawLocationText, rawDescription: event.rawDescription }, null, 2)}
+          </pre>
+        </details>
+      )}
     </>
   );
 }

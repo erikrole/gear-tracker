@@ -32,7 +32,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 
 ## Next
 1. Better normalization for opponent and venue fields.
-2. V2 enhancements: Day Drawer, Trade Board as sheet, inline coverage expansion, "My Shifts" filter — see `tasks/calendar-roadmap.md`.
+2. Schedule V2 enhancements: week view, gear readiness indicators, conflict detection — see `tasks/schedule-roadmap.md`.
 
 ## Later
 1. Multi-source event ingestion, if required.
@@ -74,3 +74,4 @@ Make athletics schedule data the operational backbone for booking and checkout w
 - 2026-03-25: Doc sync — standardized ACs to checkbox format, all 4 checked. Marked developer brief items 2-3 as shipped (calendar source health UI, 2026-03-19).
 - 2026-03-25: Event detail page hardened (4-pass). Design system: inline styles → Tailwind, `.breadcrumb` → shadcn Breadcrumb, `.data-table` → shadcn Table, `<a>` → `<Link>`. Data flow: AbortController on all fetches, 401 redirect on every endpoint, unmount cleanup. Resilience: error differentiation (network vs server), retry button, high-fidelity skeleton. UX: manual refresh with "Updated X ago" tooltip, shift panel onUpdated also refreshes command center.
 - 2026-03-26: Event detail page hardened (6-pass follow-up). Data flow: pass abort signal to onUpdated fetches (loadShiftGroup, loadCommandCenter) to prevent state-after-unmount. UX: nudge button now shows toast feedback on success/failure/network error (was fire-and-forget). Color-coded avatar fallbacks via getAvatarColor(). GAP-20 closed.
+- 2026-04-02: UX audit — removed redundant "via source" text, Description, Sport, Home/Away from Details card. Merged Shift Coverage + Command Center into single role-aware card. Raw ICS debug data admin-only. See `tasks/schedule-roadmap.md` for V2/V3 roadmap.
