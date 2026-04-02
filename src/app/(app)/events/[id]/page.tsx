@@ -338,16 +338,16 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      {/* Action CTAs */}
+      {/* Action CTAs — Checkout is primary (most common immediate action) */}
       <div className="flex gap-2 mb-6 flex-wrap">
         <Button asChild className="min-h-11 px-5">
-          <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`}>
-            Reserve gear for this event
+          <Link href={`/checkouts?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`}>
+            Checkout to this event
           </Link>
         </Button>
         <Button variant="outline" asChild className="min-h-11 px-5">
-          <Link href={`/checkouts?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`}>
-            Checkout to this event
+          <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}`}>
+            Reserve gear for this event
           </Link>
         </Button>
       </div>

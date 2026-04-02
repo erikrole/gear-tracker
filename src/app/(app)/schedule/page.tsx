@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import { ScheduleFilters } from "./_components/ScheduleFilters";
 import { CalendarView } from "./_components/CalendarView";
+import { WeekView } from "./_components/WeekView";
 import { ListView } from "./_components/ListView";
 
 const ShiftDetailPanel = dynamic(
@@ -55,6 +56,20 @@ export default function SchedulePage() {
           setCalMonth={data.setCalMonth}
           expandedDay={data.expandedDay}
           setExpandedDay={data.setExpandedDay}
+          onSelectGroup={data.setSelectedGroupId}
+        />
+      )}
+
+      {/* Week View */}
+      {data.filters.viewMode === "week" && (
+        <WeekView
+          entries={data.filteredEntries}
+          weekStart={data.weekStart}
+          setWeekStart={data.setWeekStart}
+          loading={data.loading}
+          currentUserId={data.currentUserId}
+          currentUserRole={data.currentUserRole}
+          myShiftsOnly={data.filters.myShiftsOnly}
           onSelectGroup={data.setSelectedGroupId}
         />
       )}

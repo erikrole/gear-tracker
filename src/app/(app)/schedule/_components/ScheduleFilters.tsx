@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ListIcon, CalendarIcon } from "lucide-react";
+import { ListIcon, CalendarIcon, CalendarDaysIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
@@ -10,7 +10,7 @@ import {
   AREA_LABELS,
   type CalendarEntry,
 } from "./types";
-import type { ScheduleFilters as ScheduleFiltersType } from "@/hooks/use-schedule-data";
+import type { ScheduleFilters as ScheduleFiltersType, ViewMode } from "@/hooks/use-schedule-data";
 
 type ScheduleFiltersProps = {
   filters: ScheduleFiltersType;
@@ -33,12 +33,16 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       <ToggleGroup
         type="single"
         value={filters.viewMode}
-        onValueChange={(v) => { if (v) filters.setViewMode(v as "list" | "calendar"); }}
+        onValueChange={(v) => { if (v) filters.setViewMode(v as ViewMode); }}
         className="h-9"
       >
         <ToggleGroupItem value="list" className="h-9 px-3 gap-1.5 text-sm font-medium">
           <ListIcon className="size-4" />
           List
+        </ToggleGroupItem>
+        <ToggleGroupItem value="week" className="h-9 px-3 gap-1.5 text-sm font-medium">
+          <CalendarDaysIcon className="size-4" />
+          Week
         </ToggleGroupItem>
         <ToggleGroupItem value="calendar" className="h-9 px-3 gap-1.5 text-sm font-medium">
           <CalendarIcon className="size-4" />

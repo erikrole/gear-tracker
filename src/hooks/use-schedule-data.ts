@@ -9,9 +9,11 @@ import type {
 } from "@/app/(app)/schedule/_components/types";
 import { userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
 
+export type ViewMode = "list" | "calendar" | "week";
+
 export type ScheduleFilters = {
-  viewMode: "list" | "calendar";
-  setViewMode: (v: "list" | "calendar") => void;
+  viewMode: ViewMode;
+  setViewMode: (v: ViewMode) => void;
   sportFilter: string;
   setSportFilter: (v: string) => void;
   areaFilter: string;
@@ -36,6 +38,8 @@ export type UseScheduleDataResult = {
   filters: ScheduleFilters;
   calMonth: Date;
   setCalMonth: (d: Date) => void;
+  weekStart: Date;
+  setWeekStart: (d: Date) => void;
   currentUserId: string;
   currentUserRole: string;
   openTradeCount: number;
@@ -68,13 +72,24 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
 }
 
 /** Build schedule fetch URL based on current view params */
-function buildScheduleUrls(viewMode: string, calMonth: Date, includePast: boolean, sportFilter: string) {
+function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, includePast: boolean, sportFilter: string) {
   const evParams = new URLSearchParams({ limit: "200" });
   const sgParams = new URLSearchParams();
 
   if (viewMode === "calendar") {
     const startDate = calMonth.toISOString();
     const endDate = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    evParams.set("startDate", startDate);
+    evParams.set("endDate", endDate);
+    evParams.set("includePast", "true");
+    sgParams.set("startDate", startDate);
+    sgParams.set("endDate", endDate);
+  } else if (viewMode === "week") {
+    const startDate = weekStart.toISOString();
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    const endDate = weekEnd.toISOString();
     evParams.set("startDate", startDate);
     evParams.set("endDate", endDate);
     evParams.set("includePast", "true");
@@ -144,18 +159,29 @@ async function fetchTradeCount(): Promise<number> {
   return j?.data?.length ?? 0;
 }
 
+/** Get Monday of the week containing the given date */
+function getMonday(d: Date): Date {
+  const result = new Date(d);
+  const day = result.getDay(); // 0=Sun
+  result.setDate(result.getDate() - ((day + 6) % 7));
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
 export function useScheduleData(): UseScheduleDataResult {
   // View — restore from localStorage
-  const [viewMode, setViewMode] = useState<"list" | "calendar">(() => {
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "list";
     const stored = localStorage.getItem(LS_VIEW_MODE);
-    return stored === "calendar" ? "calendar" : "list";
+    if (stored === "calendar" || stored === "week") return stored;
+    return "list";
   });
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
+  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
 
   // Filters
   const [sportFilter, setSportFilter] = useState("");
@@ -201,7 +227,7 @@ export function useScheduleData(): UseScheduleDataResult {
   });
 
   // --- React Query: schedule entries ---
-  const { eventsUrl, groupsUrl } = buildScheduleUrls(viewMode, calMonth, includePast, sportFilter);
+  const { eventsUrl, groupsUrl } = buildScheduleUrls(viewMode, calMonth, weekStart, includePast, sportFilter);
   const scheduleQueryKey = ["schedule", eventsUrl, groupsUrl];
 
   const { data: entries = [], isLoading, error: scheduleError, refetch: refetchSchedule } = useQuery({
@@ -285,6 +311,8 @@ export function useScheduleData(): UseScheduleDataResult {
     },
     calMonth,
     setCalMonth,
+    weekStart,
+    setWeekStart,
     currentUserId,
     currentUserRole,
     openTradeCount: tradeCount,
