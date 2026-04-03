@@ -104,6 +104,8 @@ model User {
   notifications       Notification[]
   bookingPhotos       BookingPhoto[]     @relation("BookingPhotoActor")
   checkinReports      CheckinItemReport[] @relation("CheckinReports")
+  allowedEmailsCreated AllowedEmail[]    @relation("AllowedEmailCreator")
+  allowedEmailsClaimed AllowedEmail[]    @relation("AllowedEmailClaimer")
 
   @@map("users")
 }
@@ -647,6 +649,21 @@ model FavoriteItem {
   @@unique([userId, assetId])
   @@index([userId])
   @@map("favorite_items")
+}
+
+model AllowedEmail {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  role        Role      @default(STUDENT)
+  createdById String    @map("created_by_id")
+  claimedAt   DateTime? @map("claimed_at")
+  claimedById String?   @map("claimed_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  createdBy   User      @relation("AllowedEmailCreator", fields: [createdById], references: [id])
+  claimedBy   User?     @relation("AllowedEmailClaimer", fields: [claimedById], references: [id])
+
+  @@index([createdById])
+  @@map("allowed_emails")
 }
 
 model SystemConfig {

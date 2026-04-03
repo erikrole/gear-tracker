@@ -34,6 +34,7 @@
 - D-024: Booking reference numbers use kind prefix (CO/RV) with global sequence
 - D-025: User-facing status labels are display-only — DB enum stays unchanged
 - D-028: Photo requirement on checkout/checkin — camera-only, scan-only checkin
+- D-029: Registration gated by admin-managed email allowlist
 
 ---
 
@@ -519,6 +520,28 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ---
 
+## D-029: Registration Gated by Admin-Managed Email Allowlist
+
+**Decision (2026-04-03):** User self-registration is gated by an `AllowedEmail` table. Only email addresses pre-approved by an ADMIN or STAFF user can register. The allowlist entry also pre-assigns the user's role (STAFF or STUDENT).
+
+**Context:** Open registration allowed anyone to create an account and access the system. For an internal tool managing university athletics equipment, access must be controlled. No email service is needed — admins tell users verbally to sign up, and the system verifies their email is on the allowlist.
+
+**Constraints:**
+- `AllowedEmail` model: email (unique), role, createdById, claimedAt, claimedById
+- Registration endpoint checks allowlist before creating user; returns 403 if not found
+- Allowlist entry marked as `claimed` on successful registration (prevents reuse)
+- Role comes from allowlist entry, not hardcoded to STUDENT
+- STAFF can only add STUDENT-role entries; ADMIN can add both STAFF and STUDENT
+- Claimed entries cannot be deleted (audit trail preserved)
+- Admin UI under Settings > Allowed Emails with add/delete/filter
+
+**Downstream Effects:**
+- Public `/register` still works but only for pre-approved emails
+- Admin user creation via `/api/users` (POST) is unaffected — bypasses allowlist
+- Existing users unaffected (allowlist only gates new registrations)
+
+---
+
 ## Pending Decisions
 1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
 2. ~~Venue mapping governance owner~~ — Resolved: D-027.
@@ -539,3 +562,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-24: Added D-026 (event sync hourly cron + staleness indicator — resolves PD-3) and D-027 (venue mapping admin-only + pattern validation — resolves PD-2). All pending decisions now resolved.
 - 2026-03-25: Doc sync — resolved PD-4 (student KPIs defined). Updated D-010 to reflect shipped state (B&H withdrawn, notification center shipped, student dashboard shipped). Updated D-009 email channel from "Phase B" to "Shipped 2026-03-16". Updated D-019 from "Phase B" to "Shipped 2026-03-21" (department filter + combobox).
 - 2026-03-30: Added D-028 (photo requirement on checkout/checkin — camera-only capture, scan-only checkin, BookingPhoto model).
+- 2026-04-03: Added D-029 (registration gated by admin-managed email allowlist — AllowedEmail table, role pre-assignment, Settings UI).

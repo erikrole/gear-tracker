@@ -142,3 +142,4 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-03-25: Doc sync — standardized ACs to checkbox format, all 6 checked.
 - 2026-03-26: Avatar system roadmap created — see `tasks/avatars-roadmap.md`. V1: centralized initials utility, color-coded fallbacks, avatar photos in shift picker/schedule rows. V2: admin avatar upload, bulk import, image resize. V3: role badges, quick actions, team roster view.
 - 2026-03-26: **Avatar hardened (5-pass):** UserAvatar API cleaned — `name` is now required prop (derives initials + color). All inline `charAt(0)` avatar usages migrated to `getInitials()` + `getAvatarColor()`. Zero remaining inline initials across 14 consumers.
+- 2026-04-03: **Registration gating (D-029):** Self-registration now requires email to be on admin-managed allowlist (`AllowedEmail` table). Role pre-assigned at invite time. Admin UI at Settings > Allowed Emails. See D-029 for full constraints.

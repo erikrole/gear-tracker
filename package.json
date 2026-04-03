@@ -21,7 +21,7 @@
   "dependencies": {
     "@fontsource/barlow": "^5.2.8",
     "@prisma/adapter-neon": "^6.19.2",
-    "@prisma/client": "^6.19.2",
+    "@prisma/client": "^6.19.3",
     "@radix-ui/react-progress": "^1.1.8",
     "@sentry/nextjs": "^10.46.0",
     "@tailwindcss/postcss": "^4.2.2",
@@ -60,7 +60,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
-    "prisma": "^6.19.2",
+    "prisma": "^6.19.3",
     "typescript": "5.9.3",
     "vitest": "^3.0.6"
   }
