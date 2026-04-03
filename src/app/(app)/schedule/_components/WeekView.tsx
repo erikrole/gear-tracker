@@ -176,15 +176,27 @@ function EventCard({
 
 function WeekSkeleton() {
   return (
-    <div className="week-grid max-md:hidden">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="week-day-col">
-          <Skeleton className="h-3 w-12 mb-2" />
-          <Skeleton className="h-16 w-full mb-1.5" />
-          <Skeleton className="h-16 w-full mb-1.5" />
-        </div>
-      ))}
-    </div>
+    <>
+      {/* Desktop skeleton */}
+      <div className="week-grid max-md:hidden">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="week-day-col">
+            <Skeleton className="h-3 w-12 mb-2" />
+            <Skeleton className="h-16 w-full mb-1.5" />
+            <Skeleton className="h-16 w-full mb-1.5" />
+          </div>
+        ))}
+      </div>
+      {/* Mobile skeleton */}
+      <div className="md:hidden border rounded-lg overflow-hidden">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="flex items-center justify-between px-3 py-3 border-b last:border-b-0">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-5 w-6" />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
