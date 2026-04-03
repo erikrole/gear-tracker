@@ -11,7 +11,11 @@ export const env = {
     return getRequired("DATABASE_URL");
   },
   get sessionSecret() {
-    return getRequired("SESSION_SECRET");
+    const secret = getRequired("SESSION_SECRET");
+    if (secret.length < 32) {
+      throw new Error("SESSION_SECRET must be at least 32 characters");
+    }
+    return secret;
   },
   get sessionCookieName() {
     return getRequired("SESSION_COOKIE_NAME");
