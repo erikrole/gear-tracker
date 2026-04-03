@@ -140,9 +140,9 @@ export default function ScanPage() {
   // ── Render ──
   return (
     <div className="flex flex-col gap-3 pb-4 md:max-w-[640px] md:mx-auto max-md:gap-2.5 max-md:pb-[100px]">
-      {/* ══════ Sticky header with progress (booking modes) ══════ */}
+      {/* ══════ Compact header (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && (
-        <div className="flex items-center gap-2.5 sticky top-[56px] z-[1] bg-[var(--bg)] -mx-4 -mt-4 px-4 py-2.5 max-md:border-b max-md:border-[var(--border-light)] md:static md:mx-0 md:px-0 md:py-2">
+        <div className="flex items-center gap-2.5 sticky top-[56px] z-[1] bg-[var(--bg)] -mx-4 -mt-4 px-4 py-2 max-md:border-b max-md:border-[var(--border-light)] md:static md:mx-0 md:px-0 md:py-2">
           <button
             type="button"
             className="flex items-center gap-2 flex-1 min-w-0 no-underline text-inherit [-webkit-tap-highlight-color:transparent]"
@@ -158,21 +158,22 @@ export default function ScanPage() {
               }
               router.push(`/checkouts/${checkoutId}`);
             }}
+            aria-label="Back to checkout"
           >
-            <ChevronLeftIcon className="size-[18px]" />
+            <ChevronLeftIcon className="size-5 shrink-0 text-muted-foreground" />
             <div className="flex flex-col min-w-0">
-              <span className="text-base font-bold whitespace-nowrap overflow-hidden text-ellipsis">{session.scanStatus.title}</span>
-              <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+              <span className="text-base font-bold truncate">{session.scanStatus.title}</span>
+              <span className="text-xs text-muted-foreground truncate">
                 {session.scanStatus.requester.name} &middot; {session.scanStatus.location.name}
               </span>
             </div>
           </button>
-          <div className={`inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 ${
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap shrink-0 ${
             mode === "checkout"
               ? "bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400"
               : "bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400"
           }`}>
-            <div className={`w-[7px] h-[7px] rounded-full animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none ${
+            <div className={`w-[6px] h-[6px] rounded-full animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none ${
               mode === "checkout" ? "bg-blue-600 dark:bg-blue-400" : "bg-green-600 dark:bg-green-400"
             }`} />
             {mode === "checkout" ? "Out" : "In"}
@@ -248,7 +249,7 @@ export default function ScanPage() {
       {mode === "lookup" && !scanning && !submission.feedback && (
         <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-muted-foreground text-sm opacity-60">
           <ScanIcon className="size-12" />
-          <span>Scan any item&apos;s QR code or enter its asset tag to view details.</span>
+          <span>Scan any item&apos;s QR code to view details.</span>
         </div>
       )}
 

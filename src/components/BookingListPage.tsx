@@ -348,13 +348,13 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             )}
 
             {totalPages > 1 && (
-              <div className="pagination">
+              <nav className="pagination" aria-label="Pagination">
                 <span>Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}</span>
                 <div className="pagination-btns">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Previous page">Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Next page">Next</Button>
                 </div>
-              </div>
+              </nav>
             )}
           </>
         )}

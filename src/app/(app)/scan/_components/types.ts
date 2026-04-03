@@ -10,6 +10,10 @@ export type SerializedItemStatus = {
   assetTag: string;
   brand: string;
   model: string;
+  imageUrl?: string | null;
+  categoryName?: string | null;
+  qrCodeValue?: string | null;
+  primaryScanCode?: string | null;
   scanned: boolean;
   report?: ItemReport | null;
 };

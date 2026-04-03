@@ -204,7 +204,7 @@ export default function BookingsPage() {
       <PageHeader title="Bookings" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="px-4">
+        <TabsList className="px-4 max-md:px-2" aria-label="Booking type">
           <TabsTrigger value="checkouts" className="flex items-center gap-1.5">
             <ClipboardCheckIcon className="size-4" />
             Checkouts

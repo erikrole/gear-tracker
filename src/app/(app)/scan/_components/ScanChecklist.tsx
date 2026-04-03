@@ -1,6 +1,9 @@
+"use client";
+
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Flag, AlertTriangle } from "lucide-react";
+import { Flag, AlertTriangle, Package, QrCode, Barcode } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import type { ScanMode, ScanStatus, SerializedItemStatus } from "./types";
 
@@ -14,7 +17,7 @@ type ScanChecklistProps = {
 };
 
 function sortItems(a: SerializedItemStatus, b: SerializedItemStatus): number {
-  // Sort order: unscanned (no report) → lost → scanned → damaged
+  // Unscanned first, then lost, then scanned, then damaged
   const rank = (item: SerializedItemStatus) => {
     if (item.report?.type === "LOST") return 1;
     if (item.scanned && item.report?.type === "DAMAGED") return 3;
@@ -36,7 +39,7 @@ export function ScanChecklist({
 
   return (
     <div className="bg-[var(--panel)] border border-border rounded-xl shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--border-light)]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-light)]">
         <h2 className="text-[15px] font-bold m-0">Items</h2>
         <span className="text-sm font-bold text-muted-foreground">
           {scannedItems}/{totalItems}
@@ -51,76 +54,100 @@ export function ScanChecklist({
           description="This booking has no equipment assigned."
         />
       ) : (
-        <div className="max-h-[40vh] max-md:max-h-[35vh] overflow-y-auto [-webkit-overflow-scrolling:touch]">
+        <div className="overflow-y-auto [-webkit-overflow-scrolling:touch]">
           {[...scanStatus.serializedItems]
             .sort(sortItems)
             .map((item) => {
               const isLost = item.report?.type === "LOST";
               const isDamaged = item.report?.type === "DAMAGED";
 
-              // Background color: green for scanned (no report), orange for damaged, red tint for lost
+              // Background color
               let rowBg = "";
               if (isLost) {
                 rowBg = "bg-red-50 dark:bg-red-950/20";
               } else if (isDamaged) {
                 rowBg = "bg-orange-50 dark:bg-orange-950/20";
               } else if (item.scanned) {
-                rowBg = "bg-[#f0fdf4] dark:bg-green-950/20";
+                rowBg = "bg-green-50/50 dark:bg-green-950/10";
               }
 
-              // Circle color
-              let circleCls = "bg-gray-200 text-gray-400";
+              // Circle styling — 40px like reference
+              let circleBorder = "border-2 border-gray-200 dark:border-gray-700";
+              let circleInner = "";
               if (isLost) {
-                circleCls = "bg-orange-500 text-white";
+                circleBorder = "border-2 border-orange-500 bg-orange-500";
+                circleInner = "text-white";
               } else if (item.scanned) {
-                circleCls = "bg-green-500 text-white animate-[scan-check-pop_0.3s_ease]";
+                circleBorder = "border-2 border-green-500 bg-green-500";
+                circleInner = "text-white animate-[scan-check-pop_0.3s_ease]";
               }
+
+              // Truncated QR code (first 8 chars)
+              const qrShort = item.qrCodeValue ? item.qrCodeValue.replace(/^QR-/i, "").slice(0, 8) : null;
 
               return (
                 <div
                   key={item.assetId}
-                  className={`flex items-center gap-3 px-4 py-3 border-b border-[var(--border-light)] transition-colors duration-300 min-h-[52px] last:border-b-0 ${rowBg}`}
+                  className={`flex items-center gap-3 px-3 py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${rowBg}`}
                 >
-                  <div
-                    className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-sm font-bold transition-all duration-300 ${circleCls}`}
-                  >
-                    {isLost ? (
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                    ) : item.scanned ? (
-                      "\u2713"
-                    ) : null}
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col gap-px">
-                    <span className={`text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis ${item.scanned && !isDamaged && !isLost ? "text-green-800 dark:text-green-300" : ""}`}>
+                  {/* Item image */}
+                  {item.imageUrl ? (
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.assetTag}
+                      width={64}
+                      height={64}
+                      className="size-16 rounded-lg object-cover shrink-0"
+                      unoptimized={!item.imageUrl.includes(".public.blob.vercel-storage.com")}
+                    />
+                  ) : (
+                    <div className="size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Package className="size-6 text-muted-foreground" />
+                    </div>
+                  )}
+
+                  {/* Item info */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <span className={`text-base font-bold leading-tight ${item.scanned && !isDamaged && !isLost ? "text-green-800 dark:text-green-300" : ""}`}>
                       {item.assetTag}
                     </span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
-                      {item.brand} {item.model}
+                    <span className="text-sm text-muted-foreground">
+                      {item.categoryName || [item.brand, item.model].filter(Boolean).join(" ")}
                     </span>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+                      {qrShort && (
+                        <span className="flex items-center gap-0.5">
+                          <QrCode className="size-3" />
+                          {qrShort}
+                        </span>
+                      )}
+                      {item.primaryScanCode && (
+                        <span className="flex items-center gap-0.5">
+                          <Barcode className="size-3" />
+                          {item.primaryScanCode}
+                        </span>
+                      )}
+                    </div>
+                    {/* Report badges inline */}
+                    {(isDamaged || isLost) && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {isDamaged && <Badge variant="orange" size="sm">Damaged</Badge>}
+                        {isLost && <Badge variant="red" size="sm">Lost</Badge>}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Badge + action area */}
+                  {/* Circle checkbox + actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {isDamaged && (
-                      <Badge variant="orange" size="sm">Damaged</Badge>
-                    )}
-                    {isLost && (
-                      <Badge variant="red" size="sm">Lost</Badge>
-                    )}
-                    {item.scanned && !isDamaged && !isLost && (
-                      <>
-                        <Badge variant="green" size="sm">Scanned</Badge>
-                        {isCheckin && onReportDamage && (
-                          <button
-                            type="button"
-                            onClick={() => onReportDamage(item)}
-                            className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                            title="Report damage"
-                          >
-                            <Flag className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                        )}
-                      </>
+                    {item.scanned && !isDamaged && !isLost && isCheckin && onReportDamage && (
+                      <button
+                        type="button"
+                        onClick={() => onReportDamage(item)}
+                        className="p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        aria-label={`Report damage for ${item.assetTag}`}
+                      >
+                        <Flag className="size-4 text-muted-foreground" />
+                      </button>
                     )}
                     {!item.scanned && !isLost && isCheckin && onReportLost && (
                       <Button
@@ -129,65 +156,72 @@ export function ScanChecklist({
                         className="h-7 text-xs px-2"
                         onClick={() => onReportLost(item)}
                       >
-                        Report Lost
+                        Lost
                       </Button>
                     )}
+
+                    {/* Circle */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${circleBorder} ${circleInner}`}>
+                      {isLost ? (
+                        <AlertTriangle className="size-4" />
+                      ) : item.scanned ? (
+                        <svg className="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="4 10 8 14 16 6" />
+                        </svg>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               );
             })}
 
+          {/* Bulk items */}
           {scanStatus.bulkItems.map((item) => {
             const done = item.scanned >= item.required;
             const allocated = item.allocatedUnits ?? [];
             return (
               <div
                 key={item.bulkSkuId}
-                className={`flex items-center gap-3 px-4 py-3 border-b border-[var(--border-light)] transition-colors duration-300 min-h-[52px] last:border-b-0 ${done ? "bg-[#f0fdf4] dark:bg-green-950/20" : ""}`}
+                className={`flex items-center gap-3 px-3 py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${done ? "bg-green-50/50 dark:bg-green-950/10" : ""}`}
               >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-sm font-bold transition-all duration-300 ${
-                    done
-                      ? "bg-green-500 text-white animate-[scan-check-pop_0.3s_ease]"
-                      : "bg-gray-200 text-gray-400"
-                  }`}
-                >
-                  {done && "\u2713"}
+                <div className="size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Package className="size-6 text-muted-foreground" />
                 </div>
-                <div className="flex-1 min-w-0 flex flex-col gap-px">
-                  <span className={`text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis ${done ? "text-green-800 dark:text-green-300" : ""}`}>
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <span className={`text-base font-bold leading-tight ${done ? "text-green-800 dark:text-green-300" : ""}`}>
                     {item.name}
                     {item.trackByNumber && (
-                      <Badge variant="blue" size="sm" className="ml-1.5">
-                        #
-                      </Badge>
+                      <Badge variant="blue" size="sm" className="ml-1.5">#</Badge>
                     )}
                   </span>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                  <span className="text-sm text-muted-foreground">
                     {item.scanned} / {item.required} scanned
                   </span>
+                  {item.trackByNumber && allocated.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {allocated.map((u) => (
+                        <Badge
+                          key={u.unitNumber}
+                          variant={u.checkedIn ? "green" : u.checkedOut ? "blue" : "gray"}
+                          size="sm"
+                        >
+                          #{u.unitNumber}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
-
-                {/* Show allocated unit numbers */}
-                {item.trackByNumber && allocated.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2 ml-10">
-                    {allocated.map((u) => (
-                      <Badge
-                        key={u.unitNumber}
-                        variant={
-                          u.checkedIn
-                            ? "green"
-                            : u.checkedOut
-                              ? "blue"
-                              : "gray"
-                        }
-                        size="sm"
-                      >
-                        #{u.unitNumber}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
+                  done
+                    ? "border-2 border-green-500 bg-green-500 text-white animate-[scan-check-pop_0.3s_ease]"
+                    : "border-2 border-gray-200 dark:border-gray-700"
+                }`}>
+                  {done && (
+                    <svg className="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="4 10 8 14 16 6" />
+                    </svg>
+                  )}
+                </div>
               </div>
             );
           })}

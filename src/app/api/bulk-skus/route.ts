@@ -9,21 +9,30 @@ import { createAuditEntry } from "@/lib/audit";
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
   const locationId = searchParams.get("location_id");
+  const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 50, 1), 200);
+  const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
 
-  const data = await db.bulkSku.findMany({
-    where: {
-      ...(locationId ? { locationId } : {})
-    },
-    include: {
-      location: true,
-      balances: true,
-      units: true,
-      categoryRel: { select: { id: true, name: true } }
-    },
-    orderBy: [{ locationId: "asc" }, { name: "asc" }]
-  });
+  const where: Prisma.BulkSkuWhereInput = {
+    ...(locationId ? { locationId } : {}),
+  };
 
-  return ok({ data });
+  const [data, total] = await Promise.all([
+    db.bulkSku.findMany({
+      where,
+      include: {
+        location: true,
+        balances: true,
+        units: true,
+        categoryRel: { select: { id: true, name: true } },
+      },
+      orderBy: [{ locationId: "asc" }, { name: "asc" }],
+      take: limit,
+      skip: offset,
+    }),
+    db.bulkSku.count({ where }),
+  ]);
+
+  return ok({ data, total, limit, offset });
 });
 
 export const POST = withAuth(async (req, { user }) => {
