@@ -19,6 +19,7 @@ import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { DashboardSkeleton } from "./dashboard/dashboard-skeleton";
 import { FilterChips } from "./dashboard/filter-chips";
 import { OverdueBanner } from "./dashboard/overdue-banner";
+import { FlaggedItemsBanner } from "./dashboard/flagged-items-banner";
 import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
 import { PageTransition, StaggerList, StaggerItem } from "@/components/ui/motion";
@@ -303,6 +304,11 @@ export default function DashboardPage() {
         now={now}
         onSelectBooking={setSelectedBookingId}
       />
+
+      {/* ══════ Flagged Items Banner (staff/admin only) ══════ */}
+      {!isStudent && data.flaggedItems.length > 0 && (
+        <FlaggedItemsBanner items={data.flaggedItems} />
+      )}
 
       {/* ══════ Two-Column Split ══════ */}
       <div className={isStudent ? "grid grid-cols-1 gap-6 max-w-[640px]" : "grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start"}>

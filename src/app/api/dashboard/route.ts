@@ -126,6 +126,9 @@ export const GET = withAuth(async (_req, { user }) => {
     myDrafts,
     // My shift assignments
     myShiftsRaw,
+    // Flagged items: recent damage/lost reports + maintenance assets
+    recentReports,
+    maintenanceAssets,
   ] = await Promise.all([
     countsPromise,
     // Team checkouts (excl. me)
@@ -156,7 +159,7 @@ export const GET = withAuth(async (_req, { user }) => {
         status: "CONFIRMED",
       },
       orderBy: { startsAt: "asc" },
-      take: 5,
+      take: 20,
       include: {
         location: { select: { id: true, name: true } },
         shiftGroup: {
@@ -257,6 +260,28 @@ export const GET = withAuth(async (_req, { user }) => {
         },
       },
     }),
+    // Recent damage/lost reports (last 30 days, staff/admin only)
+    user.role !== "STUDENT"
+      ? db.checkinItemReport.findMany({
+          where: { createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) } },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          include: {
+            asset: { select: { id: true, assetTag: true, name: true } },
+            booking: { select: { title: true } },
+            reportedBy: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+    // Assets currently in maintenance
+    user.role !== "STUDENT"
+      ? db.asset.findMany({
+          where: { status: "MAINTENANCE" },
+          orderBy: { updatedAt: "desc" },
+          take: 10,
+          select: { id: true, assetTag: true, name: true, updatedAt: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const c = counts[0];
@@ -282,11 +307,11 @@ export const GET = withAuth(async (_req, { user }) => {
   myCheckouts.sort(sortOverdueFirst);
 
   const events = upcomingEvents.map((e) => {
-    // Collect assigned users across all shifts
+    // Collect assigned users across all shifts (include shift area for tooltip)
     const shifts = e.shiftGroup?.shifts ?? [];
     const totalShiftSlots = shifts.length;
     const seenUserIds = new Set<string>();
-    const assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null }> = [];
+    const assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null; area: string | null }> = [];
     for (const shift of shifts) {
       for (const a of shift.assignments) {
         if (!seenUserIds.has(a.user.id)) {
@@ -296,6 +321,7 @@ export const GET = withAuth(async (_req, { user }) => {
             name: a.user.name,
             initials: getInitials(a.user.name),
             avatarUrl: a.user.avatarUrl ?? null,
+            area: shift.area,
           });
         }
       }
@@ -448,6 +474,28 @@ export const GET = withAuth(async (_req, { user }) => {
         updatedAt: d.updatedAt.toISOString(),
       })),
       myShifts,
+      flaggedItems: [
+        ...recentReports.map((r) => ({
+          id: r.id,
+          assetId: r.asset.id,
+          assetTag: r.asset.assetTag,
+          assetName: r.asset.name,
+          type: r.type as "DAMAGED" | "LOST",
+          bookingTitle: r.booking.title,
+          reportedBy: r.reportedBy.name,
+          createdAt: r.createdAt.toISOString(),
+        })),
+        ...maintenanceAssets.map((a) => ({
+          id: `maint-${a.id}`,
+          assetId: a.id,
+          assetTag: a.assetTag,
+          assetName: a.name,
+          type: "MAINTENANCE" as const,
+          bookingTitle: null,
+          reportedBy: null,
+          createdAt: a.updatedAt.toISOString(),
+        })),
+      ],
     },
   });
 });

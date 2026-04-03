@@ -20,6 +20,7 @@ function normalizeDashboard(d: DashboardData): DashboardData {
   d.overdueItems = d.overdueItems ?? [];
   d.drafts = d.drafts ?? [];
   d.myShifts = d.myShifts ?? [];
+  d.flaggedItems = d.flaggedItems ?? [];
   d.stats = d.stats ?? { checkedOut: 0, overdue: 0, reserved: 0, dueToday: 0 };
   return d;
 }
