@@ -10,7 +10,7 @@ import {
   AREA_LABELS,
   type CalendarEntry,
 } from "./types";
-import type { ScheduleFilters as ScheduleFiltersType, ViewMode } from "@/hooks/use-schedule-data";
+import type { ScheduleFilters as ScheduleFiltersType, ViewMode, HomeAwayFilter } from "@/hooks/use-schedule-data";
 
 type ScheduleFiltersProps = {
   filters: ScheduleFiltersType;
@@ -48,6 +48,15 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           <CalendarIcon className="size-4" />
           Calendar
         </ToggleGroupItem>
+      </ToggleGroup>
+      <ToggleGroup
+        type="single"
+        value={filters.homeAwayFilter}
+        onValueChange={(v) => { if (v) filters.setHomeAwayFilter(v as HomeAwayFilter); }}
+      >
+        <ToggleGroupItem value="all" className="px-2 py-1 text-xs">All</ToggleGroupItem>
+        <ToggleGroupItem value="home" className="px-2 py-1 text-xs">Home</ToggleGroupItem>
+        <ToggleGroupItem value="away" className="px-2 py-1 text-xs">Away</ToggleGroupItem>
       </ToggleGroup>
       <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
         <div className="flex items-center gap-2">

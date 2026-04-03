@@ -565,6 +565,7 @@ model CalendarEvent {
   locationId        String?             @map("location_id")
   sportCode         String?             @map("sport_code")
   isHome            Boolean?            @map("is_home")
+  isHidden          Boolean             @default(false) @map("is_hidden")
   opponent          String?
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronDownIcon, ChevronRightIcon, UserIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
@@ -7,6 +7,7 @@ import { sportLabel } from "@/lib/sports";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { CalendarEntry, Shift } from "./types";
@@ -31,9 +32,11 @@ type ListViewProps = {
   includePast: boolean;
   hasFilters: boolean;
   currentUserId: string;
+  isStaff: boolean;
   expandedRowId: string | null;
   setExpandedRowId: (id: string | null) => void;
   onSelectGroup: (groupId: string | null) => void;
+  onHideEvent?: (eventId: string) => void;
 };
 
 const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue"> = {
@@ -60,9 +63,11 @@ export function ListView({
   includePast,
   hasFilters,
   currentUserId,
+  isStaff,
   expandedRowId,
   setExpandedRowId,
   onSelectGroup,
+  onHideEvent,
 }: ListViewProps) {
 
   return (
@@ -165,8 +170,10 @@ export function ListView({
                             isExpanded={isExpanded}
                             hasShifts={hasShifts}
                             shiftStatus={shiftStatus}
+                            isStaff={isStaff}
                             onToggle={() => setExpandedRowId(isExpanded ? null : entry.id)}
                             onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
+                            onHide={onHideEvent ? () => onHideEvent(entry.id) : undefined}
                           />
                         );
                       })}
@@ -199,7 +206,7 @@ export function ListView({
                             : <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0" />
                         )}
                         {entry.opponent
-                          ? `${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
+                          ? `${entry.isHome === true ? "vs " : "at "}${entry.opponent}`
                           : entry.summary}
                       </span>
                       <div className="flex items-center gap-1">
@@ -287,18 +294,22 @@ function EventRows({
   isExpanded,
   hasShifts,
   shiftStatus,
+  isStaff,
   onToggle,
   onSelectGroup,
+  onHide,
 }: {
   entry: CalendarEntry;
   isExpanded: boolean;
   hasShifts: boolean;
   shiftStatus: string | null;
+  isStaff: boolean;
   onToggle: () => void;
   onSelectGroup: () => void;
+  onHide?: () => void;
 }) {
   const eventTitle = entry.opponent
-    ? `${entry.sportCode ? sportLabel(entry.sportCode) + " " : ""}${entry.isHome === true ? "vs " : entry.isHome === false ? "at " : ""}${entry.opponent}`
+    ? `${entry.sportCode ? sportLabel(entry.sportCode) + " " : ""}${entry.isHome === true ? "vs " : "at "}${entry.opponent}`
     : entry.summary;
 
   const timeStr = entry.allDay
@@ -309,7 +320,7 @@ function EventRows({
     <>
       {/* Parent event row */}
       <tr
-        className={`${hasShifts ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]" : ""} ${isExpanded ? "bg-accent/30" : ""}`}
+        className={`group/row ${hasShifts ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]" : ""} ${isExpanded ? "bg-accent/30" : ""}`}
         tabIndex={hasShifts ? 0 : undefined}
         role={hasShifts ? "link" : undefined}
         onClick={hasShifts ? onToggle : undefined}
@@ -352,16 +363,35 @@ function EventRows({
         </td>
         <td className="text-sm text-muted-foreground whitespace-nowrap">{timeStr}</td>
         <td>
-          {entry.sportCode && (
-            <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
-          )}
+          <div className="flex items-center gap-1.5">
+            {entry.sportCode && (
+              <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
+            )}
+            {isStaff && onHide && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="opacity-0 group-hover/row:opacity-100 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); onHide(); }}
+                  >
+                    <EyeOffIcon className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Hide event from schedule</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </td>
       </tr>
 
       {/* Child shift rows */}
       {isExpanded && entry.shifts.map((shift) => {
         const user = shiftAssignee(shift);
-        const shiftTime = `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
+        // Suppress shift call times for away events (no call times on road trips)
+        const isAway = entry.isHome !== true;
+        const shiftTime = isAway ? "—" : `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
         const workerLabel = shift.workerType === "FT" ? "FT" : "ST";
 
         return (

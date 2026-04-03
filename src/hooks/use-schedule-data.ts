@@ -11,6 +11,8 @@ import { userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_
 
 export type ViewMode = "list" | "calendar" | "week";
 
+export type HomeAwayFilter = "all" | "home" | "away";
+
 export type ScheduleFilters = {
   viewMode: ViewMode;
   setViewMode: (v: ViewMode) => void;
@@ -20,6 +22,8 @@ export type ScheduleFilters = {
   setAreaFilter: (v: string) => void;
   coverageFilter: string;
   setCoverageFilter: (v: string) => void;
+  homeAwayFilter: HomeAwayFilter;
+  setHomeAwayFilter: (v: HomeAwayFilter) => void;
   includePast: boolean;
   setIncludePast: (v: boolean) => void;
   myShiftsOnly: boolean;
@@ -187,6 +191,7 @@ export function useScheduleData(): UseScheduleDataResult {
   const [sportFilter, setSportFilter] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [coverageFilter, setCoverageFilter] = useState("");
+  const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
   const [includePast, setIncludePast] = useState(false);
   const [myShiftsOnly, setMyShiftsOnly] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -248,6 +253,12 @@ export function useScheduleData(): UseScheduleDataResult {
     if (myShiftsOnly && currentUserId) {
       result = result.filter((e) => userHasShift(e, currentUserId));
     }
+    if (homeAwayFilter === "home") {
+      result = result.filter((e) => e.isHome === true);
+    } else if (homeAwayFilter === "away") {
+      // Neutral (null) is treated as away
+      result = result.filter((e) => e.isHome !== true);
+    }
     if (areaFilter) {
       result = result.filter((e) => e.shifts.some((s) => s.area === areaFilter));
     }
@@ -257,7 +268,7 @@ export function useScheduleData(): UseScheduleDataResult {
       result = result.filter((e) => e.coverage && e.coverage.percentage >= 100);
     }
     return result;
-  }, [entries, areaFilter, coverageFilter, myShiftsOnly, currentUserId]);
+  }, [entries, homeAwayFilter, areaFilter, coverageFilter, myShiftsOnly, currentUserId]);
 
   // Group entries by date for list view
   const groupedEntries = useMemo(() => {
@@ -274,7 +285,7 @@ export function useScheduleData(): UseScheduleDataResult {
     return groups;
   }, [filteredEntries]);
 
-  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || includePast || myShiftsOnly);
+  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || myShiftsOnly);
 
   const loadData = useCallback(async () => {
     await refetchSchedule();
@@ -296,6 +307,8 @@ export function useScheduleData(): UseScheduleDataResult {
       setAreaFilter,
       coverageFilter,
       setCoverageFilter,
+      homeAwayFilter,
+      setHomeAwayFilter,
       includePast,
       setIncludePast,
       myShiftsOnly,
@@ -305,6 +318,7 @@ export function useScheduleData(): UseScheduleDataResult {
         setSportFilter("");
         setAreaFilter("");
         setCoverageFilter("");
+        setHomeAwayFilter("all");
         setIncludePast(false);
         setMyShiftsOnly(false);
       },

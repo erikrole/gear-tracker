@@ -26,8 +26,8 @@ function isToday(calMonth: Date, day: number) {
 
 function calBookingClass(entry: CalendarEntry): string {
   if (entry.isHome === true) return "cal-booking cal-booking-home";
-  if (entry.isHome === false) return "cal-booking cal-booking-away";
-  return "cal-booking cal-booking-neutral";
+  // Neutral sites (null) treated as away
+  return "cal-booking cal-booking-away";
 }
 
 export function CalendarView({
@@ -144,7 +144,7 @@ export function CalendarView({
                           )}
                           <span className="truncate">
                             {entry.sportCode && entry.opponent
-                              ? `${sportLabel(entry.sportCode)} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
+                              ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
                               : entry.summary}
                           </span>
                         </button>
@@ -156,7 +156,7 @@ export function CalendarView({
                           title={entry.summary}
                         >
                           {entry.sportCode && entry.opponent
-                            ? `${sportLabel(entry.sportCode)} ${entry.isHome ? "vs" : "at"} ${entry.opponent}`
+                            ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
                             : entry.summary}
                         </Link>
                       ),

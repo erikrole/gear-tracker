@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,22 @@ const TradeBoard = dynamic(() => import("@/components/TradeBoard"), {
 
 export default function SchedulePage() {
   const data = useScheduleData();
+  const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
+
+  const handleHideEvent = useCallback(async (eventId: string) => {
+    try {
+      const res = await fetch(`/api/calendar-events/${eventId}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isHidden: true }),
+      });
+      if (res.ok) {
+        data.loadData();
+      }
+    } catch {
+      // silently fail — event stays visible
+    }
+  }, [data]);
 
   return (
     <>
@@ -88,9 +105,11 @@ export default function SchedulePage() {
           includePast={data.filters.includePast}
           hasFilters={data.filters.hasFilters}
           currentUserId={data.currentUserId}
+          isStaff={isStaff}
           expandedRowId={data.expandedRowId}
           setExpandedRowId={data.setExpandedRowId}
           onSelectGroup={data.setSelectedGroupId}
+          onHideEvent={isStaff ? handleHideEvent : undefined}
         />
       )}
 
