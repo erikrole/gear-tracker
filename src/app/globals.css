@@ -1079,14 +1079,6 @@ a[data-slot="button"]:hover {
   background: rgba(249, 115, 22, 0.2);
 }
 
-.cal-booking-neutral {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-}
-.cal-booking-neutral:hover {
-  background: rgba(59, 130, 246, 0.2);
-}
-
 .cal-more {
   font-size: var(--text-2xs);
   color: var(--text-secondary);
@@ -1124,13 +1116,6 @@ a[data-slot="button"]:hover {
     display: none;
   }
 
-  .cal-mobile-notice {
-    display: block;
-    text-align: center;
-    padding: 24px 16px;
-    color: var(--text-secondary);
-    font-size: var(--text-base);
-  }
 }
 
 /* ===== Week View ===== */
@@ -1183,14 +1168,6 @@ a[data-slot="button"]:hover {
 }
 .week-event-away:hover {
   background: rgba(249, 115, 22, 0.18);
-}
-
-.week-event-neutral {
-  background: rgba(59, 130, 246, 0.10);
-  color: var(--text);
-}
-.week-event-neutral:hover {
-  background: rgba(59, 130, 246, 0.18);
 }
 
 /* ===== Print styles ===== */

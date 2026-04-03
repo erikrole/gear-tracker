@@ -97,7 +97,7 @@ export function CalendarView({
         </Button>
       </CardHeader>
       <div className="p-4">
-        <div className="cal-mobile-notice hidden">
+        <div className="hidden max-md:block text-center py-6 px-4 text-muted-foreground text-sm">
           Switch to List view for the best mobile experience.
         </div>
         <div className="cal-grid">
