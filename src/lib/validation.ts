@@ -225,3 +225,15 @@ export const updateUserSchedulingSchema = z.object({
   phone: z.string().max(20).optional().nullable(),
   primaryArea: z.nativeEnum(ShiftArea).optional().nullable(),
 });
+
+export const createAllowedEmailSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(["STAFF", "STUDENT"]).default("STUDENT"),
+});
+
+export const createAllowedEmailBulkSchema = z.object({
+  emails: z.array(z.object({
+    email: z.string().email(),
+    role: z.enum(["STAFF", "STUDENT"]).default("STUDENT"),
+  })).min(1).max(50),
+});

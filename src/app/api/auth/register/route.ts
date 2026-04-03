@@ -16,6 +16,23 @@ export const POST = withHandler(async (req) => {
   const body = registerSchema.parse(await req.json());
   const email = body.email.toLowerCase();
 
+  // ── Allowlist gate ──────────────────────────────────────
+  const allowedEntry = await db.allowedEmail.findUnique({
+    where: { email },
+  });
+
+  if (!allowedEntry) {
+    throw new HttpError(
+      403,
+      "Registration is by invitation only. Contact an administrator to request access."
+    );
+  }
+
+  if (allowedEntry.claimedAt) {
+    throw new HttpError(409, "This invitation has already been used");
+  }
+  // ────────────────────────────────────────────────────────
+
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) {
     throw new HttpError(409, "An account with this email already exists");
@@ -30,7 +47,7 @@ export const POST = withHandler(async (req) => {
         name: body.name,
         email,
         passwordHash,
-        role: "STUDENT",
+        role: allowedEntry.role, // Use role from allowlist (not hardcoded STUDENT)
       },
     });
   } catch (error) {
@@ -39,6 +56,12 @@ export const POST = withHandler(async (req) => {
     }
     throw error;
   }
+
+  // Mark allowlist entry as claimed
+  await db.allowedEmail.update({
+    where: { id: allowedEntry.id },
+    data: { claimedAt: new Date(), claimedById: user.id },
+  });
 
   await createSession(user.id);
 
