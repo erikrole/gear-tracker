@@ -1,11 +1,14 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { useFormSubmit } from "@/hooks/use-form-submit";
-import { PlusIcon, ChevronDownIcon } from "lucide-react";
+import { useFetch } from "@/hooks/use-fetch";
+import { PlusIcon, ChevronDownIcon, AlertCircleIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { useToast } from "@/components/Toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -47,7 +50,7 @@ type BulkSku = {
 import type { CategoryOption } from "@/types/category";
 type Location = { id: string; name: string };
 
-type Response = { data: BulkSku[]; total: number; limit: number; offset: number };
+type BulkSkuResponse = { data: BulkSku[]; total: number; limit: number; offset: number };
 
 const UNIT_STATUS_COLORS: Record<string, { bg: string; dot: string; label: string }> = {
   AVAILABLE: { bg: "#dcfce7", dot: "#22c55e", label: "Available" },
@@ -57,11 +60,8 @@ const UNIT_STATUS_COLORS: Record<string, { bg: string; dot: string; label: strin
 };
 
 export default function BulkInventoryPage() {
-  const [items, setItems] = useState<BulkSku[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [total, setTotal] = useState(0);
+  const { toast } = useToast();
   const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const createFormRef = useRef<HTMLFormElement>(null);
@@ -69,33 +69,28 @@ export default function BulkInventoryPage() {
   const [trackByNumber, setTrackByNumber] = useState(false);
   const [addingUnits, setAddingUnits] = useState<string | null>(null);
   const [addCount, setAddCount] = useState(10);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [search, setSearch] = useState("");
   const limit = 20;
 
-  function reload() {
-    setLoading(true);
-    const params = new URLSearchParams();
-    params.set("limit", String(limit));
-    params.set("offset", String(page * limit));
-    fetch(`/api/bulk-skus?${params}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((json: Response | null) => { if (json) { setItems(json.data ?? []); setTotal(json.total ?? 0); } })
-      .finally(() => setLoading(false));
-  }
+  // Data fetching via React Query (cached, auto-refresh on focus)
+  const { data: skuData, loading, error: loadError, reload } = useFetch<BulkSkuResponse>({
+    url: `/api/bulk-skus?limit=${limit}&offset=${page * limit}`,
+    transform: (json) => json as unknown as BulkSkuResponse,
+  });
+  const items = skuData?.data ?? [];
+  const total = skuData?.total ?? 0;
 
-  useEffect(() => { reload(); }, [page]);
+  const { data: formOpts } = useFetch<{ locations: Location[] }>({
+    url: "/api/form-options",
+    transform: (json) => (json as { data: { locations: Location[] } }).data,
+  });
+  const locations = formOpts?.locations ?? [];
 
-  useEffect(() => {
-    fetch("/api/form-options")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data?.locations) setLocations(json.data.locations); });
-    fetch("/api/categories")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.data) setCategories(json.data); });
-  }, []);
+  const { data: categories } = useFetch<CategoryOption[]>({
+    url: "/api/categories",
+  });
 
-  const { submit: submitCreate, submitting: createSubmitting, formError, clearErrors } = useFormSubmit({
+  const { submit: submitCreate, submitting: createSubmitting, formError } = useFormSubmit({
     url: "/api/bulk-skus",
     successMessage: "SKU created",
     onSuccess: () => {
@@ -132,33 +127,62 @@ export default function BulkInventoryPage() {
   async function handleAddUnits(skuId: string) {
     if (addCount <= 0) return;
     setActionLoading(true);
-    const res = await fetch(`/api/bulk-skus/${skuId}/units`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ count: addCount }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/bulk-skus/${skuId}/units`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: addCount }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to add units", "error");
+        return;
+      }
+      toast(`Added ${addCount} units`, "success");
       setAddingUnits(null);
       reload();
+    } catch {
+      toast("Network error — try again", "error");
+    } finally {
+      setActionLoading(false);
     }
-    setActionLoading(false);
   }
 
   async function handleConvertToNumbered(skuId: string) {
     if (!confirm("Convert this SKU to numbered tracking? This will create individual unit records from the current on-hand quantity.")) return;
     setActionLoading(true);
-    const res = await fetch(`/api/bulk-skus/${skuId}/convert-to-numbered`, { method: "POST" });
-    if (res.ok) reload();
-    setActionLoading(false);
+    try {
+      const res = await fetch(`/api/bulk-skus/${skuId}/convert-to-numbered`, { method: "POST" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to convert", "error");
+        return;
+      }
+      toast("Converted to numbered tracking", "success");
+      reload();
+    } catch {
+      toast("Network error — try again", "error");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleUnitStatusChange(skuId: string, unitNumber: number, status: string) {
-    await fetch(`/api/bulk-skus/${skuId}/units/${unitNumber}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    reload();
+    try {
+      const res = await fetch(`/api/bulk-skus/${skuId}/units/${unitNumber}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to update unit", "error");
+        return;
+      }
+      reload();
+    } catch {
+      toast("Network error — try again", "error");
+    }
   }
 
   const filteredItems = items.filter((sku) => {
@@ -207,13 +231,13 @@ export default function BulkInventoryPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Category</SelectItem>
-                {categories.filter((c) => !c.parentId).map((parent) => (
+                {(categories ?? []).filter((c) => !c.parentId).map((parent) => (
                   <SelectGroup key={parent.id}>
                     <SelectLabel>{parent.name}</SelectLabel>
-                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                    {(categories ?? []).filter((c) => c.parentId === parent.id).map((child) => (
                       <SelectItem key={child.id} value={child.id}>{child.name}</SelectItem>
                     ))}
-                    {categories.filter((c) => c.parentId === parent.id).length === 0 && (
+                    {(categories ?? []).filter((c) => c.parentId === parent.id).length === 0 && (
                       <SelectItem value={parent.id}>{parent.name}</SelectItem>
                     )}
                   </SelectGroup>
@@ -271,14 +295,26 @@ export default function BulkInventoryPage() {
             placeholder="Search by name or category..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search bulk SKUs by name or category"
           />
         </CardHeader>
-        {loading ? (
+        {loadError ? (
+          <div className="p-4">
+            <Alert variant="destructive">
+              <AlertCircleIcon className="size-4" />
+              <AlertDescription className="flex items-center gap-3">
+                {loadError === "network" ? "Network error — check your connection" : "Failed to load bulk inventory"}
+                <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        ) : loading ? (
           <SkeletonTable rows={6} cols={6} />
         ) : filteredItems.length === 0 ? (
           <EmptyState icon="box" title="No bulk SKUs found" description={search ? "Try adjusting your search." : "Add your first bulk SKU above."} />
         ) : (
           <>
+            <div className="overflow-x-auto">
             <table className="data-table">
               <thead>
                 <tr>
@@ -346,6 +382,7 @@ export default function BulkInventoryPage() {
                 })}
               </tbody>
             </table>
+            </div>
 
             {/* Expanded units grid */}
             {expandedSku && (() => {
@@ -419,13 +456,13 @@ export default function BulkInventoryPage() {
             })()}
 
             {totalPages > 1 && (
-              <div className="pagination">
+              <nav className="pagination" aria-label="Pagination">
                 <span>Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}</span>
                 <div className="pagination-btns">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>Next</Button>
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Previous page">Previous</Button>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Next page">Next</Button>
                 </div>
-              </div>
+              </nav>
             )}
           </>
         )}

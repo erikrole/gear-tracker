@@ -1,50 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { InlineTitle } from "@/components/InlineTitle";
+import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
-import { useConfirm } from "@/components/ConfirmDialog";
-import { useToast } from "@/components/Toast";
-import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { PencilIcon, ImageIcon, Copy, Check, RefreshCw, AlertTriangle, WifiOff, Star } from "lucide-react";
-import {
-  classifyError,
-  isAbortError,
-  handleAuthRedirect,
-  type FetchErrorKind,
-} from "@/lib/errors";
 
-import type { AssetDetail, CategoryOption } from "./types";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
-import type { DepartmentOption } from "./ItemInfoTab";
 import { OperationalOverview, BookingsTab, CalendarTab, SettingsTab } from "./ItemBookingsTab";
 import ActivityFeed from "./ItemHistoryTab";
 import { AccessoriesSection } from "./ItemSettingsTab";
+
+import useItemData from "./_hooks/use-item-data";
+import useItemActions from "./_hooks/use-item-actions";
+import { ItemHeader } from "./_components/ItemHeader";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
@@ -60,270 +35,41 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "settings", label: "Settings" },
 ];
 
-/* ── Status Line ────────────────────────────────────────── */
-
-function StatusLine({ asset }: { asset: AssetDetail }) {
-  const s = asset.computedStatus;
-  const b = asset.activeBooking;
-
-  if (s === "AVAILABLE") {
-    return <Badge variant="green">Available</Badge>;
-  }
-  if (s === "CHECKED_OUT" && b) {
-    const href = `/checkouts/${b.id}`;
-    if (b.status === "DRAFT") {
-      return (
-        <Badge variant="blue" asChild>
-          <Link href={href} className="no-underline">Checking out</Link>
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="blue" asChild>
-        <Link href={href} className="no-underline">Checked out by {b.requesterName}</Link>
-      </Badge>
-    );
-  }
-  if (s === "RESERVED" && b) {
-    return (
-      <Badge variant="purple" asChild>
-        <Link href={`/reservations/${b.id}`} className="no-underline">Reserved by {b.requesterName}</Link>
-      </Badge>
-    );
-  }
-  if (s === "MAINTENANCE") {
-    return <Badge variant="orange">Needs Maintenance</Badge>;
-  }
-  if (s === "RETIRED") {
-    return <Badge variant="gray">Retired</Badge>;
-  }
-  return <Badge variant="gray">{s}</Badge>;
-}
-
-/* ── Serial Number Badge ───────────────────────────────── */
-
-function SerialBadge({ serialNumber }: { serialNumber: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(serialNumber);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge
-            variant="outline"
-            className="font-mono cursor-pointer select-none gap-1.5"
-            onClick={handleCopy}
-          >
-            <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">SN</span>
-            {serialNumber}
-            {copied ? (
-              <Check className="size-3 text-green-600 dark:text-green-400" />
-            ) : (
-              <Copy className="size-3 text-muted-foreground" />
-            )}
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>{copied ? "Copied!" : "Click to copy serial number"}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
-/* ── Actions Dropdown ───────────────────────────────────── */
-
-function ActionsMenu({
-  asset,
-  onAction,
-}: {
-  asset: AssetDetail;
-  onAction: (action: string) => void;
-}) {
-  const canDelete = !asset.hasBookingHistory;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline">Actions</Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onAction("duplicate")}>
-          Duplicate
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onAction("print-label")}>
-          Print label
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onAction("maintenance")}>
-          {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onAction("retire")}>
-          Retire
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={!canDelete}
-          title={!canDelete ? "Item has booking history \u2014 use Retire instead" : "Permanently delete this item"}
-          onSelect={() => onAction("delete")}
-        >
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 /* ── Main Page ──────────────────────────────────────────── */
 
 export default function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const confirmDialog = useConfirm();
-  const { toast } = useToast();
-  const { setBreadcrumbLabel } = useBreadcrumbLabel();
-  const [asset, setAsset] = useState<AssetDetail | null>(null);
   const initialTab = (searchParams.get("tab") as TabKey) || "info";
   const [activeTab, setActiveTab] = useState<TabKey>(
     tabDefs.some((t) => t.key === initialTab) ? initialTab : "info"
   );
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string>("");
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
-  const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
-  const [fetchError, setFetchError] = useState<FetchErrorKind | "not-found" | false>(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
-  const [now, setNow] = useState(() => new Date());
-  const abortRef = useRef<AbortController | null>(null);
-  const hasLoadedOnce = useRef(false);
-  const fetchErrorRef = useRef<FetchErrorKind | "not-found" | false>(false);
 
-  const loadAsset = useCallback(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+  const {
+    asset,
+    setAsset,
+    fetchError,
+    refreshing,
+    lastRefreshed,
+    currentUserRole,
+    categories,
+    departments,
+    locations,
+    now,
+    loadAsset,
+    loadCategories,
+    loadDepartments,
+    loadLocations,
+    canEdit,
+  } = useItemData(id);
 
-    const isRefresh = hasLoadedOnce.current;
-    if (isRefresh) setRefreshing(true);
-
-    fetch(`/api/assets/${id}`, { signal: controller.signal })
-      .then((res) => {
-        if (controller.signal.aborted) return null;
-        if (handleAuthRedirect(res, `/items/${id}`)) return null;
-        if (res.status === 404) {
-          if (!isRefresh) { fetchErrorRef.current = "not-found"; setFetchError("not-found"); }
-          return null;
-        }
-        if (!res.ok) throw new Error("server");
-        return res.json();
-      })
-      .then((json) => {
-        if (!json || controller.signal.aborted) {
-          if (!hasLoadedOnce.current && !controller.signal.aborted && !fetchErrorRef.current) {
-            fetchErrorRef.current = "server";
-            setFetchError("server");
-          }
-          return;
-        }
-        if (json?.data) {
-          setAsset(json.data);
-          setBreadcrumbLabel(json.data.assetTag);
-          fetchErrorRef.current = false;
-          setFetchError(false);
-          setLastRefreshed(new Date());
-          hasLoadedOnce.current = true;
-        } else if (!isRefresh) {
-          fetchErrorRef.current = "server";
-          setFetchError("server");
-        }
-      })
-      .catch((err) => {
-        if (isAbortError(err)) return;
-        if (isRefresh) {
-          toast("Failed to refresh — your data may be stale.", "error");
-        } else {
-          const kind = classifyError(err);
-          fetchErrorRef.current = kind;
-          setFetchError(kind);
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setRefreshing(false);
-      });
-  }, [id, toast]);
-
-  const loadCategories = useCallback(() => {
-    fetch("/api/categories")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setCategories(json.data || []); })
-      .catch(() => {});
-  }, []);
-
-  const loadDepartments = useCallback(() => {
-    fetch("/api/departments")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setDepartments(json.data || []); })
-      .catch(() => {});
-  }, []);
-
-  const loadLocations = useCallback(() => {
-    fetch("/api/locations")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setLocations(json.data || []); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    loadAsset();
-    fetch("/api/me")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); })
-      .catch(() => {});
-    loadCategories();
-    loadDepartments();
-    loadLocations();
-    return () => { abortRef.current?.abort(); };
-  }, [loadAsset, loadCategories, loadDepartments, loadLocations]);
-
-  // Live countdown tick every 60 seconds + refresh on tab focus
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 60_000);
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        setNow(new Date());
-        // Refresh asset data when tab becomes visible
-        if (hasLoadedOnce.current) loadAsset();
-      }
-    }
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [loadAsset]);
-
-  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
-
-  const handleToggleFavorite = useCallback(async () => {
-    if (!asset) return;
-    const prev = asset.isFavorited;
-    setAsset((a) => a ? { ...a, isFavorited: !prev } : a);
-    try {
-      const res = await fetch(`/api/assets/${asset.id}/favorite`, { method: "POST" });
-      if (!res.ok) throw new Error();
-    } catch {
-      setAsset((a) => a ? { ...a, isFavorited: prev } : a);
-      toast("Failed to update favorite", "error");
-    }
-  }, [asset, toast]);
+  const {
+    handleAction,
+    handleToggleFavorite,
+    saveHeaderField,
+  } = useItemActions({ asset, setAsset, loadAsset });
 
   // URL-synced tab switching
   function switchTab(tab: TabKey) {
@@ -334,7 +80,7 @@ export default function ItemDetailsPage() {
     window.history.replaceState({}, "", url.toString());
   }
 
-  // Keyboard shortcuts: 1-6 to switch tabs
+  // Keyboard shortcuts: 1-7 to switch tabs
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
@@ -349,80 +95,6 @@ export default function ItemDetailsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function saveHeaderField(field: string, value: string) {
-    if (!asset) return;
-    const body: Record<string, unknown> = { [field]: value || null };
-    const res = await fetch(`/api/assets/${asset.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error("Save failed");
-    setAsset((prev) => prev ? { ...prev, [field]: value } : prev);
-  }
-
-  const [actionBusy, setActionBusy] = useState(false);
-
-  async function handleAction(action: string) {
-    if (!asset || actionBusy) return;
-    setActionBusy(true);
-    try {
-      if (action === "print-label") {
-        router.push(`/labels?items=${asset.id}`);
-        setActionBusy(false);
-        return;
-      } else if (action === "duplicate") {
-        const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
-        if (res.ok) {
-          const json = await res.json();
-          router.push(`/items/${json.data.id}`);
-        } else {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Duplicate failed", "error");
-        }
-      } else if (action === "retire") {
-        const ok = await confirmDialog({
-          title: "Retire item",
-          message: "Retire this item? It will no longer be available for bookings.",
-          confirmLabel: "Retire",
-          variant: "danger",
-        });
-        if (!ok) { setActionBusy(false); return; }
-        const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Retire failed", "error");
-        }
-        loadAsset();
-      } else if (action === "maintenance") {
-        const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Action failed", "error");
-        }
-        loadAsset();
-      } else if (action === "delete") {
-        const ok = await confirmDialog({
-          title: "Delete item",
-          message: "Permanently delete this item? This cannot be undone.",
-          confirmLabel: "Delete",
-          variant: "danger",
-        });
-        if (!ok) { setActionBusy(false); return; }
-        const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
-        if (res.ok) {
-          router.push("/items");
-        } else {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Delete failed", "error");
-        }
-      }
-    } catch {
-      toast("Network error \u2014 please try again.", "error");
-    }
-    setActionBusy(false);
-  }
-
   if (fetchError && !asset) {
     return (
       <div>
@@ -430,14 +102,14 @@ export default function ItemDetailsPage() {
           <EmptyState
             icon="box"
             title="Item not found"
-            description="This item may have been deleted or you don\u2019t have access."
+            description="This item may have been deleted or you don't have access."
             actionLabel="Back to items"
             actionHref="/items"
           />
         ) : fetchError === "network" ? (
           <EmptyState
             icon="wifi-off"
-            title="You\u2019re offline"
+            title="You're offline"
             description="Check your connection and try again."
             actionLabel="Retry"
             onAction={loadAsset}
@@ -446,7 +118,7 @@ export default function ItemDetailsPage() {
           <EmptyState
             icon="box"
             title="Something went wrong"
-            description="We couldn\u2019t load this item. This is usually temporary."
+            description="We couldn't load this item. This is usually temporary."
             actionLabel="Retry"
             onAction={loadAsset}
           />
@@ -528,113 +200,17 @@ export default function ItemDetailsPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <div className="flex gap-4 items-center">
-          {/* Hero image — larger square */}
-          {asset.imageUrl ? (
-            <button
-              className={`relative rounded-lg border border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 aspect-square size-[120px] ${canEdit ? "cursor-pointer" : "cursor-default"} group`}
-              onClick={() => canEdit && setImageModalOpen(true)}
-              title={canEdit ? "Change image" : undefined}
-            >
-              <Image src={asset.imageUrl} alt={asset.assetTag} width={240} height={240} sizes="120px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
-              {canEdit && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
-                  <PencilIcon className="size-5" />
-                </div>
-              )}
-            </button>
-          ) : canEdit ? (
-            <button className="relative rounded-lg border border-dashed border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] aspect-square size-[120px]" onClick={() => setImageModalOpen(true)} title="Add image">
-              <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
-            </button>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <div className="flex gap-3 items-baseline">
-              <InlineTitle
-                value={asset.assetTag}
-                canEdit={canEdit}
-                onSave={(v) => saveHeaderField("assetTag", v)}
-                className="text-2xl font-bold tracking-tight"
-              />
-              {asset.metadata?.uwAssetTag && (
-                <span className="text-base text-secondary font-medium">
-                  UW {asset.metadata.uwAssetTag}
-                </span>
-              )}
-            </div>
-            <InlineTitle
-              value={asset.name || ""}
-              canEdit={canEdit}
-              onSave={(v) => saveHeaderField("name", v)}
-              className="text-base text-secondary mt-2 block"
-              placeholder="Add item name"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={loadAsset} disabled={refreshing}>
-                  <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {lastRefreshed
-                  ? `Updated ${lastRefreshed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-                  : "Refresh"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleToggleFavorite}
-            aria-label={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Star
-              className={`size-4 ${
-                asset.isFavorited
-                  ? "fill-amber-400 text-amber-400"
-                  : "text-muted-foreground"
-              }`}
-            />
-          </Button>
-          {canEdit && <ActionsMenu asset={asset} onAction={handleAction} />}
-          <Button variant={asset.availableForReservation ? "default" : "outline"} asChild>
-            <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>
-          </Button>
-          <Button variant={asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout ? "default" : "outline"} asChild>
-            <Link href={`/checkouts?newFor=${asset.id}`}>Check out</Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* Properties strip — Notion-style inline badges below title */}
-      <div className="mt-6 mb-6 flex items-center gap-2 flex-wrap">
-        <StatusLine asset={asset} />
-        {asset.location && <Badge variant="outline">{asset.location.name}</Badge>}
-        {asset.category && <Badge variant="outline">{asset.category.name}</Badge>}
-        {asset.department && <Badge variant="outline">{asset.department.name}</Badge>}
-        {asset.serialNumber && <SerialBadge serialNumber={asset.serialNumber} />}
-        {asset.updatedAt && (
-          <span className="text-xs text-muted-foreground ml-auto">
-            Updated {new Date(asset.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-          </span>
-        )}
-      </div>
-
-      {/* Parent banner — shown when this item is an accessory */}
-      {asset.parentAsset && (
-        <div className="mb-1 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
-          Accessory of{" "}
-          <Link href={`/items/${asset.parentAsset.id}`} className="font-medium">
-            {asset.parentAsset.assetTag}
-          </Link>
-          <span className="text-muted-foreground ml-2">{asset.parentAsset.brand} {asset.parentAsset.model}</span>
-        </div>
-      )}
+      <ItemHeader
+        asset={asset}
+        canEdit={canEdit}
+        refreshing={refreshing}
+        lastRefreshed={lastRefreshed}
+        onRefresh={loadAsset}
+        onToggleFavorite={handleToggleFavorite}
+        onSaveHeaderField={saveHeaderField}
+        onAction={handleAction}
+        onImageModalOpen={() => setImageModalOpen(true)}
+      />
 
       {/* Tabs — sticky on scroll, horizontally scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>

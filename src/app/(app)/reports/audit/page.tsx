@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
+import { useFetch } from "@/hooks/use-fetch";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -81,61 +82,38 @@ function syncUrl(params: Record<string, string | number>) {
 
 export default function AuditReportPage() {
   const searchParams = useSearchParams();
-  const [data, setData] = useState<AuditData | null>(null);
   const [page, setPage] = useState(() => {
     const p = searchParams.get("page");
     return p ? Math.max(0, Number(p) - 1) : 0;
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | false>(false);
   const [periodDays, setPeriodDays] = useState(() => {
     const p = searchParams.get("period");
     return p && [7, 30, 90].includes(Number(p)) ? Number(p) : 0;
   });
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [now, setNow] = useState(() => new Date());
   const limit = 25;
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const loadData = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoading(true);
-    setError(false);
-    try {
-      const params = new URLSearchParams({
-        type: "audit",
-        limit: String(limit),
-        offset: String(page * limit),
-      });
-      if (periodDays > 0) {
-        params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
-      }
-      const res = await fetch(`/api/reports?${params}`, { signal: controller.signal });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      if (!res.ok) { setError("Unable to load audit report. Please try again."); return; }
-      const json = await res.json();
-      setData(json ?? null);
-      setLastRefreshed(new Date());
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      setError("You appear to be offline. Check your connection and try again.");
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
+  const fetchUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      type: "audit",
+      limit: String(limit),
+      offset: String(page * limit),
+    });
+    if (periodDays > 0) {
+      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
     }
+    return `/api/reports?${params}`;
   }, [page, periodDays]);
 
-  useEffect(() => {
-    loadData();
-    return () => { abortRef.current?.abort(); };
-  }, [loadData]);
+  const { data, loading, error, lastRefreshed, reload: loadData } = useFetch<AuditData>({
+    url: fetchUrl,
+    transform: (json) => json as unknown as AuditData,
+  });
 
   if (loading && !data) {
     return (
@@ -157,8 +135,8 @@ export default function AuditReportPage() {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Failed to load audit report</AlertTitle>
         <AlertDescription className="flex items-center gap-3">
-          <span>{error}</span>
-          <Button variant="outline" size="sm" onClick={() => { setPage(0); }}>Retry</Button>
+          <span>{error === "network" ? "Check your connection and try again." : "Unable to load audit report. Please try again."}</span>
+          <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
         </AlertDescription>
       </Alert>
     );
@@ -171,6 +149,11 @@ export default function AuditReportPage() {
 
   return (
     <>
+      {/* Retention notice */}
+      <p className="text-xs text-muted-foreground mb-2">
+        Audit logs are retained for 90 days. Older entries are automatically archived weekly.
+      </p>
+
       {/* Filters */}
       <div className="flex items-center gap-3 mb-1 flex-wrap">
         <span className="text-sm text-muted-foreground">Period:</span>

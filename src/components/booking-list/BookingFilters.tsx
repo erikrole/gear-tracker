@@ -59,6 +59,7 @@ export function BookingFilters({
         placeholder="Search by title or requester..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
+        aria-label="Search bookings by title or requester"
       />
       <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
         {specialFilter ? (
