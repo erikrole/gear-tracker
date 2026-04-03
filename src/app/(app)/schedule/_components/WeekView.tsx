@@ -130,13 +130,13 @@ function EventCard({
               className="size-1.5 rounded-full flex-shrink-0"
               style={{ background: coverageDot(entry.coverage.percentage) }}
             />
-            <Badge variant={coverageVariant(entry.coverage.percentage)} size="sm" className="text-[9px] px-1 py-0">
+            <Badge variant={coverageVariant(entry.coverage.percentage)} size="sm" className="text-[10px] px-1.5 py-0">
               {entry.coverage.filled}/{entry.coverage.total}
             </Badge>
           </>
         )}
         {hasShift && (
-          <Badge variant="blue" size="sm" className="text-[9px] px-1 py-0">
+          <Badge variant="blue" size="sm" className="text-[10px] px-1.5 py-0">
             You
           </Badge>
         )}

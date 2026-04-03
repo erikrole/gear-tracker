@@ -169,11 +169,11 @@ export default function ScanPage() {
           </button>
           <div className={`inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 ${
             mode === "checkout"
-              ? "bg-[var(--blue-bg)] text-[#2563eb]"
-              : "bg-[var(--green-bg)] text-[#16a34a]"
+              ? "bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400"
+              : "bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400"
           }`}>
-            <div className={`w-[7px] h-[7px] rounded-full animate-[pulse-dot-anim_2s_ease-in-out_infinite] ${
-              mode === "checkout" ? "bg-[var(--blue)]" : "bg-[var(--green)]"
+            <div className={`w-[7px] h-[7px] rounded-full animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none ${
+              mode === "checkout" ? "bg-blue-600 dark:bg-blue-400" : "bg-green-600 dark:bg-green-400"
             }`} />
             {mode === "checkout" ? "Out" : "In"}
           </div>
@@ -183,7 +183,7 @@ export default function ScanPage() {
       {/* ══════ Lookup mode header ══════ */}
       {mode === "lookup" && (
         <div className="flex items-center justify-between gap-3 py-1">
-          <h1 className="font-[var(--font-heading)] text-[26px] font-bold m-0">Scan</h1>
+          <h1 className="font-[var(--font-heading)] text-2xl font-bold m-0">Scan</h1>
           <div className="inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 bg-[var(--accent-soft)] text-muted-foreground">
             <div className="w-[7px] h-[7px] rounded-full bg-[#9ca3af]" />
             Look Up

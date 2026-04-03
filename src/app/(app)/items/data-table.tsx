@@ -160,9 +160,10 @@ export function DataTable({
                   data-state={row.getIsSelected() && "selected"}
                   className="cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
                   tabIndex={0}
-                  role="link"
+                  role="row"
+                  aria-label={`View ${row.original.assetTag}`}
                   onClick={() => router.push(`/items/${row.original.id}`)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/items/${row.original.id}`); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(`/items/${row.original.id}`); } }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

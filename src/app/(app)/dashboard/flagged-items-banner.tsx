@@ -27,7 +27,7 @@ export function FlaggedItemsBanner({ items }: Props) {
   if (maintenance > 0) parts.push(`${maintenance} in maintenance`);
 
   return (
-    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-[var(--radius)] p-3.5 md:px-4 mb-5 animate-[dash-fade-up_0.4s_ease_both]">
+    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-[var(--radius)] p-3.5 md:p-4 mb-5 animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       <div className="flex items-center gap-2 mb-2">
         <AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
         <span className="text-sm font-semibold text-amber-900 dark:text-amber-200">
@@ -41,7 +41,7 @@ export function FlaggedItemsBanner({ items }: Props) {
             <a
               key={item.id}
               href={`/items/${item.assetId}`}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-100/60 dark:bg-amber-900/20 no-underline text-inherit transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-100/60 dark:bg-amber-900/20 no-underline text-inherit transition-colors hover:bg-amber-200/60 dark:hover:bg-amber-800/40 focus-visible:outline-2 focus-visible:outline-ring"
             >
               {item.type === "MAINTENANCE" ? (
                 <WrenchIcon className="size-3.5 text-muted-foreground shrink-0" />

@@ -70,7 +70,7 @@ export function ItemsPagination({
             onClick={() => onPageChange(0)}
           >
             <ChevronsLeft className="size-4" />
-            <span className="sr-only">First page</span>
+            <span className="sr-only">Go to first page</span>
           </Button>
           <Button
             variant="outline"
@@ -96,7 +96,7 @@ export function ItemsPagination({
             onClick={() => onPageChange(totalPages - 1)}
           >
             <ChevronsRight className="size-4" />
-            <span className="sr-only">Last page</span>
+            <span className="sr-only">Go to last page</span>
           </Button>
         </div>
       </div>
