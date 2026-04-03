@@ -101,3 +101,6 @@
 - **Always verify response shape from the API route**: Read `return ok(...)` before writing client reads. Don't guess.
 - **Dead CSS/code accumulates during rewrites**: Grep for every class/export after migration. Remove what's unused.
 - **Multi-pass audit process**: Visual → flow-trace → component audit → user feedback. Each pass finds different bugs.
+- **Tailwind `hidden` always wins over CSS media queries**: Use responsive Tailwind classes (`hidden max-md:block`) instead of mixing Tailwind utility + custom CSS for show/hide logic.
+- **Every user-triggered fetch needs 401 handling**: Any new fetch handler must include: 401 redirect, error toast, and double-click guard. Easy to miss on handlers added after the initial hardening pass.
+- **Mobile loading skeletons are easy to forget**: Always check that loading states render on both desktop and mobile — add a separate mobile skeleton if the layout differs significantly.
