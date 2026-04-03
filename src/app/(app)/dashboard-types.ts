@@ -51,7 +51,7 @@ export type EventSummary = {
   opponent: string | null;
   isHome: boolean | null;
   totalShiftSlots: number;
-  assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null }>;
+  assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null; area: string | null }>;
 };
 
 export type OverdueItem = {
@@ -104,6 +104,17 @@ export type CreateBookingContext = {
   sportCode?: string;
 };
 
+export type FlaggedItem = {
+  id: string;
+  assetId: string;
+  assetTag: string;
+  assetName: string | null;
+  type: "DAMAGED" | "LOST" | "MAINTENANCE";
+  bookingTitle: string | null;
+  reportedBy: string | null;
+  createdAt: string;
+};
+
 export type DashboardData = {
   role: string;
   stats: {
@@ -121,4 +132,5 @@ export type DashboardData = {
   overdueItems: OverdueItem[];
   drafts: DraftSummary[];
   myShifts: MyShift[];
+  flaggedItems: FlaggedItem[];
 };

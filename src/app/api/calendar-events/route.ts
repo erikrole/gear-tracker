@@ -12,6 +12,7 @@ export const GET = withAuth(async (req) => {
   const includePast = searchParams.get("includePast") === "true";
 
   const sportCode = searchParams.get("sportCode");
+  const includeHidden = searchParams.get("includeHidden") === "true";
 
   // Default to upcoming events from now unless includePast or explicit startDate
   const startsAtFilter = includePast
@@ -22,7 +23,8 @@ export const GET = withAuth(async (req) => {
     ...(Object.keys(startsAtFilter).length > 0 ? { startsAt: startsAtFilter } : {}),
     ...(unmappedOnly ? { locationId: null } : {}),
     ...(sportCode ? { sportCode } : {}),
-    status: { not: "CANCELLED" as const }
+    status: { not: "CANCELLED" as const },
+    ...(!includeHidden ? { isHidden: false } : {}),
   };
 
   const [data, total] = await Promise.all([

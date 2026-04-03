@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeftIcon, ScanIcon, Loader2Icon, AlertCircleIcon } from "lucide-react";
 import { useToast } from "@/components/Toast";
@@ -15,8 +15,10 @@ import { ScanControls } from "./_components/ScanControls";
 import { ScanChecklist } from "./_components/ScanChecklist";
 import { UnitPickerSheet } from "./_components/UnitPickerSheet";
 import { ItemPreviewDrawer } from "./_components/ItemPreviewDrawer";
-import PhotoCaptureDialog from "@/components/PhotoCaptureDialog";
-import type { ScanMode } from "./_components/types";
+import { ReportDamageDialog } from "./_components/ReportDamageDialog";
+import { ReportLostDialog } from "./_components/ReportLostDialog";
+import { CheckinSummaryDialog } from "./_components/CheckinSummaryDialog";
+import type { ScanMode, SerializedItemStatus } from "./_components/types";
 
 export default function ScanPage() {
   const router = useRouter();
@@ -65,6 +67,64 @@ export default function ScanPage() {
   const scannedItems = progress?.serializedScanned ?? 0;
   const progressPct = totalItems > 0 ? Math.round((scannedItems / totalItems) * 100) : 0;
   const allComplete = progress?.allComplete ?? false;
+  const hasReports = (progress?.damagedCount ?? 0) + (progress?.lostCount ?? 0) > 0;
+
+  // ── Report dialogs state ──
+  const [reportDamageTarget, setReportDamageTarget] = useState<SerializedItemStatus | null>(null);
+  const [reportLostTarget, setReportLostTarget] = useState<SerializedItemStatus | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  const submitReport = useCallback(async (assetId: string, type: "DAMAGED" | "LOST", description?: string) => {
+    if (!checkoutId) return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch(`/api/checkouts/${checkoutId}/checkin-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId, type, description }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to submit report", "error");
+        return;
+      }
+      // Optimistically update the local scan status
+      session.setScanStatus((prev) => {
+        if (!prev) return prev;
+        const updatedItems = prev.serializedItems.map((item) =>
+          item.assetId === assetId
+            ? { ...item, report: { type, description }, ...(type === "LOST" ? {} : {}) }
+            : item
+        );
+        const lostCount = updatedItems.filter((i) => i.report?.type === "LOST").length;
+        const damagedCount = updatedItems.filter((i) => i.report?.type === "DAMAGED").length;
+        const serializedScanned = updatedItems.filter(
+          (i) => i.scanned || i.report?.type === "LOST"
+        ).length;
+        const bulkComplete = prev.progress.bulkComplete;
+        return {
+          ...prev,
+          serializedItems: updatedItems,
+          progress: {
+            ...prev.progress,
+            serializedScanned,
+            allComplete: serializedScanned === prev.progress.serializedTotal && bulkComplete,
+            damagedCount,
+            lostCount,
+          },
+        };
+      });
+      toast(type === "DAMAGED" ? "Damage reported" : "Item reported as lost", "info");
+      // Sync with server
+      session.loadScanStatus();
+    } catch {
+      toast("Network error — try again", "error");
+    } finally {
+      setReportSubmitting(false);
+      setReportDamageTarget(null);
+      setReportLostTarget(null);
+    }
+  }, [checkoutId, toast, session]);
 
   // ── Guard against accidental navigation when items have been scanned ──
   const hasScannedItems = scannedItems > 0 && !allComplete;
@@ -136,7 +196,7 @@ export default function ScanPage() {
         <div>
           <div className="flex items-baseline gap-1.5 mb-1.5">
             <span className="text-xl font-extrabold font-[var(--font-heading)] leading-none">{scannedItems}/{totalItems}</span>
-            <span className="text-[13px] text-muted-foreground">items scanned</span>
+            <span className="text-[13px] text-muted-foreground">{hasReports ? "items accounted for" : "items scanned"}</span>
             <span className="text-[13px] font-bold ml-auto text-muted-foreground">{progressPct}%</span>
           </div>
           <Progress
@@ -198,6 +258,9 @@ export default function ScanPage() {
           scanStatus={session.scanStatus}
           scannedItems={scannedItems}
           totalItems={totalItems}
+          mode={mode}
+          onReportDamage={(item) => setReportDamageTarget(item)}
+          onReportLost={(item) => setReportLostTarget(item)}
         />
       )}
 
@@ -235,17 +298,6 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* ══════ Photo capture before completion ══════ */}
-      {isBookingMode && checkoutId && (
-        <PhotoCaptureDialog
-          open={session.showPhotoCapture}
-          onOpenChange={session.setShowPhotoCapture}
-          checkoutId={checkoutId}
-          phase={mode === "checkin" ? "CHECKIN" : "CHECKOUT"}
-          onPhotoUploaded={session.proceedAfterPhoto}
-        />
-      )}
-
       {/* ══════ Celebration overlay ══════ */}
       {session.showCelebration && (
         <div
@@ -261,6 +313,37 @@ export default function ScanPage() {
           </div>
         </div>
       )}
+
+      {/* ══════ Report damage dialog ══════ */}
+      <ReportDamageDialog
+        open={!!reportDamageTarget}
+        onOpenChange={(v) => { if (!v) setReportDamageTarget(null); }}
+        assetTag={reportDamageTarget?.assetTag ?? ""}
+        onConfirm={(description) => {
+          if (reportDamageTarget) submitReport(reportDamageTarget.assetId, "DAMAGED", description);
+        }}
+        submitting={reportSubmitting}
+      />
+
+      {/* ══════ Report lost dialog ══════ */}
+      <ReportLostDialog
+        open={!!reportLostTarget}
+        onOpenChange={(v) => { if (!v) setReportLostTarget(null); }}
+        assetTag={reportLostTarget?.assetTag ?? ""}
+        onConfirm={() => {
+          if (reportLostTarget) submitReport(reportLostTarget.assetId, "LOST");
+        }}
+        submitting={reportSubmitting}
+      />
+
+      {/* ══════ Check-in summary dialog ══════ */}
+      <CheckinSummaryDialog
+        open={session.showSummary}
+        counts={session.summaryData}
+        onGoBack={() => session.setShowSummary(false)}
+        onFinish={session.confirmSummary}
+        completing={session.completing}
+      />
 
       {/* ══════ Item preview drawer (lookup mode) ══════ */}
       <ItemPreviewDrawer

@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { UploadIcon } from "lucide-react";
+import { UploadIcon, Download } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -416,7 +416,14 @@ export default function ImportPage() {
               )}
             </div>
 
-            <div className="flex justify-end mt-4">
+            <div className="flex items-center mt-4">
+              <Button variant="ghost" size="sm" asChild>
+                <a href="/import-template.csv" download="import-template.csv">
+                  <Download className="mr-1.5 size-3.5" />
+                  Download template
+                </a>
+              </Button>
+              <div className="flex-1" />
               <Button
                 disabled={!file || loading}
                 onClick={handleParseHeaders}

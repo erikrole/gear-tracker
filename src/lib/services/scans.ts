@@ -352,12 +352,21 @@ async function buildScanCompletionState(tx: TxClient, bookingId: string, phase: 
     throw new HttpError(404, "Checkout not found");
   }
 
+  // Load checkin item reports (damaged/lost) — these count as "accounted for"
+  const checkinReports = phase === ScanPhase.CHECKIN
+    ? await tx.checkinItemReport.findMany({ where: { bookingId } })
+    : [];
+  const reportedAssetIds = new Set(checkinReports.map((r) => r.assetId));
+
   const requiredSerialized = new Set(booking.serializedItems.map((item) => item.assetId));
   const scannedSerialized = new Set(
     booking.scanEvents.filter((event) => event.scanType === ScanType.SERIALIZED && event.assetId).map((e) => e.assetId!)
   );
 
-  const missingSerialized = [...requiredSerialized].filter((assetId) => !scannedSerialized.has(assetId));
+  // Items that are scanned OR reported (damaged/lost) are not considered "missing"
+  const missingSerialized = [...requiredSerialized].filter(
+    (assetId) => !scannedSerialized.has(assetId) && !reportedAssetIds.has(assetId)
+  );
 
   const requiredBulk = new Map(booking.bulkItems.map((item) => [item.bulkSkuId, item.plannedQuantity]));
   const scannedBulk = new Map<string, number>();
@@ -426,14 +435,6 @@ export async function completeCheckoutScan(bookingId: string, actorUserId: strin
       });
     }
 
-    // Require a condition photo before completing checkout
-    const photoCount = await tx.bookingPhoto.count({
-      where: { bookingId, phase: ScanPhase.CHECKOUT },
-    });
-    if (!override && photoCount === 0) {
-      throw new HttpError(400, "A condition photo is required before completing checkout");
-    }
-
     await tx.scanSession.updateMany({
       where: {
         bookingId,
@@ -476,14 +477,6 @@ export async function completeCheckinScan(bookingId: string, actorUserId: string
         missingSerialized: state.missingSerialized,
         missingBulk: state.missingBulk
       });
-    }
-
-    // Require a condition photo before completing checkin
-    const photoCount = await tx.bookingPhoto.count({
-      where: { bookingId, phase: ScanPhase.CHECKIN },
-    });
-    if (!override && photoCount === 0) {
-      throw new HttpError(400, "A condition photo is required before completing check-in");
     }
 
     await tx.scanSession.updateMany({

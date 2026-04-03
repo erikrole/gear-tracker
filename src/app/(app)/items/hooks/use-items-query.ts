@@ -28,8 +28,22 @@ type StatusBreakdown = {
   retired: number;
 };
 
+export type BulkItem = {
+  id: string;
+  kind: "bulk";
+  name: string;
+  category: string;
+  unit: string;
+  onHandQuantity: number;
+  locationName: string;
+  locationId: string;
+  categoryId: string | null;
+  binQrCodeValue: string;
+};
+
 type AssetsResponse = {
   data: Asset[];
+  bulkItems?: BulkItem[];
   total: number;
   limit: number;
   offset: number;
@@ -90,6 +104,7 @@ export function useItemsQuery(deps: QueryDeps) {
   }, [isFetching, isError, response]);
 
   const items = response?.data ?? [];
+  const bulkItems = response?.bulkItems ?? [];
   const total = response?.total ?? 0;
   const statusBreakdown = response?.statusBreakdown ?? null;
   const totalPages = Math.ceil(total / limit);
@@ -108,6 +123,7 @@ export function useItemsQuery(deps: QueryDeps) {
 
   return {
     items,
+    bulkItems,
     setItems,
     total,
     statusBreakdown,

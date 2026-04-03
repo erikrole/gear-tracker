@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -14,12 +14,28 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  MapPin,
+  Tag,
+  Wrench,
+  Package,
+  Archive,
+  Trash2,
+  ChevronDown,
+  Download,
+} from "lucide-react";
 
 type Location = { id: string; name: string };
+type Kit = { id: string; name: string };
 
 export function BulkActionBar({
   count,
@@ -27,18 +43,35 @@ export function BulkActionBar({
   categoryOptions,
   busy,
   error,
+  userRole,
   onAction,
   onClear,
+  onExportCsv,
 }: {
   count: number;
   locations: Location[];
   categoryOptions: { value: string; label: string }[];
   busy: boolean;
   error: string;
+  userRole: string;
   onAction: (action: string, payload?: Record<string, string | null>) => void;
   onClear: () => void;
+  onExportCsv?: () => void;
 }) {
   const [retireOpen, setRetireOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [kits, setKits] = useState<Kit[]>([]);
+
+  useEffect(() => {
+    fetch("/api/kits")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.data) setKits(json.data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const canDelete = userRole === "ADMIN";
 
   return (
     <div className="flex items-center gap-2 w-full flex-wrap">
@@ -48,83 +81,119 @@ export function BulkActionBar({
       </Button>
       <div className="flex-1" />
 
-      {/* Move location */}
-      <Popover>
-        <PopoverTrigger asChild>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" disabled={busy}>
-            Move location
+            Actions
+            <ChevronDown className="ml-1.5 size-3.5" />
           </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          className="w-auto min-w-[180px] max-h-[240px] overflow-y-auto p-1"
-        >
-          {locations.map((l) => (
-            <Button
-              key={l.id}
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start font-normal"
-              onClick={() => onAction("move_location", { locationId: l.id })}
-            >
-              {l.name}
-            </Button>
-          ))}
-        </PopoverContent>
-      </Popover>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          {/* Move location */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <MapPin className="mr-2 size-4" />
+              Move location
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-60 overflow-y-auto">
+              {locations.map((l) => (
+                <DropdownMenuItem
+                  key={l.id}
+                  onClick={() => onAction("move_location", { locationId: l.id })}
+                >
+                  {l.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
 
-      {/* Change category */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" disabled={busy}>
-            Change category
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          className="w-auto min-w-[200px] max-h-[240px] overflow-y-auto p-1"
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start font-normal italic"
-            onClick={() => onAction("change_category", { categoryId: null })}
+          {/* Change category */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Tag className="mr-2 size-4" />
+              Change category
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-60 overflow-y-auto">
+              <DropdownMenuItem
+                className="italic"
+                onClick={() => onAction("change_category", { categoryId: null })}
+              >
+                None
+              </DropdownMenuItem>
+              {categoryOptions.map((c) => (
+                <DropdownMenuItem
+                  key={c.value}
+                  onClick={() => onAction("change_category", { categoryId: c.value })}
+                >
+                  {c.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          {/* Maintenance toggle */}
+          <DropdownMenuItem onClick={() => onAction("maintenance")}>
+            <Wrench className="mr-2 size-4" />
+            Maintenance
+          </DropdownMenuItem>
+
+          {/* Add to kit */}
+          {kits.length > 0 && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Package className="mr-2 size-4" />
+                Add to kit
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-60 overflow-y-auto">
+                {kits.map((k) => (
+                  <DropdownMenuItem
+                    key={k.id}
+                    onClick={() => onAction("add_to_kit", { kitId: k.id })}
+                  >
+                    {k.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+
+          {/* CSV export */}
+          {onExportCsv && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onExportCsv}>
+                <Download className="mr-2 size-4" />
+                Export CSV
+              </DropdownMenuItem>
+            </>
+          )}
+
+          <DropdownMenuSeparator />
+
+          {/* Retire */}
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => setRetireOpen(true)}
           >
-            None
-          </Button>
-          {categoryOptions.map((c) => (
-            <Button
-              key={c.value}
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start font-normal"
-              onClick={() => onAction("change_category", { categoryId: c.value })}
+            <Archive className="mr-2 size-4" />
+            Retire
+          </DropdownMenuItem>
+
+          {/* Delete (admin only) */}
+          {canDelete && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setDeleteOpen(true)}
             >
-              {c.label}
-            </Button>
-          ))}
-        </PopoverContent>
-      </Popover>
+              <Trash2 className="mr-2 size-4" />
+              Delete permanently
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onAction("maintenance")}
-        disabled={busy}
-      >
-        Maintenance
-      </Button>
-
+      {/* Retire confirmation */}
       <AlertDialog open={retireOpen} onOpenChange={setRetireOpen}>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive"
-          onClick={() => setRetireOpen(true)}
-          disabled={busy}
-        >
-          Retire
-        </Button>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -148,7 +217,37 @@ export function BulkActionBar({
         </AlertDialogContent>
       </AlertDialog>
 
-      {busy && <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><Spinner className="size-3.5" /> Processing…</span>}
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {count} item{count > 1 ? "s" : ""} permanently?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete{" "}
+              {count === 1 ? "1 item" : `${count} items`} and all associated
+              history (booking records, scan logs, check-in reports). This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => onAction("delete")}
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {busy && (
+        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Spinner className="size-3.5" /> Processing…
+        </span>
+      )}
       {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
   );

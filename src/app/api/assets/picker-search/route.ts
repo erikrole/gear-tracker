@@ -32,7 +32,7 @@ const pickerSelect = {
   category: { select: { id: true, name: true } },
 } satisfies Prisma.AssetSelect;
 
-export const GET = withAuth(async (req) => {
+export const GET = withAuth(async (req, { user }) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim() || undefined;
   const qr = searchParams.get("qr")?.trim() || undefined;
@@ -103,11 +103,23 @@ export const GET = withAuth(async (req) => {
 
   const where: Prisma.AssetWhereInput = { AND: conditions };
 
+  // Get user's favorite asset IDs for priority sorting
+  const favoriteAssetIds = new Set(
+    (await db.favoriteItem.findMany({
+      where: { userId: user.id },
+      select: { assetId: true },
+    })).map((f) => f.assetId)
+  );
+
   // Fetch assets + count in parallel
   const [rawAssets, total] = await Promise.all([
     db.asset.findMany({
       where,
-      select: pickerSelect,
+      select: {
+        ...pickerSelect,
+        _count: { select: { bookingItems: true } },
+      },
+      // Base ordering — we'll re-sort in memory for favorites + popularity
       orderBy: { assetTag: "asc" },
       take: limit,
       skip: offset,
@@ -115,17 +127,31 @@ export const GET = withAuth(async (req) => {
     db.asset.count({ where }),
   ]);
 
+  // Sort: favorites first, then by checkout frequency (popularity), then alphabetical
+  const sorted = [...rawAssets].sort((a, b) => {
+    const aFav = favoriteAssetIds.has(a.id) ? 0 : 1;
+    const bFav = favoriteAssetIds.has(b.id) ? 0 : 1;
+    if (aFav !== bFav) return aFav - bFav;
+
+    const aPop = a._count?.bookingItems ?? 0;
+    const bPop = b._count?.bookingItems ?? 0;
+    if (aPop !== bPop) return bPop - aPop; // higher popularity first
+
+    return a.assetTag.localeCompare(b.assetTag);
+  });
+
   // Enrich with computed status (CHECKED_OUT, RESERVED, etc.)
   let assets;
   try {
-    assets = await enrichAssetsWithStatusFromLoaded(rawAssets);
+    assets = await enrichAssetsWithStatusFromLoaded(sorted);
   } catch {
-    assets = rawAssets.map((a) => ({ ...a, computedStatus: a.status as string }));
+    assets = sorted.map((a) => ({ ...a, computedStatus: a.status as string }));
   }
 
   // Flatten category name for client-side section classification
   const assetsWithCategory = assets.map((a) => ({
     ...a,
+    isFavorited: favoriteAssetIds.has(a.id),
     categoryName: a.category?.name ?? null,
   }));
 

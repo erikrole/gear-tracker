@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import { ScheduleFilters } from "./_components/ScheduleFilters";
 import { CalendarView } from "./_components/CalendarView";
+import { WeekView } from "./_components/WeekView";
 import { ListView } from "./_components/ListView";
 
 const ShiftDetailPanel = dynamic(
@@ -26,6 +28,22 @@ const TradeBoard = dynamic(() => import("@/components/TradeBoard"), {
 
 export default function SchedulePage() {
   const data = useScheduleData();
+  const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
+
+  const handleHideEvent = useCallback(async (eventId: string) => {
+    try {
+      const res = await fetch(`/api/calendar-events/${eventId}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isHidden: true }),
+      });
+      if (res.ok) {
+        data.loadData();
+      }
+    } catch {
+      // silently fail — event stays visible
+    }
+  }, [data]);
 
   return (
     <>
@@ -59,6 +77,20 @@ export default function SchedulePage() {
         />
       )}
 
+      {/* Week View */}
+      {data.filters.viewMode === "week" && (
+        <WeekView
+          entries={data.filteredEntries}
+          weekStart={data.weekStart}
+          setWeekStart={data.setWeekStart}
+          loading={data.loading}
+          currentUserId={data.currentUserId}
+          currentUserRole={data.currentUserRole}
+          myShiftsOnly={data.filters.myShiftsOnly}
+          onSelectGroup={data.setSelectedGroupId}
+        />
+      )}
+
       {/* List View */}
       {data.filters.viewMode === "list" && (
         <ListView
@@ -73,9 +105,11 @@ export default function SchedulePage() {
           includePast={data.filters.includePast}
           hasFilters={data.filters.hasFilters}
           currentUserId={data.currentUserId}
+          isStaff={isStaff}
           expandedRowId={data.expandedRowId}
           setExpandedRowId={data.setExpandedRowId}
           onSelectGroup={data.setSelectedGroupId}
+          onHideEvent={isStaff ? handleHideEvent : undefined}
         />
       )}
 

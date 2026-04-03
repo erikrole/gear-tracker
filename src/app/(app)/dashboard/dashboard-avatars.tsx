@@ -3,6 +3,7 @@
 import { UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getInitials, getAvatarColor } from "@/lib/avatar";
 import type { ItemThumb, EventSummary } from "../dashboard-types";
 
@@ -40,6 +41,13 @@ export function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; tot
   );
 }
 
+const AREA_LABELS: Record<string, string> = {
+  VIDEO: "Video",
+  PHOTO: "Photo",
+  GRAPHICS: "Graphics",
+  COMMS: "Comms",
+};
+
 export function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers: EventSummary["assignedUsers"]; totalSlots: number }) {
   if (totalSlots === 0) return null;
   const emptySlots = Math.max(0, totalSlots - assignedUsers.length);
@@ -49,15 +57,24 @@ export function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers:
   const overflow = assignedUsers.length + emptySlots - maxShow;
   return (
     <AvatarGroup max={99}>
-      {showUsers.map((u) => (
-        <Avatar key={u.id} size="sm" className="ring-2 ring-background" title={u.name}>
-          {u.avatarUrl ? (
-            <AvatarImage src={u.avatarUrl} alt="" />
-          ) : (
-            <AvatarFallback className={getAvatarColor(u.name)}>{u.initials}</AvatarFallback>
-          )}
-        </Avatar>
-      ))}
+      {showUsers.map((u) => {
+        const areaLabel = u.area ? AREA_LABELS[u.area] ?? u.area : null;
+        const tooltipText = areaLabel ? `${u.name} — ${areaLabel}` : u.name;
+        return (
+          <Tooltip key={u.id}>
+            <TooltipTrigger asChild>
+              <Avatar size="sm" className="ring-2 ring-background cursor-default">
+                {u.avatarUrl ? (
+                  <AvatarImage src={u.avatarUrl} alt="" />
+                ) : (
+                  <AvatarFallback className={getAvatarColor(u.name)}>{u.initials}</AvatarFallback>
+                )}
+              </Avatar>
+            </TooltipTrigger>
+            <TooltipContent>{tooltipText}</TooltipContent>
+          </Tooltip>
+        );
+      })}
       {Array.from({ length: showEmpty }).map((_, i) => (
         <EmptySlotAvatar key={`empty-${i}`} />
       ))}

@@ -8,9 +8,10 @@ import { createAuditEntries } from "@/lib/audit";
 const bulkSchema = z
   .object({
     ids: z.array(z.string().cuid()).min(1).max(50),
-    action: z.enum(["move_location", "change_category", "retire", "maintenance"]),
+    action: z.enum(["move_location", "change_category", "retire", "maintenance", "delete", "add_to_kit"]),
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),
+    kitId: z.string().cuid().optional(),
   })
   .strict();
 
@@ -144,6 +145,76 @@ export const POST = withAuth(async (req, { user }) => {
           after: { status: newStatus },
         };
       })
+    );
+  } else if (action === "delete") {
+    requirePermission(user.role, "asset", "delete");
+
+    // Check for active bookings that would be affected
+    const activeBookingCount = await db.assetAllocation.count({
+      where: { assetId: { in: ids }, active: true },
+    });
+
+    if (activeBookingCount > 0) {
+      throw new HttpError(
+        409,
+        `Cannot delete: ${activeBookingCount} asset(s) have active bookings. Return them first.`
+      );
+    }
+
+    // Clean up non-cascading relations, then delete assets
+    await db.$transaction(async (tx) => {
+      await tx.bookingSerializedItem.deleteMany({ where: { assetId: { in: ids } } });
+      await tx.assetAllocation.deleteMany({ where: { assetId: { in: ids } } });
+      await tx.scanEvent.deleteMany({ where: { assetId: { in: ids } } });
+      await tx.checkinItemReport.deleteMany({ where: { assetId: { in: ids } } });
+      const result = await tx.asset.deleteMany({ where: { id: { in: ids } } });
+      updated = result.count;
+    });
+
+    await createAuditEntries(
+      assets.map((asset) => ({
+        actorId: user.id,
+        actorRole: user.role,
+        entityType: "asset",
+        entityId: asset.id,
+        action: "bulk_deleted",
+        before: { status: asset.status, locationId: asset.locationId, categoryId: asset.categoryId },
+        after: { deleted: true },
+      }))
+    );
+  } else if (action === "add_to_kit") {
+    if (!body.kitId) {
+      throw new HttpError(400, "kitId required for add_to_kit");
+    }
+
+    const kit = await db.kit.findUnique({ where: { id: body.kitId } });
+    if (!kit) throw new HttpError(404, "Kit not found");
+
+    // Skip assets already in this kit
+    const existing = await db.kitMembership.findMany({
+      where: { kitId: body.kitId, assetId: { in: ids } },
+      select: { assetId: true },
+    });
+    const existingIds = new Set(existing.map((e) => e.assetId));
+    const newIds = ids.filter((id) => !existingIds.has(id));
+
+    if (newIds.length > 0) {
+      await db.kitMembership.createMany({
+        data: newIds.map((assetId) => ({ kitId: body.kitId!, assetId })),
+      });
+    }
+    updated = newIds.length;
+
+    await createAuditEntries(
+      newIds.map((assetId) => ({
+        actorId: user.id,
+        actorRole: user.role,
+        entityType: "asset",
+        entityId: assetId,
+        action: "bulk_added_to_kit",
+        before: {},
+        after: { kitId: body.kitId! },
+      }))
     );
   }
 

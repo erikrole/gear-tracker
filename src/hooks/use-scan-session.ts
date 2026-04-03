@@ -12,6 +12,8 @@ type UseScanSessionOptions = {
   toast: ToastFn;
 };
 
+type SummaryCounts = { returned: number; damaged: number; lost: number };
+
 type UseScanSessionResult = {
   scanStatus: ScanStatus | null;
   setScanStatus: React.Dispatch<React.SetStateAction<ScanStatus | null>>;
@@ -22,11 +24,12 @@ type UseScanSessionResult = {
   completing: boolean;
   loadScanStatus: () => Promise<void>;
   handleComplete: () => Promise<void>;
-  /** True when the photo capture dialog should be shown before completion */
-  showPhotoCapture: boolean;
-  setShowPhotoCapture: (v: boolean) => void;
-  /** Call after photo is uploaded to proceed with completion */
-  proceedAfterPhoto: () => Promise<void>;
+  /** Check-in summary screen state */
+  showSummary: boolean;
+  setShowSummary: (v: boolean) => void;
+  summaryData: SummaryCounts | null;
+  /** Confirm the summary and complete the check-in */
+  confirmSummary: () => Promise<void>;
 };
 
 function vibrate(ms = 100) {
@@ -45,7 +48,8 @@ export function useScanSession(
   const [loadError, setLoadError] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [showPhotoCapture, setShowPhotoCapture] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<SummaryCounts | null>(null);
 
   const toastRef = useRef(toast);
   toastRef.current = toast;
@@ -163,15 +167,28 @@ export function useScanSession(
     setCompleting(false);
   }, [checkoutId, mode, router]);
 
-  // Complete checkout/checkin — opens photo dialog first
+  // Complete checkout/checkin — show summary if reports exist, otherwise complete directly
   const handleComplete = useCallback(async () => {
     if (!checkoutId) return;
-    setShowPhotoCapture(true);
-  }, [checkoutId]);
 
-  // Called after photo upload succeeds — proceed with actual completion
-  const proceedAfterPhoto = useCallback(async () => {
-    setShowPhotoCapture(false);
+    // For check-in with damage/lost reports, show summary before completing
+    if (mode === "checkin" && scanStatus) {
+      const damaged = scanStatus.progress.damagedCount ?? 0;
+      const lost = scanStatus.progress.lostCount ?? 0;
+      if (damaged > 0 || lost > 0) {
+        const returned = scanStatus.progress.serializedScanned - lost;
+        setSummaryData({ returned, damaged, lost });
+        setShowSummary(true);
+        return;
+      }
+    }
+
+    await doComplete();
+  }, [checkoutId, doComplete, mode, scanStatus]);
+
+  // Confirm the check-in summary and complete
+  const confirmSummary = useCallback(async () => {
+    setShowSummary(false);
     await doComplete();
   }, [doComplete]);
 
@@ -185,8 +202,9 @@ export function useScanSession(
     completing,
     loadScanStatus,
     handleComplete,
-    showPhotoCapture,
-    setShowPhotoCapture,
-    proceedAfterPhoto,
+    showSummary,
+    setShowSummary,
+    summaryData,
+    confirmSummary,
   };
 }

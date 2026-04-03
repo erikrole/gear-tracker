@@ -148,7 +148,7 @@ export function ItemsToolbar({
           className="scale-75"
         />
         <Label htmlFor="show-accessories" className="text-xs text-muted-foreground cursor-pointer">
-          Accessories
+          Accessories only
         </Label>
       </div>
       {hasActiveFilters && (
