@@ -61,6 +61,15 @@ export async function directAssignShift(
     // Check for time conflicts with the user's other shifts
     await checkTimeConflict(tx, userId, shift.startsAt, shift.endsAt);
 
+    // Decline any pending requests — slot is being filled by direct assignment
+    await tx.shiftAssignment.updateMany({
+      where: {
+        shiftId,
+        status: "REQUESTED",
+      },
+      data: { status: "DECLINED" },
+    });
+
     return tx.shiftAssignment.create({
       data: {
         shiftId,
@@ -127,10 +136,28 @@ export async function requestShift(shiftId: string, userId: string) {
  */
 export async function approveRequest(assignmentId: string) {
   return db.$transaction(async (tx) => {
-    const assignment = await tx.shiftAssignment.findUnique({ where: { id: assignmentId } });
+    const assignment = await tx.shiftAssignment.findUnique({
+      where: { id: assignmentId },
+      include: { shift: true },
+    });
     if (!assignment) throw new HttpError(404, "Assignment not found");
     if (assignment.status !== "REQUESTED") {
       throw new HttpError(400, "Only REQUESTED assignments can be approved");
+    }
+
+    // Re-check time conflicts — the user may have been assigned another shift
+    // between the time they requested and the time staff approves.
+    await checkTimeConflict(tx, assignment.userId, assignment.shift.startsAt, assignment.shift.endsAt);
+
+    // Re-check no other active assignment was created on this shift since the request
+    const existing = await tx.shiftAssignment.findFirst({
+      where: {
+        shiftId: assignment.shiftId,
+        status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] },
+      },
+    });
+    if (existing) {
+      throw new HttpError(409, "This shift already has an active assignment");
     }
 
     // Decline all other requests for this shift
@@ -216,11 +243,21 @@ export async function initiateSwap(
 
 /**
  * Remove an assignment (sets to DECLINED).
+ * Only active or requested assignments can be removed — terminal statuses are immutable.
  */
 export async function removeAssignment(assignmentId: string) {
+  const REMOVABLE_STATUSES: ShiftAssignmentStatus[] = [
+    "DIRECT_ASSIGNED",
+    "APPROVED",
+    "REQUESTED",
+  ];
+
   return db.$transaction(async (tx) => {
     const assignment = await tx.shiftAssignment.findUnique({ where: { id: assignmentId } });
     if (!assignment) throw new HttpError(404, "Assignment not found");
+    if (!REMOVABLE_STATUSES.includes(assignment.status)) {
+      throw new HttpError(400, "This assignment cannot be removed in its current state");
+    }
 
     return tx.shiftAssignment.update({
       where: { id: assignmentId },
