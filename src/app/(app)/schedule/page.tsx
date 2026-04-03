@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ClockIcon } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -61,6 +62,29 @@ export default function SchedulePage() {
           )}
         </Button>
       </PageHeader>
+
+      {/* My Hours strip */}
+      {data.myHours && (data.myHours.shiftCountWeek > 0 || data.myHours.shiftCountMonth > 0) && (
+        <div className="flex items-center gap-4 text-sm text-muted-foreground -mb-1">
+          <div className="flex items-center gap-1.5">
+            <ClockIcon className="size-3.5" />
+            <span className="font-medium text-foreground">My hours</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span>
+              <span className="font-semibold text-foreground">{data.myHours.thisWeek}h</span>
+              {" "}this week
+              <span className="text-muted-foreground/60"> ({data.myHours.shiftCountWeek} shift{data.myHours.shiftCountWeek !== 1 ? "s" : ""})</span>
+            </span>
+            <span className="text-border">|</span>
+            <span>
+              <span className="font-semibold text-foreground">{data.myHours.thisMonth}h</span>
+              {" "}this month
+              <span className="text-muted-foreground/60"> ({data.myHours.shiftCountMonth} shift{data.myHours.shiftCountMonth !== 1 ? "s" : ""})</span>
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* View toggle + filters */}
       <ScheduleFilters filters={data.filters} entries={data.entries} />
