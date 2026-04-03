@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useUrlState, useDebounce } from "@/hooks/use-url-state";
 import { toast } from "sonner";
 import {
   BoxIcon,
@@ -45,19 +46,21 @@ type Location = { id: string; name: string };
 export default function KitsPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [locationId, setLocationId] = useState("");
-  const [includeArchived, setIncludeArchived] = useState(false);
+  const debouncedSearch = useDebounce(search, 300);
+  const [locationId, setLocationId] = useUrlState<string>(
+    "location",
+    (v) => v ?? "",
+    (v) => (v || null),
+  );
+  const [includeArchived, setIncludeArchived] = useUrlState<boolean>(
+    "archived",
+    (v) => v === "true",
+    (v) => (v ? "true" : null),
+  );
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [locations, setLocations] = useState<Location[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
-
-  // Debounce search
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const query = useKitsQuery({
     search: debouncedSearch,

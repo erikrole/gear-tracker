@@ -95,6 +95,54 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
 
   if (body.active !== undefined) {
+    // Deactivation guard: block if user has OPEN checkouts (must return gear first)
+    if (body.active === false && target.active === true) {
+      const openCheckouts = await db.booking.count({
+        where: {
+          requesterUserId: id,
+          kind: "CHECKOUT",
+          status: "OPEN",
+        },
+      });
+      if (openCheckouts > 0) {
+        throw new HttpError(
+          400,
+          `Cannot deactivate: user has ${openCheckouts} open checkout${openCheckouts > 1 ? "s" : ""}. Return all gear first.`
+        );
+      }
+
+      // Auto-cancel BOOKED reservations and DRAFT bookings
+      const toCancel = await db.booking.findMany({
+        where: {
+          requesterUserId: id,
+          OR: [
+            { status: "BOOKED" },
+            { status: "DRAFT" },
+          ],
+        },
+        select: { id: true, status: true, kind: true },
+      });
+
+      if (toCancel.length > 0) {
+        await db.booking.updateMany({
+          where: { id: { in: toCancel.map((b) => b.id) } },
+          data: { status: "CANCELLED" },
+        });
+
+        await createAuditEntry({
+          actorId: user.id,
+          actorRole: user.role,
+          entityType: "user",
+          entityId: id,
+          action: "deactivation_cancelled_bookings",
+          after: {
+            cancelledBookingIds: toCancel.map((b) => b.id),
+            cancelledCount: toCancel.length,
+          },
+        });
+      }
+    }
+
     updateData.active = body.active;
   }
 

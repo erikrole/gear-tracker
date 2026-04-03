@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { statusBadgeVariant } from "@/lib/status-colors";
 import type { BadgeProps } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -207,7 +207,24 @@ export default function SearchPage() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-10"><Spinner className="size-8" /></div>
+        <div className="flex flex-col gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i}>
+              <Skeleton className="h-3.5 w-20 mb-2" />
+              <Card>
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <div key={j} className={`flex items-center justify-between gap-3 py-3 px-4 ${j < 2 ? "border-b border-border" : ""}`}>
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-[60%]" />
+                      <Skeleton className="h-3 w-[35%]" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                ))}
+              </Card>
+            </div>
+          ))}
+        </div>
       )}
 
       {!loading && searchError && query.trim() && (

@@ -3,6 +3,7 @@
 import { type FormEvent, useRef, useState } from "react";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 import { useFetch } from "@/hooks/use-fetch";
+import { useUrlState } from "@/hooks/use-url-state";
 import { PlusIcon, ChevronDownIcon, AlertCircleIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonTable } from "@/components/Skeleton";
@@ -69,7 +70,11 @@ export default function BulkInventoryPage() {
   const [trackByNumber, setTrackByNumber] = useState(false);
   const [addingUnits, setAddingUnits] = useState<string | null>(null);
   const [addCount, setAddCount] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState<string>(
+    "q",
+    (v) => v ?? "",
+    (v) => (v || null),
+  );
   const limit = 20;
 
   // Data fetching via React Query (cached, auto-refresh on focus)
