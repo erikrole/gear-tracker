@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useScanSession } from "@/hooks/use-scan-session";
 import { useScanSubmission } from "@/hooks/use-scan-submission";
 import { ScanControls } from "./_components/ScanControls";
-import { ScanChecklist, buildCategorySummary } from "./_components/ScanChecklist";
+import { ScanChecklist } from "./_components/ScanChecklist";
 import { UnitPickerSheet } from "./_components/UnitPickerSheet";
 import { ItemPreviewDrawer } from "./_components/ItemPreviewDrawer";
 import { ReportDamageDialog } from "./_components/ReportDamageDialog";
@@ -145,7 +145,7 @@ export default function ScanPage() {
         <div className="flex items-center gap-2.5 sticky top-[56px] z-[1] bg-[var(--bg)] -mx-4 -mt-4 px-4 py-2 max-md:border-b max-md:border-[var(--border-light)] md:static md:mx-0 md:px-0 md:py-2">
           <button
             type="button"
-            className="flex items-center gap-1 shrink-0 no-underline text-inherit [-webkit-tap-highlight-color:transparent] text-muted-foreground"
+            className="flex items-center gap-2 flex-1 min-w-0 no-underline text-inherit [-webkit-tap-highlight-color:transparent]"
             onClick={async () => {
               if (hasScannedItems) {
                 const ok = await confirm({
@@ -160,11 +160,14 @@ export default function ScanPage() {
             }}
             aria-label="Back to checkout"
           >
-            <ChevronLeftIcon className="size-5" />
+            <ChevronLeftIcon className="size-5 shrink-0 text-muted-foreground" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-base font-bold truncate">{session.scanStatus.title}</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {session.scanStatus.requester.name} &middot; {session.scanStatus.location.name}
+              </span>
+            </div>
           </button>
-          <span className="flex-1 text-center text-base font-bold truncate">
-            {buildCategorySummary(session.scanStatus.serializedItems)}
-          </span>
           <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap shrink-0 ${
             mode === "checkout"
               ? "bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400"
