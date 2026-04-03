@@ -6,3 +6,4 @@ node_modules/
 .env.production
 tsconfig.tsbuildinfo
 .DS_Store
+.claude/
