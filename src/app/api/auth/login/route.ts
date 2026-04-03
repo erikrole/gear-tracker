@@ -19,6 +19,10 @@ export const POST = withHandler(async (req) => {
     throw new HttpError(401, "Invalid credentials");
   }
 
+  if (!user.active) {
+    throw new HttpError(403, "Your account has been deactivated. Contact an administrator.");
+  }
+
   const valid = await verifyPassword(user.passwordHash, body.password);
   if (!valid) {
     throw new HttpError(401, "Invalid credentials");

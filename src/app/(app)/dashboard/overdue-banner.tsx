@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangleIcon, BellRingIcon, CheckIcon, Loader2Icon } from "lucide-react";
+import { AlertTriangleIcon, BellRingIcon, CheckIcon, ClipboardCheckIcon, Loader2Icon } from "lucide-react";
 import { formatOverdueElapsed } from "@/lib/format";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import type { OverdueItem } from "../dashboard-types";
+import Link from "next/link";
 
 type Props = {
   overdueCount: number;
@@ -57,13 +58,16 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
       </div>
       <div className="flex flex-col gap-1.5">
         {overdueItems.map((item) => (
-          <button
+          <div
             key={item.bookingId}
-            className="flex flex-col gap-0.5 bg-white/10 border-none rounded-md px-3 py-2 cursor-pointer font-[inherit] text-white text-left w-full transition-colors hover:bg-white/[0.18] focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-[-2px]"
+            className="flex items-center gap-2 bg-white/10 rounded-md px-3 py-2 cursor-pointer text-white w-full transition-colors hover:bg-white/[0.18] focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-[-2px]"
+            role="button"
+            tabIndex={0}
             onClick={() => onSelectBooking(item.bookingId)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectBooking(item.bookingId); } }}
           >
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="text-[var(--text-sm)] font-semibold flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-[var(--text-sm)] font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
               <span className="flex items-center gap-1 text-xs opacity-75 [&_[data-slot=avatar-fallback]]:bg-white/20 [&_[data-slot=avatar-fallback]]:text-white">
                 <UserAvatar name={item.requesterName} />
                 {item.requesterName}
@@ -72,30 +76,48 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                  &middot; <span className="text-[var(--text-3xs)] font-bold bg-white/20 px-2 py-0.5 rounded-full whitespace-nowrap">{formatOverdueElapsed(item.endsAt, now)}</span>
               </span>
             </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
-                  disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
-                  onClick={(e) => handleNudge(e, item.bookingId)}
-                  aria-label={`Nudge ${item.requesterName}`}
-                >
-                  {nudgingId === item.bookingId ? (
-                    <Loader2Icon className="size-4 animate-spin" />
-                  ) : nudgedIds.has(item.bookingId) ? (
-                    <CheckIcon className="size-4 text-green-500" />
-                  ) : (
-                    <BellRingIcon className="size-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {nudgedIds.has(item.bookingId) ? "Nudge sent" : `Nudge ${item.requesterName}`}
-              </TooltipContent>
-            </Tooltip>
-          </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
+                    asChild
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Link href={`/scan?checkout=${item.bookingId}&phase=CHECKIN`} aria-label={`Check in ${item.bookingTitle}`}>
+                      <ClipboardCheckIcon className="size-4" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Check in</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
+                    disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
+                    onClick={(e) => handleNudge(e, item.bookingId)}
+                    aria-label={`Nudge ${item.requesterName}`}
+                  >
+                    {nudgingId === item.bookingId ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : nudgedIds.has(item.bookingId) ? (
+                      <CheckIcon className="size-4 text-green-500" />
+                    ) : (
+                      <BellRingIcon className="size-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {nudgedIds.has(item.bookingId) ? "Nudge sent" : `Nudge ${item.requesterName}`}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         ))}
       </div>
     </div>

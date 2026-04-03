@@ -154,7 +154,8 @@ export default function UserDetailPage() {
       });
       if (!res.ok) {
         setUserOverrides((prev) => ({ ...prev, active: !newActive }));
-        toast("Failed to update status", "error");
+        const json = await res.json().catch(() => ({}));
+        toast((json as Record<string, string>).error || "Failed to update status", "error");
       } else {
         toast(newActive ? "User activated" : "User deactivated", "success");
       }
