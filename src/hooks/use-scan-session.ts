@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScanStatus } from "@/app/(app)/scan/_components/types";
+import { scanFeedbackCelebration } from "@/lib/scan-feedback";
 
 type ToastFn = (message: string, type: "success" | "error" | "info") => void;
 
@@ -31,12 +32,6 @@ type UseScanSessionResult = {
   /** Confirm the summary and complete the check-in */
   confirmSummary: () => Promise<void>;
 };
-
-function vibrate(ms = 100) {
-  if (typeof navigator !== "undefined" && navigator.vibrate) {
-    navigator.vibrate(ms);
-  }
-}
 
 export function useScanSession(
   options: UseScanSessionOptions & { router: { push: (url: string) => void }; mode: "checkout" | "checkin" | "lookup" },
@@ -83,7 +78,7 @@ export function useScanSession(
       setScanStatus((prev) => {
         if (prev && !prev.progress.allComplete && data.progress.allComplete) {
           setShowCelebration(true);
-          vibrate(200);
+          scanFeedbackCelebration();
           setTimeout(() => setShowCelebration(false), 3000);
         }
         return data;

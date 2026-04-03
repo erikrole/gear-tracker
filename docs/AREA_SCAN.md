@@ -19,6 +19,9 @@ src/hooks/
 ├── use-scan-session.ts         — status loading, 15s polling, session start, celebration, completion
 └── use-scan-submission.ts      — scan processing, feedback auto-clear, optimistic updates, unit picker state
 
+src/lib/
+└── scan-feedback.ts            — Web Audio API tones + haptic vibration patterns (success/error/info/celebration)
+
 src/components/
 └── QrScanner.tsx               — native BarcodeDetector with ZXing polyfill (dynamic import, SSR: false)
 ```
@@ -59,3 +62,4 @@ src/components/
 |---|---|
 | 2026-03-23 | Scan page hardened (5-pass): design system alignment, data flow, resilience, UX polish |
 | 2026-03-25 | Decomposed from 1,038→251 lines: extracted 2 hooks + 4 components + shared types (GAP-14 closed) |
+| 2026-04-03 | Audio + haptic scan feedback: distinct tones & vibration patterns for success/error/info/celebration via Web Audio API (`src/lib/scan-feedback.ts`) |
