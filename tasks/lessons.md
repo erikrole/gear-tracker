@@ -704,3 +704,11 @@ Always use shadcn Empty component:
 - **Quantity guard + increment must be atomic**: Any pattern where you read a value, check a condition, and then increment in a separate transaction is a TOCTOU race. The fix is always the same: re-read inside the transaction, check, then write — all in SERIALIZABLE.
 - **`Promise.allSettled` is the right default for read-only parallel queries**: When combining multiple independent DB queries for a single response, `Promise.allSettled` with fallback values is strictly better than `Promise.all`. The extra code is minimal and prevents total failure from one slow query.
 - **`markCheckoutCompleted` double-return pattern**: When completing a multi-step process that has intermediate partial operations (partial check-in), the final cleanup must account for work already done. Always subtract `alreadyDone` from `totalToDo`.
+
+## Session 2026-04-03
+
+### Patterns (Auth System Stress Test)
+- **Bulk endpoints must mirror single-endpoint guards**: The single-add allowlist route had a STAFF-can't-add-STAFF guard, but the bulk path skipped it entirely. When writing bulk alternatives, grep the single path for all authorization checks and replicate each one.
+- **Multi-write registration flows need transactions**: User creation + invitation claim are logically atomic — if either fails, both should roll back. Without `$transaction`, a crash between writes leaves the system in an inconsistent state (user exists but invitation appears unclaimed).
+- **Read-then-delete is a race condition**: Checking `claimedAt === null` in a SELECT then doing a DELETE by `id` allows a concurrent claim between reads. Fix: use `deleteMany({ where: { id, claimedAt: null } })` and check `deleted.count` — the database enforces the condition atomically.
+- **`.trim()` before `.min(1)` on name fields**: Without trim, whitespace-only strings pass min-length validation, creating users with blank-looking names. Zod's `.trim()` transform must come before `.min()` in the chain.

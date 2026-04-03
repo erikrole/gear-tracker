@@ -51,6 +51,12 @@ export const POST = withAuth(async (req, { user }) => {
   // Bulk add
   if (Array.isArray(body.emails)) {
     const { emails } = createAllowedEmailBulkSchema.parse(body);
+
+    // STAFF cannot add STAFF-role entries (only ADMIN can)
+    if (user.role !== "ADMIN" && emails.some((e) => e.role === "STAFF")) {
+      throw new HttpError(403, "Only admins can pre-approve staff accounts");
+    }
+
     const normalized = emails.map((e) => ({
       ...e,
       email: e.email.toLowerCase(),
