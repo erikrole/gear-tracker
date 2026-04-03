@@ -82,7 +82,7 @@ export const GET = withAuth(async (req, { user }) => {
 
   // Build base where clause (non-status filters)
   const baseWhere: Prisma.AssetWhereInput = {
-    ...(!showAccessories ? { parentAssetId: null } : {}),
+    ...(showAccessories ? { parentAssetId: { not: null } } : { parentAssetId: null }),
     ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
@@ -178,8 +178,61 @@ export const GET = withAuth(async (req, { user }) => {
     })
   );
 
+  // Fetch bulk items (only on first page and when not filtering accessories)
+  let bulkItems: Array<{
+    id: string;
+    kind: "bulk";
+    name: string;
+    category: string;
+    unit: string;
+    onHandQuantity: number;
+    locationName: string;
+    locationId: string;
+    categoryId: string | null;
+    binQrCodeValue: string;
+  }> = [];
+
+  if (offset === 0 && !showAccessories) {
+    const bulkWhere: Prisma.BulkSkuWhereInput = {
+      active: true,
+      ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
+      ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
+      ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),
+      ...(categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
+      ...(q ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { category: { contains: q, mode: "insensitive" as const } },
+        ],
+      } : {}),
+    };
+
+    const bulkSkus = await db.bulkSku.findMany({
+      where: bulkWhere,
+      include: {
+        location: { select: { name: true } },
+        balances: { select: { onHandQuantity: true } },
+      },
+      orderBy: { name: "asc" },
+    });
+
+    bulkItems = bulkSkus.map((sku) => ({
+      id: sku.id,
+      kind: "bulk" as const,
+      name: sku.name,
+      category: sku.category,
+      unit: sku.unit,
+      onHandQuantity: sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0),
+      locationName: sku.location.name,
+      locationId: sku.locationId,
+      categoryId: sku.categoryId,
+      binQrCodeValue: sku.binQrCodeValue,
+    }));
+  }
+
   return ok({
     data: enrichedWithFavorites,
+    bulkItems,
     total,
     limit,
     offset,

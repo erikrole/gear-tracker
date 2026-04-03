@@ -224,7 +224,8 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       enableSorting: true,
       cell: ({ row }) => {
         const item = row.original;
-        const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
+        // Show name (product name) as secondary if set, otherwise fall back to brand + model
+        const subtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
         return (
           <div className="flex items-center gap-3 min-w-0">
             {item.imageUrl ? (

@@ -8,6 +8,8 @@ const ACTION_LABELS: Record<string, string> = {
   change_category: "Updated category for",
   retire: "Retired",
   maintenance: "Updated maintenance status for",
+  delete: "Deleted",
+  add_to_kit: "Added to kit:",
 };
 
 export function useBulkActions(getSelectedIds: () => string[], onComplete: () => void) {
