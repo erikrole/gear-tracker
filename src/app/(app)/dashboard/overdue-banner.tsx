@@ -46,11 +46,11 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
   if (overdueCount === 0) return null;
 
   return (
-    <div className="bg-[var(--wi-red)] rounded-[var(--radius)] p-3.5 md:px-4 mb-5 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both]">
+    <div className="bg-[var(--wi-red)] rounded-[var(--radius)] p-3.5 md:p-4 mb-5 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       <div className="flex items-center justify-between gap-3 mb-2.5 max-md:flex-wrap">
         <div className="flex items-center gap-2 text-[var(--text-md)] font-semibold">
           <AlertTriangleIcon className="shrink-0 size-[18px]" />
-          <span className="size-2 rounded-full bg-[var(--panel-solid)] shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite]" />
+          <span className="size-2 rounded-full bg-[var(--panel-solid)] shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none" />
           <strong>{overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}</strong>
         </div>
         <a href="/checkouts?filter=overdue" className="text-white/85 text-[var(--text-sm)] font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">Resolve all overdue &rarr;</a>
@@ -59,7 +59,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
         {overdueItems.map((item) => (
           <button
             key={item.bookingId}
-            className="flex flex-col gap-0.5 bg-white/10 border-none rounded-md px-3 py-2 cursor-pointer font-[inherit] text-white text-left w-full transition-colors hover:bg-white/[0.18]"
+            className="flex flex-col gap-0.5 bg-white/10 border-none rounded-md px-3 py-2 cursor-pointer font-[inherit] text-white text-left w-full transition-colors hover:bg-white/[0.18] focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-[-2px]"
             onClick={() => onSelectBooking(item.bookingId)}
           >
             <div className="flex flex-col gap-0.5 min-w-0">
@@ -77,7 +77,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 size-8 text-muted-foreground hover:text-foreground"
+                  className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
                   disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
                   onClick={(e) => handleNudge(e, item.bookingId)}
                   aria-label={`Nudge ${item.requesterName}`}

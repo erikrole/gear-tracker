@@ -105,9 +105,9 @@ export function statusBadge(asset: Asset) {
       const color = isOverdue ? "red" : "blue";
       const fullStatus = name ? `Checked out by ${name}` : "Checked out";
       return (
-        <Badge className={STATUS_STYLES[color].badge} title={fullStatus}>
+        <Badge className={`${STATUS_STYLES[color].badge} max-w-[160px]`} title={fullStatus}>
           <StatusDot color={color} />
-          {label}
+          <span className="truncate">{label}</span>
         </Badge>
       );
     }
@@ -116,9 +116,9 @@ export function statusBadge(asset: Asset) {
       const label = name || "Reserved";
       const fullStatus = name ? `Reserved by ${name}` : "Reserved";
       return (
-        <Badge className={STATUS_STYLES.purple.badge} title={fullStatus}>
+        <Badge className={`${STATUS_STYLES.purple.badge} max-w-[160px]`} title={fullStatus}>
           <StatusDot color="purple" />
-          {label}
+          <span className="truncate">{label}</span>
         </Badge>
       );
     }
@@ -199,7 +199,8 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
             e.stopPropagation();
             meta.onToggleFavorite?.(asset);
           }}
-          title={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}
+          aria-label={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}
+          aria-pressed={!!asset.isFavorited}
         >
           <Star
             className={`size-4 ${

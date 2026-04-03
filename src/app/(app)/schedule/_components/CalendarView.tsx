@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { sportLabel } from "@/lib/sports";
@@ -78,8 +79,8 @@ export function CalendarView({
     <Card className="mb-1">
       <CardHeader className="flex-row items-center justify-between">
         <div className="flex-center gap-2">
-          <Button variant="outline" size="sm" onClick={prevMonth}>
-            &lsaquo;
+          <Button variant="outline" size="icon" className="size-8" onClick={prevMonth} aria-label="Previous month">
+            <ChevronLeft className="size-4" />
           </Button>
           <CardTitle className="text-center min-w-[160px]">
             {calMonth.toLocaleDateString("en-US", {
@@ -87,8 +88,8 @@ export function CalendarView({
               year: "numeric",
             })}
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={nextMonth}>
-            {"\u203a"}
+          <Button variant="outline" size="icon" className="size-8" onClick={nextMonth} aria-label="Next month">
+            <ChevronRight className="size-4" />
           </Button>
         </div>
         <Button variant="outline" size="sm" onClick={goCalToday}>

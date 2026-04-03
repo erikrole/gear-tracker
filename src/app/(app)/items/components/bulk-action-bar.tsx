@@ -75,7 +75,7 @@ export function BulkActionBar({
 
   return (
     <div className="flex items-center gap-2 w-full flex-wrap">
-      <span className="text-sm font-semibold">{count} selected</span>
+      <span className="text-sm font-semibold" role="status" aria-live="polite">{count} selected</span>
       <Button variant="ghost" size="sm" onClick={onClear} disabled={busy}>
         Clear
       </Button>

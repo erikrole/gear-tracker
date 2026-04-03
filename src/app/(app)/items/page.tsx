@@ -279,13 +279,13 @@ export default function ItemsPage() {
         <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground flex-wrap">
           <span className="font-medium text-foreground">{query.total} items</span>
           {query.statusBreakdown.checkedOut > 0 && (
-            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.checkedOut} checked out</Badge>
+            <Badge className="border-none bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 font-normal">{query.statusBreakdown.checkedOut} checked out</Badge>
           )}
           {query.statusBreakdown.reserved > 0 && (
-            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.reserved} reserved</Badge>
+            <Badge className="border-none bg-purple-600/10 text-purple-600 dark:bg-purple-400/10 dark:text-purple-400 font-normal">{query.statusBreakdown.reserved} reserved</Badge>
           )}
           {query.statusBreakdown.maintenance > 0 && (
-            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.maintenance} maintenance</Badge>
+            <Badge className="border-none bg-amber-600/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400 font-normal">{query.statusBreakdown.maintenance} maintenance</Badge>
           )}
           {query.statusBreakdown.retired > 0 && (
             <Badge variant="secondary" className="font-normal">{query.statusBreakdown.retired} retired</Badge>
@@ -304,15 +304,17 @@ export default function ItemsPage() {
 
       <div className="space-y-4">
         {query.loading ? (
-          <div className="rounded-md border">
+          <>
+          {/* Desktop skeleton table */}
+          <div className="rounded-md border hidden sm:block">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="border-t w-[280px]"><Skeleton className="h-4 w-12" /></TableHead>
-                  <TableHead className="border-t w-[200px]"><Skeleton className="h-4 w-14" /></TableHead>
-                  <TableHead className="border-t w-[140px]"><Skeleton className="h-4 w-16" /></TableHead>
-                  <TableHead className="border-t w-[140px]"><Skeleton className="h-4 w-20" /></TableHead>
-                  <TableHead className="border-t w-[160px]"><Skeleton className="h-4 w-16" /></TableHead>
+                  <TableHead className="border-t w-[160px]"><Skeleton className="h-4 w-14" /></TableHead>
+                  <TableHead className="border-t w-[120px]"><Skeleton className="h-4 w-16" /></TableHead>
+                  <TableHead className="border-t w-[120px]"><Skeleton className="h-4 w-20" /></TableHead>
+                  <TableHead className="border-t w-[130px]"><Skeleton className="h-4 w-16" /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -336,6 +338,23 @@ export default function ItemsPage() {
               </TableBody>
             </Table>
           </div>
+          {/* Mobile skeleton cards */}
+          <div className="rounded-md border sm:hidden">
+            {Array.from({ length: 5 }, (_, r) => (
+              <div key={r} className="flex items-start gap-3 px-3 py-3 border-b last:border-b-0">
+                <Skeleton className="size-10 rounded-md shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4" style={{ width: `${50 + (r % 3) * 15}%` }} />
+                  <Skeleton className="h-3" style={{ width: `${35 + (r % 4) * 10}%` }} />
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          </>
         ) : query.loadError ? (
           <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={query.reload} />
         ) : query.items.length === 0 && !filters.hasActiveFilters && !filters.debouncedSearch ? (

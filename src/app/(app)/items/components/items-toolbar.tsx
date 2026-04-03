@@ -71,7 +71,7 @@ export function ItemsToolbar({
   return (
     <>
       {/* Search input with icon */}
-      <div className="relative w-48">
+      <div className="relative w-full sm:w-48">
         <Input
           ref={searchInputRef}
           className="peer pl-9"
@@ -79,6 +79,7 @@ export function ItemsToolbar({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search items"
           type="text"
+          aria-label="Search items"
         />
         <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
           <SearchIcon size={16} />
@@ -145,9 +146,9 @@ export function ItemsToolbar({
           id="show-accessories"
           checked={showAccessories}
           onCheckedChange={onShowAccessoriesChange}
-          className="scale-75"
+          className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
         />
-        <Label htmlFor="show-accessories" className="text-xs text-muted-foreground cursor-pointer">
+        <Label htmlFor="show-accessories" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
           Accessories only
         </Label>
       </div>

@@ -30,12 +30,16 @@ export function ItemCard({
   onRowAction?: (action: string, asset: Asset) => void;
 }) {
   const router = useRouter();
-  const subtitle = [item.brand, item.model].filter(Boolean).join(" ");
+  const subtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
 
   return (
     <div
-      className="flex items-start gap-3 px-3 py-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors min-h-[56px]"
+      className="flex items-start gap-3 px-3 py-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors min-h-[56px] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+      role="row"
+      tabIndex={0}
+      aria-label={`View ${item.assetTag}`}
       onClick={() => router.push(`/items/${item.id}`)}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(`/items/${item.id}`); } }}
     >
       {canEdit && (
         <Checkbox

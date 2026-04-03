@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ListIcon, CalendarIcon, CalendarDaysIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
+import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -54,9 +55,9 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         value={filters.homeAwayFilter}
         onValueChange={(v) => { if (v) filters.setHomeAwayFilter(v as HomeAwayFilter); }}
       >
-        <ToggleGroupItem value="all" className="px-2 py-1 text-xs">All</ToggleGroupItem>
-        <ToggleGroupItem value="home" className="px-2 py-1 text-xs">Home</ToggleGroupItem>
-        <ToggleGroupItem value="away" className="px-2 py-1 text-xs">Away</ToggleGroupItem>
+        <ToggleGroupItem value="all" className="h-9 px-3 text-sm font-medium">All</ToggleGroupItem>
+        <ToggleGroupItem value="home" className="h-9 px-3 text-sm font-medium">Home</ToggleGroupItem>
+        <ToggleGroupItem value="away" className="h-9 px-3 text-sm font-medium">Away</ToggleGroupItem>
       </ToggleGroup>
       <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
         <div className="flex items-center gap-2">
@@ -117,13 +118,14 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           />
         )}
         {filters.hasFilters && (
-          <button
-            type="button"
-            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none font-medium whitespace-nowrap"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-xs font-medium"
             onClick={filters.clearAll}
           >
             Clear all
-          </button>
+          </Button>
         )}
       </div>
     </div>
