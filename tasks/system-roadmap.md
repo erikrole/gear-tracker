@@ -2,10 +2,10 @@
 
 ## Document Control
 - Author: System Architecture Review
-- Date: 2026-03-28
+- Date: 2026-04-03
 - Status: Living roadmap — update when shipping features or revising priorities
 - Scope: Full-system analysis and three-version evolution plan
-- Previous: 2026-03-27 (Beta release v0.2.0); this revision reflects post-Beta hardening pass
+- Previous: 2026-03-28 (post-Beta hardening pass); this revision reflects security hardening + registration gating
 
 ---
 
@@ -38,7 +38,8 @@ Gear Tracker is the internal gear management system for Wisconsin Athletics Crea
 | **Dashboard** (ops console) | `/` | **Polished** | V3 shipped, decomposed into hooks + 7 leaf components, sport/location filters, saved filters, overdue banner, drafts |
 | **Notifications** (escalation, email) | `/notifications` | **MVP** | In-app + email dual-channel, 4 escalation triggers, dedup, pagination, mark-as-read. Hobby cron limits latency to ~24h. |
 | **Reports** | `/reports/*` | **Solid** | 5 report types with charts, URL-persisted filters, drill-down links |
-| **Settings** (admin config) | `/settings/*` | **Solid** | Categories, sports, escalation, calendar sources, venue mappings, DB diagnostics |
+| **Security** (auth, registration gating) | `/login`, `/register`, `/settings/allowed-emails` | **Polished** | Registration gated by admin-managed email allowlist (D-029), bcrypt+HMAC sessions, rate limiting, CSRF origin validation, SESSION_SECRET entropy validation, deactivated user login blocking, security headers (HSTS, X-Frame-Options, CSP candidates) |
+| **Settings** (admin config) | `/settings/*` | **Solid** | Categories, sports, escalation, calendar sources, venue mappings, allowed emails, DB diagnostics |
 | **Import** | `/import` | **Solid** | Generic CSV with Cheqroom preset, dry-run, lossless (D-014), batched DB ops |
 | **Search** | `/search`, Cmd+K | **Solid** | Debounced auto-search, users scope, recent searches |
 | **Scan** | `/scan` | **Polished** | Decomposed (1,038→251 lines), 5-pass hardened, optimistic updates, spam-click guards |
@@ -126,10 +127,13 @@ Gear Tracker is the internal gear management system for Wisconsin Athletics Crea
 
 ### Remaining Inconsistencies
 
-1. **Data fetching strategy**: Some pages use dedicated init endpoints (`/api/items-page-init`), others make multiple parallel fetches. No shared cache layer (React Query installed but not adopted system-wide).
-2. **Page sizes**: `/items/[id]` (737 lines), `/import` (736 lines), `/events/[id]` (617 lines), `UserInfoTab.tsx` (613 lines) — candidates for decomposition but not blocking.
-3. **Detail page architecture**: Items detail is the gold standard (tab extraction, inline edits). Events detail diverges in structure. Kit detail is similar but simpler.
-4. **Reports partial failure**: `Promise.all` in report queries means one slow query fails the entire report — no partial results.
+1. **React Query adoption is ~70%**: Dashboard, Items, Notifications, Bulk Inventory, Users, Schedule all use `useQuery` (via `useFetch` or custom hooks). But **Kits** uses raw `useState`+`useEffect`, **Search** uses raw `fetch()`, and **Bookings** delegates internally. These work fine but miss cache/dedup benefits.
+2. **URL state persistence is inconsistent**: Items, Dashboard, Notifications, Search use `useUrlState`/`useUrlSetState`. Kits, Bulk Inventory, Users use local state only — filters lost on navigation.
+3. **Loading indicator variance**: Most pages use Skeleton components (correct). Search page uses Spinner (divergent).
+4. **Data fetching strategy**: Some pages use dedicated init endpoints (`/api/items-page-init`), others make multiple parallel `useFetch` calls. Both work but no shared cache layer across pages.
+5. **Page sizes**: `/items/[id]` (737 lines), `/import` (736 lines), `/events/[id]` (617 lines), `UserInfoTab.tsx` (613 lines) — candidates for decomposition but not blocking.
+6. **Detail page architecture**: Items detail is the gold standard (tab extraction, inline edits). Events detail diverges in structure. Kit detail is similar but simpler.
+7. **Reports partial failure**: `Promise.all` in report queries means one slow query fails the entire report — no partial results.
 
 ### Schema Surface Coverage
 
@@ -164,18 +168,28 @@ All V2 items shipped. Key deliverables:
 
 **Goal**: Harden remaining rough edges, fix silent failures, close documentation debt. Ship independently without version bumps.
 
-#### Shipped (2026-03-28)
+#### Shipped (2026-03-28 – 2026-04-03)
 
-| Item | Status | Notes |
-|------|--------|-------|
-| Dead code cleanup | ✅ | Deleted CreateBookingCard (323 lines), centralized getInitials |
-| Booking audit log pagination | ✅ | Cursor-based `/api/bookings/[id]/audit-logs` + "Load older entries" UI |
-| Calendar sync shift failure surfacing | ✅ | Warning toast when shift generation fails after successful sync |
-| CSV export truncation warning | ✅ | X-Truncated header + UI warning at 5,000 item cap |
-| Toast warning variant | ✅ | Added `warning` type to Toast hook |
-| Gap registry cleanup | ✅ | Closed 4 stale gaps (GAP-19, 22, 23 + events monolith risk) |
+| Item | Status | Date | Notes |
+|------|--------|------|-------|
+| Dead code cleanup | ✅ | 03-28 | Deleted CreateBookingCard (323 lines), centralized getInitials |
+| Booking audit log pagination | ✅ | 03-28 | Cursor-based `/api/bookings/[id]/audit-logs` + "Load older entries" UI |
+| Calendar sync shift failure surfacing | ✅ | 03-28 | Warning toast when shift generation fails after successful sync |
+| CSV export truncation warning | ✅ | 03-28 | X-Truncated header + UI warning at 5,000 item cap |
+| Toast warning variant | ✅ | 03-28 | Added `warning` type to Toast hook |
+| Gap registry cleanup | ✅ | 03-28 | Closed 4 stale gaps (GAP-19, 22, 23 + events monolith risk) |
+| Cross-cutting security audit | ✅ | 03-30 | SERIALIZABLE on all shift/scan/booking transactions, CSRF Origin enforcement, reports `Promise.allSettled` |
+| Registration gating (D-029) | ✅ | 04-03 | AllowedEmail table, admin UI at Settings > Allowed Emails, role pre-assignment, registration endpoint gated |
+| SESSION_SECRET entropy validation | ✅ | 04-03 | Minimum 32 characters enforced at startup |
+| Deactivated user login blocking | ✅ | 04-03 | Login endpoint checks `user.active` before password verification |
+| Existing users backfilled to allowlist | ✅ | 04-03 | Migration 0027 seeds 4 existing users as claimed entries |
 
 #### Remaining V2+ Items
+
+##### Pattern Consistency Cleanup (Size: S)
+- **Kits page**: Migrate from raw `useState`+`useEffect` to `useFetch` (React Query) for consistency with other list pages
+- **Search page**: Migrate from raw `fetch()` to `useFetch`; replace `Spinner` with `Skeleton` to match other pages
+- **URL state persistence**: Add `useUrlState` to Kits and Bulk Inventory filters (currently local state only — filters lost on navigation)
 
 ##### Inline Dashboard Actions (Size: M)
 - **Overdue quick actions**: Extend and check-in buttons directly on overdue rows
@@ -186,6 +200,10 @@ All V2 items shipped. Key deliverables:
 - **Event context propagation**: Event Command Center → Create Checkout passes `?eventId=X`
 - **Scroll position preservation**: Dashboard → detail sheet → back preserves scroll
 - **Item availability timeline**: Item detail calendar tab shows conflict warnings
+
+##### Security Hardening (Size: S)
+- **CSP header**: Add Content-Security-Policy for XSS defense-in-depth (`default-src 'self'; script-src 'self'`)
+- **User deactivation feature**: Wire up the `User.active` field with admin UI toggle (login blocking is already in place; needs UI + booking migration per `BRIEF_USER_DEACTIVATION_V1.md`)
 
 ##### Student Availability Tracking (Size: M)
 - Students declare unavailable dates
@@ -247,17 +265,18 @@ Dashboard adapts when an event is within 4 hours:
 | Feature | Current State | V2+ Target | V3 Target |
 |---|---|---|---|
 | **Error handling** | `classifyError()` shared; all pages differentiate network vs server; 401 redirect; calendar sync surfaces partial failures | Reports use `Promise.allSettled` for partial results | React Query automatic retries |
-| **Loading states** | High-fidelity skeletons on all hardened pages | All decomposed components have proper skeletons | Streaming/suspense for progressive loading |
+| **Loading states** | High-fidelity skeletons on all hardened pages. Search page uses Spinner (inconsistent) | Standardize Search to Skeleton. All decomposed components have proper skeletons | Streaming/suspense for progressive loading |
 | **Empty states** | shadcn `<Empty>` on all pages; contextual messages on filtered views | Context-aware CTAs on filtered empty states | Proactive suggestions based on role + current event |
 | **Toast notifications** | Sonner with success/error/warning; all mutations covered | Standardize messages (past tense success, retry guidance on error) | Undo on destructive toasts |
 | **Confirmation dialogs** | AlertDialog on all destructive actions | Batch confirmations ("Cancel 3 selected?") | — |
 | **Form validation** | `useFormSubmit` with Zod on all create/edit forms; `skipAuthRedirect` for auth pages | Inline field-level validation with debounced server checks | — |
 | **RBAC enforcement** | `requirePermission()` on all mutations; UI gating; stress-tested | Maintain coverage on new features | Row-level security if multi-tenant |
-| **Audit logging** | `createAuditEntry()` on all mutations (verified) | Maintain coverage | Audit log search/filter UI for admins |
+| **Audit logging** | `createAuditEntry()` on all mutations (verified); 90-day retention via weekly cron | Maintain coverage | Audit log search/filter UI for admins |
+| **Auth & security** | bcrypt (cost 10) + HMAC-SHA256 sessions; httpOnly/secure/sameSite cookies; CSRF Origin validation; rate limiting on all auth endpoints; SESSION_SECRET entropy validation; deactivated user login blocking; registration gated by AllowedEmail (D-029); security headers (HSTS 2yr, X-Frame-Options DENY, nosniff, Referrer-Policy); Sentry error tracking; timing-safe cron secret | Add CSP header for XSS defense-in-depth | Persistent rate limiter (Redis/KV) if scale demands |
 | **Mobile responsiveness** | All pages validated; 44px+ tap targets; iOS fixes | Validate inline dashboard actions on mobile | PWA with offline read cache |
 | **Keyboard accessibility** | Cmd+K palette; tab shortcuts on item detail; arrow keys in picker | Audit tab order; shortcuts on all detail pages | Full shortcut layer (J/K, Enter/Esc) |
 | **Pagination** | Cursor-based on asset activity + booking audit logs; offset on all list pages | Cursor pagination on remaining unbounded queries | — |
-| **Rate limiting** | In-memory sliding window on all auth endpoints | Extend to mutation-heavy endpoints if abuse detected | Persistent rate limiter (Redis/KV) |
+| **Rate limiting** | In-memory sliding window on all auth endpoints (resets on cold start) | Extend to mutation-heavy endpoints if abuse detected | Persistent rate limiter (Redis/Upstash KV) |
 
 ---
 
@@ -272,7 +291,7 @@ Dashboard adapts when an event is within 4 hours:
 | **Local state** | `useState` for form inputs, modals, loading flags | All pages |
 | **Derived state** | `useMemo` for filtered/sorted views | Dashboard, items, schedule, booking history |
 | **Persisted local** | `localStorage` for saved filters, view mode, My Shifts toggle | Dashboard, schedule |
-| **React Query** | Installed but not adopted system-wide | Available; adoption deferred to V3 |
+| **React Query** | ~70% adoption via `useFetch`/custom hooks. QueryClient configured (1min stale, 5min GC). Not used by: Kits (raw useState), Search (raw fetch), Bookings (delegated) | Migrate remaining pages for consistency |
 
 ### How Data Flows Across Pages
 
@@ -291,7 +310,7 @@ Dashboard adapts when an event is within 4 hours:
 | **Race conditions on mutations** | Low | SERIALIZABLE transactions everywhere + P2034 retry | Adequate |
 | **N+1 queries** | Low | Consolidated init endpoints; batch DB ops; audit log batching | Monitor |
 | **Unbounded result sets** | Low | Pagination on all lists; cursor-based on activity + audit logs; picker-search paginated | Adequate |
-| **Audit log growth** | Medium | No retention policy; cursor pagination reduces per-request load | Monitor quarterly; implement archival at 10x scale |
+| **Audit log growth** | Medium | 90-day retention via weekly cron (batch delete 1,000/query); cursor pagination | Monitor quarterly; adjust retention window if table exceeds 10x current size |
 | **Reports partial failure** | Low | `Promise.all` — one slow query fails entire report | V2+: Switch to `Promise.allSettled` for partial results |
 | **CSV export cap** | Low | 5,000 item cap with UI truncation warning (shipped 2026-03-28) | Adequate for current inventory (~500 items) |
 
@@ -319,14 +338,21 @@ Dashboard adapts when an event is within 4 hours:
 
 ```
 Independent (no blockers):
+    ├──→ Pattern consistency cleanup (Kits, Search, URL state)
+    ├──→ User deactivation UI (login blocking done; needs admin toggle)
     ├──→ Inline dashboard actions (dashboard already decomposed)
+    ├──→ CSP header (next.config.ts only)
     ├──→ Cross-page state awareness (URL params, scroll preservation)
     ├──→ Student availability tracking (new model + shift gen changes)
-    ├──→ Shift email notifications (extends Resend infrastructure)
-    └──→ Reports partial failure fix (Promise.allSettled)
+    └──→ Shift email notifications (extends Resend infrastructure)
+
+Completed:
+    ├── ✅ Reports Promise.allSettled (2026-03-30)
+    ├── ✅ Registration gating D-029 (2026-04-03)
+    └── ✅ Security hardening — entropy, login blocking (2026-04-03)
 ```
 
-All V2+ items are independent — no sequential blockers remain.
+All remaining V2+ items are independent — no sequential blockers.
 
 ### What Blocks V3 Improvements
 
@@ -369,9 +395,13 @@ Deeper Integration (V3-F)
 
 | Item | Effort | Impact | Notes |
 |------|--------|--------|-------|
-| Reports `Promise.allSettled` | S | Medium — prevents blank report on one slow query | No UI changes needed |
+| ~~Reports `Promise.allSettled`~~ | ~~S~~ | ~~Medium~~ | ~~Shipped 2026-03-30~~ |
+| Kits page → `useFetch` migration | S | Low — consistency win | Replace raw useState+useEffect with useFetch |
+| Search page → `useFetch` + Skeleton | S | Low — consistency win | Replace raw fetch + Spinner |
+| CSP header | S | Low — defense-in-depth | Single line in next.config.ts |
 | Event context propagation (`?eventId=` param) | S | Medium — fewer manual selections in checkout | URL param only |
 | Notification deep-links to booking detail | S | Medium — notifications become actionable | Already partially wired |
+| URL state on Kits/Bulk Inventory filters | S | Medium — filters survive navigation | Add useUrlState to 2 pages |
 | Shift email notifications | S | Low — trade claim emails | Extends Resend |
 | Remember last-used filters (localStorage) | S | Medium — fewer clicks per session | Dashboard already does this; extend to items/bookings |
 
@@ -387,7 +417,7 @@ Deeper Integration (V3-F)
 | Real-time SSE/WebSocket (V3) | Medium | Only for multi-user concurrent ops (game day). Polling + visibility refresh covers 90%. |
 | PWA offline mode (V3) | Medium | Students have reliable campus WiFi. Offline mutations add complexity for rare benefit. |
 | Equipment health scoring (V3) | Low risk | Valuable but requires structured maintenance data that doesn't exist yet. |
-| Full React Query migration before V2+ features | Medium | `useFetch` is working well. Migrate incrementally, not as a big-bang. |
+| Full React Query migration before V2+ features | Medium | `useFetch` wraps `useQuery` on ~70% of pages already. Migrate remaining 3 pages incrementally, not as a big-bang. |
 
 ### Tight Coupling Concerns
 
@@ -424,11 +454,16 @@ The V2+/V3 boundary is most likely to blur on:
 
 | # | Item | Effort | Impact | Notes |
 |---|------|--------|--------|-------|
-| 1 | **Reports `Promise.allSettled`** | S | Medium | Resilience fix; ship immediately |
-| 2 | **Inline dashboard actions** | M | High | Overdue extend/checkin without page navigation |
-| 3 | **Cross-page state awareness** | M | Medium | Event context, scroll preservation |
-| 4 | **Student availability tracking** | M | Medium | New schema + shift gen changes; unblocks V3 automation |
-| 5 | **Shift email notifications** | S | Low | Extends existing Resend infrastructure |
+| ~~1~~ | ~~**Reports `Promise.allSettled`**~~ | ~~S~~ | ~~Medium~~ | ~~Shipped 2026-03-30~~ |
+| ~~2~~ | ~~**Registration gating (D-029)**~~ | ~~M~~ | ~~High~~ | ~~Shipped 2026-04-03~~ |
+| ~~3~~ | ~~**Security hardening (entropy, login blocking)**~~ | ~~S~~ | ~~Medium~~ | ~~Shipped 2026-04-03~~ |
+| 4 | **Pattern consistency cleanup** | S | Medium | Kits→useFetch, Search→useFetch+Skeleton, URL state on Kits/Bulk |
+| 5 | **User deactivation UI** | M | Medium | Wire BRIEF_USER_DEACTIVATION_V1 — login blocking done, needs admin toggle + booking migration |
+| 6 | **Inline dashboard actions** | M | High | Overdue extend/checkin without page navigation |
+| 7 | **CSP header** | S | Low | XSS defense-in-depth; low risk but easy |
+| 8 | **Cross-page state awareness** | M | Medium | Event context, scroll preservation |
+| 9 | **Student availability tracking** | M | Medium | New schema + shift gen changes; unblocks V3 automation |
+| 10 | **Shift email notifications** | S | Low | Extends existing Resend infrastructure |
 
 ### Page Decomposition Backlog (Optional)
 
@@ -480,3 +515,4 @@ These pages work correctly but are candidates for decomposition when touched nex
 - 2026-03-26: V3 revision. V2 mostly complete. Updated domain maturity levels. New systemic gaps (GAP-19–23).
 - 2026-03-27: Alpha → Beta release (v0.2.0). V2 marked COMPLETE. Late additions: React Query, reports charts, search overhaul, favorites UI.
 - 2026-03-28: Post-Beta revision. V2+ polish items shipped (dead code cleanup, audit log pagination, calendar sync failure surfacing, CSV export truncation warning). Closed 4 stale gaps (GAP-19, 22, 23 + events monolith risk). All 26 documented gaps resolved except GAP-4 (Phase C unscoped), GAP-11 (cross-page cache), GAP-21 (SystemConfig UI). Updated maturity: Users→Polished, Booking→Polished (audit log pagination). Added reports partial failure and page decomposition backlog. Revised V2+ → V3 boundary.
+- 2026-04-03: Security hardening revision. Added Security domain (Polished maturity). Shipped: registration gating (D-029, AllowedEmail table + admin UI), SESSION_SECRET entropy validation (32+ chars), deactivated user login blocking, existing users backfilled to allowlist. Updated pattern consistency analysis — React Query adoption measured at ~70% (Kits/Search/Bookings remain on raw patterns). Added V2+ items: pattern consistency cleanup, user deactivation UI, CSP header. Updated cross-cutting table with Auth & Security row. Revised V2+ recommended order (3 items shipped, 7 remaining). Updated quick wins list.
