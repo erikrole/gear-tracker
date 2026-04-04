@@ -101,22 +101,19 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
 }
 
 /**
- * Generate shifts for all calendar events from a source that don't have shifts yet.
- * Called as a post-sync hook after ICS sync completes.
+ * Batch generate shifts for calendar events matching a WHERE clause.
+ * Loads all sport configs in one query, then creates groups + shifts in one transaction.
+ * Used by both the backfill route and the post-sync hook.
  */
-export async function generateShiftsForNewEvents(sourceId: string): Promise<{
+export async function generateShiftsForEvents(opts: {
+  where: Prisma.CalendarEventWhereInput;
+}): Promise<{
+  eventsMatched: number;
   groupsCreated: number;
   shiftsCreated: number;
 }> {
-  // Find events from this source that have a sportCode but no ShiftGroup
   const events = await db.calendarEvent.findMany({
-    where: {
-      sourceId,
-      sportCode: { not: null },
-      shiftGroup: null,
-      // Only future events
-      startsAt: { gte: new Date() },
-    },
+    where: opts.where,
     select: {
       id: true,
       sportCode: true,
@@ -127,11 +124,11 @@ export async function generateShiftsForNewEvents(sourceId: string): Promise<{
   });
 
   if (events.length === 0) {
-    return { groupsCreated: 0, shiftsCreated: 0 };
+    return { eventsMatched: 0, groupsCreated: 0, shiftsCreated: 0 };
   }
 
   // Load all active sport configs in one query
-  const sportCodes = [...new Set(events.map((e) => e.sportCode!))];
+  const sportCodes = [...new Set(events.filter((e) => e.sportCode).map((e) => e.sportCode!))];
   const sportConfigs = await db.sportConfig.findMany({
     where: { sportCode: { in: sportCodes }, active: true },
     include: { shiftConfigs: true },
@@ -150,7 +147,7 @@ export async function generateShiftsForNewEvents(sourceId: string): Promise<{
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const config = configMap.get(event.sportCode!);
+    const config = event.sportCode ? configMap.get(event.sportCode) : undefined;
     if (!config || config.shiftConfigs.length === 0) continue;
 
     const isHome = event.isHome ?? true;
@@ -176,7 +173,7 @@ export async function generateShiftsForNewEvents(sourceId: string): Promise<{
   }
 
   if (groupsToCreate.length === 0) {
-    return { groupsCreated: 0, shiftsCreated: 0 };
+    return { eventsMatched: events.length, groupsCreated: 0, shiftsCreated: 0 };
   }
 
   // Create all shift groups and shifts in a transaction
@@ -209,7 +206,26 @@ export async function generateShiftsForNewEvents(sourceId: string): Promise<{
     return { groupsCreated: createdGroups.length, shiftsCreated: allShifts.length };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-  return result;
+  return { eventsMatched: events.length, ...result };
+}
+
+/**
+ * Generate shifts for all calendar events from a source that don't have shifts yet.
+ * Called as a post-sync hook after ICS sync completes.
+ */
+export async function generateShiftsForNewEvents(sourceId: string): Promise<{
+  groupsCreated: number;
+  shiftsCreated: number;
+}> {
+  const result = await generateShiftsForEvents({
+    where: {
+      sourceId,
+      sportCode: { not: null },
+      shiftGroup: null,
+      startsAt: { gte: new Date() },
+    },
+  });
+  return { groupsCreated: result.groupsCreated, shiftsCreated: result.shiftsCreated };
 }
 
 /**
