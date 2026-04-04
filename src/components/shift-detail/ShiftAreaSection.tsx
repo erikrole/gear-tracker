@@ -90,7 +90,7 @@ export function ShiftAreaSection({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-1.5 text-xs text-muted-foreground"
+            className="h-7 px-2 text-xs text-muted-foreground"
             onClick={onAddShift}
             disabled={acting !== null}
             title={`Add ${AREA_LABELS[area]} shift`}

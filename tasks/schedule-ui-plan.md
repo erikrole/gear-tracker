@@ -101,21 +101,21 @@
 
 ## Implementation Order
 
-### Slice 1: Design System Fixes (broken things)
-- [ ] Fix Premier toggle → Switch component
-- [ ] Fix `text-secondary` → `text-muted-foreground` in TradeBoard
-- [ ] Fix TradeBoard inline styles → Tailwind classes
-- [ ] Fix `flex-between` → `flex justify-between`
-- [ ] Fix `border-[var(--border-light)]` → `border-border`
+### Slice 1: Design System Fixes (broken things) ✅
+- [x] Fix Premier toggle → Switch component
+- [x] Fix `text-secondary` → `text-muted-foreground` in TradeBoard
+- [x] Fix TradeBoard inline styles → Tailwind classes
+- [x] Fix `flex-between` → `flex items-center justify-between`
+- [x] Fix `border-[var(--border-light)]` → `border-border`
 
-### Slice 2: UX Clarity
-- [ ] Hide zero-count gear badges on event detail
-- [ ] "ST" → "Student" / "FT" → "Staff" in all visible labels
-- [ ] Polish My Hours strip (lighter, integrated)
-- [ ] Stack event detail action buttons on mobile
+### Slice 2: UX Clarity ✅
+- [x] Hide zero-count gear badges on event detail
+- [x] "ST" → "Student" / "FT" → "Staff" in all visible labels
+- [x] Polish My Hours strip (lighter, integrated)
+- [x] Stack event detail action buttons on mobile
 
-### Slice 3: Touch Targets & Mobile
-- [ ] Increase all interactive elements to min `h-8`
+### Slice 3: Touch Targets & Mobile ✅
+- [x] Increase all interactive elements to min `h-7`
 - [ ] Fix UserAvatarPicker popover width for mobile
 - [ ] Fix TradeBoard filter flex-nowrap on mobile
 

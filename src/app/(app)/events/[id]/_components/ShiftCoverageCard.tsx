@@ -59,20 +59,14 @@ export function ShiftCoverageCard({
         {/* Staff/admin: enhanced view with gear status */}
         {commandCenter && commandCenter.shifts.length > 0 && isStaffOrAdmin ? (
           <>
-            <div className="flex gap-2 flex-wrap mb-4">
-              <Badge variant="gray">
-                {commandCenter.gearSummary.byStatus.draft} Draft
-              </Badge>
-              <Badge variant="orange">
-                {commandCenter.gearSummary.byStatus.reserved} Reserved
-              </Badge>
-              <Badge variant="green">
-                {commandCenter.gearSummary.byStatus.checkedOut} Checked out
-              </Badge>
-              <Badge variant="blue">
-                {commandCenter.gearSummary.byStatus.completed} Returned
-              </Badge>
-            </div>
+            {(commandCenter.gearSummary.byStatus.draft > 0 || commandCenter.gearSummary.byStatus.reserved > 0 || commandCenter.gearSummary.byStatus.checkedOut > 0 || commandCenter.gearSummary.byStatus.completed > 0) && (
+              <div className="flex gap-2 flex-wrap mb-4">
+                {commandCenter.gearSummary.byStatus.draft > 0 && <Badge variant="gray">{commandCenter.gearSummary.byStatus.draft} Draft</Badge>}
+                {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="orange">{commandCenter.gearSummary.byStatus.reserved} Reserved</Badge>}
+                {commandCenter.gearSummary.byStatus.checkedOut > 0 && <Badge variant="green">{commandCenter.gearSummary.byStatus.checkedOut} Checked out</Badge>}
+                {commandCenter.gearSummary.byStatus.completed > 0 && <Badge variant="blue">{commandCenter.gearSummary.byStatus.completed} Returned</Badge>}
+              </div>
+            )}
 
             <Table>
               <TableHeader>

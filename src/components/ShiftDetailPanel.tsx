@@ -8,6 +8,7 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -323,21 +324,20 @@ export default function ShiftDetailPanel({
                 { label: "Date", value: formatDateShort(group.event.startsAt) },
                 { label: "Time", value: `${formatTimeShort(group.event.startsAt)} – ${formatTimeShort(group.event.endsAt)}` },
                 { label: "Sport", value: group.event.sportCode ? sportLabel(group.event.sportCode) : "—" },
-                {
+                ...(isStaff ? [{
                   label: "Premier",
                   value: (
-                    <span className="flex items-center gap-1">
-                      <Badge variant={group.isPremier ? "blue" : "gray"}>
-                        {group.isPremier ? "Yes" : "No"}
-                      </Badge>
-                      {isStaff && (
-                        <Button variant="outline" size="sm" className="h-5 px-1.5 text-[10px]" onClick={handleTogglePremier} disabled={acting !== null}>
-                          {acting === "premier" ? "..." : "Toggle"}
-                        </Button>
-                      )}
-                    </span>
+                    <Switch
+                      checked={group.isPremier}
+                      onCheckedChange={handleTogglePremier}
+                      disabled={acting !== null}
+                      aria-label="Toggle premier status"
+                    />
                   ),
-                },
+                }] : group.isPremier ? [{
+                  label: "Premier",
+                  value: <Badge variant="blue">Yes</Badge>,
+                }] : []),
               ]}
             />
 

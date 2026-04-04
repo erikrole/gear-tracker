@@ -110,7 +110,7 @@ export function ShiftSlotCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               onClick={onDeleteShift}
               disabled={acting !== null}
               title="Remove shift"
@@ -143,7 +143,7 @@ export function ShiftSlotCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 px-1 text-[10px] text-destructive"
+                className="h-7 px-2 text-xs text-destructive"
                 onClick={() => onRemove(activeAssignment.id)}
                 disabled={acting !== null}
               >
@@ -171,7 +171,7 @@ export function ShiftSlotCard({
                 <div className="flex gap-1">
                   <Button
                     size="sm"
-                    className="h-5 px-1.5 text-[10px]"
+                    className="h-7 px-2 text-xs"
                     onClick={() => onApprove(req.id)}
                     disabled={acting !== null}
                   >
@@ -180,7 +180,7 @@ export function ShiftSlotCard({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-5 px-1.5 text-[10px] text-destructive"
+                    className="h-7 px-2 text-xs text-destructive"
                     onClick={() => onDecline(req.id)}
                     disabled={acting !== null}
                   >

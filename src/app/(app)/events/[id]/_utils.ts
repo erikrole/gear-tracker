@@ -62,8 +62,8 @@ export const AREA_LABELS: Record<string, string> = {
 };
 
 export const WORKER_LABELS: Record<string, string> = {
-  FT: "FT",
-  ST: "ST",
+  FT: "Staff",
+  ST: "Student",
 };
 
 export function formatDateTime(iso: string) {

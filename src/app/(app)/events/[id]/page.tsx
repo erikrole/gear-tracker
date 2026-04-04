@@ -225,7 +225,7 @@ export default function EventDetailPage() {
       </div>
 
       {/* Action CTAs — Checkout is primary (most common immediate action) */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div className="flex gap-2 mb-6 max-sm:flex-col sm:flex-row flex-wrap">
         <Button asChild className="min-h-11 px-5">
           <Link href={`/checkouts?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
             Checkout to this event
