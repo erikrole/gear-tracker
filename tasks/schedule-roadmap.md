@@ -1,6 +1,6 @@
 # Schedule Page Roadmap
 
-> Replaces `tasks/calendar-roadmap.md` (archived). Last updated 2026-04-02.
+> Replaces `tasks/calendar-roadmap.md` (archived). Last updated 2026-04-04.
 
 ## Context
 
@@ -104,10 +104,40 @@ clicks or surface the right info at the right time.
 - Custom: `FilterChip`, `PageHeader`, `DataList`, `EmptyState`, `SkeletonTable`
 - Dynamic: `ShiftDetailPanel`, `TradeBoard`
 
+### V1.5 Enhancements (Shipped 2026-04-03/04)
+
+**Week View** (originally V2, shipped early):
+- 7-day column layout with time slots
+- Desktop + mobile skeletons
+- All-day event row, coverage dots, click → ShiftDetailPanel
+- Added to List | Week | Calendar toggle
+
+**My Hours Stat Strip**:
+- Shows "Xh this week (N shifts) | Xh this month (N shifts)" above filters
+- Auto-hides when user has no shifts
+- API: `GET /api/shifts/my-hours`
+
+**Audio + Haptic Scan Feedback** (Scan area, schedule-adjacent):
+- Web Audio API tones + `navigator.vibrate()` for scan results
+
+**Schedule Hardening** (2026-04-04):
+- 401 redirect on all mutation handlers
+- Double-click guards on all mutations
+- Mobile loading skeletons (WeekView)
+- Dead CSS cleanup (20 lines removed)
+- Fixed mobile calendar notice (`hidden max-md:block`)
+- Tailwind theme classes on ListView mobile cards
+
+**Schedule Stress Test Fixes** (2026-04-04):
+- `approveRequest` now re-validates time conflicts + active assignments (was CRITICAL)
+- `directAssignShift` auto-declines orphaned REQUESTED assignments
+- `removeAssignment` guards terminal status transitions
+- ShiftGroup PATCH wrapped in SERIALIZABLE transaction
+- ZodError → 400 globally in `fail()` (affects all routes)
+
 ### What V1 does NOT include
-- Week view
 - Gear readiness indicators on schedule views
-- Conflict detection on assignment
+- Conflict detection on assignment (pre-assignment warning)
 - Smart assignment suggestions
 - Batch operations
 - Student availability
@@ -126,37 +156,7 @@ clicks or surface the right info at the right time.
 
 ### Features
 
-#### 2a. Week View (Staff + Student)
-**What**: 7-day strip view showing events as time blocks, color-coded by coverage.
-**Why**: Month view is too zoomed out for "what does this week look like?" — the most common staff question. Students also benefit from seeing their week at a glance.
-
-**Staff perspective**: "I need to plan coverage for the next 7 days. Which events are understaffed? Where should I focus?"
-**Student perspective**: "What am I working this week? When are my shifts?"
-
-- Horizontal 7-day grid with time axis (8am–10pm)
-- Events rendered as blocks spanning their time range
-- Coverage dot on each block (same green/orange/red pattern)
-- All-day events in a top row
-- Click event → opens ShiftDetailPanel (staff) or event detail (students on non-premier)
-- Navigation: prev/next week, "This week" button
-- Add "Week" to the existing List | Calendar toggle → List | Week | Calendar
-- "My Shifts" filter works on week view — highlights user's assigned shifts
-
-**Files**:
-- New: `src/app/(app)/schedule/_components/WeekView.tsx`
-- Modified: `src/app/(app)/schedule/page.tsx` (add view mode option)
-- Modified: `src/hooks/use-schedule-data.ts` (add `weekStart` state, fetch 7-day window)
-- Modified: `src/app/(app)/schedule/_components/ScheduleFilters.tsx` (add Week toggle)
-
-**API**: Existing `/api/calendar-events` + `/api/shift-groups` with adjusted date range params.
-
-**shadcn**: `ToggleGroup` (extended), `Tooltip` (hover detail), `Button` (navigation)
-
-**Mobile**: Week view renders as a scrollable 7-day column on mobile (vertical, one day at a time) rather than being hidden. More useful than month grid on a phone in the field.
-
-**RBAC**: All roles see events. Staff/admin can open ShiftDetailPanel from any event. Students see their shifts highlighted.
-
-#### 2b. Gear Readiness Indicators (Staff)
+#### 2a. Gear Readiness Indicators (Staff)
 **What**: Small icon on list/week/calendar views showing whether assigned workers have their gear ready.
 **Why**: Staff currently must click into each event's detail page to check gear status. When planning 10+ events for the week, this is the #1 time sink. Surfacing it saves dozens of clicks.
 
@@ -180,7 +180,7 @@ clicks or surface the right info at the right time.
 
 **shadcn**: `Tooltip`, existing `Badge`
 
-#### 2c. Conflict Warning on Assignment (Staff)
+#### 2b. Conflict Warning on Assignment (Staff)
 **What**: When assigning a user in ShiftDetailPanel, warn if they have an overlapping shift at another event.
 **Why**: Staff frequently assign the same pool of reliable workers. Without feedback, double-booking happens silently and creates problems day-of.
 
@@ -200,7 +200,7 @@ clicks or surface the right info at the right time.
 
 **shadcn**: `Alert` (inline warning)
 
-#### 2d. Shift Actions in Context (Staff + Student)
+#### 2c. Shift Actions in Context (Staff + Student)
 **What**: Surface common actions where users already are, instead of requiring navigation.
 **Why**: Both roles have actions buried behind extra clicks.
 
@@ -221,8 +221,8 @@ clicks or surface the right info at the right time.
 **shadcn**: `Popover` (inline assignment), existing `Badge`
 
 ### What V2 does NOT include
-- Drag-to-assign in week view (ShiftDetailPanel + quick-assign is sufficient)
-- Batch operations across multiple events
+- Drag-to-assign (ShiftDetailPanel + quick-assign is sufficient)
+- Batch operations across multiple events (V3)
 - Smart assignment suggestions (V3)
 - Student availability calendar (V3)
 - Real-time updates / WebSocket (V3)
@@ -232,16 +232,13 @@ clicks or surface the right info at the right time.
 None. Gear readiness is computed from existing ShiftAssignment ↔ Booking join. Conflict check queries existing Shift + ShiftAssignment tables.
 
 ### Loading / Error / Empty States
-- **Week view loading**: Skeleton blocks in 7-column grid
-- **Week view empty**: "No events this week" with prev/next navigation
 - **Gear readiness**: Graceful degradation — if data unavailable, omit icon (don't block schedule load)
 - **Conflict check**: Non-blocking — if API fails, skip warning and allow assignment
 
 ### Build Order
-1. Week view component + view toggle integration (biggest lift, most visible)
-2. Gear readiness indicators (API extension + list/calendar/week UI)
-3. Conflict warning on assignment (ShiftDetailPanel + UserAvatarPicker)
-4. Shift actions in context (quick-assign for staff, trade actions for students)
+1. Gear readiness indicators (API extension + list/calendar/week UI)
+2. Conflict warning on assignment (ShiftDetailPanel + UserAvatarPicker)
+3. Shift actions in context (quick-assign for staff, trade actions for students)
 
 ---
 
@@ -350,7 +347,7 @@ model StudentAvailability {
 | Version | Schema Changes | New API Routes | New Components | Sessions |
 |---------|---------------|----------------|----------------|----------|
 | V1 | None (shipped) | None (shipped) | None (shipped) | — |
-| V2 | None | 1 (`check-conflict`) | 1 (`WeekView`) | 2-3 |
+| V2 | None | 1 (`check-conflict`) | Gear readiness UI | 2-3 |
 | V3 | 1 (`StudentAvailability`) | 4 new routes | Suggestions UI, availability UI, batch toolbar | 4-6 |
 
 ## Risks
@@ -369,6 +366,7 @@ model StudentAvailability {
 ### Schedule Page
 - `src/app/(app)/schedule/page.tsx` — main page orchestrator
 - `src/app/(app)/schedule/_components/ListView.tsx` — list view
+- `src/app/(app)/schedule/_components/WeekView.tsx` — week view
 - `src/app/(app)/schedule/_components/CalendarView.tsx` — calendar view
 - `src/app/(app)/schedule/_components/ScheduleFilters.tsx` — filter bar
 - `src/app/(app)/schedule/_components/types.ts` — shared types
