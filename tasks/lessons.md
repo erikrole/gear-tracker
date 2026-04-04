@@ -1,706 +1,111 @@
 # Lessons Learned
 
-## Session 2026-02-28
-
-### Patterns
-- Always audit before implementing. The stored-vs-derived status issue would have been missed without reading the schema + dashboard query patterns.
-- Read ALL prompt files before planning — they contain specific model/field requirements (Department, Kit, CalendarSource, etc.) that affect schema design.
-
-## Session 2026-03-09
-
-### Patterns
-- Tasks files go stale fast. After any multi-PR feature completes, immediately archive completed items and reset the active queue — stale unchecked tasks create planning confusion for the next session.
-- Planning docs and code can diverge within a single PR cycle. AREA_*.md files must be updated in the same pass as the feature they describe, not deferred.
-- NORTH_STAR.md should be the first file in any Claude session for a product-level project. Without it, sessions risk context drift toward implementation details before product direction is clear.
-- When a service is fully implemented (e.g., notifications.ts), write the area spec from the code, not the other way around — the code is the source of truth at that point.
-- Duplicate JSDoc comments are a common merge artifact. Scan for them in any file touched by multiple PRs.
-
-## Session 2026-03-10
-
-### Patterns
-- Tag name (assetTag) is the primary identifier in UW athletics — it's printed on physical items and how staff refer to equipment. The full product name (e.g., "Sony FE 70-200mm f/2.8 GM OSS II") is reference info, not the headline.
-- HTML entities like `&hookrightarrow;` don't render in JSX. Use Unicode escape sequences (`\u21AA`) or the literal character (`↪`) instead.
-- Sport abbreviations must match the organization's actual codes (MHKY not MHO, WTRACK not WTF). Verify abbreviations with the user rather than guessing.
-- When filtering events by date window, filter the start time within the window (`startsAt >= now AND startsAt <= endDate`), not the end time. Filtering `endsAt <= endDate` excludes multi-day events that start in the window but end after it.
-- Equipment picker items need computed status (CHECKED_OUT, RESERVED) not just stored status. The form-options API must call `deriveAssetStatuses` to show real-time availability with color dots.
-
-## Session 2026-03-11
-
-### Patterns
-- When the user says "match the label style" they mean the **physical label** stuck on the gear — not a generic UI card. Always ask for or reference the physical artifact before designing digital representations.
-- Physical asset labels are black-background with white text/QR, split into stacked lines (e.g. "FB FX3 1" → three centered lines). QR code is inverted white-on-black. Aspect ratio ~0.47.
-- QR code interactions should be consolidated into a modal: click to enlarge, generate new, paste/type new. Don't scatter QR actions as small buttons below the inline QR — the modal is the single interaction point.
-- `activeBooking` in the asset API can be CHECKOUT or RESERVATION kind. UI that checks `kind === "CHECKOUT"` as the only condition for showing the active booking card will silently hide active reservations. Always handle both booking kinds.
-
-## Session 2026-03-17
-
-### Patterns
-- When two features pivot on a shared entity (CalendarEvent links both ShiftGroup and Booking), integration is architecturally cheap — no schema migration needed, just read-path queries joining through the shared key. Research this before proposing new FK relationships.
-- Non-blocking notification triggers (`createNotification(...).catch(() => {})`) are the right pattern for "nice to have" side effects in API routes. Failure shouldn't block the primary action.
-- Competitive research before building features prevents building what already exists elsewhere. No competitor does both equipment checkout + shift scheduling for athletics — that's a real moat worth documenting.
-- Dashboard widgets should include actionable links (e.g., "Reserve gear") not just information display. The goal is zero-tap-to-action from the widget.
-
-## Session 2026-03-18
-
-### Patterns
-- Initial audit scans can be inaccurate — the first pass flagged escalation routes as missing auth and shift routes as missing audit, but deeper reads showed both were already covered. Always verify with full file reads before planning fixes.
-- When auditing for missing patterns (like audit logging), check every route systematically rather than sampling — the real gaps are often in less-obvious routes (accessories, image upload, profile update) not the main CRUD routes.
-- TOCTOU bugs hide in plain sight: any read-then-write across separate DB calls without a transaction is a race condition. The pattern to check: `findUnique` → status check → `update` as two calls. Fix: wrap in `$transaction`.
-- Privilege escalation often has two vectors: role change AND user creation. Both must enforce the same guard (e.g., only ADMIN can grant ADMIN).
-- Seed/bootstrap endpoints are account takeover vectors in production. Gate them behind auth or disable entirely when `NODE_ENV=production`.
-- Bulk quantity updates (stock balances) require Serializable isolation or atomic increment operators. Default transaction isolation does NOT prevent lost-update races.
-
-## Session 2026-03-22
-
-### Patterns
-- `SaveableField` + `useSaveField` is the canonical pattern for inline-editable fields. Any field with manual `useState` + `onBlur`/`onChange` save + `fetch(PATCH)` + status timeouts should be refactored to use it.
-- Future refactoring targets for SaveableField reuse: `CategoryRow.tsx` (rename + add subcategory inputs), `CategoriesPage.tsx` (add category input) — both in `/settings/categories/`. These have the exact same blur-save + fetch pattern.
-
-### Booking Detail Page Unification
-- **Shared `InlineTitle` component** (`src/components/InlineTitle.tsx`): Extracted from items page — reuse for ALL detail pages with editable titles. Has accessibility (aria-label, keyboard activation, role="button").
-- **Unified `BookingDetailPage`** (`src/app/(app)/bookings/BookingDetailPage.tsx`): Single component serves both checkout and reservation detail views via `kind` prop. Route files are 5-line thin wrappers.
-- **Hooks extracted**: `useBookingDetail` (fetch + reload + optimistic patch) and `useBookingActions` (cancel, extend, convert, duplicate, checkin, bulk return, saveField) eliminate ~400 lines of duplicated action handler code.
-- **Tab content spacing must be `mt-14`**, not `mt-6`. Items page established this spacing between sticky tabs and content — any smaller gap breaks visual hierarchy. This is a critical consistency rule.
-- **History tab wrapping pattern**: Parent page wraps history in `<Card className="mt-14 border-border/40 shadow-none max-w-3xl"><CardHeader><CardTitle>Activity Log</CardTitle></CardHeader><CardContent className="p-0">`. The history component itself renders NO Card — it's a renderless content block.
-- **Never hardcode colors** (e.g., `bg-green-50 text-green-700`) on buttons or interactive elements. Use Badge variants or Button variants which handle dark mode automatically. Hardcoded Tailwind color classes create dark mode maintenance burden.
-- **Input hover/focus styling must match items page**: `border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs`. This creates the "ghost input" feel — invisible until hovered, then subtly highlighted.
-- **Properties strip should include ref number** as a monospace badge — don't bury metadata in the header. The strip is the scannable summary line.
-- **Self-audit after building**: Always compare your new page against the gold standard before declaring done. Spacing, Card wrappers, input styling, dark mode colors — these are the details that make pages feel inconsistent.
-
-### Items List Redesign
-- Derived status filtering (CHECKED_OUT, RESERVED) should use Prisma relation subqueries (`allocations: { some: { ... } }`) rather than fetching all rows, enriching in-memory, and filtering. The `@@index([assetId, active])` on `AssetAllocation` supports this pattern efficiently.
-- When the API caller already has full asset objects, pass them directly to a `FromLoaded` variant of the enrichment function to skip the redundant ID-based re-fetch.
-- Client-side sorting on a paginated list is misleading — users think they're sorting the full dataset but only see the current page reordered. Always use server-side sorting with `manualSorting: true` in TanStack Table.
-- Consolidating multiple independent fetch calls into one endpoint saves round-trips and simplifies error handling. Create purpose-built init endpoints for page load rather than reusing generic CRUD endpoints.
-- Page components over ~200 lines with >10 useState calls are a maintenance signal. Extract into focused hooks (URL state, data fetching, bulk actions) and leaf components (toolbar, pagination, bulk bar).
-
-### Detail Page Architecture (Item Detail Overhaul)
-
-**Layout patterns:**
-- Global `a { color }` in CSS will override button text color when using `asChild` + `<Link>`. Add `[data-slot="button"] a { color: inherit; }` for anchors INSIDE buttons. But do NOT add `a[data-slot="button"] { color: inherit; }` — that targets the asChild case where the anchor IS the button, and its specificity (0,1,1) overrides `text-primary-foreground` (0,1,0), making default-variant button text invisible. Only set `text-decoration: none` on `a[data-slot="button"]`.
-- `TooltipTrigger asChild > Button asChild > Link` creates broken double-`asChild` nesting. Don't wrap buttons in tooltips when the button already uses `asChild`. Pick one: tooltip OR asChild link.
-- AppShell already renders a `<PageBreadcrumb />`. Pages should NOT render their own breadcrumbs — it causes double breadcrumb.
-- PageBreadcrumb must detect CUIDs (not just UUIDs) as dynamic segments. Regex: `/^c[a-z0-9]{20,}$/` in addition to the hex/UUID pattern.
-
-**Notion-style detail page principles:**
-- Title should be inline-editable in the header, not repeated as a field in the card below. Kill redundancy.
-- Key properties (status, location, category, department) belong as inline badges between the title and the tabs — visible without scrolling or expanding anything.
-- Flat property lists beat collapsible sections. Users almost never collapse them — the friction of expanding sections is worse than a longer list.
-- When two tabs share the same data shape with different filters (checkouts vs reservations), merge them into one tab with a filter toggle. Fewer tabs = less cognitive load.
-- Sidebar cards compete for attention. Settings toggles should live in their own tab, not the sidebar.
-- Accessories/sub-items also belong in their own tab rather than appended below the info card.
-- `updatedAt` is free metadata from Prisma — show "Last updated [date]" for context without needing the History tab.
-
-**Field ordering matters:**
-- Lead with identity fields (name, product name, brand, model, serial), then organizational fields (department, category, location), then procurement (date, fiscal year, price, link). This matches how users think about items.
-- Date placeholders should say "Add date" not show a fake formatted date like "January 01, 2025".
-- Fiscal year should auto-compute from purchase date BUT remain independently editable. Users may need to override the computed value. Don't make derived fields read-only — auto-fill as a convenience, not a constraint.
-
-**UX polish that compounds:**
-- URL-synced tabs (`?tab=bookings`) via `useSearchParams` + `replaceState` — makes tabs shareable/bookmarkable. Apply to all detail pages.
-- Keyboard shortcuts (1-N for tabs) with tiny `<kbd>` hints — power user speed. Apply everywhere tabs exist.
-- Sticky tab bars (`sticky top-0 z-10 bg-background/95 backdrop-blur-sm`) — essential for long content pages.
-- Duplicate detection on unique fields (serial number, asset tag) — warn on blur via search API before save.
-- Physical label layout in UI must exactly match the physical artifact. Always get a reference image.
-
-**Apply these to other detail pages:** User detail (`/users/[id]`), Reservation detail (`/reservations/[id]`), Checkout detail (`/checkouts/[id]`) — all should follow the same inline-title + badge-strip + flat-list + URL-synced-tabs pattern.
-
----
-
-## Detail Page Playbook (Reference for All Detail Pages)
-
-> This is a complete blueprint for building any `[entity]/[id]` detail page.
-> Replicate patterns from `src/app/(app)/items/[id]/` — treat it as the gold standard.
-
-### Page Structure (top to bottom)
-
-```
-1. PageBreadcrumb (auto-rendered by AppShell — do NOT add your own)
-2. Page header (`.page-header`)
-   - Hero image (optional) with edit overlay
-   - InlineTitle (primary name, editable)
-   - Subtitle (secondary name, editable)
-   - Action buttons: Actions dropdown + primary CTAs (Reserve / Check out)
-3. Properties strip (badges: status, location, category, etc.)
-   - "Updated [date]" right-aligned with `ml-auto`
-4. Tabs (sticky, keyboard shortcuts, URL-synced)
-5. Tab content area
-```
-
-### Shared Components (import these, don't rebuild)
-
-| Component | Location | Purpose |
-|---|---|---|
-| `InlineTitle` | `src/components/InlineTitle.tsx` | Inline-editable title with blur-save, keyboard, aria-label |
-| `SaveableField` | `src/components/SaveableField.tsx` | Flat row layout: label (120px) + content + save indicator |
-| `useSaveField` | `src/components/SaveableField.tsx` | Hook: manages saving/saved/error status with auto-reset |
-| `CategoryCombobox` | `src/components/FormCombobox.tsx` | Combobox with search, clear, inline create |
-| `Badge` | `src/components/ui/badge.tsx` | Variants: green/blue/purple/orange/red/gray/outline |
-| `DatePicker` | `src/components/ui/date-picker.tsx` | Calendar popup date selector |
-| `NativeSelect` | `src/components/ui/native-select.tsx` | Styled native `<select>` dropdown |
-| `Empty` / `EmptyDescription` | `src/components/ui/empty.tsx` | Centered empty state with message |
-| `Spinner` | `src/components/ui/spinner.tsx` | Loading indicator |
-| `ChooseImageModal` | `src/components/ChooseImageModal.tsx` | Upload/URL image picker modal |
-| `BookingDetailsSheet` | `src/components/BookingDetailsSheet.tsx` | Side sheet for booking details |
-| `ConfirmDialog` / `useConfirm` | `src/components/ConfirmDialog.tsx` | Confirmation modal with danger variant |
-| `Toast` / `useToast` | `src/components/Toast.tsx` | Toast notifications (success/error) |
-| `useBookingDetail` | `src/hooks/useBookingDetail.ts` | Fetch + reload + optimistic patch for booking detail |
-| `useBookingActions` | `src/hooks/useBookingActions.ts` | All booking action handlers (cancel, extend, convert, etc.) |
-| `BookingDetailPage` | `src/app/(app)/bookings/BookingDetailPage.tsx` | Unified booking detail (pass `kind` prop) |
-
-### shadcn Components Used Across Detail Pages
-
-```tsx
-// Always use these from src/components/ui/:
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogCloseButton } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Empty, EmptyDescription } from "@/components/ui/empty";
-import { NativeSelect } from "@/components/ui/native-select";
-```
-
-### Card Styling Standard
-
-```tsx
-// Info/property cards: subtle border, no shadow
-<Card className="border-border/40 shadow-none">
-  <div className="py-1 divide-y divide-border/30">
-    {/* SaveableField rows go here */}
-  </div>
-</Card>
-
-// Sidebar/operational cards: default card styling
-<Card>
-  <CardHeader><CardTitle>Title</CardTitle></CardHeader>
-  <CardContent className="p-4 pt-0">...</CardContent>
-</Card>
-```
-
-### Field Patterns
-
-**Text field (inline-editable, blur-save):**
-```tsx
-<SaveableField label="Field Name" status={saveField.status}>
-  <Input
-    value={draft}
-    onChange={(e) => setDraft(e.target.value)}
-    onBlur={commit}
-    className="h-8 text-sm border-transparent bg-transparent shadow-none
-               hover:bg-muted/60 hover:border-border/50
-               focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
-  />
-</SaveableField>
-```
-
-**Dropdown field (native select, save-on-change):**
-```tsx
-<SaveableField label="Field Name" status={saveField.status}>
-  <NativeSelect value={value} onChange={handleChange}
-    className="h-8 text-sm border-transparent bg-transparent shadow-none ..." />
-</SaveableField>
-```
-
-**Toggle field (flat row, no bordered card):**
-```tsx
-<div className="group/row flex items-center gap-3 rounded-md px-3 py-2.5 min-h-[44px] hover:bg-muted/50">
-  <div className="min-w-0 flex-1">
-    <Label>Toggle name</Label>
-    <p className="text-xs text-muted-foreground">Help text</p>
-  </div>
-  <Switch checked={value} onCheckedChange={toggle} />
-</div>
-```
-
-### Tab Setup (URL-synced + keyboard shortcuts)
-
-```tsx
-type TabKey = "info" | "bookings" | "history" | "settings";
-const tabDefs = [
-  { key: "info", label: "Info" },
-  { key: "bookings", label: "Bookings" },
-  // ...
-];
-
-// Read initial tab from URL
-const initialTab = (searchParams.get("tab") as TabKey) || "info";
-
-// Sync tab changes to URL
-function switchTab(tab: TabKey) {
-  setActiveTab(tab);
-  const url = new URL(window.location.href);
-  if (tab === "info") url.searchParams.delete("tab");
-  else url.searchParams.set("tab", tab);
-  window.history.replaceState({}, "", url.toString());
-}
-
-// Keyboard shortcuts
-useEffect(() => {
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.target instanceof HTMLInputElement || ...) return;
-    const num = parseInt(e.key);
-    if (num >= 1 && num <= tabDefs.length) switchTab(tabDefs[num - 1].key);
-  }
-  document.addEventListener("keydown", handleKeyDown);
-  return () => document.removeEventListener("keydown", handleKeyDown);
-}, []);
-
-// Render
-<Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
-  <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
-    {tabDefs.map((tab, i) => (
-      <TabsTrigger key={tab.key} value={tab.key}>
-        {tab.label}
-        <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">{i + 1}</kbd>
-      </TabsTrigger>
-    ))}
-  </TabsList>
-</Tabs>
-```
-
-### API Patterns
-
-**PATCH for inline saves:**
-```tsx
-const res = await fetch(`/api/[entity]/${id}`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ [fieldName]: value || null }),
-});
-if (!res.ok) throw new Error("Save failed");
-```
-
-**Optimistic local state update:**
-```tsx
-onFieldSaved({ [patchKey]: value } as Partial<EntityDetail>);
-// OR for full refresh:
-onRefresh(); // re-fetches the entity
-```
-
-**Activity feed API:**
-```tsx
-fetch(`/api/[entity]/${id}/activity`)  // returns { data: AuditEntry[] }
-```
-
-### History Tab: Field Display Rules
-
-- **HIDDEN_FIELDS**: `_actorRole`, `_actorId`, `_actorEmail`, `_actorName`, `updatedAt`, `createdAt`, `id`, `organizationId` — never show these
-- **ID_FIELDS**: `categoryId`, `departmentId`, `locationId` — show "set" / "removed" / "changed" instead of raw CUIDs
-- **Boolean fields**: Show "enabled" / "disabled" instead of true/false
-- **Skip entries** where all changes are hidden fields (don't show empty diff rows)
-- **Layout**: timestamp right-aligned, changes as labeled key-value pairs
-
-### Spacing & Row Standards
-
-- `SaveableField` rows: `px-3 py-2.5 min-h-[44px]` — consistent across ALL field types
-- Row dividers: `divide-y divide-border/30` on the grid container
-- Label width: `w-[120px]` (set in SaveableField)
-- Input height: `h-8` (32px)
-- Card content padding: `p-4 pt-0` for most cards
-- Tab content top margin: `mt-14` (gap between tabs bar and content)
-
-### Breadcrumb Behavior
-
-`PageBreadcrumb` automatically:
-- Builds crumbs from the URL path
-- Filters out dynamic segments (UUIDs and CUIDs)
-- On detail pages (where segments were filtered), keeps all visible crumbs as clickable links
-- Uses `LABEL_MAP` for known segment names
-- Falls back to title-casing for unknown segments
-
-### Grid Layout
-
-```css
-.details-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;  /* main column + sidebar */
-  gap: 20px;
-}
-/* Collapses to single column below 1000px */
-```
-
-### Empty States
-
-Always use shadcn Empty component:
-```tsx
-<Empty className="py-6 border-0">
-  <EmptyDescription>No items to display.</EmptyDescription>
-</Empty>
-```
-
-### Status Badge Mapping
-
-| Status | Variant | Label |
-|---|---|---|
-| AVAILABLE | green | Available |
-| CHECKED_OUT | blue | Checked out by [name] |
-| RESERVED | purple | Reserved by [name] |
-| MAINTENANCE | orange | Needs Maintenance |
-| RETIRED | gray | Retired |
-
-### Checklist for New Detail Pages
-
-- [ ] Uses `SaveableField` + `useSaveField` for all editable fields
-- [ ] Uses shared `InlineTitle` from `src/components/InlineTitle.tsx` (never duplicate)
-- [ ] Card styling: `border-border/40 shadow-none` + `divide-y divide-border/30`
-- [ ] Tabs: URL-synced, keyboard shortcuts, sticky
-- [ ] Tab content spacing: `mt-14` (NOT mt-6) — matches items page hierarchy
-- [ ] Properties strip with badges + right-aligned "Updated [date]"
-- [ ] History tab wrapping: parent renders Card/CardHeader/CardTitle, history component is a renderless content block
-- [ ] History tab filters internal fields, resolves IDs to labels
-- [ ] Input styling: `border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs`
-- [ ] No hardcoded colors — use Badge/Button variants for dark mode safety
-- [ ] Empty states use shadcn `Empty` component
-- [ ] All UI primitives are from `src/components/ui/` (shadcn)
-- [ ] No double breadcrumbs (AppShell handles it)
-- [ ] `min-h-[44px]` on all interactive rows
-- [ ] Loading state uses `Skeleton` components matching the layout
-- [ ] Self-audit against items page before declaring done
-- [ ] Status labels use `statusLabel(status, kind)` — never show raw enum
-- [ ] Action buttons: `[Actions ▼] [Edit] [Extend] [Primary CTA]` — primary rightmost
-- [ ] Equipment rows have `group/row` class + hover-reveal "..." menu
-- [ ] People fields (requester, creator) show Avatar initials
-- [ ] Countdown/due-back uses urgency-colored Badge (not plain text)
-- [ ] Info card has heading: "Checkout details" / "Reservation details"
-- [ ] Auto-select all returnable items on checkin-eligible pages
-- [ ] Reset `checkinIdsInitialised.current` after partial return for re-selection
-- [ ] All actions toast on success AND error (not just error)
-- [ ] Quick extend offsets from picker value when already set (not always booking.endsAt)
-- [ ] Optimistic UI: patch local state before API call, reload confirms truth
-- [ ] Collapsible sections use shadcn `Collapsible` (not manual useState + button)
-- [ ] Filter chips use shadcn `ToggleGroup` (not Button with manual variant toggling)
-- [ ] Warnings/alerts use shadcn `Alert` with icon (not styled div)
-
-## Session 2026-03-22 (Round 2): Detail Page UX Audit Patterns
-
-### Multi-Pass Audit Process
-1. **First pass**: Visual audit against reference (Cheqroom) — find 9 low-level polish issues
-2. **Second pass**: Flow-trace every user journey end-to-end — find architectural issues (stale state, missing feedback, dead code)
-3. **Third pass**: Component audit against shadcn library — find hand-rolled patterns that have shadcn equivalents
-4. **Fourth pass**: User feedback on screenshot — reveals UX hierarchy issues (status labels, action prominence, information density)
-
-### Key Patterns Discovered
-- **Optimistic UI for bulk actions**: Patch local state immediately, then reload for truth. Prevents the "blank flash" between clearing selection and data reload.
-- **Auto-select with re-init**: Use a ref flag to track initialization, but reset it after partial operations so auto-select re-fires on the next data load.
-- **Status is a UX decision, not a DB decision**: Raw enum values are technical. User-facing labels should be meaningful ("Checked out" > "OPEN"). Keep enum stable, map in display layer only.
-- **Action button hierarchy**: Primary CTA rightmost. Secondary actions grouped in dropdown leftmost. Middle = promoted but non-primary. Mobile collapses everything into dropdown.
-- **Row-level actions via hover menu**: `group/row` on container + `opacity-0 group-hover/row:opacity-100` on trigger. Clean and discoverable without cluttering the default view.
-- **Success toasts are as important as error toasts**: Users need confirmation that their action worked. Silent success erodes confidence.
-- **Quick-extend should offset from picker value**: When the date picker already has a value, "+1 week" should add to that, not reset to original booking end date.
-
-## Session 2026-03-22 (Round 3): iPhone Mobile Polish
-
-### Patterns
-- **iOS auto-zoom on inputs < 16px**: iOS Safari zooms the viewport when focusing inputs with `font-size < 16px`. Fix: `text-base md:text-sm` on Input, Textarea, and SelectTrigger — 16px on mobile, 13px on desktop. This is a global fix affecting every form in the app.
-- **Hover-reveal patterns fail on touch**: `opacity-0 group-hover:opacity-100` is invisible on mobile (no hover). Fix: prefix with `sm:` so items are always visible on small screens — `sm:opacity-0 sm:group-hover/row:opacity-100`.
-- **`flex items-center justify-between` breaks on mobile when content is wide**: Title + action buttons side-by-side causes title to wrap to 3+ lines while buttons are squeezed right. Fix: `flex-col sm:flex-row sm:items-center sm:justify-between` — stack vertically on mobile, inline on desktop.
-- **Always test detail page headers at 390px width**: If title + buttons share a flex row, iPhone will force ugly wrapping. Default to `flex-col` on mobile for any header with more than 2 buttons.
-- **Global `-webkit-tap-highlight-color: transparent`**: Apply to all interactive elements (`a, button, [role="button"], label, select, summary, [tabindex]`), not just individual components. Prevents the gray flash on tap that makes iOS web apps feel non-native.
-- **`overscroll-behavior-y: none` on body**: Prevents rubber-band overscroll on iOS which makes the app feel like a webpage instead of a native app.
-
-## Session 2026-03-22 (Round 4): Dashboard UX Hardening
-
-### Patterns
-- **Destructive actions need confirmation + feedback**: Draft discard was a silent DELETE with no confirmation dialog and no toast. Any single-click destructive action on the dashboard should use `useConfirm` + `useToast` pattern from `BookingDetailsSheet`.
-- **Differentiate error types in fetch handlers**: A 401 (session expired) should redirect to `/login`, not show "Something went wrong." Check `res.status` before throwing generic errors. Network errors (`TypeError`) vs server errors need different user-facing messages.
-- **Show refresh state on re-fetch, not skeleton replacement**: After a sheet mutation triggers `loadData()`, show a thin progress bar — don't replace content with skeletons (jarring) or show nothing (stale data anxiety). Use a `refreshing` boolean state.
-- **Inline due dates on action rows**: Checkout rows showed status colors (red/amber borders) but not the actual date. The data was already fetched — just not rendered. Always surface time-critical data inline when it's already in the payload.
-- **Keep API-provided computed fields consistent**: Overdue banner computed initials client-side while all other sections used `requesterInitials` from the API. Always derive computed display values in one place (API) and pass them through.
-- **Section ordering should match temporal urgency**: Shifts (upcoming obligations) were below Drafts (abandoned work). Order sections by "what needs action soonest" not by "what was built first."
-- **Welcome banner compound conditions**: If the dashboard has N data sections, the welcome banner condition must check all N — not just the first 3 that existed at V1 launch.
-- **shadcn Badge replaces most custom badge CSS**: Any inline colored label (status badges, sport tags, ref numbers, count pills, due-date labels) should use `Badge variant="green|red|orange|gray|sport" size="sm"` — not custom CSS classes. This eliminates one-off `.badge-green`, `.section-count`, `.ref-badge` classes and keeps dark mode safe.
-- **shadcn Avatar/AvatarGroup replaces custom avatar stacks**: `AvatarGroup` with `Avatar size="sm"` + `ring-2 ring-background` handles the overlapping stack layout. Empty slots use `AvatarFallback` with `border-dashed`. Overflow uses `AvatarFallback` with count text. No custom CSS needed.
-- **Target shadcn data-slot attributes for contextual overrides**: When a shadcn component needs different styling inside a specific parent (e.g. avatar inside red overdue banner), use `[data-slot="avatar-fallback"]` selector instead of adding custom className props.
-
-## Session 2026-03-22 (Round 6): Users Page Hardening
-
-### Design System Patterns
-- **`text-secondary` is wrong for text color**: In shadcn with CSS variables, `text-secondary` maps to `--secondary` which is a background color token (`var(--accent-soft)`). The correct class for secondary/muted text is `text-muted-foreground`. This is a codebase-wide anti-pattern — check every page during hardening.
-- **Tailwind spacing values ≠ pixel values**: `p-16` = 64px (4rem), not 16px. `gap-12` = 48px, not 12px. `mb-8` = 32px, not 8px. When porting from CSS `padding: 16px` to Tailwind, use `p-4` (16px) not `p-16` (64px). This was a real bug in CreateUserCard.
-- **Dead CSS accumulates after component rewrites**: When a page is rewritten from custom CSS to Tailwind/shadcn, the old CSS classes become dead code but stay in globals.css. Always grep `src/` for every class in the page's CSS section after a rewrite. Remove what's unused.
-
-### Reliability Patterns
-- **Form-options/me fetch failures shouldn't block the page**: Auxiliary data fetches (locations dropdown, current user role) failing should not set `loadError = true` which replaces the entire content with an error state. Only the primary data fetch failure should show the error state. Auxiliary failures should be silent.
-- **Every mutation needs 401 handling**: Session can expire between page load and user action. Check `res.status === 401` on PATCH, POST, DELETE — not just the initial GET. Redirect to `/login` on 401.
-- **Distinguish initial load from refresh**: `loading && data.length === 0` = initial load (show skeletons). `loading && data.length > 0` = refresh (show spinner, keep existing data visible). Never replace visible data with skeletons on refresh.
-
-### UX Patterns
-- **Skeleton fidelity matters**: Identical-width skeleton rows look like a test pattern. Match real row layout: avatar circles, varied text widths per row (`55 + (row % 3) * 15`%), badge-shaped pills (`rounded-full`). Each column should have a distinct skeleton shape.
-- **Retry buttons on every error state**: A dead-end error screen with no recovery action is poor UX. Always add a Retry button alongside the error message. EmptyState supports `actionLabel` + `onAction` props for this.
-
-## Session 2026-03-22 (Round 5): Items List Page Hardening
-
-### Reliability Patterns
-- **AbortController is mandatory for any filter-driven fetch**: Rapid filter changes (typing in search, toggling multiple facets) fire multiple concurrent requests. Without `AbortRef.current?.abort()` before each new fetch, stale responses can overwrite fresh data — the second request may resolve before the first.
-- **Distinguish initial load from refresh**: First load should show full skeleton. Subsequent refreshes should show a subtle shimmer/progress bar and keep existing data visible. Use a `hasLoadedOnce` ref to track this — NOT a state variable (avoids extra renders).
-- **Refresh failure must NOT replace visible data**: Anti-pattern: `if (!res.ok) setLoadError(true)` on every fetch. This replaces the entire table with an error screen even when valid data is in state. Fix: only set `loadError` on initial load failure. On refresh failure, toast the error and keep existing items visible.
-- **Every mutation needs toast feedback**: Silent `catch { /* ignore */ }` blocks are never acceptable. Users get zero indication their action failed. Always toast success AND failure for every async user action.
-- **actionBusy guard prevents duplicate requests**: Row-level actions (duplicate, maintenance, retire) need a shared `actionBusy` state that prevents concurrent mutations. Unlike bulk actions which have their own `busy` state, single-row actions share the page's `actionBusy` flag.
-
-### UX Polish Patterns
-- **Skeleton fidelity matters**: Uniform-width skeletons look like a test pattern. Match the actual table layout — image placeholder + two-line text for the Name column, pill-shaped for Status badges, varied widths per row using `(rowIndex % N) * step` formulas.
-- **Confirmation dialogs should name what they destroy**: "This will mark this item as retired" is vague. "This will permanently mark 'FB-CAM-001' as retired" is specific. Include the item identifier and state the consequences (hidden from inventory, cannot be checked out).
-- **Bulk action toasts should include count + action type**: "Updated" is vague. "Retired 3 items" is clear. Use an `ACTION_LABELS` map to provide human-readable action names.
-
-### Design System Patterns
-- **Raw `<span>` badges should use shadcn Badge**: Any inline colored label with padding/rounded/font-size styling is a Badge in disguise. Use `Badge variant="secondary" size="sm"` with `className="rounded-sm px-1 font-normal"` to match the faceted-filter pattern established in the codebase.
-- **Loading spinners should use the Spinner component**: The project has `src/components/ui/spinner.tsx` — use it instead of text-only "Processing..." indicators.
-
-## Session 2026-03-22 (Round 5): Dashboard Reliability + UX Polish
-
-### Reliability Patterns
-- **`useCallback` deps on hook returns = ticking time bomb**: If `loadData` depends on `[toast]` from `useToast()`, and that hook ever returns an unstable reference, the `useEffect` runs every render: abort → refetch → re-render → abort... infinite loop. Fix: use a ref (`toastRef.current = toast`) and call `toastRef.current()` inside the callback with `[]` deps.
-- **Refresh errors must not wipe visible data**: If `loadData(true)` fails, setting `fetchError` replaces the entire dashboard with an error screen — even though valid data is still in state. Fix: on refresh failures, toast the error and keep existing data visible. Only show the error screen on initial load (`!isRefresh`).
-- **Null-safe API response guards**: The backend runs 16 parallel queries via `Promise.all`. If one fails, the entire response is 500. But if the backend ever changes to return partial data, the frontend would crash on `.map()` of undefined arrays. Fix: `d.myCheckouts = d.myCheckouts ?? { total: 0, items: [] }` for every array/object before `setData`.
-- **AbortController on all fetches**: Every `loadData` call should abort the previous in-flight request. Also abort on component unmount via the `useEffect` cleanup. This prevents stale responses from overwriting fresh data during rapid interactions.
-- **Guard all mutation buttons, not just the active one**: `disabled={deletingDraftId === d.id}` only disables the button being deleted. A user can click delete on draft B while draft A is in-flight. Fix: `disabled={deletingDraftId !== null}` blocks all delete buttons.
-- **Handle 401 on every mutation, not just the main fetch**: If the session expires between page load and a draft delete, the DELETE returns 401. Without explicit handling, it shows a generic "Failed" toast instead of redirecting to login.
-
-### UX Polish Patterns
-- **Optimistic deletes with rollback**: Remove the item from state immediately after confirmation, before the network round-trip. Capture `prevDrafts` before the mutation. On failure, restore via `setData(prev => ({ ...prev, drafts: prevDrafts }))`. This eliminates the jarring full-page reload on success.
-- **Manual refresh button with freshness tooltip**: A spinning `RefreshCwIcon` next to the page title with `formatRelativeTime(lastRefreshed, now)` in the tooltip. Users can see data age and refresh manually. The `animate-spin` class on the icon provides feedback during refresh.
-- **Skeleton width variation**: Identical `w-3/4` skeletons look like a test pattern. Vary widths per row (`70 + (j % 3) * 10` percent for titles, `40 + (j % 2) * 15` percent for meta) to look like real content being loaded.
-- **Differentiate error icons by type**: Network errors (offline) get a bell icon with "You're offline" copy. Server errors get a box icon with "usually temporary" language. Small changes that signal the system knows what went wrong.
-
-## Session 2026-03-23
-
-### Auth Page Hardening Patterns
-
-**Design System:**
-- Auth pages (login, register, forgot-password, reset-password) share CSS classes. When migrating one to shadcn, migrate ALL to prevent half-dead CSS. Grep for shared classes across the directory before deleting any.
-- Password toggle button should use `Button variant="ghost" size="icon"` not a raw `<button>` — consistent hover states, focus ring, and disabled styling for free.
-
-**Data Flow:**
-- `res.json()` on error responses can throw if the body isn't JSON (e.g., proxy 502 returns HTML). Always wrap in try-catch: `try { const json = await res.json(); message = json.error || fallback; } catch { /* non-JSON */ }`.
-- `TypeError` from `fetch()` specifically indicates network failure (offline, DNS, CORS). Use this to distinguish network errors from server errors with different icons and copy.
-- Form `handleSubmit` needs an early `if (loading) return` guard even when the button is `disabled={loading}` — keyboard Enter can bypass the disabled button state during rapid re-renders.
-- Clear the form-level error Alert when the user starts typing, not just on re-submit. Stale errors confuse users who've already corrected their input.
-
-**Resilience:**
-- Disable ALL form inputs during submission, not just the submit button. If inputs remain editable, the user can change values while the request is in-flight, causing a mismatch between what they see and what the error references.
-- Always add `aria-invalid` and `aria-describedby` to inputs with validation errors. Screen readers can't associate a red `<p>` with its input without these attributes.
-
-**UX Polish:**
-- `Loader2 className="animate-spin"` inside the submit button alongside loading text (e.g., "Signing in...") gives a clear visual signal that something is happening. Static text alone feels frozen.
-- `WifiOff` icon for network errors vs `AlertCircle` for auth/server errors — small icon difference communicates system understanding.
-- Auto-focus the first invalid field after validation failure using refs. Users shouldn't have to click back into the field with the error.
-
-## Session 2026-03-23 (Scan Page Hardening)
-
-### Reliability Patterns
-- **Refresh vs initial load errors**: A refresh failure should toast, not replace visible data with an error screen. Use `setScanStatus((prev) => { if (!prev) setLoadError(true); else toast(...); return prev; })` to distinguish initial load from refresh.
-- **try/catch/finally for multi-step async flows**: When a handler has multiple sequential `await` calls (e.g., try serialized → try bulk → fetch units), wrap in try/catch/finally to guarantee `processingRef` cleanup. Without finally, a network drop between steps leaves the page permanently stuck.
-- **Every inline `fetch()` needs its own error path**: The numbered bulk scan flow had 3 sequential fetches but only the first was guarded. Each fetch in a chain can fail independently.
-
-### UX Patterns
-- **Auto-clear scan feedback**: Stale success/error messages from a previous scan confuse users, especially on slow networks. Auto-clear success after 5s and errors after 8s using a ref-backed timer.
-- **Optimistic checklist update**: When a scan succeeds, update the item's `scanned: true` immediately via `setScanStatus` updater function. Then fire a background `loadScanStatus()` (no `await`) to get authoritative state. This eliminates the "scanned but still shows unchecked" moment.
-- **Spinner on async buttons**: `Loader2Icon className="animate-spin"` is more informative than static `"..."` text. Used consistently on manual scan, complete checkout, and unit picker submit buttons.
-
-### Design System Patterns
-- **Badge variants map to status enums**: When a component has a `statusColor()` function returning hex values, check if shadcn Badge already has matching variants (green, blue, purple, orange, gray). Direct replacement eliminates inline styles and custom CSS.
-- **Progress component replaces custom progress bars**: Custom `.progress-bar` + `.progress-fill` CSS is a direct shadcn Progress replacement. Use `[&>[data-slot=progress-indicator]]:bg-color` for custom indicator colors.
-
-## Session 2026-03-23 (Profile Page Hardening)
-
-### Architecture Patterns
-- **"Same page, different context" > separate pages**: When a profile page duplicates a user detail page with minor additions (avatar upload, password change), merge them. Use `isSelf` detection to conditionally show self-edit features. This eliminates code duplication, keeps the navigation model simple, and ensures profile features stay in sync with the user detail page.
-- **Redirect pages for backward compatibility**: When merging pages, keep the old route as a lightweight redirect (`/profile` → `/users/{id}`) so bookmarks and links still work. The redirect fetches the user ID then calls `router.replace()`.
-
-### Data Flow Patterns
-- **Separate `canEdit` from `isSelf`**: A boolean `canEdit = isSelf || isAdmin` is too coarse when different fields have different edit permissions. Students can edit their own name/location but not email/phone/role. Pass both `canEdit` (role-based) and `isSelf` to the component, and apply field-level permissions: `canEdit={canEdit || isSelf}` for name/location, `canEdit={canEdit}` for admin-only fields.
-- **Route self-edits through the right API**: When the same form serves both admin-edits and self-edits, the `patchUser` function must detect which API to use. Self-edits for name/location go through `/api/profile` (works for all roles), while other fields require `/api/users/:id` (ADMIN/STAFF only). Anti-pattern: using a single `canEdit` boolean that makes all fields editable for self-viewers, then sending all edits through the admin API which returns 403 for students.
-
-### Resilience Patterns
-- **Clear stale data on retry**: When a retry button re-triggers data loading, always clear the previous data (`setUser(null)`) alongside clearing the error state. Without this, old data is briefly visible while the new request is in flight, which can show the wrong user's information.
-
-### UX Patterns
-- **Optimistic removal with rollback**: For destructive actions where the expected outcome is clear (removing an avatar sets it to null), update the UI immediately and restore on failure. Save the previous value, set the new state optimistically, then rollback in both the error response and catch paths.
-- **Contextual breadcrumbs**: When the same page serves two purposes (user detail vs profile), the breadcrumb should reflect the user's intent: show "Profile" when `isSelf`, show the user's name when viewing someone else.
-
-## Session 2026-03-23 (Reports Page Hardening)
-
-### Design System Patterns
-- **Global PageBreadcrumb covers sub-routes**: `AppShell.tsx` renders `<PageBreadcrumb />` which auto-generates breadcrumbs from the URL path (e.g., Home > Reports > Utilization). Page-level breadcrumb components are always redundant — remove them.
-- **shadcn Table vs custom .data-table CSS**: The `Table` / `TableRow` / `TableCell` components from shadcn provide consistent hover, borders, and spacing. Custom `.data-table` CSS was 50+ lines that duplicated what shadcn Table does in 0 lines.
-
-### Data Flow Patterns
-- **URL-persisted filters via `window.history.replaceState`**: For read-only pages with filter controls (period, phase), sync filter state to the URL so report links are shareable. Use `useSearchParams()` to hydrate initial state, `replaceState` to sync changes. Don't use `router.push()` — it triggers unnecessary navigation transitions.
-- **Data freshness indicator reuse**: The Dashboard's `lastRefreshed` + `RefreshCw` + `Tooltip` + `formatRelativeTime` pattern is portable to any data-fetching page. Add `lastRefreshed` state, set on successful fetch, display in a Tooltip on a ghost-variant RefreshCw button. Update "ago" display with a 60s interval.
-
-### Reliability Patterns
-- **Retry button must call loadData, not just clear error state**: Anti-pattern: `onClick={() => { setError(false); setLoading(true); }}` — this clears the error and shows loading but never re-fetches. Always call the actual data loading function.
-- **Refresh-without-replacement for filter changes**: When `data !== null` and the user changes a filter, don't replace visible data with skeletons. Show a subtle spinner (e.g., RefreshCw animate-spin) and keep current data visible until the new response arrives. Only show full skeletons on initial load (`data === null`).
-
-## Session 2026-03-23 (Schedule Page Merge + Hardening)
-
-### Architecture Patterns
-- **Merge pages that answer the same question**: If two pages pivot on the same model and answer "what's happening and who's working?", merge them. Staff shouldn't bounce between pages for related context. The unified `/schedule` page replaced `/events` + old `/schedule`.
-- **Parallel API fetches over combined endpoints**: Fetching `/api/calendar-events` and `/api/shift-groups` in parallel from the client is simpler than creating a combined endpoint. One API can 403 gracefully (students without shift:view) without blocking the other.
-- **Keep Trade Board accessible during page context**: Moving Trade Board from a tab (replaces page) to a Sheet overlay (side panel) lets users see the schedule while browsing trades. Side panels preserve context; tabs destroy it.
-
-### UX Patterns
-- **"My Shifts" as default-ON for students**: Student users want their shifts first. Default the filter ON for STUDENT role (from `/api/me`), but only when localStorage has no prior preference (`=== null` check). This respects user choice after first interaction.
-- **Filtered count indicator**: Show "N of M" (e.g., "3 of 12") when filters reduce the result set. Helps users understand they're seeing a subset without needing to clear filters to verify.
-- **Trade count badge on button**: A small orange badge with open trade count on the "Trade Board" button provides at-a-glance visibility of pending actions. Refresh the count when the sheet closes (trades may have been claimed/cancelled).
-- **Inline coverage expansion**: Click a coverage badge to expand per-area breakdown inline (Video 2/2, Photo 1/2, etc.) with assign buttons. Avoids opening ShiftDetailPanel just to see which areas need staff.
-
-### Reliability Patterns
-- **hasLoadedRef for refresh-preserves-data**: Use a ref (not state) to track whether initial data load completed. On subsequent loads (filter/view changes), skip `setLoading(true)` so existing data stays visible. Avoids skeleton flash on every filter change.
-- **Trade count refresh on sheet close**: The `onOpenChange` handler on the Sheet fires when closing — use it to re-fetch trade count since the user may have claimed or cancelled trades while the sheet was open.
-
-### Stress Test Patterns
-- **Per-item acting guards are insufficient**: `disabled={acting === t.id}` only blocks the button being acted on. Users can spam-click buttons on DIFFERENT items, firing concurrent mutations. Fix: `disabled={acting !== null}` blocks ALL mutation buttons while any mutation is in-flight.
-- **401 handling is per-component, not per-page**: The schedule page has 401 handling on its own fetches, but ShiftDetailPanel and TradeBoard are rendered inside it as child components with their own fetch calls. Each component needs its own 401 handling — a page-level guard doesn't protect child component mutations.
-- **Conditional render = auto-remount = fresh data**: `{open && <Component />}` unmounts on close and remounts on open, triggering useEffect data loads. No manual "reload on open" needed — the component lifecycle handles it.
-
-## Session 2026-03-23 (Users Page Hardening)
-
-### Resilience Patterns
-- **Radix Dialog retains DOM between close/open**: Unlike conditional render (`{open && <Form />}`), Radix Dialog keeps content mounted but hidden. Uncontrolled form inputs retain their values across opens. Fix: `useEffect(() => { if (open) formRef.current?.reset(); }, [open])`.
-- **hasDataRef for stale-closure-safe refresh**: `users.length` in a useCallback can't be in the dep array (would cause infinite reload loop) and can't be read from the closure (stale). A `hasDataRef` stores whether we've successfully loaded data — allows safe "only show error if no prior data" logic without dependency issues.
-
-### UX Patterns
-- **Error differentiation by type**: Use `navigator.onLine === false` in catch blocks to distinguish network errors from server errors. Show `WifiOff` icon + "You're offline" for network, generic icon + "Something went wrong" for server.
-- **Manual refresh with relative timestamp**: A `RefreshCw` icon button (spins when loading) with Tooltip showing "Updated 2m ago" gives users control + visibility into data freshness. Pattern: `lastFetched` Date state, updated on successful fetch, formatted via simple relative-time helper.
-
-### Security Patterns (Stress Test)
-- **TOCTOU on unique constraints**: Never rely on a `findUnique` check before `create`/`update` for uniqueness enforcement. Two concurrent requests can both pass the check. Instead: catch Prisma `P2002` (unique constraint violation) and return a friendly 409. The DB constraint is the single source of truth, not application-level pre-checks.
-- **Privilege escalation has two vectors per role operation**: When guarding role changes, check BOTH directions — granting AND revoking. A guard that prevents STAFF from *granting* ADMIN but allows *demoting* ADMIN is a privilege escalation vector. Pattern: `if (target.role === "ADMIN" && actor.role !== "ADMIN") reject`.
-- **Profile edit must respect role hierarchy**: STAFF should not be able to edit ADMIN user profiles (name, email, phone). The same role guard that applies to role changes must also apply to profile field edits. Always check `target.role` vs `actor.role` on mutation endpoints.
-- **Audit entries need before-snapshots**: An audit entry with only `after` data can't reconstruct what changed. Fetch the current record before update, diff the fields, and pass both `before` and `after` to `createAuditEntry`. Skip the audit entry entirely if no fields actually changed.
-
-## Session 2026-03-24
-
-### Equipment Picker shadcn Migration
-- **shadcn Checkbox uses Radix `checked` prop, not HTML `checked`**: Pass `checked={true}`, `checked={false}`, or `checked="indeterminate"` — the indeterminate state replaces the HTML `el.indeterminate = true` ref pattern.
-- **shadcn Button in inline contexts needs CSS resets**: When replacing raw `<button>` with shadcn `Button` inside tight layouts (footer tags, quantity steppers), the default `height`, `min-height`, `padding`, and `box-shadow` must be overridden. Use specific class selectors (`.picker-footer-tag-remove`) rather than `button` tag selectors.
-- **O(1) Map lookups pay for themselves in render-heavy components**: Any component that renders a list + footer/summary of selected items should index by ID at the top with `useMemo(() => new Map(...))` rather than calling `.find()` inside `.map()` loops. The EquipmentPicker had 6 separate `.find()` call sites in render paths.
-- **ARIA tablist pattern requires `tabIndex` management**: Active tab gets `tabIndex={0}`, inactive tabs get `tabIndex={-1}`. Arrow keys move focus programmatically via `querySelectorAll("[role=tab]")`. This is the WAI-ARIA Tabs pattern — don't improvise.
-
-### Hardening Patterns
-- **Selection checks in render loops need Set, not Array**: `selectedIds.includes(id)` per row in a list is O(n×m). Wrap in `useMemo(() => new Set(selectedIds))` and use `.has()` — the Set is rebuilt once per selection change, not per row.
-- **AbortController is mandatory for debounced fetches**: Any `useCallback` + `useEffect` combo that debounces an API call MUST abort the previous in-flight request before starting a new one. Without this, a slow first response can overwrite fresh data from a faster second response. Pattern: `abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;`
-- **Dead state accumulates during feature evolution**: The `highestReached` state was from an earlier "locked tab progression" design that was dropped but the state variable persisted through 3 PRs. Run dead-code audits after multi-commit features.
-- **CSS selectors targeting HTML tags break after shadcn migration**: `.picker-row:has(input:disabled)` silently broke when raw `<input type="checkbox">` was replaced with shadcn `Checkbox` (which renders a Radix `<button>`). Always grep for `:has(input` selectors when migrating form elements.
-- **Silent scan failures erode trust**: Re-scanning an already-selected item with no feedback makes users think the scanner is broken. Always give explicit feedback for every scan result, even if the action is a no-op.
-
-### Stress Test Patterns (Equipment Picker)
-- **Scan-to-add must enforce the same rules as click-to-select**: The picker disabled unavailable items in the row UI but scan bypassed all checks. Any alternative input path (scan, keyboard shortcut, paste) must validate identically to the primary path. Pattern: extract an `canSelectAsset(asset)` predicate and use it in both row rendering and scan handler.
-- **setState callbacks must be self-contained for concurrency safety**: When using `selectedIdSet.has()` outside the callback and `setSelectedAssetIds((prev) => [...prev, id])` inside, rapid events can see stale `selectedIdSet` and add duplicates. Always guard inside the callback: `(prev) => { if (prev.includes(id)) return prev; return [...prev, id]; }`.
-- **Quantity steppers need domain-aware bounds**: The + button on bulk items had no upper bound. The `currentQuantity` field existed on the data model but was never wired to the UI. Always check: "Does this stepper/input have data that should constrain its range?" and wire it.
-
-### BookingDetailsSheet Hardening (4-pass)
-- **fetchWithTimeout must be used everywhere, not just on some calls**: 5 of 7 fetch calls in the sheet used raw `fetch()` while 2 used `fetchWithTimeout`. When adding a timeout utility, grep for ALL fetch calls in the file and convert them — not just the ones you're currently editing.
-- **Distinguish initial load vs refresh**: After a mutation (save, extend, checkin), calling the same `fetchData()` that sets `loading=true` replaces visible content with a skeleton. Pattern: accept `{ silent?: boolean }` option and only show skeleton on initial load. Refresh should preserve visible content.
-- **401 must be handled on EVERY mutation endpoint, not just the main fetch**: Session can expire between page load and any subsequent user action. Add `handle401(res)` helper and call it before checking `res.ok` on every fetch response.
-- **Null-safe array access is non-negotiable on API responses**: Even if the API "always" returns arrays, add `?? []` guards. APIs evolve, partial responses happen, and a `.length` on null crashes the entire sheet. Cost: 5 characters. Benefit: zero crash risk.
-- **Toast messages should confirm WHAT happened, not just that something happened**: "Item checked in" → "APPLE-001 checked in". "Extended by 3 days" → "Extended to Mar 28". The user should never need to look at the data to verify the action was correct.
-
-### BookingDetailsSheet Stress Test
-- **SERIALIZABLE must be explicit on EVERY write transaction**: `cancelBooking()` and `cancelReservation()` used `db.$transaction()` without isolation level, defaulting to PostgreSQL's READ_COMMITTED. Two concurrent cancels could both see the booking as non-cancelled. Fix: always pass `{ isolationLevel: Prisma.TransactionIsolationLevel.Serializable }`. Grep for `db.$transaction(async` WITHOUT isolation level to find other missing cases.
-- **Handler functions must self-guard against double invocation**: Even if the UI button is `disabled={saving}`, the handler function itself must check `if (saving) return`. React state updates are async — two rapid clicks can both execute before `disabled` takes effect. Every async handler that sets a loading flag must also check it.
-- **Empty-payload writes waste API calls and create noise audit entries**: If `handleSave` detects no diff between edit state and booking state, it should bail early with a "No changes" toast rather than sending a no-op PATCH that creates an empty audit entry.
-
-### Item Picker Features
-- **Toggle means toggle, not add-only**: Bulk item row click handlers had `if (isSelected) return` which made deselection impossible from the item row. Every clickable selection control must toggle both directions — if it can select, it must also deselect. The only place to remove was the footer tag ×, which users couldn't discover.
-- **Cross-section search needs a separate flat results view**: Don't try to switch tabs or filter within the active section. Instead, show a flat list with section badges so users can see all matches at once. The ternary pattern `isGlobalSearchActive ? <FlatResults /> : <TabbedView />` keeps the two modes cleanly separated.
-
-## Session 2026-03-24
-
-### Sidebar / Navigation Shell Patterns
-
-**Design system:**
-- **Dead CSS accumulates fast on layout migrations**: When replacing a custom sidebar with a shadcn component, the old CSS blocks (`.sidebar`, `.sidebar-nav`, `.sidebar-profile`, etc.) have zero JSX references but remain in globals.css. Always grep `src/` for every CSS class before removing — but do remove them. 107 lines of dead sidebar CSS accumulated in this session.
-- **`SidebarGroupLabel` has built-in collapse behavior**: The shadcn `SidebarGroupLabel` already handles `group-data-[collapsible=icon]:-mt-8 opacity-0` transitions. Don't add a redundant `hidden` class — it overrides the smooth animation.
-- **Redundant nav items kill trust**: If a header avatar already links to the profile page, a separate "Profile" nav item is noise. Remove it. Users notice when two paths go to the same destination and infer inconsistency.
-- **Group separators aid fast scanning**: A `SidebarSeparator` between Operations and Admin nav groups is worth ~3 lines of code and makes the section boundary immediately obvious without needing to read labels.
-
-**Logic / resilience:**
-- **Badge fetches need AbortController cleanup**: AppShell re-fetches badge counts on every pathname change. Without a cleanup function returning `badgeController.abort()`, navigating quickly causes multiple in-flight fetches that set state after unmount. Pattern: create controller at top of effect, pass `signal` to all fetches, `return () => { controller.abort(); }`.
-- **`isLoggingOut` must be wired all the way to the button**: Tracking `loggingOut` state in AppShell without passing it to the sidebar component means the button is never actually disabled. Pass as prop; check `disabled={isLoggingOut}` on the button.
-- **Logout network failure must re-enable the button**: Without a `try/catch` in `handleLogout`, a network drop during logout leaves `loggingOut=true` permanently. The user's only recovery is a page refresh. Wrap with try/catch and `setLoggingOut(false)` in the catch.
-
-**UX:**
-- **Collapsed icon-only tooltips can carry urgency signal**: `tooltip="Checkouts"` in collapsed mode gives no urgency cue. `tooltip="Checkouts · 3 overdue"` gives the same information as the badge when the badge might be hard to see. Cost: a ternary. Impact: accessible urgency in icon-only mode.
-- **shadcn `SidebarMenuBadge` is visible in both expanded and collapsed modes**: It uses absolute positioning and is always rendered. No additional logic needed for collapsed badge visibility — it works out of the box.
-
-### Stress Test: Response Path Bugs Are Silent and Fatal
-- **Always verify the exact response path when reading nested API data**: The overdue badge was silently broken at launch because AppShell read `dashJson?.stats?.overdue` but the dashboard API returns `{ data: { stats: { overdue } } }`. `dashJson.stats` was always `undefined`, the badge always showed 0, and there was no error — just a missing feature. Anti-pattern: assume response shape from memory. Fix: read the API route's `return ok(...)` call to trace the exact path before writing the client read.
-- **System-wide aggregate counts are wrong for sidebar badges**: `stats.overdue` in the dashboard is intentionally system-wide (for the dashboard page's team view). Using it as the sidebar badge count shows all users' overdue to STUDENT users who should only see their own. Anti-pattern: reuse a page-level stat for a shell-level badge. Fix: add a user-scoped parallel count (`requesterUserId: user.id`) specifically for badge purposes, surfaced as a separate field (`myCheckouts.overdue`).
-
-## Session 2026-03-25
-
-### Booking Page Hardening
-
-**Reliability:**
-- **Dead config fields accumulate silently**: `statusBadge` was defined in both booking configs and the type system, but never consumed by any component. The cards used `getStatusVisual()` instead. Anti-pattern: defining config fields during initial build and never cleaning up after the rendering approach changes. Fix: grep for actual consumption before assuming a config field is needed.
-- **`useBookingDetail` reload error replaces visible data**: When `setError(true)` fires during a reload (not initial load), the render path `if (error || !booking)` replaces the fully loaded booking with an error screen. Anti-pattern: sharing one error pathway for initial load and reload. Fix: only set error on initial load; on reload failure, keep existing data visible and let the caller decide (toast, etc.).
-- **AbortController on hooks must handle the initial-vs-subsequent load correctly**: Using `booking` in the reload callback to determine "is initial?" creates a stale closure since `booking` changes on load. Anti-pattern: depending on state in a useCallback that doesn't list it as a dep. Fix: use a ref (`hasLoadedRef`) that persists across renders.
-
-**UX:**
-- **Extend toast should name the outcome, not the action**: "Booking extended" is accurate but doesn't help the user verify correctness. "Extended to Mar 28" tells them the operation did what they intended. Low cost, high trust signal.
-
-## Session 2026-03-27
-
-### Database Performance Audit
-
-**Transaction Safety:**
-- **Scan flows are the most dangerous untransactioned code path**: `recordScan` (serialized), `completeCheckoutScan`, and `completeCheckinScan` all had multi-step read-then-write flows with no transaction wrapping. Concurrent scans could bypass dedup, concurrent completions could both succeed. Rule: any multi-step mutation touching booking/allocation state MUST be in a SERIALIZABLE transaction.
-- **`markCheckoutCompleted` was the one booking mutation missing SERIALIZABLE**: All other booking mutations had it. The omission meant concurrent check-in completions could double-return bulk stock. Rule: grep for `$transaction` without `isolationLevel` — if it mutates booking/allocation/stock state, it needs SERIALIZABLE.
-
-**Query Patterns:**
-- **Dashboard count queries are the first thing to consolidate**: 9 individual `booking.count` calls can be replaced by one raw SQL with `COUNT(*) FILTER (WHERE ...)`. The single query scans the table once instead of 9 times.
-- **Audit log loops in bulk operations are low-hanging N+1 fruit**: `createAuditEntry` in a loop means N individual INSERTs. `createMany` is a one-line fix for up to 50x fewer queries.
-- **`startsWith: ""` matches everything**: The notification dedup pre-fetch loaded the entire notifications table. Always scope pre-fetches to relevant IDs.
-- **Parallel agents for deep research tasks**: A single monolithic agent timed out at 30 minutes (101 tool calls) without writing output. Splitting into 3 focused parallel agents (N+1 audit, index audit, transaction audit) completed in ~5 minutes each.
-
-### Search-on-Type Refactor
-
-**Architecture:**
-- **Dual-mode `legacyMode = !!assets` preserves backwards compat during migration**: Making the `assets` prop optional and branching on its presence lets you ship incrementally — old consumers keep working while new ones opt into search mode. Clean migration path.
-- **`selectedAssetsCache` Map is the key insight for search-on-type pickers**: When search results change, previously-selected items disappear from the result set. A persistent Map keyed by ID survives across searches and provides O(1) lookups for display, counts, and guidance.
-- **Strip unbounded queries last, not first**: Build the replacement (picker-search API) → refactor consumers to use it → then remove the old query. Doing it in reverse breaks everything.
-- **`onSelectedAssetsChange` callback bridges the picker's internal cache to parent state**: Parents need selected asset details for confirmation dialogs and error messages. A callback that fires on selection change, resolving IDs from the cache, threads this through cleanly without exposing the Map.
-
-### Backlog Audit
-
-**Dead code detection:**
-- **Check barrel exports → imports → actual usage before deleting**: `CreateBookingCard` was exported from the barrel, imported in `BookingListPage`, but never rendered. All three references (file, export, import) must be cleaned in one pass.
-- **Search for duplicate utility functions before writing new ones**: `getInitials` was defined inline in `BookingCard.tsx` despite already existing in `@/lib/avatar`. Rule: grep for the function name project-wide before adding a local copy.
-
-**Pagination pattern:**
-- **Fetch N+1 to detect hasMore**: For cursor pagination, always fetch one extra row (`take: limit + 1`). If you get limit+1 results, there are more pages. Slice to limit before returning. This avoids a separate COUNT query.
-- **Audit logs are a prime candidate for lazy pagination**: Initial detail fetch includes up to 50 entries (covering 95%+ of bookings). A separate paginated endpoint handles the long tail without bloating the primary response.
-
-## Session 2026-03-29
-
-### Testing Infrastructure Patterns
-
-- **Test the service layer, not utilities**: The original 208 tests all covered pure utility functions (formatters, status labels). Zero tests touched the DB-dependent service layer where real bugs live. Prioritize testing code where bugs corrupt data over code where bugs show wrong labels.
-- **`vi.mock("@/lib/db")` + `_mockTx` is the canonical pattern**: Mock `db.$transaction` to intercept the callback, track `transactionCalls` array for isolation assertions, expose `_mockTx` for test access. Every service test follows this shape.
-- **Track transaction calls to verify isolation levels**: Push `{ options }` on every `$transaction` call. Assert `isolationLevel: "Serializable"` where required. This catches silent regressions if someone removes isolation from a critical path.
-- **Write "bug proof" tests that assert current broken behavior**: Name them `BUG: <description>` and comment what the correct behavior should be. When someone fixes the bug, the test fails and guides them. Better than a ticket that gets lost.
-- **Functions that accept `tx` as a parameter don't need module mocks**: `checkAvailability`, `checkSerializedConflicts`, etc. accept a tx client. Create a local mock object and pass it directly — simpler than `vi.mock`.
-- **`upsertBulkBalancesAndMovements` has a negativity guard**: When mocking bulk operations, `bulkStockBalance.findMany` must return sufficient stock for CHECKOUT movements or the function throws 409. Easy to miss when writing create-booking tests.
-- **Data factories should be minimal and override-friendly**: `makeBooking({ status: "COMPLETED" })` is cleaner than constructing 15-field objects inline. Every factory returns valid defaults — override only what your test cares about.
-- **Archive plan files aggressively**: 23 active plans with 55 already archived = planning confusion. After any feature ships, immediately `mv tasks/plan.md tasks/archive/`. The archive preserves context without cluttering the active queue.
-
-## Session 2026-03-30
-
-### Patterns (Cross-Cutting Security Audit)
-- **SERIALIZABLE must be enforced uniformly, not just on "critical" paths**: The booking/scan services had SERIALIZABLE on every transaction, but the shift/trade services had ZERO — a complete blind spot. When D-006 says "all booking mutations use SERIALIZABLE", audit the definition of "all". Shifts mutate assignment state that affects scheduling integrity just as much.
-- **Bug proof tests flip naturally into regression tests**: Tests named `BUG: ...` with `expectNoIsolation()` assertions become regression tests by changing to `expectSerializableIsolation()`. The test infrastructure (transaction tracking mocks) was already perfect for this — only the assertion direction changed.
-- **CSRF: Origin-header-only protection has a gap**: Missing Origin headers bypass the check entirely. Modern browsers send Origin on POST, but server-side clients, cURL, and some redirect flows may not. Block missing Origin by default; exempt internal/cron routes via Bearer auth detection.
-- **Quantity guard + increment must be atomic**: Any pattern where you read a value, check a condition, and then increment in a separate transaction is a TOCTOU race. The fix is always the same: re-read inside the transaction, check, then write — all in SERIALIZABLE.
-- **`Promise.allSettled` is the right default for read-only parallel queries**: When combining multiple independent DB queries for a single response, `Promise.allSettled` with fallback values is strictly better than `Promise.all`. The extra code is minimal and prevents total failure from one slow query.
-- **`markCheckoutCompleted` double-return pattern**: When completing a multi-step process that has intermediate partial operations (partial check-in), the final cleanup must account for work already done. Always subtract `alreadyDone` from `totalToDo`.
+> Consolidated 2026-04-03. Organized by category, not chronology.
+> Only actionable patterns retained — session-specific context removed.
+
+## Security & Authorization
+
+- **SERIALIZABLE on all mutation transactions**: Booking, scan, shift, and trade services all need `isolationLevel: Serializable`. Audit the definition of "all" — blind spots hide in less-obvious services.
+- **TOCTOU on unique constraints**: Never rely on `findUnique` before `create` for uniqueness. Catch Prisma `P2002` and return 409. The DB constraint is the source of truth.
+- **Bulk endpoints must mirror single-endpoint auth guards**: When writing a bulk alternative, grep the single path for all authorization checks and replicate each one.
+- **Multi-write flows need transactions**: User creation + invitation claim, booking + allocation — if writes are logically atomic, wrap in `$transaction`.
+- **Read-then-delete is a race condition**: Use `deleteMany({ where: { id, condition } })` and check `deleted.count` — the DB enforces the condition atomically.
+- **Privilege escalation has two vectors per role op**: Guard BOTH granting AND revoking. Check `target.role` vs `actor.role` on all mutation endpoints.
+- **STAFF cannot edit ADMIN users**: Role guards must apply to profile field edits, not just role changes.
+- **401 handling on EVERY mutation**: Session can expire between page load and user action. Check `res.status === 401` on all POST/PATCH/DELETE, redirect to `/login`.
+- **CSRF: Block missing Origin headers by default**: Exempt internal/cron routes via Bearer auth detection.
+- **Quantity guard + increment must be atomic**: Re-read inside the transaction, check, then write — all in SERIALIZABLE.
+- **Seed/bootstrap endpoints are account takeover vectors**: Gate behind auth or disable in production.
+- **Two-phase flows (request then approve) must re-validate at approval time**: Between a student requesting a shift and staff approving, the student may have been assigned elsewhere. Always re-run time-conflict and active-assignment checks in the approve step.
+- **ZodError should be handled globally in `fail()`**: Before the fix, Zod `.parse()` errors surfaced as 500. Centralized ZodError handling returns 400 with field-level details for all routes.
+- **Guard terminal status transitions**: `removeAssignment` set any assignment to DECLINED, even already-DECLINED or SWAPPED ones. Terminal statuses should be immutable — whitelist removable statuses.
+
+## Data Integrity
+
+- **Asset status is derived, not stored** (D-001): Always compute from allocations. Never write to a status field.
+- **Concurrent mutations need SERIALIZABLE**: Two users editing the same entity — lost updates happen without proper isolation.
+- **`Promise.allSettled` for read-only parallel queries**: Prevents total failure from one slow query in dashboard-style endpoints.
+- **Scan dedup within 5-second window**: Prevents camera debounce from creating duplicate scan events.
+- **Direct assignment must clean up orphaned requests**: When staff directly fills a shift slot, pending REQUESTED assignments become orphaned. Decline them atomically in the same transaction.
+- **Read-then-write without transaction is TOCTOU even for "simple" updates**: ShiftGroup PATCH did `findUnique` then `update` separately. Two concurrent toggles produce stale audit `before` snapshots. Wrap in SERIALIZABLE.
+
+## API Patterns
+
+- **`withAuth` for authenticated routes, `withHandler` for public**: Both wrap try/catch and resolve dynamic params.
+- **`requirePermission(role, resource, action)`** for RBAC on every mutation endpoint.
+- **`createAuditEntry`** on every mutation (D-007). Include `before` + `after` snapshots for field-level diffs.
+- **Rate limiting on auth endpoints**: Register (5/15min), Login (10/15min) per IP.
+- **Catch `P2002` for unique constraint violations**: Return friendly 409 instead of 500.
+- **Fetch N+1 to detect hasMore**: For cursor pagination, fetch `limit + 1` rows. Slice before returning. Avoids separate COUNT.
+- **`createMany` for bulk audit entries**: Avoids N individual INSERTs in loops.
+
+## UI Reliability
+
+- **Distinguish initial load from refresh**: Initial = skeletons. Refresh = keep visible data, show subtle spinner. Use `hasLoadedRef` (not state) to track.
+- **Refresh failure must NOT replace visible data**: Only set `loadError` on initial load. On refresh failure, toast and keep existing data.
+- **AbortController on all filter-driven fetches**: Rapid changes fire concurrent requests. Abort previous before starting new.
+- **Guard all mutation buttons, not just the active one**: `disabled={acting !== null}` blocks ALL buttons during any mutation.
+- **Handler self-guard against double invocation**: Even with `disabled={saving}`, check `if (saving) return` at handler top. React state updates are async.
+- **Radix Dialog retains DOM between close/open**: Reset form state in `useEffect(() => { if (open) reset(); }, [open])`.
+- **Every inline `fetch()` needs its own error path**: Each fetch in a chain can fail independently.
+- **`useCallback` deps on hook returns = infinite loop risk**: Use refs for unstable values (`toastRef.current = toast`).
+
+## UX Patterns
+
+- **Toast messages should confirm WHAT happened**: "Extended to Mar 28" > "Booking extended". Include identifiers.
+- **Success toasts are as important as error toasts**: Silent success erodes confidence.
+- **Error differentiation**: Network errors get `WifiOff` icon + "offline" copy. Server errors get generic icon + "temporary" language.
+- **Destructive actions need confirmation + feedback**: `useConfirm` + `useToast` pattern.
+- **Optimistic UI for mutations**: Patch local state immediately, then reload for truth. Capture `prevState` for rollback on failure.
+- **Auto-clear transient feedback**: Success 5s, errors 8s. Stale messages confuse users.
+- **Filtered count indicator**: Show "N of M" when filters reduce the result set.
+- **Skeleton fidelity**: Vary widths per row. Match real layout — avatar circles, text lines, badge pills.
+
+## Design System (shadcn/ui)
+
+- **`text-muted-foreground` for secondary text** — NOT `text-secondary` (which maps to a background color token).
+- **Badge variants for all colored labels**: Never hardcode `bg-green-50 text-green-700`. Use Badge variants for dark mode safety.
+- **`text-base md:text-sm` on inputs**: Prevents iOS auto-zoom on focus (requires 16px+ on mobile).
+- **Hover-reveal needs `sm:` prefix**: `sm:opacity-0 sm:group-hover/row:opacity-100` — always visible on touch.
+- **`-webkit-tap-highlight-color: transparent`** on all interactive elements. Global rule.
+- **`overscroll-behavior-y: none`** on body for native app feel on iOS.
+- **Progress component replaces custom progress bars**: Use `[&>[data-slot=progress-indicator]]:bg-color` for custom colors.
+
+## Input Validation
+
+- **`.trim()` before `.min(1)` on name fields**: Prevents whitespace-only strings.
+- **`res.json()` on error responses can throw**: Wrap in try-catch — proxies may return HTML on 502.
+- **Disable ALL form inputs during submission**: Not just the submit button.
+- **Scan-to-add must enforce the same rules as click-to-select**: Every input path must validate identically.
+
+## Detail Page Architecture
+
+> Gold standard: `src/app/(app)/items/[id]/`
+
+- **Structure**: PageBreadcrumb (auto) → Header (InlineTitle + badges) → Properties strip → Tabs (sticky, URL-synced, keyboard shortcuts) → Tab content
+- **`SaveableField` + `useSaveField`** for all inline-editable fields
+- **Tab content spacing**: `mt-14` (not mt-6)
+- **Card styling**: `border-border/40 shadow-none` + `divide-y divide-border/30`
+- **Input styling**: `border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs`
+- **No double breadcrumbs**: AppShell handles it. Pages should NOT render their own.
+- **URL-synced tabs**: `useSearchParams` to hydrate, `replaceState` to sync. Don't use `router.push`.
+
+## Testing
+
+- **Test the service layer, not utilities**: Prioritize DB-dependent code where bugs corrupt data.
+- **`vi.mock("@/lib/db")` + `_mockTx` is canonical**: Mock `$transaction`, track calls, expose `_mockTx`.
+- **Track transaction calls to verify isolation levels**: Assert `isolationLevel: "Serializable"` where required.
+- **Bug-proof tests**: Name `BUG: <description>`, assert broken behavior. When fixed, the test guides the fix.
+- **Data factories should be minimal and override-friendly**: `makeBooking({ status: "COMPLETED" })`.
+
+## Process
+
+- **NORTH_STAR.md first**: Read before every session to prevent context drift.
+- **Doc sync on every commit**: AREA_*.md changelog + GAPS_AND_RISKS.md in the same commit as the feature.
+- **Archive plan files aggressively**: `mv tasks/plan.md tasks/archive/` immediately after ship.
+- **Always verify response shape from the API route**: Read `return ok(...)` before writing client reads. Don't guess.
+- **Dead CSS/code accumulates during rewrites**: Grep for every class/export after migration. Remove what's unused.
+- **Multi-pass audit process**: Visual → flow-trace → component audit → user feedback. Each pass finds different bugs.
+- **Tailwind `hidden` always wins over CSS media queries**: Use responsive Tailwind classes (`hidden max-md:block`) instead of mixing Tailwind utility + custom CSS for show/hide logic.
+- **Every user-triggered fetch needs 401 handling**: Any new fetch handler must include: 401 redirect, error toast, and double-click guard. Easy to miss on handlers added after the initial hardening pass.
+- **Mobile loading skeletons are easy to forget**: Always check that loading states render on both desktop and mobile — add a separate mobile skeleton if the layout differs significantly.

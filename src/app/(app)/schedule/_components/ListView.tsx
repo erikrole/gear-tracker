@@ -191,7 +191,7 @@ export function ListView({
               const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
 
               return (
-                <div key={entry.id} className="block px-4 py-3 border-b border-[var(--border-light)] last:border-b-0 no-underline text-inherit active:bg-[var(--panel-hover)]">
+                <div key={entry.id} className="block px-4 py-3 border-b border-border/50 last:border-b-0 no-underline text-inherit active:bg-accent/50">
                   <button
                     className="w-full text-left p-3"
                     onClick={() => entry.shifts.length > 0

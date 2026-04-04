@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
+import { ZodError } from "zod";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -22,6 +23,17 @@ export function fail(error: unknown) {
     return NextResponse.json(
       { error: error.message, ...(error.data ? { data: error.data } : {}) },
       { status: error.status }
+    );
+  }
+
+  // Zod validation errors — return 400 with field-level details
+  if (error instanceof ZodError) {
+    const messages = error.errors.map(
+      (e) => `${e.path.join(".")}: ${e.message}`
+    );
+    return NextResponse.json(
+      { error: "Validation failed", details: messages },
+      { status: 400 }
     );
   }
 

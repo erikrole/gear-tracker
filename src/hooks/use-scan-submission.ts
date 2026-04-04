@@ -9,12 +9,11 @@ import type {
   ScanFeedbackResult,
   UnitPickerState,
 } from "@/app/(app)/scan/_components/types";
-
-function vibrate(ms = 100) {
-  if (typeof navigator !== "undefined" && navigator.vibrate) {
-    navigator.vibrate(ms);
-  }
-}
+import {
+  scanFeedbackSuccess,
+  scanFeedbackError,
+  scanFeedbackInfo,
+} from "@/lib/scan-feedback";
 
 type UseScanSubmissionOptions = {
   mode: ScanMode;
@@ -82,7 +81,7 @@ export function useScanSubmission(
         });
 
         if (res.ok) {
-          vibrate();
+          scanFeedbackSuccess();
           setFeedback({ message: "Item scanned successfully", type: "success" });
           // Optimistic update for serialized items
           if (payload.scanType === "SERIALIZED" && payload.scanValue) {
@@ -131,6 +130,7 @@ export function useScanSubmission(
               json.error ||
               "Unit not available — it may have been scanned by another device";
           } else if (errCode === "DUPLICATE_SCAN") {
+            scanFeedbackInfo();
             setFeedback({
               message: "Already scanned — skipping duplicate",
               type: "info",
@@ -138,7 +138,7 @@ export function useScanSubmission(
             return false;
           }
           setFeedback({ message: errMsg, type: "error" });
-          vibrate(50);
+          scanFeedbackError();
           return false;
         }
       } catch {
@@ -193,7 +193,7 @@ export function useScanSubmission(
         const match = exact ?? assets[0];
 
         if (match) {
-          vibrate();
+          scanFeedbackSuccess();
           const detailRes = await fetch(`/api/assets/${match.id}`);
           if (detailRes.ok) {
             const detailJson = await detailRes.json();
@@ -258,7 +258,7 @@ export function useScanSubmission(
           });
 
           if (res.ok) {
-            vibrate();
+            scanFeedbackSuccess();
             setFeedback({
               message: "Item scanned successfully",
               type: "success",
@@ -323,7 +323,7 @@ export function useScanSubmission(
             message: errMsg || "This item is not part of this checkout",
             type: "error",
           });
-          vibrate(50);
+          scanFeedbackError();
           return;
         }
 

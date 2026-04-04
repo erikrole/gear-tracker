@@ -40,15 +40,25 @@ export const POST = withHandler(async (req) => {
 
   const passwordHash = await hashPassword(body.password);
 
+  // Atomic: create user + claim invitation in one transaction
   let user;
   try {
-    user = await db.user.create({
-      data: {
-        name: body.name,
-        email,
-        passwordHash,
-        role: allowedEntry.role, // Use role from allowlist (not hardcoded STUDENT)
-      },
+    user = await db.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          name: body.name.trim(),
+          email,
+          passwordHash,
+          role: allowedEntry.role, // Use role from allowlist (not hardcoded STUDENT)
+        },
+      });
+
+      await tx.allowedEmail.update({
+        where: { id: allowedEntry.id },
+        data: { claimedAt: new Date(), claimedById: created.id },
+      });
+
+      return created;
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -56,12 +66,6 @@ export const POST = withHandler(async (req) => {
     }
     throw error;
   }
-
-  // Mark allowlist entry as claimed
-  await db.allowedEmail.update({
-    where: { id: allowedEntry.id },
-    data: { claimedAt: new Date(), claimedById: user.id },
-  });
 
   await createSession(user.id);
 

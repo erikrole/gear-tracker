@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
@@ -37,19 +38,27 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
 
   const body = updateShiftGroupSchema.parse(await req.json());
-  const existing = await db.shiftGroup.findUnique({ where: { id } });
-  if (!existing) throw new HttpError(404, "Shift group not found");
 
-  const data: Record<string, unknown> = {};
-  if (body.isPremier !== undefined) data.isPremier = body.isPremier;
-  if (body.notes !== undefined) data.notes = body.notes;
-  data.manuallyEdited = true;
+  const { updated, before } = await db.$transaction(async (tx) => {
+    const existing = await tx.shiftGroup.findUnique({ where: { id } });
+    if (!existing) throw new HttpError(404, "Shift group not found");
 
-  const updated = await db.shiftGroup.update({
-    where: { id },
-    data,
-    include: { event: true, shifts: true },
-  });
+    const patchData: Record<string, unknown> = {};
+    if (body.isPremier !== undefined) patchData.isPremier = body.isPremier;
+    if (body.notes !== undefined) patchData.notes = body.notes;
+    patchData.manuallyEdited = true;
+
+    const result = await tx.shiftGroup.update({
+      where: { id },
+      data: patchData,
+      include: { event: true, shifts: true },
+    });
+
+    return {
+      updated: result,
+      before: { isPremier: existing.isPremier, notes: existing.notes },
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,
@@ -57,7 +66,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     entityType: "shift_group",
     entityId: id,
     action: "shift_group_updated",
-    before: { isPremier: existing.isPremier, notes: existing.notes },
+    before,
     after: { isPremier: updated.isPremier, notes: updated.notes },
   });
 

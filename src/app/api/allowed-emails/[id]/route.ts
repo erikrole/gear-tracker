@@ -23,7 +23,14 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
     );
   }
 
-  await db.allowedEmail.delete({ where: { id: params.id } });
+  // Atomic: only delete if still unclaimed (guards against race with concurrent registration)
+  const deleted = await db.allowedEmail.deleteMany({
+    where: { id: params.id, claimedAt: null },
+  });
+
+  if (deleted.count === 0) {
+    throw new HttpError(400, "This invitation was just claimed and can no longer be deleted");
+  }
 
   await createAuditEntry({
     actorId: user.id,
