@@ -42,7 +42,7 @@ export function ScanControls({
     <div className="bg-black rounded-xl overflow-hidden shadow-sm">
       {scanning ? (
         <div className="relative">
-          <div className="max-h-[240px] overflow-hidden">
+          <div className="max-h-[180px] md:max-h-[240px] overflow-hidden">
             <QrScanner
               onScan={onScan}
               onError={setCameraError}
