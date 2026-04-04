@@ -32,12 +32,13 @@ export default function EventDetailPage() {
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserRole, setCurrentUserRole] = useState("STUDENT");
   const [commandCenter, setCommandCenter] = useState<CommandCenterData | null>(null);
-  const [nudgingId, setNudgingId] = useState<string | null>(null);
+  const [acting, setActing] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [, setTick] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
+  const hasLoadedRef = useRef(false);
 
   // Tick for "Updated X ago" freshness
   useEffect(() => {
@@ -45,27 +46,32 @@ export default function EventDetailPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const loadEvent = useCallback(async (signal?: AbortSignal) => {
+  // isRefresh=true means we already have data visible — don't clobber it on failure
+  const loadEvent = useCallback(async (signal?: AbortSignal, isRefresh = false) => {
     try {
       const res = await fetch(`/api/calendar-events/${id}`, { signal });
       if (signal?.aborted) return;
       if (res.status === 401) { window.location.href = "/login"; return; }
-      if (!res.ok) { setFetchError("server"); return; }
+      if (!res.ok) {
+        if (!isRefresh) setFetchError("server");
+        return;
+      }
       const json = await res.json();
       if (json?.data) {
         setEvent(json.data);
         setBreadcrumbLabel(json.data.summary);
         setFetchError(null);
         setLastUpdated(new Date());
-      } else {
+        hasLoadedRef.current = true;
+      } else if (!isRefresh) {
         setFetchError("server");
       }
     } catch (err) {
       if (signal?.aborted) return;
       if (err instanceof DOMException && err.name === "AbortError") return;
-      setFetchError("network");
+      if (!isRefresh) setFetchError("network");
     }
-  }, [id]);
+  }, [id, setBreadcrumbLabel]);
 
   const loadShiftGroup = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -128,22 +134,25 @@ export default function EventDetailPage() {
   }, [id, loadEvent, loadShiftGroup, loadCommandCenter]);
 
   const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
     setRefreshing(true);
     const controller = new AbortController();
     try {
       await Promise.all([
-        loadEvent(controller.signal),
+        loadEvent(controller.signal, true),
         loadShiftGroup(controller.signal),
         ...(currentUserRole === "STAFF" || currentUserRole === "ADMIN"
           ? [loadCommandCenter(controller.signal)]
           : []),
       ]);
+    } catch {
+      toast("Failed to refresh — showing last known data", "error");
     } finally {
       setRefreshing(false);
     }
-  }, [loadEvent, loadShiftGroup, loadCommandCenter, currentUserRole]);
+  }, [loadEvent, loadShiftGroup, loadCommandCenter, currentUserRole, refreshing, toast]);
 
-  // Error state
+  // Error state (only when we have NO data to show)
   if (fetchError && !event) {
     return (
       <div className="py-10 px-5 max-w-md mx-auto">
@@ -168,7 +177,7 @@ export default function EventDetailPage() {
     );
   }
 
-  // Loading skeleton
+  // Loading skeleton (only on initial load, not refresh)
   if (!event) {
     return <EventSkeleton />;
   }
@@ -258,11 +267,12 @@ export default function EventDetailPage() {
           shiftGroup={shiftGroup}
           commandCenter={commandCenter}
           currentUserRole={currentUserRole}
-          nudgingId={nudgingId}
+          acting={acting}
           linkParams={{ titleParam, dateParam, endParam, locationParam, eventParam }}
           onManageShifts={() => setSelectedGroupId(shiftGroup.id)}
           onNudge={async (assignmentId, userName) => {
-            setNudgingId(assignmentId);
+            if (acting) return;
+            setActing(assignmentId);
             try {
               const res = await fetch("/api/notifications/nudge", {
                 method: "POST",
@@ -277,8 +287,9 @@ export default function EventDetailPage() {
               }
             } catch {
               toast("Network error — nudge not sent", "error");
+            } finally {
+              setActing(null);
             }
-            setNudgingId(null);
           }}
         />
       )}

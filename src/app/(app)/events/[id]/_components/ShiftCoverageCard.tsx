@@ -14,7 +14,8 @@ type ShiftCoverageCardProps = {
   shiftGroup: ShiftGroupSummary;
   commandCenter: CommandCenterData | null;
   currentUserRole: string;
-  nudgingId: string | null;
+  /** ID of the action currently in flight (global spam-click guard) */
+  acting: string | null;
   /** URL search params for linking to checkout/reservation pages */
   linkParams: {
     titleParam: string;
@@ -31,7 +32,7 @@ export function ShiftCoverageCard({
   shiftGroup,
   commandCenter,
   currentUserRole,
-  nudgingId,
+  acting,
   linkParams,
   onManageShifts,
   onNudge,
@@ -140,10 +141,10 @@ export function ShiftCoverageCard({
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={nudgingId === m.assignmentId}
+                          disabled={acting !== null}
                           onClick={() => onNudge(m.assignmentId, m.userName)}
                         >
-                          {nudgingId === m.assignmentId ? "Sending..." : "Nudge"}
+                          {acting === m.assignmentId ? "Sending..." : "Nudge"}
                         </Button>
                         <Button size="sm" asChild>
                           <Link
