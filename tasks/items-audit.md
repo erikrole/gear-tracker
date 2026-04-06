@@ -2,7 +2,7 @@
 **Date**: 2026-04-06
 **Auditor**: Claude (automated)
 **Area**: Items
-**Overall Verdict**: Ship-ready (21/25)
+**Overall Verdict**: Ship-ready (22/25)
 
 ## Scores
 | Dimension | Score | Notes |
@@ -10,7 +10,7 @@
 | Scope clarity | 5/5 | AREA_ITEMS.md is comprehensive (378 lines) with detailed IA for list, create, and detail surfaces. All 14 ACs checked. V1 spec covers serialized + bulk items, numbered tracking (D-022), accessories (D-023). |
 | Hardening | 4/5 | Items list: 5-pass hardened (AbortController, skeletons, error differentiation, double-click guards). Item detail: hardened (AbortController, 401 redirect, refresh-preserves-data, error differentiation, visibility refresh). Kits/bulk-inventory pages less documented. |
 | Roadmap | 5/5 | Three roadmap files: `items-roadmap.md` (list V1-V3), `item-details-roadmap.md` (detail V1-V3), `item-picker-roadmap.md`. V1 polish items shipped. V2/V3 well-scoped. |
-| Feature completeness | 4/5 | All 14 ACs met. V1 roadmap polish items shipped (notes, summary bar, export, favorites, column persistence). Missing: consumable flag UI, primaryScanCode editing, notes display on detail page (V1.7 in detail roadmap). |
+| Feature completeness | 5/5 | All 14 ACs met. V1 roadmap polish items shipped (notes, summary bar, export, favorites, column persistence). Detail roadmap V1 complete (all 7 items shipped including notes section). Missing only: consumable flag UI and primaryScanCode editing (both deferred by design). |
 | Doc sync | 3/5 | AREA_ITEMS last updated 2026-03-25. Missing changelog entries for: favorites shipped, export shipped, summary bar shipped, detail page hardening (all shipped after 2026-03-25). items-roadmap.md V1 items marked shipped but AREA doc doesn't reflect these. |
 
 ## Page-by-Page Status
@@ -84,8 +84,7 @@
 | Labels page | Shipped | GAP-17 | Print label action in item detail. |
 | Consumable flag UI | Missing | items-roadmap | Schema field exists, no UI anywhere. Deferred — needs design brief. |
 | primaryScanCode editing | Missing | items-roadmap | Schema field exists, not editable. Low priority. |
-| Notes display on detail page | Missing | item-details-roadmap V1.7 | Stored as JSON metadata, no dedicated section. |
-| Detail page notes section | Specced | item-details-roadmap V1.7 | Not yet implemented. |
+| Notes display on detail page | Shipped | item-details-roadmap V1.7 | `NotesField` component in `ItemInfoTab.tsx:806-855`. Inline-editable textarea with SaveableField. |
 | React Query migration | Specced | items-roadmap V2.4 | Manual fetch+useState still in use. |
 | Quick filter chips | Specced | items-roadmap V2.1 | Predefined filter shortcuts. |
 | Inline quick-edit on list | Specced | items-roadmap V2.3 | Click cell to edit. |
@@ -100,7 +99,7 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 1. **AREA_ITEMS.md stale**: Last updated 2026-03-25. Missing changelog entries for favorites (GAP-22 closed 2026-03-28), export shipped, summary bar shipped, detail page hardening (AbortController, 401 redirect, error differentiation, breadcrumb, tab overflow, tab counts — all shipped per item-details-roadmap V1).
 
-2. **Detail page notes section not shipped**: `item-details-roadmap.md` V1.7 "Notes display" is not checked off and appears unimplemented. The notes field is editable in the Info tab metadata but lacks a dedicated display section.
+2. **BRIEF_ITEM_BUNDLING_V1.md ACs unchecked**: Status says "Shipped" but all 9 ACs marked `[ ]`. Same doc drift pattern as BRIEF_USER_DEACTIVATION_V1 — needs checkbox update.
 
 3. **Kits and bulk-inventory pages lack documented hardening**: No 5-pass hardening entries in AREA docs or git log for `/kits`, `/kits/[id]`, `/bulk-inventory`. These pages use `useFetch` hook (which provides some resilience) but haven't been through the formal hardening process.
 
@@ -116,7 +115,7 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 3. **[Medium] Harden bulk-inventory page** — `/bulk-inventory` lacks documented hardening. Run `/harden-page` to verify resilience patterns.
 
-4. **[Low] Add notes display to detail Info tab** — item-details-roadmap V1.7. Show notes field as a read-only or inline-editable section rather than buried in JSON metadata.
+4. **[Low] Check off BRIEF_ITEM_BUNDLING_V1.md ACs** — All 9 ACs met. Update `[ ]` → `[x]`.
 
 5. **[Low] Add pagination to ItemBookingsTab** — Currently loads all bookings. Add cursor-based pagination (same pattern as UserActivityTab).
 
