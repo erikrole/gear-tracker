@@ -139,7 +139,7 @@ export default function ScanPage() {
 
   // ── Render ──
   return (
-    <div className="flex flex-col gap-3 pb-4 md:max-w-[640px] md:mx-auto max-md:gap-2.5 max-md:pb-[100px]">
+    <div className="flex flex-col gap-2 pb-4 md:gap-3 md:max-w-[640px] md:mx-auto max-md:pb-[100px]">
       {/* ══════ Compact header (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && (
         <div className="flex items-center gap-2.5 sticky top-[56px] z-[1] bg-[var(--bg)] -mx-4 -mt-4 px-4 py-2 max-md:border-b max-md:border-[var(--border-light)] md:static md:mx-0 md:px-0 md:py-2">
@@ -195,14 +195,14 @@ export default function ScanPage() {
       {/* ══════ Progress bar (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && totalItems > 0 && (
         <div>
-          <div className="flex items-baseline gap-1.5 mb-1.5">
-            <span className="text-xl font-extrabold font-[var(--font-heading)] leading-none">{scannedItems}/{totalItems}</span>
-            <span className="text-[13px] text-muted-foreground">{hasReports ? "items accounted for" : "items scanned"}</span>
-            <span className="text-[13px] font-bold ml-auto text-muted-foreground">{progressPct}%</span>
+          <div className="flex items-baseline gap-1.5 mb-1">
+            <span className="text-lg md:text-xl font-extrabold font-[var(--font-heading)] leading-none">{scannedItems}/{totalItems}</span>
+            <span className="text-xs md:text-[13px] text-muted-foreground">{hasReports ? "items accounted for" : "items scanned"}</span>
+            <span className="text-xs md:text-[13px] font-bold ml-auto text-muted-foreground">{progressPct}%</span>
           </div>
           <Progress
             value={progressPct}
-            className={`h-2.5 ${allComplete ? "[&>[data-slot=progress-indicator]]:bg-green-500" : "[&>[data-slot=progress-indicator]]:bg-blue-500"}`}
+            className={`h-2 md:h-2.5 ${allComplete ? "[&>[data-slot=progress-indicator]]:bg-green-500" : "[&>[data-slot=progress-indicator]]:bg-blue-500"}`}
           />
         </div>
       )}

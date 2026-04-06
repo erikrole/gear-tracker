@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-22
+- Last Updated: 2026-04-06
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -201,18 +201,18 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Thumbnail image missing for one or more items in row.
 
 ## Acceptance Criteria
-1. `BOOKED` reservations can transition to `OPEN` without data loss.
-2. Edit operations revalidate conflicts for all relevant field changes.
-3. `OPEN` records cannot be canceled directly in normal flow.
-4. Permission and ownership enforcement matches `AREA_USERS.md`.
-5. All transitions and edits emit audit records.
-6. Terminal states are immutable in V1.
-7. Reservation detail page exposes `Info`, `Attachments`, and `History` tabs.
-8. Equipment panel surfaces item-level conflict badges with actionable guidance.
-9. Actions menu behavior matches state and policy mapping.
-10. Reservations list supports status scope, search, sort, and required columns.
-11. `Export` visibility follows role policy.
-12. List and detail views remain consistent after edit/cancel/start-checkout actions.
+- [x] AC-1: `BOOKED` reservations can transition to `OPEN` without data loss.
+- [x] AC-2: Edit operations revalidate conflicts for all relevant field changes.
+- [x] AC-3: `OPEN` records cannot be canceled directly in normal flow.
+- [x] AC-4: Permission and ownership enforcement matches `AREA_USERS.md`.
+- [x] AC-5: All transitions and edits emit audit records.
+- [x] AC-6: Terminal states are immutable in V1.
+- [x] AC-7: Reservation detail page exposes `Info`, `Equipment`, and `History` tabs.
+- [ ] AC-8: Equipment panel surfaces item-level conflict badges with actionable guidance. **(Partial — conflict detection in EquipmentPicker, not yet on booking detail equipment tab.)**
+- [x] AC-9: Actions menu behavior matches state and policy mapping.
+- [x] AC-10: Reservations list supports status scope, search, sort, and required columns.
+- [x] AC-11: `Export` visibility follows role policy.
+- [x] AC-12: List and detail views remain consistent after edit/cancel/start-checkout actions.
 
 ## Dependencies
 - Booking and allocation constraints from `DECISIONS.md` (D-001, D-006, D-007).
@@ -247,4 +247,9 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-03-22: **Unified detail page** — Reservation and checkout detail pages unified via shared `BookingDetailPage` component. Extracted `useBookingDetail` + `useBookingActions` hooks. Old `/api/reservations/[id]` GET/PATCH redirects to `/api/bookings/[id]`. PATCH returns enriched detail with before-snapshot audit. Shared `InlineTitle` component. Reservation-specific: "Start checkout" CTA, duplicate action, serial/location equipment columns.
 - 2026-03-22: **Detail page UX polish (3 rounds)** — Same changes as AREA_CHECKOUTS.md. Status vocabulary: BOOKED→"Confirmed". Action buttons redesigned. Equipment row context menus. Avatar initials. shadcn component replacements (Breadcrumb, Collapsible, ToggleGroup, Alert). InlineTitle save feedback. Collapsible history with preview.
 - 2026-03-25: **Booking page hardening (5-pass)** — Same shared hardening as AREA_CHECKOUTS. Error state → Alert. AbortController on all fetches. 401 redirect on all endpoints. Refresh-preserves-data. Context menu 401 handling + success toasts. Manual refresh button. Extend toast with date.
-- 2026-03-31: **Booking sheet deep links** — Same changes as AREA_CHECKOUTS. Reservation redirect page forwards all URL search params. Dashboard buttons open CreateBookingSheet in-place with event auto-fill. Item detail "Reserve" deep-links with asset pre-selection.
+- 2026-03-25: **Kit-to-booking integration (GAP-18)** — `kitId` FK on Booking model. Kit selector in CreateBookingSheet (location-filtered). Kit badge on booking detail page.
+- 2026-03-25: **Overdue priority sort** — Overdue reservations float to top of list page. Longest-overdue first.
+- 2026-03-26: **BookingListPage hardened (5-pass)** — Extend toast, error differentiation (network vs server), all 8 resilience scenarios verified.
+- 2026-03-30: **Photo requirement (D-028)** — Condition photos required on checkout/checkin completion. Camera-only capture. Scan-only checkin (manual checkbox return removed). Admin override available.
+- 2026-03-31: **Booking sheet deep links** — Reservation redirect page forwards all URL search params. Dashboard buttons open CreateBookingSheet in-place with event auto-fill. Item detail "Reserve" deep-links with asset pre-selection.
+- 2026-04-06: **Doc sync** — ACs converted to checkbox format. 11/12 checked (AC-8 conflict badges partial). Changelog backfilled for kit integration, overdue sort, list hardening, photo requirement.

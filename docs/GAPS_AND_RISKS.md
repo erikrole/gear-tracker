@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-28
+- Last Updated: 2026-04-06
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -48,7 +48,7 @@
 | ~~GAP-28~~ | ~~React Query adoption incomplete — Kits page uses raw useState+useEffect, Search uses raw fetch()~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~Kits migrated to useFetch (React Query), Search kept raw fetch (multi-endpoint fan-out pattern is correct) but replaced Spinner with Skeleton. 2026-04-03~~ |
 | ~~GAP-29~~ | ~~URL state not persisted on Kits and Bulk Inventory pages~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~Added useUrlState for location/archived on Kits, search on Bulk Inventory. 2026-04-03~~ |
 | ~~GAP-30~~ | ~~No CSP header~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~CSP header added to next.config.ts with self/inline/blob rules. 2026-04-03~~ |
-| ~~GAP-31~~ | ~~User deactivation not fully wired~~ | ~~AREA_USERS~~ | ~~Closed~~ | ~~Login blocking, booking migration (block on OPEN checkouts, auto-cancel BOOKED/DRAFT), admin toggle, inactive badge all shipped. 2026-04-03~~ |
+| ~~GAP-31~~ | ~~User deactivation not fully wired~~ | ~~AREA_USERS~~ | ~~Closed~~ | ~~Login blocking, booking migration (block on OPEN checkouts, auto-cancel BOOKED/DRAFT), admin toggle, inactive badge all shipped. 2026-04-03. Session-level enforcement added 2026-04-06: `requireAuth()` checks `user.active`, deactivation deletes sessions.~~ |
 | GAP-32 | Rate limiting is in-memory per serverless instance — resets on cold start | CROSS-CUTTING | Expected | Adequate for current 4-user team. Migrate to Redis/Upstash KV if user base grows significantly. |
 | ~~GAP-22~~ | ~~`FavoriteItem` model has API but no UI surface — no favorites filter on items list, no favorites page~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Fully shipped: star column in items DataTable, optimistic toggle on item detail page, "Favorites" filter chip in toolbar, `favorites_only` query param in API. Batched favorite lookup (no N+1).~~ |
 | ~~GAP-23~~ | ~~`StudentSportAssignment` and `StudentAreaAssignment` are read-only display — no CRUD UI for editing assignments~~ | ~~AREA_USERS~~ | ~~Closed~~ | ~~Full CRUD shipped in UserInfoTab.tsx: sport popover multi-select + area popover with primary toggle. Permission-gated (admin/staff can edit, students read-only). APIs: POST/DELETE sport roster + POST/DELETE student-areas.~~ |
@@ -172,3 +172,4 @@
 - 2026-03-28: Silent-failure fixes — calendar sync now surfaces shift generation errors (warning toast instead of false success), CSV export warns when truncated at 5,000 items (X-Truncated header + UI warning). Closed stale GAP-19, GAP-20 risk, GAP-22, GAP-23. Toast hook gains "warning" variant.
 - 2026-03-30: Cross-cutting security & data integrity audit. Fixed 7 bugs: (1) SERIALIZABLE added to all 5 shift-trades.ts transactions — prevents double-claim race, (2) SERIALIZABLE added to all 6 shift-assignments.ts transactions — prevents double-booking, (3) SERIALIZABLE added to shift-generation.ts — prevents duplicate shift groups, (4) bulk scan TOCTOU fixed — quantity guard moved inside SERIALIZABLE transaction, (5) markCheckoutCompleted double-return fixed — subtracts checkedInQuantity, (6) CSRF bypass fixed — Origin header now required on mutating requests, (7) reports partial failure resilience — Promise.allSettled on all 4 report functions. Also added SERIALIZABLE to bulk-skus, drafts, calendar-sources, sport-configs transactions. Closed GAP-27. All 330 tests pass.
 - 2026-04-03: Registration gating shipped (D-029). Open self-registration replaced with admin-managed email allowlist. `AllowedEmail` model + migration, CRUD API with audit logging, Settings > Allowed Emails admin UI, registration endpoint gates on allowlist + assigns pre-approved role.
+- 2026-04-06: Cross-area ship-readiness audit. Users (22/25), Items (22/25), Checkouts (23/25), Dashboard (24/25). 20+ fixes shipped: session-level active enforcement, deactivation SERIALIZABLE, password reset atomic, QR/delete/generate/duplicate TOCTOU fixes, accessory transactions, booking audit-logs and photo permission gates, 401 hardening on kits + bulk-inventory, export permission corrected, doc sync across 6 AREA docs.

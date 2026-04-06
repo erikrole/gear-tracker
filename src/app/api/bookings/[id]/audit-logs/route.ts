@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { db } from "@/lib/db";
+import { requireBookingAction } from "@/lib/services/booking-rules";
 
 const PAGE_SIZE = 50;
 
@@ -8,8 +9,11 @@ const PAGE_SIZE = 50;
  * GET /api/bookings/[id]/audit-logs?cursor=<id>
  * Cursor-based pagination for audit log entries on a booking.
  */
-export const GET = withAuth<{ id: string }>(async (req, { params }) => {
+export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
+
+  // Verify user has view access to this booking (students can only see own bookings)
+  await requireBookingAction(id, user, "view");
   const url = new URL(req.url);
   const cursor = url.searchParams.get("cursor");
 

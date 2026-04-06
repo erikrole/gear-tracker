@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { BookingStatus } from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 import { createAuditEntry } from "@/lib/audit";
 
@@ -209,28 +209,38 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const body = patchAssetSchema.parse(await req.json());
 
-  // QR code uniqueness check if updating qrCodeValue
-  if (body.qrCodeValue) {
-    const existing = await db.asset.findUnique({ where: { qrCodeValue: body.qrCodeValue } });
-    if (existing && existing.id !== params.id) {
-      throw new HttpError(409, "QR code already in use by another asset");
-    }
-  }
-
   const before = await db.asset.findUnique({ where: { id: params.id } });
   if (!before) throw new HttpError(404, "Asset not found");
 
-  const asset = await db.asset.update({
-    where: { id: params.id },
-    data: {
-      ...body,
-      ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {}),
-      ...(body.warrantyDate !== undefined
-        ? { warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null }
-        : {}),
-    },
-    include: { location: true, category: true, department: { select: { id: true, name: true } } },
-  });
+  let asset;
+  try {
+    asset = await db.asset.update({
+      where: { id: params.id },
+      data: {
+        ...body,
+        ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {}),
+        ...(body.warrantyDate !== undefined
+          ? { warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null }
+          : {}),
+      },
+      include: { location: true, category: true, department: { select: { id: true, name: true } } },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const target = (err.meta?.target as string[]) ?? [];
+      if (target.includes("qr_code_value")) {
+        throw new HttpError(409, "QR code already in use by another asset");
+      }
+      if (target.includes("asset_tag")) {
+        throw new HttpError(409, "Asset tag already in use by another asset");
+      }
+      if (target.includes("serial_number")) {
+        throw new HttpError(409, "Serial number already in use by another asset");
+      }
+      throw new HttpError(409, "A unique constraint was violated");
+    }
+    throw err;
+  }
 
   // Build granular before/after diff for changed fields only
   const changedKeys = Object.keys(body);
@@ -263,20 +273,22 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
   const asset = await db.asset.findUnique({ where: { id } });
   if (!asset) throw new HttpError(404, "Asset not found");
 
-  // Policy check: block delete if any booking history or active allocations
-  const [bookingCount, activeAllocCount] = await Promise.all([
-    db.bookingSerializedItem.count({ where: { assetId: id } }),
-    db.assetAllocation.count({ where: { assetId: id, active: true } }),
-  ]);
+  // Atomic: check booking history + delete in one transaction to prevent TOCTOU
+  await db.$transaction(async (tx) => {
+    const [bookingCount, activeAllocCount] = await Promise.all([
+      tx.bookingSerializedItem.count({ where: { assetId: id } }),
+      tx.assetAllocation.count({ where: { assetId: id, active: true } }),
+    ]);
 
-  if (bookingCount > 0 || activeAllocCount > 0) {
-    throw new HttpError(
-      409,
-      "Cannot delete: this item has booking history. Use Retire instead."
-    );
-  }
+    if (bookingCount > 0 || activeAllocCount > 0) {
+      throw new HttpError(
+        409,
+        "Cannot delete: this item has booking history. Use Retire instead."
+      );
+    }
 
-  await db.asset.delete({ where: { id } });
+    await tx.asset.delete({ where: { id } });
+  });
 
   await createAuditEntry({
     actorId: user.id,

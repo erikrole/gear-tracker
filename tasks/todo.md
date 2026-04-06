@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-03-30
+Last updated: 2026-04-06
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -13,7 +13,8 @@ Last updated: 2026-03-30
 - [ ] **Resolve equipment conflict badges** (AC-8) — Conflict detection exists in EquipmentPicker; booking detail display pending.
 
 ### Users (P2)
-- [ ] **Add sport/area assignment CRUD** — Currently read-only. Needs new API endpoints + edit UI (deferred to V2 per users roadmap).
+- [x] ~~**Add sport/area assignment CRUD**~~ — Shipped 2026-03-28 (GAP-23). Popover multi-select in UserInfoTab.
+- [x] ~~**Session-level active enforcement**~~ — Shipped 2026-04-06. `requireAuth()` checks `user.active` + deactivation deletes sessions.
 
 ### Known Bugs (documented with proof tests)
 - [x] ~~**Fix `claimTrade()` missing isolation**~~ — Fixed 2026-03-30: SERIALIZABLE added to all shift-trades.ts + shift-assignments.ts transactions.

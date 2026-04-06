@@ -39,6 +39,7 @@ export default function CalendarSourcesPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/calendar-sources");
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
         setSources(json.data ?? []);
@@ -60,6 +61,7 @@ export default function CalendarSourcesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: !source.enabled }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         setSources((prev) =>
           prev.map((s) => s.id === source.id ? { ...s, enabled: !s.enabled } : s)
@@ -79,6 +81,7 @@ export default function CalendarSourcesPage() {
     setSyncing(source.id);
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}/sync`, { method: "POST" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json().catch(() => null);
         if (json?.data?.shiftGenerationError) {
@@ -107,6 +110,7 @@ export default function CalendarSourcesPage() {
     if (!ok) return;
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}`, { method: "DELETE" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         setSources((prev) => prev.filter((s) => s.id !== source.id));
         toast(`Deleted ${source.name}`, "success");
@@ -128,6 +132,7 @@ export default function CalendarSourcesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim(), url: newUrl.trim() }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         setNewName("");
         setNewUrl("");

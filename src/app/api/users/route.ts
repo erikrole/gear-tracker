@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const createUserSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
   email: z.string().email(),
   password: z.string().min(8).max(128),
   role: roleSchema.default("STAFF"),

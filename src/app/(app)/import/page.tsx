@@ -155,6 +155,8 @@ export default function ImportPage() {
         body: formData,
       });
 
+      if (res.status === 401) { window.location.href = "/login"; return; }
+
       const json = await res.json();
 
       if (!res.ok) {
@@ -186,6 +188,8 @@ export default function ImportPage() {
         method: "POST",
         body: formData,
       });
+
+      if (res.status === 401) { window.location.href = "/login"; return; }
 
       const json = await res.json();
 

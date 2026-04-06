@@ -39,8 +39,8 @@ export function ScanChecklist({
 
   return (
     <div className="bg-[var(--panel)] border border-border rounded-xl shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-light)]">
-        <h2 className="text-[15px] font-bold m-0">Items</h2>
+      <div className="flex items-center justify-between px-3 py-2 md:px-4 md:py-3 border-b border-[var(--border-light)]">
+        <h2 className="text-sm md:text-[15px] font-bold m-0">Items</h2>
         <span className="text-sm font-bold text-muted-foreground">
           {scannedItems}/{totalItems}
         </span>
@@ -88,21 +88,21 @@ export function ScanChecklist({
               return (
                 <div
                   key={item.assetId}
-                  className={`flex items-center gap-3 px-3 py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${rowBg}`}
+                  className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${rowBg}`}
                 >
                   {/* Item image */}
                   {item.imageUrl ? (
                     <Image
                       src={item.imageUrl}
                       alt={item.assetTag}
-                      width={64}
-                      height={64}
-                      className="size-16 rounded-lg object-cover shrink-0"
+                      width={48}
+                      height={48}
+                      className="size-12 md:size-16 rounded-lg object-cover shrink-0"
                       unoptimized={!item.imageUrl.includes(".public.blob.vercel-storage.com")}
                     />
                   ) : (
-                    <div className="size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <Package className="size-6 text-muted-foreground" />
+                    <div className="size-12 md:size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Package className="size-5 md:size-6 text-muted-foreground" />
                     </div>
                   )}
 
@@ -161,7 +161,7 @@ export function ScanChecklist({
                     )}
 
                     {/* Circle */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${circleBorder} ${circleInner}`}>
+                    <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${circleBorder} ${circleInner}`}>
                       {isLost ? (
                         <AlertTriangle className="size-4" />
                       ) : item.scanned ? (
@@ -182,10 +182,10 @@ export function ScanChecklist({
             return (
               <div
                 key={item.bulkSkuId}
-                className={`flex items-center gap-3 px-3 py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${done ? "bg-green-50/50 dark:bg-green-950/10" : ""}`}
+                className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${done ? "bg-green-50/50 dark:bg-green-950/10" : ""}`}
               >
-                <div className="size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Package className="size-6 text-muted-foreground" />
+                <div className="size-12 md:size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                  <Package className="size-5 md:size-6 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                   <span className={`text-base font-bold leading-tight ${done ? "text-green-800 dark:text-green-300" : ""}`}>
@@ -211,7 +211,7 @@ export function ScanChecklist({
                     </div>
                   )}
                 </div>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
+                <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
                   done
                     ? "border-2 border-green-500 bg-green-500 text-white animate-[scan-check-pop_0.3s_ease]"
                     : "border-2 border-gray-200 dark:border-gray-700"

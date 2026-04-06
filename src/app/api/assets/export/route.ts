@@ -6,7 +6,7 @@ import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib
 import type { Prisma } from "@prisma/client";
 
 export const GET = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "asset", "create"); // ADMIN/STAFF only
+  requirePermission(user.role, "asset", "export");
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
