@@ -41,6 +41,7 @@ export const GET = withAuth(async (_req, { user }) => {
 
   let weekMinutes = 0;
   let monthMinutes = 0;
+  let shiftCountWeek = 0;
 
   for (const a of assignments) {
     const start = new Date(a.shift.startsAt);
@@ -51,6 +52,7 @@ export const GET = withAuth(async (_req, { user }) => {
 
     if (start <= weekEnd && end >= weekStart) {
       weekMinutes += mins;
+      shiftCountWeek++;
     }
   }
 
@@ -58,10 +60,7 @@ export const GET = withAuth(async (_req, { user }) => {
     data: {
       thisWeek: Math.round(weekMinutes / 60 * 10) / 10,
       thisMonth: Math.round(monthMinutes / 60 * 10) / 10,
-      shiftCountWeek: assignments.filter((a) => {
-        const s = new Date(a.shift.startsAt);
-        return s >= weekStart && s <= weekEnd;
-      }).length,
+      shiftCountWeek,
       shiftCountMonth: assignments.length,
     },
   });

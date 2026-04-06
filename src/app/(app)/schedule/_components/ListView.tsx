@@ -392,7 +392,7 @@ function EventRows({
         // Suppress shift call times for away events (no call times on road trips)
         const isAway = entry.isHome !== true;
         const shiftTime = isAway ? "—" : `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
-        const workerLabel = shift.workerType === "FT" ? "FT" : "ST";
+        const workerLabel = shift.workerType === "FT" ? "Staff" : "Student";
 
         return (
           <tr

@@ -28,6 +28,37 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] List view: grouped by event, filterable by sport/area/status
 - [x] User profiles: inline contact info, primary/secondary area, assigned sports
 - [x] Mobile: responsive card layout, full-screen detail panel
+- [x] Week view: 7-day time-block view with coverage dots, navigation, My Shifts highlight
+- [x] Home/away toggle: filterable, neutral-as-away default
+- [x] Hide events: staff can hide irrelevant events from schedule views
+- [x] My Hours stat strip: week/month hours + shift counts displayed on schedule page
+
+## Information Architecture
+
+### Schedule Page (`/schedule`)
+1. **Page Header** — title, "Trade Board" button (with open-trade count badge)
+2. **My Hours stat strip** — week/month hours + shift counts (from `GET /api/shifts/my-hours`)
+3. **Filter Bar** (`ScheduleFilters`) — Sport, Area, Coverage, Time (Include past), My Shifts toggle
+3. **View Toggle** — List | Week | Calendar (persisted to localStorage)
+4. **List View** (`ListView`) — date-grouped expandable table; parent rows = events, child rows = shifts
+5. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
+6. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
+7. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, premier toggle)
+8. **Trade Board** — sheet overlay with area/status filters, claim/approve/cancel workflows
+
+### Event Detail Page (`/events/[id]`)
+1. Badge bar — status, sport, home/away, location
+2. Details card — Opponent, When, Venue
+3. Shift Coverage card — merged with Command Center (staff: gear summary + 5-col table; students: 4-col table)
+4. Action CTAs — "Reserve gear", "Checkout to this event"
+
+### Dashboard Integration
+1. **My Shifts card** — upcoming assigned shifts with area, time, "Prep gear" button
+2. **Upcoming Events card** — events with assigned user avatars
+3. **Stat strip** (staff/admin only) — Overdue, Due today, Active checkouts, Reserved (clickable, links to filtered views)
+
+### Cross-Area: Scan Feedback
+- Haptic vibration feedback on scan success/error (shipped in `useScanSubmission` hook, documented in `AREA_CHECKOUTS.md`). Audio feedback not yet implemented — schedule-adjacent for shift-linked scan flows.
 
 ## Dependencies
 
@@ -65,6 +96,10 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-03-26 | **Shift Redesign V2 (Slices 1-3):** Per-event shift editing (POST/DELETE `/api/shift-groups/[id]/shifts`), `manuallyEdited` guard on auto-generation + regeneration, universal user assignment (not roster-locked), avatar-based Popover picker replacing text list, +Shift/×Delete buttons per area/shift. All areas optional. ShiftDetailPanel migrated from inline styles to Tailwind. See `docs/BRIEF_SHIFT_REDESIGN_V2.md`. | V2 |
 | 2026-03-26 | **ShiftDetailPanel hardened (5-pass):** Extracted 3 subcomponents (`ShiftAreaSection`, `ShiftSlotCard`, `UserAvatarPicker`) — parent reduced from 749→376 lines. Consolidated 8 mutation handlers into single `mutate()` helper. AbortController on user list fetch. Color-coded avatar fallbacks via `getAvatarColor()`. Zero inline styles. | — |
 | 2026-04-02 | **UX audit:** Removed redundant data from event detail (source, description, duplicate sport/home-away). Merged Shift Coverage + Command Center into single card. Simplified list view child rows. See `tasks/schedule-roadmap.md` for V2/V3 roadmap. | — |
+| 2026-04-02 | **Week View shipped (V2 2a):** 7-day time-block view with coverage dots, all-day row, prev/next/this-week navigation, My Shifts highlight. Added to List \| Week \| Calendar toggle. Mobile: scrollable vertical column. | V2 |
 | 2026-04-03 | **My Hours stat strip:** `GET /api/shifts/my-hours` endpoint returns week/month hours + shift counts. Displayed on schedule page between header and filters. | — |
+| 2026-04-03 | **Schedule hardening:** Home/away toggle filter, hide events from schedule views (staff), neutral-as-away default. UI polish pass across schedule components. | — |
 | 2026-04-03 | **Schedule page hardening (6-pass audit):** Removed 20 lines dead CSS (unused cal-booking-neutral, week-event-neutral, cal-mobile-notice). Fixed broken mobile calendar notice (Tailwind `hidden` overrode CSS media query). Added 401 redirect + error toasts + double-click guard to handleHideEvent. Added mobile loading skeleton to WeekView. Replaced raw CSS variables with Tailwind theme classes in ListView mobile cards. | — |
 | 2026-04-03 | **Stress test (5 issues found, 5 fixed):** BRK-001: ShiftGroup PATCH wrapped in SERIALIZABLE transaction (was read-then-write without tx). BRK-002: `approveRequest` now re-checks time conflicts + active assignment at approval time (was missing since initial impl). BRK-003: `directAssignShift` now declines orphaned REQUESTED assignments when filling slot. BRK-004: `removeAssignment` now guards against removing terminal-status assignments. BRK-005: Global ZodError handling in `fail()` returns 400 instead of 500 for invalid payloads. | — |
+| 2026-04-04 | **Doc sync:** Added Information Architecture section (WeekView, stat strip, scan feedback cross-reference). Updated acceptance criteria for V1.5 shipped features. Updated last-updated date. | — |
+| 2026-04-04 | **Event detail hardened (6-pass):** hasLoadedRef pattern (refresh keeps visible data), global `acting` spam-click guard on nudge, `finally` on all mutations, refresh failure toasts instead of clobbering data, EventSkeleton updated to include shift coverage card section, `setBreadcrumbLabel` added to useCallback deps. | — |

@@ -236,7 +236,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
           <SkeletonTable rows={4} cols={6} />
         ) : loadError ? (
           <div className="p-4 text-center">
-            <p className="text-secondary mb-2">Failed to load trades.</p>
+            <p className="text-muted-foreground mb-2">Failed to load trades.</p>
             <Button variant="outline" size="sm" onClick={loadTrades}>Retry</Button>
           </div>
         ) : filteredTrades.length === 0 ? (
@@ -268,7 +268,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                       <td className="font-semibold">{ev.summary}</td>
                       <td className="text-nowrap">
                         <div>{formatDateShort(ev.startsAt)}</div>
-                        <div className="text-xs text-secondary">{formatTimeShort(ev.startsAt)}</div>
+                        <div className="text-xs text-muted-foreground">{formatTimeShort(ev.startsAt)}</div>
                       </td>
                       <td>
                         <Badge variant="gray">{AREA_LABELS[area] ?? area}</Badge>
@@ -279,7 +279,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                           {t.status}
                         </Badge>
                         {t.claimedBy && (
-                          <div className="text-xs text-secondary mt-2">
+                          <div className="text-xs text-muted-foreground mt-2">
                             Claimed by {t.claimedBy.name}
                           </div>
                         )}
@@ -291,9 +291,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                             <Button
                               size="sm"
                               onClick={() => handleClaim(t.id)}
-                              disabled={acting !== null}
-                              style={{ fontSize: "var(--text-3xs)" }}
-                            >
+                              disabled={acting !== null}                            >
                               {acting === t.id ? "..." : "Claim"}
                             </Button>
                           )}
@@ -304,9 +302,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                               variant="ghost" size="sm"
                               className="text-destructive"
                               onClick={() => handleCancel(t.id)}
-                              disabled={acting !== null}
-                              style={{ fontSize: "var(--text-3xs)" }}
-                            >
+                              disabled={acting !== null}                            >
                               Cancel
                             </Button>
                           )}
@@ -347,20 +343,20 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                 const ev = t.shiftAssignment.shift.shiftGroup.event;
                 const area = t.shiftAssignment.shift.area;
                 return (
-                  <div key={t.id} className="block px-4 py-3 border-b border-[var(--border-light)] last:border-b-0 no-underline text-inherit active:bg-[var(--panel-hover)]">
-                    <div className="flex-between mb-1">
+                  <div key={t.id} className="block px-4 py-3 border-b border-border last:border-b-0 no-underline text-inherit active:bg-accent/50">
+                    <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold">{ev.summary}</span>
                       <Badge variant={(STATUS_BADGES[t.status] ?? "gray") as BadgeProps["variant"]}>
                         {t.status}
                       </Badge>
                     </div>
-                    <div className="text-xs text-secondary flex gap-2 mb-1">
+                    <div className="text-xs text-muted-foreground flex gap-2 mb-1">
                       <span>{formatDateShort(ev.startsAt)} {formatTimeShort(ev.startsAt)}</span>
                       <Badge variant="gray">{AREA_LABELS[area] ?? area}</Badge>
                     </div>
                     <div className="text-xs mb-1">Posted by {t.postedBy.name}</div>
                     {t.claimedBy && (
-                      <div className="text-xs text-secondary mb-1">Claimed by {t.claimedBy.name}</div>
+                      <div className="text-xs text-muted-foreground mb-1">Claimed by {t.claimedBy.name}</div>
                     )}
                     <div className="flex gap-1">
                       {t.status === "OPEN" && t.postedBy.id !== currentUserId && (

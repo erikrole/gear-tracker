@@ -200,7 +200,7 @@ Use these questions before adding any feature:
 |---|---|
 | Student availability tracking (declare unavailable dates) | ⬜ Deferred |
 | Shift email notifications (trade claims via Resend) | ⬜ Deferred |
-| Inline dashboard actions (extend/checkin on overdue rows) | ⬜ Planned |
+| ~~Inline dashboard actions (extend/checkin on overdue rows)~~ | ✅ Shipped (extend +1 day on overdue/due rows, convert reservation to checkout) |
 | Cross-page state awareness (eventId propagation, scroll preservation) | ⬜ Planned |
 
 ### Phase C — Later

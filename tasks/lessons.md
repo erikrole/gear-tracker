@@ -112,3 +112,12 @@
 - **Tailwind `hidden` always wins over CSS media queries**: Use responsive Tailwind classes (`hidden max-md:block`) instead of mixing Tailwind utility + custom CSS for show/hide logic.
 - **Every user-triggered fetch needs 401 handling**: Any new fetch handler must include: 401 redirect, error toast, and double-click guard. Easy to miss on handlers added after the initial hardening pass.
 - **Mobile loading skeletons are easy to forget**: Always check that loading states render on both desktop and mobile — add a separate mobile skeleton if the layout differs significantly.
+
+## Session 2026-04-04
+
+### Patterns (Event Detail Hardening)
+- **Refresh must never clobber visible data**: When a page already has data loaded, refresh failures should toast an error and keep the existing data visible. Use an `isRefresh` parameter on fetch functions to skip `setFetchError` when data is already showing.
+- **Global `acting` guard over per-item guards**: `disabled={acting !== null}` disables ALL mutation buttons during any mutation, not just the one being acted on. This prevents concurrent mutations from different buttons (e.g., nudging two people simultaneously).
+- **`finally` blocks are mandatory on all mutations**: Even when `setNudgingId(null)` appears after the try/catch, move it to `finally` to guarantee cleanup on unexpected throws or early returns (e.g., after 401 redirect).
+- **Skeleton must match actual page layout**: When the page has N cards/sections, the skeleton must have N matching skeleton sections. Audit by comparing rendered page sections against skeleton sections 1:1.
+- **useCallback deps must include all referenced functions**: `setBreadcrumbLabel` was missing from `loadEvent`'s useCallback deps, which could cause stale closures. Always include setter functions even when they appear stable.
