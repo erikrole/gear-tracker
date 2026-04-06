@@ -689,7 +689,7 @@ export default function ItemInfoCard({
   }
 
   return (
-    <Card className="details-card border-border/40 shadow-none">
+    <Card className="details-card border-border/40">
       <div className="py-1">
         <div className="grid grid-cols-1 gap-y-0 divide-y divide-border/30">
           <TextInputField

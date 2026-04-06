@@ -218,7 +218,7 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
   ];
 
   return (
-    <Card className="border-border/40 shadow-none">
+    <Card className="border-border/40">
       <CardHeader>
         <CardTitle>Availability</CardTitle>
       </CardHeader>

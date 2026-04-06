@@ -43,7 +43,7 @@ export default function BookingInfoTab({
   );
 
   return (
-    <Card className="border-border/40 shadow-none divide-y divide-border/30">
+    <Card className="border-border/40 divide-y divide-border/30">
       <CardHeader className="pb-0">
         <CardTitle className="text-base">
           {booking.kind === "CHECKOUT" ? "Checkout details" : "Reservation details"}

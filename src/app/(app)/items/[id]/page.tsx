@@ -276,7 +276,7 @@ export default function ItemDetailsPage() {
 
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
-        <Card className="mt-3.5 border-border/40 shadow-none max-w-3xl">
+        <Card className="mt-3.5 border-border/40 max-w-3xl">
           <CardHeader><CardTitle>Activity Log</CardTitle></CardHeader>
           <CardContent className="p-4">
             <ActivityFeed assetId={asset.id} />

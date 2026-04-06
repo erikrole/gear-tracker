@@ -355,7 +355,7 @@ export default function BookingDetailPage({
 
       {/* ── Extend panel ── */}
       {showExtend && (
-        <Card className="p-4 border-border/40 shadow-none space-y-3">
+        <Card className="p-4 border-border/40 space-y-3">
           <span className="text-sm font-medium">New end date</span>
           <DateTimePicker
             value={extendDate ? new Date(extendDate) : undefined}
@@ -421,7 +421,7 @@ export default function BookingDetailPage({
       {/* ── History section (inline, collapsible) ── */}
       {booking.auditLogs.length > 0 && (
         <Collapsible open={historyExpanded} onOpenChange={setHistoryExpanded}>
-          <Card className="border-border/40 shadow-none">
+          <Card className="border-border/40">
             <CardHeader className="pb-0">
               <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
                 <ChevronDown className={`size-4 transition-transform ${historyExpanded ? "" : "-rotate-90"}`} />
