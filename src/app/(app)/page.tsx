@@ -244,26 +244,26 @@ export default function DashboardPage() {
       {refreshing && <Progress className="h-0.5 mb-1" />}
       {!isStudent && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
         <StaggerItem>
-          <a href="/checkouts?filter=overdue" className={`flex flex-col items-center min-h-16 md:min-h-auto px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 ${data.stats.overdue > 0 ? "border-red-600/25 bg-red-600/[0.04]" : ""}`}>
-            <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.overdue > 0 ? "text-red-600" : "text-foreground"}`}>{data.stats.overdue}</span>
+          <a href="/checkouts?filter=overdue" className={`flex flex-col items-center px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 ${data.stats.overdue > 0 ? "border-red-600/25 bg-red-600/[0.04]" : ""}`}>
+            <span className={`font-heading text-xl font-extrabold leading-none ${data.stats.overdue > 0 ? "text-red-600" : "text-foreground"}`}>{data.stats.overdue}</span>
             <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Overdue</span>
           </a>
         </StaggerItem>
         <StaggerItem>
-          <a href="/bookings?tab=checkouts&filter=due-today" className={`flex flex-col items-center min-h-16 md:min-h-auto px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 ${data.stats.dueToday > 0 ? "border-amber-600/25 bg-amber-600/[0.04]" : ""}`}>
-            <span className={`font-heading text-[22px] md:text-2xl font-extrabold leading-none ${data.stats.dueToday > 0 ? "text-amber-600" : "text-foreground"}`}>{data.stats.dueToday}</span>
+          <a href="/bookings?tab=checkouts&filter=due-today" className={`flex flex-col items-center px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50 ${data.stats.dueToday > 0 ? "border-amber-600/25 bg-amber-600/[0.04]" : ""}`}>
+            <span className={`font-heading text-xl font-extrabold leading-none ${data.stats.dueToday > 0 ? "text-amber-600" : "text-foreground"}`}>{data.stats.dueToday}</span>
             <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Due today</span>
           </a>
         </StaggerItem>
         <StaggerItem>
-          <a href="/bookings?tab=checkouts" className="flex flex-col items-center min-h-16 md:min-h-auto px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50">
-            <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.checkedOut}</span>
+          <a href="/bookings?tab=checkouts" className="flex flex-col items-center px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50">
+            <span className="font-heading text-xl font-extrabold leading-none text-foreground">{data.stats.checkedOut}</span>
             <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Active checkouts</span>
           </a>
         </StaggerItem>
         <StaggerItem>
-          <a href="/bookings?tab=reservations" className="flex flex-col items-center min-h-16 md:min-h-auto px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50">
-            <span className="font-heading text-[22px] md:text-2xl font-extrabold leading-none text-foreground">{data.stats.reserved}</span>
+          <a href="/bookings?tab=reservations" className="flex flex-col items-center px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)] no-underline cursor-pointer transition-colors hover:bg-accent/50">
+            <span className="font-heading text-xl font-extrabold leading-none text-foreground">{data.stats.reserved}</span>
             <span className="text-[var(--text-2xs)] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">Reserved</span>
           </a>
         </StaggerItem>
