@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
+import { PageHeader } from "@/components/PageHeader";
 import { useUrlState } from "@/hooks/use-url-state";
 
 type Notification = {
@@ -275,36 +276,16 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <h1 className="flex items-center gap-2">
-          Notifications
-          {unreadCount > 0 && (
-            <Badge variant="blue" className="ml-1">
-              {unreadCount}
-            </Badge>
-          )}
-        </h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={runProcessing}
-            disabled={processing}
-          >
-            {processing ? "Processing..." : "Check overdue"}
+      <PageHeader title={unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications"}>
+        <Button variant="outline" size="sm" onClick={runProcessing} disabled={processing}>
+          {processing ? "Processing..." : "Check overdue"}
+        </Button>
+        {unreadCount > 0 && (
+          <Button variant="outline" size="sm" onClick={markAllRead} disabled={markingAll}>
+            {markingAll ? "Marking..." : "Mark all read"}
           </Button>
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={markAllRead}
-              disabled={markingAll}
-            >
-              {markingAll ? "Marking..." : "Mark all read"}
-            </Button>
-          )}
-        </div>
-      </div>
+        )}
+      </PageHeader>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between py-3 px-4">

@@ -184,7 +184,7 @@ export default function ScanPage() {
       {/* ══════ Lookup mode header ══════ */}
       {mode === "lookup" && (
         <div className="flex items-center justify-between gap-3 py-1">
-          <h1 className="font-[var(--font-heading)] text-2xl font-bold m-0">Scan</h1>
+          <h1>Scan</h1>
           <div className="inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 bg-[var(--accent-soft)] text-muted-foreground">
             <div className="w-[7px] h-[7px] rounded-full bg-[#9ca3af]" />
             Look Up

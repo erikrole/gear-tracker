@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { REPORT_SECTIONS } from "@/lib/nav-sections";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function ReportsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
     <>
-      <h1 className="text-2xl mb-0">Reports</h1>
+      <PageHeader title="Reports" className="mb-0" />
 
       <nav className="flex gap-0 border-b mb-5">
         {REPORT_SECTIONS.map((s) => (

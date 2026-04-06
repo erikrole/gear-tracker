@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 const CreateBookingSheet = dynamic(() => import("@/components/CreateBookingSheet"), { ssr: false });
 import EmptyState from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
 import { RefreshCwIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -215,34 +216,29 @@ export default function DashboardPage() {
   return (
     <PageTransition>
       {/* ══════ Page Header + Quick Actions ══════ */}
-      <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">Dashboard</h1>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => loadData(true)}
-                disabled={refreshing}
-                className="text-muted-foreground"
-              >
-                <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="flex items-center gap-2">
-          <FilterChips {...filters} />
-          {!isStudent && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>New checkout</Button>
-              <Button variant="outline" onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>New reservation</Button>
-            </div>
-          )}
-        </div>
-      </div>
+      <PageHeader title="Dashboard" className="mb-6 max-md:mb-4">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => loadData(true)}
+              disabled={refreshing}
+              className="text-muted-foreground"
+            >
+              <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
+        </Tooltip>
+        <FilterChips {...filters} />
+        {!isStudent && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>New checkout</Button>
+            <Button variant="outline" onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>New reservation</Button>
+          </div>
+        )}
+      </PageHeader>
 
       {/* ══════ Stat Strip ══════ */}
       {refreshing && <Progress className="h-0.5 mb-1" />}

@@ -19,6 +19,7 @@ import {
 import { ArrowUpDown, Loader2, RefreshCw, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
+import { PageHeader } from "@/components/PageHeader";
 import { useDebounce } from "@/hooks/use-url-state";
 
 const LIMIT = 50;
@@ -145,28 +146,25 @@ export default function UsersPage() {
   return (
     <>
       {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <div className="flex items-center gap-2">
-          <h1>Users</h1>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7" onClick={reload} disabled={loading}>
-                <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {lastFetched
-                ? `Updated ${formatRelativeShort(lastFetched)}`
-                : "Refresh"}
-            </TooltipContent>
-          </Tooltip>
-        </div>
+      <PageHeader title="Users">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-7" onClick={reload} disabled={loading}>
+              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {lastFetched
+              ? `Updated ${formatRelativeShort(lastFetched)}`
+              : "Refresh"}
+          </TooltipContent>
+        </Tooltip>
         {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
             Add user
           </Button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Create User Dialog */}
       <CreateUserDialog
