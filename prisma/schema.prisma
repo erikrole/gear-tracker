@@ -345,6 +345,7 @@ model BulkSku {
   binQrCodeValue    String             @map("bin_qr_code_value")
   minThreshold      Int                @default(0) @map("min_threshold")
   trackByNumber     Boolean            @default(false) @map("track_by_number")
+  imageUrl          String?            @map("image_url")
   active            Boolean            @default(true)
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
@@ -355,6 +356,7 @@ model BulkSku {
   bookingItems      BookingBulkItem[]
   scans             ScanEvent[]
   units             BulkSkuUnit[]
+  kitBulkMembers    KitBulkMembership[]
 
   @@unique([locationId, binQrCodeValue])
   @@index([locationId, active])
@@ -502,15 +504,16 @@ model AuditLog {
 // ── Kit / Case grouping ──────────────────────────────────
 
 model Kit {
-  id          String          @id @default(cuid())
+  id          String              @id @default(cuid())
   name        String
   description String?
-  locationId  String          @map("location_id")
-  active      Boolean         @default(true)
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  location    Location        @relation(fields: [locationId], references: [id])
+  locationId  String              @map("location_id")
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  location    Location            @relation(fields: [locationId], references: [id])
   members     KitMembership[]
+  bulkMembers KitBulkMembership[]
   bookings    Booking[]
 
   @@unique([name, locationId])
@@ -527,6 +530,20 @@ model KitMembership {
 
   @@unique([kitId, assetId])
   @@map("kit_memberships")
+}
+
+model KitBulkMembership {
+  id        String   @id @default(cuid())
+  kitId     String   @map("kit_id")
+  bulkSkuId String   @map("bulk_sku_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  kit       Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  bulkSku   BulkSku  @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)
+
+  @@unique([kitId, bulkSkuId])
+  @@index([bulkSkuId])
+  @@map("kit_bulk_memberships")
 }
 
 // ── ICS Calendar Sync ────────────────────────────────────

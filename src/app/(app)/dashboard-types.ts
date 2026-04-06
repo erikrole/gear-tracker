@@ -115,6 +115,11 @@ export type FlaggedItem = {
   createdAt: string;
 };
 
+export type LostBulkUnitSummary = {
+  skuName: string;
+  count: number;
+};
+
 export type DashboardData = {
   role: string;
   stats: {
@@ -133,4 +138,5 @@ export type DashboardData = {
   drafts: DraftSummary[];
   myShifts: MyShift[];
   flaggedItems: FlaggedItem[];
+  lostBulkUnits: LostBulkUnitSummary[];
 };

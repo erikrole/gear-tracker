@@ -1,8 +1,10 @@
 import { BookingKind, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
+import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
+import { notifyLowStock } from "@/lib/services/notifications";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
 import { createCheckoutSchema, sanitizeBookingFields } from "@/lib/validation";
@@ -82,6 +84,34 @@ export const POST = withAuth(async (req, { user }) => {
     action: "create",
     after: { title: checkout.title ?? body.title, kind: "CHECKOUT" },
   });
+
+  // Fire-and-forget: check bulk stock levels and notify admins if below threshold
+  if (body.bulkItems.length > 0) {
+    Promise.resolve().then(async () => {
+      try {
+        for (const item of body.bulkItems) {
+          const balance = await db.bulkStockBalance.findFirst({
+            where: { bulkSkuId: item.bulkSkuId, locationId: effectiveLocationId },
+            select: { onHandQuantity: true },
+          });
+          const sku = await db.bulkSku.findUnique({
+            where: { id: item.bulkSkuId },
+            select: { name: true, minThreshold: true },
+          });
+          if (balance && sku && sku.minThreshold > 0 && balance.onHandQuantity <= sku.minThreshold) {
+            await notifyLowStock({
+              bulkSkuId: item.bulkSkuId,
+              skuName: sku.name,
+              onHandQuantity: balance.onHandQuantity,
+              minThreshold: sku.minThreshold,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[LOW_STOCK] Failed to check/notify:", err);
+      }
+    });
+  }
 
   return ok({ data: checkout }, 201);
 });

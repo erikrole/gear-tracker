@@ -31,6 +31,10 @@ export const GET = withAuth(async (req, { user }) => {
     return ok(await getOverdueReport());
   }
 
+  if (report === "bulk-losses") {
+    return ok(await getBulkLossReport());
+  }
+
   if (report === "scans") {
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
     const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
@@ -448,5 +452,112 @@ async function getAuditReport(
     byEntityType,
     limit,
     offset
+  };
+}
+
+/**
+ * Bulk loss report: lost units grouped by SKU and by last requester.
+ * Shows which users have lost the most numbered bulk units.
+ */
+async function getBulkLossReport() {
+  const [lostBySkuResult, lostByUserResult, recentLossesResult] = await Promise.allSettled([
+    // Lost units grouped by SKU
+    db.bulkSkuUnit.groupBy({
+      by: ["bulkSkuId"],
+      where: { status: "LOST" },
+      _count: { id: true },
+    }),
+    // Lost units with last allocation -> requester
+    db.bulkSkuUnit.findMany({
+      where: { status: "LOST" },
+      select: {
+        id: true,
+        unitNumber: true,
+        notes: true,
+        updatedAt: true,
+        bulkSku: { select: { id: true, name: true } },
+        allocations: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            bookingBulkItem: {
+              select: {
+                booking: {
+                  select: {
+                    id: true,
+                    refNumber: true,
+                    title: true,
+                    requester: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+    // Recent loss events (auto-marked from completions)
+    db.auditLog.findMany({
+      where: { action: "bulk_units_auto_lost" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        entityId: true,
+        afterJson: true,
+        createdAt: true,
+        actor: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
+
+  // Resolve SKU names for the groupBy result
+  const lostBySku = lostBySkuResult.status === "fulfilled" ? lostBySkuResult.value : [];
+  const skuIds = lostBySku.map((r) => r.bulkSkuId);
+  const skuNames = skuIds.length > 0
+    ? await db.bulkSku.findMany({ where: { id: { in: skuIds } }, select: { id: true, name: true } })
+    : [];
+  const skuNameMap = new Map(skuNames.map((s) => [s.id, s.name]));
+
+  const bySkuSummary = lostBySku.map((r) => ({
+    skuName: skuNameMap.get(r.bulkSkuId) ?? "Unknown",
+    bulkSkuId: r.bulkSkuId,
+    count: r._count.id,
+  })).sort((a, b) => b.count - a.count);
+
+  // Build per-user loss leaderboard
+  const lostUnits = lostByUserResult.status === "fulfilled" ? lostByUserResult.value : [];
+  const userLossCounts = new Map<string, { name: string; count: number }>();
+  for (const unit of lostUnits) {
+    const alloc = unit.allocations[0];
+    const requester = alloc?.bookingBulkItem?.booking?.requester;
+    if (!requester) continue;
+    const existing = userLossCounts.get(requester.id);
+    if (existing) {
+      existing.count++;
+    } else {
+      userLossCounts.set(requester.id, { name: requester.name, count: 1 });
+    }
+  }
+  const byUserLeaderboard = Array.from(userLossCounts.values())
+    .sort((a, b) => b.count - a.count);
+
+  const totalLost = lostBySku.reduce((sum, r) => sum + r._count.id, 0);
+
+  const recentLosses = recentLossesResult.status === "fulfilled"
+    ? recentLossesResult.value.map((log) => ({
+        id: log.id,
+        bookingId: log.entityId,
+        lostUnits: log.afterJson as unknown,
+        createdAt: log.createdAt.toISOString(),
+        actor: log.actor,
+      }))
+    : [];
+
+  return {
+    totalLost,
+    bySku: bySkuSummary,
+    byUser: byUserLeaderboard,
+    recentLosses,
   };
 }

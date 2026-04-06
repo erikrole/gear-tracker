@@ -52,6 +52,7 @@ export type PickerBulkSku = {
   currentQuantity: number;
   binQrCodeValue?: string | null;
   categoryName?: string | null;
+  imageUrl?: string | null;
 };
 
 export type BulkSelection = {
@@ -124,6 +125,7 @@ export default function EquipmentPicker({
 
   // ── Availability preview state ──
   const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
+  const [bulkAvailability, setBulkAvailability] = useState<Record<string, { onHand: number; committed: number; available: number }>>({});
   const [conflictsLoading, setConflictsLoading] = useState(false);
   const [conflictsError, setConflictsError] = useState(false);
   const availDebounce = useRef<ReturnType<typeof setTimeout>>(null);
@@ -323,10 +325,10 @@ export default function EquipmentPicker({
   const fetchConflicts = useCallback(async () => {
     if (!startsAt || !endsAt || !locationId) {
       setConflicts(new Map());
+      setBulkAvailability({});
       return;
     }
     const allAssetIds = legacyMode ? legacyAssets.map((a) => a.id) : selectedAssetIds;
-    if (allAssetIds.length === 0) return;
 
     // Abort any in-flight request to prevent stale data overwriting fresh
     abortRef.current?.abort();
@@ -352,6 +354,7 @@ export default function EquipmentPicker({
         const json = await res.json();
         const data = json.data as {
           conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string; startsAt: string; endsAt: string }>;
+          bulkAvailability?: Record<string, { onHand: number; committed: number; available: number }>;
         };
         const map = new Map<string, ConflictInfo>();
         if (data.conflicts) {
@@ -365,6 +368,7 @@ export default function EquipmentPicker({
           }
         }
         setConflicts(map);
+        setBulkAvailability(data.bulkAvailability ?? {});
       } else {
         setConflictsError(true);
       }
@@ -977,9 +981,107 @@ export default function EquipmentPicker({
               )}
 
               <div className="max-h-[280px] overflow-y-auto max-md:max-h-[300px] max-md:[overflow-scrolling:touch]" role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label || "Items"} list`}>
+                {/* Bulk items (shown first — high-frequency items like batteries) */}
+                {sectionBulk.length > 0 && (
+                  <>
+                    {sectionBulk.map((sku) => {
+                      const sel = selectedBulkItems.find((i) => i.bulkSkuId === sku.id);
+                      const isSelected = !!sel;
+                      const qty = sel?.quantity ?? 0;
+                      const bulkAvail = bulkAvailability[sku.id];
+                      const maxQty = bulkAvail ? bulkAvail.available : sku.currentQuantity;
+                      const hasDateConstraint = bulkAvail && bulkAvail.available < bulkAvail.onHand;
+                      const isBookedOut = maxQty === 0 && !!bulkAvail;
+                      return (
+                        <div
+                          key={sku.id}
+                          role="option"
+                          aria-selected={isSelected}
+                          aria-disabled={isBookedOut && !isSelected}
+                          tabIndex={0}
+                          className={cn(
+                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] max-md:py-3 max-md:min-h-[52px]",
+                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
+                            isBookedOut && !isSelected && "opacity-50 cursor-default hover:bg-transparent",
+                          )}
+                          onClick={() => {
+                            if (!isSelected && !isBookedOut) {
+                              setSelectedBulkItems((prev) => [...prev, { bulkSkuId: sku.id, quantity: 1 }]);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === " " || e.key === "Enter") {
+                              e.preventDefault();
+                              if (!isSelected && !isBookedOut) {
+                                setSelectedBulkItems((prev) => [...prev, { bulkSkuId: sku.id, quantity: 1 }]);
+                              }
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => {
+                              setSelectedBulkItems((prev) =>
+                                isSelected
+                                  ? prev.filter((i) => i.bulkSkuId !== sku.id)
+                                  : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
+                              );
+                            }}
+                            aria-label={`Select ${sku.name}`}
+                            tabIndex={-1}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">{sku.name}</div>
+                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">{sku.category} {"\u00b7"} {sku.unit}</div>
+                          </div>
+                          {isSelected ? (
+                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                className="size-7 p-0 text-base leading-none"
+                                onClick={() => {
+                                  if (qty <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== sku.id));
+                                  else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === sku.id ? { ...i, quantity: i.quantity - 1 } : i));
+                                }}
+                                aria-label={`Decrease ${sku.name} quantity`}
+                              >
+                                &minus;
+                              </Button>
+                              <span className="w-6 text-center text-[length:var(--text-sm)] font-[number:var(--weight-semibold)] tabular-nums">{qty}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                className="size-7 p-0 text-base leading-none"
+                                onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === sku.id ? { ...i, quantity: i.quantity + 1 } : i))}
+                                disabled={maxQty > 0 && qty >= maxQty}
+                                aria-label={`Increase ${sku.name} quantity`}
+                              >
+                                +
+                              </Button>
+                              <span className="text-[length:var(--text-3xs)] text-[var(--text-secondary)] ml-1 whitespace-nowrap">/ {maxQty}</span>
+                            </div>
+                          ) : maxQty === 0 && bulkAvail ? (
+                            <span className="text-[length:var(--text-xs)] text-[var(--orange)] shrink-0">Booked out</span>
+                          ) : (
+                            <span className="text-[length:var(--text-xs)] text-[var(--text-secondary)] shrink-0">
+                              {hasDateConstraint ? `${maxQty} of ${bulkAvail!.onHand} free` : `${maxQty} available`}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
                 {/* Serialized assets */}
                 {sectionAssets.length > 0 && (
                   <>
+                    {sectionBulk.length > 0 && (
+                      <div className="text-[length:var(--text-2xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)] pt-2.5 pb-1 uppercase tracking-[0.05em]" role="separator">Serialized Items</div>
+                    )}
                     {sectionAssets.map((asset) => {
                       const isSelected = selectedIdSet.has(asset.id);
                       const isAvailable = asset.computedStatus === "AVAILABLE";
@@ -1040,55 +1142,6 @@ export default function EquipmentPicker({
                               </div>
                             )}
                           </div>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-
-                {/* Bulk items */}
-                {sectionBulk.length > 0 && (
-                  <>
-                    {sectionAssets.length > 0 && (
-                      <div className="text-[length:var(--text-2xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)] pt-2.5 pb-1 uppercase tracking-[0.05em]" role="separator">Bulk Items</div>
-                    )}
-                    {sectionBulk.map((sku) => {
-                      const isSelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
-                      return (
-                        <div
-                          key={sku.id}
-                          role="option"
-                          aria-selected={isSelected}
-                          tabIndex={0}
-                          className={cn(
-                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] pl-10 max-md:py-3 max-md:min-h-[52px]",
-                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
-                          )}
-                          onClick={() => {
-                            setSelectedBulkItems((prev) =>
-                              prev.some((i) => i.bulkSkuId === sku.id)
-                                ? prev.filter((i) => i.bulkSkuId !== sku.id)
-                                : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
-                            );
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === " " || e.key === "Enter") {
-                              e.preventDefault();
-                              setSelectedBulkItems((prev) =>
-                                prev.some((i) => i.bulkSkuId === sku.id)
-                                  ? prev.filter((i) => i.bulkSkuId !== sku.id)
-                                  : [...prev, { bulkSkuId: sku.id, quantity: 1 }]
-                              );
-                            }
-                          }}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">{sku.name}</div>
-                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">{sku.category} {"\u00b7"} {sku.unit}</div>
-                          </div>
-                          {isSelected && (
-                            <Badge variant="green" size="sm">Added</Badge>
-                          )}
                         </div>
                       );
                     })}

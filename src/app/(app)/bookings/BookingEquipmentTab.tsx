@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 
@@ -26,8 +27,12 @@ type ConflictInfo = {
 
 export default function BookingEquipmentTab({
   booking,
+  onCheckinBulk,
+  actionLoading,
 }: {
   booking: BookingDetail;
+  onCheckinBulk?: (bulkItemId: string, quantity: number) => Promise<boolean>;
+  actionLoading?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const isCheckout = booking.kind === "CHECKOUT";
@@ -191,6 +196,8 @@ export default function BookingEquipmentTab({
                 key={item.id}
                 item={item}
                 isCheckout={isCheckout}
+                onCheckinBulk={onCheckinBulk}
+                actionLoading={actionLoading}
               />
             ))}
           </div>
@@ -288,13 +295,20 @@ function SerializedRow({
 function BulkRow({
   item,
   isCheckout,
+  onCheckinBulk,
+  actionLoading,
 }: {
   item: BulkItem;
   isCheckout: boolean;
+  onCheckinBulk?: (bulkItemId: string, quantity: number) => Promise<boolean>;
+  actionLoading?: string | null;
 }) {
   const outQty = item.checkedOutQuantity ?? item.plannedQuantity;
   const inQty = item.checkedInQuantity ?? 0;
   const allReturned = isCheckout && inQty >= outQty;
+  const remaining = outQty - inQty;
+  const canReturn = isCheckout && !allReturned && remaining > 0 && !!onCheckinBulk;
+  const isLoading = actionLoading === `bulk-${item.id}`;
 
   return (
     <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
@@ -307,10 +321,14 @@ function BulkRow({
         </div>
       )}
 
-      {/* Placeholder thumbnail */}
-      <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-        <ImageIcon className="size-4 text-muted-foreground/50" />
-      </div>
+      {/* Thumbnail */}
+      {item.bulkSku.imageUrl ? (
+        <ItemThumbnail src={item.bulkSku.imageUrl} alt={item.bulkSku.name} />
+      ) : (
+        <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+          <ImageIcon className="size-4 text-muted-foreground/50" />
+        </div>
+      )}
 
       {/* Info */}
       <div className="min-w-0 flex-1">
@@ -325,12 +343,21 @@ function BulkRow({
         </div>
       </div>
 
-      {/* Status */}
-      <div className="shrink-0 text-right">
+      {/* Status + Return All button */}
+      <div className="shrink-0 flex items-center gap-2">
         {allReturned ? (
           <span className="text-xs font-medium text-green-600 dark:text-green-400">
             Returned
           </span>
+        ) : canReturn ? (
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={isLoading}
+            onClick={() => onCheckinBulk(item.id, remaining)}
+          >
+            {isLoading ? "Returning..." : "Return All"}
+          </Button>
         ) : (
           <span className="text-sm text-muted-foreground tabular-nums">
             {isCheckout ? outQty : item.plannedQuantity}
