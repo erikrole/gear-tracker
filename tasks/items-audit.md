@@ -99,11 +99,11 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 **Data Integrity / Race Conditions (from API route audit):**
 
-1. **N+1 in `attachActiveBookings()`** (HIGH): `GET /api/assets` list endpoint loops through each asset querying `db.assetAllocation.findMany()` per asset to enrich with active booking data. O(N) DB queries for large inventories. Should batch into single `WHERE assetId IN (...)` query. File: `src/app/api/assets/route.ts`.
+1. ~~**N+1 in `attachActiveBookings()`**~~ — **FALSE POSITIVE.** The function already batches with `{ in: assetIds }`. No N+1.
 
-2. **QR update TOCTOU** (MEDIUM): `PATCH /api/assets/[id]` does `findUnique` for QR uniqueness then `update` as separate queries. Two concurrent updates could both pass the check. Should wrap in transaction or catch P2002.
+2. ~~**QR update TOCTOU**~~ — **FIXED 2026-04-06.** Removed pre-check `findUnique`, now catches P2002 from DB unique constraint (same pattern as user email uniqueness per `lessons.md`).
 
-3. **Delete asset TOCTOU** (MEDIUM): `DELETE /api/assets/[id]` counts bookings/allocations then deletes — not in transaction. Concurrent booking creation between check and delete.
+3. ~~**Delete asset TOCTOU**~~ — **FIXED 2026-04-06.** Wrapped booking count + delete in `$transaction` to prevent concurrent booking creation between check and delete.
 
 4. **Accessory operations not transactional** (LOW): Attach/move/detach do find-then-update without transaction.
 
@@ -125,9 +125,9 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 ## Recommended Actions (prioritized)
 
-1. **[High] Fix N+1 in `attachActiveBookings()`** — `GET /api/assets` does O(N) allocation queries. Batch into single `WHERE assetId IN (...)` query. This is the list endpoint — performance degrades with inventory size.
+1. ~~**[High] Fix N+1 in `attachActiveBookings()`**~~ — **False positive.** Already batched with `{ in: assetIds }`.
 
-2. **[Medium] Fix QR update and delete TOCTOU** — Wrap QR uniqueness check + update in transaction (or catch P2002). Wrap delete asset booking-count check + delete in transaction.
+2. ~~**[Medium] Fix QR update and delete TOCTOU**~~ — **DONE 2026-04-06.** QR now catches P2002. Delete wrapped in `$transaction`.
 
 3. **[Medium] Update AREA_ITEMS.md changelog** — Add entries for: favorites UI, CSV export, summary bar, column persistence, detail page hardening. Bump Last Updated.
 
