@@ -683,27 +683,30 @@ export default function BookingDetailsSheet({
       <SheetContent className="sm:max-w-lg">
         {/* Header */}
         <SheetHeader>
-          <SheetTitle className="text-2xl font-bold tracking-tight">
-            {booking?.title || "Loading..."}
-          </SheetTitle>
-          {booking && (
-            <div className="flex gap-1.5 flex-wrap mt-1">
-              {booking.refNumber && (
-                <Badge variant="outline" className="font-mono text-xs">{booking.refNumber}</Badge>
-              )}
-              <Badge variant={(booking.isOverdue ? "red" : (statusBadgeVariant[booking.status] || "gray")) as BadgeProps["variant"]}>
-                {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
-              </Badge>
-              <Badge variant="gray">{booking.bookingType}</Badge>
-              <Badge variant="secondary" className="text-xs">{booking.requester?.name ?? "Unknown"}</Badge>
-              {booking.location?.name && (
-                <Badge variant="outline" className="text-xs">{booking.location.name}</Badge>
-              )}
-              {booking.locationMode === "MIXED" && (
-                <Badge variant="mixed">Mixed locations</Badge>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <SheetTitle className="text-xl font-bold tracking-tight truncate">
+                {booking?.title || "Loading..."}
+              </SheetTitle>
+              {booking && (
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
+                  {booking.refNumber && " · "}
+                  {booking.bookingType}
+                  {booking.requester?.name && ` · ${booking.requester.name}`}
+                  {booking.location?.name && ` · ${booking.location.name}`}
+                </p>
               )}
             </div>
-          )}
+            {booking && (
+              <Badge
+                variant={(booking.isOverdue ? "red" : (statusBadgeVariant[booking.status] || "gray")) as BadgeProps["variant"]}
+                className="shrink-0 mt-0.5"
+              >
+                {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
+              </Badge>
+            )}
+          </div>
         </SheetHeader>
 
         {/* Tabs */}
