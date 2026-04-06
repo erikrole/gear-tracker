@@ -330,6 +330,9 @@ export default function EquipmentPicker({
     }
     const allAssetIds = legacyMode ? legacyAssets.map((a) => a.id) : selectedAssetIds;
 
+    // Skip if nothing to check (no serialized assets and no bulk SKUs at this location)
+    if (allAssetIds.length === 0 && bulkSkus.length === 0) return;
+
     // Abort any in-flight request to prevent stale data overwriting fresh
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -377,7 +380,11 @@ export default function EquipmentPicker({
       setConflictsError(true);
     }
     setConflictsLoading(false);
-  }, [startsAt, endsAt, locationId, legacyMode, legacyAssets, selectedAssetIds]);
+    // Note: selectedAssetIds excluded from deps to prevent re-fetch on every selection change.
+    // Bulk availability only depends on dates/location, not on which assets are selected.
+    // Serialized conflict checks are best-effort; full validation happens at booking creation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startsAt, endsAt, locationId, legacyMode, legacyAssets, bulkSkus.length]);
 
   useEffect(() => {
     if (availDebounce.current) clearTimeout(availDebounce.current);
