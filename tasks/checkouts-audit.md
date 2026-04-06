@@ -94,7 +94,7 @@
 
 2. ~~**[Medium] Add permission gate to photo upload**~~ — **DONE 2026-04-06.** Added student ownership check to `POST /api/checkouts/[id]/photo`.
 
-3. **[Medium] Update AREA_RESERVATIONS.md** — Add changelog entries for 6+ features shipped since 2026-03-22. Convert ACs to checkbox format and verify each.
+3. ~~**[Medium] Update AREA_RESERVATIONS.md**~~ — **DONE 2026-04-06.** ACs converted to checkbox format (11/12 checked, AC-8 partial). 5 changelog entries backfilled. Last Updated bumped.
 
 4. **[Low] Implement reservation conflict badges** — todo.md P2 item. Surface conflict data from booking detail API on the equipment tab.
 

@@ -105,9 +105,9 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 3. ~~**Delete asset TOCTOU**~~ — **FIXED 2026-04-06.** Wrapped booking count + delete in `$transaction` to prevent concurrent booking creation between check and delete.
 
-4. **Accessory operations not transactional** (LOW): Attach/move/detach do find-then-update without transaction.
+4. ~~**Accessory operations not transactional**~~ (LOW): **FIXED 2026-04-06.** Attach/move/detach wrapped in `$transaction`.
 
-5. **Export permission mismatch** (LOW): `/api/assets/export` uses `requirePermission("asset", "create")` instead of dedicated export permission. Same role gate but semantically wrong.
+5. ~~**Export permission mismatch**~~ (LOW): **FIXED 2026-04-06.** Now uses `requirePermission("asset", "export")`. New `export` action added to permissions map.
 
 **Documentation / Hardening:**
 
@@ -129,13 +129,13 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 2. ~~**[Medium] Fix QR update and delete TOCTOU**~~ — **DONE 2026-04-06.** QR now catches P2002. Delete wrapped in `$transaction`.
 
-3. **[Medium] Update AREA_ITEMS.md changelog** — Add entries for: favorites UI, CSV export, summary bar, column persistence, detail page hardening. Bump Last Updated.
+3. ~~**[Medium] Update AREA_ITEMS.md changelog**~~ — **DONE 2026-04-06.** Backfilled 5 entries (favorites, export, summary bar, column persistence, detail hardening). Last Updated bumped.
 
 4. ~~**[Medium] Harden kits pages**~~ — **DONE 2026-04-06.** Added 401 redirect on all 6 mutations in kit detail. List already uses `useFetch`.
 
 5. ~~**[Medium] Harden bulk-inventory page**~~ — **DONE 2026-04-06.** Added 401 redirect on all 3 mutations (add units, convert to numbered, unit status change).
 
-6. **[Low] Check off BRIEF_ITEM_BUNDLING_V1.md ACs** — All 9 ACs met. Update `[ ]` → `[x]`.
+6. ~~**[Low] Check off BRIEF_ITEM_BUNDLING_V1.md ACs**~~ — **DONE 2026-04-06.**
 
 7. **[Low] Add pagination to ItemBookingsTab** — Currently loads all bookings unbounded.
 

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-25
+- Last Updated: 2026-04-06
 - Status: Active
 - Version: V1
 
@@ -371,9 +371,16 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-03-24: Item details page roadmap created — V1 hardening, V2 enhanced workflows, V3 intelligent features. See `tasks/item-details-roadmap.md`.
 - 2026-03-25: Doc sync — standardized ACs to checkbox format. Marked export feature as deferred (AC-12). Updated Last Updated date.
 - 2026-03-25: **Items list UX polish** — Status badges simplified: removed "Checked out by"/"Reserved by" prefix, now shows just the username with badge color indicating status (title tooltip preserves full text). Column widths tightened for higher density (Name 280→260, Status 200→160, Category/Dept 140→120, Location 160→130).
+- 2026-03-26: **Favorites UI shipped (GAP-22)** — Star column in DataTable, optimistic toggle on detail page, "Favorites" filter chip in toolbar, `favorites_only` query param. Batched favorite lookup (no N+1).
+- 2026-03-26: **CSV export shipped (AC-12)** — Export button in items page header (ADMIN/STAFF only). Downloads current filtered view as CSV. Truncation warning at 5,000 items.
+- 2026-03-26: **Inventory summary bar shipped** — "X items · Y checked out · Z maintenance" display above table. Status breakdown from API.
+- 2026-03-26: **Column visibility persistence shipped** — Column visibility saved to localStorage and restored on mount.
+- 2026-04-03: **Item detail page hardened** — AbortController on all fetches, 401 redirect, refresh-preserves-data, error differentiation (not-found/network/server), manual refresh button with freshness tooltip, breadcrumb, mobile tab overflow scroll, tab badge counts, page decomposed (738→313 lines).
 - 2026-04-06: **Data integrity fixes (4 total):** (1) QR update TOCTOU — catches P2002 instead of pre-check. (2) Delete asset — wrapped in `$transaction`. (3) Generate QR TOCTOU — removed pre-check loop, now catches P2002 with retry. (4) Duplicate asset tag collision — catches P2002 with retry, increased suffix entropy from 12→16 bits, fixed null serialNumber creating "null-COPY-XXX".
 - 2026-04-06: **Kits detail page hardening:** Added 401 redirect on all 6 mutations (save name, save description, add member, remove member, toggle archive, delete). Kits list page already uses `useFetch` hook (has AbortController, 401 handling, visibility refresh).
 - 2026-04-06: **Bulk inventory page hardening:** Added 401 redirect on all 3 mutations (add units, convert to numbered, unit status change). List data already uses `useFetch`.
+- 2026-04-06: **Accessory operations wrapped in transactions** — Attach, move, and detach now use `$transaction` to prevent TOCTOU races (e.g., concurrent attach of same child to different parents).
+- 2026-04-06: **Export permission corrected** — `/api/assets/export` now uses `requirePermission("asset", "export")` instead of `"asset", "create"`. New `export` action added to permissions map. Same ADMIN/STAFF gate, correct semantics.
 
 ## Roadmaps
 - **Items list page**: `tasks/items-roadmap.md` — V1 polish, V2 enhanced UX, V3 advanced features
