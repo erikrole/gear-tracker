@@ -19,6 +19,17 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import dynamic from "next/dynamic";
+import MetricCard from "../MetricCard";
+
+const LazyActionBreakdownChart = dynamic(
+  () => import("./charts").then((m) => ({ default: m.ActionBreakdownChart })),
+  { ssr: false }
+);
+const LazyEntityTypeBreakdownChart = dynamic(
+  () => import("./charts").then((m) => ({ default: m.EntityTypeBreakdownChart })),
+  { ssr: false }
+);
 import {
   Tooltip,
   TooltipContent,
@@ -37,6 +48,8 @@ type AuditEntry = {
 type AuditData = {
   data: AuditEntry[];
   total: number;
+  byAction: { action: string; count: number }[];
+  byEntityType: { entityType: string; count: number }[];
   limit: number;
   offset: number;
 };
@@ -182,6 +195,17 @@ export default function AuditReportPage() {
           </Button>
         )}
       </div>
+
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
+        <MetricCard value={data.total} label="Total events" tooltip="Total audit entries in the selected period" />
+      </div>
+
+      {(data.byAction?.length > 0 || data.byEntityType?.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-1">
+          {data.byAction?.length > 0 && <LazyActionBreakdownChart byAction={data.byAction} />}
+          {data.byEntityType?.length > 0 && <LazyEntityTypeBreakdownChart byEntityType={data.byEntityType} />}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

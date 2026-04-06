@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { AssetImage } from "@/components/AssetImage";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -203,25 +203,7 @@ export default function BookingEquipmentTab({
 /* ── Thumbnail helper ── */
 
 function ItemThumbnail({ src, alt }: { src?: string | null; alt: string }) {
-  if (src) {
-    return (
-      <div className="size-10 rounded-md overflow-hidden bg-muted shrink-0">
-        <Image
-          src={src}
-          alt={alt}
-          width={40}
-          height={40}
-          className="size-full object-cover"
-          unoptimized={!src.includes(".public.blob.vercel-storage.com")}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-      <ImageIcon className="size-4 text-muted-foreground/50" />
-    </div>
-  );
+  return <AssetImage src={src} alt={alt} size={40} />;
 }
 
 /* ── Serialized item row ── */

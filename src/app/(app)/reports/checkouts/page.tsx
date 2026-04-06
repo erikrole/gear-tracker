@@ -35,6 +35,10 @@ const LazyTopRequestersChart = dynamic(
   () => import("./charts").then((m) => ({ default: m.TopRequestersChart })),
   { ssr: false, loading: () => <Card className="p-4"><Skeleton className="h-[200px] w-full" /></Card> }
 );
+const LazyHeatmap = dynamic(
+  () => import("@/components/ui/heatmap"),
+  { ssr: false }
+);
 
 type CheckoutRow = {
   id: string;
@@ -54,6 +58,7 @@ type CheckoutData = {
   totalCheckouts: number;
   overdueCheckouts: number;
   dailyTrend?: { date: string; count: number }[];
+  heatmap?: { date: string; value: number }[];
   recentCheckouts: CheckoutRow[];
   topRequesters: { name: string; count: number }[];
 };
@@ -241,6 +246,24 @@ export default function CheckoutsReportPage() {
           <LazyTopRequestersChart topRequesters={data.topRequesters} days={days} />
         )}
       </div>
+
+      {/* Activity heatmap (365 days) */}
+      {data.heatmap && data.heatmap.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Checkout activity (past year)</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <LazyHeatmap
+              data={data.heatmap}
+              startDate={new Date(Date.now() - 365 * 86_400_000)}
+              endDate={new Date()}
+              colorMode="interpolate"
+              cellSize={12}
+              gap={2}
+              valueDisplayFunction={(v) => `${v} checkout${v === 1 ? "" : "s"}`}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-2 gap-2.5">
         {/* Recent checkouts */}

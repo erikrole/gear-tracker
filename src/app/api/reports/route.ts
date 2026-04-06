@@ -101,6 +101,9 @@ async function getCheckoutReport(days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
   const now = new Date();
 
+  // 365-day window for heatmap (independent of period filter)
+  const heatmapSince = new Date(Date.now() - 365 * 86_400_000);
+
   const checkoutResults = await Promise.allSettled([
     db.booking.count({
       where: { kind: "CHECKOUT", createdAt: { gte: since } }
@@ -134,6 +137,11 @@ async function getCheckoutReport(days: number) {
       where: { kind: "CHECKOUT", createdAt: { gte: since } },
       select: { createdAt: true },
     }),
+    // 365-day heatmap data
+    db.booking.findMany({
+      where: { kind: "CHECKOUT", createdAt: { gte: heatmapSince } },
+      select: { createdAt: true },
+    }),
   ]);
 
   const totalCheckouts = checkoutResults[0].status === "fulfilled" ? checkoutResults[0].value : 0;
@@ -141,6 +149,7 @@ async function getCheckoutReport(days: number) {
   const recentCheckouts = checkoutResults[2].status === "fulfilled" ? checkoutResults[2].value : [];
   const topRequesters = checkoutResults[3].status === "fulfilled" ? checkoutResults[3].value : [];
   const allInPeriod = checkoutResults[4].status === "fulfilled" ? checkoutResults[4].value : [];
+  const heatmapRaw = checkoutResults[5].status === "fulfilled" ? checkoutResults[5].value : [];
 
   // Resolve requester names for top requesters
   const requesterIds = topRequesters.map((r) => r.requesterUserId);
@@ -168,11 +177,22 @@ async function getCheckoutReport(days: number) {
     cursor.setDate(cursor.getDate() + 1);
   }
 
+  // Aggregate 365-day heatmap
+  const heatmapMap = new Map<string, number>();
+  for (const b of heatmapRaw) {
+    const day = b.createdAt.toISOString().slice(0, 10);
+    heatmapMap.set(day, (heatmapMap.get(day) ?? 0) + 1);
+  }
+  const heatmap = Array.from(heatmapMap.entries())
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return {
     days,
     totalCheckouts,
     overdueCheckouts,
     dailyTrend,
+    heatmap,
     recentCheckouts: recentCheckouts.map((c) => ({
       id: c.id,
       title: c.title,
@@ -310,11 +330,30 @@ async function getScanHistoryReport(
     }),
     db.scanEvent.count({ where }),
     db.scanEvent.count({ where: { ...where, success: true } }),
+    // Daily aggregation for stacked bar chart
+    db.scanEvent.findMany({
+      where,
+      select: { createdAt: true, success: true },
+    }),
   ]);
 
   const data = scanResults[0].status === "fulfilled" ? scanResults[0].value : [];
   const total = scanResults[1].status === "fulfilled" ? scanResults[1].value : 0;
   const successCount = scanResults[2].status === "fulfilled" ? scanResults[2].value : 0;
+  const allScans = scanResults[3].status === "fulfilled" ? scanResults[3].value : [];
+
+  // Aggregate daily scan volume (success vs fail)
+  const dailyScanMap = new Map<string, { success: number; fail: number }>();
+  for (const s of allScans) {
+    const day = s.createdAt.toISOString().slice(0, 10);
+    const entry = dailyScanMap.get(day) ?? { success: 0, fail: 0 };
+    if (s.success) entry.success++;
+    else entry.fail++;
+    dailyScanMap.set(day, entry);
+  }
+  const dailyScans = Array.from(dailyScanMap.entries())
+    .map(([date, counts]) => ({ date, ...counts }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     data: data.map((s) => ({
@@ -336,6 +375,7 @@ async function getScanHistoryReport(
     total,
     successCount,
     successRate: total > 0 ? Math.round((successCount / total) * 100) : 100,
+    dailyScans,
     limit,
     offset,
   };
@@ -365,11 +405,33 @@ async function getAuditReport(
         actor: { select: { id: true, name: true } }
       }
     }),
-    db.auditLog.count({ where })
+    db.auditLog.count({ where }),
+    // Group by action for bar chart
+    db.auditLog.groupBy({
+      by: ["action"],
+      where,
+      _count: true,
+      orderBy: { _count: { action: "desc" } },
+      take: 15,
+    }),
+    // Group by entity type for bar chart
+    db.auditLog.groupBy({
+      by: ["entityType"],
+      where,
+      _count: true,
+      orderBy: { _count: { entityType: "desc" } },
+      take: 10,
+    }),
   ]);
 
   const data = auditResults[0].status === "fulfilled" ? auditResults[0].value : [];
   const total = auditResults[1].status === "fulfilled" ? auditResults[1].value : 0;
+  const byAction = auditResults[2].status === "fulfilled"
+    ? auditResults[2].value.map((g) => ({ action: g.action, count: g._count }))
+    : [];
+  const byEntityType = auditResults[3].status === "fulfilled"
+    ? auditResults[3].value.map((g) => ({ entityType: g.entityType, count: g._count }))
+    : [];
 
   return {
     data: data.map((entry) => ({
@@ -382,6 +444,8 @@ async function getAuditReport(
       details: entry.afterJson
     })),
     total,
+    byAction,
+    byEntityType,
     limit,
     offset
   };

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   MoreHorizontal,
@@ -8,9 +7,9 @@ import {
   Copy,
   Wrench,
   Archive,
-  Package,
   Star,
 } from "lucide-react";
+import { AssetImage } from "@/components/AssetImage";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -229,20 +228,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         const subtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
         return (
           <div className="flex items-center gap-3 min-w-0">
-            {item.imageUrl ? (
-              <Image
-                src={item.imageUrl}
-                alt={item.assetTag}
-                width={36}
-                height={36}
-                className="size-9 rounded-md object-cover shrink-0"
-                unoptimized={!item.imageUrl.includes(".public.blob.vercel-storage.com")}
-              />
-            ) : (
-              <div className="size-9 rounded-md bg-muted flex items-center justify-center shrink-0">
-                <Package className="size-4 text-muted-foreground" />
-              </div>
-            )}
+            <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} />
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="font-medium truncate">{item.assetTag}</span>

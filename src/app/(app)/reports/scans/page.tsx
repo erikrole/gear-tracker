@@ -20,6 +20,12 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const LazyDailyScanVolumeChart = dynamic(
+  () => import("./charts").then((m) => ({ default: m.DailyScanVolumeChart })),
+  { ssr: false }
+);
 import {
   Tooltip,
   TooltipContent,
@@ -44,6 +50,7 @@ type ScanData = {
   total: number;
   successCount: number;
   successRate: number;
+  dailyScans: { date: string; success: number; fail: number }[];
   limit: number;
   offset: number;
 };
@@ -245,6 +252,10 @@ export default function ScanHistoryPage() {
           tooltip="Percentage of scans that matched an asset"
         />
       </div>
+
+      {data.dailyScans && data.dailyScans.length > 1 && (
+        <LazyDailyScanVolumeChart dailyScans={data.dailyScans} />
+      )}
 
       <Card>
         <CardHeader>
