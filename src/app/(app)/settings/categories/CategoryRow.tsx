@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { CornerDownRightIcon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -119,14 +120,21 @@ export default function CategoryRow({
               style={{ fontWeight: isChild ? 400 : 600, opacity: savingRename ? 0.6 : 1 }}
             />
           ) : (
-            node.name
+            <Link
+              href={`/items?category=${node.id}`}
+              className="no-underline text-foreground hover:text-[var(--wi-red)] transition-colors"
+            >
+              {node.name}
+            </Link>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {displayCount > 0 && (
-            <Badge variant="purple" size="sm">
-              {displayCount} item{displayCount !== 1 ? "s" : ""}
-            </Badge>
+            <Link href={`/items?category=${node.id}`} className="no-underline">
+              <Badge variant="purple" size="sm" className="cursor-pointer hover:opacity-80 transition-opacity">
+                {displayCount} item{displayCount !== 1 ? "s" : ""}
+              </Badge>
+            </Link>
           )}
           <KebabMenu
             onRename={() => { setNewName(node.name); setRenaming(true); }}

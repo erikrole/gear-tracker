@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon } from "lucide-react";
 import AppSidebar from "./Sidebar";
+import { AssetImage } from "@/components/AssetImage";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -29,6 +30,7 @@ type SearchResult = {
   title: string;
   subtitle: string;
   href: string;
+  imageUrl?: string | null;
   // Item-specific fields for status display
   computedStatus?: string;
   activeBooking?: { requesterName: string; isOverdue: boolean; endsAt?: string } | null;
@@ -139,6 +141,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               title: item.assetTag,
               subtitle: "",
               href: `/items/${item.id}`,
+              imageUrl: item.imageUrl ?? null,
               computedStatus: item.computedStatus,
               activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName, isOverdue: item.activeBooking.isOverdue, endsAt: item.activeBooking.endsAt } : null,
             });
@@ -277,8 +280,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   : status === "RETIRED" ? "Retired"
                   : "Available";
                 return (
-                  <CommandItem key={r.id} value={r.title} onSelect={() => handleCmdSelect(r.href)}>
-                    <span className={`size-2.5 rounded-full shrink-0 ${dotColor} mr-2.5`} />
+                  <CommandItem key={r.id} value={r.title} onSelect={() => handleCmdSelect(r.href)} className="gap-3">
+                    <AssetImage src={r.imageUrl} alt={r.title} size={32} className="rounded" />
                     <div className="min-w-0">
                       <div className="truncate font-medium">{r.title}</div>
                       <div className="mt-0.5">
