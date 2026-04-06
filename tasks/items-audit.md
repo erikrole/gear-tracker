@@ -97,29 +97,49 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 ### Discovered during audit
 
-1. **AREA_ITEMS.md stale**: Last updated 2026-03-25. Missing changelog entries for favorites (GAP-22 closed 2026-03-28), export shipped, summary bar shipped, detail page hardening (AbortController, 401 redirect, error differentiation, breadcrumb, tab overflow, tab counts — all shipped per item-details-roadmap V1).
+**Data Integrity / Race Conditions (from API route audit):**
 
-2. **BRIEF_ITEM_BUNDLING_V1.md ACs unchecked**: Status says "Shipped" but all 9 ACs marked `[ ]`. Same doc drift pattern as BRIEF_USER_DEACTIVATION_V1 — needs checkbox update.
+1. **N+1 in `attachActiveBookings()`** (HIGH): `GET /api/assets` list endpoint loops through each asset querying `db.assetAllocation.findMany()` per asset to enrich with active booking data. O(N) DB queries for large inventories. Should batch into single `WHERE assetId IN (...)` query. File: `src/app/api/assets/route.ts`.
 
-3. **Kits and bulk-inventory pages lack documented hardening**: No 5-pass hardening entries in AREA docs or git log for `/kits`, `/kits/[id]`, `/bulk-inventory`. These pages use `useFetch` hook (which provides some resilience) but haven't been through the formal hardening process.
+2. **QR update TOCTOU** (MEDIUM): `PATCH /api/assets/[id]` does `findUnique` for QR uniqueness then `update` as separate queries. Two concurrent updates could both pass the check. Should wrap in transaction or catch P2002.
 
-4. **ItemBookingsTab has no pagination**: Booking history in the Bookings tab loads all bookings for an item. For frequently-used equipment, this could grow unbounded. The item-details-roadmap notes this as a V2 item.
+3. **Delete asset TOCTOU** (MEDIUM): `DELETE /api/assets/[id]` counts bookings/allocations then deletes — not in transaction. Concurrent booking creation between check and delete.
+
+4. **Accessory operations not transactional** (LOW): Attach/move/detach do find-then-update without transaction.
+
+5. **Export permission mismatch** (LOW): `/api/assets/export` uses `requirePermission("asset", "create")` instead of dedicated export permission. Same role gate but semantically wrong.
+
+**Documentation / Hardening:**
+
+6. **AREA_ITEMS.md stale**: Last updated 2026-03-25. Missing changelog entries for favorites (GAP-22), export, summary bar, detail page hardening — all shipped after that date.
+
+7. **BRIEF_ITEM_BUNDLING_V1.md ACs unchecked**: Status says "Shipped" but all 9 ACs marked `[ ]`.
+
+8. **Kits and bulk-inventory pages lack documented hardening**: No 5-pass entries for `/kits`, `/kits/[id]`, `/bulk-inventory`.
+
+9. **ItemBookingsTab has no pagination**: Loads all bookings unbounded. V2 item.
+
+10. **4 separate fetch calls on detail mount**: Categories, departments, locations, `/api/me` fetched independently.
 
 5. **4 separate fetch calls on detail mount**: `loadCategories`, `loadDepartments`, `loadLocations`, and `/api/me` are fetched independently without batching (pattern fragmentation noted in item-details-roadmap).
 
 ## Recommended Actions (prioritized)
 
-1. **[Medium] Update AREA_ITEMS.md changelog** — Add entries for: favorites UI (GAP-22), CSV export, summary bar, column persistence, detail page hardening (V1 items 1-6 from item-details-roadmap). Bump Last Updated to current date.
+1. **[High] Fix N+1 in `attachActiveBookings()`** — `GET /api/assets` does O(N) allocation queries. Batch into single `WHERE assetId IN (...)` query. This is the list endpoint — performance degrades with inventory size.
 
-2. **[Medium] Harden kits pages** — `/kits` and `/kits/[id]` haven't been through formal hardening. Run `/harden-page` on both to check for missing 401 handling, error differentiation, double-click guards, mobile behavior.
+2. **[Medium] Fix QR update and delete TOCTOU** — Wrap QR uniqueness check + update in transaction (or catch P2002). Wrap delete asset booking-count check + delete in transaction.
 
-3. **[Medium] Harden bulk-inventory page** — `/bulk-inventory` lacks documented hardening. Run `/harden-page` to verify resilience patterns.
+3. **[Medium] Update AREA_ITEMS.md changelog** — Add entries for: favorites UI, CSV export, summary bar, column persistence, detail page hardening. Bump Last Updated.
 
-4. **[Low] Check off BRIEF_ITEM_BUNDLING_V1.md ACs** — All 9 ACs met. Update `[ ]` → `[x]`.
+4. **[Medium] Harden kits pages** — `/kits` and `/kits/[id]` need formal hardening pass (401 handling, error differentiation, double-click guards).
 
-5. **[Low] Add pagination to ItemBookingsTab** — Currently loads all bookings. Add cursor-based pagination (same pattern as UserActivityTab).
+5. **[Medium] Harden bulk-inventory page** — `/bulk-inventory` needs formal hardening pass.
 
-6. **[Optional] Batch detail page mount fetches** — Replace 4 separate fetches (categories, departments, locations, me) with a single `/api/items-page-init`-style endpoint or use the existing one.
+6. **[Low] Check off BRIEF_ITEM_BUNDLING_V1.md ACs** — All 9 ACs met. Update `[ ]` → `[x]`.
+
+7. **[Low] Add pagination to ItemBookingsTab** — Currently loads all bookings unbounded.
+
+8. **[Optional] Batch detail page mount fetches** — Replace 4 separate fetches with single init endpoint.
 
 ## Roadmap Status
 
