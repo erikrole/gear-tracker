@@ -100,7 +100,7 @@ export type ConflictData = {
   }>;
 };
 
-export type TabKey = "info" | "equipment" | "history";
+export type TabKey = "details" | "history";
 
 export type HistoryFilter = "all" | "booking" | "equipment";
 

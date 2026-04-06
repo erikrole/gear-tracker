@@ -3,6 +3,7 @@
 export const SETTINGS_SECTIONS = [
   { href: "/settings/categories", label: "Categories" },
   { href: "/settings/sports", label: "Sports" },
+  { href: "/settings/bookings", label: "Bookings" },
   { href: "/settings/escalation", label: "Escalation" },
   { href: "/settings/calendar-sources", label: "Calendar" },
   { href: "/settings/venue-mappings", label: "Venue Mappings" },

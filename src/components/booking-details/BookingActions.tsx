@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ExternalLinkIcon } from "lucide-react";
 import type { BookingDetail } from "./types";
 
 type Props = {
@@ -33,14 +34,27 @@ export default function BookingActions({
   onConvert,
   onCancel,
 }: Props) {
+  const detailHref = booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`;
+
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div className="flex items-center gap-2">
+      {/* Secondary actions (left) */}
       {canEdit && (
-        <Button onClick={onEdit}>Edit</Button>
+        <Button variant="outline" size="sm" onClick={onEdit}>Edit</Button>
       )}
+      {canCancel && (
+        <Button variant="destructive" size="sm" onClick={onCancel} disabled={cancelling}>
+          {cancelling ? "Cancelling..." : "Cancel"}
+        </Button>
+      )}
+
+      <div className="flex-1" />
+
+      {/* Primary actions (right) */}
       {canCheckin && (
         <Button
-          className="bg-green-600 text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+          size="sm"
+          variant="brand"
           disabled={checkinLoading}
           onClick={onCheckinAll}
         >
@@ -48,18 +62,13 @@ export default function BookingActions({
         </Button>
       )}
       {canConvert && (
-        <Button onClick={onConvert} disabled={converting}>
+        <Button size="sm" variant="brand" onClick={onConvert} disabled={converting}>
           {converting ? "Converting..." : "Start checkout"}
         </Button>
       )}
-      {canCancel && (
-        <Button variant="destructive" onClick={onCancel} disabled={cancelling}>
-          {cancelling ? "Cancelling..." : booking.kind === "RESERVATION" ? "Cancel reservation" : "Cancel checkout"}
-        </Button>
-      )}
-      <Button variant="outline" className="ml-auto" asChild>
-        <Link href={booking.kind === "CHECKOUT" ? `/checkouts/${booking.id}` : `/reservations/${booking.id}`}>
-          Full page
+      <Button variant="ghost" size="sm" asChild>
+        <Link href={detailHref}>
+          Full page <ExternalLinkIcon className="size-3.5 ml-1" />
         </Link>
       </Button>
     </div>

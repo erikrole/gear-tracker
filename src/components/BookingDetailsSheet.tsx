@@ -57,7 +57,7 @@ export default function BookingDetailsSheet({
   const confirm = useConfirm();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>("info");
+  const [tab, setTab] = useState<TabKey>("details");
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [equipSearch, setEquipSearch] = useState("");
@@ -149,7 +149,7 @@ export default function BookingDetailsSheet({
   useEffect(() => {
     if (bookingId) {
       fetchBooking();
-      setTab("info");
+      setTab("details");
       setEditMode(false);
       setEquipEditMode(false);
       setConflictError(null);
@@ -516,22 +516,20 @@ export default function BookingDetailsSheet({
     setSaving(false);
   }
 
-  async function handleExtend(days: number) {
+  async function handleExtendTo(endsAt: string) {
     if (!booking || extending) return;
     setExtending(true);
-    const current = new Date(booking.endsAt);
-    const extended = new Date(current.getTime() + days * 24 * 60 * 60 * 1000);
 
     try {
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endsAt: extended.toISOString() }),
+        body: JSON.stringify({ endsAt }),
       });
 
       if (handle401(res)) return;
       if (res.ok) {
-        const newDate = extended.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const newDate = new Date(endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
         toast(`Extended to ${newDate}`, "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
@@ -683,37 +681,37 @@ export default function BookingDetailsSheet({
       <SheetContent className="sm:max-w-lg">
         {/* Header */}
         <SheetHeader>
-          <SheetTitle className="text-2xl font-bold tracking-tight">
-            {booking?.title || "Loading..."}
-          </SheetTitle>
-          {booking && (
-            <div className="flex gap-1.5 flex-wrap mt-1">
-              {booking.refNumber && (
-                <Badge variant="outline" className="font-mono text-xs">{booking.refNumber}</Badge>
-              )}
-              <Badge variant={(booking.isOverdue ? "red" : (statusBadgeVariant[booking.status] || "gray")) as BadgeProps["variant"]}>
-                {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
-              </Badge>
-              <Badge variant="gray">{booking.bookingType}</Badge>
-              <Badge variant="secondary" className="text-xs">{booking.requester?.name ?? "Unknown"}</Badge>
-              {booking.location?.name && (
-                <Badge variant="outline" className="text-xs">{booking.location.name}</Badge>
-              )}
-              {booking.locationMode === "MIXED" && (
-                <Badge variant="mixed">Mixed locations</Badge>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <SheetTitle className="text-xl font-bold tracking-tight truncate">
+                {booking?.title || "Loading..."}
+              </SheetTitle>
+              {booking && (
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
+                  {booking.refNumber && " · "}
+                  {booking.bookingType}
+                  {booking.requester?.name && ` · ${booking.requester.name}`}
+                  {booking.location?.name && ` · ${booking.location.name}`}
+                </p>
               )}
             </div>
-          )}
+            {booking && (
+              <Badge
+                variant={(booking.isOverdue ? "red" : (statusBadgeVariant[booking.status] || "gray")) as BadgeProps["variant"]}
+                className="shrink-0 mt-0.5"
+              >
+                {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
+              </Badge>
+            )}
+          </div>
         </SheetHeader>
 
         {/* Tabs */}
         <div className="px-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
             <TabsList className="w-full justify-start">
-              <TabsTrigger value="info">Info</TabsTrigger>
-              <TabsTrigger value="equipment">
-                Equipment{booking ? ` (${(booking.serializedItems?.length ?? 0) + (booking.bulkItems?.length ?? 0)})` : ""}
-              </TabsTrigger>
+              <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -738,21 +736,35 @@ export default function BookingDetailsSheet({
             <div className="py-10 px-5 text-center text-muted-foreground">Booking not found</div>
           ) : (
             <>
-              {/* Info Tab - View Mode */}
-              {tab === "info" && !editMode && (
-                <BookingOverview
-                  booking={booking}
-                  conflictError={conflictError}
-                  returnSuggestion={returnSuggestion}
-                  checkinProgress={checkinProgress}
-                  canExtend={!!canExtend}
-                  extending={extending}
-                  onExtend={handleExtend}
-                />
+              {/* Details Tab — combined Info + Equipment */}
+              {tab === "details" && !editMode && !equipEditMode && (
+                <>
+                  <BookingOverview
+                    booking={booking}
+                    conflictError={conflictError}
+                    returnSuggestion={returnSuggestion}
+                    checkinProgress={checkinProgress}
+                    canExtend={!!canExtend}
+                    extending={extending}
+                    onExtendTo={handleExtendTo}
+                  />
+                  <BookingItems
+                    booking={booking}
+                    equipSearch={equipSearch}
+                    onEquipSearchChange={setEquipSearch}
+                    filteredSerializedItems={filteredSerializedItems}
+                    filteredBulkItems={filteredBulkItems}
+                    canEditEquipment={!!canEditEquipment}
+                    canCheckin={!!canCheckin}
+                    checkinLoading={checkinLoading}
+                    onEnterEquipEditMode={enterEquipEditMode}
+                    onCheckinItem={handleCheckinItem}
+                  />
+                </>
               )}
 
-              {/* Info Tab - Edit Mode */}
-              {tab === "info" && editMode && (
+              {/* Details Tab - Edit booking info */}
+              {tab === "details" && editMode && (
                 <BookingEditForm
                   booking={booking}
                   editTitle={editTitle}
@@ -769,24 +781,8 @@ export default function BookingDetailsSheet({
                 />
               )}
 
-              {/* Equipment Tab - View Mode */}
-              {tab === "equipment" && !equipEditMode && (
-                <BookingItems
-                  booking={booking}
-                  equipSearch={equipSearch}
-                  onEquipSearchChange={setEquipSearch}
-                  filteredSerializedItems={filteredSerializedItems}
-                  filteredBulkItems={filteredBulkItems}
-                  canEditEquipment={!!canEditEquipment}
-                  canCheckin={!!canCheckin}
-                  checkinLoading={checkinLoading}
-                  onEnterEquipEditMode={enterEquipEditMode}
-                  onCheckinItem={handleCheckinItem}
-                />
-              )}
-
-              {/* Equipment options error */}
-              {tab === "equipment" && equipEditMode && optionsError && (
+              {/* Details Tab - Edit equipment */}
+              {tab === "details" && equipEditMode && optionsError && (
                 <Alert variant="destructive" className="mb-3">
                   <AlertDescription className="flex items-center justify-between">
                     <span>Failed to load equipment options.</span>
@@ -795,8 +791,7 @@ export default function BookingDetailsSheet({
                 </Alert>
               )}
 
-              {/* Equipment Tab - Edit Mode */}
-              {tab === "equipment" && equipEditMode && (
+              {tab === "details" && equipEditMode && (
                 <BookingEquipmentEditor
                   conflictError={conflictError}
                   editSerializedIds={editSerializedIds}
