@@ -187,6 +187,7 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_all_read" }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);
@@ -222,6 +223,7 @@ export default function NotificationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "mark_read", id }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);

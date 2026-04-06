@@ -88,19 +88,17 @@ export default function BookingInfoTab({
         )}
       </SaveableField>
 
-      {/* From */}
-      <SaveableField label="From">
-        <span className="text-sm">{formatDateTime(booking.startsAt)}</span>
-      </SaveableField>
-
-      {/* To */}
-      <SaveableField label="To">
-        <span className="text-sm">
-          {formatDateTime(booking.endsAt)}
-          <span className="ml-2 text-muted-foreground text-xs">
-            ({formatDuration(booking.startsAt, booking.endsAt)})
-          </span>
-        </span>
+      {/* Date range (connected From → To) */}
+      <SaveableField label="When">
+        <div className="text-sm space-y-0.5">
+          <div>{formatDateTime(booking.startsAt)}</div>
+          <div>
+            {formatDateTime(booking.endsAt)}
+            <span className="ml-2 text-muted-foreground text-xs">
+              ({formatDuration(booking.startsAt, booking.endsAt)})
+            </span>
+          </div>
+        </div>
       </SaveableField>
 
       {/* User */}
