@@ -85,23 +85,23 @@ export default function CreateUserDialog({
         <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="create-name">Full name</Label>
-            <Input id="create-name" name="name" required autoFocus aria-invalid={!!fieldErrors.name} />
+            <Input id="create-name" name="name" required autoFocus disabled={submitting} aria-invalid={!!fieldErrors.name} />
             {fieldErrors.name && <p className="text-sm text-destructive">{fieldErrors.name}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="create-email">Email</Label>
-            <Input id="create-email" name="email" type="email" required aria-invalid={!!fieldErrors.email} />
+            <Input id="create-email" name="email" type="email" required disabled={submitting} aria-invalid={!!fieldErrors.email} />
             {fieldErrors.email && <p className="text-sm text-destructive">{fieldErrors.email}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="create-password">Temporary password</Label>
-            <Input id="create-password" name="password" type="password" minLength={8} required aria-invalid={!!fieldErrors.password} />
+            <Input id="create-password" name="password" type="password" minLength={8} required disabled={submitting} aria-invalid={!!fieldErrors.password} />
             {fieldErrors.password && <p className="text-sm text-destructive">{fieldErrors.password}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Role</Label>
-              <Select name="role" defaultValue="STAFF">
+              <Select name="role" defaultValue="STAFF" disabled={submitting}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -114,7 +114,7 @@ export default function CreateUserDialog({
             </div>
             <div className="space-y-1.5">
               <Label>Location</Label>
-              <Select name="locationId" defaultValue="__none__">
+              <Select name="locationId" defaultValue="__none__" disabled={submitting}>
                 <SelectTrigger>
                   <SelectValue placeholder="No location" />
                 </SelectTrigger>

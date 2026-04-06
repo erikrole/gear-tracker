@@ -33,8 +33,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, CalendarDays, CameraIcon, Copy, KeyRound, Loader2, TrashIcon } from "lucide-react";
 import { formatDateFull } from "@/lib/format";
@@ -57,6 +55,7 @@ export default function UserDetailPage() {
 
   const [activeTab, setActiveTab] = useState<TabKey>("info");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
   const [resetPwDialog, setResetPwDialog] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
@@ -143,7 +142,8 @@ export default function UserDetailPage() {
   }
 
   async function toggleActive() {
-    if (!effectiveUser) return;
+    if (!effectiveUser || togglingActive) return;
+    setTogglingActive(true);
     const newActive = !effectiveUser.active;
     setUserOverrides((prev) => ({ ...prev, active: newActive }));
     try {
@@ -152,6 +152,7 @@ export default function UserDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: newActive }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         setUserOverrides((prev) => ({ ...prev, active: !newActive }));
         const json = await res.json().catch(() => ({}));
@@ -162,6 +163,8 @@ export default function UserDetailPage() {
     } catch {
       setUserOverrides((prev) => ({ ...prev, active: !newActive }));
       toast("Network error", "error");
+    } finally {
+      setTogglingActive(false);
     }
   }
 

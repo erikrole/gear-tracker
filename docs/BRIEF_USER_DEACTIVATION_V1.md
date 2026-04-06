@@ -4,7 +4,7 @@
 - Feature: User Deactivation
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-03-25
-- Status: Draft
+- Status: Shipped (2026-04-03 feature, 2026-04-06 session enforcement)
 
 ## Problem
 No way to deactivate users who leave the team. `User.active` field exists in schema but is not exposed in UI. Deactivated users can still log in and hold active bookings/reservations.
@@ -28,16 +28,16 @@ No way to deactivate users who leave the team. `User.active` field exists in sch
 - Last-active tracking / heatmap
 
 ## Acceptance Criteria
-- [ ] AC-1: Admin can toggle user active/inactive on detail page
-- [ ] AC-2: Deactivated user cannot log in (redirected with message)
-- [ ] AC-3: Deactivation blocked if user has OPEN checkouts
-- [ ] AC-4: BOOKED reservations auto-cancelled on deactivation
-- [ ] AC-5: Users list defaults to active-only filter
-- [ ] AC-6: All deactivation actions create audit log entries
+- [x] AC-1: Admin can toggle user active/inactive on detail page
+- [x] AC-2: Deactivated user cannot log in (redirected with message). Session-level enforcement added 2026-04-06.
+- [x] AC-3: Deactivation blocked if user has OPEN checkouts
+- [x] AC-4: BOOKED reservations auto-cancelled on deactivation
+- [x] AC-5: Users list defaults to active-only filter
+- [x] AC-6: All deactivation actions create audit log entries
 
 ## Technical Notes
 - Schema: `User.active` field already exists (`Boolean @default(true)`)
-- Auth: Check `active` in `withAuth` middleware or login endpoint
+- Auth: `active` checked in login endpoint (2026-04-03) AND `requireAuth()` (2026-04-06)
 - Migration: None needed (field exists)
 - API: Extend existing PATCH `/api/users/[id]` with `active` field
 

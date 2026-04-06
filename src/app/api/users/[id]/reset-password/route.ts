@@ -22,13 +22,11 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const tempPassword = crypto.randomBytes(6).toString("base64url"); // ~8 chars
   const passwordHash = await hashPassword(tempPassword);
 
-  await db.user.update({
-    where: { id },
-    data: { passwordHash },
-  });
-
-  // Invalidate existing sessions
-  await db.session.deleteMany({ where: { userId: id } });
+  // Atomic: update password + invalidate sessions together
+  await db.$transaction([
+    db.user.update({ where: { id }, data: { passwordHash } }),
+    db.session.deleteMany({ where: { userId: id } }),
+  ]);
 
   await createAuditEntry({
     actorId: user.id,

@@ -63,7 +63,10 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
               <span className="font-medium text-sm truncate">{user.name}</span>
               <span className="text-muted-foreground text-xs truncate">{user.email}</span>
             </div>
-            <RoleBadge role={user.role} />
+            <div className="flex items-center gap-1.5 shrink-0">
+              {user.active === false && <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground">Inactive</Badge>}
+              <RoleBadge role={user.role} />
+            </div>
           </div>
           {(user.location || user.primaryArea) && (
             <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground pl-12">

@@ -141,7 +141,6 @@ export default function UsersPage() {
   const totalPages = Math.ceil(total / LIMIT);
   const hasFilters = !!search || !!roleFilter || !!locationFilter;
   const isInitialLoad = loading && users.length === 0 && !loadError;
-  const isRefreshing = loading && users.length > 0;
 
   return (
     <>

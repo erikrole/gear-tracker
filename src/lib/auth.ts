@@ -94,6 +94,10 @@ export async function requireAuth(): Promise<AuthUser> {
     throw new HttpError(401, "Session expired");
   }
 
+  if (!session.user.active) {
+    throw new HttpError(401, "Account deactivated");
+  }
+
   return {
     id: session.user.id,
     email: session.user.email,
