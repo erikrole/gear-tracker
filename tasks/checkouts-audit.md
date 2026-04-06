@@ -74,22 +74,31 @@
 
 ## Open Gaps & Blockers
 
+### Auth gaps (from API route audit)
+1. **Audit logs endpoint lacks permission gate** (MEDIUM): `GET /api/bookings/[id]/audit-logs` — any authenticated user can fetch audit logs for any booking. Should enforce `requireBookingAction(id, user, "view")` to prevent students from reading other users' booking audit trails.
+
+2. **Photo upload endpoint lacks permission gate** (MEDIUM): `POST /api/checkouts/[id]/photo` — only checks booking exists and is OPEN, doesn't verify user has permission (student ownership or staff+). Should add `requireBookingAction` check.
+
 ### From todo.md
-1. **Reservations AC-8**: Equipment conflict badges on booking detail — conflict detection exists in EquipmentPicker but not surfaced on the booking detail equipment tab. P2 priority.
+3. **Reservations AC-8**: Equipment conflict badges on booking detail — conflict detection exists in EquipmentPicker but not surfaced on the booking detail equipment tab. P2 priority.
 
 ### From AREA_RESERVATIONS.md
-2. **Reservation ACs not in checkbox format**: 12 acceptance criteria listed as numbered items, not `[x]`/`[ ]`. Unlike AREA_CHECKOUTS (all checked), these haven't been formally verified against the checkbox convention.
+4. **Reservation ACs not in checkbox format**: 12 acceptance criteria listed as numbered items, not `[x]`/`[ ]`. Unlike AREA_CHECKOUTS (all checked), these haven't been formally verified against the checkbox convention.
 
 ### From doc review
-3. **AREA_RESERVATIONS.md stale**: Last updated 2026-03-22. Missing changelog entries for: unified detail page (2026-03-22), booking page hardening (2026-03-25), kit integration (2026-03-25), overdue sort (2026-03-25), photo requirement (2026-03-30), deep links (2026-03-31).
+5. **AREA_RESERVATIONS.md stale**: Last updated 2026-03-22. Missing changelog entries for: unified detail page (2026-03-22), booking page hardening (2026-03-25), kit integration (2026-03-25), overdue sort (2026-03-25), photo requirement (2026-03-30), deep links (2026-03-31).
 
 ## Recommended Actions (prioritized)
 
-1. **[Medium] Update AREA_RESERVATIONS.md** — Add changelog entries for 6+ features shipped since 2026-03-22. Convert ACs to checkbox format and verify each.
+1. **[Medium] Add permission gate to audit-logs endpoint** — `GET /api/bookings/[id]/audit-logs` should enforce `requireBookingAction(id, user, "view")` so students can only see audit logs for their own bookings.
 
-2. **[Low] Implement reservation conflict badges** — todo.md P2 item. Surface conflict data from booking detail API on the equipment tab (data already available from EquipmentPicker's availability check pattern).
+2. **[Medium] Add permission gate to photo upload** — `POST /api/checkouts/[id]/photo` should check student ownership or staff+ role before allowing upload.
 
-3. **[Low] Date range grouping** — Connected From/To display on booking detail. Deferred from UX Round 3.
+3. **[Medium] Update AREA_RESERVATIONS.md** — Add changelog entries for 6+ features shipped since 2026-03-22. Convert ACs to checkbox format and verify each.
+
+4. **[Low] Implement reservation conflict badges** — todo.md P2 item. Surface conflict data from booking detail API on the equipment tab.
+
+5. **[Low] Date range grouping** — Connected From/To display on booking detail. Deferred from UX Round 3.
 
 ## Roadmap Status
 
