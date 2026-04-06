@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-25
+- Last Updated: 2026-04-06
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -181,3 +181,5 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-03-25: Doc sync — standardized ACs to checkbox format. Unchecked AC-4 (7-day reservation filter not enforced in code — query fetches all BOOKED reservations without date window).
 - 2026-03-25: **UX improvements batch** — (1) Removed donut/activity chart (stat strip KPIs remain). (2) Overdue banner now shows gear thumbnail avatars alongside user avatars for overdue items. (3) Time durations switched from compact ("3d") to explicit ("3 days 2 hours") across all dashboard labels. (4) Upcoming events show full sport names ("Men's Hockey vs Dartmouth") instead of code badges ("MHKY"). (5) Filter chips moved from below stat strip into page header toolbar for better integration.
 - 2026-03-25: **Student role-adaptive dashboard** — STUDENT role sees only "My Gear" column (full width via `dashboard-single` layout), no stat strip, no quick actions. Team Activity column and team-wide stats hidden. **Owned-booking accent** — My Gear checkout/reservation rows display `border-l-2 border-l-primary` left accent for instant visual distinction from team rows.
+- 2026-03-26: **React Query adoption** — `useDashboardData` hook migrated to `@tanstack/react-query`. Stale-while-revalidate, refetchOnWindowFocus, AbortSignal via queryFn. Refresh failures toast instead of replacing visible data. Error classification (auth/network/server). Optimistic updates via `queryClient.setQueryData`.
+- 2026-03-28: **Flagged items banner** — New banner shows damaged/lost/maintenance items needing attention. Top 5 items with links to item detail. Color-coded by type. Staff/admin only.

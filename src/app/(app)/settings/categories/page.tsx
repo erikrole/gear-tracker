@@ -27,6 +27,7 @@ export default function CategoriesPage() {
     setError(null);
     try {
       const res = await fetch("/api/categories");
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
         setCategories(json.data ?? []);
@@ -46,11 +47,12 @@ export default function CategoriesPage() {
     if (!newName.trim()) { setAdding(false); return; }
     setCreatingRoot(true);
     try {
-      await fetch("/api/categories", {
+      const res = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       setNewName("");
       setAdding(false);
       load();
