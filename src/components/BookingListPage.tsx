@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 const CreateBookingSheet = dynamic(() => import("@/components/CreateBookingSheet"), { ssr: false });
@@ -39,12 +40,8 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const { toast } = useToast();
   const urlParams = useSearchParams();
 
-  // ── List state ──
-  const [items, setItems] = useState<BookingItem[]>([]);
-  const [total, setTotal] = useState(0);
+  // ── Filter state ──
   const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
   const [statusFilter, setStatusFilter] = useState(urlParams.get("status") || config.defaultStatusFilter || "");
@@ -53,10 +50,85 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const [userFilter, setUserFilter] = useState("");
   const [specialFilter, setSpecialFilter] = useState(urlParams.get("filter") || "");
 
-  // ── Form options (shared with filters and create sheet) ──
-  const [users, setUsers] = useState<FormUser[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
+  // ── List data (React Query) ──
+  const queryClient = useQueryClient();
+  const limit = 20;
+  const listUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("limit", String(limit));
+    params.set("offset", String(page * limit));
+    if (search) params.set("q", search);
+    if (sort) params.set("sort", sort);
+    if (specialFilter) params.set("filter", specialFilter);
+    if (!specialFilter && statusFilter) params.set("status", statusFilter);
+    if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
+    if (locationFilter) params.set("location_id", locationFilter);
+    if (userFilter) params.set("requester_id", userFilter);
+    return `${config.apiBase}?${params}`;
+  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.hasSportFilter]);
+
+  const { data: listData, isLoading: loading, isFetching, isError, refetch } = useQuery<ListResponse>({
+    queryKey: ["bookingList", config.kind, listUrl],
+    queryFn: async ({ signal }) => {
+      const res = await fetch(listUrl, { signal });
+      if (res.status === 401) { window.location.href = "/login"; throw new DOMException("Auth redirect", "AbortError"); }
+      if (!res.ok) throw new Error("server");
+      return res.json();
+    },
+    refetchOnWindowFocus: true,
+  });
+  const reload = async () => { await refetch(); };
+  const items = listData?.data ?? [];
+  const total = listData?.total ?? 0;
+  const loadError: false | "network" | "server" = isError
+    ? (typeof navigator !== "undefined" && !navigator.onLine ? "network" : "server")
+    : false;
+
+  /** Optimistic update helper — mutates the cached list data */
+  const setItems = (updater: BookingItem[] | ((prev: BookingItem[]) => BookingItem[])) => {
+    queryClient.setQueryData<ListResponse>(["bookingList", config.kind, listUrl], (prev) => {
+      if (!prev) return prev;
+      const newItems = typeof updater === "function" ? updater(prev.data ?? []) : updater;
+      return { ...prev, data: newItems };
+    });
+  };
+
+  // ── Form options (React Query, shared cache) ──
+  const { data: formOpts } = useQuery({
+    queryKey: ["form-options"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/form-options", { signal });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json?.data ?? null;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const users: FormUser[] = formOpts?.users ?? [];
+  const locations: Location[] = formOpts?.locations ?? [];
+  const bulkSkus: BulkSkuOption[] = formOpts?.bulkSkus ?? [];
+
+  // ── Current user (React Query, shared cache) ──
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/me", { signal });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json?.user ?? null;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const currentUserId = meData?.id ?? "";
+  const currentUserRole = meData?.role ?? "";
+  const initialRequester = meData?.id ?? "";
+
+  // Apply "mine" filter from URL once user data loads
+  useEffect(() => {
+    if (urlParams.get("mine") === "true" && meData?.id && !userFilter) {
+      setUserFilter(meData.id);
+    }
+  }, [meData?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Create sheet state ──
   const [showCreate, setShowCreate] = useState(
@@ -64,19 +136,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   );
   const [draftId, setDraftId] = useState<string | null>(urlParams.get("draftId"));
 
-  // ── Current user (for initial requester + list menus) ──
-  const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [currentUserRole, setCurrentUserRole] = useState<string>("");
-  const [initialRequester, setInitialRequester] = useState<string>("");
-
   // ── Sheet + menu ──
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const extendingRef = useRef(false);
-  const listAbortRef = useRef<AbortController | null>(null);
-  const hasLoadedRef = useRef(false);
-
-  const limit = 20;
 
   // ── Overdue-first sort: float overdue items to top of current page ──
   const sortedItems = useMemo(() => {
@@ -93,81 +156,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     });
   }, [items, config.overdueStatus]);
 
-  // ── Data fetching ──
-
-  const reload = useCallback(async () => {
-    // Abort previous in-flight request to prevent stale data
-    listAbortRef.current?.abort();
-    const controller = new AbortController();
-    listAbortRef.current = controller;
-
-    if (!hasLoadedRef.current) setLoading(true);
-    setLoadError(false);
-    try {
-      const params = new URLSearchParams();
-      params.set("limit", String(limit));
-      params.set("offset", String(page * limit));
-      if (search) params.set("q", search);
-      if (sort) params.set("sort", sort);
-      if (specialFilter) params.set("filter", specialFilter);
-      if (!specialFilter && statusFilter) params.set("status", statusFilter);
-      if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
-      if (locationFilter) params.set("location_id", locationFilter);
-      if (userFilter) params.set("requester_id", userFilter);
-      const res = await fetch(`${config.apiBase}?${params}`, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      if (res.ok) {
-        const json: ListResponse = await res.json();
-        setItems(json.data ?? []);
-        setTotal(json.total ?? 0);
-        hasLoadedRef.current = true;
-      } else {
-        setLoadError("server");
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setLoadError("network");
-    }
-    if (!controller.signal.aborted) setLoading(false);
-  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.hasSportFilter]);
-
-  useEffect(() => {
-    reload();
-    return () => listAbortRef.current?.abort();
-  }, [reload]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const { signal } = controller;
-    fetch("/api/form-options", { signal })
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        if (signal.aborted || !json?.data) return;
-        setUsers(json.data.users || []);
-        setLocations(json.data.locations || []);
-        setBulkSkus(json.data.bulkSkus || []);
-      })
-      .catch((err) => { if (err?.name !== "AbortError") toast("Failed to load filter options", "error"); });
-    fetch("/api/me", { signal })
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => {
-        if (signal.aborted) return;
-        if (json?.user) {
-          setCurrentUserId(json.user.id || "");
-          setCurrentUserRole(json.user.role || "");
-          if (json.user.id) setInitialRequester(json.user.id);
-          if (urlParams.get("mine") === "true" && json.user.id) {
-            setUserFilter(json.user.id);
-          }
-        }
-      })
-      .catch((err) => { if (err?.name !== "AbortError") toast("Couldn\u2019t verify your session \u2014 some features may be limited", "error"); });
-    return () => controller.abort();
-  }, []);
+  // ── Data fetching is handled by React Query above ──
 
   // ── Menu handlers ──
 
