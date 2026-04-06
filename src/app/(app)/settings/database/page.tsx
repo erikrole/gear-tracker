@@ -30,6 +30,7 @@ export default function DatabasePage() {
     setError(null);
     try {
       const res = await fetch("/api/db-diagnostics");
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         setError(json?.error ?? `HTTP ${res.status}`);

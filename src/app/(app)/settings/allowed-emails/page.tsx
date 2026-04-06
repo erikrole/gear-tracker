@@ -64,6 +64,7 @@ export default function AllowedEmailsPage() {
       params.set("limit", "100");
       if (statusFilter !== "all") params.set("status", statusFilter);
       const res = await fetch(`/api/allowed-emails?${params}`);
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
         setItems(json.data);
@@ -94,6 +95,7 @@ export default function AllowedEmailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, role: addRole }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         toast("Email added to allowlist", "success");
         setAddEmail("");
@@ -127,6 +129,7 @@ export default function AllowedEmailsPage() {
       const res = await fetch(`/api/allowed-emails/${item.id}`, {
         method: "DELETE",
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         setTotal((prev) => prev - 1);

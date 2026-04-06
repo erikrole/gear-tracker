@@ -24,6 +24,7 @@ export default function SportsSettingsPage() {
     setError(null);
     try {
       const res = await fetch("/api/sport-configs");
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         setError({
           type: "server",
@@ -64,6 +65,7 @@ export default function SportsSettingsPage() {
             shiftConfigs: defaultShiftConfigs(),
           }),
         });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         if (res.ok) {
           const json = await res.json();
           setConfigs((prev) => [...prev, json.data]);
@@ -74,6 +76,7 @@ export default function SportsSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active: newActive }),
         });
+        if (res.status === 401) { window.location.href = "/login"; return; }
         if (res.ok) {
           setConfigs((prev) =>
             prev.map((c) => (c.sportCode === sportCode ? { ...c, active: newActive } : c))
@@ -104,6 +107,7 @@ export default function SportsSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shiftConfigs: updatedConfigs }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (res.ok) {
         const json = await res.json();
         setConfigs((prev) =>
