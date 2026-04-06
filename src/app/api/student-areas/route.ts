@@ -33,26 +33,28 @@ export const POST = withAuth(async (req, { user }) => {
 
   const body = studentAreaSchema.parse(await req.json());
 
-  // If setting as primary, unset any existing primary for this user
-  if (body.isPrimary) {
-    await db.studentAreaAssignment.updateMany({
-      where: { userId: body.userId, isPrimary: true },
-      data: { isPrimary: false },
-    });
-  }
+  // Atomic: unset existing primary + upsert new assignment to prevent race on isPrimary
+  const assignment = await db.$transaction(async (tx) => {
+    if (body.isPrimary) {
+      await tx.studentAreaAssignment.updateMany({
+        where: { userId: body.userId, isPrimary: true },
+        data: { isPrimary: false },
+      });
+    }
 
-  const assignment = await db.studentAreaAssignment.upsert({
-    where: {
-      userId_area: { userId: body.userId, area: body.area },
-    },
-    create: {
-      userId: body.userId,
-      area: body.area,
-      isPrimary: body.isPrimary,
-    },
-    update: {
-      isPrimary: body.isPrimary,
-    },
+    return tx.studentAreaAssignment.upsert({
+      where: {
+        userId_area: { userId: body.userId, area: body.area },
+      },
+      create: {
+        userId: body.userId,
+        area: body.area,
+        isPrimary: body.isPrimary,
+      },
+      update: {
+        isPrimary: body.isPrimary,
+      },
+    });
   });
 
   await createAuditEntry({

@@ -7,7 +7,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().trim().min(1).max(100).optional(),
   email: z.string().email().optional(),
   locationId: z.string().cuid().nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
@@ -95,40 +95,50 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
 
   if (body.active !== undefined) {
-    // Deactivation guard: block if user has OPEN checkouts (must return gear first)
+    // Deactivation requires atomic check + cancel + session cleanup
     if (body.active === false && target.active === true) {
-      const openCheckouts = await db.booking.count({
-        where: {
-          requesterUserId: id,
-          kind: "CHECKOUT",
-          status: "OPEN",
-        },
-      });
-      if (openCheckouts > 0) {
-        throw new HttpError(
-          400,
-          `Cannot deactivate: user has ${openCheckouts} open checkout${openCheckouts > 1 ? "s" : ""}. Return all gear first.`
-        );
-      }
+      const cancelledIds = await db.$transaction(async (tx) => {
+        // Re-check OPEN checkouts inside transaction to prevent TOCTOU
+        const openCheckouts = await tx.booking.count({
+          where: {
+            requesterUserId: id,
+            kind: "CHECKOUT",
+            status: "OPEN",
+          },
+        });
+        if (openCheckouts > 0) {
+          throw new HttpError(
+            400,
+            `Cannot deactivate: user has ${openCheckouts} open checkout${openCheckouts > 1 ? "s" : ""}. Return all gear first.`
+          );
+        }
 
-      // Auto-cancel BOOKED reservations and DRAFT bookings
-      const toCancel = await db.booking.findMany({
-        where: {
-          requesterUserId: id,
-          OR: [
-            { status: "BOOKED" },
-            { status: "DRAFT" },
-          ],
-        },
-        select: { id: true, status: true, kind: true },
-      });
-
-      if (toCancel.length > 0) {
-        await db.booking.updateMany({
-          where: { id: { in: toCancel.map((b) => b.id) } },
-          data: { status: "CANCELLED" },
+        // Auto-cancel BOOKED reservations and DRAFT bookings
+        const toCancel = await tx.booking.findMany({
+          where: {
+            requesterUserId: id,
+            OR: [
+              { status: "BOOKED" },
+              { status: "DRAFT" },
+            ],
+          },
+          select: { id: true },
         });
 
+        if (toCancel.length > 0) {
+          await tx.booking.updateMany({
+            where: { id: { in: toCancel.map((b) => b.id) } },
+            data: { status: "CANCELLED" },
+          });
+        }
+
+        // Invalidate all existing sessions so deactivated user is immediately locked out
+        await tx.session.deleteMany({ where: { userId: id } });
+
+        return toCancel.map((b) => b.id);
+      }, { isolationLevel: "Serializable" });
+
+      if (cancelledIds.length > 0) {
         await createAuditEntry({
           actorId: user.id,
           actorRole: user.role,
@@ -136,14 +146,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           entityId: id,
           action: "deactivation_cancelled_bookings",
           after: {
-            cancelledBookingIds: toCancel.map((b) => b.id),
-            cancelledCount: toCancel.length,
+            cancelledBookingIds: cancelledIds,
+            cancelledCount: cancelledIds.length,
           },
         });
       }
-
-      // Invalidate all existing sessions so deactivated user is immediately locked out
-      await db.session.deleteMany({ where: { userId: id } });
     }
 
     updateData.active = body.active;
