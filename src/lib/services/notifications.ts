@@ -363,6 +363,63 @@ export async function notifyItemReport(args: {
   }
 }
 
+/**
+ * Notifies all ADMIN users when a bulk SKU stock drops to or below its min threshold.
+ * Deduped: only one notification per SKU per 24 hours.
+ */
+export async function notifyLowStock(args: {
+  bulkSkuId: string;
+  skuName: string;
+  onHandQuantity: number;
+  minThreshold: number;
+}) {
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN", active: true },
+    select: { id: true },
+  });
+
+  if (admins.length === 0) return;
+
+  const now = new Date();
+  const title = `Low stock: ${args.skuName}`;
+  const body = `${args.onHandQuantity} remaining (threshold: ${args.minThreshold}). Restock soon.`;
+
+  for (const admin of admins) {
+    const dedupeKey = `low_stock:${args.bulkSkuId}:${admin.id}`;
+
+    // Check for recent notification (24h dedup)
+    const recent = await db.notification.findFirst({
+      where: {
+        dedupeKey,
+        createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+      },
+    });
+    if (recent) continue;
+
+    try {
+      await db.notification.create({
+        data: {
+          userId: admin.id,
+          type: "low_stock",
+          title,
+          body,
+          payload: {
+            bulkSkuId: args.bulkSkuId,
+            skuName: args.skuName,
+            onHandQuantity: args.onHandQuantity,
+            minThreshold: args.minThreshold,
+          },
+          channel: "IN_APP",
+          sentAt: now,
+          dedupeKey,
+        },
+      });
+    } catch (err) {
+      console.error(`[NOTIFY] Failed to create low-stock notification for admin ${admin.id}:`, err);
+    }
+  }
+}
+
 function formatRelative(dueAt: Date, now: Date): string {
   const diffMs = now.getTime() - dueAt.getTime();
   if (diffMs < 0) {

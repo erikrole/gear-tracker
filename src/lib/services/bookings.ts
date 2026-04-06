@@ -3,6 +3,7 @@ import {
   BookingKind,
   BookingStatus,
   BulkMovementKind,
+  BulkUnitStatus,
   Prisma,
   PrismaClient,
   ScanPhase,
@@ -677,7 +678,17 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
   return db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id: bookingId },
-      include: { bulkItems: true }
+      include: {
+        bulkItems: {
+          include: {
+            bulkSku: { select: { trackByNumber: true } },
+            unitAllocations: {
+              where: { checkedOutAt: { not: null }, checkedInAt: null },
+              include: { bulkSkuUnit: { select: { id: true, unitNumber: true } } },
+            },
+          },
+        },
+      },
     });
 
     if (!booking || booking.kind !== BookingKind.CHECKOUT) {
@@ -712,6 +723,41 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
         actorUserId,
         kind: BulkMovementKind.CHECKIN,
         items: checkinItems
+      });
+    }
+
+    // Auto-mark unreturned numbered bulk units as LOST
+    const lostUnitIds: string[] = [];
+    const lostUnitNumbers: Array<{ bulkSkuId: string; unitNumbers: number[] }> = [];
+
+    for (const bulkItem of booking.bulkItems) {
+      if (!bulkItem.bulkSku.trackByNumber) continue;
+      const unreturned = bulkItem.unitAllocations;
+      if (unreturned.length === 0) continue;
+
+      const unitIds = unreturned.map((a) => a.bulkSkuUnit.id);
+      const unitNums = unreturned.map((a) => a.bulkSkuUnit.unitNumber);
+      lostUnitIds.push(...unitIds);
+      lostUnitNumbers.push({ bulkSkuId: bulkItem.bulkSkuId, unitNumbers: unitNums });
+    }
+
+    if (lostUnitIds.length > 0) {
+      await tx.bulkSkuUnit.updateMany({
+        where: { id: { in: lostUnitIds } },
+        data: {
+          status: BulkUnitStatus.LOST,
+          notes: `Auto-marked LOST on booking completion (${booking.refNumber || bookingId})`,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId,
+          entityType: "booking",
+          entityId: bookingId,
+          action: "bulk_units_auto_lost",
+          afterJson: { lostUnits: lostUnitNumbers },
+        },
       });
     }
 

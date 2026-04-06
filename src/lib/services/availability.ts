@@ -148,6 +148,68 @@ export async function checkBulkShortages(
     .filter((item) => item.available < item.requested);
 }
 
+export type BulkAvailabilityEntry = {
+  onHand: number;
+  committed: number;
+  available: number;
+};
+
+/**
+ * For each bulk SKU at a location, compute how many units are committed
+ * to overlapping BOOKED/OPEN bookings in the given date window.
+ */
+export async function getBulkAvailability(
+  tx: Prisma.TransactionClient | PrismaClient,
+  args: {
+    locationId: string;
+    startsAt: Date;
+    endsAt: Date;
+    excludeBookingId?: string;
+  }
+): Promise<Record<string, BulkAvailabilityEntry>> {
+  // Get on-hand balances for all SKUs at this location
+  const balances = await tx.bulkStockBalance.findMany({
+    where: { locationId: args.locationId },
+    select: { bulkSkuId: true, onHandQuantity: true },
+  });
+
+  if (balances.length === 0) return {};
+
+  const skuIds = balances.map((b) => b.bulkSkuId);
+
+  // Sum planned quantities from overlapping active bookings
+  const committedRows = await tx.bookingBulkItem.groupBy({
+    by: ["bulkSkuId"],
+    where: {
+      bulkSkuId: { in: skuIds },
+      booking: {
+        status: { in: activeBookingStatuses },
+        locationId: args.locationId,
+        startsAt: { lt: args.endsAt },
+        endsAt: { gt: args.startsAt },
+        ...(args.excludeBookingId ? { id: { not: args.excludeBookingId } } : {}),
+      },
+    },
+    _sum: { plannedQuantity: true },
+  });
+
+  const committedMap = new Map(
+    committedRows.map((r) => [r.bulkSkuId, r._sum.plannedQuantity ?? 0])
+  );
+
+  const result: Record<string, BulkAvailabilityEntry> = {};
+  for (const b of balances) {
+    const committed = committedMap.get(b.bulkSkuId) ?? 0;
+    result[b.bulkSkuId] = {
+      onHand: b.onHandQuantity,
+      committed,
+      available: Math.max(0, b.onHandQuantity - committed),
+    };
+  }
+
+  return result;
+}
+
 export async function checkAvailability(
   tx: Prisma.TransactionClient | PrismaClient,
   args: {

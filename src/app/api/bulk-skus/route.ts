@@ -22,7 +22,27 @@ export const GET = withAuth(async (req) => {
       include: {
         location: true,
         balances: true,
-        units: true,
+        units: {
+          include: {
+            allocations: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              include: {
+                bookingBulkItem: {
+                  include: {
+                    booking: {
+                      select: {
+                        refNumber: true,
+                        title: true,
+                        requester: { select: { name: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         categoryRel: { select: { id: true, name: true } },
       },
       orderBy: [{ locationId: "asc" }, { name: "asc" }],

@@ -21,6 +21,7 @@ import { DashboardSkeleton } from "./dashboard/dashboard-skeleton";
 import { FilterChips } from "./dashboard/filter-chips";
 import { OverdueBanner } from "./dashboard/overdue-banner";
 import { FlaggedItemsBanner } from "./dashboard/flagged-items-banner";
+import { LostBulkUnitsCard } from "./dashboard/lost-bulk-units-card";
 import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
 import { PageTransition, StaggerList, StaggerItem } from "@/components/ui/motion";
@@ -304,6 +305,11 @@ export default function DashboardPage() {
       {/* ══════ Flagged Items Banner (staff/admin only) ══════ */}
       {!isStudent && data.flaggedItems.length > 0 && (
         <FlaggedItemsBanner items={data.flaggedItems} />
+      )}
+
+      {/* ══════ Lost Bulk Units (admin only) ══════ */}
+      {data.role === "ADMIN" && data.lostBulkUnits.length > 0 && (
+        <LostBulkUnitsCard items={data.lostBulkUnits} />
       )}
 
       {/* ══════ Two-Column Split ══════ */}

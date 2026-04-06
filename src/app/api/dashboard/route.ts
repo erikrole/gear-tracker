@@ -129,6 +129,8 @@ export const GET = withAuth(async (_req, { user }) => {
     // Flagged items: recent damage/lost reports + maintenance assets
     recentReports,
     maintenanceAssets,
+    // Lost bulk units summary (admin only)
+    lostBulkUnitsRaw,
   ] = await Promise.all([
     countsPromise,
     // Team checkouts (excl. me)
@@ -282,7 +284,30 @@ export const GET = withAuth(async (_req, { user }) => {
           select: { id: true, assetTag: true, name: true, updatedAt: true },
         })
       : Promise.resolve([]),
+    // Lost bulk units — admin only
+    user.role === "ADMIN"
+      ? db.bulkSkuUnit.groupBy({
+          by: ["bulkSkuId"],
+          where: { status: "LOST" },
+          _count: { id: true },
+        })
+      : Promise.resolve([]),
   ]);
+
+  // Resolve lost bulk unit SKU names
+  let lostBulkUnits: Array<{ skuName: string; count: number }> = [];
+  if (lostBulkUnitsRaw.length > 0) {
+    const skuIds = lostBulkUnitsRaw.map((r) => r.bulkSkuId);
+    const skus = await db.bulkSku.findMany({
+      where: { id: { in: skuIds } },
+      select: { id: true, name: true },
+    });
+    const nameMap = new Map(skus.map((s) => [s.id, s.name]));
+    lostBulkUnits = lostBulkUnitsRaw.map((r) => ({
+      skuName: nameMap.get(r.bulkSkuId) ?? "Unknown",
+      count: r._count.id,
+    }));
+  }
 
   const c = counts[0];
   const teamCheckoutsTotalCount = Number(c.team_checkouts);
@@ -474,6 +499,7 @@ export const GET = withAuth(async (_req, { user }) => {
         updatedAt: d.updatedAt.toISOString(),
       })),
       myShifts,
+      lostBulkUnits,
       flaggedItems: [
         ...recentReports.map((r) => ({
           id: r.id,

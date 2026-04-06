@@ -31,6 +31,15 @@ type BulkSkuUnit = {
   unitNumber: number;
   status: "AVAILABLE" | "CHECKED_OUT" | "LOST" | "RETIRED";
   notes: string | null;
+  allocations?: Array<{
+    bookingBulkItem: {
+      booking: {
+        refNumber: string | null;
+        title: string;
+        requester: { name: string };
+      };
+    };
+  }>;
 };
 
 type BulkSku = {
@@ -433,11 +442,15 @@ export default function BulkInventoryPage() {
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
                       {units.map((u) => {
                         const colors = UNIT_STATUS_COLORS[u.status];
+                        const lastAlloc = u.allocations?.[0]?.bookingBulkItem?.booking;
+                        const lastUser = lastAlloc?.requester?.name;
+                        const lastRef = lastAlloc?.refNumber || lastAlloc?.title;
+                        const lastInfo = lastUser ? ` · Last: ${lastUser}${lastRef ? ` (${lastRef})` : ""}` : "";
                         return (
                           <div
                             key={u.id}
-                            title={`#${u.unitNumber} — ${colors.label}${u.notes ? ` (${u.notes})` : ""}`}
-                            className={`flex items-center justify-center gap-1 px-1 py-1.5 rounded-md text-sm font-semibold relative ${u.status !== "CHECKED_OUT" ? "cursor-pointer" : "cursor-default"}`}
+                            title={`#${u.unitNumber} — ${colors.label}${lastInfo}${u.notes ? ` · ${u.notes}` : ""}`}
+                            className={`flex flex-col items-center justify-center gap-0 px-1 py-1 rounded-md text-sm font-semibold relative ${u.status !== "CHECKED_OUT" ? "cursor-pointer" : "cursor-default"}`}
                             style={{ background: colors.bg }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -448,8 +461,15 @@ export default function BulkInventoryPage() {
                               handleUnitStatusChange(sku.id, u.unitNumber, next);
                             }}
                           >
-                            <div className="size-1.5 rounded-full shrink-0" style={{ background: colors.dot }} />
-                            {u.unitNumber}
+                            <div className="flex items-center gap-1">
+                              <div className="size-1.5 rounded-full shrink-0" style={{ background: colors.dot }} />
+                              {u.unitNumber}
+                            </div>
+                            {u.status === "LOST" && lastUser && (
+                              <div className="text-[9px] font-normal text-muted-foreground truncate max-w-full leading-tight">
+                                {lastUser.split(" ")[0]}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
