@@ -92,15 +92,15 @@
 
 ## Recommended Actions (prioritized)
 
-1. **[Medium] Add `user.active` check to `requireAuth()`** — One-line addition in `src/lib/auth.ts` after line 95: `if (!session.user.active) throw new HttpError(401, "Account deactivated")`. This closes the session-level enforcement gap. Also add `await db.session.deleteMany({ where: { userId: id } })` to the deactivation path in PATCH `/api/users/[id]`.
+1. ~~**[Medium] Add `user.active` check to `requireAuth()`**~~ — **DONE 2026-04-06.** Session-level enforcement + session deletion on deactivation.
 
-2. **[Low] Check off BRIEF_USER_DEACTIVATION_V1.md ACs** — All 6 acceptance criteria have been met. Update `[ ]` → `[x]` and change Status from "Draft" to "Shipped".
+2. ~~**[Low] Check off BRIEF_USER_DEACTIVATION_V1.md ACs**~~ — **DONE 2026-04-06.** All 6 ACs checked, status changed to "Shipped".
 
-3. **[Low] Remove stale todo.md entry** — Strike through or remove "Add sport/area assignment CRUD" from Users section in `tasks/todo.md`.
+3. ~~**[Low] Remove stale todo.md entry**~~ — **DONE 2026-04-06.** Assignment CRUD marked shipped.
 
-4. **[Low] Update users-roadmap.md V1 checkmarks** — Mark items 1.1 and 1.5 as shipped with dates.
+4. ~~**[Low] Update users-roadmap.md V1 checkmarks**~~ — **DONE 2026-04-06.** V1 marked complete in roadmap refresh.
 
-5. **[Optional] Consider V2 prioritization** — The gear tab (2.2) and summary stats (2.5) would add significant operational value. Bulk operations (2.1) and CSV export (2.6) are common admin requests.
+5. **[Optional] Consider V2 prioritization** — The gear tab (2.3) and summary stats (2.4) would add significant operational value. Bulk operations (2.2) and CSV export (2.5) are common admin requests.
 
 ## Roadmap Status
 
