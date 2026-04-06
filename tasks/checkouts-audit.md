@@ -90,9 +90,9 @@
 
 ## Recommended Actions (prioritized)
 
-1. **[Medium] Add permission gate to audit-logs endpoint** — `GET /api/bookings/[id]/audit-logs` should enforce `requireBookingAction(id, user, "view")` so students can only see audit logs for their own bookings.
+1. ~~**[Medium] Add permission gate to audit-logs endpoint**~~ — **DONE 2026-04-06.** Added `requireBookingAction(id, user, "view")` to `GET /api/bookings/[id]/audit-logs`.
 
-2. **[Medium] Add permission gate to photo upload** — `POST /api/checkouts/[id]/photo` should check student ownership or staff+ role before allowing upload.
+2. ~~**[Medium] Add permission gate to photo upload**~~ — **DONE 2026-04-06.** Added student ownership check to `POST /api/checkouts/[id]/photo`.
 
 3. **[Medium] Update AREA_RESERVATIONS.md** — Add changelog entries for 6+ features shipped since 2026-03-22. Convert ACs to checkbox format and verify each.
 
