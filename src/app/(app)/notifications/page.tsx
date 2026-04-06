@@ -329,15 +329,15 @@ export default function NotificationsPage() {
             </div>
           ) : notifications.length === 0 ? (
             <EmptyState
-              icon="bell"
+              icon={unreadOnly ? "check" : "bell"}
               title={
                 unreadOnly
-                  ? "No unread notifications"
+                  ? "You're all caught up"
                   : "No notifications yet"
               }
               description={
                 unreadOnly
-                  ? "All caught up!"
+                  ? "Nothing new to see here."
                   : "You'll see overdue alerts and booking updates here."
               }
             />

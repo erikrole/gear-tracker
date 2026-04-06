@@ -11,6 +11,7 @@ import {
   FolderIcon,
   BarChart3Icon,
   WifiOffIcon,
+  CheckCircle2Icon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,12 +23,13 @@ import {
 } from "@/components/ui/empty";
 
 type EmptyStateProps = {
-  icon?: "search" | "calendar" | "box" | "clipboard" | "bell" | "users" | "folder" | "chart" | "wifi-off";
+  icon?: "search" | "calendar" | "box" | "clipboard" | "bell" | "users" | "folder" | "chart" | "wifi-off" | "check";
   title: string;
   description?: string;
   actionLabel?: string;
   actionHref?: string;
   onAction?: () => void;
+  compact?: boolean;
 };
 
 const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
@@ -40,6 +42,7 @@ const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>
   folder: FolderIcon,
   chart: BarChart3Icon,
   "wifi-off": WifiOffIcon,
+  check: CheckCircle2Icon,
 };
 
 export default function EmptyState({
@@ -49,10 +52,11 @@ export default function EmptyState({
   actionLabel,
   actionHref,
   onAction,
+  compact = false,
 }: EmptyStateProps) {
   const Icon = iconMap[icon] ?? BoxIcon;
   return (
-    <Empty className="border-0 py-10">
+    <Empty className={compact ? "border-0 py-4" : "border-0 py-10"}>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Icon className="size-6 text-muted-foreground" />
