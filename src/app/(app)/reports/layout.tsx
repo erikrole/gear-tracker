@@ -12,7 +12,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
     <>
       <PageHeader title="Reports" className="mb-0" />
 
-      <nav className="flex gap-0 border-b mb-5">
+      <nav className="flex gap-0 border-b mb-6">
         {REPORT_SECTIONS.map((s) => (
           <Link
             key={s.href}

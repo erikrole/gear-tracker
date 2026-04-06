@@ -31,7 +31,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     <>
       <PageHeader title="Settings" className="mb-0" />
 
-      <nav className="flex gap-0 border-b mb-5">
+      <nav className="flex gap-0 border-b mb-6">
         {SETTINGS_SECTIONS.map((s) => (
           <Link
             key={s.href}

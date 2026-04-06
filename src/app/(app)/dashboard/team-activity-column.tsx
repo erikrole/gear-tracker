@@ -88,7 +88,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
   }, [filteredEvents, now]);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <span className="text-xs font-semibold text-muted-foreground pl-0.5">Team Activity</span>
 
       {/* Team Checkouts */}

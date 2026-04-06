@@ -27,7 +27,7 @@ export function FlaggedItemsBanner({ items }: Props) {
   if (maintenance > 0) parts.push(`${maintenance} in maintenance`);
 
   return (
-    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-[var(--radius)] p-3.5 md:p-4 mb-5 animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-[var(--radius)] p-4 mb-4 animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       <div className="flex items-center gap-2 mb-2">
         <AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
         <span className="text-sm font-semibold text-amber-900 dark:text-amber-200">
