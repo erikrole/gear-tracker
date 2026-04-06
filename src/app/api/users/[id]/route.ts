@@ -141,6 +141,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           },
         });
       }
+
+      // Invalidate all existing sessions so deactivated user is immediately locked out
+      await db.session.deleteMany({ where: { userId: id } });
     }
 
     updateData.active = body.active;

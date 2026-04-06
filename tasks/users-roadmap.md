@@ -84,12 +84,10 @@ Ship-readiness audit score: **22/25** (see `tasks/users-audit.md`).
 
 ### Features
 
-**2.1 Session-level active enforcement** (HIGH PRIORITY)
-- Add `user.active` check to `requireAuth()` in `src/lib/auth.ts` after line 95
-- If `!session.user.active`, throw `HttpError(401, "Account deactivated")`
-- Add `await db.session.deleteMany({ where: { userId: id } })` to deactivation path in PATCH `/api/users/[id]`
+**2.1 Session-level active enforcement** ✅ Shipped 2026-04-06
+- `requireAuth()` in `src/lib/auth.ts` now checks `session.user.active`
+- Deactivation PATCH in `/api/users/[id]` deletes all sessions for target user
 - Completes deactivation story: login blocked + existing sessions terminated + API calls rejected
-- **Why V2**: V1 login blocking is sufficient for initial use but leaves a session-expiry gap
 
 **2.2 Bulk operations on user list**
 - Row selection via Checkbox in first column — follow items page pattern (`src/app/(app)/items/page.tsx` + `use-bulk-actions.ts`)
