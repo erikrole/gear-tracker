@@ -32,12 +32,15 @@ export type GuidanceRule = {
  * Add new rules here — the picker renders all that match.
  */
 export const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
+  // ── Core pairing rules ──────────────────────────────────
   {
     id: "body-needs-batteries",
     section: "batteries",
     message: "You selected a camera body \u2014 don\u2019t forget batteries and chargers.",
     level: "warning",
-    condition: (ctx) => ctx.selectedSectionKeys.includes("cameras"),
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("cameras") &&
+      !ctx.selectedSectionKeys.includes("batteries"),
   },
   {
     id: "lens-needs-body",
@@ -53,7 +56,84 @@ export const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
     section: "accessories",
     message: "Don\u2019t forget audio gear \u2014 recorder, microphone, or wireless kit.",
     level: "info",
-    condition: (ctx) => ctx.selectedSectionKeys.includes("cameras"),
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("cameras") &&
+      !ctx.selectedSectionKeys.includes("accessories"),
+  },
+
+  // ── Support gear ────────────────────────────────────────
+  {
+    id: "cameras-need-support",
+    section: "accessories",
+    message: "Add a tripod or monopod for sideline and press-box coverage.",
+    level: "info",
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("cameras") &&
+      !ctx.selectedSectionKeys.includes("accessories"),
+  },
+  {
+    id: "monitors-need-power",
+    section: "batteries",
+    message: "Field monitors drain batteries fast \u2014 pack extras or a V-mount.",
+    level: "warning",
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("accessories") &&
+      !ctx.selectedSectionKeys.includes("batteries"),
+  },
+
+  // ── Media & storage ─────────────────────────────────────
+  {
+    id: "cameras-need-media",
+    section: "others",
+    message: "SD cards and hard drives are in the Others tab \u2014 pack enough for the shoot.",
+    level: "info",
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("cameras") &&
+      !ctx.selectedSectionKeys.includes("others"),
+  },
+
+  // ── Transport ───────────────────────────────────────────
+  {
+    id: "large-kit-needs-bags",
+    section: "others",
+    message: "Large checkout \u2014 make sure you have backpacks or cases for transport.",
+    level: "info",
+    condition: (ctx) => {
+      const selected = ctx.selectedSectionKeys;
+      // Trigger when 3+ sections have gear (big checkout)
+      return selected.length >= 3 && !selected.includes("others");
+    },
+  },
+
+  // ── Completeness warnings ──────────────────────────────
+  {
+    id: "batteries-alone",
+    section: "cameras",
+    message: "You have batteries but no camera \u2014 add a body if this is a shoot checkout.",
+    level: "info",
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("batteries") &&
+      !ctx.selectedSectionKeys.includes("cameras") &&
+      !ctx.selectedSectionKeys.includes("lenses"),
+  },
+  {
+    id: "accessories-without-cameras",
+    section: "cameras",
+    message: "You have accessories (audio/monitors/tripods) but no camera body.",
+    level: "info",
+    condition: (ctx) =>
+      ctx.selectedSectionKeys.includes("accessories") &&
+      !ctx.selectedSectionKeys.includes("cameras") &&
+      !ctx.selectedSectionKeys.includes("lenses"),
+  },
+
+  // ── Return reminder ─────────────────────────────────────
+  {
+    id: "multi-section-return-reminder",
+    section: null,
+    message: "Multi-category checkout \u2014 double-check everything is packed before returning.",
+    level: "info",
+    condition: (ctx) => ctx.selectedSectionKeys.length >= 4,
   },
 ];
 
