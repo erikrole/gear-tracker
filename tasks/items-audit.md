@@ -131,9 +131,9 @@ All items-related gaps are closed (GAP-17, GAP-22, GAP-25, GAP-E, PD-4).
 
 3. **[Medium] Update AREA_ITEMS.md changelog** — Add entries for: favorites UI, CSV export, summary bar, column persistence, detail page hardening. Bump Last Updated.
 
-4. **[Medium] Harden kits pages** — `/kits` and `/kits/[id]` need formal hardening pass (401 handling, error differentiation, double-click guards).
+4. ~~**[Medium] Harden kits pages**~~ — **DONE 2026-04-06.** Added 401 redirect on all 6 mutations in kit detail. List already uses `useFetch`.
 
-5. **[Medium] Harden bulk-inventory page** — `/bulk-inventory` needs formal hardening pass.
+5. ~~**[Medium] Harden bulk-inventory page**~~ — **DONE 2026-04-06.** Added 401 redirect on all 3 mutations (add units, convert to numbered, unit status change).
 
 6. **[Low] Check off BRIEF_ITEM_BUNDLING_V1.md ACs** — All 9 ACs met. Update `[ ]` → `[x]`.
 

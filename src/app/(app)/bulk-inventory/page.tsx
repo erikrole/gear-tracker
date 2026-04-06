@@ -138,6 +138,7 @@ export default function BulkInventoryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ count: addCount }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Failed to add units", "error");
@@ -158,6 +159,7 @@ export default function BulkInventoryPage() {
     setActionLoading(true);
     try {
       const res = await fetch(`/api/bulk-skus/${skuId}/convert-to-numbered`, { method: "POST" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Failed to convert", "error");
@@ -179,6 +181,7 @@ export default function BulkInventoryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         toast((json as Record<string, string>).error || "Failed to update unit", "error");
