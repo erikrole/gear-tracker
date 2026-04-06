@@ -40,16 +40,16 @@ export default function UserFilters({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Input
-          className="h-8 max-w-sm"
+          className="h-8 sm:max-w-sm"
           type="text"
           placeholder="Search by name or email..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           aria-label="Search users"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Select value={roleFilter || "__all__"} onValueChange={(v) => onRoleChange(v === "__all__" ? "" : v)}>
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue placeholder="All roles" />

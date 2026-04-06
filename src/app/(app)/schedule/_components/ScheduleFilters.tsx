@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { ListIcon, CalendarIcon, CalendarDaysIcon } from "lucide-react";
+import { FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -29,8 +30,18 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
     }));
   }, [entries]);
 
+  // Count active data filters (not view mode / home-away which are always visible)
+  const activeFilterCount = [
+    filters.sportFilter,
+    filters.areaFilter,
+    filters.coverageFilter,
+    filters.myShiftsOnly,
+    filters.includePast,
+  ].filter(Boolean).length;
+
   return (
-    <div className="flex flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap mb-1">
+    <div className="flex flex-row items-center gap-2 flex-wrap mb-1">
+      {/* View mode — always visible */}
       <ToggleGroup
         type="single"
         value={filters.viewMode}
@@ -50,6 +61,8 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           Calendar
         </ToggleGroupItem>
       </ToggleGroup>
+
+      {/* Home/Away — always visible */}
       <ToggleGroup
         type="single"
         value={filters.homeAwayFilter}
@@ -59,75 +72,106 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         <ToggleGroupItem value="home" className="h-9 px-3 text-sm font-medium">Home</ToggleGroupItem>
         <ToggleGroupItem value="away" className="h-9 px-3 text-sm font-medium">Away</ToggleGroupItem>
       </ToggleGroup>
-      <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
-        <div className="flex items-center gap-2">
-          <Switch
-            id="my-shifts-toggle"
-            checked={filters.myShiftsOnly}
-            onCheckedChange={filters.setMyShiftsOnly}
-          />
-          <Label htmlFor="my-shifts-toggle" className="text-sm cursor-pointer">My Shifts</Label>
-        </div>
-        <FilterChip
-          label="Sport"
-          value={filters.sportFilter}
-          displayValue={
-            filters.sportFilter ? sportLabel(filters.sportFilter) : ""
-          }
-          options={sportOptions}
-          onSelect={(v) => filters.setSportFilter(v)}
-          onClear={() => filters.setSportFilter("")}
-        />
-        <FilterChip
-          label="Area"
-          value={filters.areaFilter}
-          displayValue={
-            filters.areaFilter
-              ? (AREA_LABELS[filters.areaFilter] ?? filters.areaFilter)
-              : ""
-          }
-          options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] }))}
-          onSelect={(v) => filters.setAreaFilter(v)}
-          onClear={() => filters.setAreaFilter("")}
-        />
-        <FilterChip
-          label="Coverage"
-          value={filters.coverageFilter}
-          displayValue={
-            filters.coverageFilter === "unfilled"
-              ? "Needs staff"
-              : filters.coverageFilter === "filled"
-                ? "Fully staffed"
-                : ""
-          }
-          options={[
-            { value: "unfilled", label: "Needs staff" },
-            { value: "filled", label: "Fully staffed" },
-          ]}
-          onSelect={(v) => filters.setCoverageFilter(v)}
-          onClear={() => filters.setCoverageFilter("")}
-        />
-        {filters.viewMode === "list" && (
-          <FilterChip
-            label="Time"
-            value={filters.includePast ? "all" : ""}
-            displayValue="All events"
-            options={[{ value: "all", label: "Include past events" }]}
-            onSelect={() => filters.setIncludePast(true)}
-            onClear={() => filters.setIncludePast(false)}
-          />
-        )}
-        {filters.hasFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-xs font-medium"
-            onClick={filters.clearAll}
-          >
-            Clear all
+
+      {/* Data filters — in a popover */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant={activeFilterCount > 0 ? "default" : "outline"} size="sm" className="h-9 gap-1.5">
+            <FilterIcon className="size-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-0.5 inline-flex items-center justify-center size-5 rounded-full bg-white/20 text-xs font-bold">
+                {activeFilterCount}
+              </span>
+            )}
           </Button>
-        )}
-      </div>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-72 p-3">
+          <div className="flex flex-col gap-3">
+            {/* My Shifts */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="my-shifts-toggle"
+                checked={filters.myShiftsOnly}
+                onCheckedChange={filters.setMyShiftsOnly}
+              />
+              <Label htmlFor="my-shifts-toggle" className="text-sm cursor-pointer">My Shifts</Label>
+            </div>
+
+            {/* Sport */}
+            <FilterChip
+              label="Sport"
+              value={filters.sportFilter}
+              displayValue={
+                filters.sportFilter ? sportLabel(filters.sportFilter) : ""
+              }
+              options={sportOptions}
+              onSelect={(v) => filters.setSportFilter(v)}
+              onClear={() => filters.setSportFilter("")}
+            />
+
+            {/* Area */}
+            <FilterChip
+              label="Area"
+              value={filters.areaFilter}
+              displayValue={
+                filters.areaFilter
+                  ? (AREA_LABELS[filters.areaFilter] ?? filters.areaFilter)
+                  : ""
+              }
+              options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] }))}
+              onSelect={(v) => filters.setAreaFilter(v)}
+              onClear={() => filters.setAreaFilter("")}
+            />
+
+            {/* Coverage */}
+            <FilterChip
+              label="Coverage"
+              value={filters.coverageFilter}
+              displayValue={
+                filters.coverageFilter === "unfilled"
+                  ? "Needs staff"
+                  : filters.coverageFilter === "filled"
+                    ? "Fully staffed"
+                    : ""
+              }
+              options={[
+                { value: "unfilled", label: "Needs staff" },
+                { value: "filled", label: "Fully staffed" },
+              ]}
+              onSelect={(v) => filters.setCoverageFilter(v)}
+              onClear={() => filters.setCoverageFilter("")}
+            />
+
+            {/* Time (list view only) */}
+            {filters.viewMode === "list" && (
+              <FilterChip
+                label="Time"
+                value={filters.includePast ? "all" : ""}
+                displayValue="All events"
+                options={[{ value: "all", label: "Include past events" }]}
+                onSelect={() => filters.setIncludePast(true)}
+                onClear={() => filters.setIncludePast(false)}
+              />
+            )}
+
+            {/* Clear all */}
+            {filters.hasFilters && (
+              <div className="pt-1 border-t border-border/50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs font-medium w-full"
+                  onClick={filters.clearAll}
+                >
+                  <XIcon className="size-3 mr-1" />
+                  Clear all
+                </Button>
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
