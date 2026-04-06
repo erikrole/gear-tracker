@@ -177,7 +177,7 @@ export function ItemHeader({
               onClick={() => canEdit && onImageModalOpen()}
               title={canEdit ? "Change image" : undefined}
             >
-              <Image src={asset.imageUrl} alt={asset.assetTag} width={240} height={240} sizes="120px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} />
+              <Image src={asset.imageUrl} alt={asset.assetTag} width={240} height={240} sizes="120px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               {canEdit && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
                   <PencilIcon className="size-5" />
