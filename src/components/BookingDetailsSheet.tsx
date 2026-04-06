@@ -57,7 +57,7 @@ export default function BookingDetailsSheet({
   const confirm = useConfirm();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>("info");
+  const [tab, setTab] = useState<TabKey>("details");
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [equipSearch, setEquipSearch] = useState("");
@@ -149,7 +149,7 @@ export default function BookingDetailsSheet({
   useEffect(() => {
     if (bookingId) {
       fetchBooking();
-      setTab("info");
+      setTab("details");
       setEditMode(false);
       setEquipEditMode(false);
       setConflictError(null);
@@ -713,10 +713,7 @@ export default function BookingDetailsSheet({
         <div className="px-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
             <TabsList className="w-full justify-start">
-              <TabsTrigger value="info">Info</TabsTrigger>
-              <TabsTrigger value="equipment">
-                Equipment{booking ? ` (${(booking.serializedItems?.length ?? 0) + (booking.bulkItems?.length ?? 0)})` : ""}
-              </TabsTrigger>
+              <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -741,21 +738,35 @@ export default function BookingDetailsSheet({
             <div className="py-10 px-5 text-center text-muted-foreground">Booking not found</div>
           ) : (
             <>
-              {/* Info Tab - View Mode */}
-              {tab === "info" && !editMode && (
-                <BookingOverview
-                  booking={booking}
-                  conflictError={conflictError}
-                  returnSuggestion={returnSuggestion}
-                  checkinProgress={checkinProgress}
-                  canExtend={!!canExtend}
-                  extending={extending}
-                  onExtend={handleExtend}
-                />
+              {/* Details Tab — combined Info + Equipment */}
+              {tab === "details" && !editMode && !equipEditMode && (
+                <>
+                  <BookingOverview
+                    booking={booking}
+                    conflictError={conflictError}
+                    returnSuggestion={returnSuggestion}
+                    checkinProgress={checkinProgress}
+                    canExtend={!!canExtend}
+                    extending={extending}
+                    onExtend={handleExtend}
+                  />
+                  <BookingItems
+                    booking={booking}
+                    equipSearch={equipSearch}
+                    onEquipSearchChange={setEquipSearch}
+                    filteredSerializedItems={filteredSerializedItems}
+                    filteredBulkItems={filteredBulkItems}
+                    canEditEquipment={!!canEditEquipment}
+                    canCheckin={!!canCheckin}
+                    checkinLoading={checkinLoading}
+                    onEnterEquipEditMode={enterEquipEditMode}
+                    onCheckinItem={handleCheckinItem}
+                  />
+                </>
               )}
 
-              {/* Info Tab - Edit Mode */}
-              {tab === "info" && editMode && (
+              {/* Details Tab - Edit booking info */}
+              {tab === "details" && editMode && (
                 <BookingEditForm
                   booking={booking}
                   editTitle={editTitle}
@@ -772,24 +783,8 @@ export default function BookingDetailsSheet({
                 />
               )}
 
-              {/* Equipment Tab - View Mode */}
-              {tab === "equipment" && !equipEditMode && (
-                <BookingItems
-                  booking={booking}
-                  equipSearch={equipSearch}
-                  onEquipSearchChange={setEquipSearch}
-                  filteredSerializedItems={filteredSerializedItems}
-                  filteredBulkItems={filteredBulkItems}
-                  canEditEquipment={!!canEditEquipment}
-                  canCheckin={!!canCheckin}
-                  checkinLoading={checkinLoading}
-                  onEnterEquipEditMode={enterEquipEditMode}
-                  onCheckinItem={handleCheckinItem}
-                />
-              )}
-
-              {/* Equipment options error */}
-              {tab === "equipment" && equipEditMode && optionsError && (
+              {/* Details Tab - Edit equipment */}
+              {tab === "details" && equipEditMode && optionsError && (
                 <Alert variant="destructive" className="mb-3">
                   <AlertDescription className="flex items-center justify-between">
                     <span>Failed to load equipment options.</span>
@@ -798,8 +793,7 @@ export default function BookingDetailsSheet({
                 </Alert>
               )}
 
-              {/* Equipment Tab - Edit Mode */}
-              {tab === "equipment" && equipEditMode && (
+              {tab === "details" && equipEditMode && (
                 <BookingEquipmentEditor
                   conflictError={conflictError}
                   editSerializedIds={editSerializedIds}
