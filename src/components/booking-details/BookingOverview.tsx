@@ -1,14 +1,19 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, CalendarCheckIcon, LinkIcon, StickyNoteIcon, TriangleAlert } from "lucide-react";
 import type { BookingDetail, CheckinProgress, ConflictData } from "./types";
+
+type ExtendPreset = { label: string; minutes: number };
 
 type Props = {
   booking: BookingDetail;
@@ -17,7 +22,7 @@ type Props = {
   checkinProgress: CheckinProgress | null;
   canExtend: boolean;
   extending: boolean;
-  onExtend: (days: number) => void;
+  onExtendTo: (endsAt: string) => void;
 };
 
 function InfoRow({ icon: Icon, label, children }: { icon: React.ComponentType<{ className?: string }>; label: string; children: React.ReactNode }) {
@@ -32,6 +37,11 @@ function InfoRow({ icon: Icon, label, children }: { icon: React.ComponentType<{ 
   );
 }
 
+function toLocalDateTimeValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function BookingOverview({
   booking,
   conflictError,
@@ -39,8 +49,44 @@ export default function BookingOverview({
   checkinProgress,
   canExtend,
   extending,
-  onExtend,
+  onExtendTo,
 }: Props) {
+  const [presets, setPresets] = useState<ExtendPreset[]>([]);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+
+  // Load extend presets
+  useEffect(() => {
+    fetch("/api/settings/extend-presets")
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (json?.data?.presets) setPresets(json.data.presets);
+      })
+      .catch(() => {});
+  }, []);
+
+  function handlePreset(minutes: number) {
+    const current = new Date(booking.endsAt);
+    const extended = new Date(current.getTime() + minutes * 60 * 1000);
+    onExtendTo(extended.toISOString());
+  }
+
+  function handleCustomExtend() {
+    if (!customValue) return;
+    const target = new Date(customValue);
+    if (isNaN(target.getTime())) return;
+    onExtendTo(target.toISOString());
+    setCustomOpen(false);
+  }
+
+  // Default custom value: current due date + 1 day
+  function openCustom() {
+    const current = new Date(booking.endsAt);
+    const suggested = new Date(current.getTime() + 24 * 60 * 60 * 1000);
+    setCustomValue(toLocalDateTimeValue(suggested));
+    setCustomOpen(true);
+  }
+
   return (
     <div className="space-y-4">
       {/* Conflict error banner */}
@@ -135,9 +181,44 @@ export default function BookingOverview({
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Extend due date</div>
           <div className="flex gap-1.5 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => onExtend(1)} disabled={extending}>{extending ? "..." : "+1 day"}</Button>
-            <Button variant="outline" size="sm" onClick={() => onExtend(3)} disabled={extending}>{extending ? "..." : "+3 days"}</Button>
-            <Button variant="outline" size="sm" onClick={() => onExtend(7)} disabled={extending}>{extending ? "..." : "+1 week"}</Button>
+            {presets.map((p) => (
+              <Button
+                key={p.label}
+                variant="outline"
+                size="sm"
+                onClick={() => handlePreset(p.minutes)}
+                disabled={extending}
+              >
+                {extending ? "..." : p.label}
+              </Button>
+            ))}
+            <Popover open={customOpen} onOpenChange={setCustomOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" onClick={openCustom} disabled={extending}>
+                  Custom
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-auto p-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Extend to</label>
+                  <Input
+                    type="datetime-local"
+                    value={customValue}
+                    onChange={(e) => setCustomValue(e.target.value)}
+                    min={toLocalDateTimeValue(new Date(booking.endsAt))}
+                    className="h-9"
+                  />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={handleCustomExtend}
+                    disabled={extending || !customValue}
+                  >
+                    {extending ? "Extending..." : "Extend"}
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       )}

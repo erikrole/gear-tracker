@@ -516,22 +516,20 @@ export default function BookingDetailsSheet({
     setSaving(false);
   }
 
-  async function handleExtend(days: number) {
+  async function handleExtendTo(endsAt: string) {
     if (!booking || extending) return;
     setExtending(true);
-    const current = new Date(booking.endsAt);
-    const extended = new Date(current.getTime() + days * 24 * 60 * 60 * 1000);
 
     try {
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endsAt: extended.toISOString() }),
+        body: JSON.stringify({ endsAt }),
       });
 
       if (handle401(res)) return;
       if (res.ok) {
-        const newDate = extended.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const newDate = new Date(endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
         toast(`Extended to ${newDate}`, "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
@@ -748,7 +746,7 @@ export default function BookingDetailsSheet({
                     checkinProgress={checkinProgress}
                     canExtend={!!canExtend}
                     extending={extending}
-                    onExtend={handleExtend}
+                    onExtendTo={handleExtendTo}
                   />
                   <BookingItems
                     booking={booking}
