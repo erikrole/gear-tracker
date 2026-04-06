@@ -126,7 +126,7 @@ export default function BookingEquipmentTab({
   }, [booking.bulkItems, search]);
 
   return (
-    <Card className="border-border/40 shadow-none">
+    <Card className="border-border/40">
       {/* Header */}
       <CardHeader className="pb-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

@@ -43,7 +43,7 @@ export default function BookingInfoTab({
   );
 
   return (
-    <Card className="border-border/40 shadow-none divide-y divide-border/30">
+    <Card className="border-border/40 divide-y divide-border/30">
       <CardHeader className="pb-0">
         <CardTitle className="text-base">
           {booking.kind === "CHECKOUT" ? "Checkout details" : "Reservation details"}
@@ -88,19 +88,17 @@ export default function BookingInfoTab({
         )}
       </SaveableField>
 
-      {/* From */}
-      <SaveableField label="From">
-        <span className="text-sm">{formatDateTime(booking.startsAt)}</span>
-      </SaveableField>
-
-      {/* To */}
-      <SaveableField label="To">
-        <span className="text-sm">
-          {formatDateTime(booking.endsAt)}
-          <span className="ml-2 text-muted-foreground text-xs">
-            ({formatDuration(booking.startsAt, booking.endsAt)})
-          </span>
-        </span>
+      {/* Date range (connected From → To) */}
+      <SaveableField label="When">
+        <div className="text-sm space-y-0.5">
+          <div>{formatDateTime(booking.startsAt)}</div>
+          <div>
+            {formatDateTime(booking.endsAt)}
+            <span className="ml-2 text-muted-foreground text-xs">
+              ({formatDuration(booking.startsAt, booking.endsAt)})
+            </span>
+          </div>
+        </div>
       </SaveableField>
 
       {/* User */}

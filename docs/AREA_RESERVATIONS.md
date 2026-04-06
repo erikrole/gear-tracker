@@ -208,7 +208,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - [x] AC-5: All transitions and edits emit audit records.
 - [x] AC-6: Terminal states are immutable in V1.
 - [x] AC-7: Reservation detail page exposes `Info`, `Equipment`, and `History` tabs.
-- [ ] AC-8: Equipment panel surfaces item-level conflict badges with actionable guidance. **(Partial — conflict detection in EquipmentPicker, not yet on booking detail equipment tab.)**
+- [x] AC-8: Equipment panel surfaces item-level conflict badges with actionable guidance. **(Verified 2026-04-06 — `BookingEquipmentTab.tsx:53-106` fetches conflicts for BOOKED/DRAFT bookings via `/api/availability/check` and renders per-row "Conflict" badges.)**
 - [x] AC-9: Actions menu behavior matches state and policy mapping.
 - [x] AC-10: Reservations list supports status scope, search, sort, and required columns.
 - [x] AC-11: `Export` visibility follows role policy.

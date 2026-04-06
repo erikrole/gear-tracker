@@ -10,7 +10,7 @@ Last updated: 2026-04-06
 ## Open Items
 
 ### Reservations (P2)
-- [ ] **Resolve equipment conflict badges** (AC-8) — Conflict detection exists in EquipmentPicker; booking detail display pending.
+- [x] ~~**Resolve equipment conflict badges**~~ (AC-8) — Already implemented in `BookingEquipmentTab.tsx:53-106`. Fetches conflicts for BOOKED/DRAFT bookings. Verified 2026-04-06.
 
 ### Users (P2)
 - [x] ~~**Add sport/area assignment CRUD**~~ — Shipped 2026-03-28 (GAP-23). Popover multi-select in UserInfoTab.

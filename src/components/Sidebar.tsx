@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   SunIcon,

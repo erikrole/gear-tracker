@@ -109,7 +109,7 @@ export function AccessoriesSection({
 
   return (
     <div className="mt-3.5 max-w-2xl">
-      <Card className="border-border/40 shadow-none">
+      <Card className="border-border/40">
         <CardHeader>
           <CardTitle>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</CardTitle>
           {canEdit && !attaching && (

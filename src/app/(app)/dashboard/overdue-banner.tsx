@@ -47,7 +47,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
   if (overdueCount === 0) return null;
 
   return (
-    <div className="bg-[var(--wi-red)] rounded-[var(--radius)] p-3.5 md:p-4 mb-5 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="bg-[var(--wi-red)] rounded-[var(--radius)] p-4 mb-4 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       <div className="flex items-center justify-between gap-3 mb-2.5 max-md:flex-wrap">
         <div className="flex items-center gap-2 text-[var(--text-md)] font-semibold">
           <AlertTriangleIcon className="shrink-0 size-[18px]" />

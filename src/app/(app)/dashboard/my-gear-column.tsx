@@ -42,7 +42,7 @@ export function MyGearColumn({
 }: Props) {
   const accentClass = ownedAccent ? " border-l-2 border-l-primary" : "";
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <span className="text-xs font-semibold text-muted-foreground pl-0.5">My Gear</span>
 
       {/* My Checkouts */}
