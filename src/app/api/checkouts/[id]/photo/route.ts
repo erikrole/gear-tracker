@@ -19,10 +19,10 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
   const phase: ScanPhase = phaseParam as ScanPhase;
 
-  // Verify booking exists and is in a valid state for photos
+  // Verify booking exists, is OPEN checkout, and user has checkin permission
   const booking = await db.booking.findUnique({
     where: { id },
-    select: { id: true, status: true, kind: true },
+    select: { id: true, status: true, kind: true, requesterUserId: true },
   });
   if (!booking) throw new HttpError(404, "Booking not found");
   if (booking.kind !== "CHECKOUT") {
@@ -30,6 +30,10 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   }
   if (booking.status !== "OPEN") {
     throw new HttpError(400, "Booking must be in OPEN status to upload photos");
+  }
+  // Students can only upload photos for their own checkouts
+  if (user.role === "STUDENT" && booking.requesterUserId !== user.id) {
+    throw new HttpError(403, "You can only upload photos for your own checkouts");
   }
 
   const formData = await req.formData();

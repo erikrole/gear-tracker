@@ -67,15 +67,15 @@ Add a parent-child relationship on assets. A "parent" item (e.g., FX3 body) can 
 8. `src/lib/services/scans.ts` — Handle child item scan (show parent info)
 
 ## Acceptance Criteria
-- [ ] AC-1: Staff can attach an accessory to a parent item
-- [ ] AC-2: Staff can detach an accessory (becomes standalone)
-- [ ] AC-3: Staff can move an accessory from one parent to another
-- [ ] AC-4: Child items don't appear in booking line items
-- [ ] AC-5: Child items inherit parent checkout/reservation status
-- [ ] AC-6: Items list hides children by default, filter to show
-- [ ] AC-7: Scanning a child QR shows "accessory of [Parent]" message
-- [ ] AC-8: Accessory in MAINTENANCE shows warning on parent
-- [ ] AC-9: Build passes, no regressions
+- [x] AC-1: Staff can attach an accessory to a parent item
+- [x] AC-2: Staff can detach an accessory (becomes standalone)
+- [x] AC-3: Staff can move an accessory from one parent to another
+- [x] AC-4: Child items don't appear in booking line items
+- [x] AC-5: Child items inherit parent checkout/reservation status
+- [x] AC-6: Items list hides children by default, filter to show
+- [x] AC-7: Scanning a child QR shows "accessory of [Parent]" message
+- [x] AC-8: Accessory in MAINTENANCE shows warning on parent
+- [x] AC-9: Build passes, no regressions
 
 ## Risk Assessment
 - **Low risk**: Additive schema change (nullable FK, no existing data affected)

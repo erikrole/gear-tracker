@@ -27,6 +27,7 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     maintenance: ["ADMIN", "STAFF"],
     retire: ["ADMIN", "STAFF"],
     generate_qr: ["ADMIN", "STAFF"],
+    export: ["ADMIN", "STAFF"],
   },
   category: {
     view: ["ADMIN", "STAFF", "STUDENT"],
