@@ -49,6 +49,14 @@ const kitDetailInclude = {
     },
     orderBy: { createdAt: "asc" as const },
   },
+  bulkMembers: {
+    include: {
+      bulkSku: {
+        select: { id: true, name: true, category: true, unit: true, imageUrl: true },
+      },
+    },
+    orderBy: { createdAt: "asc" as const },
+  },
 } satisfies Prisma.KitInclude;
 
 const kitListInclude = {

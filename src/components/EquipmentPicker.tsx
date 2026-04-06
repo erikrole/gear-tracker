@@ -52,6 +52,7 @@ export type PickerBulkSku = {
   currentQuantity: number;
   binQrCodeValue?: string | null;
   categoryName?: string | null;
+  imageUrl?: string | null;
 };
 
 export type BulkSelection = {

@@ -321,10 +321,14 @@ function BulkRow({
         </div>
       )}
 
-      {/* Placeholder thumbnail */}
-      <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-        <ImageIcon className="size-4 text-muted-foreground/50" />
-      </div>
+      {/* Thumbnail */}
+      {item.bulkSku.imageUrl ? (
+        <ItemThumbnail src={item.bulkSku.imageUrl} alt={item.bulkSku.name} />
+      ) : (
+        <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+          <ImageIcon className="size-4 text-muted-foreground/50" />
+        </div>
+      )}
 
       {/* Info */}
       <div className="min-w-0 flex-1">

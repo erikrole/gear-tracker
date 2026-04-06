@@ -197,19 +197,35 @@ export function ScanChecklist({
                   <span className="text-sm text-muted-foreground">
                     {item.scanned} / {item.required} scanned
                   </span>
-                  {item.trackByNumber && allocated.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-0.5">
-                      {allocated.map((u) => (
-                        <Badge
-                          key={u.unitNumber}
-                          variant={u.checkedIn ? "green" : u.checkedOut ? "blue" : "gray"}
-                          size="sm"
-                        >
-                          #{u.unitNumber}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                  {item.trackByNumber && allocated.length > 0 && (() => {
+                    const returned = allocated.filter((u) => u.checkedIn);
+                    const stillOut = allocated.filter((u) => u.checkedOut && !u.checkedIn);
+                    return (
+                      <>
+                        {stillOut.length > 0 && (
+                          <div className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-0.5">
+                            Still out: {stillOut.map((u) => `#${u.unitNumber}`).join(", ")}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {allocated.map((u) => (
+                            <Badge
+                              key={u.unitNumber}
+                              variant={u.checkedIn ? "green" : u.checkedOut ? "blue" : "gray"}
+                              size="sm"
+                            >
+                              #{u.unitNumber}
+                            </Badge>
+                          ))}
+                        </div>
+                        {returned.length > 0 && stillOut.length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {returned.length} returned, {stillOut.length} remaining
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
                   done

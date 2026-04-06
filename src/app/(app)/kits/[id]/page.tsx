@@ -61,6 +61,18 @@ type KitMember = {
   };
 };
 
+type KitBulkMember = {
+  id: string;
+  quantity: number;
+  bulkSku: {
+    id: string;
+    name: string;
+    category: string;
+    unit: string;
+    imageUrl: string | null;
+  };
+};
+
 type KitDetail = {
   id: string;
   name: string;
@@ -70,6 +82,7 @@ type KitDetail = {
   updatedAt: string;
   location: { id: string; name: string };
   members: KitMember[];
+  bulkMembers: KitBulkMember[];
 };
 
 type SearchResult = {
@@ -517,6 +530,64 @@ export default function KitDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bulk members section */}
+      {(kit.bulkMembers?.length > 0 || kit.active) && (
+        <div className="mt-6">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle className="text-base">Bulk Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {kit.bulkMembers?.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="w-12" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {kit.bulkMembers.map((bm) => (
+                      <TableRow key={bm.id}>
+                        <TableCell className="font-medium">{bm.bulkSku.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{bm.bulkSku.category}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="secondary" size="sm">{bm.quantity} {bm.bulkSku.unit}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {kit.active && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await fetch(`/api/kits/${kit.id}/bulk-members?membershipId=${bm.id}`, { method: "DELETE" });
+                                  setKit((prev) => prev ? { ...prev, bulkMembers: prev.bulkMembers.filter((m) => m.id !== bm.id) } : prev);
+                                  toast.success("Bulk item removed from kit");
+                                } catch {
+                                  toast.error("Failed to remove bulk item");
+                                }
+                              }}
+                            >
+                              <Trash2Icon className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4 text-center">No bulk items in this kit. Add batteries or consumables below.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Remove member confirmation */}
       <AlertDialog open={!!removeTarget} onOpenChange={(v) => { if (!v) setRemoveTarget(null); }}>
