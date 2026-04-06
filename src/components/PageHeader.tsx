@@ -27,7 +27,7 @@ export function PageHeader({
         className
       )}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 border-l-[3px] border-l-[var(--wi-red)] pl-3">
         <h1 className="truncate">{title}</h1>
         {description && (
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>

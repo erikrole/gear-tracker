@@ -36,7 +36,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           <Link
             key={s.href}
             href={s.href}
-            className={`px-4 py-2.5 text-sm font-medium no-underline transition-colors border-b-2 -mb-px ${pathname.startsWith(s.href) ? "text-foreground border-primary font-semibold" : "text-muted-foreground border-transparent hover:text-foreground"}`}
+            className={`px-4 py-2.5 text-sm font-medium no-underline transition-colors border-b-2 -mb-px ${pathname.startsWith(s.href) ? "text-foreground border-[var(--wi-red)] font-semibold" : "text-muted-foreground border-transparent hover:text-foreground"}`}
           >
             {s.label}
           </Link>
