@@ -97,7 +97,7 @@ export async function recordScan(args: {
         const a = item.asset;
         const qr = a.qrCodeValue.toLowerCase();
         const sc = a.primaryScanCode?.toLowerCase() ?? "";
-        const tag = a.assetTag.toLowerCase();
+        const tag = a.assetTag?.toLowerCase() ?? "";
         return qr === sv || qr === `qr-${sv}` || sc === sv || sc === `qr-${sv}` || tag === sv;
       })?.asset;
 

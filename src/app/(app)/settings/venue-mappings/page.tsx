@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import {
   Select,
   SelectContent,
@@ -44,7 +45,7 @@ export default function VenueMappingsPage() {
   const loadMappings = useCallback(async () => {
     try {
       const res = await fetch("/api/location-mappings");
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setMappings(json.data ?? []);
@@ -59,7 +60,7 @@ export default function VenueMappingsPage() {
   const loadLocations = useCallback(async () => {
     try {
       const res = await fetch("/api/locations");
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setLocations(json.data ?? []);
@@ -84,7 +85,7 @@ export default function VenueMappingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isHomeVenue: !current }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         setLocations((prev) => prev.map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
         toast("Failed to update", "error");
@@ -110,18 +111,15 @@ export default function VenueMappingsPage() {
           priority: parseInt(form.get("priority") as string) || 0,
         }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         setShowAdd(false);
         toast("Venue mapping added", "success");
         await loadMappings();
         e.currentTarget.reset();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast(
-          (json as Record<string, string>).error || "Failed to create mapping",
-          "error"
-        );
+        const msg = await parseErrorMessage(res, "Failed to create mapping");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error — please try again.", "error");
@@ -142,7 +140,7 @@ export default function VenueMappingsPage() {
       const res = await fetch(`/api/location-mappings/${id}`, {
         method: "DELETE",
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Venue mapping deleted", "success");
         await loadMappings();

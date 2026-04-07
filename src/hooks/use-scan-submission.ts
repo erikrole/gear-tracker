@@ -14,6 +14,7 @@ import {
   scanFeedbackError,
   scanFeedbackInfo,
 } from "@/lib/scan-feedback";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type UseScanSubmissionOptions = {
   mode: ScanMode;
@@ -110,32 +111,27 @@ export function useScanSubmission(
           loadScanStatus();
           return true;
         } else {
-          if (res.status === 401) {
-            setFeedback({
-              message: "Session expired — please log in again",
-              type: "error",
-            });
-            return false;
-          }
-          const json = (await res.json().catch(() => ({}))) as {
+          if (handleAuthRedirect(res)) return false;
+          const json = (await res.clone().json().catch(() => ({}))) as {
             error?: string;
             data?: { code?: string };
           };
           const errCode = json.data?.code;
-          let errMsg = json.error || "Scan not recognized";
-          if (errCode === "SCAN_NOT_IN_CHECKOUT") {
-            errMsg = "This item is not part of this checkout";
-          } else if (res.status === 409) {
-            errMsg =
-              json.error ||
-              "Unit not available — it may have been scanned by another device";
-          } else if (errCode === "DUPLICATE_SCAN") {
+          if (errCode === "DUPLICATE_SCAN") {
             scanFeedbackInfo();
             setFeedback({
               message: "Already scanned — skipping duplicate",
               type: "info",
             });
             return false;
+          }
+          let errMsg: string;
+          if (errCode === "SCAN_NOT_IN_CHECKOUT") {
+            errMsg = "This item is not part of this checkout";
+          } else if (res.status === 409) {
+            errMsg = await parseErrorMessage(res, "Unit not available — it may have been scanned by another device");
+          } else {
+            errMsg = await parseErrorMessage(res, "Scan not recognized");
           }
           setFeedback({ message: errMsg, type: "error" });
           scanFeedbackError();
@@ -167,12 +163,14 @@ export function useScanSubmission(
         const res = await fetch(
           `/api/assets?q=${encodeURIComponent(searchTerm)}${qrParam}&limit=5`,
         );
+        if (handleAuthRedirect(res)) {
+          processingRef.current = false;
+          setProcessing(false);
+          return;
+        }
         if (!res.ok) {
           setFeedback({
-            message:
-              res.status === 401
-                ? "Session expired — please log in again"
-                : "Failed to look up item",
+            message: "Failed to look up item",
             type: "error",
           });
           processingRef.current = false;
@@ -267,13 +265,7 @@ export function useScanSubmission(
             return;
           }
 
-          if (res.status === 401) {
-            setFeedback({
-              message: "Session expired — please log in again",
-              type: "error",
-            });
-            return;
-          }
+          if (handleAuthRedirect(res)) return;
 
           const errJson = (await res.json().catch(() => ({}))) as {
             error?: string;

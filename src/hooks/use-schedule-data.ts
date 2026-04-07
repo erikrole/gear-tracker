@@ -8,6 +8,7 @@ import type {
   ShiftGroup,
 } from "@/app/(app)/schedule/_components/types";
 import { userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
+import { handleAuthRedirect } from "@/lib/errors";
 
 export type ViewMode = "list" | "calendar" | "week";
 
@@ -130,8 +131,7 @@ async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: Abor
     fetch(groupsUrl, { signal }),
   ]);
 
-  if (evRes.status === 401 || sgRes.status === 401) {
-    window.location.href = "/login";
+  if (handleAuthRedirect(evRes) || handleAuthRedirect(sgRes)) {
     throw new DOMException("Auth redirect", "AbortError");
   }
   if (!evRes.ok) throw new Error("events fetch failed");
@@ -152,7 +152,7 @@ type MeResponse = { user: { id: string; role: string } };
 
 async function fetchMe(): Promise<MeResponse | null> {
   const r = await fetch("/api/me");
-  if (r.status === 401) { window.location.href = "/login"; return null; }
+  if (handleAuthRedirect(r)) return null;
   if (!r.ok) return null;
   return r.json();
 }

@@ -18,6 +18,7 @@ import { ItemPreviewDrawer } from "./_components/ItemPreviewDrawer";
 import { ReportDamageDialog } from "./_components/ReportDamageDialog";
 import { ReportLostDialog } from "./_components/ReportLostDialog";
 import { CheckinSummaryDialog } from "./_components/CheckinSummaryDialog";
+import { parseErrorMessage } from "@/lib/errors";
 import type { ScanMode, SerializedItemStatus } from "./_components/types";
 
 export default function ScanPage() {
@@ -84,8 +85,8 @@ export default function ScanPage() {
         body: JSON.stringify({ assetId, type, description }),
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to submit report", "error");
+        const msg = await parseErrorMessage(res, "Failed to submit report");
+        toast(msg, "error");
         return;
       }
       // Optimistically update the local scan status

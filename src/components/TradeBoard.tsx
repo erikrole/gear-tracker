@@ -10,6 +10,7 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 /* ───── Types ───── */
 
@@ -80,11 +81,6 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
-  function redirectOn401(res: Response): boolean {
-    if (res.status === 401) { window.location.href = "/login"; return true; }
-    return false;
-  }
-
   const loadTrades = useCallback(async () => {
     setLoading(true);
     try {
@@ -92,7 +88,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (areaFilter) params.set("area", areaFilter);
       if (statusFilter) params.set("status", statusFilter);
       const res = await fetch(`/api/shift-trades?${params}`);
-      if (redirectOn401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setTrades(json.data ?? []);
@@ -120,13 +116,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/claim`, { method: "POST" });
-      if (redirectOn401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Trade claimed", "success");
         await loadTrades();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to claim", "error");
+        const msg = await parseErrorMessage(res, "Failed to claim");
+        toast(msg, "error");
       }
     } catch { toast("Network error", "error"); }
     setActing(null);
@@ -136,13 +132,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/approve`, { method: "PATCH" });
-      if (redirectOn401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Trade approved — swap executed", "success");
         await loadTrades();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to approve", "error");
+        const msg = await parseErrorMessage(res, "Failed to approve");
+        toast(msg, "error");
       }
     } catch { toast("Network error", "error"); }
     setActing(null);
@@ -152,13 +148,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/decline`, { method: "PATCH" });
-      if (redirectOn401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Trade declined — reopened", "success");
         await loadTrades();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to decline", "error");
+        const msg = await parseErrorMessage(res, "Failed to decline");
+        toast(msg, "error");
       }
     } catch { toast("Network error", "error"); }
     setActing(null);
@@ -175,13 +171,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(tradeId);
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/cancel`, { method: "PATCH" });
-      if (redirectOn401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Trade cancelled", "success");
         await loadTrades();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to cancel", "error");
+        const msg = await parseErrorMessage(res, "Failed to cancel");
+        toast(msg, "error");
       }
     } catch { toast("Network error", "error"); }
     setActing(null);

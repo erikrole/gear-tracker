@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { handleAuthRedirect } from "@/lib/errors";
 import {
   Tooltip,
   TooltipContent,
@@ -123,7 +124,7 @@ export default function CheckoutsReportPage() {
     setError(false);
     try {
       const res = await fetch(`/api/reports?type=checkouts&days=${days}`, { signal: controller.signal });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) { setError("Unable to load checkout report. Please try again."); return; }
       const json = await res.json();
       setData(json ?? null);

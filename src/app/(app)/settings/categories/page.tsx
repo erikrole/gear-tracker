@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { handleAuthRedirect } from "@/lib/errors";
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
@@ -27,7 +28,7 @@ export default function CategoriesPage() {
     setError(null);
     try {
       const res = await fetch("/api/categories");
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setCategories(json.data ?? []);
@@ -52,7 +53,7 @@ export default function CategoriesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       setNewName("");
       setAdding(false);
       load();

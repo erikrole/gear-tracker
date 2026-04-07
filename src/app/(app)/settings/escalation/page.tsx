@@ -22,6 +22,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { WifiOff, AlertTriangle, RefreshCw } from "lucide-react";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type EscalationRule = {
   id: string;
@@ -56,7 +57,7 @@ export default function EscalationSettingsPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/settings/escalation");
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setRules(json.data.rules);
@@ -87,12 +88,12 @@ export default function EscalationSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ruleId, [field]: !current }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         setRules((prev) => prev.map((r) => r.id === ruleId ? { ...r, [field]: !current } : r));
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Update failed", "error");
+        const msg = await parseErrorMessage(res, "Update failed");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error", "error");
@@ -108,13 +109,13 @@ export default function EscalationSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxNotificationsPerBooking: newCap }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         setConfig({ maxNotificationsPerBooking: newCap });
         toast("Cap updated", "success");
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Update failed", "error");
+        const msg = await parseErrorMessage(res, "Update failed");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error", "error");

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { handleAuthRedirect } from "@/lib/errors";
 
 type MigrationRow = { name: string; appliedAt: string | null };
 type DriftItem = { table: string; column: string; status: string };
@@ -30,7 +31,7 @@ export default function DatabasePage() {
     setError(null);
     try {
       const res = await fetch("/api/db-diagnostics");
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         setError(json?.error ?? `HTTP ${res.status}`);

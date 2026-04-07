@@ -16,6 +16,7 @@ vi.mock("@/lib/db", () => {
     overrideEvent: { count: vi.fn(), create: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
     auditLog: { create: vi.fn(), createMany: vi.fn() },
+    checkinItemReport: { findMany: vi.fn() },
   };
 
   return {
@@ -65,6 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   transactionCalls.length = 0;
   (globalThis as any).__transactionCalls = transactionCalls;
+  mockTx.checkinItemReport.findMany.mockResolvedValue([]);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

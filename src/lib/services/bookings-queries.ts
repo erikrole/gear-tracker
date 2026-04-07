@@ -1,0 +1,157 @@
+import {
+  BookingKind,
+  BookingStatus,
+  Prisma,
+} from "@prisma/client";
+import { db } from "@/lib/db";
+import { HttpError, parsePagination } from "@/lib/http";
+import { bookingInclude } from "./bookings-helpers";
+
+const bookingListInclude = {
+  location: { select: { id: true, name: true } },
+  requester: { select: { id: true, name: true, email: true, avatarUrl: true } },
+  serializedItems: {
+    select: {
+      id: true, assetId: true, allocationStatus: true,
+      asset: { select: { id: true, assetTag: true, brand: true, model: true, serialNumber: true, imageUrl: true } },
+    },
+  },
+  bulkItems: {
+    select: {
+      id: true, plannedQuantity: true, checkedOutQuantity: true, checkedInQuantity: true,
+      bulkSku: { select: { id: true, name: true, unit: true } },
+    },
+  },
+  event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
+} satisfies Prisma.BookingInclude;
+
+const BOOKING_SORT_MAP: Record<string, Prisma.BookingOrderByWithRelationInput[]> = {
+  oldest: [{ startsAt: "asc" }, { id: "asc" }],
+  title: [{ title: "asc" }, { id: "asc" }],
+  title_desc: [{ title: "desc" }, { id: "asc" }],
+  endsAt: [{ endsAt: "asc" }, { id: "asc" }],
+  endsAt_desc: [{ endsAt: "desc" }, { id: "asc" }],
+};
+
+export async function listBookings(
+  kind: BookingKind,
+  searchParams: URLSearchParams,
+  extraWhere?: Prisma.BookingWhereInput
+) {
+  const q = searchParams.get("q")?.trim();
+  const sortParam = searchParams.get("sort");
+
+  const where: Prisma.BookingWhereInput = {
+    kind,
+    ...extraWhere,
+    ...(!extraWhere && searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
+    ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
+    ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
+    ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),
+    ...(searchParams.get("from") || searchParams.get("to")
+      ? {
+          startsAt: {
+            ...(searchParams.get("from") ? { gte: new Date(searchParams.get("from")!) } : {}),
+            ...(searchParams.get("to") ? { lte: new Date(searchParams.get("to")!) } : {})
+          }
+        }
+      : {}),
+    ...(q ? {
+      OR: [
+        { title: { contains: q, mode: "insensitive" as const } },
+        { requester: { name: { contains: q, mode: "insensitive" as const } } },
+        { refNumber: { contains: q, mode: "insensitive" as const } },
+      ],
+    } : {}),
+  };
+
+  const orderBy = (sortParam && BOOKING_SORT_MAP[sortParam]) || [{ startsAt: "desc" }, { id: "asc" }];
+  const { limit, offset } = parsePagination(searchParams);
+
+  const [data, total] = await Promise.all([
+    db.booking.findMany({
+      where,
+      orderBy,
+      include: bookingListInclude,
+      take: limit,
+      skip: offset
+    }),
+    db.booking.count({ where })
+  ]);
+
+  return { data, total, limit, offset };
+}
+
+export async function getBookingDetail(bookingId: string) {
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      ...bookingInclude,
+      creator: { select: { id: true, name: true, email: true } },
+      serializedItems: { include: { asset: { include: { location: { select: { id: true, name: true } } } } } },
+      event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
+      sourceReservation: { select: { id: true, refNumber: true, title: true } },
+      shiftAssignment: { select: { id: true, shift: { select: { area: true } } } },
+      kit: { select: { id: true, name: true } },
+      photos: { select: { id: true, phase: true, imageUrl: true, createdAt: true, actor: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } },
+    }
+  });
+
+  if (!booking) {
+    throw new HttpError(404, "Booking not found");
+  }
+
+  const AUDIT_LOG_LIMIT = 50;
+  const auditLogsRaw = await db.auditLog.findMany({
+    where: { entityType: "booking", entityId: bookingId },
+    orderBy: { createdAt: "desc" },
+    take: AUDIT_LOG_LIMIT + 1,
+    include: { actor: { select: { id: true, name: true } } }
+  });
+  const hasMoreAuditLogs = auditLogsRaw.length > AUDIT_LOG_LIMIT;
+  const auditLogs = hasMoreAuditLogs ? auditLogsRaw.slice(0, AUDIT_LOG_LIMIT) : auditLogsRaw;
+
+  const isOverdue = booking.status === BookingStatus.OPEN && booking.endsAt < new Date();
+  const isActive = booking.status === BookingStatus.OPEN || booking.status === BookingStatus.BOOKED;
+
+  // Compute distinct locations represented by assets in this booking
+  const locationMap = new Map<string, string>();
+  locationMap.set(booking.location.id, booking.location.name);
+  for (const item of booking.serializedItems) {
+    if (item.asset.location) {
+      locationMap.set(item.asset.location.id, item.asset.location.name);
+    }
+  }
+  const itemLocations = Array.from(locationMap, ([id, name]) => ({ id, name }));
+  const locationMode: "SINGLE" | "MIXED" = itemLocations.length > 1 ? "MIXED" : "SINGLE";
+
+  return {
+    ...booking,
+    isOverdue,
+    isActive,
+    bookingType: booking.kind === BookingKind.RESERVATION ? "Reservation" : "Checkout",
+    auditLogs,
+    hasMoreAuditLogs,
+    auditLogNextCursor: hasMoreAuditLogs ? auditLogs[auditLogs.length - 1]?.id : null,
+    itemLocations,
+    locationMode
+  };
+}
+
+export async function getBookingForScan(bookingId: string) {
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      serializedItems: { include: { asset: true } },
+      bulkItems: { include: { bulkSku: true } },
+      scanSessions: true,
+      overrides: true
+    }
+  });
+
+  if (!booking) {
+    throw new HttpError(404, "Booking not found");
+  }
+
+  return booking;
+}

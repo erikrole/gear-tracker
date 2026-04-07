@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { type ZodSchema, ZodError } from "zod";
-import { classifyError, handleAuthRedirect } from "@/lib/errors";
+import { classifyError, handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 
 export type FormState = "idle" | "submitting" | "success" | "error";
@@ -136,8 +136,9 @@ export function useFormSubmit<TInput, TOutput = unknown>(
       }
 
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        const serverMsg = (json as Record<string, string>).error || "Something went wrong. Please try again.";
+        // Clone before parseErrorMessage consumes the body — we need fieldErrors too
+        const json = await res.clone().json().catch(() => ({}));
+        const serverMsg = await parseErrorMessage(res, "Something went wrong. Please try again.");
 
         // Map server-side field errors if present
         if ((json as Record<string, unknown>).fieldErrors) {

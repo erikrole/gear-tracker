@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { handleAuthRedirect } from "@/lib/errors";
 import { formatRelativeTime } from "@/lib/format";
 import {
   Tooltip,
@@ -152,7 +153,7 @@ export default function OverdueLeaderboardPage() {
     setError(false);
     try {
       const res = await fetch("/api/reports?type=overdue", { signal: controller.signal });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) { setError("Unable to load overdue report. Please try again."); return; }
       const json = await res.json();
       setData(json ?? null);

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -23,13 +24,12 @@ async function callAction(
           }
         : {}),
     });
-    if (res.status === 401) {
-      window.location.href = "/login";
+    if (handleAuthRedirect(res)) {
       return { ok: false, error: "Session expired" };
     }
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      return { ok: false, error: (json as Record<string, string>).error || "Action failed" };
+      const msg = await parseErrorMessage(res, "Action failed");
+      return { ok: false, error: msg };
     }
     const json = await res.json().catch(() => ({}));
     return { ok: true, ...(json as object) };
@@ -202,10 +202,7 @@ export function useBookingActions(
         headers,
         body: JSON.stringify({ [field]: value }),
       });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         if (res.status === 409) throw new Error("This booking was modified by someone else. Please refresh.");
         throw new Error("Save failed");

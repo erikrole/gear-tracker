@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAvailabilityCheck } from "@/components/equipment-picker/use-availability-check";
+import { usePickerSearch } from "@/components/equipment-picker/use-picker-search";
+import { useScanToAdd } from "@/components/equipment-picker/use-scan-to-add";
 import {
   EQUIPMENT_SECTIONS,
   classifyAssetType,
@@ -63,13 +66,6 @@ export type BulkSelection = {
 /* Stable empty array — avoids re-creating [] on every render in search mode */
 const EMPTY_ASSETS: PickerAsset[] = [];
 
-type ConflictInfo = {
-  assetId: string;
-  conflictingBookingTitle?: string;
-  startsAt: string;
-  endsAt: string;
-};
-
 export type EquipmentPickerProps = {
   /** Pass assets to use legacy (load-all) mode. Omit for search-on-type mode. */
   assets?: PickerAsset[];
@@ -118,29 +114,13 @@ export default function EquipmentPicker({
   });
   const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
-  const [scanFeedback, setScanFeedback] = useState<{ message: string; type: "success" | "error" } | null>(null);
-  const scanFeedbackTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   // ── Global search state ──
   const [globalSearch, setGlobalSearch] = useState("");
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
   const globalSearchRef = useRef<HTMLInputElement>(null);
 
-  // ── Availability preview state ──
-  const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
-  const [bulkAvailability, setBulkAvailability] = useState<Record<string, { onHand: number; committed: number; available: number }>>({});
-  const [conflictsLoading, setConflictsLoading] = useState(false);
-  const [conflictsError, setConflictsError] = useState(false);
-  const availDebounce = useRef<ReturnType<typeof setTimeout>>(null);
-
-  // ── Search mode state (only used when legacyMode is false) ──
-  const [sectionResults, setSectionResults] = useState<PickerAsset[]>([]);
-  const [apiSectionCounts, setApiSectionCounts] = useState<Record<EquipmentSectionKey, number>>({
-    cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
-  });
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
-  const [globalSearchApiResults, setGlobalSearchApiResults] = useState<PickerAsset[]>([]);
+  // ── Search mode: selected assets cache (only used when legacyMode is false) ──
   const [selectedAssetsCache] = useState<Map<string, PickerAsset>>(() => {
     const m = new Map<string, PickerAsset>();
     if (initialSelectedAssets) {
@@ -148,14 +128,33 @@ export default function EquipmentPicker({
     }
     return m;
   });
-  const searchAbortRef = useRef<AbortController | null>(null);
-  const globalSearchAbortRef = useRef<AbortController | null>(null);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const globalSearchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const initialFetchDoneRef = useRef(false);
+
+  // ── Derived values needed by hooks ──
+  const legacyAssets = assets || EMPTY_ASSETS;
+  const equipSearch = searchBySection[activeSection] || "";
+
+  // ── Custom hooks (data-fetching & business logic) ──
+  const { conflicts, bulkAvailability, conflictsLoading, conflictsError, fetchConflicts } =
+    useAvailabilityCheck({
+      startsAt,
+      endsAt,
+      locationId,
+      selectedAssetIds,
+      legacyMode,
+      legacyAssets,
+      bulkSkusLength: bulkSkus.length,
+    });
+
+  const { sectionResults, apiSectionCounts, searchLoading, globalSearchApiResults, globalSearchLoading } =
+    usePickerSearch({
+      legacyMode,
+      activeSection,
+      equipSearch,
+      onlyAvailable,
+      globalSearch,
+    });
 
   // ── Indexed lookups (O(1) instead of O(n)) ──
-  const legacyAssets = assets || EMPTY_ASSETS;
   const assetById = useMemo(() => {
     if (legacyMode) return new Map(legacyAssets.map((a) => [a.id, a]));
     // In search mode, merge sectionResults + globalSearchApiResults + cache
@@ -171,8 +170,6 @@ export default function EquipmentPicker({
   // ── Section grouping (legacy mode only) ──
   const assetsBySection = useMemo(() => groupAssetsBySection(legacyAssets), [legacyAssets]);
   const bulkBySection = useMemo(() => groupBulkBySection(bulkSkus), [bulkSkus]);
-
-  const equipSearch = searchBySection[activeSection] || "";
 
   const sectionAssets = useMemo(() => {
     if (!activeSection) return [];
@@ -321,184 +318,19 @@ export default function EquipmentPicker({
     allSectionAvailableIds.every((id) => selectedIdSet.has(id));
   const someSectionSelected = allSectionAvailableIds.some((id) => selectedIdSet.has(id));
 
-  // ── Availability preview ──
-
-  const abortRef = useRef<AbortController | null>(null);
-
-  // Refs to capture current values without adding them to callback deps
-  const legacyAssetsRef = useRef(legacyAssets);
-  legacyAssetsRef.current = legacyAssets;
-  const selectedAssetIdsRef = useRef(selectedAssetIds);
-  selectedAssetIdsRef.current = selectedAssetIds;
-  const bulkSkusLengthRef = useRef(bulkSkus.length);
-  bulkSkusLengthRef.current = bulkSkus.length;
-
-  const fetchConflicts = useCallback(async () => {
-    if (!startsAt || !endsAt || !locationId) {
-      setConflicts(new Map());
-      setBulkAvailability({});
-      return;
-    }
-    const allAssetIds = legacyMode
-      ? legacyAssetsRef.current.map((a) => a.id)
-      : selectedAssetIdsRef.current;
-
-    // Skip if nothing to check
-    if (allAssetIds.length === 0 && bulkSkusLengthRef.current === 0) return;
-
-    // Abort any in-flight request to prevent stale data overwriting fresh
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setConflictsLoading(true);
-    setConflictsError(false);
-    try {
-      const res = await fetch("/api/availability/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId,
-          startsAt: new Date(startsAt).toISOString(),
-          endsAt: new Date(endsAt).toISOString(),
-          serializedAssetIds: allAssetIds,
-          bulkItems: [],
-        }),
-        signal: controller.signal,
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data as {
-          conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string; startsAt: string; endsAt: string }>;
-          bulkAvailability?: Record<string, { onHand: number; committed: number; available: number }>;
-        };
-        const map = new Map<string, ConflictInfo>();
-        if (data.conflicts) {
-          for (const c of data.conflicts) {
-            map.set(c.assetId, {
-              assetId: c.assetId,
-              conflictingBookingTitle: c.conflictingBookingTitle,
-              startsAt: c.startsAt,
-              endsAt: c.endsAt,
-            });
-          }
-        }
-        setConflicts(map);
-        setBulkAvailability(data.bulkAvailability ?? {});
-      } else {
-        setConflictsError(true);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setConflictsError(true);
-    }
-    setConflictsLoading(false);
-  }, [startsAt, endsAt, locationId, legacyMode]);
-
-  useEffect(() => {
-    if (availDebounce.current) clearTimeout(availDebounce.current);
-    availDebounce.current = setTimeout(fetchConflicts, 500);
-    return () => {
-      if (availDebounce.current) clearTimeout(availDebounce.current);
-      abortRef.current?.abort();
-    };
-  }, [fetchConflicts]);
-
-  // ── Search mode: fetch section results from API ──
-  const fetchSectionResults = useCallback(async (section: EquipmentSectionKey, q: string, available: boolean) => {
-    if (legacyMode) return;
-    searchAbortRef.current?.abort();
-    const controller = new AbortController();
-    searchAbortRef.current = controller;
-    setSearchLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("section", section);
-      if (q) params.set("q", q);
-      params.set("only_available", String(available));
-      params.set("limit", "50");
-      const res = await fetch(`/api/assets/picker-search?${params}`, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: Record<string, number> | null };
-        setSectionResults(data.assets);
-        if (data.sectionCounts) {
-          setApiSectionCounts(data.sectionCounts as Record<EquipmentSectionKey, number>);
-        }
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-    }
-    if (!controller.signal.aborted) setSearchLoading(false);
-  }, [legacyMode]);
-
-  // Trigger search on section change, search text change, or onlyAvailable change
-  useEffect(() => {
-    if (legacyMode) return;
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      fetchSectionResults(activeSection, equipSearch, onlyAvailable);
-    }, initialFetchDoneRef.current ? 300 : 0);
-    initialFetchDoneRef.current = true;
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
-  }, [legacyMode, activeSection, equipSearch, onlyAvailable, fetchSectionResults]);
-
-  // ── Search mode: global search API call ──
-  const fetchGlobalSearchResults = useCallback(async (q: string, available: boolean) => {
-    if (legacyMode) return;
-    globalSearchAbortRef.current?.abort();
-    if (!q.trim()) {
-      setGlobalSearchApiResults([]);
-      setGlobalSearchLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    globalSearchAbortRef.current = controller;
-    setGlobalSearchLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("q", q.trim());
-      params.set("only_available", String(available));
-      params.set("limit", "30");
-      const res = await fetch(`/api/assets/picker-search?${params}`, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: Record<string, number> | null };
-        setGlobalSearchApiResults(data.assets);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-    }
-    if (!controller.signal.aborted) setGlobalSearchLoading(false);
-  }, [legacyMode]);
-
-  useEffect(() => {
-    if (legacyMode) return;
-    if (globalSearchDebounceRef.current) clearTimeout(globalSearchDebounceRef.current);
-    globalSearchDebounceRef.current = setTimeout(() => {
-      fetchGlobalSearchResults(globalSearch, onlyAvailable);
-    }, 300);
-    return () => {
-      if (globalSearchDebounceRef.current) clearTimeout(globalSearchDebounceRef.current);
-    };
-  }, [legacyMode, globalSearch, onlyAvailable, fetchGlobalSearchResults]);
-
-  // Cleanup search abort controllers on unmount
-  useEffect(() => {
-    return () => {
-      searchAbortRef.current?.abort();
-      globalSearchAbortRef.current?.abort();
-    };
-  }, []);
-
-  // Clean up scan feedback timer on unmount
-  useEffect(() => {
-    return () => { if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current); };
-  }, []);
+  const { scanFeedback, handleScan, showScanFeedbackMsg } = useScanToAdd({
+    legacyMode,
+    legacyAssets,
+    bulkSkus,
+    selectedAssetIds,
+    setSelectedAssetIds,
+    selectedBulkItems,
+    setSelectedBulkItems,
+    selectedAssetsCache,
+    selectedIdSet,
+    conflicts,
+    setActiveSection,
+  });
 
   // ── Helpers ──
 
@@ -578,125 +410,6 @@ export default function EquipmentPicker({
     const tabList = (e.currentTarget as HTMLElement).parentElement;
     const buttons = tabList?.querySelectorAll<HTMLButtonElement>("[role=\"tab\"]");
     buttons?.[nextIdx]?.focus();
-  }
-
-  // ── Scan-to-add ──
-
-  function handleScanToAddLegacy(value: string) {
-    const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
-    const searchValue = bgMatch ? bgMatch[2] : value;
-
-    const asset = legacyAssets.find((a) =>
-      a.qrCodeValue === value ||
-      a.id === searchValue ||
-      a.primaryScanCode === value ||
-      a.assetTag.toLowerCase() === searchValue.toLowerCase()
-    );
-
-    if (asset) {
-      handleScannedAsset(asset);
-      return;
-    }
-
-    const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
-    if (sku) {
-      handleScannedBulk(sku, value);
-      return;
-    }
-
-    showScanFeedbackMsg("No matching item \u2014 check this location\u2019s inventory", "error");
-    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-  }
-
-  async function handleScanToAddSearch(value: string) {
-    try {
-      const params = new URLSearchParams();
-      params.set("qr", value);
-      params.set("only_available", "false");
-      params.set("limit", "1");
-      const res = await fetch(`/api/assets/picker-search?${params}`);
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: null };
-        if (data.assets.length > 0) {
-          const asset = data.assets[0];
-          selectedAssetsCache.set(asset.id, asset);
-          handleScannedAsset(asset);
-          return;
-        }
-      }
-    } catch {
-      // Fall through to bulk check
-    }
-
-    const sku = bulkSkus.find((s) => s.binQrCodeValue === value);
-    if (sku) {
-      handleScannedBulk(sku, value);
-      return;
-    }
-
-    showScanFeedbackMsg("No matching item \u2014 check this location\u2019s inventory", "error");
-    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-  }
-
-  function handleScannedAsset(asset: PickerAsset) {
-    // BRK-001: Check computedStatus — don't add unavailable items via scan
-    const isAvailable = asset.computedStatus === "AVAILABLE";
-    const hasConflict = conflicts.has(asset.id);
-    if (!isAvailable && !hasConflict) {
-      const statusLabel = asset.computedStatus.replace("_", " ").toLowerCase();
-      showScanFeedbackMsg(`${asset.assetTag} is ${statusLabel}`, "error");
-      if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-      setActiveSection(classifyAssetType(asset.type, asset.categoryName));
-      return;
-    }
-
-    // BRK-002: Guard inside callback to prevent duplicate IDs from rapid scans
-    let wasAdded = false;
-    setSelectedAssetIds((prev) => {
-      if (prev.includes(asset.id)) return prev;
-      wasAdded = true;
-      return [...prev, asset.id];
-    });
-    const section = classifyAssetType(asset.type, asset.categoryName);
-    setActiveSection(section);
-    const alreadySelected = selectedIdSet.has(asset.id);
-    showScanFeedbackMsg(
-      alreadySelected && !wasAdded ? `${asset.assetTag} already selected` : `Added ${asset.assetTag}`,
-      alreadySelected && !wasAdded ? "error" : "success",
-    );
-    if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
-  }
-
-  function handleScannedBulk(sku: PickerBulkSku, _value: string) {
-    let wasAdded = false;
-    setSelectedBulkItems((prev) => {
-      if (prev.some((i) => i.bulkSkuId === sku.id)) return prev;
-      wasAdded = true;
-      return [...prev, { bulkSkuId: sku.id, quantity: 1 }];
-    });
-    const section = classifyAssetType(sku.category, sku.categoryName);
-    setActiveSection(section);
-    const alreadySelected = selectedBulkItems.some((i) => i.bulkSkuId === sku.id);
-    showScanFeedbackMsg(
-      alreadySelected && !wasAdded ? `${sku.name} already selected` : `Added ${sku.name}`,
-      alreadySelected && !wasAdded ? "error" : "success",
-    );
-    if (navigator.vibrate) navigator.vibrate(alreadySelected && !wasAdded ? [50, 50] : 100);
-  }
-
-  function handleScanToAdd(value: string) {
-    if (legacyMode) {
-      handleScanToAddLegacy(value);
-    } else {
-      handleScanToAddSearch(value);
-    }
-  }
-
-  function showScanFeedbackMsg(message: string, type: "success" | "error") {
-    setScanFeedback({ message, type });
-    if (scanFeedbackTimer.current) clearTimeout(scanFeedbackTimer.current);
-    scanFeedbackTimer.current = setTimeout(() => setScanFeedback(null), 2500);
   }
 
   function formatConflictDate(iso: string) {
@@ -1379,7 +1092,7 @@ export default function EquipmentPicker({
               </Button>
             </div>
             <QrScanner
-              onScan={handleScanToAdd}
+              onScan={handleScan}
               onError={() => showScanFeedbackMsg("Camera not available", "error")}
               active={showScanner}
             />

@@ -7,8 +7,10 @@ import { tokenHash, randomHex } from "@/lib/auth";
 
 /** Generate a random 6-digit numeric code */
 function generateActivationCode(): string {
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  return code;
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  const code = 100000 + (buf[0] % 900000);
+  return code.toString();
 }
 
 /** List kiosk devices (ADMIN only) */

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { handleAuthRedirect } from "@/lib/errors";
 import dynamic from "next/dynamic";
 
 const LazyDailyScanVolumeChart = dynamic(
@@ -144,7 +145,7 @@ export default function ScanHistoryPage() {
         params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
       }
       const res = await fetch(`/api/reports?${params}`, { signal: controller.signal });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) { setError("Unable to load scan report. Please try again."); return; }
       const json = await res.json();
       setData(json ?? null);

@@ -14,6 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { formatRelativeTime } from "@/lib/format";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
@@ -127,7 +128,7 @@ export default function DashboardPage() {
     setData((prev) => prev ? { ...prev, drafts: prev.drafts.filter((x) => x.id !== draftId) } : prev);
     try {
       const res = await fetch(`/api/drafts/${draftId}`, { method: "DELETE" });
-      if (res.status === 401) { window.location.href = "/login?returnTo=/"; return; }
+      if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
         toast("Draft deleted", "success");
       } else {
@@ -160,13 +161,13 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: newEnd.toISOString() }),
       });
-      if (res.status === 401) { window.location.href = "/login?returnTo=/"; return; }
+      if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
         toast("Extended by 1 day", "success");
         loadData(true);
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Extend failed", "error");
+        const msg = await parseErrorMessage(res, "Extend failed");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error — couldn\u2019t extend", "error");
@@ -181,13 +182,13 @@ export default function DashboardPage() {
     setInlineActionId(bookingId);
     try {
       const res = await fetch(`/api/reservations/${bookingId}/convert`, { method: "POST" });
-      if (res.status === 401) { window.location.href = "/login?returnTo=/"; return; }
+      if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
         toast("Converted to checkout", "success");
         loadData(true);
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Convert failed", "error");
+        const msg = await parseErrorMessage(res, "Convert failed");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error — couldn\u2019t convert", "error");

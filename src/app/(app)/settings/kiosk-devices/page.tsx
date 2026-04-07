@@ -35,6 +35,7 @@ import {
   Trash2,
   WifiOff,
 } from "lucide-react";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type KioskDevice = {
   id: string;
@@ -79,10 +80,7 @@ export default function KioskDevicesPage() {
     setError(null);
     try {
       const res = await fetch("/api/kiosk-devices");
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
+      if (handleAuthRedirect(res)) return;
       if (res.status === 403) {
         setError({ type: "server", message: "Admin access required" });
         return;
@@ -129,10 +127,7 @@ export default function KioskDevicesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedName, locationId: addLocationId }),
       });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setCodeDialog({ name: trimmedName, code: json.activationCode });
@@ -141,8 +136,8 @@ export default function KioskDevicesPage() {
         setAddLocationId("");
         load();
       } else {
-        const json = await res.json().catch(() => null);
-        toast(json?.error || "Failed to create kiosk device", "error");
+        const msg = await parseErrorMessage(res, "Failed to create kiosk device");
+        toast(msg, "error");
       }
     } catch {
       toast("Could not connect to server", "error");

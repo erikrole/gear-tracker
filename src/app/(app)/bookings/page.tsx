@@ -7,15 +7,14 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ClipboardCheckIcon, CalendarPlusIcon } from "lucide-react";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { FadeUp } from "@/components/ui/motion";
 import { PageHeader } from "@/components/PageHeader";
 
 /** Shared fetch wrapper with 401 redirect */
 async function fetchAction(url: string, method = "POST"): Promise<Response> {
   const res = await fetch(url, { method });
-  if (res.status === 401) {
-    window.location.href = "/login";
-  }
+  handleAuthRedirect(res);
   return res;
 }
 
@@ -78,8 +77,8 @@ export default function BookingsPage() {
             if (!res.ok) {
               // Rollback on server error
               setItems?.(() => prevItems);
-              const json = await res.json().catch(() => ({}));
-              toast((json as Record<string, string>).error || "Cancel failed", "error");
+              const msg = await parseErrorMessage(res, "Cancel failed");
+              toast(msg, "error");
             } else {
               toast("Checkout cancelled", "success");
             }
@@ -131,8 +130,8 @@ export default function BookingsPage() {
             if (res.ok) {
               window.location.href = `/bookings?tab=checkouts`;
             } else {
-              const json = await res.json().catch(() => ({}));
-              toast((json as Record<string, string>).error || "Conversion failed", "error");
+              const msg = await parseErrorMessage(res, "Conversion failed");
+              toast(msg, "error");
               await reload();
             }
           } catch {
@@ -150,8 +149,8 @@ export default function BookingsPage() {
               toast("Reservation duplicated", "success");
               window.location.href = `/bookings?tab=reservations`;
             } else {
-              const json = await res.json().catch(() => ({}));
-              toast((json as Record<string, string>).error || "Duplicate failed", "error");
+              const msg = await parseErrorMessage(res, "Duplicate failed");
+              toast(msg, "error");
             }
           } catch {
             toast("Network error \u2014 please try again.", "error");
@@ -184,8 +183,8 @@ export default function BookingsPage() {
             if (!res.ok) {
               // Rollback on server error
               setItems?.(() => prevItems);
-              const json = await res.json().catch(() => ({}));
-              toast((json as Record<string, string>).error || "Cancel failed", "error");
+              const msg = await parseErrorMessage(res, "Cancel failed");
+              toast(msg, "error");
             } else {
               toast("Reservation cancelled", "success");
             }

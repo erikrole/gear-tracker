@@ -12,6 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 import {
   SortHeader,
@@ -71,7 +72,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     queryKey: ["bookingList", config.kind, listUrl],
     queryFn: async ({ signal }) => {
       const res = await fetch(listUrl, { signal });
-      if (res.status === 401) { window.location.href = "/login"; throw new DOMException("Auth redirect", "AbortError"); }
+      if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
       if (!res.ok) throw new Error("server");
       return res.json();
     },
@@ -171,15 +172,12 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: new Date(new Date(item.endsAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString() }),
       });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast(`Extended by ${days} day${days !== 1 ? "s" : ""}`, "success");
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Extend failed", "error");
+        const msg = await parseErrorMessage(res, "Extend failed");
+        toast(msg, "error");
       }
       await reload();
     } catch {

@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { statusBadgeVariant, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -125,6 +126,7 @@ export default function BookingDetailsSheet({
       const res = await fetchWithTimeout(`/api/bookings/${bookingId}`, {
         signal: controller.signal,
       });
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         if (json?.data) {
@@ -133,9 +135,6 @@ export default function BookingDetailsSheet({
           setAuditLogCursor(json.data.auditLogNextCursor ?? null);
           setHasMoreAuditLogs(json.data.hasMoreAuditLogs ?? false);
         }
-      } else if (res.status === 401) {
-        window.location.href = "/login";
-        return;
       } else {
         if (!opts?.silent) setFetchError(true);
       }
@@ -157,17 +156,11 @@ export default function BookingDetailsSheet({
     return () => { abortRef.current?.abort(); };
   }, [bookingId, fetchBooking]);
 
-  /** Redirect to login on 401, return true if redirected */
-  function handle401(res: Response): boolean {
-    if (res.status === 401) { window.location.href = "/login"; return true; }
-    return false;
-  }
-
   const loadFormOptions = useCallback(async () => {
     try {
       setOptionsError(false);
       const res = await fetchWithTimeout("/api/form-options");
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setBulkSkus(json.data.bulkSkus || []);
@@ -447,7 +440,7 @@ export default function BookingDetailsSheet({
         }),
       });
 
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Equipment updated", "success");
         setEquipEditMode(false);
@@ -497,7 +490,7 @@ export default function BookingDetailsSheet({
         body: JSON.stringify(payload),
       });
 
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Booking updated", "success");
         setEditMode(false);
@@ -527,15 +520,15 @@ export default function BookingDetailsSheet({
         body: JSON.stringify({ endsAt }),
       });
 
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const newDate = new Date(endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
         toast(`Extended to ${newDate}`, "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        toast((json as Record<string, string>).error || "Failed to extend", "error");
+        const msg = await parseErrorMessage(res, "Failed to extend");
+        toast(msg, "error");
       }
     } catch {
       toast("Failed to extend", "error");
@@ -560,14 +553,14 @@ export default function BookingDetailsSheet({
         method: "POST",
       });
 
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Booking cancelled", "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        toast((json as Record<string, string>).error || "Failed to cancel", "error");
+        const msg = await parseErrorMessage(res, "Failed to cancel");
+        toast(msg, "error");
       }
     } catch {
       toast("Failed to cancel", "error");
@@ -590,7 +583,7 @@ export default function BookingDetailsSheet({
         method: "POST",
       });
 
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         toast("Converted to checkout", "success");
@@ -598,8 +591,8 @@ export default function BookingDetailsSheet({
         onClose();
         window.location.href = `/checkouts/${json.data.id}`;
       } else {
-        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        toast((json as Record<string, string>).error || "Failed to convert", "error");
+        const msg = await parseErrorMessage(res, "Failed to convert");
+        toast(msg, "error");
       }
     } catch {
       toast("Failed to convert", "error");
@@ -617,14 +610,14 @@ export default function BookingDetailsSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assetIds: [assetId] }),
       });
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast(`${item?.asset.assetTag ?? "Item"} checked in`, "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        toast((json as Record<string, string>).error || "Failed to check in", "error");
+        const msg = await parseErrorMessage(res, "Failed to check in");
+        toast(msg, "error");
       }
     } catch {
       toast("Failed to check in", "error");
@@ -650,14 +643,14 @@ export default function BookingDetailsSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assetIds: activeItems.map((i) => i.asset.id) }),
       });
-      if (handle401(res)) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("All items checked in", "success");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        toast((json as Record<string, string>).error || "Failed to check in", "error");
+        const msg = await parseErrorMessage(res, "Failed to check in");
+        toast(msg, "error");
       }
     } catch {
       toast("Failed to check in", "error");

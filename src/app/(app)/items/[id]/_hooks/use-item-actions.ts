@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { AssetDetail } from "../types";
 
 type UseItemActionsParams = {
@@ -69,8 +70,8 @@ export default function useItemActions({
           const json = await res.json();
           router.push(`/items/${json.data.id}`);
         } else {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Duplicate failed", "error");
+          const msg = await parseErrorMessage(res, "Duplicate failed");
+          toast(msg, "error");
         }
       } else if (action === "retire") {
         const ok = await confirmDialog({
@@ -82,15 +83,15 @@ export default function useItemActions({
         if (!ok) { setActionBusy(false); return; }
         const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
         if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Retire failed", "error");
+          const msg = await parseErrorMessage(res, "Retire failed");
+          toast(msg, "error");
         }
         loadAsset();
       } else if (action === "maintenance") {
         const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
         if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Action failed", "error");
+          const msg = await parseErrorMessage(res, "Action failed");
+          toast(msg, "error");
         }
         loadAsset();
       } else if (action === "delete") {
@@ -105,8 +106,8 @@ export default function useItemActions({
         if (res.ok) {
           router.push("/items");
         } else {
-          const json = await res.json().catch(() => ({}));
-          toast((json as Record<string, string>).error || "Delete failed", "error");
+          const msg = await parseErrorMessage(res, "Delete failed");
+          toast(msg, "error");
         }
       }
     } catch {

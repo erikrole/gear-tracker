@@ -84,7 +84,7 @@ model User {
   locationId     String?      @map("location_id")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
-  location       Location?    @relation(fields: [locationId], references: [id])
+  location       Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
   sessions       Session[]
   requested      Booking[]    @relation("BookingRequester")
   createdBookings Booking[]   @relation("BookingCreator")
@@ -173,7 +173,7 @@ model Category {
   parentId  String?    @map("parent_id")
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
-  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children  Category[] @relation("CategoryTree")
   assets    Asset[]
   bulkSkus  BulkSku[]
@@ -212,9 +212,9 @@ model Asset {
   sourcePayload    Json?                    @map("source_payload")
   createdAt        DateTime                 @default(now()) @map("created_at")
   updatedAt        DateTime                 @updatedAt @map("updated_at")
-  location         Location                 @relation(fields: [locationId], references: [id])
-  department       Department?              @relation(fields: [departmentId], references: [id])
-  category         Category?                @relation(fields: [categoryId], references: [id])
+  location         Location                 @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  department       Department?              @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  category         Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   parentAssetId    String?                  @map("parent_asset_id")
   parent           Asset?                   @relation("AssetAccessories", fields: [parentAssetId], references: [id], onDelete: SetNull)
   accessories      Asset[]                  @relation("AssetAccessories")
@@ -253,14 +253,14 @@ model Booking {
   kitId               String?                 @map("kit_id")
   createdAt           DateTime                @default(now()) @map("created_at")
   updatedAt           DateTime                @updatedAt @map("updated_at")
-  requester           User                    @relation("BookingRequester", fields: [requesterUserId], references: [id])
-  creator             User                    @relation("BookingCreator", fields: [createdBy], references: [id])
-  location            Location                @relation(fields: [locationId], references: [id])
-  sourceReservation   Booking?                @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id])
+  requester           User                    @relation("BookingRequester", fields: [requesterUserId], references: [id], onDelete: Restrict)
+  creator             User                    @relation("BookingCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  location            Location                @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  sourceReservation   Booking?                @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id], onDelete: SetNull)
   derivedCheckouts    Booking[]               @relation("CheckoutFromReservation")
-  event               CalendarEvent?          @relation(fields: [eventId], references: [id])
-  shiftAssignment     ShiftAssignment?        @relation(fields: [shiftAssignmentId], references: [id])
-  kit                 Kit?                    @relation(fields: [kitId], references: [id])
+  event               CalendarEvent?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  shiftAssignment     ShiftAssignment?        @relation(fields: [shiftAssignmentId], references: [id], onDelete: SetNull)
+  kit                 Kit?                    @relation(fields: [kitId], references: [id], onDelete: SetNull)
   serializedItems     BookingSerializedItem[]
   bulkItems           BookingBulkItem[]
   allocations         AssetAllocation[]
@@ -293,7 +293,7 @@ model BookingSerializedItem {
   allocationStatus  String   @default("active") @map("allocation_status")
   createdAt         DateTime @default(now()) @map("created_at")
   booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  asset             Asset    @relation(fields: [assetId], references: [id])
+  asset             Asset    @relation(fields: [assetId], references: [id], onDelete: Restrict)
 
   @@unique([bookingId, assetId])
   @@index([assetId])
@@ -309,7 +309,7 @@ model BookingBulkItem {
   checkedInQuantity  Int?                        @map("checked_in_quantity")
   createdAt          DateTime                    @default(now()) @map("created_at")
   booking            Booking                     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  bulkSku            BulkSku                     @relation(fields: [bulkSkuId], references: [id])
+  bulkSku            BulkSku                     @relation(fields: [bulkSkuId], references: [id], onDelete: Restrict)
   unitAllocations    BookingBulkUnitAllocation[]
 
   @@unique([bookingId, bulkSkuId])
@@ -327,7 +327,7 @@ model AssetAllocation {
   kind              AllocationKind
   createdAt         DateTime       @default(now()) @map("created_at")
   updatedAt         DateTime       @updatedAt @map("updated_at")
-  asset             Asset          @relation(fields: [assetId], references: [id])
+  asset             Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
   booking           Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([assetId, active])
@@ -350,8 +350,8 @@ model BulkSku {
   active            Boolean            @default(true)
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
-  location          Location           @relation(fields: [locationId], references: [id])
-  categoryRel       Category?          @relation(fields: [categoryId], references: [id])
+  location          Location           @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  categoryRel       Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   balances          BulkStockBalance[]
   movements         BulkStockMovement[]
   bookingItems      BookingBulkItem[]
@@ -372,7 +372,7 @@ model BulkStockBalance {
   onHandQuantity    Int       @default(0) @map("on_hand_quantity")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   bulkSku           BulkSku   @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)
-  location          Location  @relation(fields: [locationId], references: [id])
+  location          Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   @@unique([bulkSkuId, locationId])
   @@map("bulk_stock_balances")
@@ -388,10 +388,10 @@ model BulkStockMovement {
   quantity          Int
   reason            String?
   createdAt         DateTime         @default(now()) @map("created_at")
-  bulkSku           BulkSku          @relation(fields: [bulkSkuId], references: [id])
-  location          Location         @relation(fields: [locationId], references: [id])
-  booking           Booking?         @relation(fields: [bookingId], references: [id])
-  actor             User             @relation(fields: [actorUserId], references: [id])
+  bulkSku           BulkSku          @relation(fields: [bulkSkuId], references: [id], onDelete: Restrict)
+  location          Location         @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  booking           Booking?         @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  actor             User             @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([bulkSkuId, createdAt])
   @@index([bookingId])
@@ -425,7 +425,7 @@ model BookingBulkUnitAllocation {
   checkedInAt       DateTime?      @map("checked_in_at")
   createdAt         DateTime       @default(now()) @map("created_at")
   bookingBulkItem   BookingBulkItem @relation(fields: [bookingBulkItemId], references: [id], onDelete: Cascade)
-  bulkSkuUnit       BulkSkuUnit    @relation(fields: [bulkSkuUnitId], references: [id])
+  bulkSkuUnit       BulkSkuUnit    @relation(fields: [bulkSkuUnitId], references: [id], onDelete: Restrict)
 
   @@unique([bookingBulkItemId, bulkSkuUnitId])
   @@index([bulkSkuUnitId])
@@ -439,16 +439,16 @@ model ScanEvent {
   scanType          ScanType  @map("scan_type")
   scanValue         String    @map("scan_value")
   success           Boolean
-  phase             String
+  phase             ScanPhase
   assetId           String?   @map("asset_id")
   bulkSkuId         String?   @map("bulk_sku_id")
   quantity          Int?
   deviceContext     String?   @map("device_context")
   createdAt         DateTime  @default(now()) @map("created_at")
   booking           Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  actor             User      @relation(fields: [actorUserId], references: [id])
-  asset             Asset?    @relation(fields: [assetId], references: [id])
-  bulkSku           BulkSku?  @relation(fields: [bulkSkuId], references: [id])
+  actor             User      @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  asset             Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  bulkSku           BulkSku?  @relation(fields: [bulkSkuId], references: [id], onDelete: SetNull)
 
   @@index([bookingId, phase])
   @@index([scanValue])
@@ -465,7 +465,7 @@ model ScanSession {
   startedAt         DateTime          @default(now()) @map("started_at")
   completedAt       DateTime?         @map("completed_at")
   booking           Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  actor             User              @relation(fields: [actorUserId], references: [id])
+  actor             User              @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([bookingId, phase, status])
   @@map("scan_sessions")
@@ -479,7 +479,7 @@ model OverrideEvent {
   details           Json?
   createdAt         DateTime  @default(now()) @map("created_at")
   booking           Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  actor             User      @relation(fields: [actorUserId], references: [id])
+  actor             User      @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([bookingId, createdAt])
   @@index([actorUserId])
@@ -495,7 +495,7 @@ model AuditLog {
   beforeJson        Json?     @map("before_json")
   afterJson         Json?     @map("after_json")
   createdAt         DateTime  @default(now()) @map("created_at")
-  actor             User?     @relation("AuditActor", fields: [actorUserId], references: [id])
+  actor             User?     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId, createdAt])
   @@index([actorUserId, createdAt])
@@ -512,7 +512,7 @@ model Kit {
   active      Boolean             @default(true)
   createdAt   DateTime            @default(now()) @map("created_at")
   updatedAt   DateTime            @updatedAt @map("updated_at")
-  location    Location            @relation(fields: [locationId], references: [id])
+  location    Location            @relation(fields: [locationId], references: [id], onDelete: Restrict)
   members     KitMembership[]
   bulkMembers KitBulkMembership[]
   bookings    Booking[]
@@ -590,7 +590,7 @@ model CalendarEvent {
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
   source            CalendarSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  location          Location?           @relation(fields: [locationId], references: [id])
+  location          Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
   bookings          Booking[]
   shiftGroup        ShiftGroup?
 
@@ -607,7 +607,7 @@ model LocationMapping {
   locationId String   @map("location_id")
   priority   Int      @default(0)
   createdAt  DateTime @default(now()) @map("created_at")
-  location   Location @relation(fields: [locationId], references: [id])
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   @@map("location_mappings")
 }
@@ -677,8 +677,8 @@ model AllowedEmail {
   claimedAt   DateTime? @map("claimed_at")
   claimedById String?   @map("claimed_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
-  createdBy   User      @relation("AllowedEmailCreator", fields: [createdById], references: [id])
-  claimedBy   User?     @relation("AllowedEmailClaimer", fields: [claimedById], references: [id])
+  createdBy   User      @relation("AllowedEmailCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  claimedBy   User?     @relation("AllowedEmailClaimer", fields: [claimedById], references: [id], onDelete: SetNull)
 
   @@index([createdById])
   @@map("allowed_emails")
@@ -794,9 +794,9 @@ model ShiftAssignment {
   createdAt  DateTime              @default(now()) @map("created_at")
   updatedAt  DateTime              @updatedAt @map("updated_at")
   shift      Shift                 @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  user       User                  @relation("ShiftAssignee", fields: [userId], references: [id])
-  assigner   User?                 @relation("ShiftAssigner", fields: [assignedBy], references: [id])
-  swapFrom   ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id])
+  user       User                  @relation("ShiftAssignee", fields: [userId], references: [id], onDelete: Restrict)
+  assigner   User?                 @relation("ShiftAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+  swapFrom   ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id], onDelete: SetNull)
   swappedTo  ShiftAssignment[]     @relation("ShiftSwap")
   trades     ShiftTrade[]
   bookings   Booking[]
@@ -845,8 +845,8 @@ model ShiftTrade {
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
   shiftAssignment   ShiftAssignment    @relation(fields: [shiftAssignmentId], references: [id], onDelete: Cascade)
-  postedBy          User               @relation("TradePostedBy", fields: [postedByUserId], references: [id])
-  claimedBy         User?              @relation("TradeClaimedBy", fields: [claimedByUserId], references: [id])
+  postedBy          User               @relation("TradePostedBy", fields: [postedByUserId], references: [id], onDelete: Restrict)
+  claimedBy         User?              @relation("TradeClaimedBy", fields: [claimedByUserId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([postedByUserId])
@@ -863,7 +863,7 @@ model BookingPhoto {
   createdAt DateTime  @default(now()) @map("created_at")
 
   booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  actor     User      @relation("BookingPhotoActor", fields: [actorId], references: [id])
+  actor     User      @relation("BookingPhotoActor", fields: [actorId], references: [id], onDelete: Restrict)
 
   @@index([bookingId, phase])
   @@map("booking_photos")
@@ -879,8 +879,8 @@ model CheckinItemReport {
   createdAt    DateTime           @default(now()) @map("created_at")
 
   booking      Booking            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  asset        Asset              @relation(fields: [assetId], references: [id])
-  reportedBy   User               @relation("CheckinReports", fields: [reportedById], references: [id])
+  asset        Asset              @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  reportedBy   User               @relation("CheckinReports", fields: [reportedById], references: [id], onDelete: Restrict)
 
   @@unique([bookingId, assetId])
   @@index([bookingId])
@@ -901,7 +901,7 @@ model KioskDevice {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  location        Location  @relation(fields: [locationId], references: [id])
+  location        Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   @@index([locationId])
   @@map("kiosk_devices")

@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
+import { handleAuthRedirect } from "@/lib/errors";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
@@ -92,7 +93,7 @@ export function ListView({
     try {
       const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
       if (controller.signal.aborted) return;
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setAllUsers((json.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
@@ -120,7 +121,7 @@ export function ListView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shiftId, userId }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         setPickerShiftId(null);
         setUserSearch("");

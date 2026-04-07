@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { handleAuthRedirect } from "@/lib/errors";
 import type { SportConfig } from "./types";
 import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
@@ -24,7 +25,7 @@ export default function SportsSettingsPage() {
     setError(null);
     try {
       const res = await fetch("/api/sport-configs");
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         setError({
           type: "server",
@@ -70,7 +71,7 @@ export default function SportsSettingsPage() {
             shiftConfigs: defaultShiftConfigs(),
           }),
         });
-        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (handleAuthRedirect(res)) return;
         if (res.ok) {
           const json = await res.json();
           setConfigs((prev) => [...prev, json.data]);
@@ -81,7 +82,7 @@ export default function SportsSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active: newActive }),
         });
-        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (handleAuthRedirect(res)) return;
         if (res.ok) {
           setConfigs((prev) =>
             prev.map((c) => (c.sportCode === sportCode ? { ...c, active: newActive } : c))
@@ -121,7 +122,7 @@ export default function SportsSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ shiftConfigs: updatedConfigs }),
         });
-        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (handleAuthRedirect(res)) return;
         if (res.ok) {
           const json = await res.json();
           setConfigs((prev) =>
@@ -150,7 +151,7 @@ export default function SportsSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ [field]: value }),
         });
-        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (handleAuthRedirect(res)) return;
         if (res.ok) {
           const json = await res.json();
           setConfigs((prev) =>

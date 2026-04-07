@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { RefreshCw, WifiOff, AlertTriangle } from "lucide-react";
+import { handleAuthRedirect } from "@/lib/errors";
 import { useToast } from "@/components/Toast";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import DataList from "@/components/DataList";
@@ -51,7 +52,7 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/calendar-events/${id}`, { signal });
       if (signal?.aborted) return;
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         if (!isRefresh) setFetchError("server");
         return;
@@ -77,7 +78,7 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/shift-groups?eventId=${id}`, { signal });
       if (signal?.aborted) return;
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         const group = (json.data ?? [])[0];
@@ -92,7 +93,7 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/calendar-events/${id}/command-center`, { signal });
       if (signal?.aborted) return;
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         if (json?.data) setCommandCenter(json.data);
@@ -113,7 +114,7 @@ export default function EventDetailPage() {
 
     fetch("/api/me", { signal: controller.signal })
       .then((r) => {
-        if (r.status === 401) { window.location.href = "/login"; return null; }
+        if (handleAuthRedirect(r)) return null;
         return r.ok ? r.json() : null;
       })
       .then((j) => {
@@ -279,7 +280,7 @@ export default function EventDetailPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ assignmentId }),
               });
-              if (res.status === 401) { window.location.href = "/login"; return; }
+              if (handleAuthRedirect(res)) return;
               if (res.ok) {
                 toast(`Nudge sent to ${userName}`, "success");
               } else {

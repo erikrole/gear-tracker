@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { parseErrorMessage } from "@/lib/errors";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,8 +75,8 @@ export function AccessoriesSection({
         setSearchResults([]);
         onRefresh();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to attach", "error");
+        const msg = await parseErrorMessage(res, "Failed to attach");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error", "error");
@@ -96,8 +97,8 @@ export function AccessoriesSection({
         toast("Accessory detached", "success");
         onRefresh();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to detach", "error");
+        const msg = await parseErrorMessage(res, "Failed to detach");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error", "error");

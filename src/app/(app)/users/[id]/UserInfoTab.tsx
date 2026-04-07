@@ -36,6 +36,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { cn } from "@/lib/utils";
+import { handleAuthRedirect } from "@/lib/errors";
 
 /* ── Text Input Field ─────────────────────────────────── */
 
@@ -195,7 +196,7 @@ export default function UserInfoTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (res.status === 401) { window.location.href = "/login"; return; }
+    if (handleAuthRedirect(res)) return;
     const json = await res.json();
     if (!res.ok) {
       throw new Error(json.error || "Failed to update user");
@@ -209,7 +210,7 @@ export default function UserInfoTab({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: newRole }),
     });
-    if (res.status === 401) { window.location.href = "/login"; return; }
+    if (handleAuthRedirect(res)) return;
     const json = await res.json();
     if (!res.ok) {
       toast(json.error || "Failed to change role", "error");
@@ -230,7 +231,7 @@ export default function UserInfoTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "change_password", currentPassword, newPassword }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         toast(json.error || "Failed to update password", "error");
@@ -252,7 +253,7 @@ export default function UserInfoTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         toast(json.error || "Failed to add sport", "error");
@@ -270,7 +271,7 @@ export default function UserInfoTab({
       const res = await fetch(`/api/sport-configs/${sportCode}/roster?assignmentId=${assignmentId}`, {
         method: "DELETE",
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         toast(json.error || "Failed to remove sport", "error");
@@ -290,7 +291,7 @@ export default function UserInfoTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id, area, isPrimary: false }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         toast(json.error || "Failed to add area", "error");
@@ -308,7 +309,7 @@ export default function UserInfoTab({
       const res = await fetch(`/api/student-areas?id=${assignmentId}`, {
         method: "DELETE",
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         toast(json.error || "Failed to remove area", "error");
@@ -327,7 +328,7 @@ export default function UserInfoTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user.id, area, isPrimary }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         toast(json.error || "Failed to update area", "error");

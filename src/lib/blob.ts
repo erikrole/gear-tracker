@@ -99,7 +99,8 @@ export async function downloadImageToBlob(
     });
 
     return blob.url;
-  } catch {
+  } catch (err) {
+    console.error("[blob] Failed to mirror image for asset", assetId, err);
     return null;
   }
 }
