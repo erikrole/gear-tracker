@@ -105,7 +105,7 @@ export default function KioskDevicesPage() {
       const res = await fetch("/api/form-options");
       if (res.ok) {
         const json = await res.json();
-        setLocations(json.locations ?? []);
+        setLocations(json.data?.locations ?? json.locations ?? []);
       }
     } catch {
       // Non-critical — locations just won't be available for the form
