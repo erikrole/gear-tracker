@@ -198,8 +198,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               <div key={e.id} className="ops-row no-underline text-inherit">
                 <a href={`/events/${e.id}`} className="ops-row-main no-underline">
                   <span className="ops-row-title-bold">
-                    {e.sportCode && <span className="text-xs font-medium text-muted-foreground mr-1">{sportLabel(e.sportCode)}</span>}
-                    {e.opponent ? `vs ${e.opponent}` : (!e.sportCode ? e.title : "")}
+                    {e.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(e.sportCode)}</span>}
+                    {e.opponent ? <span className="text-muted-foreground font-normal">vs {e.opponent}</span> : (!e.sportCode ? e.title : "")}
                   </span>
                   <span className="ops-row-meta">
                     {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
@@ -209,7 +209,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 <div className="event-row-right">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} />
                   {e.isHome !== null && (
-                    <Badge variant={e.isHome ? "green" : "gray"}>
+                    <Badge variant={e.isHome ? "green" : "red"}>
                       {e.isHome ? "Home" : "Away"}
                     </Badge>
                   )}

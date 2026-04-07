@@ -6,10 +6,26 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
-import { formatDueLabel, formatEventDateTime, formatRelativeTime, isDueToday } from "@/lib/format";
+import { formatDueLabel, formatEventDateTime, formatRelativeTime, formatTimeShort, isDueToday } from "@/lib/format";
+import { sportLabel } from "@/lib/sports";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
 import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
+
+/** "Today", "Tomorrow", or "Wednesday, Apr 9" */
+function formatDayLabel(dateStr: string, now: Date): string {
+  const date = new Date(dateStr);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  const dayAfterTomorrow = new Date(tomorrowStart);
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+
+  if (date >= todayStart && date < tomorrowStart) return "Today";
+  if (date >= tomorrowStart && date < dayAfterTomorrow) return "Tomorrow";
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
 
 type Props = {
   data: DashboardData;
@@ -179,14 +195,12 @@ export function MyGearColumn({
               return (
                 <div key={s.id} className="ops-row">
                   <div className="ops-row-main">
-                    <span className="ops-row-title">
-                      {s.event.sportCode && <Badge variant="sport" size="sm" className="mr-1.5">{s.event.sportCode}</Badge>}
-                      {eventTitle}
+                    <span className="ops-row-title-bold">
+                      {s.event.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(s.event.sportCode)}</span>}
+                      <span className="text-muted-foreground font-normal">{eventTitle}</span>
                     </span>
                     <span className="ops-row-meta">
-                      <span className="font-semibold text-xs uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--panel-hover)] text-muted-foreground shrink-0">{s.area}</span>
-                      {" "}
-                      {new Date(s.startsAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toLowerCase()}
+                      {formatDayLabel(s.startsAt, now)}, {formatTimeShort(s.startsAt)} – {formatTimeShort(s.event.endsAt)}
                       {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
                     </span>
                   </div>

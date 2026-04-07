@@ -1,12 +1,13 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useCallback, useRef } from "react";
 import {
   type ColumnDef,
   type SortingState,
   type VisibilityState,
   type RowSelectionState,
   type OnChangeFn,
+  type ColumnSizingState,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -33,6 +34,8 @@ interface DataTableProps {
   onColumnVisibilityChange: OnChangeFn<VisibilityState>;
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
+  columnSizing?: ColumnSizingState;
+  onColumnSizingChange?: OnChangeFn<ColumnSizingState>;
   filterBar?: ReactNode;
   bulkActionBar?: ReactNode;
   refreshing?: boolean;
@@ -50,6 +53,8 @@ export function DataTable({
   onColumnVisibilityChange,
   sorting,
   onSortingChange,
+  columnSizing,
+  onColumnSizingChange,
   filterBar,
   bulkActionBar,
   refreshing = false,
@@ -64,16 +69,63 @@ export function DataTable({
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
+    enableColumnResizing: true,
+    columnResizeMode: "onChange",
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;
       onSortingChange(next);
     },
     onRowSelectionChange,
     onColumnVisibilityChange,
-    state: { sorting, rowSelection, columnVisibility },
+    onColumnSizingChange,
+    state: {
+      sorting,
+      rowSelection,
+      columnVisibility,
+      ...(columnSizing ? { columnSizing } : {}),
+    },
     getRowId: (row) => row.id,
     enableRowSelection: true,
   });
+
+  // Resize handler
+  const resizingRef = useRef<{
+    headerId: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
+  const onResizeStart = useCallback(
+    (e: React.MouseEvent, headerId: string, currentWidth: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resizingRef.current = { headerId, startX: e.clientX, startWidth: currentWidth };
+
+      const onMouseMove = (ev: MouseEvent) => {
+        if (!resizingRef.current) return;
+        const delta = ev.clientX - resizingRef.current.startX;
+        const newWidth = Math.max(60, resizingRef.current.startWidth + delta);
+        onColumnSizingChange?.((prev) => ({
+          ...(typeof prev === "function" ? {} : prev),
+          [resizingRef.current!.headerId]: newWidth,
+        }));
+      };
+
+      const onMouseUp = () => {
+        resizingRef.current = null;
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [onColumnSizingChange],
+  );
 
   return (
     <div className="relative rounded-md border">
@@ -122,7 +174,15 @@ export function DataTable({
           )}
         </div>
       ) : (
-        <Table>
+        <Table style={{ tableLayout: "fixed", width: "100%" }}>
+          <colgroup>
+            {table.getHeaderGroups()[0]?.headers.map((header) => (
+              <col
+                key={header.id}
+                style={{ width: header.getSize() }}
+              />
+            ))}
+          </colgroup>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="bg-muted/50">
@@ -133,7 +193,6 @@ export function DataTable({
                     <TableHead
                       key={header.id}
                       className={`relative h-10 border-t select-none ${canSort ? "cursor-pointer hover:bg-muted/80" : ""}`}
-                      style={header.column.getSize() !== 150 ? { width: header.column.getSize() } : undefined}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >
                       {header.isPlaceholder ? null : (
@@ -145,6 +204,13 @@ export function DataTable({
                             <ArrowUpDown className="size-3.5 text-muted-foreground/50" />
                           )}
                         </div>
+                      )}
+                      {/* Resize handle */}
+                      {header.column.getCanResize() && (
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-border active:bg-primary/50"
+                          onMouseDown={(e) => onResizeStart(e, header.column.id, header.getSize())}
+                        />
                       )}
                     </TableHead>
                   );
@@ -166,7 +232,7 @@ export function DataTable({
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(`/items/${row.original.id}`); } }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="overflow-hidden text-ellipsis">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

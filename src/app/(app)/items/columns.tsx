@@ -136,6 +136,15 @@ export function statusBadge(asset: Asset) {
         </Badge>
       );
     default:
+      // Bulk items show quantity as status (e.g. "50 units")
+      if (/^\d+\s/.test(computedStatus)) {
+        return (
+          <Badge className={STATUS_STYLES.green.badge}>
+            <StatusDot color="green" />
+            {computedStatus}
+          </Badge>
+        );
+      }
       return (
         <Badge className={STATUS_STYLES.gray.badge}>
           <StatusDot color="gray" />
@@ -218,17 +227,15 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       header: "Name",
       accessorKey: "assetTag",
       id: "assetTag",
-      size: 260,
-      minSize: 180,
-      maxSize: 340,
+      size: 380,
+      minSize: 200,
       enableSorting: true,
       cell: ({ row }) => {
         const item = row.original;
-        // Show name (product name) as secondary if set, otherwise fall back to brand + model
         const subtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
         return (
           <div className="flex items-center gap-3 min-w-0">
-            <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} />
+            <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} className="shrink-0" />
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="font-medium truncate">{item.assetTag}</span>
@@ -250,8 +257,8 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Status",
       id: "status",
-      size: 160,
-      minSize: 120,
+      size: 140,
+      minSize: 100,
       cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
     },
@@ -259,24 +266,33 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       header: "Category",
       id: "category",
       size: 120,
+      minSize: 80,
       accessorFn: (row) => row.category?.name || row.type,
-      cell: ({ row }) => row.original.category?.name || row.original.type,
+      cell: ({ row }) => (
+        <span className="truncate block">{row.original.category?.name || row.original.type}</span>
+      ),
       enableSorting: true,
     },
     {
       header: "Department",
       id: "department",
       size: 120,
+      minSize: 80,
       accessorFn: (row) => row.department?.name ?? "",
-      cell: ({ row }) => row.original.department?.name ?? "—",
+      cell: ({ row }) => (
+        <span className="truncate block">{row.original.department?.name ?? "—"}</span>
+      ),
       enableSorting: true,
     },
     {
       header: "Location",
       id: "location",
       size: 130,
+      minSize: 80,
       accessorFn: (row) => row.location.name,
-      cell: ({ row }) => row.original.location.name,
+      cell: ({ row }) => (
+        <span className="truncate block">{row.original.location.name}</span>
+      ),
       enableSorting: true,
     },
   );

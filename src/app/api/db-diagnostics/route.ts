@@ -119,7 +119,7 @@ async function checkMigrationTable() {
 
 async function checkTables() {
   const rows: { tablename: string }[] = await db.$queryRawUnsafe(
-    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
+    `SELECT tablename::text FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
   );
   const existing = new Set(rows.map((r) => r.tablename));
   return {
@@ -138,7 +138,7 @@ async function checkTables() {
 
 async function checkEnums() {
   const rows: { typname: string }[] = await db.$queryRawUnsafe(
-    `SELECT t.typname FROM pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typtype = 'e' ORDER BY t.typname`,
+    `SELECT t.typname::text FROM pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = 'public' AND t.typtype = 'e' ORDER BY t.typname`,
   );
   const existing = new Set(rows.map((r) => r.typname));
   return {
@@ -149,7 +149,7 @@ async function checkEnums() {
 
 async function checkExtensions() {
   const rows: { extname: string }[] = await db.$queryRawUnsafe(
-    `SELECT extname FROM pg_extension`,
+    `SELECT extname::text FROM pg_extension`,
   );
   const existing = new Set(rows.map((r) => r.extname));
   return {

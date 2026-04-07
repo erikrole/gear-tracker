@@ -723,11 +723,13 @@ enum ShiftTradeStatus {
 }
 
 model SportConfig {
-  id        String             @id @default(cuid())
-  sportCode String             @unique @map("sport_code")
-  active    Boolean            @default(true)
-  createdAt DateTime           @default(now()) @map("created_at")
-  updatedAt DateTime           @updatedAt @map("updated_at")
+  id              String             @id @default(cuid())
+  sportCode       String             @unique @map("sport_code")
+  active          Boolean            @default(true)
+  shiftStartOffset Int               @default(60) @map("shift_start_offset")
+  shiftEndOffset   Int               @default(60) @map("shift_end_offset")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
   shiftConfigs SportShiftConfig[]
 
   @@map("sport_configs")

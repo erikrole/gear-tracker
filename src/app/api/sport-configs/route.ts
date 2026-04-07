@@ -18,7 +18,9 @@ export const POST = withAuth(async (req, { user }) => {
   const config = await upsertSportConfig(
     body.sportCode,
     body.active ?? true,
-    body.shiftConfigs ?? []
+    body.shiftConfigs ?? [],
+    body.shiftStartOffset,
+    body.shiftEndOffset,
   );
 
   await createAuditEntry({

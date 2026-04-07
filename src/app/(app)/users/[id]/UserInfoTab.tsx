@@ -83,7 +83,7 @@ function TextInputField({
         }}
         placeholder={placeholder}
         disabled={!canEdit}
-        className="h-8 text-sm text-right"
+        className="h-8 text-sm"
       />
     </SaveableField>
   );
@@ -351,8 +351,8 @@ export default function UserInfoTab({
   const availableAreas = AREA_OPTIONS.filter((a) => !assignedAreas.has(a.value));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5 mt-6">
-      <div className="flex flex-col gap-1.5">
+    <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mt-6">
+      <div className="flex flex-col gap-4">
       {/* Profile Card */}
       <Card>
         <CardHeader>
@@ -419,7 +419,7 @@ export default function UserInfoTab({
         </CardHeader>
         <CardContent>
           {/* Sport Assignments — Multi-select */}
-          <h3 className="text-sm text-muted-foreground mb-2">Sports</h3>
+          <h3 className="text-sm font-semibold mb-2">Sports</h3>
           {canEditAssignments ? (
             <Popover>
               <PopoverTrigger asChild>
@@ -497,7 +497,7 @@ export default function UserInfoTab({
           <Separator className="my-3" />
 
           {/* Area Assignments — Multi-select */}
-          <h3 className="text-sm text-muted-foreground mb-2">Areas</h3>
+          <h3 className="text-sm font-semibold mb-2">Areas</h3>
           {canEditAssignments ? (
             <Popover>
               <PopoverTrigger asChild>

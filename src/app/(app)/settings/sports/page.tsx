@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { SportConfig } from "./types";
-import { AREAS, defaultShiftConfigs } from "./types";
+import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
 
 type FetchError = { type: "network" | "server"; message: string };
@@ -50,6 +50,11 @@ export default function SportsSettingsPage() {
     return configs.find((c) => c.sportCode === sportCode);
   }
 
+  /** Find the group that a sport code belongs to */
+  function findGroup(sportCode: string) {
+    return SPORT_GROUPS.find((g) => g.codes.includes(sportCode));
+  }
+
   async function toggleActive(sportCode: string) {
     const config = getConfig(sportCode);
     const newActive = !config?.active;
@@ -89,30 +94,69 @@ export default function SportsSettingsPage() {
     setSaving(null);
   }
 
-  async function updateShiftCount(sportCode: string, area: string, value: number) {
-    const config = getConfig(sportCode);
-    if (!config) return;
-
-    // Set both homeCount and awayCount to the same value for backward compatibility
-    const updatedConfigs = AREAS.map((a) => {
-      const existing = config.shiftConfigs.find((sc) => sc.area === a);
-      const count = a === area ? value : (existing?.homeCount ?? 0);
-      return { area: a, homeCount: count, awayCount: count };
-    });
+  async function updateShiftCount(sportCode: string, area: string, field: "homeCount" | "awayCount", value: number) {
+    const group = findGroup(sportCode);
+    const codesToUpdate = group ? group.codes : [sportCode];
 
     setSaving(`${sportCode}-${area}`);
     try {
-      const res = await fetch(`/api/sport-configs/${sportCode}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftConfigs: updatedConfigs }),
-      });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      if (res.ok) {
-        const json = await res.json();
-        setConfigs((prev) =>
-          prev.map((c) => (c.sportCode === sportCode ? json.data : c))
-        );
+      for (const code of codesToUpdate) {
+        const config = getConfig(code);
+        if (!config) continue;
+
+        const updatedConfigs = AREAS.map((a) => {
+          const existing = config.shiftConfigs.find((sc) => sc.area === a);
+          if (a === area) {
+            return {
+              area: a,
+              homeCount: field === "homeCount" ? value : (existing?.homeCount ?? 0),
+              awayCount: field === "awayCount" ? value : (existing?.awayCount ?? 0),
+            };
+          }
+          return { area: a, homeCount: existing?.homeCount ?? 0, awayCount: existing?.awayCount ?? 0 };
+        });
+
+        const res = await fetch(`/api/sport-configs/${code}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shiftConfigs: updatedConfigs }),
+        });
+        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (res.ok) {
+          const json = await res.json();
+          setConfigs((prev) =>
+            prev.map((c) => (c.sportCode === code ? json.data : c))
+          );
+        }
+      }
+    } catch {
+      toast("Network error", "error");
+    }
+    setSaving(null);
+  }
+
+  async function updateOffset(sportCode: string, field: "shiftStartOffset" | "shiftEndOffset", value: number) {
+    const group = findGroup(sportCode);
+    const codesToUpdate = group ? group.codes : [sportCode];
+
+    setSaving(`${sportCode}-calltime`);
+    try {
+      for (const code of codesToUpdate) {
+        const config = getConfig(code);
+        if (!config) continue;
+
+        const res = await fetch(`/api/sport-configs/${code}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [field]: value }),
+        });
+        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (res.ok) {
+          const json = await res.json();
+          setConfigs((prev) =>
+            prev.map((c) => (c.sportCode === code ? json.data : c))
+          );
+        }
       }
     } catch {
       toast("Network error", "error");
@@ -127,19 +171,16 @@ export default function SportsSettingsPage() {
         <div className="sticky top-20 max-md:static">
           <h2 className="text-[22px] font-bold mb-2">Sports</h2>
         </div>
-        <div className="min-w-0">
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 rounded-md border p-4">
-                <Skeleton className="h-5 w-10 rounded-full" />
+        <div className="min-w-0 space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-md border p-4 space-y-3">
+              <div className="flex items-center justify-between">
                 <Skeleton className="h-5 w-32" />
-                <div className="ml-auto flex gap-2">
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-16" />
-                </div>
+                <Skeleton className="h-5 w-10 rounded-full" />
               </div>
-            ))}
-          </div>
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -180,9 +221,8 @@ export default function SportsSettingsPage() {
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Sports</h2>
         <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
-          Configure the default number of shifts per area for each sport.
-          When new events are synced from the calendar, shifts are auto-generated using these counts.
-          You can always adjust individual events on the schedule page.
+          Configure shift coverage and call times for each sport.
+          Grouped sports share the same settings across men&apos;s and women&apos;s programs.
         </p>
       </div>
 
@@ -192,6 +232,7 @@ export default function SportsSettingsPage() {
           saving={saving}
           onToggleActive={toggleActive}
           onUpdateShift={updateShiftCount}
+          onUpdateOffset={updateOffset}
         />
       </div>
     </div>
