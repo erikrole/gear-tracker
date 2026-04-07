@@ -15,7 +15,8 @@
 - **Read-then-delete is a race condition**: Use `deleteMany({ where: { id, condition } })` and check `deleted.count` — the DB enforces the condition atomically.
 - **Privilege escalation has two vectors per role op**: Guard BOTH granting AND revoking. Check `target.role` vs `actor.role` on all mutation endpoints.
 - **STAFF cannot edit ADMIN users**: Role guards must apply to profile field edits, not just role changes.
-- **401 handling on EVERY mutation**: Session can expire between page load and user action. Check `res.status === 401` on all POST/PATCH/DELETE, redirect to `/login`.
+- **401 handling on EVERY mutation**: Session can expire between page load and user action. Use `handleAuthRedirect(res)` from `@/lib/errors` — never inline `window.location.href = "/login"`. Centralized in 2026-04-07 cleanup (71 inline redirects replaced).
+- **Error parsing from API responses**: Use `parseErrorMessage(res, fallback)` from `@/lib/errors` instead of `.json().catch(() => ({}))` + `as Record<string, string>`. The helper handles non-JSON bodies and provides type safety.
 - **CSRF: Block missing Origin headers by default**: Exempt internal/cron routes via Bearer auth detection.
 - **Quantity guard + increment must be atomic**: Re-read inside the transaction, check, then write — all in SERIALIZABLE.
 - **Seed/bootstrap endpoints are account takeover vectors**: Gate behind auth or disable in production.
