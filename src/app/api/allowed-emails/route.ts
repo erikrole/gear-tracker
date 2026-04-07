@@ -63,14 +63,17 @@ export const POST = withAuth(async (req, { user }) => {
     }));
 
     // Check for already-existing emails (either in allowlist or registered users)
-    const existingAllowed = await db.allowedEmail.findMany({
-      where: { email: { in: normalized.map((e) => e.email) } },
-      select: { email: true },
-    });
-    const existingUsers = await db.user.findMany({
-      where: { email: { in: normalized.map((e) => e.email) } },
-      select: { email: true },
-    });
+    const emailList = normalized.map((e) => e.email);
+    const [existingAllowed, existingUsers] = await Promise.all([
+      db.allowedEmail.findMany({
+        where: { email: { in: emailList } },
+        select: { email: true },
+      }),
+      db.user.findMany({
+        where: { email: { in: emailList } },
+        select: { email: true },
+      }),
+    ]);
 
     const existingSet = new Set([
       ...existingAllowed.map((e) => e.email),
