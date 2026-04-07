@@ -155,15 +155,16 @@ export const GET = withAuth(async (req, { user }) => {
     data = rawData.map((a) => ({ ...a, computedStatus: a.status as string }));
   }
 
-  const enrichedWithBookings = await attachActiveBookings(data);
+  const [enrichedWithBookings, favoriteItems] = await Promise.all([
+    attachActiveBookings(data),
+    db.favoriteItem.findMany({
+      where: { userId: user.id, assetId: { in: data.map((a) => a.id) } },
+      select: { assetId: true },
+    }),
+  ]);
 
   // Attach isFavorited for current user
-  const favoriteAssetIds = new Set(
-    (await db.favoriteItem.findMany({
-      where: { userId: user.id, assetId: { in: enrichedWithBookings.map((a) => a.id) } },
-      select: { assetId: true },
-    })).map((f) => f.assetId)
-  );
+  const favoriteAssetIds = new Set(favoriteItems.map((f) => f.assetId));
   const enrichedWithFavorites = enrichedWithBookings.map((a) => ({
     ...a,
     isFavorited: favoriteAssetIds.has(a.id),
