@@ -47,8 +47,9 @@ describe("getActiveGuidance", () => {
       activeSection: "batteries",
     };
     const hints = getActiveGuidance(ctx);
-    expect(hints).toHaveLength(1);
+    expect(hints).toHaveLength(2);
     expect(hints[0].id).toBe("body-needs-batteries");
+    expect(hints[1].id).toBe("monitors-need-power");
   });
 });
 

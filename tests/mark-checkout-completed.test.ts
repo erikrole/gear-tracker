@@ -150,6 +150,8 @@ describe("markCheckoutCompleted", () => {
       plannedQuantity: 10,
       checkedOutQuantity: 10,
       checkedInQuantity: 5, // 5 already returned via checkinBulkItem
+      bulkSku: { trackByNumber: false },
+      unitAllocations: [],
     });
     mockTx.booking.findUnique.mockResolvedValue(openCheckout([bulkItem]));
     mockTx.booking.update.mockResolvedValue({});
@@ -173,6 +175,8 @@ describe("markCheckoutCompleted", () => {
       plannedQuantity: 10,
       checkedOutQuantity: 10,
       checkedInQuantity: 10, // all already returned
+      bulkSku: { trackByNumber: false },
+      unitAllocations: [],
     });
     mockTx.booking.findUnique.mockResolvedValue(openCheckout([bulkItem]));
     mockTx.booking.update.mockResolvedValue({});

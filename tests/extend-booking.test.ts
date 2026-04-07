@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { makeBooking, makeSerializedItem, makeBulkItem } from "./_helpers/factories";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
@@ -57,6 +57,7 @@ function openBooking(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ now });
   transactionCalls.length = 0;
   mockTx.booking.findUnique.mockResolvedValue(openBooking());
   mockTx.booking.findUniqueOrThrow.mockResolvedValue({ id: "b-1" });
@@ -68,6 +69,10 @@ beforeEach(() => {
     shortages: [],
     unavailableAssets: [],
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("extendBooking", () => {
