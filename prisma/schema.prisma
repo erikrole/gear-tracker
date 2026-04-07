@@ -151,6 +151,7 @@ model Location {
   kits           Kit[]
   calendarEvents CalendarEvent[]
   locationMappings LocationMapping[]
+  kioskDevices   KioskDevice[]
 
   @@map("locations")
 }
@@ -882,4 +883,24 @@ model CheckinItemReport {
   @@unique([bookingId, assetId])
   @@index([bookingId])
   @@map("checkin_item_reports")
+}
+
+// ── Kiosk Device ─────────────────────────────────────────
+
+model KioskDevice {
+  id              String    @id @default(cuid())
+  name            String                           // "Video Office iPad"
+  locationId      String    @map("location_id")
+  activationCode  String    @unique @map("activation_code") // hashed 6-digit code
+  activatedAt     DateTime? @map("activated_at")
+  sessionToken    String?   @unique @map("session_token")   // hashed long-lived token
+  lastSeenAt      DateTime? @map("last_seen_at")
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  location        Location  @relation(fields: [locationId], references: [id])
+
+  @@index([locationId])
+  @@map("kiosk_devices")
 }
