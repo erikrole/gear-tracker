@@ -320,6 +320,7 @@ export function splitEventsForSync(
   parsedEvents: ParsedIcsEvent[],
   existingRows: ExistingEventRow[],
   mappings: Array<{ pattern: string; locationId: string; isHomeVenue?: boolean }>,
+  homeVenueKeywords: Array<{ keyword: string; locationId: string }> = [],
 ) {
   const existingMap = new Map(existingRows.map((r) => [r.externalId, r]));
 
@@ -349,14 +350,27 @@ export function splitEventsForSync(
         }
       }
 
+      // If no pattern mapping matched, try home venue keyword matching
+      if (!locationId && homeVenueKeywords.length > 0 && searchText) {
+        const venueText = (event.location || "").toLowerCase();
+        if (venueText) {
+          const match = homeVenueKeywords.find((hv) => venueText.includes(hv.keyword));
+          if (match) {
+            locationId = match.locationId;
+            matchedHomeVenue = true;
+          } else {
+            // Venue text exists but doesn't match any home venue → Away
+            matchedHomeVenue = false;
+          }
+        }
+      }
+
       const cleaned = cleanSummary(event.summary);
       let { sportCode, opponent, isHome } = extractSportInfo(cleaned);
 
-      // Override isHome based on venue if title parsing was inconclusive
-      if (locationId && matchedHomeVenue !== undefined) {
-        if (isHome === null) {
-          isHome = matchedHomeVenue;
-        }
+      // Override isHome based on venue when title parsing was inconclusive
+      if (matchedHomeVenue !== undefined && isHome === null) {
+        isHome = matchedHomeVenue;
       }
 
       const data: ValidatedEventData = {
@@ -483,6 +497,22 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     }));
   } catch { /* table may not exist */ }
 
+  // Auto-generate keyword matchers from home venue location names
+  // e.g. "Camp Randall" → keywords ["camp", "randall"]
+  let homeVenueKeywords: Array<{ keyword: string; locationId: string }> = [];
+  try {
+    const homeVenues = await db.location.findMany({
+      where: { isHomeVenue: true, active: true },
+      select: { id: true, name: true },
+    });
+    homeVenueKeywords = homeVenues.flatMap((loc) =>
+      loc.name.split(/\s+/).filter((w) => w.length >= 3).map((w) => ({
+        keyword: w.toLowerCase(),
+        locationId: loc.id,
+      }))
+    );
+  } catch { /* ignore */ }
+
   const existingRows = await db.calendarEvent.findMany({
     where: { sourceId },
     select: {
@@ -494,7 +524,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   // ── Phase 2: In-memory validate + diff (0 queries) ──
 
-  const { toCreate, toUpdate, unchanged, skippedErrors } = splitEventsForSync(events, existingRows, mappings);
+  const { toCreate, toUpdate, unchanged, skippedErrors } = splitEventsForSync(events, existingRows, mappings, homeVenueKeywords);
 
   let added = 0;
   const updated = toUpdate.length + unchanged.length;
