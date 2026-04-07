@@ -28,15 +28,15 @@ export async function upsertSportConfig(
   sportCode: string,
   active: boolean,
   shiftConfigs: SportShiftConfigInput[],
-  callTimeBefore?: number,
-  callTimeAfter?: number,
+  shiftStartOffset?: number,
+  shiftEndOffset?: number,
 ) {
   return db.$transaction(async (tx) => {
     // Upsert the sport config
     const config = await tx.sportConfig.upsert({
       where: { sportCode },
-      create: { sportCode, active, ...(callTimeBefore !== undefined && { callTimeBefore }), ...(callTimeAfter !== undefined && { callTimeAfter }) },
-      update: { active, ...(callTimeBefore !== undefined && { callTimeBefore }), ...(callTimeAfter !== undefined && { callTimeAfter }) },
+      create: { sportCode, active, ...(shiftStartOffset !== undefined && { shiftStartOffset }), ...(shiftEndOffset !== undefined && { shiftEndOffset }) },
+      update: { active, ...(shiftStartOffset !== undefined && { shiftStartOffset }), ...(shiftEndOffset !== undefined && { shiftEndOffset }) },
     });
 
     // Upsert each shift config row

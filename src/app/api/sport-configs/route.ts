@@ -19,8 +19,8 @@ export const POST = withAuth(async (req, { user }) => {
     body.sportCode,
     body.active ?? true,
     body.shiftConfigs ?? [],
-    body.callTimeBefore,
-    body.callTimeAfter,
+    body.shiftStartOffset,
+    body.shiftEndOffset,
   );
 
   await createAuditEntry({

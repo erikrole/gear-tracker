@@ -135,7 +135,7 @@ export default function SportsSettingsPage() {
     setSaving(null);
   }
 
-  async function updateCallTime(sportCode: string, field: "callTimeBefore" | "callTimeAfter", value: number) {
+  async function updateOffset(sportCode: string, field: "shiftStartOffset" | "shiftEndOffset", value: number) {
     const group = findGroup(sportCode);
     const codesToUpdate = group ? group.codes : [sportCode];
 
@@ -232,7 +232,7 @@ export default function SportsSettingsPage() {
           saving={saving}
           onToggleActive={toggleActive}
           onUpdateShift={updateShiftCount}
-          onUpdateCallTime={updateCallTime}
+          onUpdateOffset={updateOffset}
         />
       </div>
     </div>

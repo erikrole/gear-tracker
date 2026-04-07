@@ -31,13 +31,13 @@ export default function ShiftConfigTable({
   saving,
   onToggleActive,
   onUpdateShift,
-  onUpdateCallTime,
+  onUpdateOffset,
 }: {
   configs: SportConfig[];
   saving: string | null;
   onToggleActive: (sportCode: string) => void;
   onUpdateShift: (sportCode: string, area: string, field: "homeCount" | "awayCount", value: number) => void;
-  onUpdateCallTime: (sportCode: string, field: "callTimeBefore" | "callTimeAfter", value: number) => void;
+  onUpdateOffset: (sportCode: string, field: "shiftStartOffset" | "shiftEndOffset", value: number) => void;
 }) {
   function getConfig(sportCode: string) {
     return configs.find((c) => c.sportCode === sportCode);
@@ -155,8 +155,8 @@ export default function ShiftConfigTable({
                   <span className="text-sm text-muted-foreground font-medium">Call time</span>
                   <div className="flex items-center gap-2">
                     <Select
-                      value={String(config?.callTimeBefore ?? 60)}
-                      onValueChange={(v) => onUpdateCallTime(primaryCode, "callTimeBefore", parseInt(v))}
+                      value={String(config?.shiftStartOffset ?? 60)}
+                      onValueChange={(v) => onUpdateOffset(primaryCode, "shiftStartOffset", parseInt(v))}
                       disabled={saving?.startsWith(primaryCode) ?? false}
                     >
                       <SelectTrigger className="w-[110px] h-8 text-sm">
@@ -172,8 +172,8 @@ export default function ShiftConfigTable({
                   </div>
                   <div className="flex items-center gap-2">
                     <Select
-                      value={String(config?.callTimeAfter ?? 60)}
-                      onValueChange={(v) => onUpdateCallTime(primaryCode, "callTimeAfter", parseInt(v))}
+                      value={String(config?.shiftEndOffset ?? 60)}
+                      onValueChange={(v) => onUpdateOffset(primaryCode, "shiftEndOffset", parseInt(v))}
                       disabled={saving?.startsWith(primaryCode) ?? false}
                     >
                       <SelectTrigger className="w-[110px] h-8 text-sm">

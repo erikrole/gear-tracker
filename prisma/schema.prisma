@@ -726,8 +726,8 @@ model SportConfig {
   id              String             @id @default(cuid())
   sportCode       String             @unique @map("sport_code")
   active          Boolean            @default(true)
-  callTimeBefore  Int                @default(60) @map("call_time_before")
-  callTimeAfter   Int                @default(60) @map("call_time_after")
+  shiftStartOffset Int               @default(60) @map("shift_start_offset")
+  shiftEndOffset   Int               @default(60) @map("shift_end_offset")
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
   shiftConfigs SportShiftConfig[]

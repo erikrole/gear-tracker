@@ -158,15 +158,15 @@ export const upsertSportConfigSchema = z.object({
   sportCode: z.string().min(1).max(10),
   active: z.boolean().optional(),
   shiftConfigs: z.array(sportShiftConfigSchema).optional(),
-  callTimeBefore: z.number().int().min(0).max(480).optional(),
-  callTimeAfter: z.number().int().min(0).max(480).optional(),
+  shiftStartOffset: z.number().int().min(0).max(480).optional(),
+  shiftEndOffset: z.number().int().min(0).max(480).optional(),
 });
 
 export const updateSportConfigSchema = z.object({
   active: z.boolean().optional(),
   shiftConfigs: z.array(sportShiftConfigSchema).optional(),
-  callTimeBefore: z.number().int().min(0).max(480).optional(),
-  callTimeAfter: z.number().int().min(0).max(480).optional(),
+  shiftStartOffset: z.number().int().min(0).max(480).optional(),
+  shiftEndOffset: z.number().int().min(0).max(480).optional(),
 });
 
 export const sportRosterSchema = z.object({

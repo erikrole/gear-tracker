@@ -8,8 +8,8 @@ export type SportConfig = {
   id: string;
   sportCode: string;
   active: boolean;
-  callTimeBefore: number;
-  callTimeAfter: number;
+  shiftStartOffset: number;
+  shiftEndOffset: number;
   shiftConfigs: ShiftConfig[];
 };
 
@@ -35,28 +35,23 @@ export type SportGroup = {
 };
 
 /**
- * Grouping rules:
- * - Big 6 are standalone (each gets its own card)
- * - All other sports group men's/women's variants together
- * - Standalone sports with no pairing (Wrestling, Softball) stay solo
+ * Big 6 get their own card. Everything else is grouped by sport
+ * (men's/women's share the same defaults).
  */
 export const SPORT_GROUPS: SportGroup[] = [
-  // Big 6 — standalone
   { label: "Football", codes: ["FB"] },
   { label: "Men's Basketball", codes: ["MBB"] },
   { label: "Women's Basketball", codes: ["WBB"] },
   { label: "Men's Hockey", codes: ["MHKY"] },
   { label: "Women's Hockey", codes: ["WHKY"] },
   { label: "Volleyball", codes: ["VB"] },
-  // Grouped sports
   { label: "Cross Country", codes: ["MXC", "WXC"] },
   { label: "Golf", codes: ["MGOLF", "WGOLF"] },
   { label: "Rowing", codes: ["MROW", "WROW", "LROW"] },
   { label: "Soccer", codes: ["MSOC", "WSOC"] },
+  { label: "Softball", codes: ["SB"] },
   { label: "Swimming & Diving", codes: ["MSWIM", "WSWIM"] },
   { label: "Tennis", codes: ["MTEN", "WTEN"] },
   { label: "Track & Field", codes: ["MTRACK", "WTRACK"] },
-  // Solo — no gender pair
   { label: "Wrestling", codes: ["WRES"] },
-  { label: "Softball", codes: ["SB"] },
 ];
