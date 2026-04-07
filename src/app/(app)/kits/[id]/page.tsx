@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import EmptyState from "@/components/EmptyState";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
+import { handleAuthRedirect } from "@/lib/errors";
 import { classifyAssetType, EQUIPMENT_SECTIONS } from "@/lib/equipment-sections";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 
@@ -126,7 +127,7 @@ export default function KitDetailPage() {
     try {
       const res = await fetch(`/api/kits/${id}`);
       if (!res.ok) {
-        if (res.status === 401) { window.location.href = "/login"; return; }
+        if (handleAuthRedirect(res)) return;
         if (res.status === 404) { router.replace("/kits"); return; }
         throw new Error();
       }
@@ -152,7 +153,7 @@ export default function KitDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: value }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.error ?? "Failed to save");
@@ -169,7 +170,7 @@ export default function KitDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ description: value || null }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error("Failed to save");
       const { data } = await res.json();
       setKit(data);
@@ -220,7 +221,7 @@ export default function KitDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assetIds: [assetId] }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.error ?? "Failed to add item");
@@ -242,7 +243,7 @@ export default function KitDetailPage() {
     setRemovingId(member.id);
     try {
       const res = await fetch(`/api/kits/${id}/members/${member.id}`, { method: "DELETE" });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error("Failed to remove item");
       setKit((prev) =>
         prev ? { ...prev, members: prev.members.filter((m) => m.id !== member.id) } : prev
@@ -266,7 +267,7 @@ export default function KitDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !kit.active }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error("Failed to update");
       const { data } = await res.json();
       setKit(data);
@@ -282,7 +283,7 @@ export default function KitDetailPage() {
     setDeleting(true);
     try {
       const res = await fetch(`/api/kits/${id}`, { method: "DELETE" });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Kit deleted");
       router.replace("/kits");

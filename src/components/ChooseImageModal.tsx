@@ -13,6 +13,7 @@ import {
 import { ImageIcon } from "lucide-react";
 import { useConfirm } from "./ConfirmDialog";
 import { useToast } from "./Toast";
+import { parseErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -106,8 +107,8 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
         body: JSON.stringify({ url: urlPreview }),
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || "Failed to save image URL");
+        const msg = await parseErrorMessage(res, "Failed to save image URL");
+        throw new Error(msg);
       }
       const json = await res.json();
       toast("Image updated", "success");
@@ -131,8 +132,8 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
         body: formData,
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || "Upload failed");
+        const msg = await parseErrorMessage(res, "Upload failed");
+        throw new Error(msg);
       }
       const json = await res.json();
       toast("Image uploaded", "success");
@@ -157,8 +158,8 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
     try {
       const res = await fetch(`/api/assets/${assetId}/image`, { method: "DELETE" });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || "Failed to remove image");
+        const msg = await parseErrorMessage(res, "Failed to remove image");
+        throw new Error(msg);
       }
       toast("Image removed", "success");
       onImageChanged(null);

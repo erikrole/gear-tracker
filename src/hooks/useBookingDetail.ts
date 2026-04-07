@@ -3,12 +3,16 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BookingDetail } from "@/components/booking-details/types";
+import { handleAuthRedirect } from "@/lib/errors";
 
 export type BookingError = "not-found" | "network" | "auth" | "server" | null;
 
 async function fetchBooking(id: string, signal?: AbortSignal): Promise<BookingDetail> {
   const res = await fetch(`/api/bookings/${id}`, { signal });
-  if (res.status === 401 || res.status === 403) {
+  if (handleAuthRedirect(res)) {
+    throw new DOMException("Auth redirect", "AbortError");
+  }
+  if (res.status === 403) {
     window.location.href = "/login";
     throw new DOMException("Auth redirect", "AbortError");
   }

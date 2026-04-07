@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlusIcon, Trash2Icon, GripVerticalIcon } from "lucide-react";
+import { parseErrorMessage } from "@/lib/errors";
 
 type Preset = { label: string; minutes: number };
 
@@ -85,8 +86,8 @@ export default function BookingSettingsPage() {
         body: JSON.stringify({ presets: presets.map((p) => ({ label: p.label.trim(), minutes: p.minutes })) }),
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error((json as Record<string, string>).error || "Failed to save");
+        const msg = await parseErrorMessage(res, "Failed to save");
+        throw new Error(msg);
       }
       toast.success("Extend presets saved");
       setDirty(false);

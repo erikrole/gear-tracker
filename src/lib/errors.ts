@@ -44,6 +44,15 @@ export function handleAuthRedirect(res: Response, returnTo?: string): boolean {
   return false;
 }
 
+/**
+ * Safely parse an error message from a non-ok Response body.
+ * Replaces the repeated `.json().catch(() => ({}))` + `as Record<string, string>` pattern.
+ */
+export async function parseErrorMessage(res: Response, fallback?: string): Promise<string> {
+  const json = await res.json().catch(() => ({}));
+  return (json as Record<string, string>).error || fallback || `Request failed (${res.status})`;
+}
+
 /** User-facing error messages by kind. */
 export const ERROR_MESSAGES: Record<FetchErrorKind, { title: string; description: string }> = {
   auth: {

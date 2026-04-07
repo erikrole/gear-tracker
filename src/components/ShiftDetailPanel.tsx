@@ -16,6 +16,7 @@ import {
   SheetTitle,
   SheetBody,
 } from "@/components/ui/sheet";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { ShiftAreaSection } from "./shift-detail/ShiftAreaSection";
 import type { PickerUser } from "./shift-detail/UserAvatarPicker";
 
@@ -115,7 +116,7 @@ export default function ShiftDetailPanel({
     try {
       const res = await fetch(`/api/shift-groups/${groupId}`, { signal: controller.signal });
       if (controller.signal.aborted) return;
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         setGroup((await res.json()).data ?? null);
         setLoadError(false);
@@ -144,7 +145,7 @@ export default function ShiftDetailPanel({
     try {
       const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
       if (controller.signal.aborted) return;
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setAllUsers((json.data ?? json.users ?? []).map((u: Record<string, unknown>) => ({
@@ -189,15 +190,15 @@ export default function ShiftDetailPanel({
     const prev = preAction?.() ?? null;
     try {
       const res = await fetch(url, opts);
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast(successMsg, "success");
         await fetchGroup();
         onUpdated?.();
       } else {
         if (prev) setGroup(prev);
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Action failed", "error");
+        const msg = await parseErrorMessage(res, "Action failed");
+        toast(msg, "error");
       }
     } catch {
       if (prev) setGroup(prev);

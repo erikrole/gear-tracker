@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { parseErrorMessage } from "@/lib/errors";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { CategoryCombobox } from "@/components/FormCombobox";
@@ -343,11 +344,8 @@ function SaveableCategoryField({
         onCategoriesChanged();
         if (json.data?.id) await onSave(json.data.id);
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast(
-          (json as Record<string, string>).error || "Failed to create category",
-          "error",
-        );
+        const msg = await parseErrorMessage(res, "Failed to create category");
+        toast(msg, "error");
       }
     } catch {
       toast("Failed to create category", "error");
@@ -459,8 +457,8 @@ export function QRModal({
         method: "POST",
       });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setError((json as Record<string, string>).error || "Failed");
+        const msg = await parseErrorMessage(res, "Failed");
+        setError(msg);
       }
       onRefresh();
     } catch {
@@ -482,8 +480,8 @@ export function QRModal({
       body: JSON.stringify({ qrCodeValue: qrDraft.trim() }),
     });
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      setError((json as Record<string, string>).error || "Failed");
+      const msg = await parseErrorMessage(res, "Failed");
+      setError(msg);
       setSaving(false);
       return;
     }
@@ -618,10 +616,8 @@ export default function ItemInfoCard({
       });
 
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(
-          (json as Record<string, string>).error || "Save failed",
-        );
+        const msg = await parseErrorMessage(res, "Save failed");
+        throw new Error(msg);
       }
 
       if (patchKey.startsWith("metadata.")) {

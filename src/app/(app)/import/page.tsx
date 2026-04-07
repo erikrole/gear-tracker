@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
+import { handleAuthRedirect } from "@/lib/errors";
 import type { ColumnMapping, PreviewData, ImportResult, Step } from "./_types";
 import { STEP_LABELS } from "./_types";
 import { ImportUploadStep } from "./_components/ImportUploadStep";
@@ -155,7 +156,7 @@ export default function ImportPage() {
         body: formData,
       });
 
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
 
       const json = await res.json();
 
@@ -189,7 +190,7 @@ export default function ImportPage() {
         body: formData,
       });
 
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
 
       const json = await res.json();
 

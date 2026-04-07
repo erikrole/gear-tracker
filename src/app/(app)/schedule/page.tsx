@@ -17,6 +17,7 @@ import { useScheduleData } from "@/hooks/use-schedule-data";
 import { ScheduleFilters } from "./_components/ScheduleFilters";
 import { CalendarView } from "./_components/CalendarView";
 import { WeekView } from "./_components/WeekView";
+import { handleAuthRedirect } from "@/lib/errors";
 import { ListView } from "./_components/ListView";
 
 const ShiftDetailPanel = dynamic(
@@ -42,7 +43,7 @@ export default function SchedulePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isHidden: true }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         data.loadData();
       } else {

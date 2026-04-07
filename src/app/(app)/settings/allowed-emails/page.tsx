@@ -24,6 +24,7 @@ import {
   Trash2,
   WifiOff,
 } from "lucide-react";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type AllowedEmail = {
   id: string;
@@ -64,7 +65,7 @@ export default function AllowedEmailsPage() {
       params.set("limit", "100");
       if (statusFilter !== "all") params.set("status", statusFilter);
       const res = await fetch(`/api/allowed-emails?${params}`);
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setItems(json.data);
@@ -95,7 +96,7 @@ export default function AllowedEmailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, role: addRole }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast("Email added to allowlist", "success");
         setAddEmail("");
@@ -103,11 +104,8 @@ export default function AllowedEmailsPage() {
         setShowAdd(false);
         load();
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast(
-          (json as Record<string, string>).error || "Failed to add email",
-          "error"
-        );
+        const msg = await parseErrorMessage(res, "Failed to add email");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error", "error");
@@ -129,17 +127,14 @@ export default function AllowedEmailsPage() {
       const res = await fetch(`/api/allowed-emails/${item.id}`, {
         method: "DELETE",
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         setItems((prev) => prev.filter((i) => i.id !== item.id));
         setTotal((prev) => prev - 1);
         toast("Email removed from allowlist", "success");
       } else {
-        const json = await res.json().catch(() => ({}));
-        toast(
-          (json as Record<string, string>).error || "Failed to remove email",
-          "error"
-        );
+        const msg = await parseErrorMessage(res, "Failed to remove email");
+        toast(msg, "error");
       }
     } catch {
       toast("Network error", "error");

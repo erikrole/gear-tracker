@@ -495,7 +495,9 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
       locationId: m.locationId,
       isHomeVenue: m.location.isHomeVenue,
     }));
-  } catch { /* table may not exist */ }
+  } catch (err) {
+    console.error("[calendar-sync] Failed to load venue mappings", err);
+  }
 
   // Auto-generate keyword matchers from home venue location names
   // e.g. "Camp Randall" → keywords ["camp", "randall"]
@@ -511,7 +513,9 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
         locationId: loc.id,
       }))
     );
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.error("[calendar-sync] Failed to load home venue keywords", err);
+  }
 
   const existingRows = await db.calendarEvent.findMany({
     where: { sourceId },

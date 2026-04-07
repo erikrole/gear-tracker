@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, CalendarDays, CameraIcon, Copy, KeyRound, Loader2, TrashIcon } from "lucide-react";
 import { formatDateFull } from "@/lib/format";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -105,7 +106,7 @@ export default function UserDetailPage() {
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         toast(json.error || "Failed to upload avatar", "error");
@@ -126,7 +127,7 @@ export default function UserDetailPage() {
     setUploadingAvatar(true);
     try {
       const res = await fetch("/api/profile/avatar", { method: "DELETE" });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
         setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
@@ -152,11 +153,11 @@ export default function UserDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: newActive }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         setUserOverrides((prev) => ({ ...prev, active: !newActive }));
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to update status", "error");
+        const msg = await parseErrorMessage(res, "Failed to update status");
+        toast(msg, "error");
       } else {
         toast(newActive ? "User activated" : "User deactivated", "success");
       }
@@ -173,8 +174,8 @@ export default function UserDetailPage() {
     try {
       const res = await fetch(`/api/users/${id}/reset-password`, { method: "POST" });
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Password reset failed", "error");
+        const msg = await parseErrorMessage(res, "Password reset failed");
+        toast(msg, "error");
       } else {
         const json = await res.json();
         setTempPassword(json.data?.temporaryPassword ?? null);

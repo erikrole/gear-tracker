@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { handleAuthRedirect } from "@/lib/errors";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -152,7 +153,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
     setLoadingMore(true);
     try {
       const res = await fetch(`/api/users/${userId}/activity?cursor=${effectiveCursor}`);
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         toast("Failed to load more activity", "error");
         return;

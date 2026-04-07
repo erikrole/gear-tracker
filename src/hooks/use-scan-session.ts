@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ScanStatus } from "@/app/(app)/scan/_components/types";
 import { scanFeedbackCelebration } from "@/lib/scan-feedback";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type ToastFn = (message: string, type: "success" | "error" | "info") => void;
 
@@ -57,8 +58,7 @@ export function useScanSession(
     loadingStatusRef.current = true;
     try {
       const res = await fetch(`/api/checkouts/${checkoutId}/scan-status?phase=${phase}`);
-      if (res.status === 401) {
-        toastRef.current("Session expired — please log in again", "error");
+      if (handleAuthRedirect(res)) {
         loadingStatusRef.current = false;
         return;
       }
@@ -146,15 +146,9 @@ export function useScanSession(
         router.push(`/checkouts/${checkoutId}`);
         return;
       }
-      if (res.status === 401) {
-        toastRef.current("Session expired — please log in again", "error");
-      } else {
-        const json = await res.json().catch(() => ({}));
-        toastRef.current(
-          (json as Record<string, string>).error || "Could not complete",
-          "error",
-        );
-      }
+      if (handleAuthRedirect(res)) return;
+      const msg = await parseErrorMessage(res, "Could not complete");
+      toastRef.current(msg, "error");
     } catch {
       toastRef.current("Network error — try again", "error");
     }

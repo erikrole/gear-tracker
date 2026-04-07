@@ -5,6 +5,7 @@ import { useFormSubmit } from "@/hooks/use-form-submit";
 import { useFetch } from "@/hooks/use-fetch";
 import { useUrlState } from "@/hooks/use-url-state";
 import { PlusIcon, ChevronDownIcon, AlertCircleIcon } from "lucide-react";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -147,10 +148,10 @@ export default function BulkInventoryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ count: addCount }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to add units", "error");
+        const msg = await parseErrorMessage(res, "Failed to add units");
+        toast(msg, "error");
         return;
       }
       toast(`Added ${addCount} units`, "success");
@@ -168,10 +169,10 @@ export default function BulkInventoryPage() {
     setActionLoading(true);
     try {
       const res = await fetch(`/api/bulk-skus/${skuId}/convert-to-numbered`, { method: "POST" });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to convert", "error");
+        const msg = await parseErrorMessage(res, "Failed to convert");
+        toast(msg, "error");
         return;
       }
       toast("Converted to numbered tracking", "success");
@@ -190,10 +191,10 @@ export default function BulkInventoryPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast((json as Record<string, string>).error || "Failed to update unit", "error");
+        const msg = await parseErrorMessage(res, "Failed to update unit");
+        toast(msg, "error");
         return;
       }
       reload();
