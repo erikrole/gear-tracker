@@ -235,8 +235,8 @@ export default function DashboardPage() {
         <FilterChips {...filters} />
         {!isStudent && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>New checkout</Button>
-            <Button variant="outline" onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>New reservation</Button>
+            <Button onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>New checkout</Button>
+            <Button onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>New reservation</Button>
           </div>
         )}
       </PageHeader>

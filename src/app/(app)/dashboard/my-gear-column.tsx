@@ -6,7 +6,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
-import { formatDueLabel, formatRelativeTime, isDueToday } from "@/lib/format";
+import { formatDueLabel, formatEventDateTime, formatRelativeTime, isDueToday } from "@/lib/format";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
 import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
@@ -66,7 +66,6 @@ export function MyGearColumn({
                 >
                   <div className="ops-row-main">
                     <span className="ops-row-title-bold">
-                      {c.refNumber && <Badge variant="gray" size="sm" className="mr-1.5">{c.refNumber}</Badge>}
                       {c.title}
                     </span>
                     <span className="ops-row-meta">
@@ -91,7 +90,12 @@ export function MyGearColumn({
                         <TooltipContent>Extend 1 day</TooltipContent>
                       </Tooltip>
                     )}
-                    <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm">{dueLabel}</Badge>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm" className="cursor-default">{dueLabel}</Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>{formatEventDateTime(c.startsAt, c.endsAt)}</TooltipContent>
+                    </Tooltip>
                     <GearAvatarStack items={c.items} totalCount={c.itemCount} />
                   </div>
                 </button>
@@ -124,7 +128,6 @@ export function MyGearColumn({
               >
                 <div className="ops-row-main">
                   <span className="ops-row-title-bold">
-                    {r.refNumber && <Badge variant="gray" size="sm" className="mr-1.5">{r.refNumber}</Badge>}
                     {r.title}
                   </span>
                   <span className="ops-row-meta">

@@ -30,13 +30,11 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
     }));
   }, [entries]);
 
-  // Count active data filters (not view mode / home-away which are always visible)
+  // Count active data filters (excludes my-shifts and past-events which are now in toolbar)
   const activeFilterCount = [
     filters.sportFilter,
     filters.areaFilter,
     filters.coverageFilter,
-    filters.myShiftsOnly,
-    filters.includePast,
   ].filter(Boolean).length;
 
   return (
@@ -73,6 +71,30 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         <ToggleGroupItem value="away" className="h-9 px-3 text-sm font-medium">Away</ToggleGroupItem>
       </ToggleGroup>
 
+      {/* My Shifts — prominent toggle in toolbar */}
+      <div className="flex items-center gap-1.5 h-9 px-2 rounded-md border border-border bg-background">
+        <Switch
+          id="my-shifts-toggle"
+          checked={filters.myShiftsOnly}
+          onCheckedChange={filters.setMyShiftsOnly}
+          className="scale-90"
+        />
+        <Label htmlFor="my-shifts-toggle" className="text-sm font-medium cursor-pointer whitespace-nowrap">My Shifts</Label>
+      </div>
+
+      {/* Past events — prominent toggle in toolbar (list view only) */}
+      {filters.viewMode === "list" && (
+        <div className="flex items-center gap-1.5 h-9 px-2 rounded-md border border-border bg-background">
+          <Switch
+            id="past-events-toggle"
+            checked={filters.includePast}
+            onCheckedChange={filters.setIncludePast}
+            className="scale-90"
+          />
+          <Label htmlFor="past-events-toggle" className="text-sm font-medium cursor-pointer whitespace-nowrap">Past events</Label>
+        </div>
+      )}
+
       {/* Data filters — in a popover */}
       <Popover>
         <PopoverTrigger asChild>
@@ -88,16 +110,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 p-3">
           <div className="flex flex-col gap-3">
-            {/* My Shifts */}
-            <div className="flex items-center gap-2">
-              <Switch
-                id="my-shifts-toggle"
-                checked={filters.myShiftsOnly}
-                onCheckedChange={filters.setMyShiftsOnly}
-              />
-              <Label htmlFor="my-shifts-toggle" className="text-sm cursor-pointer">My Shifts</Label>
-            </div>
-
             {/* Sport */}
             <FilterChip
               label="Sport"
@@ -142,18 +154,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
               onSelect={(v) => filters.setCoverageFilter(v)}
               onClear={() => filters.setCoverageFilter("")}
             />
-
-            {/* Time (list view only) */}
-            {filters.viewMode === "list" && (
-              <FilterChip
-                label="Time"
-                value={filters.includePast ? "all" : ""}
-                displayValue="All events"
-                options={[{ value: "all", label: "Include past events" }]}
-                onSelect={() => filters.setIncludePast(true)}
-                onClear={() => filters.setIncludePast(false)}
-              />
-            )}
 
             {/* Clear all */}
             {filters.hasFilters && (

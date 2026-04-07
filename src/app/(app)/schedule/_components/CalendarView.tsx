@@ -3,9 +3,11 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { sportLabel } from "@/lib/sports";
+import { formatTimeShort } from "@/lib/format";
 import type { CalendarEntry } from "./types";
-import { coverageDot } from "./types";
+import { ACTIVE_STATUSES, AREA_LABELS, coverageDot } from "./types";
 
 type CalendarViewProps = {
   entries: CalendarEntry[];
@@ -27,8 +29,38 @@ function isToday(calMonth: Date, day: number) {
 
 function calBookingClass(entry: CalendarEntry): string {
   if (entry.isHome === true) return "cal-booking cal-booking-home";
-  // Neutral sites (null) treated as away
   return "cal-booking cal-booking-away";
+}
+
+function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
+  const timeStr = entry.allDay
+    ? "All day"
+    : `${formatTimeShort(entry.startsAt)} – ${formatTimeShort(entry.endsAt)}`;
+
+  const assignedUsers = entry.shifts.flatMap((s) =>
+    s.assignments
+      .filter((a) => ACTIVE_STATUSES.includes(a.status))
+      .map((a) => ({ name: a.user.name, area: AREA_LABELS[s.area] ?? s.area }))
+  );
+
+  return (
+    <div className="text-xs space-y-1 max-w-[220px]">
+      <div className="font-semibold text-sm">{entry.summary}</div>
+      <div className="text-muted-foreground">{timeStr}</div>
+      {assignedUsers.length > 0 && (
+        <div className="text-muted-foreground">
+          {assignedUsers.map((u, i) => (
+            <span key={i}>{i > 0 && ", "}{u.name} ({u.area})</span>
+          ))}
+        </div>
+      )}
+      {entry.coverage && (
+        <div className="text-muted-foreground">
+          {entry.coverage.filled}/{entry.coverage.total} filled
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CalendarView({
@@ -125,41 +157,51 @@ export function CalendarView({
                     <span className="cal-day-num">{cell.day}</span>
                     {visibleEntries?.map((entry) =>
                       entry.shiftGroupId ? (
-                        <button
-                          key={entry.id}
-                          className={`${calBookingClass(entry)} flex items-center gap-1 bg-transparent border-none cursor-pointer w-full text-left px-1 py-0.5`}
-                          title={`${entry.summary}${entry.coverage ? ` (${entry.coverage.filled}/${entry.coverage.total} filled)` : ""}`}
-                          onClick={() =>
-                            onSelectGroup(entry.shiftGroupId)
-                          }
-                        >
-                          {entry.coverage && (
-                            <span
-                              className="size-1.5 rounded-full flex-shrink-0"
-                              style={{
-                                background: coverageDot(
-                                  entry.coverage.percentage,
-                                ),
-                              }}
-                            />
-                          )}
-                          <span className="truncate">
-                            {entry.sportCode && entry.opponent
-                              ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
-                              : entry.summary}
-                          </span>
-                        </button>
+                        <Tooltip key={entry.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              className={`${calBookingClass(entry)} flex items-center gap-1 bg-transparent border-none cursor-pointer w-full text-left px-1 py-0.5`}
+                              onClick={() =>
+                                onSelectGroup(entry.shiftGroupId)
+                              }
+                            >
+                              {entry.coverage && (
+                                <span
+                                  className="size-1.5 rounded-full flex-shrink-0"
+                                  style={{
+                                    background: coverageDot(
+                                      entry.coverage.percentage,
+                                    ),
+                                  }}
+                                />
+                              )}
+                              <span className="truncate">
+                                {entry.sportCode && entry.opponent
+                                  ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
+                                  : entry.summary}
+                              </span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="start">
+                            {buildTooltipContent(entry)}
+                          </TooltipContent>
+                        </Tooltip>
                       ) : (
-                        <Link
-                          key={entry.id}
-                          href={`/events/${entry.id}`}
-                          className={calBookingClass(entry)}
-                          title={entry.summary}
-                        >
-                          {entry.sportCode && entry.opponent
-                            ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
-                            : entry.summary}
-                        </Link>
+                        <Tooltip key={entry.id}>
+                          <TooltipTrigger asChild>
+                            <Link
+                              href={`/events/${entry.id}`}
+                              className={calBookingClass(entry)}
+                            >
+                              {entry.sportCode && entry.opponent
+                                ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
+                                : entry.summary}
+                            </Link>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="start">
+                            {buildTooltipContent(entry)}
+                          </TooltipContent>
+                        </Tooltip>
                       ),
                     )}
                     {!isExpanded && hiddenCount > 0 && (
