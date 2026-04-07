@@ -1,143 +1,198 @@
 "use client";
 
-import { SPORT_CODES, sportLabel } from "@/lib/sports";
+import { sportLabel } from "@/lib/sports";
 import type { SportConfig } from "./types";
-import { AREAS, AREA_LABELS, getCount } from "./types";
+import { AREAS, AREA_LABELS, SPORT_GROUPS, BIG_6 } from "./types";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+/** Generate call-time options: 0, 15, 30, 45, 60 … 240 minutes */
+const CALL_TIME_OPTIONS = [0, 15, 30, 45, 60, 90, 120, 150, 180, 210, 240];
+
+function formatMinutes(mins: number): string {
+  if (mins === 0) return "None";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}min`;
+  if (m === 0) return h === 1 ? "1 hr" : `${h} hrs`;
+  return `${h}h ${m}m`;
+}
 
 export default function ShiftConfigTable({
   configs,
   saving,
   onToggleActive,
   onUpdateShift,
+  onUpdateCallTime,
 }: {
   configs: SportConfig[];
   saving: string | null;
   onToggleActive: (sportCode: string) => void;
-  onUpdateShift: (sportCode: string, area: string, value: number) => void;
+  onUpdateShift: (sportCode: string, area: string, field: "homeCount" | "awayCount", value: number) => void;
+  onUpdateCallTime: (sportCode: string, field: "callTimeBefore" | "callTimeAfter", value: number) => void;
 }) {
   function getConfig(sportCode: string) {
     return configs.find((c) => c.sportCode === sportCode);
   }
 
-  function getShiftCount(sportCode: string, area: string): number {
+  /** For grouped sports, use the first code's config as representative */
+  function getGroupConfig(codes: string[]) {
+    for (const code of codes) {
+      const c = getConfig(code);
+      if (c) return c;
+    }
+    return null;
+  }
+
+  function isGroupActive(codes: string[]) {
+    return codes.some((c) => getConfig(c)?.active);
+  }
+
+  function getShiftCount(sportCode: string, area: string, field: "homeCount" | "awayCount"): number {
     const config = getConfig(sportCode);
     if (!config) return 0;
     const sc = config.shiftConfigs.find((s) => s.area === area);
-    return sc ? getCount(sc) : 0;
+    return sc ? sc[field] : 0;
   }
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Default Shift Coverage</CardTitle></CardHeader>
+    <div className="space-y-4">
+      {SPORT_GROUPS.map((group) => {
+        const primaryCode = group.codes[0];
+        const config = getGroupConfig(group.codes);
+        const active = isGroupActive(group.codes);
 
-      {/* Desktop table */}
-      <div className="data-table-wrap max-md:hidden">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Sport</th>
-              <th>Active</th>
-              {AREAS.map((a) => (
-                <th key={a} style={{ textAlign: "center" }}>{AREA_LABELS[a]}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {SPORT_CODES.map(({ code }) => {
-              const config = getConfig(code);
-              const isActive = config?.active ?? false;
-
-              return (
-                <tr key={code}>
-                  <td>
-                    <span className="font-semibold">{code}</span>
-                    <span className="text-muted-foreground ml-2 text-sm">{sportLabel(code)}</span>
-                  </td>
-                  <td>
-                    <button
-                      className={`toggle${isActive ? " on" : ""}`}
-                      onClick={() => onToggleActive(code)}
-                      disabled={saving === code + "-toggle"}
-                    />
-                  </td>
-                  {AREAS.map((area) => (
-                    <td key={area} style={{ textAlign: "center" }}>
-                      {isActive ? (
-                        <Input
-                          type="number"
-                          min={0}
-                          max={20}
-                          value={getShiftCount(code, area)}
-                          onChange={(e) =>
-                            onUpdateShift(code, area, Math.max(0, parseInt(e.target.value) || 0))
-                          }
-                          className="w-14 text-center inline-block"
-                          disabled={saving?.startsWith(code + "-" + area) ?? false}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">&mdash;</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile cards */}
-      <div className="hidden max-md:block">
-        {SPORT_CODES.map(({ code }) => {
-          const config = getConfig(code);
-          const isActive = config?.active ?? false;
-
-          return (
-            <div key={code} className="flex flex-col gap-2 px-4 py-3 border-b border-[var(--border-light)] last:border-b-0">
-              <div className="flex justify-between items-center">
-                <div>
-                  <span className="font-semibold">{code}</span>
-                  <span className="text-muted-foreground ml-2 text-sm">{sportLabel(code)}</span>
+        return (
+          <Card key={group.label}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-base">{group.label}</CardTitle>
+                  <span className="text-xs text-muted-foreground">
+                    {group.codes.join(", ")}
+                  </span>
                 </div>
                 <button
-                  className={`toggle${isActive ? " on" : ""}`}
-                  onClick={() => onToggleActive(code)}
-                  disabled={saving === code + "-toggle"}
+                  className={`toggle${active ? " on" : ""}`}
+                  onClick={() => {
+                    for (const code of group.codes) {
+                      onToggleActive(code);
+                    }
+                  }}
+                  disabled={saving?.endsWith("-toggle") ?? false}
                 />
               </div>
-              {isActive && (
-                <div className="flex flex-col gap-1">
-                  {AREAS.map((area) => (
-                    <div key={area} className="flex justify-between items-center py-0.5">
-                      <span className="text-sm text-muted-foreground">{AREA_LABELS[area]}</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={20}
-                        value={getShiftCount(code, area)}
-                        onChange={(e) =>
-                          onUpdateShift(code, area, Math.max(0, parseInt(e.target.value) || 0))
-                        }
-                        className="w-14 text-center"
-                        disabled={saving?.startsWith(code + "-" + area) ?? false}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            </CardHeader>
 
-      <CardContent>
-        <p className="text-sm text-muted-foreground m-0">
-          Set the default number of shifts per area for each sport. These are used when new events are synced from the calendar.
-          You can adjust individual events on the schedule page.
-        </p>
-      </CardContent>
-    </Card>
+            {active && (
+              <CardContent className="pt-0 space-y-4">
+                {/* Shift counts table */}
+                <div className="data-table-wrap">
+                  <table className="data-table text-sm">
+                    <thead>
+                      <tr>
+                        <th className="w-24"></th>
+                        {AREAS.map((a) => (
+                          <th key={a} className="text-center">{AREA_LABELS[a]}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <Badge variant="green" size="sm">Home</Badge>
+                        </td>
+                        {AREAS.map((area) => (
+                          <td key={area} className="text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={getShiftCount(primaryCode, area, "homeCount")}
+                              onChange={(e) =>
+                                onUpdateShift(primaryCode, area, "homeCount", Math.max(0, parseInt(e.target.value) || 0))
+                              }
+                              className="w-14 text-center inline-block"
+                              disabled={saving?.startsWith(primaryCode) ?? false}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td>
+                          <Badge variant="red" size="sm">Away</Badge>
+                        </td>
+                        {AREAS.map((area) => (
+                          <td key={area} className="text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={getShiftCount(primaryCode, area, "awayCount")}
+                              onChange={(e) =>
+                                onUpdateShift(primaryCode, area, "awayCount", Math.max(0, parseInt(e.target.value) || 0))
+                              }
+                              className="w-14 text-center inline-block"
+                              disabled={saving?.startsWith(primaryCode) ?? false}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Call time config */}
+                <div className="flex flex-wrap items-center gap-4 pt-1">
+                  <span className="text-sm text-muted-foreground font-medium">Call time</span>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={String(config?.callTimeBefore ?? 60)}
+                      onValueChange={(v) => onUpdateCallTime(primaryCode, "callTimeBefore", parseInt(v))}
+                      disabled={saving?.startsWith(primaryCode) ?? false}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CALL_TIME_OPTIONS.map((m) => (
+                          <SelectItem key={m} value={String(m)}>{formatMinutes(m)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground">before</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={String(config?.callTimeAfter ?? 60)}
+                      onValueChange={(v) => onUpdateCallTime(primaryCode, "callTimeAfter", parseInt(v))}
+                      disabled={saving?.startsWith(primaryCode) ?? false}
+                    >
+                      <SelectTrigger className="w-[110px] h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CALL_TIME_OPTIONS.map((m) => (
+                          <SelectItem key={m} value={String(m)}>{formatMinutes(m)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground">after</span>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </div>
   );
 }

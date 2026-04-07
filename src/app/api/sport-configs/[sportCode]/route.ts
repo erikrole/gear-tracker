@@ -22,8 +22,15 @@ export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params 
   if (!existing) throw new HttpError(404, "Sport config not found");
 
   let config;
-  if (body.shiftConfigs) {
-    config = await upsertSportConfig(sportCode, body.active ?? existing.active, body.shiftConfigs);
+  const hasCallTimeChange = body.callTimeBefore !== undefined || body.callTimeAfter !== undefined;
+  if (body.shiftConfigs || hasCallTimeChange) {
+    config = await upsertSportConfig(
+      sportCode,
+      body.active ?? existing.active,
+      body.shiftConfigs ?? existing.shiftConfigs.map((sc) => ({ area: sc.area, homeCount: sc.homeCount, awayCount: sc.awayCount })),
+      body.callTimeBefore,
+      body.callTimeAfter,
+    );
   } else if (body.active !== undefined) {
     config = await toggleSportConfig(sportCode, body.active);
   } else {
