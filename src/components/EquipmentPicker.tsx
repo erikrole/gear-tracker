@@ -60,6 +60,9 @@ export type BulkSelection = {
   quantity: number;
 };
 
+/* Stable empty array — avoids re-creating [] on every render in search mode */
+const EMPTY_ASSETS: PickerAsset[] = [];
+
 type ConflictInfo = {
   assetId: string;
   conflictingBookingTitle?: string;
@@ -152,7 +155,7 @@ export default function EquipmentPicker({
   const initialFetchDoneRef = useRef(false);
 
   // ── Indexed lookups (O(1) instead of O(n)) ──
-  const legacyAssets = assets || [];
+  const legacyAssets = assets || EMPTY_ASSETS;
   const assetById = useMemo(() => {
     if (legacyMode) return new Map(legacyAssets.map((a) => [a.id, a]));
     // In search mode, merge sectionResults + globalSearchApiResults + cache
@@ -322,16 +325,26 @@ export default function EquipmentPicker({
 
   const abortRef = useRef<AbortController | null>(null);
 
+  // Refs to capture current values without adding them to callback deps
+  const legacyAssetsRef = useRef(legacyAssets);
+  legacyAssetsRef.current = legacyAssets;
+  const selectedAssetIdsRef = useRef(selectedAssetIds);
+  selectedAssetIdsRef.current = selectedAssetIds;
+  const bulkSkusLengthRef = useRef(bulkSkus.length);
+  bulkSkusLengthRef.current = bulkSkus.length;
+
   const fetchConflicts = useCallback(async () => {
     if (!startsAt || !endsAt || !locationId) {
       setConflicts(new Map());
       setBulkAvailability({});
       return;
     }
-    const allAssetIds = legacyMode ? legacyAssets.map((a) => a.id) : selectedAssetIds;
+    const allAssetIds = legacyMode
+      ? legacyAssetsRef.current.map((a) => a.id)
+      : selectedAssetIdsRef.current;
 
-    // Skip if nothing to check (no serialized assets and no bulk SKUs at this location)
-    if (allAssetIds.length === 0 && bulkSkus.length === 0) return;
+    // Skip if nothing to check
+    if (allAssetIds.length === 0 && bulkSkusLengthRef.current === 0) return;
 
     // Abort any in-flight request to prevent stale data overwriting fresh
     abortRef.current?.abort();
@@ -380,11 +393,7 @@ export default function EquipmentPicker({
       setConflictsError(true);
     }
     setConflictsLoading(false);
-    // Note: selectedAssetIds excluded from deps to prevent re-fetch on every selection change.
-    // Bulk availability only depends on dates/location, not on which assets are selected.
-    // Serialized conflict checks are best-effort; full validation happens at booking creation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startsAt, endsAt, locationId, legacyMode, legacyAssets, bulkSkus.length]);
+  }, [startsAt, endsAt, locationId, legacyMode]);
 
   useEffect(() => {
     if (availDebounce.current) clearTimeout(availDebounce.current);
