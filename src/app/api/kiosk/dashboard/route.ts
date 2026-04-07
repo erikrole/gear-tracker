@@ -96,6 +96,7 @@ export const GET = withKiosk(async (_req) => {
       id: c.id,
       title: c.title,
       requesterName: c.requester.name,
+      requesterAvatarUrl: c.requester.avatarUrl,
       requesterInitials: c.requester.name
         .split(" ")
         .map((w) => w[0])

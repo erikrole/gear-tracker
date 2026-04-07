@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getAvatarColor } from "@/lib/avatar";
 import { AvatarGrid } from "./AvatarGrid";
 
 type KioskUser = { id: string; name: string; avatarUrl: string | null };
@@ -22,6 +24,7 @@ type DashboardData = {
   checkouts: Array<{
     id: string;
     requesterName: string;
+    requesterAvatarUrl: string | null;
     requesterInitials: string;
     items: Array<{ name: string }>;
     endsAt: string;
@@ -242,9 +245,14 @@ export function IdleScreen({ kioskInfo, onSelectUser }: Props) {
                       className="flex items-center justify-between rounded-md border px-3 py-2"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                          {checkout.requesterInitials}
-                        </span>
+                        <Avatar className="size-7">
+                          {checkout.requesterAvatarUrl && (
+                            <AvatarImage src={checkout.requesterAvatarUrl} alt={checkout.requesterName} />
+                          )}
+                          <AvatarFallback className={`text-xs font-semibold text-white ${getAvatarColor(checkout.requesterName)}`}>
+                            {checkout.requesterInitials}
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                           <span className="text-sm font-medium">
                             {checkout.requesterName}
