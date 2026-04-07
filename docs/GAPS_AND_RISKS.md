@@ -27,7 +27,7 @@
 | ~~GAP-1~~ | ~~`BRIEF_STUDENT_MOBILE_V1.md` not written~~ | ~~AREA_MOBILE~~ | ~~Closed~~ | ~~Brief written, V1 hardening shipped 2026-03-15~~ |
 | ~~GAP-2~~ | ~~Draft persistence model underspecified~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Shipped 2026-03-16: DRAFT booking CRUD + dashboard section + auto-save on cancel~~ |
 | ~~GAP-3~~ | ~~Equipment guidance: only 3 rules in production~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~3 rules shipped: body-needs-batteries, lens-needs-body, audio-with-video. Admin-config deferred to Phase C per D-016~~ |
-| GAP-4 | Phase C features unscoped and unbriefed | NORTH_STAR | Expected | Kiosk, templates, analytics — intentionally deferred |
+| ~~GAP-4~~ | ~~Phase C features unscoped and unbriefed~~ | ~~NORTH_STAR~~ | ~~Closed (partial)~~ | ~~Kiosk mode scoped and briefed (BRIEF_KIOSK.md, D-030). Templates and analytics still deferred.~~ |
 | ~~GAP-5~~ | ~~D-009 alert fatigue controls undefined~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Admin-configurable intervals + per-booking caps; D-009 accepted~~ |
 | ~~GAP-6~~ | ~~Email notification channel not wired~~ | ~~AREA_NOTIFICATIONS~~ | ~~Closed~~ | ~~Resend email service wired; dual-channel (in-app + email) shipped 2026-03-16~~ |
 | ~~GAP-7~~ | ~~No shared data-fetching pattern — 3 different URL state implementations, manual fetch+useState everywhere~~ | ~~CROSS-CUTTING~~ | ~~Closed (partial)~~ | ~~`useFetch`, `useUrlState`, `classifyError` hooks extracted 2026-03-24. Pages not yet migrated to use them (Sprint 2).~~ |

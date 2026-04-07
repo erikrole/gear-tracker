@@ -35,6 +35,7 @@
 - D-025: User-facing status labels are display-only — DB enum stays unchanged
 - D-028: Photo requirement on checkout/checkin — camera-only, scan-only checkin
 - D-029: Registration gated by admin-managed email allowlist
+- D-030: Kiosk auth uses device-level token, not user sessions
 
 ---
 
@@ -540,6 +541,26 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Admin user creation via `/api/users` (POST) is unaffected — bypasses allowlist
 - Existing users unaffected (allowlist only gates new registrations)
 
+## D-030: Kiosk Auth Uses Device-Level Token
+- Date: 2026-04-07
+- Status: Accepted
+- Context:
+  - Kiosk iPads need persistent authentication without individual user login.
+  - Multiple students use the same device in quick succession.
+  - Audit trail must distinguish kiosk actions from personal device actions.
+- Decision:
+  - New `KioskDevice` model — separate from User/Session.
+  - Admin generates 6-digit activation code; iPad enters code to pair.
+  - Device gets long-lived session token (30 days) stored as HTTP-only cookie.
+  - `requireKiosk()` auth helper validates device token, returns `{ kioskId, locationId }`.
+  - Student identity passed as `actorId` parameter on each API call (tap avatar, no password).
+  - Booking/audit records include `source: "KIOSK"` metadata + kioskDeviceId.
+- Consequences:
+  - Kiosk session survives browser restarts (cookie-based, 30-day expiry).
+  - No user credentials stored on kiosk device.
+  - Admin can deactivate a kiosk remotely by toggling `active` flag.
+  - All kiosk API routes use `withKiosk()` wrapper instead of `withAuth()`.
+
 ---
 
 ## Pending Decisions
@@ -563,3 +584,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-25: Doc sync — resolved PD-4 (student KPIs defined). Updated D-010 to reflect shipped state (B&H withdrawn, notification center shipped, student dashboard shipped). Updated D-009 email channel from "Phase B" to "Shipped 2026-03-16". Updated D-019 from "Phase B" to "Shipped 2026-03-21" (department filter + combobox).
 - 2026-03-30: Added D-028 (photo requirement on checkout/checkin — camera-only capture, scan-only checkin, BookingPhoto model).
 - 2026-04-03: Added D-029 (registration gated by admin-managed email allowlist — AllowedEmail table, role pre-assignment, Settings UI).
+- 2026-04-07: Added D-030 (kiosk auth — device-level token, not user sessions. KioskDevice model with activation code pairing).

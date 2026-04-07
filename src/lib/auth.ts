@@ -106,3 +106,81 @@ export async function requireAuth(): Promise<AuthUser> {
     avatarUrl: session.user.avatarUrl ?? null,
   };
 }
+
+// ── Kiosk Device Auth ────────────────────────────────────
+
+const KIOSK_COOKIE = "kiosk_session";
+
+export type KioskContext = {
+  kioskId: string;
+  locationId: string;
+  locationName: string;
+};
+
+/**
+ * Create a kiosk session. Called after activation code is validated.
+ * Sets a long-lived HTTP-only cookie (30 days).
+ */
+export async function createKioskSession(kioskId: string): Promise<string> {
+  const raw = randomHex(64);
+  const hashed = await tokenHash(raw);
+  const expiresAt = new Date(Date.now() + SESSION_30D_MS);
+
+  await db.kioskDevice.update({
+    where: { id: kioskId },
+    data: {
+      sessionToken: hashed,
+      activatedAt: new Date(),
+      lastSeenAt: new Date(),
+    },
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(KIOSK_COOKIE, raw, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    expires: expiresAt,
+  });
+
+  return raw;
+}
+
+/**
+ * Validate kiosk session cookie.
+ * Returns kiosk context (kioskId, locationId, locationName).
+ */
+export async function requireKiosk(): Promise<KioskContext> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(KIOSK_COOKIE)?.value;
+
+  if (!token) {
+    throw new HttpError(401, "Kiosk session required");
+  }
+
+  const hashed = await tokenHash(token);
+  const device = await db.kioskDevice.findUnique({
+    where: { sessionToken: hashed },
+    include: { location: { select: { id: true, name: true } } },
+  });
+
+  if (!device) {
+    throw new HttpError(401, "Invalid kiosk session");
+  }
+
+  if (!device.active) {
+    throw new HttpError(401, "Kiosk device deactivated");
+  }
+
+  // Update last seen (fire and forget — don't block the request)
+  db.kioskDevice
+    .update({ where: { id: device.id }, data: { lastSeenAt: new Date() } })
+    .catch(() => {});
+
+  return {
+    kioskId: device.id,
+    locationId: device.location.id,
+    locationName: device.location.name,
+  };
+}

@@ -8,6 +8,7 @@ export const SETTINGS_SECTIONS = [
   { href: "/settings/calendar-sources", label: "Calendar" },
   { href: "/settings/venue-mappings", label: "Venue Mappings" },
   { href: "/settings/allowed-emails", label: "Allowed Emails" },
+  { href: "/settings/kiosk-devices", label: "Kiosk" },
   { href: "/settings/database", label: "Database" },
 ] as const;
 
