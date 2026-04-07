@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
+import { ColumnSizingState, RowSelectionState, VisibilityState } from "@tanstack/react-table";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -40,7 +40,7 @@ import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { useIsMobile } from "./hooks/use-media-query";
 import { Badge } from "@/components/ui/badge";
-import { Download, Boxes } from "lucide-react";
+import { Download } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 
 export default function ItemsPage() {
@@ -78,6 +78,17 @@ export default function ItemsPage() {
       localStorage.setItem("items-column-visibility", JSON.stringify(columnVisibility));
     } catch { /* ignore */ }
   }, [columnVisibility]);
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(() => {
+    try {
+      const saved = localStorage.getItem("items-column-sizing");
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("items-column-sizing", JSON.stringify(columnSizing));
+    } catch { /* ignore */ }
+  }, [columnSizing]);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -104,6 +115,30 @@ export default function ItemsPage() {
     () => selectedIds,
     () => { setRowSelection({}); query.reload(); }
   );
+
+  // Merge bulk items into the main table as Asset-shaped rows
+  const mergedData = useMemo(() => {
+    if (!query.bulkItems.length) return query.items;
+    const bulkAssets: Asset[] = query.bulkItems.map((b: BulkItem) => ({
+      id: `bulk-${b.id}`,
+      assetTag: b.name,
+      name: null,
+      type: "Bulk",
+      brand: "",
+      model: "",
+      serialNumber: "",
+      status: "AVAILABLE",
+      computedStatus: `${b.onHandQuantity} ${b.unit}`,
+      createdAt: "",
+      location: { id: b.locationId, name: b.locationName },
+      category: b.categoryId ? { id: b.categoryId, name: b.category } : null,
+      department: null,
+      imageUrl: null,
+      activeBooking: null,
+      isFavorited: false,
+    }));
+    return [...query.items, ...bulkAssets];
+  }, [query.items, query.bulkItems]);
 
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
@@ -376,11 +411,13 @@ export default function ItemsPage() {
         ) : (
           <DataTable
             columns={columns}
-            data={query.items}
+            data={mergedData}
             rowSelection={rowSelection}
             onRowSelectionChange={setRowSelection}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
+            columnSizing={columnSizing}
+            onColumnSizingChange={setColumnSizing}
             sorting={filters.sorting}
             onSortingChange={(next) => { filters.setSorting(next); query.setPage(0); }}
             refreshing={query.refreshing}
@@ -429,49 +466,6 @@ export default function ItemsPage() {
               ) : undefined
             }
           />
-        )}
-
-        {/* Bulk items section */}
-        {!query.loading && query.bulkItems.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-              <Boxes className="size-4" />
-              Bulk Items ({query.bulkItems.length})
-            </h3>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>On Hand</TableHead>
-                    <TableHead>Location</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {query.bulkItems.map((item: BulkItem) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {item.name}
-                          <Badge variant="secondary" size="sm" className="text-[10px]">
-                            Bulk
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>
-                        <Badge className="border-none bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400">
-                          {item.onHandQuantity} {item.unit}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{item.locationName}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
         )}
 
         {/* Pagination footer */}
