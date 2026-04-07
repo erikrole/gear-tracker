@@ -62,9 +62,14 @@ export function ReturnFlow({
     async function loadBooking() {
       try {
         const res = await fetch(`/api/kiosk/checkout/${bookingId}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => null);
+          if (mounted) setLoadError(err?.error || "Could not load booking");
+          return;
+        }
         const data = (await res.json()) as {
-          success: boolean;
-          items?: Array<{
+          id: string;
+          items: Array<{
             id: string;
             name: string;
             tagName: string;
@@ -75,7 +80,7 @@ export function ReturnFlow({
 
         if (!mounted) return;
 
-        if (!data.success || !data.items) {
+        if (!data.items) {
           setLoadError(data.error || "Failed to load booking");
           return;
         }
