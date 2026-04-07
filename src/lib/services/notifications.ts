@@ -322,45 +322,49 @@ export async function notifyItemReport(args: {
     ? `${args.reporterName} reported ${args.itemDescription} (${args.assetTag}) as damaged during check-in of "${args.bookingTitle}".${args.damageDescription ? ` Description: ${args.damageDescription}` : ""}`
     : `${args.reporterName} reported ${args.itemDescription} (${args.assetTag}) as lost during check-in of "${args.bookingTitle}".`;
 
-  for (const supervisor of supervisors) {
-    const dedupeKey = `${args.bookingId}:item_report:${args.assetId}:${supervisor.id}`;
-    try {
-      await db.notification.create({
-        data: {
-          userId: supervisor.id,
-          type: notifType,
+  // Batch-create all notifications in one INSERT
+  const notifData = supervisors.map((s) => ({
+    userId: s.id,
+    type: notifType,
+    title,
+    body,
+    payload: {
+      bookingId: args.bookingId,
+      bookingTitle: args.bookingTitle,
+      assetId: args.assetId,
+      assetTag: args.assetTag,
+      reportType: args.reportType,
+      reporterName: args.reporterName,
+    },
+    channel: "IN_APP" as const,
+    sentAt: now,
+    dedupeKey: `${args.bookingId}:item_report:${args.assetId}:${s.id}`,
+  }));
+
+  try {
+    await db.notification.createMany({ data: notifData, skipDuplicates: true });
+  } catch (err) {
+    console.error(`[NOTIFY] Failed to batch-create item report notifications:`, err);
+  }
+
+  // Send emails concurrently (fire-and-forget, failures don't block)
+  const emailPromises = supervisors
+    .filter((s) => s.email)
+    .map((s) =>
+      sendEmail({
+        to: s.email!,
+        subject: title,
+        html: buildNotificationEmail({
           title,
           body,
-          payload: {
-            bookingId: args.bookingId,
-            bookingTitle: args.bookingTitle,
-            assetId: args.assetId,
-            assetTag: args.assetTag,
-            reportType: args.reportType,
-            reporterName: args.reporterName,
-          },
-          channel: "IN_APP",
-          sentAt: now,
-          dedupeKey,
-        },
-      });
-
-      if (supervisor.email) {
-        await sendEmail({
-          to: supervisor.email,
-          subject: title,
-          html: buildNotificationEmail({
-            title,
-            body,
-            bookingTitle: args.bookingTitle,
-            dueAt: now.toISOString(),
-          }),
-        });
-      }
-    } catch (err) {
-      console.error(`[NOTIFY] Failed to create item report notification for supervisor ${supervisor.id}:`, err);
-    }
-  }
+          bookingTitle: args.bookingTitle,
+          dueAt: now.toISOString(),
+        }),
+      }).catch((err) =>
+        console.error(`[NOTIFY] Failed to send item report email to ${s.email}:`, err)
+      )
+    );
+  await Promise.allSettled(emailPromises);
 }
 
 /**
@@ -384,38 +388,41 @@ export async function notifyLowStock(args: {
   const title = `Low stock: ${args.skuName}`;
   const body = `${args.onHandQuantity} remaining (threshold: ${args.minThreshold}). Restock soon.`;
 
-  for (const admin of admins) {
-    const dedupeKey = `low_stock:${args.bulkSkuId}:${admin.id}`;
+  // Pre-fetch all recent dedup keys in one query instead of N individual findFirst calls
+  const dedupeKeys = admins.map((a) => `low_stock:${args.bulkSkuId}:${a.id}`);
+  const recentNotifs = await db.notification.findMany({
+    where: {
+      dedupeKey: { in: dedupeKeys },
+      createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+    },
+    select: { dedupeKey: true },
+  });
+  const recentKeys = new Set(recentNotifs.map((n) => n.dedupeKey));
 
-    // Check for recent notification (24h dedup)
-    const recent = await db.notification.findFirst({
-      where: {
-        dedupeKey,
-        createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+  // Batch-create notifications for admins that haven't been notified recently
+  const notifData = admins
+    .filter((a) => !recentKeys.has(`low_stock:${args.bulkSkuId}:${a.id}`))
+    .map((a) => ({
+      userId: a.id,
+      type: "low_stock",
+      title,
+      body,
+      payload: {
+        bulkSkuId: args.bulkSkuId,
+        skuName: args.skuName,
+        onHandQuantity: args.onHandQuantity,
+        minThreshold: args.minThreshold,
       },
-    });
-    if (recent) continue;
+      channel: "IN_APP" as const,
+      sentAt: now,
+      dedupeKey: `low_stock:${args.bulkSkuId}:${a.id}`,
+    }));
 
+  if (notifData.length > 0) {
     try {
-      await db.notification.create({
-        data: {
-          userId: admin.id,
-          type: "low_stock",
-          title,
-          body,
-          payload: {
-            bulkSkuId: args.bulkSkuId,
-            skuName: args.skuName,
-            onHandQuantity: args.onHandQuantity,
-            minThreshold: args.minThreshold,
-          },
-          channel: "IN_APP",
-          sentAt: now,
-          dedupeKey,
-        },
-      });
+      await db.notification.createMany({ data: notifData, skipDuplicates: true });
     } catch (err) {
-      console.error(`[NOTIFY] Failed to create low-stock notification for admin ${admin.id}:`, err);
+      console.error(`[NOTIFY] Failed to batch-create low-stock notifications:`, err);
     }
   }
 }

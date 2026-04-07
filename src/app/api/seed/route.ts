@@ -32,7 +32,8 @@ async function runSeed() {
     where: { name: "Camp Randall" },
   });
 
-  const passwordHash = await bcrypt.hash("ChangeMeNow123!", 10);
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMeNow123!";
+  const passwordHash = await bcrypt.hash(seedPassword, 10);
 
   const user = await db.user.upsert({
     where: { email: "admin@creative.local" },
@@ -53,6 +54,6 @@ async function runSeed() {
   return ok({
     message: "Seed complete",
     user: { email: user.email, name: user.name, role: user.role },
-    hint: "Login with admin@creative.local / ChangeMeNow123!",
+    hint: `Login with admin@creative.local / ${seedPassword}`,
   });
 }
