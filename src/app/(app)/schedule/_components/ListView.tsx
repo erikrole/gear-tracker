@@ -1,15 +1,18 @@
+import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
@@ -70,6 +73,63 @@ export function ListView({
   onHideEvent,
 }: ListViewProps) {
 
+  // Inline assignment state
+  const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<PickerUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const usersLoadedRef = useRef(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [assigning, setAssigning] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    if (usersLoadedRef.current) return;
+    usersLoadedRef.current = true;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setUsersLoading(true);
+    try {
+      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (res.ok) {
+        const json = await res.json();
+        setAllUsers((json.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
+          id: u.id, name: u.name, role: u.role, primaryArea: u.primaryArea, avatarUrl: u.avatarUrl,
+        })));
+      }
+    } catch { /* ignore */ }
+    finally { setUsersLoading(false); }
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    let users = allUsers;
+    if (userSearch) {
+      const q = userSearch.toLowerCase();
+      users = users.filter((u) => u.name.toLowerCase().includes(q));
+    }
+    return users;
+  }, [allUsers, userSearch]);
+
+  const handleInlineAssign = useCallback(async (shiftId: string, userId: string) => {
+    setAssigning(true);
+    try {
+      const res = await fetch("/api/shift-assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftId, userId }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (res.ok) {
+        setPickerShiftId(null);
+        setUserSearch("");
+        loadData();
+      }
+    } catch { /* ignore */ }
+    finally { setAssigning(false); }
+  }, [loadData]);
+
   return (
     <Card>
       <CardHeader>
@@ -82,7 +142,7 @@ export function ListView({
       </CardHeader>
 
       {loading ? (
-        <SkeletonTable rows={6} cols={5} />
+        <SkeletonTable rows={6} cols={3} />
       ) : loadError ? (
         <div className="p-4 text-center">
           <p className="text-muted-foreground mb-2">
@@ -138,23 +198,17 @@ export function ListView({
                       {groupEntries.length} event{groupEntries.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <table className={`data-table data-table-grouped${groupIdx === 0 ? " data-table-show-head" : ""}`}>
+                  <table className={`data-table data-table-grouped${groupIdx === 0 ? " data-table-show-head" : ""}`} style={{ tableLayout: "fixed" }}>
                     <colgroup>
                       <col style={{ width: 28 }} />
                       <col />
-                      <col style={{ width: 100 }} />
                       <col style={{ width: 180 }} />
-                      <col style={{ width: 180 }} />
-                      <col style={{ width: 140 }} />
                     </colgroup>
                     <thead>
                       <tr>
                         <th></th>
                         <th>Event</th>
-                        <th>Area</th>
-                        <th>Assigned</th>
                         <th>Time</th>
-                        <th>Sport</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -174,6 +228,15 @@ export function ListView({
                             onToggle={() => setExpandedRowId(isExpanded ? null : entry.id)}
                             onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
                             onHide={onHideEvent ? () => onHideEvent(entry.id) : undefined}
+                            pickerShiftId={pickerShiftId}
+                            pickerUsers={filteredUsers}
+                            pickerLoading={usersLoading}
+                            pickerSearch={userSearch}
+                            assigning={assigning}
+                            onOpenPicker={(shiftId) => { setPickerShiftId(shiftId); setUserSearch(""); loadUsers(); }}
+                            onClosePicker={() => { setPickerShiftId(null); setUserSearch(""); }}
+                            onPickerSearchChange={setUserSearch}
+                            onInlineAssign={handleInlineAssign}
                           />
                         );
                       })}
@@ -247,9 +310,6 @@ export function ListView({
                             onClick={() => onSelectGroup(entry.shiftGroupId)}
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGroup(entry.shiftGroupId); } }}
                           >
-                            <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm" className="w-16 justify-center">
-                              {AREA_LABELS[shift.area] ?? shift.area}
-                            </Badge>
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               {user ? (
                                 <>
@@ -269,9 +329,9 @@ export function ListView({
                                 </>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {shift.workerType === "FT" ? "Staff" : "Student"}
-                            </span>
+                            <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm">
+                              {AREA_LABELS[shift.area] ?? shift.area}
+                            </Badge>
                           </div>
                         );
                       })}
@@ -298,6 +358,15 @@ function EventRows({
   onToggle,
   onSelectGroup,
   onHide,
+  pickerShiftId,
+  pickerUsers,
+  pickerLoading,
+  pickerSearch,
+  assigning,
+  onOpenPicker,
+  onClosePicker,
+  onPickerSearchChange,
+  onInlineAssign,
 }: {
   entry: CalendarEntry;
   isExpanded: boolean;
@@ -307,6 +376,15 @@ function EventRows({
   onToggle: () => void;
   onSelectGroup: () => void;
   onHide?: () => void;
+  pickerShiftId: string | null;
+  pickerUsers: PickerUser[];
+  pickerLoading: boolean;
+  pickerSearch: string;
+  assigning: boolean;
+  onOpenPicker: (shiftId: string) => void;
+  onClosePicker: () => void;
+  onPickerSearchChange: (value: string) => void;
+  onInlineAssign: (shiftId: string, userId: string) => void;
 }) {
   const eventTitle = entry.opponent
     ? `${entry.sportCode ? sportLabel(entry.sportCode) + " " : ""}${entry.isHome === true ? "vs " : "at "}${entry.opponent}`
@@ -342,6 +420,9 @@ function EventRows({
             >
               {eventTitle}
             </Link>
+            {entry.sportCode && (
+              <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
+            )}
             {entry.coverage && (
               <Badge variant={coverageVariant(entry.coverage.percentage)} size="sm">
                 {entry.coverage.filled}/{entry.coverage.total}
@@ -354,18 +435,6 @@ function EventRows({
               <Badge variant={shiftStatus === "Confirmed" ? "green" : "orange"} size="sm">
                 {shiftStatus}
               </Badge>
-            )}
-          </div>
-        </td>
-        <td></td>
-        <td>
-          {/* Unassigned placeholder for the event row */}
-        </td>
-        <td className="text-sm text-muted-foreground whitespace-nowrap">{timeStr}</td>
-        <td>
-          <div className="flex items-center gap-1.5">
-            {entry.sportCode && (
-              <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
             )}
             {isStaff && onHide && (
               <Tooltip>
@@ -384,15 +453,15 @@ function EventRows({
             )}
           </div>
         </td>
+        <td className="text-sm text-muted-foreground whitespace-nowrap">{timeStr}</td>
       </tr>
 
       {/* Child shift rows */}
       {isExpanded && entry.shifts.map((shift) => {
         const user = shiftAssignee(shift);
-        // Suppress shift call times for away events (no call times on road trips)
         const isAway = entry.isHome !== true;
         const shiftTime = isAway ? "—" : `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
-        const workerLabel = shift.workerType === "FT" ? "Staff" : "Student";
+        const isPickerOpen = pickerShiftId === shift.id;
 
         return (
           <tr
@@ -400,43 +469,65 @@ function EventRows({
             className="bg-muted/20 hover:bg-accent/40 cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
             tabIndex={0}
             role="link"
-            onClick={() => onSelectGroup()}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGroup(); } }}
+            onClick={() => !isPickerOpen && onSelectGroup()}
+            onKeyDown={(e) => { if (!isPickerOpen && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onSelectGroup(); } }}
           >
             <td></td>
             <td>
-              <span className="text-sm text-muted-foreground pl-4">
-                {workerLabel} · {AREA_LABELS[shift.area] ?? shift.area}
-              </span>
-            </td>
-            <td>
-              <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm">
-                {AREA_LABELS[shift.area] ?? shift.area}
-              </Badge>
-            </td>
-            <td>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 pl-4">
                 {user ? (
                   <>
-                    <Avatar className="size-6">
+                    <Avatar className="size-6 shrink-0">
                       <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(user.name)}`}>
                         {getInitials(user.name)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm">{user.name}</span>
                   </>
+                ) : isStaff ? (
+                  <Popover
+                    open={isPickerOpen}
+                    onOpenChange={(open) => {
+                      if (open) onOpenPicker(shift.id);
+                      else onClosePicker();
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        className="flex items-center gap-2 hover:bg-accent/50 rounded px-1 py-0.5 -ml-1 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); onOpenPicker(shift.id); }}
+                      >
+                        <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
+                          <UserIcon className="size-3 text-muted-foreground/40" />
+                        </div>
+                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                      <UserAvatarPicker
+                        users={pickerUsers}
+                        loading={pickerLoading}
+                        search={pickerSearch}
+                        onSearchChange={onPickerSearchChange}
+                        onSelect={(userId) => onInlineAssign(shift.id, userId)}
+                        disabled={assigning}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 ) : (
                   <>
-                    <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                    <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
                       <UserIcon className="size-3 text-muted-foreground/40" />
                     </div>
                     <span className="text-sm text-muted-foreground">Unassigned</span>
                   </>
                 )}
+                <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm">
+                  {AREA_LABELS[shift.area] ?? shift.area}
+                </Badge>
               </div>
             </td>
             <td className="text-sm text-muted-foreground whitespace-nowrap">{shiftTime}</td>
-            <td></td>
           </tr>
         );
       })}

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useId, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/components/Toast";
 import { sportLabel } from "@/lib/sports";
 import { SPORT_CODES } from "@/lib/sports";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, ChevronsUpDown, Loader2, X } from "lucide-react";
+import { Check, ChevronsUpDown, ClockIcon, Loader2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -351,6 +352,7 @@ export default function UserInfoTab({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1.5 mt-6">
+      <div className="flex flex-col gap-1.5">
       {/* Profile Card */}
       <Card>
         <CardHeader>
@@ -405,6 +407,10 @@ export default function UserInfoTab({
           />
         </CardContent>
       </Card>
+
+      {/* My Hours Card — only shown for own profile */}
+      {isSelf && <MyHoursCard />}
+      </div>
 
       {/* Assignments Card */}
       <Card>
@@ -609,5 +615,58 @@ export default function UserInfoTab({
         </Card>
       )}
     </div>
+  );
+}
+
+/* ── My Hours Card ──────────────────────────────────────── */
+
+type MyHoursData = {
+  thisWeek: number;
+  thisMonth: number;
+  shiftCountWeek: number;
+  shiftCountMonth: number;
+};
+
+async function fetchMyHours(): Promise<MyHoursData | null> {
+  const r = await fetch("/api/shifts/my-hours");
+  if (!r.ok) return null;
+  const j = await r.json();
+  return j?.data ?? null;
+}
+
+function MyHoursCard() {
+  const { data: hours } = useQuery({
+    queryKey: ["shifts", "my-hours"],
+    queryFn: fetchMyHours,
+    staleTime: 5 * 60_000,
+  });
+
+  if (!hours || (hours.shiftCountWeek === 0 && hours.shiftCountMonth === 0)) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ClockIcon className="size-4" />
+          My hours
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-2xl font-bold">{hours.thisWeek}h</div>
+            <div className="text-xs text-muted-foreground">
+              This week ({hours.shiftCountWeek} shift{hours.shiftCountWeek !== 1 ? "s" : ""})
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold">{hours.thisMonth}h</div>
+            <div className="text-xs text-muted-foreground">
+              This month ({hours.shiftCountMonth} shift{hours.shiftCountMonth !== 1 ? "s" : ""})
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -636,7 +636,7 @@ a[data-slot="button"]:hover {
 
 .ops-row-title-bold {
   font-size: var(--text-base);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
