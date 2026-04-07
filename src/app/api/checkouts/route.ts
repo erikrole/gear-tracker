@@ -87,22 +87,30 @@ export const POST = withAuth(async (req, { user }) => {
 
   // Fire-and-forget: check bulk stock levels and notify admins if below threshold
   if (body.bulkItems.length > 0) {
+    const bulkSkuIds = body.bulkItems.map((i) => i.bulkSkuId);
     Promise.resolve().then(async () => {
       try {
+        const [balances, skus] = await Promise.all([
+          db.bulkStockBalance.findMany({
+            where: { bulkSkuId: { in: bulkSkuIds }, locationId: effectiveLocationId },
+            select: { bulkSkuId: true, onHandQuantity: true },
+          }),
+          db.bulkSku.findMany({
+            where: { id: { in: bulkSkuIds } },
+            select: { id: true, name: true, minThreshold: true },
+          }),
+        ]);
+        const balanceMap = new Map(balances.map((b) => [b.bulkSkuId, b.onHandQuantity]));
+        const skuMap = new Map(skus.map((s) => [s.id, s]));
+
         for (const item of body.bulkItems) {
-          const balance = await db.bulkStockBalance.findFirst({
-            where: { bulkSkuId: item.bulkSkuId, locationId: effectiveLocationId },
-            select: { onHandQuantity: true },
-          });
-          const sku = await db.bulkSku.findUnique({
-            where: { id: item.bulkSkuId },
-            select: { name: true, minThreshold: true },
-          });
-          if (balance && sku && sku.minThreshold > 0 && balance.onHandQuantity <= sku.minThreshold) {
+          const onHand = balanceMap.get(item.bulkSkuId);
+          const sku = skuMap.get(item.bulkSkuId);
+          if (onHand != null && sku && sku.minThreshold > 0 && onHand <= sku.minThreshold) {
             await notifyLowStock({
               bulkSkuId: item.bulkSkuId,
               skuName: sku.name,
-              onHandQuantity: balance.onHandQuantity,
+              onHandQuantity: onHand,
               minThreshold: sku.minThreshold,
             });
           }
