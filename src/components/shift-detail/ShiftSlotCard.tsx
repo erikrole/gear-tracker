@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Popover,
   PopoverContent,
@@ -89,8 +90,9 @@ export function ShiftSlotCard({
   const userHasRequested = pendingRequests.some((a) => a.user.id === currentUserId);
 
   return (
-    <div
-      className={`p-3 mb-2 rounded-md border ${isAssigned ? "border-green-200 bg-green-50/50 dark:border-green-900/30 dark:bg-green-950/20" : "border-border bg-card"}`}
+    <Card
+      elevation="flat"
+      className={`p-3 mb-2 ${isAssigned ? "border-green-200 bg-green-50/50 dark:border-green-900/30 dark:bg-green-950/20" : ""}`}
     >
       {/* Header: worker type + status badge + delete */}
       <div className="flex items-center justify-between mb-1">
@@ -243,6 +245,6 @@ export function ShiftSlotCard({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

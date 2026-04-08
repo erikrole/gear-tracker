@@ -2,10 +2,10 @@
 
 import type { Dispatch } from "react";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,7 +31,6 @@ export type EventSectionProps = {
   eventSummary: React.ReactNode;
   dispatch: Dispatch<FormAction>;
   selectEvent: (ev: CalendarEvent) => void;
-  toggleSection: (section: Section) => void;
 };
 
 export function EventSection({
@@ -45,14 +44,13 @@ export function EventSection({
   eventSummary,
   dispatch,
   selectEvent,
-  toggleSection,
 }: EventSectionProps) {
   return (
-    <Collapsible open={openSection === "event"} onOpenChange={() => toggleSection("event")}>
-      <CollapsibleTrigger asChild>
+    <AccordionItem value="event">
+      <AccordionTrigger asChild>
         <button
           type="button"
-          className="flex w-full items-center gap-3 border-b px-6 py-3 text-left hover:bg-muted/50 transition-colors"
+          className="flex w-full items-center gap-3 px-6 py-3 text-left hover:bg-muted/50 transition-colors"
         >
           <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
           <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
@@ -65,9 +63,9 @@ export function EventSection({
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
           )}
         </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="space-y-3 border-b px-6 py-4">
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="space-y-3 px-6 py-4">
           {/* Tie to event toggle */}
           <div className="flex items-center gap-2">
             <button
@@ -190,7 +188,7 @@ export function EventSection({
             </div>
           )}
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      </AccordionContent>
+    </AccordionItem>
   );
 }

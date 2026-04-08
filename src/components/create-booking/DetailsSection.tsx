@@ -2,10 +2,10 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
@@ -37,7 +37,6 @@ export type DetailsSectionProps = {
   config: BookingListConfig;
   openSection: Section;
   detailsSummary: React.ReactNode;
-  toggleSection: (section: Section) => void;
 };
 
 export function DetailsSection({
@@ -51,14 +50,13 @@ export function DetailsSection({
   config,
   openSection,
   detailsSummary,
-  toggleSection,
 }: DetailsSectionProps) {
   return (
-    <Collapsible open={openSection === "details"} onOpenChange={() => toggleSection("details")}>
-      <CollapsibleTrigger asChild>
+    <AccordionItem value="details">
+      <AccordionTrigger asChild>
         <button
           type="button"
-          className="flex w-full items-center gap-3 border-b px-6 py-3 text-left hover:bg-muted/50 transition-colors"
+          className="flex w-full items-center gap-3 px-6 py-3 text-left hover:bg-muted/50 transition-colors"
         >
           <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
           <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
@@ -71,9 +69,9 @@ export function DetailsSection({
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
           )}
         </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="space-y-3 border-b px-6 py-4">
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="space-y-3 px-6 py-4">
           {/* Title */}
           <div className="space-y-1">
             <Label>
@@ -194,7 +192,7 @@ export function DetailsSection({
             </div>
           </div>
         </div>
-      </CollapsibleContent>
-    </Collapsible>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
