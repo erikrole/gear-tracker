@@ -334,7 +334,7 @@ export default function CreateBookingSheet({
   const eventSummary = useMemo(() => {
     if (form.selectedEvent) {
       const ev = form.selectedEvent;
-      const name = ev.opponent ? `${ev.isHome ? "vs" : "at"} ${ev.opponent}` : ev.summary;
+      const name = ev.opponent ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}` : ev.summary;
       return (
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground truncate">
           {name}

@@ -121,7 +121,7 @@ export function EventSection({
                         >
                           <div className="min-w-0">
                             <div className="font-medium truncate">
-                              {ev.opponent ? `${ev.isHome ? "vs" : "at"} ${ev.opponent}` : ev.summary}
+                              {ev.opponent ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}` : ev.summary}
                             </div>
                             <div className="text-xs text-muted-foreground truncate">
                               {formatDate(ev.startsAt)}
@@ -130,11 +130,9 @@ export function EventSection({
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-1">
-                            {ev.isHome !== null && (
-                              <Badge variant="gray" size="sm">
-                                {ev.isHome ? "HOME" : "AWAY"}
-                              </Badge>
-                            )}
+                            {ev.isHome === true && <Badge variant="gray" size="sm">HOME</Badge>}
+                            {ev.isHome === false && <Badge variant="gray" size="sm">AWAY</Badge>}
+                            {ev.isHome === null && ev.opponent && <Badge variant="gray" size="sm">NEUTRAL</Badge>}
                             {ev.sportCode && (
                               <Badge variant="sport" size="sm">
                                 {ev.sportCode}

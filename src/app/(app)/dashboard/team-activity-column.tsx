@@ -56,9 +56,12 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
   const filteredEvents = useMemo(() => {
     const events = filtered?.upcomingEvents ?? data.upcomingEvents;
     if (homeAwayFilter === "all") return events;
-    return events.filter((e) =>
-      homeAwayFilter === "home" ? e.isHome === true : e.isHome === false,
-    );
+    return events.filter((e) => {
+      if (homeAwayFilter === "home") return e.isHome === true;
+      if (homeAwayFilter === "away") return e.isHome === false;
+      if (homeAwayFilter === "neutral") return e.isHome === null && e.opponent;
+      return true;
+    });
   }, [filtered?.upcomingEvents, data.upcomingEvents, homeAwayFilter]);
 
   const cappedEvents = useMemo(() => filteredEvents.slice(0, 10), [filteredEvents]);
@@ -208,11 +211,9 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 </a>
                 <div className="event-row-right">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} />
-                  {e.isHome !== null && (
-                    <Badge variant={e.isHome ? "green" : "red"}>
-                      {e.isHome ? "Home" : "Away"}
-                    </Badge>
-                  )}
+                  {e.isHome === true && <Badge variant="green">Home</Badge>}
+                  {e.isHome === false && <Badge variant="red">Away</Badge>}
+                  {e.isHome === null && e.opponent && <Badge variant="blue">Neutral</Badge>}
                   <DropdownMenu>
                     <Tooltip>
                       <TooltipTrigger asChild>

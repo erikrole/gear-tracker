@@ -12,7 +12,7 @@ import { handleAuthRedirect } from "@/lib/errors";
 
 export type ViewMode = "list" | "calendar" | "week";
 
-export type HomeAwayFilter = "all" | "home" | "away";
+export type HomeAwayFilter = "all" | "home" | "away" | "neutral";
 
 export type ScheduleFilters = {
   viewMode: ViewMode;
@@ -274,8 +274,9 @@ export function useScheduleData(): UseScheduleDataResult {
     if (homeAwayFilter === "home") {
       result = result.filter((e) => e.isHome === true);
     } else if (homeAwayFilter === "away") {
-      // Neutral (null) is treated as away
-      result = result.filter((e) => e.isHome !== true);
+      result = result.filter((e) => e.isHome === false);
+    } else if (homeAwayFilter === "neutral") {
+      result = result.filter((e) => e.isHome === null && e.opponent);
     }
     if (areaFilter) {
       result = result.filter((e) => e.shifts.some((s) => s.area === areaFilter));

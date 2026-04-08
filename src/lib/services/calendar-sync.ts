@@ -368,9 +368,15 @@ export function splitEventsForSync(
       const cleaned = cleanSummary(event.summary);
       let { sportCode, opponent, isHome } = extractSportInfo(cleaned);
 
-      // Override isHome based on venue when title parsing was inconclusive
-      if (matchedHomeVenue !== undefined && isHome === null) {
-        isHome = matchedHomeVenue;
+      // Override isHome based on venue when title parsing was inconclusive,
+      // or detect neutral-site games (summary says "vs" but venue is not home)
+      if (matchedHomeVenue !== undefined) {
+        if (isHome === null) {
+          isHome = matchedHomeVenue;
+        } else if (isHome === true && matchedHomeVenue === false) {
+          // Summary says "vs" but venue maps to non-home location → neutral site
+          isHome = null;
+        }
       }
 
       const data: ValidatedEventData = {

@@ -69,6 +69,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         <ToggleGroupItem value="all" className="h-9 px-3 text-sm font-medium">All</ToggleGroupItem>
         <ToggleGroupItem value="home" className="h-9 px-3 text-sm font-medium">Home</ToggleGroupItem>
         <ToggleGroupItem value="away" className="h-9 px-3 text-sm font-medium">Away</ToggleGroupItem>
+        <ToggleGroupItem value="neutral" className="h-9 px-3 text-sm font-medium">Neutral</ToggleGroupItem>
       </ToggleGroup>
 
       {/* My Shifts — prominent toggle in toolbar */}

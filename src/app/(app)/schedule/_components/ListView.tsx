@@ -270,7 +270,7 @@ export function ListView({
                             : <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0" />
                         )}
                         {entry.opponent
-                          ? `${entry.isHome === true ? "vs " : "at "}${entry.opponent}`
+                          ? `${entry.isHome === false ? "at " : "vs "}${entry.opponent}`
                           : entry.summary}
                       </span>
                       <div className="flex items-center gap-1">
