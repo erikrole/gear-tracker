@@ -6,6 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { PlusIcon, XIcon } from "lucide-react";
 import { getInitials, getAvatarColor } from "@/lib/avatar";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
@@ -107,16 +108,20 @@ export function ShiftSlotCard({
             <Badge variant="red" size="sm">Open</Badge>
           )}
           {isStaff && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-              onClick={onDeleteShift}
-              disabled={acting !== null}
-              title="Remove shift"
-            >
-              <XIcon className="size-3" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                  onClick={onDeleteShift}
+                  disabled={acting !== null}
+                >
+                  <XIcon className="size-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Remove shift</TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>

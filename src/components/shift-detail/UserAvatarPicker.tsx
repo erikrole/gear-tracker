@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { getInitials, getAvatarColor } from "@/lib/avatar";
 
 const AREA_LABELS: Record<string, string> = {
@@ -44,7 +45,7 @@ export function UserAvatarPicker({ users, loading, search, onSearchChange, onSel
           {search ? "No matching users." : "No active users found."}
         </p>
       ) : (
-        <div className="max-h-52 overflow-y-auto space-y-0.5">
+        <ScrollArea className="max-h-52 space-y-0.5">
           {users.map((u) => (
             <button
               key={u.id}
@@ -67,7 +68,7 @@ export function UserAvatarPicker({ users, loading, search, onSearchChange, onSel
               </div>
             </button>
           ))}
-        </div>
+        </ScrollArea>
       )}
     </>
   );

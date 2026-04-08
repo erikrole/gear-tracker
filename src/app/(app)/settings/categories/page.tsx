@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import type { Category } from "./types";
@@ -122,12 +123,17 @@ export default function CategoriesPage() {
           </CardHeader>
 
           <div className="px-4 py-2.5 border-b border-border">
-            <button
-              onClick={() => setSortAsc((v) => !v)}
-              className="flex items-center gap-1 bg-transparent border-none cursor-pointer text-xs font-semibold text-muted-foreground uppercase tracking-wider min-h-[44px]"
-            >
-              Name {sortAsc ? "\u2191\u2193" : "\u2193\u2191"}
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setSortAsc((v) => !v)}
+                  className="flex items-center gap-1 bg-transparent border-none cursor-pointer text-xs font-semibold text-muted-foreground uppercase tracking-wider min-h-[44px]"
+                >
+                  Name {sortAsc ? "\u2191\u2193" : "\u2193\u2191"}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{sortAsc ? "Sort Z\u2013A" : "Sort A\u2013Z"}</TooltipContent>
+            </Tooltip>
           </div>
 
           {loading ? (

@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { Minus, Plus, Search, TriangleAlert, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AvailableAsset, BulkSkuOption, ConflictData } from "./types";
 
 type Props = {
@@ -196,7 +197,7 @@ export default function BookingEquipmentEditor({
               />
             </div>
 
-            <div className="max-h-60 overflow-y-auto rounded-md border border-border">
+            <ScrollArea className="max-h-60 rounded-md border border-border">
               {pickerTab === "serialized" ? (
                 pickerAssets.length === 0 ? (
                   <Empty className="py-6 border-0">
@@ -242,7 +243,7 @@ export default function BookingEquipmentEditor({
                   ))
                 )
               )}
-            </div>
+            </ScrollArea>
 
             <Button variant="outline" size="sm" onClick={() => onSetAddingItems(false)}>
               Done adding

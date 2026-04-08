@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { NativeSelect } from "@/components/ui/native-select"
 
 function pad(n: number) {
   return String(n).padStart(2, "0")
@@ -86,8 +87,7 @@ function DateTimePicker({
         />
         <div className="flex items-center gap-2 border-t px-3 py-2">
           <CalendarIcon className="size-4 text-muted-foreground" />
-          <select
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+          <NativeSelect
             value={hours}
             onChange={(e) => handleTimeChange(Number(e.target.value), minutes)}
           >
@@ -97,17 +97,16 @@ function DateTimePicker({
                 {h < 12 ? " AM" : " PM"}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <span className="text-muted-foreground">:</span>
-          <select
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+          <NativeSelect
             value={minutes}
             onChange={(e) => handleTimeChange(hours, Number(e.target.value))}
           >
             {minuteOptions.map((m) => (
               <option key={m} value={m}>{pad(m)}</option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       </PopoverContent>
     </Popover>

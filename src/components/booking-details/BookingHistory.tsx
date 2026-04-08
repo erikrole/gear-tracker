@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/format";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatRelative, EQUIPMENT_ACTIONS, actionLabels } from "./helpers";
 import { cn } from "@/lib/utils";
 import type { AuditEntry, HistoryFilter } from "./types";
@@ -140,7 +141,7 @@ export default function BookingHistory({
                       {expandedDiffs.has(entry.id) ? "Hide diff" : "View diff"}
                     </button>
                     {expandedDiffs.has(entry.id) && (
-                      <div className="text-xs font-mono bg-muted px-2.5 py-2 rounded-md mt-1 whitespace-pre-wrap break-words max-h-[200px] overflow-y-auto">
+                      <ScrollArea className="text-xs font-mono bg-muted px-2.5 py-2 rounded-md mt-1 whitespace-pre-wrap break-words max-h-[200px]">
                         {entry.beforeJson && (
                           <div>
                             <strong>Before:</strong>{"\n"}
@@ -153,7 +154,7 @@ export default function BookingHistory({
                             {JSON.stringify(entry.afterJson, null, 2)}
                           </div>
                         )}
-                      </div>
+                      </ScrollArea>
                     )}
                   </>
                 )}

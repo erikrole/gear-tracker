@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 /* ───── Status dot colors ───── */
 
@@ -500,7 +501,7 @@ export default function EquipmentPicker({
           {/* Global search results (replaces tabs when active) */}
           {isGlobalSearchActive ? (
             <div className="p-3 max-md:p-2">
-              <div className="max-h-[280px] overflow-y-auto max-md:max-h-[300px] max-md:[overflow-scrolling:touch]" role="listbox" aria-label="Search results">
+              <ScrollArea className="max-h-[280px] max-md:max-h-[300px]" role="listbox" aria-label="Search results">
                 {globalSearchLoading ? (
                   <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">Searching...</div>
                 ) : globalSearchResults.length === 0 ? (
@@ -582,7 +583,7 @@ export default function EquipmentPicker({
                     })}
                   </>
                 )}
-              </div>
+              </ScrollArea>
             </div>
           ) : (
           <>
@@ -709,7 +710,7 @@ export default function EquipmentPicker({
                 </div>
               )}
 
-              <div className="max-h-[280px] overflow-y-auto max-md:max-h-[300px] max-md:[overflow-scrolling:touch]" role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label || "Items"} list`}>
+              <ScrollArea className="max-h-[280px] max-md:max-h-[300px]" role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label || "Items"} list`}>
                 {/* Bulk items (shown first — high-frequency items like batteries) */}
                 {sectionBulk.length > 0 && (
                   <>
@@ -891,7 +892,7 @@ export default function EquipmentPicker({
                           : "No items in this section"}
                   </div>
                 )}
-              </div>
+              </ScrollArea>
 
               {/* Equipment guidance hints */}
               {activeGuidance.length > 0 && activeGuidance.map((rule) => (
