@@ -101,17 +101,36 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
 }
 
 /**
+ * Maximum events to process per invocation. Prevents Vercel serverless
+ * timeout (10s Hobby / 60s Pro) when the backlog is large. Callers that
+ * need to process more should call in a loop or via a cron job.
+ */
+const EVENT_BATCH_LIMIT = 200;
+
+/**
  * Batch generate shifts for calendar events matching a WHERE clause.
- * Loads all sport configs in one query, then creates groups + shifts in one transaction.
+ *
+ * Performance: 2 DB reads (events + sport configs) + 1 transaction for
+ * all writes. No N+1 — sport configs are pre-loaded into a Map before
+ * the event loop. Writes are chunked in groups of WRITE_CHUNK_SIZE.
+ *
+ * The event query is capped at EVENT_BATCH_LIMIT to stay within Vercel
+ * serverless timeouts. The `hasMore` flag signals whether another call
+ * is needed to finish processing.
+ *
  * Used by both the backfill route and the post-sync hook.
  */
 export async function generateShiftsForEvents(opts: {
   where: Prisma.CalendarEventWhereInput;
+  limit?: number;
 }): Promise<{
   eventsMatched: number;
   groupsCreated: number;
   shiftsCreated: number;
+  hasMore: boolean;
 }> {
+  const take = Math.min(opts.limit ?? EVENT_BATCH_LIMIT, EVENT_BATCH_LIMIT);
+
   const events = await db.calendarEvent.findMany({
     where: opts.where,
     select: {
@@ -121,10 +140,15 @@ export async function generateShiftsForEvents(opts: {
       startsAt: true,
       endsAt: true,
     },
+    orderBy: { startsAt: "asc" },
+    take: take + 1, // fetch one extra to detect whether more remain
   });
 
+  const hasMore = events.length > take;
+  if (hasMore) events.pop(); // remove the extra sentinel row
+
   if (events.length === 0) {
-    return { eventsMatched: 0, groupsCreated: 0, shiftsCreated: 0 };
+    return { eventsMatched: 0, groupsCreated: 0, shiftsCreated: 0, hasMore: false };
   }
 
   // Load all active sport configs in one query
@@ -173,7 +197,7 @@ export async function generateShiftsForEvents(opts: {
   }
 
   if (groupsToCreate.length === 0) {
-    return { eventsMatched: events.length, groupsCreated: 0, shiftsCreated: 0 };
+    return { eventsMatched: events.length, groupsCreated: 0, shiftsCreated: 0, hasMore };
   }
 
   // Create all shift groups and shifts in a transaction
@@ -206,7 +230,7 @@ export async function generateShiftsForEvents(opts: {
     return { groupsCreated: createdGroups.length, shiftsCreated: allShifts.length };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-  return { eventsMatched: events.length, ...result };
+  return { eventsMatched: events.length, ...result, hasMore };
 }
 
 /**

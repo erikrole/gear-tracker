@@ -35,6 +35,7 @@ export const POST = withAuth(async (_req, { user }) => {
       processed: result.groupsCreated,
       skipped: result.eventsMatched - result.groupsCreated,
       shiftsCreated: result.shiftsCreated,
+      hasMore: result.hasMore,
     },
   });
 });
