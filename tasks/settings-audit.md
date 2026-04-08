@@ -8,7 +8,7 @@
 | Dimension | Score | Notes |
 |---|---|---|
 | Scope clarity | 5/5 | AREA_SETTINGS.md updated this session with 3 new sub-pages, 10 ACs all checked. Each sub-page is self-contained with clear purpose. |
-| Hardening | 2/5 | **No 401 handling on any of the 7 settings sub-pages.** No AbortController. No useFetch. All use raw fetch() without session expiry handling. Settings pages were not part of the 5-pass hardening passes applied to core workflow pages. |
+| Hardening | 4/5 | All 7 settings sub-pages migrated to useFetch hook (AbortController, 401 redirect, visibility refresh) for data loading. All mutations hardened with handleAuthRedirect + classifyError + isAbortError. CategoryRow component also hardened. Database page uses on-demand fetch with classifyError. |
 | Roadmap | 4/5 | Breadcrumb + sidebar roadmaps exist and are shipped. No standalone settings roadmap but area is config-focused (low churn). |
 | Feature completeness | 5/5 | All 10 ACs met. Categories tree CRUD, sports config, escalation rules, database diagnostics, calendar sources, venue mappings, allowed emails all shipped. |
 | Doc sync | 3/5 | AREA_SETTINGS.md updated this session. But changelog is sparse (only 4 entries total covering months of work). |
@@ -17,13 +17,13 @@
 | Page | Route | Lines | Hardening | Issues |
 |---|---|---|---|---|
 | Settings root | `/settings` | 5 | N/A | Redirect to first sub-page. |
-| Categories | `/settings/categories` | 192 | Not hardened | No 401 handling. No AbortController. Raw fetch. |
-| Sports | `/settings/sports` | 195 | Not hardened | No 401 handling. No AbortController. Raw fetch. |
-| Escalation | `/settings/escalation` | 289 | Not hardened | No 401 handling. No AbortController. Raw fetch. |
-| Database | `/settings/database` | 268 | Not hardened | No 401 handling. Read-only diagnostics. |
-| Calendar Sources | `/settings/calendar-sources` | 293 | Not hardened | No 401 handling. No AbortController. Raw fetch. |
-| Venue Mappings | `/settings/venue-mappings` | 298 | Not hardened | No 401 handling. No AbortController. Raw fetch. |
-| Allowed Emails | `/settings/allowed-emails` | 386 | Not hardened | No 401 handling. No AbortController. Raw fetch. |
+| Categories | `/settings/categories` | ~200 | Hardened | useFetch for load. Mutations: handleAuthRedirect + classifyError + isAbortError. CategoryRow also hardened. |
+| Sports | `/settings/sports` | ~250 | Hardened | useFetch for load. Mutations: handleAuthRedirect + classifyError + isAbortError. |
+| Escalation | `/settings/escalation` | ~300 | Hardened | useFetch for load. Mutations: handleAuthRedirect + classifyError + isAbortError. |
+| Database | `/settings/database` | ~270 | Hardened | On-demand fetch with handleAuthRedirect + classifyError + isAbortError. |
+| Calendar Sources | `/settings/calendar-sources` | ~310 | Hardened | useFetch for load. Mutations: handleAuthRedirect + classifyError + isAbortError. |
+| Venue Mappings | `/settings/venue-mappings` | ~310 | Hardened | useFetch for both mappings and locations. Mutations: handleAuthRedirect + classifyError + isAbortError. |
+| Allowed Emails | `/settings/allowed-emails` | ~390 | Hardened | useFetch with dynamic URL for filter. Mutations: handleAuthRedirect + classifyError + isAbortError. |
 
 ## Recommended Actions (prioritized)
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Spinner } from "@/components/ui/spinner";
@@ -10,7 +10,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import {
   Select,
   SelectContent,
@@ -35,65 +36,59 @@ type Location = {
 export default function VenueMappingsPage() {
   const { toast } = useToast();
   const confirm = useConfirm();
-  const [mappings, setMappings] = useState<LocationMapping[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: fetchedMappings, loading, reload: reloadMappings } = useFetch<LocationMapping[]>({
+    url: "/api/location-mappings",
+    returnTo: "/settings/venue-mappings",
+    transform: (json) => (json.data as LocationMapping[]) ?? [],
+  });
+  const { data: fetchedLocations } = useFetch<Location[]>({
+    url: "/api/locations",
+    returnTo: "/settings/venue-mappings",
+    transform: (json) => (json.data as Location[]) ?? [],
+  });
+
+  // Local state for optimistic mutation updates
+  const [localMappings, setLocalMappings] = useState<LocationMapping[] | null>(null);
+  const mappings = localMappings ?? fetchedMappings ?? [];
+  const [prevFetchedMappings, setPrevFetchedMappings] = useState(fetchedMappings);
+  if (fetchedMappings !== prevFetchedMappings) {
+    setPrevFetchedMappings(fetchedMappings);
+    setLocalMappings(null);
+  }
+
+  const [localLocations, setLocalLocations] = useState<Location[] | null>(null);
+  const locations = localLocations ?? fetchedLocations ?? [];
+  const [prevFetchedLocations, setPrevFetchedLocations] = useState(fetchedLocations);
+  if (fetchedLocations !== prevFetchedLocations) {
+    setPrevFetchedLocations(fetchedLocations);
+    setLocalLocations(null);
+  }
+
   const [showAdd, setShowAdd] = useState(false);
   const [addingMapping, setAddingMapping] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingHome, setTogglingHome] = useState<string | null>(null);
 
-  const loadMappings = useCallback(async () => {
-    try {
-      const res = await fetch("/api/location-mappings");
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        setMappings(json.data ?? []);
-      }
-    } catch {
-      toast("Failed to load venue mappings", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  const loadLocations = useCallback(async () => {
-    try {
-      const res = await fetch("/api/locations");
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        setLocations(json.data ?? []);
-      }
-    } catch {
-      /* network error */
-    }
-  }, []);
-
-  useEffect(() => {
-    loadMappings();
-    loadLocations();
-  }, [loadMappings, loadLocations]);
-
   async function toggleHomeVenue(locationId: string, current: boolean) {
     setTogglingHome(locationId);
     // Optimistic
-    setLocations((prev) => prev.map((l) => l.id === locationId ? { ...l, isHomeVenue: !current } : l));
+    setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: !current } : l));
     try {
       const res = await fetch(`/api/locations/${locationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isHomeVenue: !current }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
       if (!res.ok) {
-        setLocations((prev) => prev.map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
+        setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
         toast("Failed to update", "error");
       }
-    } catch {
-      setLocations((prev) => prev.map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to update", "error");
     }
     setTogglingHome(null);
   }
@@ -112,18 +107,20 @@ export default function VenueMappingsPage() {
           priority: parseInt(form.get("priority") as string) || 0,
         }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
       if (res.ok) {
         setShowAdd(false);
         toast("Venue mapping added", "success");
-        await loadMappings();
+        reloadMappings();
         e.currentTarget.reset();
       } else {
         const msg = await parseErrorMessage(res, "Failed to create mapping");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error — please try again.", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create mapping", "error");
     }
     setAddingMapping(false);
   }
@@ -141,15 +138,17 @@ export default function VenueMappingsPage() {
       const res = await fetch(`/api/location-mappings/${id}`, {
         method: "DELETE",
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
       if (res.ok) {
         toast("Venue mapping deleted", "success");
-        await loadMappings();
+        reloadMappings();
       } else {
         toast("Delete failed", "error");
       }
-    } catch {
-      toast("Network error — please try again.", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed", "error");
     }
     setDeletingId(null);
   }

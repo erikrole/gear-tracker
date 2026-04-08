@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { FadeUp } from "@/components/ui/motion";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,8 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { WifiOff, AlertTriangle, RefreshCw } from "lucide-react";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 
 type EscalationRule = {
   id: string;
@@ -40,46 +41,31 @@ type EscalationConfig = {
   maxNotificationsPerBooking: number;
 };
 
-type ErrorState = {
-  type: "network" | "server";
-  message: string;
-} | null;
+type EscalationData = {
+  rules: EscalationRule[];
+  config: EscalationConfig;
+};
 
 export default function EscalationSettingsPage() {
   const { toast } = useToast();
-  const [rules, setRules] = useState<EscalationRule[]>([]);
-  const [config, setConfig] = useState<EscalationConfig>({ maxNotificationsPerBooking: 10 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ErrorState>(null);
+  const { data: escalationData, loading, error, reload } = useFetch<EscalationData>({
+    url: "/api/settings/escalation",
+    returnTo: "/settings/escalation",
+    transform: (json) => (json.data as EscalationData) ?? { rules: [], config: { maxNotificationsPerBooking: 10 } },
+  });
+  // Local state for optimistic mutation updates
+  const [localRules, setLocalRules] = useState<EscalationRule[] | null>(null);
+  const [localConfig, setLocalConfig] = useState<EscalationConfig | null>(null);
+  const rules = localRules ?? escalationData?.rules ?? [];
+  const config = localConfig ?? escalationData?.config ?? { maxNotificationsPerBooking: 10 };
+  // Sync local state when fetch data changes
+  const [prevData, setPrevData] = useState(escalationData);
+  if (escalationData !== prevData) {
+    setPrevData(escalationData);
+    setLocalRules(null);
+    setLocalConfig(null);
+  }
   const [saving, setSaving] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch("/api/settings/escalation");
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        setRules(json.data.rules);
-        setConfig(json.data.config);
-      } else {
-        setError({
-          type: "server",
-          message: `Server returned ${res.status}. Please try again.`,
-        });
-      }
-    } catch {
-      setError({
-        type: "network",
-        message: "Could not connect to the server. Check your internet connection and try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   async function toggleRule(ruleId: string, field: "enabled" | "notifyAdmins" | "notifyRequester", current: boolean) {
     setSaving(ruleId + field);
@@ -89,15 +75,17 @@ export default function EscalationSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ruleId, [field]: !current }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/escalation")) return;
       if (res.ok) {
-        setRules((prev) => prev.map((r) => r.id === ruleId ? { ...r, [field]: !current } : r));
+        setLocalRules((prev) => (prev ?? rules).map((r) => r.id === ruleId ? { ...r, [field]: !current } : r));
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed", "error");
     }
     setSaving(null);
   }
@@ -110,16 +98,18 @@ export default function EscalationSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxNotificationsPerBooking: newCap }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/escalation")) return;
       if (res.ok) {
-        setConfig({ maxNotificationsPerBooking: newCap });
+        setLocalConfig({ maxNotificationsPerBooking: newCap });
         toast("Cap updated", "success");
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed", "error");
     }
     setSaving(null);
   }
@@ -176,7 +166,7 @@ export default function EscalationSettingsPage() {
   }
 
   if (error) {
-    const Icon = error.type === "network" ? WifiOff : AlertTriangle;
+    const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
       <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
@@ -188,11 +178,15 @@ export default function EscalationSettingsPage() {
               <Icon className="size-10 text-muted-foreground" />
               <div>
                 <p className="text-sm font-semibold">
-                  {error.type === "network" ? "Connection Failed" : "Something Went Wrong"}
+                  {error === "network" ? "Connection Failed" : "Something Went Wrong"}
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {error === "network"
+                    ? "Could not connect to the server. Check your internet connection and try again."
+                    : "Something went wrong. Please try again."}
+                </p>
               </div>
-              <Button variant="outline" onClick={load}>
+              <Button variant="outline" onClick={reload}>
                 <RefreshCw className="size-4" />
                 Retry
               </Button>

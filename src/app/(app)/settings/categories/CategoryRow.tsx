@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CornerDownRightIcon } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 import type { TreeNode } from "./types";
 import KebabMenu from "./KebabMenu";
 import { Badge } from "@/components/ui/badge";
@@ -41,15 +42,18 @@ export default function CategoryRow({
     }
     setSavingRename(true);
     try {
-      await fetch(`/api/categories/${node.id}`, {
+      const res = await fetch(`/api/categories/${node.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
+      if (handleAuthRedirect(res, "/settings/categories")) return;
       setRenaming(false);
       onRefresh();
-    } catch {
-      toast("Failed to rename", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to rename", "error");
     }
     setSavingRename(false);
   }
@@ -58,16 +62,19 @@ export default function CategoryRow({
     if (!subName.trim()) { setAddingSub(false); return; }
     setSavingSub(true);
     try {
-      await fetch("/api/categories", {
+      const res = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: subName.trim(), parentId: node.id }),
       });
+      if (handleAuthRedirect(res, "/settings/categories")) return;
       setSubName("");
       setAddingSub(false);
       onRefresh();
-    } catch {
-      toast("Failed to create subcategory", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create subcategory", "error");
     }
     setSavingSub(false);
   }
@@ -84,14 +91,17 @@ export default function CategoryRow({
     setDeleting(true);
     try {
       const res = await fetch(`/api/categories/${node.id}`, { method: "DELETE" });
+      if (handleAuthRedirect(res, "/settings/categories")) return;
       if (!res.ok) {
         const json = await res.json();
         toast(json.error || "Delete failed", "error");
       } else {
         onRefresh();
       }
-    } catch {
-      toast("Failed to delete", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to delete", "error");
     }
     setDeleting(false);
   }
