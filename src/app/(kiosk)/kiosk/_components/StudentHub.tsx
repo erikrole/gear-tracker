@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type KioskInfo = { kioskId: string; locationId: string; locationName: string };
 type KioskUser = { id: string; name: string; avatarUrl: string | null };
@@ -114,7 +114,14 @@ export function StudentHub({
         <div className="flex w-[55%] flex-col gap-4 overflow-y-auto">
           {loading ? (
             <div className="flex flex-1 items-center justify-center">
-              <Spinner className="size-8" />
+              <div className="space-y-4 w-full max-w-lg mx-auto">
+                <Skeleton className="h-8 w-40 mx-auto" />
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }, (_, i) => (
+                    <Skeleton key={i} className="h-16 rounded-lg" />
+                  ))}
+                </div>
+              </div>
             </div>
           ) : error ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3">

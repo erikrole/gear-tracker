@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -219,7 +219,17 @@ export default function CalendarSourcesPage() {
 
         {loading ? (
           <Card style={{ padding: 40, textAlign: "center" }}>
-            <Spinner className="size-8" />
+            <div className="space-y-3">
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} className="flex items-center justify-between py-3">
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-56" />
+                  </div>
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
+              ))}
+            </div>
           </Card>
         ) : sources.length === 0 ? (
           <Card style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
