@@ -52,6 +52,12 @@ export default function SearchPage() {
     return () => clearTimeout(t);
   }, [query, setUrlQuery]);
 
+  // NOTE (GAP-11): This page intentionally uses raw fetch() instead of useFetch.
+  // The search fans out to 4 endpoints in parallel (assets, checkouts, reservations,
+  // users) with a shared AbortController, then merges results into a unified list.
+  // useFetch is single-URL and doesn't support coordinated multi-endpoint abort/merge.
+  // Caching is also undesirable here — search results should always be fresh for the
+  // current query string.
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) {

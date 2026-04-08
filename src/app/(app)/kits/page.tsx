@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUrlState, useDebounce } from "@/hooks/use-url-state";
 import { useToast } from "@/components/Toast";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table";
 import EmptyState from "@/components/EmptyState";
 import { FadeUp } from "@/components/ui/motion";
+import { useFetch } from "@/hooks/use-fetch";
 import { useKitsQuery } from "./hooks/use-kits-query";
 import { NewKitSheet } from "./new-kit-sheet";
 
@@ -60,7 +61,6 @@ export default function KitsPage() {
   );
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [locations, setLocations] = useState<Location[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const query = useKitsQuery({
@@ -71,13 +71,12 @@ export default function KitsPage() {
     sortOrder,
   });
 
-  // Load locations for filter + creation sheet
-  useEffect(() => {
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((data) => setLocations(Array.isArray(data) ? data : data.data ?? []))
-      .catch(() => {});
-  }, []);
+  // Load locations for filter + creation sheet (cached via React Query)
+  const { data: locations } = useFetch<Location[]>({
+    url: "/api/locations",
+    refetchOnFocus: false,
+    transform: (json) => (Array.isArray(json) ? json : (json.data as Location[]) ?? []),
+  });
 
   const handleCreated = useCallback(
     (kitId: string) => {
@@ -150,7 +149,7 @@ export default function KitsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All locations</SelectItem>
-            {locations.map((loc) => (
+            {(locations ?? []).map((loc) => (
               <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
             ))}
           </SelectContent>
@@ -339,7 +338,7 @@ export default function KitsPage() {
       <NewKitSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        locations={locations}
+        locations={locations ?? []}
         onCreated={handleCreated}
       />
     </FadeUp>

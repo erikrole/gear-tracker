@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -19,7 +19,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import {
   Tooltip,
@@ -125,12 +125,7 @@ function downloadCsv(data: UtilizationData) {
 }
 
 export default function UtilizationPage() {
-  const [data, setData] = useState<UtilizationData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | false>(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [now, setNow] = useState(() => new Date());
-  const abortRef = useRef<AbortController | null>(null);
 
   // Update "ago" display every 60s
   useEffect(() => {
@@ -138,32 +133,10 @@ export default function UtilizationPage() {
     return () => clearInterval(id);
   }, []);
 
-  const loadData = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoading(true);
-    setError(false);
-    try {
-      const res = await fetch("/api/reports?type=utilization", { signal: controller.signal });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) { setError("Unable to load utilization report. Please try again."); return; }
-      const json = await res.json();
-      setData(json ?? null);
-      setLastRefreshed(new Date());
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      setError("You appear to be offline. Check your connection and try again.");
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-    return () => { abortRef.current?.abort(); };
-  }, [loadData]);
+  const { data, loading, error, lastRefreshed, reload } = useFetch<UtilizationData>({
+    url: "/api/reports?type=utilization",
+    transform: (json) => json as unknown as UtilizationData,
+  });
 
   if (loading && !data) {
     return (
@@ -204,8 +177,8 @@ export default function UtilizationPage() {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Failed to load utilization report</AlertTitle>
         <AlertDescription className="flex items-center gap-3">
-          <span>{error}</span>
-          <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load utilization report. Please try again."}</span>
+          <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
         </AlertDescription>
       </Alert>
     );
@@ -218,7 +191,7 @@ export default function UtilizationPage() {
       <div className="flex items-center mb-1 justify-end gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadData}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={reload}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </TooltipTrigger>

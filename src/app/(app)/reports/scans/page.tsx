@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
 import EmptyState from "@/components/EmptyState";
@@ -21,7 +21,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
 import dynamic from "next/dynamic";
 
 const LazyDailyScanVolumeChart = dynamic(
@@ -106,63 +106,40 @@ function syncUrl(params: Record<string, string | number>) {
 
 export default function ScanHistoryPage() {
   const searchParams = useSearchParams();
-  const [data, setData] = useState<ScanData | null>(null);
   const [page, setPage] = useState(() => {
     const p = searchParams.get("page");
     return p ? Math.max(0, Number(p) - 1) : 0;
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | false>(false);
   const [phaseFilter, setPhaseFilter] = useState(() => searchParams.get("phase") ?? "");
   const [periodDays, setPeriodDays] = useState(() => {
     const p = searchParams.get("period");
     return p && [7, 30, 90].includes(Number(p)) ? Number(p) : 0;
   });
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [now, setNow] = useState(() => new Date());
   const limit = 50;
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const loadData = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoading(true);
-    setError(false);
-    try {
-      const params = new URLSearchParams({
-        type: "scans",
-        limit: String(limit),
-        offset: String(page * limit),
-      });
-      if (phaseFilter) params.set("phase", phaseFilter);
-      if (periodDays > 0) {
-        params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
-      }
-      const res = await fetch(`/api/reports?${params}`, { signal: controller.signal });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) { setError("Unable to load scan report. Please try again."); return; }
-      const json = await res.json();
-      setData(json ?? null);
-      setLastRefreshed(new Date());
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      setError("You appear to be offline. Check your connection and try again.");
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
+  const fetchUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      type: "scans",
+      limit: String(limit),
+      offset: String(page * limit),
+    });
+    if (phaseFilter) params.set("phase", phaseFilter);
+    if (periodDays > 0) {
+      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
     }
+    return `/api/reports?${params}`;
   }, [page, phaseFilter, periodDays]);
 
-  useEffect(() => {
-    loadData();
-    return () => { abortRef.current?.abort(); };
-  }, [loadData]);
+  const { data, loading, error, lastRefreshed, reload } = useFetch<ScanData>({
+    url: fetchUrl,
+    transform: (json) => json as unknown as ScanData,
+  });
 
   if (loading && !data) {
     return (
@@ -192,7 +169,7 @@ export default function ScanHistoryPage() {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Failed to load scan report</AlertTitle>
         <AlertDescription className="flex items-center gap-3">
-          <span>{error}</span>
+          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load scan report. Please try again."}</span>
           <Button variant="outline" size="sm" onClick={() => { setPage(0); }}>Retry</Button>
         </AlertDescription>
       </Alert>
@@ -230,7 +207,7 @@ export default function ScanHistoryPage() {
         ))}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadData}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={reload}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </TooltipTrigger>

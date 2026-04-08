@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { formatDateFull, formatRelativeTime } from "@/lib/format";
@@ -22,7 +22,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
 import {
   Tooltip,
   TooltipContent,
@@ -100,48 +100,21 @@ function downloadCsv(rows: CheckoutRow[]) {
 
 export default function CheckoutsReportPage() {
   const searchParams = useSearchParams();
-  const [data, setData] = useState<CheckoutData | null>(null);
   const [days, setDays] = useState(() => {
     const p = searchParams.get("days");
     return p && [7, 30, 90].includes(Number(p)) ? Number(p) : 30;
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | false>(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [now, setNow] = useState(() => new Date());
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const loadData = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoading(true);
-    setError(false);
-    try {
-      const res = await fetch(`/api/reports?type=checkouts&days=${days}`, { signal: controller.signal });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) { setError("Unable to load checkout report. Please try again."); return; }
-      const json = await res.json();
-      setData(json ?? null);
-      setLastRefreshed(new Date());
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-      setError("You appear to be offline. Check your connection and try again.");
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
-    }
-  }, [days]);
-
-  useEffect(() => {
-    loadData();
-    return () => { abortRef.current?.abort(); };
-  }, [loadData]);
+  const { data, loading, error, lastRefreshed, reload } = useFetch<CheckoutData>({
+    url: `/api/reports?type=checkouts&days=${days}`,
+    transform: (json) => json as unknown as CheckoutData,
+  });
 
   if (loading && !data) {
     return (
@@ -182,8 +155,8 @@ export default function CheckoutsReportPage() {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Failed to load checkout report</AlertTitle>
         <AlertDescription className="flex items-center gap-3">
-          <span>{error}</span>
-          <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
+          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load checkout report. Please try again."}</span>
+          <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
         </AlertDescription>
       </Alert>
     );
@@ -212,7 +185,7 @@ export default function CheckoutsReportPage() {
         ))}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadData}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={reload}>
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </TooltipTrigger>

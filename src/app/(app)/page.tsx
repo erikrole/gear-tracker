@@ -15,6 +15,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
 
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
@@ -80,28 +81,31 @@ export default function DashboardPage() {
 
   // ── Create booking sheet state ──
   const [createCtx, setCreateCtx] = useState<CreateBookingContext | null>(null);
-  const [formOptions, setFormOptions] = useState<{ users: any[]; locations: any[]; bulkSkus: any[] } | null>(null);
-  const [currentUserId, setCurrentUserId] = useState("");
   const [draftId, setDraftId] = useState<string | null>(null);
 
-  // Fetch form options + current user once (lazy: on first sheet open)
-  useEffect(() => {
-    if (!createCtx || formOptions) return;
-    const controller = new AbortController();
-    Promise.all([
-      fetch("/api/form-options", { signal: controller.signal }).then((r) => r.ok ? r.json() : null),
-      fetch("/api/me", { signal: controller.signal }).then((r) => r.ok ? r.json() : null),
-    ]).then(([opts, me]) => {
-      if (controller.signal.aborted) return;
-      setFormOptions({
-        users: opts?.data?.users || [],
-        locations: opts?.data?.locations || [],
-        bulkSkus: opts?.data?.bulkSkus || [],
-      });
-      if (me?.user?.id) setCurrentUserId(me.user.id);
-    }).catch(() => {});
-    return () => controller.abort();
-  }, [createCtx, formOptions]);
+  // Lazy-fetch form options + current user (fires once createCtx is set)
+  const shouldFetchFormData = !!createCtx;
+
+  const { data: rawFormOptions } = useFetch<{ users: any[]; locations: any[]; bulkSkus: any[] }>({
+    url: "/api/form-options",
+    enabled: shouldFetchFormData,
+    refetchOnFocus: false,
+    transform: (json) => ({
+      users: (json.data as any)?.users || [],
+      locations: (json.data as any)?.locations || [],
+      bulkSkus: (json.data as any)?.bulkSkus || [],
+    }),
+  });
+
+  const { data: meData } = useFetch<{ id: string }>({
+    url: "/api/me",
+    enabled: shouldFetchFormData,
+    refetchOnFocus: false,
+    transform: (json) => (json as any)?.user ?? { id: "" },
+  });
+
+  const formOptions = rawFormOptions ?? null;
+  const currentUserId = meData?.id ?? "";
 
   const handleCreateBooking = useCallback((ctx: CreateBookingContext) => {
     setCreateCtx(ctx);
