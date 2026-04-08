@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import BookingListPage, { type BookingListConfig, type BookingItem } from "@/components/BookingListPage";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
@@ -21,6 +21,7 @@ async function fetchAction(url: string, method = "POST"): Promise<Response> {
 export default function BookingsPage() {
   const confirm = useConfirm();
   const { toast } = useToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "reservations" ? "reservations" : "checkouts";
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -128,7 +129,7 @@ export default function BookingsPage() {
           try {
             const res = await fetchAction(`/api/reservations/${bookingId}/convert`);
             if (res.ok) {
-              window.location.href = `/bookings?tab=checkouts`;
+              setActiveTab("checkouts"); router.push("/bookings?tab=checkouts");
             } else {
               const msg = await parseErrorMessage(res, "Conversion failed");
               toast(msg, "error");
@@ -147,7 +148,7 @@ export default function BookingsPage() {
             const res = await fetchAction(`/api/reservations/${bookingId}/duplicate`);
             if (res.ok) {
               toast("Reservation duplicated", "success");
-              window.location.href = `/bookings?tab=reservations`;
+              setActiveTab("reservations"); router.push("/bookings?tab=reservations");
             } else {
               const msg = await parseErrorMessage(res, "Duplicate failed");
               toast(msg, "error");

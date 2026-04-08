@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -202,6 +203,7 @@ export default function AllowedEmailsPage() {
   }
 
   return (
+    <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       {sidebar}
 
@@ -380,5 +382,6 @@ export default function AllowedEmailsPage() {
         </Card>
       </div>
     </div>
+    </FadeUp>
   );
 }

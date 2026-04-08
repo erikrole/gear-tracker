@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { FadeUp } from "@/components/ui/motion";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -203,6 +204,7 @@ export default function EscalationSettingsPage() {
   }
 
   return (
+    <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
@@ -289,5 +291,6 @@ export default function EscalationSettingsPage() {
         </Card>
       </div>
     </div>
+    </FadeUp>
   );
 }

@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import type { SportConfig } from "./types";
 import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
@@ -218,6 +219,7 @@ export default function SportsSettingsPage() {
 
   /* ---------- Normal render ---------- */
   return (
+    <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Sports</h2>
@@ -237,5 +239,6 @@ export default function SportsSettingsPage() {
         />
       </div>
     </div>
+    </FadeUp>
   );
 }

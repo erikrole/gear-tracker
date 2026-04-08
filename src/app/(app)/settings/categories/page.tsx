@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useToast } from "@/components/Toast";
 import { AlertTriangle, SearchIcon, WifiOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
 
 export default function CategoriesPage() {
+  const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export default function CategoriesPage() {
       setNewName("");
       setAdding(false);
       load();
-    } catch { toast.error("Failed to create category — please try again"); }
+    } catch { toast("Failed to create category — please try again", "error"); }
     setCreatingRoot(false);
   }
 
@@ -88,6 +90,7 @@ export default function CategoriesPage() {
       : "Something went wrong loading categories. Please try again.";
 
   return (
+    <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Categories</h2>
@@ -191,5 +194,6 @@ export default function CategoriesPage() {
         </Card>
       </div>
     </div>
+    </FadeUp>
   );
 }

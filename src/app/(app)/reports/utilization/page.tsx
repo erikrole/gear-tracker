@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import { formatRelativeTime } from "@/lib/format";
 import {
@@ -25,6 +26,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import Heatmap from "@/components/ui/heatmap";
 
 const LazyStatusDonut = dynamic(
   () => import("./charts").then((m) => ({ default: m.StatusDonut })),
@@ -41,6 +43,7 @@ type UtilizationData = {
   byLocation: { location: string; count: number }[];
   byType: { type: string; count: number }[];
   byDepartment: { department: string; count: number }[];
+  heatmap: { date: string; value: number }[];
 };
 
 const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
@@ -211,7 +214,7 @@ export default function UtilizationPage() {
   if (!data) return null;
 
   return (
-    <>
+    <FadeUp>
       <div className="flex items-center mb-1 justify-end gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -279,6 +282,27 @@ export default function UtilizationPage() {
           </div>
         )}
       </div>
-    </>
+
+      {data.heatmap && data.heatmap.length > 0 && (
+        <Card className="mt-2.5">
+          <CardHeader>
+            <CardTitle>365-Day Checkout Activity</CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto pb-4">
+            <Heatmap
+              data={data.heatmap}
+              startDate={new Date(Date.now() - 365 * 86_400_000)}
+              endDate={new Date()}
+              cellSize={14}
+              gap={3}
+              displayStyle="squares"
+              colorMode="discrete"
+              daysOfTheWeek="MWF"
+              valueDisplayFunction={(v) => `${v} checkout${v !== 1 ? "s" : ""}`}
+            />
+          </CardContent>
+        </Card>
+      )}
+    </FadeUp>
   );
 }

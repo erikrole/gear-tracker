@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import dynamic from "next/dynamic";
 
@@ -204,7 +205,7 @@ export default function ScanHistoryPage() {
   const entries = data.data ?? [];
 
   return (
-    <>
+    <FadeUp>
       {/* Filters */}
       <div className="flex items-center gap-3 mb-1 flex-wrap">
         <span className="text-sm text-muted-foreground">Period:</span>
@@ -327,6 +328,6 @@ export default function ScanHistoryPage() {
           </>
         )}
       </Card>
-    </>
+    </FadeUp>
   );
 }

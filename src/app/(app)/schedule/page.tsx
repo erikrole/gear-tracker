@@ -12,6 +12,7 @@ import {
   SheetBody,
 } from "@/components/ui/sheet";
 import { PageHeader } from "@/components/PageHeader";
+import { FadeUp } from "@/components/ui/motion";
 import { useToast } from "@/components/Toast";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import { ScheduleFilters } from "./_components/ScheduleFilters";
@@ -57,7 +58,7 @@ export default function SchedulePage() {
   }, [data, toast]);
 
   return (
-    <>
+    <FadeUp>
       <PageHeader title="Schedule">
         <Button
           variant="outline"
@@ -157,6 +158,6 @@ export default function SchedulePage() {
           </SheetBody>
         </SheetContent>
       </Sheet>
-    </>
+    </FadeUp>
   );
 }

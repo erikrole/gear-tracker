@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { AlertTriangle, Bell, WifiOff } from "lucide-react";
+import { AlertTriangle, Bell, CircleIcon, ShirtIcon, WifiOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useToast } from "@/components/Toast";
 import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect } from "@/lib/errors";
 import { PageHeader } from "@/components/PageHeader";
+import { FadeUp } from "@/components/ui/motion";
+import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
+import { Pagination, PaginationContent, PaginationPrevious, PaginationNext } from "@/components/ui/pagination";
 import { useUrlState } from "@/hooks/use-url-state";
 
 type Notification = {
@@ -42,11 +45,11 @@ function notifIcon(type: string) {
     case "checkout_due_now":
     case "checkout_overdue_2h":
     case "checkout_overdue_24h":
-      return "⚠";
+      return <AlertTriangle className="size-4" />;
     case "shift_gear_up":
-      return "🎒";
+      return <ShirtIcon className="size-4" />;
     default:
-      return "●";
+      return <CircleIcon className="size-4" />;
   }
 }
 
@@ -114,6 +117,7 @@ function NotificationsSkeleton() {
 const LIMIT = 20;
 
 export default function NotificationsPage() {
+  const { toast } = useToast();
   const [processing, setProcessing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -193,12 +197,12 @@ export default function NotificationsPage() {
       if (!res.ok) {
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);
-        toast.error("Failed to mark notifications as read. Please try again.");
+        toast("Failed to mark notifications as read. Please try again.", "error");
       }
     } catch {
       // Rollback on network error
       if (prevData) queryClient.setQueryData(queryKey, prevData);
-      toast.error("Failed to mark notifications as read. Please try again.");
+      toast("Failed to mark notifications as read. Please try again.", "error");
     }
     setMarkingAll(false);
   }
@@ -229,12 +233,12 @@ export default function NotificationsPage() {
       if (!res.ok) {
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);
-        toast.error("Failed to mark notification as read. Please try again.");
+        toast("Failed to mark notification as read. Please try again.", "error");
       }
     } catch {
       // Rollback on network error
       if (prevData) queryClient.setQueryData(queryKey, prevData);
-      toast.error("Failed to mark notification as read. Please try again.");
+      toast("Failed to mark notification as read. Please try again.", "error");
     }
     setMarkingId(null);
   }
@@ -245,12 +249,11 @@ export default function NotificationsPage() {
       const res = await fetch("/api/notifications/process", {
         method: "POST",
       });
-      const { toast } = await import("sonner");
       if (res.ok) {
-        toast.success("Overdue check complete");
+        toast("Overdue check complete", "success");
         reload();
       } else {
-        toast.error("Failed to process overdue notifications");
+        toast("Failed to process overdue notifications", "error");
       }
     } finally {
       setProcessing(false);
@@ -276,7 +279,7 @@ export default function NotificationsPage() {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <>
+    <FadeUp>
       <PageHeader title={unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications"}>
         <Button variant="outline" size="sm" onClick={runProcessing} disabled={processing}>
           {processing ? "Processing..." : "Check overdue"}
@@ -350,74 +353,69 @@ export default function NotificationsPage() {
                     {group.label}
                   </div>
                   {group.items.map((n) => (
-                    <div
+                    <Item
                       key={n.id}
-                      className={`flex gap-3 px-4 py-3 transition-colors ${
+                      size="sm"
+                      className={
                         n.readAt
                           ? "bg-background"
                           : "bg-primary/5 dark:bg-primary/10"
-                      }`}
+                      }
                     >
-                      <div
-                        className={`flex items-center justify-center size-9 rounded-full text-sm shrink-0 ${notifIconBg(n.type)}`}
-                      >
+                      <ItemMedia variant="icon" className={notifIconBg(n.type)}>
                         {notifIcon(n.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <span
-                            className={`text-sm leading-tight ${
-                              n.readAt
-                                ? "text-muted-foreground"
-                                : "font-semibold text-foreground"
-                            }`}
-                          >
-                            {n.title}
-                          </span>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                      </ItemMedia>
+                      <ItemContent>
+                        <ItemTitle
+                          className={
+                            n.readAt
+                              ? "text-muted-foreground font-normal"
+                              : "font-semibold text-foreground"
+                          }
+                        >
+                          {n.title}
+                          <span className="text-xs text-muted-foreground whitespace-nowrap font-normal ml-auto">
                             {formatTime(n.sentAt)}
                           </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
-                          {n.body}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          {n.payload?.bookingId &&
-                            (() => {
-                              const kind = n.payload?.bookingKind;
-                              const href =
-                                kind === "RESERVATION"
-                                  ? `/reservations/${n.payload.bookingId}`
-                                  : `/checkouts/${n.payload.bookingId}`;
-                              const label =
-                                kind === "RESERVATION"
-                                  ? "View reservation"
-                                  : "View checkout";
-                              return (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  asChild
-                                >
-                                  <Link href={href}>{label} →</Link>
-                                </Button>
-                              );
-                            })()}
-                          {!n.readAt && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-muted-foreground"
-                              onClick={() => markRead(n.id)}
-                              disabled={markingId === n.id}
-                            >
-                              {markingId === n.id ? "..." : "Mark read"}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                        </ItemTitle>
+                        <ItemDescription>{n.body}</ItemDescription>
+                      </ItemContent>
+                      <ItemActions>
+                        {n.payload?.bookingId &&
+                          (() => {
+                            const kind = n.payload?.bookingKind;
+                            const href =
+                              kind === "RESERVATION"
+                                ? `/reservations/${n.payload.bookingId}`
+                                : `/checkouts/${n.payload.bookingId}`;
+                            const label =
+                              kind === "RESERVATION"
+                                ? "View reservation"
+                                : "View checkout";
+                            return (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                asChild
+                              >
+                                <Link href={href}>{label} →</Link>
+                              </Button>
+                            );
+                          })()}
+                        {!n.readAt && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground"
+                            onClick={() => markRead(n.id)}
+                            disabled={markingId === n.id}
+                          >
+                            {markingId === n.id ? "..." : "Mark read"}
+                          </Button>
+                        )}
+                      </ItemActions>
+                    </Item>
                   ))}
                 </div>
               ))}
@@ -432,26 +430,22 @@ export default function NotificationsPage() {
             Showing {page * LIMIT + 1}–
             {Math.min((page + 1) * LIMIT, total)} of {total}
           </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 0}
-              onClick={() => setPage(page - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages - 1}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationPrevious
+                onClick={() => setPage(page - 1)}
+                aria-disabled={page === 0}
+                className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+              <PaginationNext
+                onClick={() => setPage(page + 1)}
+                aria-disabled={page >= totalPages - 1}
+                className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
-    </>
+    </FadeUp>
   );
 }

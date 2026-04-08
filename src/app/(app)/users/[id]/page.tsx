@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { AlertCircle, CalendarDays, CameraIcon, Copy, KeyRound, Loader2, TrashIcon } from "lucide-react";
 import { formatDateFull } from "@/lib/format";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 /* ── Tab Definitions ───────────────────────────────────── */
@@ -248,7 +249,7 @@ export default function UserDetailPage() {
   }
 
   return (
-    <>
+    <FadeUp>
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div className="flex gap-3 items-center">
@@ -409,6 +410,6 @@ export default function UserDetailPage() {
       {activeTab === "activity" && (
         <UserActivityTab userId={user.id} />
       )}
-    </>
+    </FadeUp>
   );
 }
