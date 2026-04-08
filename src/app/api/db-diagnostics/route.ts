@@ -161,7 +161,7 @@ async function checkExtensions() {
 async function checkColumns() {
   const rows: { table_name: string; column_name: string }[] =
     await db.$queryRawUnsafe(
-      `SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('assets', 'bookings', 'calendar_events', 'bulk_skus', 'bulk_sku_units') ORDER BY table_name, ordinal_position`,
+      `SELECT table_name::text, column_name::text FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('assets', 'bookings', 'calendar_events', 'bulk_skus', 'bulk_sku_units') ORDER BY table_name, ordinal_position`,
     );
 
   const byTable = new Map<string, Set<string>>();
