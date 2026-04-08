@@ -3,6 +3,7 @@ import { PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Event facilities — marked as home venues for calendar sync
 const homeVenues = [
   "Camp Randall Stadium",
   "Kohl Center",
@@ -10,15 +11,26 @@ const homeVenues = [
   "LaBahn Arena",
   "Goodman Softball Complex",
   "Porter Boathouse",
-  "McClimon Complex",
+  "McClimon Track/Soccer Complex",
   "Soderholm Family Aquatic Center",
   "Nielsen Tennis Stadium",
   "University Ridge",
   "Zimmer Championship Course",
 ];
 
+// Training/support buildings — locations but not event venues
+const supportFacilities = [
+  "Stephen M. Bennett Student-Athlete Performance Center",
+  "Fetzer Centers",
+  "Golf Training Center",
+  "McClain Facility",
+];
+
 // Legacy names for backwards compat
-const legacyNames = { "Camp Randall": "Camp Randall Stadium" };
+const legacyNames = {
+  "Camp Randall": "Camp Randall Stadium",
+  "McClimon Complex": "McClimon Track/Soccer Complex",
+};
 
 async function main() {
   // Rename legacy locations
@@ -40,6 +52,54 @@ async function main() {
       create: { name, isHomeVenue: true },
       update: { isHomeVenue: true },
     });
+  }
+
+  // Upsert support facilities (not home venues)
+  for (const name of supportFacilities) {
+    await prisma.location.upsert({
+      where: { name },
+      create: { name, isHomeVenue: false },
+      update: {},
+    });
+  }
+
+  // ── Venue mapping patterns (ICS location text → Location) ──
+  // Each pattern is matched against event venue text during calendar sync.
+  // Multiple patterns can map to the same location for flexibility.
+  // Only event facilities get venue mappings (not training/support buildings)
+  const venueMappings = [
+    { patterns: ["Camp Randall"],                          location: "Camp Randall Stadium" },
+    { patterns: ["Kohl Center"],                           location: "Kohl Center" },
+    { patterns: ["Field House", "UW Field House"],         location: "UW Field House" },
+    { patterns: ["LaBahn"],                                location: "LaBahn Arena" },
+    { patterns: ["Goodman", "Softball Complex"],           location: "Goodman Softball Complex" },
+    { patterns: ["Porter Boathouse", "Boathouse"],         location: "Porter Boathouse" },
+    { patterns: ["McClimon"],                              location: "McClimon Track/Soccer Complex" },
+    { patterns: ["Soderholm", "Aquatic Center"],           location: "Soderholm Family Aquatic Center" },
+    { patterns: ["Nielsen Tennis", "Nielsen Stadium"],     location: "Nielsen Tennis Stadium" },
+    { patterns: ["University Ridge"],                      location: "University Ridge" },
+    { patterns: ["Zimmer", "Championship Course"],         location: "Zimmer Championship Course" },
+  ];
+
+  for (const { patterns, location: locationName } of venueMappings) {
+    const loc = await prisma.location.findUnique({ where: { name: locationName } });
+    if (!loc) continue;
+    for (const pattern of patterns) {
+      await prisma.locationMapping.upsert({
+        where: { id: `seed-${pattern.toLowerCase().replace(/\s+/g, "-")}` },
+        create: {
+          id: `seed-${pattern.toLowerCase().replace(/\s+/g, "-")}`,
+          pattern,
+          locationId: loc.id,
+          priority: 10,
+        },
+        update: {
+          pattern,
+          locationId: loc.id,
+          priority: 10,
+        },
+      });
+    }
   }
 
   const campRandall = await prisma.location.findFirst({
