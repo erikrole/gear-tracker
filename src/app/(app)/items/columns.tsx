@@ -192,7 +192,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
   // Favorite star column
   columns.push({
     id: "favorite",
-    header: () => <Star className="size-3.5 text-muted-foreground" />,
+    header: () => <><Star className="size-3.5 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Favorite</span></>,
     size: 44,
     enableSorting: false,
     enableHiding: true,

@@ -227,7 +227,7 @@ export default function ItemDetailsPage() {
                 {count > 0 && (
                   <span className="ml-1 text-[10px] text-muted-foreground">{count}</span>
                 )}
-                <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono">{i + 1}</kbd>
+                <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono" aria-hidden="true">{i + 1}</kbd>
               </TabsTrigger>
             );
           })}

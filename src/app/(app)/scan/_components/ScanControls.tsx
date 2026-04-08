@@ -88,6 +88,8 @@ export function ScanControls({
       {/* Inline scan feedback */}
       {feedback && (
         <div
+          role="status"
+          aria-live="assertive"
           className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold animate-[scan-feedback-in_0.2s_ease] ${
             feedback.type === "success"
               ? "text-green-400 bg-green-950/40"

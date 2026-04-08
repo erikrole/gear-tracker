@@ -65,7 +65,7 @@ export function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers:
             <TooltipTrigger asChild>
               <Avatar size="sm" className="ring-2 ring-background cursor-default">
                 {u.avatarUrl ? (
-                  <AvatarImage src={u.avatarUrl} alt="" />
+                  <AvatarImage src={u.avatarUrl} alt={u.name} />
                 ) : (
                   <AvatarFallback className={getAvatarColor(u.name)}>{u.initials}</AvatarFallback>
                 )}

@@ -221,7 +221,8 @@ export default function AppSidebar({
                         </SidebarMenuButton>
                         {badgeCount > 0 && (
                           <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
-                            {badgeCount > 99 ? "99+" : badgeCount}
+                            <span className="sr-only">{badgeCfg!.count} {badgeCfg!.suffix}</span>
+                            <span aria-hidden="true">{badgeCount > 99 ? "99+" : badgeCount}</span>
                           </SidebarMenuBadge>
                         )}
                         {!badgeCount && badgeLabel && (

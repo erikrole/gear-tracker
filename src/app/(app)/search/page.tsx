@@ -190,6 +190,7 @@ export default function SearchPage() {
           placeholder="Search items, checkouts, reservations, users..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search items, checkouts, reservations, users"
         />
         <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 peer-disabled:opacity-50">
           <SearchIcon size={16} />
@@ -209,7 +210,7 @@ export default function SearchPage() {
       </div>
 
       {loading && (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6" role="status" aria-label="Loading search results">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i}>
               <Skeleton className="h-3.5 w-20 mb-2" />

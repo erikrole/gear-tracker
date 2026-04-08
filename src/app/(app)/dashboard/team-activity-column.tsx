@@ -108,6 +108,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                             className="inline-action-btn"
                             disabled={inlineActionId === c.id}
                             onClick={(e) => onExtend(c, e)}
+                            aria-label={`Extend checkout "${c.title}" by 1 day`}
                           >
                             <ClockIcon className="size-3.5" />
                           </Button>
@@ -182,6 +183,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
             type="single"
             value={homeAwayFilter}
             onValueChange={(v) => v && setHomeAwayFilter(v as HomeAwayFilter)}
+            aria-label="Home or away filter"
           >
             <ToggleGroupItem value="all" className="text-xs px-2 py-1">All</ToggleGroupItem>
             <ToggleGroupItem value="home" className="text-xs px-2 py-1">Home</ToggleGroupItem>
@@ -218,7 +220,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-7 transition-opacity">
+                          <Button variant="ghost" size="icon" className="size-7 transition-opacity" aria-label="Create booking for this event">
                             <PackageIcon className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
