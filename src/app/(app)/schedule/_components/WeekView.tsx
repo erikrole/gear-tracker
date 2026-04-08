@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sportLabel } from "@/lib/sports";
@@ -224,23 +225,24 @@ function MobileDaySection({
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
-    <div className={`border-b last:border-b-0 ${isToday ? "bg-[var(--accent-soft)]" : ""}`}>
-      <button
-        className="flex items-center justify-between w-full px-3 py-2 text-left bg-transparent border-none cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <span className={`text-sm font-medium ${isToday ? "text-[var(--accent)]" : ""}`}>
-          {dayHeaderLabel(day)}
-          {isToday && <span className="text-[10px] text-muted-foreground ml-1.5">Today</span>}
-        </span>
-        <span className="flex items-center gap-1.5">
-          {entries.length > 0 && (
-            <Badge variant="secondary" size="sm">{entries.length}</Badge>
-          )}
-          <ChevronDownIcon className={`size-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
-        </span>
-      </button>
-      {expanded && (
+    <Collapsible open={expanded} onOpenChange={setExpanded} className={`border-b last:border-b-0 ${isToday ? "bg-[var(--accent-soft)]" : ""}`}>
+      <CollapsibleTrigger asChild>
+        <button
+          className="flex items-center justify-between w-full px-3 py-2 text-left bg-transparent border-none cursor-pointer"
+        >
+          <span className={`text-sm font-medium ${isToday ? "text-[var(--accent)]" : ""}`}>
+            {dayHeaderLabel(day)}
+            {isToday && <span className="text-[10px] text-muted-foreground ml-1.5">Today</span>}
+          </span>
+          <span className="flex items-center gap-1.5">
+            {entries.length > 0 && (
+              <Badge variant="secondary" size="sm">{entries.length}</Badge>
+            )}
+            <ChevronDownIcon className={`size-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
         <div className="px-3 pb-3 flex flex-col gap-1.5">
           {entries.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2">No events</p>
@@ -257,8 +259,8 @@ function MobileDaySection({
             ))
           )}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

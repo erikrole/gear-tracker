@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NativeSelect } from "@/components/ui/native-select";
 import { PlusIcon, Trash2Icon, GripVerticalIcon } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { parseErrorMessage } from "@/lib/errors";
@@ -141,15 +142,14 @@ export default function BookingSettingsPage() {
                       placeholder="Button label"
                       className="h-9 flex-1"
                     />
-                    <select
+                    <NativeSelect
                       value={preset.minutes}
                       onChange={(e) => updatePresetMinutes(index, Number(e.target.value))}
-                      className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                     >
                       {DURATION_OPTIONS.map((d) => (
                         <option key={d.minutes} value={d.minutes}>{d.label}</option>
                       ))}
-                    </select>
+                    </NativeSelect>
                     <Button
                       variant="ghost"
                       size="icon-xs"

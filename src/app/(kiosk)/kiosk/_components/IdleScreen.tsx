@@ -5,7 +5,7 @@ import { AlertCircle, Clock, Package, RefreshCw, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getAvatarColor } from "@/lib/avatar";
 import { AvatarGrid } from "./AvatarGrid";
@@ -146,7 +146,14 @@ export function IdleScreen({ kioskInfo, onSelectUser }: Props) {
         {/* Dashboard loading */}
         {dashboardLoading && !dashboard && (
           <div className="flex flex-1 items-center justify-center">
-            <Spinner className="size-8" />
+            <div className="space-y-4 w-full max-w-lg mx-auto">
+              <Skeleton className="h-10 w-48 mx-auto" />
+              <div className="grid grid-cols-2 gap-3">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <Skeleton key={i} className="h-20 rounded-lg" />
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

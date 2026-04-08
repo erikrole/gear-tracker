@@ -16,10 +16,11 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, PackageIcon } from "lucide-react";
@@ -182,11 +183,6 @@ export default function CreateBookingSheet({
 
   // ── Item count for footer ──
   const itemCount = selectedAssetIds.length + selectedBulkItems.reduce((sum, b) => sum + b.quantity, 0);
-
-  // ── Toggle section (accordion behavior) ──
-  function toggleSection(section: Section) {
-    setOpenSection((prev) => (prev === section ? prev : section));
-  }
 
   // ── Draft management (extracted hook) ──
   const { saveDraft, deleteDraft, resetDraftLoaded } = useDraftManagement({
@@ -408,74 +404,74 @@ export default function CreateBookingSheet({
           </SheetHeader>
 
           <SheetBody className="px-0 py-0">
-            {/* ════════ Event Section ════════ */}
-            <EventSection
-              tieToEvent={form.tieToEvent}
-              sport={form.sport}
-              selectedEvent={form.selectedEvent}
-              events={events}
-              eventsLoading={eventsLoading}
-              myShiftForEvent={myShiftForEvent}
-              openSection={openSection}
-              eventSummary={eventSummary}
-              dispatch={dispatch}
-              selectEvent={selectEvent}
-              toggleSection={toggleSection}
-            />
+            <Accordion type="single" value={openSection} onValueChange={(v) => v && setOpenSection(v as Section)}>
+              {/* ════════ Event Section ════════ */}
+              <EventSection
+                tieToEvent={form.tieToEvent}
+                sport={form.sport}
+                selectedEvent={form.selectedEvent}
+                events={events}
+                eventsLoading={eventsLoading}
+                myShiftForEvent={myShiftForEvent}
+                openSection={openSection}
+                eventSummary={eventSummary}
+                dispatch={dispatch}
+                selectEvent={selectEvent}
+              />
 
-            {/* ════════ Details Section ════════ */}
-            <DetailsSection
-              form={form}
-              dispatch={dispatch}
-              users={users}
-              locations={locations}
-              kits={kits}
-              kitId={kitId}
-              setKitId={setKitId}
-              config={config}
-              openSection={openSection}
-              detailsSummary={detailsSummary}
-              toggleSection={toggleSection}
-            />
+              {/* ════════ Details Section ════════ */}
+              <DetailsSection
+                form={form}
+                dispatch={dispatch}
+                users={users}
+                locations={locations}
+                kits={kits}
+                kitId={kitId}
+                setKitId={setKitId}
+                config={config}
+                openSection={openSection}
+                detailsSummary={detailsSummary}
+              />
 
-            {/* ════════ Equipment Section ════════ */}
-            <Collapsible open={openSection === "equipment"} onOpenChange={() => toggleSection("equipment")}>
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 border-b px-6 py-3 text-left hover:bg-muted/50 transition-colors"
-                >
-                  <PackageIcon className="size-4 shrink-0 text-muted-foreground" />
-                  <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
-                    <span className="font-medium text-sm">Equipment</span>
-                    {openSection !== "equipment" && equipmentSummary}
+              {/* ════════ Equipment Section ════════ */}
+              <AccordionItem value="equipment">
+                <AccordionTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-6 py-3 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <PackageIcon className="size-4 shrink-0 text-muted-foreground" />
+                    <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                      <span className="font-medium text-sm">Equipment</span>
+                      {openSection !== "equipment" && equipmentSummary}
+                    </div>
+                    {openSection === "equipment" ? (
+                      <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="px-6 py-4">
+                    <EquipmentPicker
+                      bulkSkus={bulkSkus}
+                      selectedAssetIds={selectedAssetIds}
+                      setSelectedAssetIds={setSelectedAssetIds}
+                      selectedBulkItems={selectedBulkItems}
+                      setSelectedBulkItems={setSelectedBulkItems}
+                      visible={showEquipPicker}
+                      onDone={() => setShowEquipPicker(false)}
+                      onReopen={() => setShowEquipPicker(true)}
+                      startsAt={form.startsAt}
+                      endsAt={form.endsAt}
+                      locationId={form.locationId}
+                      onSelectedAssetsChange={setSelectedAssetDetails}
+                    />
                   </div>
-                  {openSection === "equipment" ? (
-                    <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                  )}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="border-b px-6 py-4">
-                  <EquipmentPicker
-                    bulkSkus={bulkSkus}
-                    selectedAssetIds={selectedAssetIds}
-                    setSelectedAssetIds={setSelectedAssetIds}
-                    selectedBulkItems={selectedBulkItems}
-                    setSelectedBulkItems={setSelectedBulkItems}
-                    visible={showEquipPicker}
-                    onDone={() => setShowEquipPicker(false)}
-                    onReopen={() => setShowEquipPicker(true)}
-                    startsAt={form.startsAt}
-                    endsAt={form.endsAt}
-                    locationId={form.locationId}
-                    onSelectedAssetsChange={setSelectedAssetDetails}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
             {/* ════════ Error Banner ════════ */}
             {createError && (

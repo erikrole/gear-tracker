@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ScanInput } from "./ScanInput";
 
 type KioskInfo = { kioskId: string; locationId: string; locationName: string };
@@ -182,9 +183,17 @@ export function ReturnFlow({
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner className="size-8" />
-          <p className="text-sm text-muted-foreground">Loading booking...</p>
+        <div className="space-y-3 p-4">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-32" />
+          <div className="space-y-2 mt-4">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="size-8 rounded" />
+                <Skeleton className="h-4 flex-1" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

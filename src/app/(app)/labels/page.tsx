@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -136,8 +136,15 @@ export default function LabelsPage() {
         </CardHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center py-10">
-            <Spinner className="size-8" />
+          <div className="px-4 py-4">
+            <div className="space-y-2">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2">
+                  <Skeleton className="size-5 rounded" />
+                  <Skeleton className="h-4" style={{ width: `${50 + (i % 3) * 15}%` }} />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="max-h-[300px] overflow-y-auto">

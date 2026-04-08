@@ -38,6 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import EmptyState from "@/components/EmptyState";
 import { FadeUp } from "@/components/ui/motion";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
@@ -438,7 +439,7 @@ export default function KitDetailPage() {
                 </div>
               )}
               {searchResults.length > 0 && (
-                <div className="border rounded-md divide-y max-h-[240px] overflow-y-auto">
+                <ScrollArea className="border rounded-md divide-y max-h-[240px]">
                   {searchResults.map((asset) => (
                     <div
                       key={asset.id}
@@ -464,7 +465,7 @@ export default function KitDetailPage() {
                       </Button>
                     </div>
                   ))}
-                </div>
+                </ScrollArea>
               )}
               {addSearch.trim().length >= 2 && !searching && searchResults.length === 0 && (
                 <p className="text-sm text-muted-foreground px-1">No matching items found.</p>

@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { BookingListConfig, AvailableAsset, BulkSkuOption } from "./types";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 
@@ -95,7 +96,7 @@ export function ConfirmBookingDialog({
                 <span className="text-muted-foreground">Equipment</span>
                 <Badge variant="secondary" className="text-xs">{totalItems} item{totalItems !== 1 ? "s" : ""}</Badge>
               </div>
-              <ul className="space-y-0.5 text-muted-foreground max-h-40 overflow-y-auto">
+              <ScrollArea className="max-h-40"><ul className="space-y-0.5 text-muted-foreground">
                 {selectedAssetDetails.map((a) => (
                   <li key={a.id} className="flex items-center gap-1.5">
                     <span className="text-foreground font-mono text-xs">{a.assetTag}</span>
@@ -108,7 +109,7 @@ export function ConfirmBookingDialog({
                     <span>&times; {bi.quantity}</span>
                   </li>
                 ))}
-              </ul>
+              </ul></ScrollArea>
             </div>
           )}
 
