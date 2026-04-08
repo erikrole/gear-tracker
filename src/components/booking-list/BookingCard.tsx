@@ -68,8 +68,12 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
   return (
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <div
-        className="group relative rounded-lg border border-[var(--border)] bg-[var(--panel-solid)] p-4 cursor-pointer transition-colors hover:bg-[var(--accent-soft)]"
+        className="group relative rounded-lg border border-[var(--border)] bg-[var(--panel-solid)] p-4 cursor-pointer transition-colors hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+        role="button"
+        tabIndex={0}
+        aria-label={`View booking: ${item.title}`}
         onClick={onClick}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       >
         {/* Top row: status + date range */}
         <div className="flex items-center justify-between mb-2">
@@ -77,6 +81,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
             <span
               className="size-2 rounded-full shrink-0"
               style={{ background: sv.dot }}
+              aria-hidden="true"
             />
             <span className="text-xs font-medium text-[var(--text-secondary)]">
               {sv.label}

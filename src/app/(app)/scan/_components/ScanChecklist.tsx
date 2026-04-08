@@ -161,11 +161,15 @@ export function ScanChecklist({
                     )}
 
                     {/* Circle */}
-                    <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${circleBorder} ${circleInner}`}>
+                    <div
+                      className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${circleBorder} ${circleInner}`}
+                      aria-label={isLost ? "Lost" : item.scanned ? "Scanned" : "Not scanned"}
+                      role="img"
+                    >
                       {isLost ? (
-                        <AlertTriangle className="size-4" />
+                        <AlertTriangle className="size-4" aria-hidden="true" />
                       ) : item.scanned ? (
-                        <svg className="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg className="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <polyline points="4 10 8 14 16 6" />
                         </svg>
                       ) : null}

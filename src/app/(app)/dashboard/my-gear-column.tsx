@@ -99,6 +99,7 @@ export function MyGearColumn({
                             className="inline-action-btn"
                             disabled={inlineActionId === c.id}
                             onClick={(e) => onExtend(c, e)}
+                            aria-label={`Extend checkout "${c.title}" by 1 day`}
                           >
                             <ClockIcon className="size-3.5" />
                           </Button>
@@ -160,6 +161,7 @@ export function MyGearColumn({
                         className="inline-action-btn"
                         disabled={inlineActionId === r.id}
                         onClick={(e) => onConvert(r.id, e)}
+                        aria-label={`Convert reservation "${r.title}" to checkout`}
                       >
                         <ArrowRightCircleIcon className="size-3.5" />
                       </Button>

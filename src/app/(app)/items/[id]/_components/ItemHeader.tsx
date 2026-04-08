@@ -82,6 +82,8 @@ function SerialBadge({ serialNumber }: { serialNumber: string }) {
             variant="outline"
             className="font-mono cursor-pointer select-none gap-1.5"
             onClick={handleCopy}
+            role="button"
+            aria-label={`Copy serial number ${serialNumber}`}
           >
             <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider">SN</span>
             {serialNumber}
@@ -176,6 +178,7 @@ export function ItemHeader({
               className={`relative rounded-lg border border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 aspect-square size-[120px] ${canEdit ? "cursor-pointer" : "cursor-default"} group`}
               onClick={() => canEdit && onImageModalOpen()}
               title={canEdit ? "Change image" : undefined}
+              aria-label={canEdit ? `Change image for ${asset.assetTag}` : `Image of ${asset.assetTag}`}
             >
               <Image src={asset.imageUrl} alt={asset.assetTag} width={240} height={240} sizes="120px" className="aspect-square object-cover rounded-lg" unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               {canEdit && (
@@ -185,7 +188,7 @@ export function ItemHeader({
               )}
             </button>
           ) : canEdit ? (
-            <button className="relative rounded-lg border border-dashed border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] aspect-square size-[120px]" onClick={onImageModalOpen} title="Add image">
+            <button className="relative rounded-lg border border-dashed border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] aspect-square size-[120px]" onClick={onImageModalOpen} title="Add image" aria-label="Add image">
               <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
             </button>
           ) : null}
@@ -216,7 +219,7 @@ export function ItemHeader({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={onRefresh} disabled={refreshing}>
+                <Button variant="ghost" size="icon" onClick={onRefresh} disabled={refreshing} aria-label="Refresh item details">
                   <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
                 </Button>
               </TooltipTrigger>

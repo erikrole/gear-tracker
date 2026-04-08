@@ -116,11 +116,14 @@ export function FilterChips({
           {hasActiveFilter && (
             <span
               role="button"
+              tabIndex={0}
               className="ml-0.5 rounded-full hover:bg-white/20 p-0.5"
+              aria-label="Clear filters"
               onClick={(e) => {
                 e.stopPropagation();
                 clearFilters();
               }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); clearFilters(); } }}
             >
               <XIcon className="size-3" />
             </span>
@@ -230,6 +233,7 @@ export function FilterChips({
                           e.stopPropagation();
                           handleDeletePreset(preset.id);
                         }}
+                        aria-label={`Delete saved filter "${preset.label}"`}
                       >
                         <XIcon className="size-2.5" />
                       </button>

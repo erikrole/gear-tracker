@@ -142,7 +142,7 @@ export default function UsersPage() {
       <PageHeader title="Users">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-7" onClick={reload} disabled={loading}>
+            <Button variant="ghost" size="icon" className="size-7" onClick={reload} disabled={loading} aria-label="Refresh users list">
               <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </TooltipTrigger>

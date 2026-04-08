@@ -299,8 +299,8 @@ export default function ItemsPage() {
         <div className="flex items-center gap-2">
           {options.canEdit && (
             <>
-              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="hidden sm:flex">
-                <Download className="size-4 mr-1.5" />
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="hidden sm:flex" aria-label={exporting ? "Exporting items" : "Export items to CSV"}>
+                <Download className="size-4 mr-1.5" aria-hidden="true" />
                 {exporting ? "Exporting…" : "Export"}
               </Button>
               <Button variant="outline" asChild><Link href="/import">Import</Link></Button>

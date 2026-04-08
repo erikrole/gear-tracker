@@ -249,7 +249,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </CommandGroup>
           )}
-          {cmdLoading && <div className="py-4 text-center text-sm text-muted-foreground">Searching...</div>}
+          {cmdLoading && <div className="py-4 text-center text-sm text-muted-foreground" role="status" aria-live="polite">Searching...</div>}
           {!cmdLoading && cmdQuery.trim() && cmdResults.length === 0 && (
             <CommandEmpty>No results found.</CommandEmpty>
           )}
@@ -377,6 +377,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             className="flex-1 max-w-[400px] flex items-center gap-2 w-full py-2 px-3 border border-border rounded-lg bg-background cursor-pointer transition-colors text-[13px] text-muted-foreground hover:border-[var(--accent)] max-md:hidden [&_svg]:shrink-0 [&_svg]:text-muted-foreground"
             onClick={() => setCmdOpen(true)}
             type="button"
+            aria-label="Search items, checkouts, reservations, users (⌘K)"
           >
             <SearchIcon className="size-4" />
             <span>Search... (⌘K)</span>
@@ -388,6 +389,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 size="icon"
                 className="hidden max-md:flex relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:items-center max-md:justify-center"
                 onClick={() => setCmdOpen(true)}
+                aria-label="Search"
               >
                 <SearchIcon className="size-5" />
               </Button>
@@ -398,10 +400,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:flex max-md:items-center max-md:justify-center [&_a]:no-underline" asChild>
-                  <Link href="/notifications">
+                  <Link href="/notifications" aria-label={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : "Notifications"}>
                     <BellIcon className="size-5" />
                     {unreadNotifications > 0 && (
-                      <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+                      <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
                     )}
                   </Link>
                 </Button>
@@ -411,7 +413,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative p-2 no-underline text-muted-foreground rounded-lg transition-colors hover:bg-black/5 hover:text-foreground max-md:p-2.5 max-md:min-w-[44px] max-md:min-h-[44px] max-md:flex max-md:items-center max-md:justify-center [&_a]:no-underline" asChild>
-                  <Link href={`/users/${user.id}`}>
+                  <Link href={`/users/${user.id}`} aria-label="My profile">
                     <UserIcon className="size-5" />
                   </Link>
                 </Button>
@@ -421,15 +423,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <BreadcrumbProvider>
-          <div id="main-content" className="py-7 px-8 flex-1 max-md:p-4 max-md:pb-[calc(80px+env(safe-area-inset-bottom,0px))] print:pb-0">
+          <main id="main-content" className="py-7 px-8 flex-1 max-md:p-4 max-md:pb-[calc(80px+env(safe-area-inset-bottom,0px))] print:pb-0">
             <PageBreadcrumb />
             {children}
-          </div>
+          </main>
         </BreadcrumbProvider>
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="hidden max-md:flex fixed bottom-0 left-0 right-0 z-[var(--z-overlay)] bg-[var(--panel-solid)] border-t border-border shadow-[0_-1px_3px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,4px)] pt-1 justify-around items-stretch print:hidden">
+      <nav aria-label="Mobile navigation" className="hidden max-md:flex fixed bottom-0 left-0 right-0 z-[var(--z-overlay)] bg-[var(--panel-solid)] border-t border-border shadow-[0_-1px_3px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,4px)] pt-1 justify-around items-stretch print:hidden">
         {bottomNavItems.map((item) => {
           const isActive =
             item.href === "/"

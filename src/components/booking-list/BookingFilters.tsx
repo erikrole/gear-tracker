@@ -67,6 +67,7 @@ export function BookingFilters({
             type="button"
             className="inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-[var(--text-muted)] bg-[var(--accent-soft)] text-sm font-medium text-[var(--text)] cursor-pointer transition-all whitespace-nowrap min-h-8 hover:bg-[var(--border-light)] hover:border-[var(--text-secondary)]"
             onClick={() => onSpecialFilterChange("")}
+            aria-label={`Clear ${specialFilter === "overdue" ? "overdue" : "due today"} filter`}
           >
             <span className="font-medium">Showing:</span>
             <span className="font-semibold">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>

@@ -205,6 +205,7 @@ export default function ScanPage() {
           </div>
           <Progress
             value={progressPct}
+            aria-label={`Scan progress: ${scannedItems} of ${totalItems} items scanned`}
             className={`h-2 md:h-2.5 ${allComplete ? "[&>[data-slot=progress-indicator]]:bg-green-500" : "[&>[data-slot=progress-indicator]]:bg-blue-500"}`}
           />
         </div>
@@ -307,6 +308,8 @@ export default function ScanPage() {
         <div
           className="fixed inset-0 flex items-center justify-center bg-black/40 z-40 animate-[fadeIn_0.2s_ease] p-[env(safe-area-inset-top)_env(safe-area-inset-right)_env(safe-area-inset-bottom)_env(safe-area-inset-left)]"
           onClick={() => session.setShowCelebration(false)}
+          role="dialog"
+          aria-label="All items scanned"
         >
           <div className="bg-[var(--panel-solid)] rounded-[20px] px-10 py-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-[scale-in_0.3s_ease] max-md:mx-6 max-md:px-6 max-md:py-7">
             <div className="text-5xl mb-2">{"\u2705"}</div>

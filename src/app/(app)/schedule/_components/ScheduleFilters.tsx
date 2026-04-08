@@ -45,6 +45,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         value={filters.viewMode}
         onValueChange={(v) => { if (v) filters.setViewMode(v as ViewMode); }}
         className="h-9"
+        aria-label="Schedule view mode"
       >
         <ToggleGroupItem value="list" className="h-9 px-3 gap-1.5 text-sm font-medium">
           <ListIcon className="size-4" />
@@ -65,6 +66,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         type="single"
         value={filters.homeAwayFilter}
         onValueChange={(v) => { if (v) filters.setHomeAwayFilter(v as HomeAwayFilter); }}
+        aria-label="Home or away filter"
       >
         <ToggleGroupItem value="all" className="h-9 px-3 text-sm font-medium">All</ToggleGroupItem>
         <ToggleGroupItem value="home" className="h-9 px-3 text-sm font-medium">Home</ToggleGroupItem>

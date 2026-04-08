@@ -36,8 +36,10 @@ export function AssetImage({
           className
         )}
         style={{ width: size, height: size }}
+        role="img"
+        aria-label={alt || "Item image placeholder"}
       >
-        <Package className="size-4 text-muted-foreground" />
+        <Package className="size-4 text-muted-foreground" aria-hidden="true" />
       </div>
     );
   }

@@ -91,6 +91,7 @@ export function ItemsToolbar({
             size="icon-xs"
             className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
             onClick={() => onSearchChange("")}
+            aria-label="Clear search"
           >
             <XIcon size={14} />
           </Button>
@@ -137,6 +138,8 @@ export function ItemsToolbar({
         size="sm"
         className="h-9 gap-1.5"
         onClick={() => onFavoritesOnlyChange(!favoritesOnly)}
+        aria-pressed={favoritesOnly}
+        aria-label="Filter to favorites only"
       >
         <Star className={`size-3.5 ${favoritesOnly ? "fill-current" : ""}`} />
         Favorites
