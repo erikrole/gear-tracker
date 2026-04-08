@@ -174,6 +174,11 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
   user_deactivated: "rose",
   user_activated: "green",
   role_changed: "purple",
+  login: "green",
+  logout: "muted",
+  registered: "green",
+  password_reset_self: "muted",
+  kiosk_activated: "green",
 };
 
 const RING_CLASSES: Record<ActionColorKey, string> = {
@@ -329,6 +334,16 @@ function describeAction(
       return `${reportPrefix}Activated a user account`;
     case "role_changed":
       return `${reportPrefix}Changed a user's role`;
+    case "login":
+      return `${reportPrefix}Signed in`;
+    case "logout":
+      return `${reportPrefix}Signed out`;
+    case "registered":
+      return `${reportPrefix}Created an account`;
+    case "password_reset_self":
+      return `${reportPrefix}Reset their password`;
+    case "kiosk_activated":
+      return "Kiosk device activated";
     default:
       return context === "report"
         ? `${actorName} performed ${entry.action.replace(/_/g, " ")}`
