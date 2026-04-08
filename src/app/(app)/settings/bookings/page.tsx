@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlusIcon, Trash2Icon, GripVerticalIcon } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
 import { parseErrorMessage } from "@/lib/errors";
 
 type Preset = { label: string; minutes: number };
@@ -35,6 +36,7 @@ function formatDuration(minutes: number): string {
 }
 
 export default function BookingSettingsPage() {
+  const { toast } = useToast();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,7 +48,7 @@ export default function BookingSettingsPage() {
       .then((json) => {
         if (json?.data?.presets) setPresets(json.data.presets);
       })
-      .catch(() => toast.error("Failed to load settings"))
+      .catch(() => toast("Failed to load settings", "error"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -75,7 +77,7 @@ export default function BookingSettingsPage() {
     if (saving || presets.length === 0) return;
     // Validate all labels are non-empty
     if (presets.some((p) => !p.label.trim())) {
-      toast.error("All presets need a label");
+      toast("All presets need a label", "error");
       return;
     }
     setSaving(true);
@@ -89,15 +91,16 @@ export default function BookingSettingsPage() {
         const msg = await parseErrorMessage(res, "Failed to save");
         throw new Error(msg);
       }
-      toast.success("Extend presets saved");
+      toast("Extend presets saved", "success");
       setDirty(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save");
+      toast(err instanceof Error ? err.message : "Failed to save", "error");
     }
     setSaving(false);
   }
 
   return (
+    <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Bookings</h2>
@@ -176,5 +179,6 @@ export default function BookingSettingsPage() {
         </Card>
       </div>
     </div>
+    </FadeUp>
   );
 }

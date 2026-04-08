@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import { formatRelativeTime } from "@/lib/format";
 import {
@@ -221,7 +222,7 @@ export default function OverdueLeaderboardPage() {
   const leaderboard = data.leaderboard ?? [];
 
   return (
-    <>
+    <FadeUp>
       <div className="flex items-center mb-1 justify-end gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -322,7 +323,7 @@ export default function OverdueLeaderboardPage() {
           </div>
         </Card>
       )}
-    </>
+    </FadeUp>
   );
 }
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
-import { toast } from "sonner";
+import { useToast } from "@/components/Toast";
 import {
   BoxIcon,
   PlusIcon,
@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import EmptyState from "@/components/EmptyState";
+import { FadeUp } from "@/components/ui/motion";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { handleAuthRedirect } from "@/lib/errors";
 import { classifyAssetType, EQUIPMENT_SECTIONS } from "@/lib/equipment-sections";
@@ -102,6 +103,7 @@ export default function KitDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
+  const { toast } = useToast();
   const [kit, setKit] = useState<KitDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -229,9 +231,9 @@ export default function KitDetailPage() {
       const { data } = await res.json();
       setKit(data);
       setSearchResults((r) => r.filter((a) => a.id !== assetId));
-      toast.success("Item added to kit");
+      toast("Item added to kit", "success");
     } catch (err) {
-      toast.error((err as Error).message);
+      toast((err as Error).message, "error");
     } finally {
       setAddingIds((s) => { const n = new Set(s); n.delete(assetId); return n; });
     }
@@ -248,9 +250,9 @@ export default function KitDetailPage() {
       setKit((prev) =>
         prev ? { ...prev, members: prev.members.filter((m) => m.id !== member.id) } : prev
       );
-      toast.success(`Removed ${member.asset.assetTag}`);
+      toast(`Removed ${member.asset.assetTag}`, "success");
     } catch {
-      toast.error("Failed to remove item");
+      toast("Failed to remove item", "error");
     } finally {
       setRemovingId(null);
       setRemoveTarget(null);
@@ -271,9 +273,9 @@ export default function KitDetailPage() {
       if (!res.ok) throw new Error("Failed to update");
       const { data } = await res.json();
       setKit(data);
-      toast.success(data.active ? "Kit restored" : "Kit archived");
+      toast(data.active ? "Kit restored" : "Kit archived", "success");
     } catch {
-      toast.error("Failed to update kit");
+      toast("Failed to update kit", "error");
     }
   }
 
@@ -285,10 +287,10 @@ export default function KitDetailPage() {
       const res = await fetch(`/api/kits/${id}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error("Failed to delete");
-      toast.success("Kit deleted");
+      toast("Kit deleted", "success");
       router.replace("/kits");
     } catch {
-      toast.error("Failed to delete kit");
+      toast("Failed to delete kit", "error");
     } finally {
       setDeleting(false);
       setDeleteOpen(false);
@@ -341,7 +343,7 @@ export default function KitDetailPage() {
   }
 
   return (
-    <>
+    <FadeUp>
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div className="flex items-center gap-3">
@@ -568,9 +570,9 @@ export default function KitDetailPage() {
                                 try {
                                   await fetch(`/api/kits/${kit.id}/bulk-members?membershipId=${bm.id}`, { method: "DELETE" });
                                   setKit((prev) => prev ? { ...prev, bulkMembers: prev.bulkMembers.filter((m) => m.id !== bm.id) } : prev);
-                                  toast.success("Bulk item removed from kit");
+                                  toast("Bulk item removed from kit", "success");
                                 } catch {
-                                  toast.error("Failed to remove bulk item");
+                                  toast("Failed to remove bulk item", "error");
                                 }
                               }}
                             >
@@ -634,7 +636,7 @@ export default function KitDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </FadeUp>
   );
 }
 

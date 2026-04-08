@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import type { ColumnMapping, PreviewData, ImportResult, Step } from "./_types";
 import { STEP_LABELS } from "./_types";
@@ -15,6 +16,7 @@ import { ImportResultStep } from "./_components/ImportResultStep";
 /* ───── Component ───── */
 
 export default function ImportPage() {
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -162,7 +164,7 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Failed to parse CSV");
-        toast.error(json.error || "Failed to parse CSV");
+        toast(json.error || "Failed to parse CSV", "error");
         setLoading(false);
         return;
       }
@@ -196,17 +198,17 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Import failed");
-        toast.error(json.error || "Import failed");
+        toast(json.error || "Import failed", "error");
         setStep("preview");
         return;
       }
 
       setResult(json);
       setStep("summary");
-      toast.success(`Imported ${json.created} items successfully`);
+      toast(`Imported ${json.created} items successfully`, "success");
     } catch {
       setError("Import failed unexpectedly");
-      toast.error("Import failed unexpectedly");
+      toast("Import failed unexpectedly", "error");
       setStep("preview");
     }
   }
@@ -242,7 +244,7 @@ export default function ImportPage() {
   }
 
   return (
-    <>
+    <FadeUp>
       <PageHeader title="Import Items">
         {step !== "upload" && step !== "importing" && (
           <Button variant="outline" onClick={resetWizard}>Start over</Button>
@@ -320,6 +322,6 @@ export default function ImportPage() {
           onReset={resetWizard}
         />
       )}
-    </>
+    </FadeUp>
   );
 }

@@ -20,18 +20,11 @@ import { ArrowUpDown, Loader2, RefreshCw, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
+import { FadeUp } from "@/components/ui/motion";
+import { formatRelativeTime } from "@/lib/format";
 import { useDebounce } from "@/hooks/use-url-state";
 
 const LIMIT = 50;
-
-function formatRelativeShort(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 10) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  return `${Math.floor(minutes / 60)}h ago`;
-}
 
 /* ── Sort Header ───────────────────────────────────────── */
 
@@ -144,7 +137,7 @@ export default function UsersPage() {
   const isInitialLoad = loading && users.length === 0 && !loadError;
 
   return (
-    <>
+    <FadeUp>
       {/* Header */}
       <PageHeader title="Users">
         <Tooltip>
@@ -155,7 +148,7 @@ export default function UsersPage() {
           </TooltipTrigger>
           <TooltipContent>
             {lastFetched
-              ? `Updated ${formatRelativeShort(lastFetched)}`
+              ? `Updated ${formatRelativeTime(lastFetched.toISOString(), new Date())}`
               : "Refresh"}
           </TooltipContent>
         </Tooltip>
@@ -300,6 +293,6 @@ export default function UsersPage() {
           </div>
         )}
       </div>
-    </>
+    </FadeUp>
   );
 }

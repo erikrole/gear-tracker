@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { FadeUp } from "@/components/ui/motion";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
 import { OperationalOverview, BookingsTab, CalendarTab, SettingsTab } from "./ItemBookingsTab";
@@ -199,7 +200,7 @@ export default function ItemDetailsPage() {
   const accessoriesCount = asset?.accessories?.length ?? 0;
 
   return (
-    <>
+    <FadeUp>
       <ItemHeader
         asset={asset}
         canEdit={canEdit}
@@ -308,6 +309,6 @@ export default function ItemDetailsPage() {
         currentImageUrl={asset.imageUrl}
         onImageChanged={(newUrl) => setAsset((prev) => prev ? { ...prev, imageUrl: newUrl } : prev)}
       />
-    </>
+    </FadeUp>
   );
 }

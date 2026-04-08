@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { FadeUp } from "@/components/ui/motion";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
 import MetricCard from "../MetricCard";
@@ -161,7 +162,7 @@ export default function AuditReportPage() {
   const entries = data.data ?? [];
 
   return (
-    <>
+    <FadeUp>
       {/* Retention notice */}
       <p className="text-xs text-muted-foreground mb-2">
         Audit logs are retained for 90 days. Older entries are automatically archived weekly.
@@ -260,6 +261,6 @@ export default function AuditReportPage() {
           </>
         )}
       </Card>
-    </>
+    </FadeUp>
   );
 }

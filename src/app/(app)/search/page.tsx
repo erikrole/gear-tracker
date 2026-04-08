@@ -13,6 +13,7 @@ import { useUrlState } from "@/hooks/use-url-state";
 import { SearchIcon, WifiOff, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
+import { FadeUp } from "@/components/ui/motion";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -177,6 +178,7 @@ export default function SearchPage() {
   };
 
   return (
+    <FadeUp>
     <div className="p-6">
       <PageHeader title="Search" />
 
@@ -280,5 +282,6 @@ export default function SearchPage() {
         </div>
       )}
     </div>
+    </FadeUp>
   );
 }

@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { useToast } from "@/components/Toast";
+import { FadeUp } from "@/components/ui/motion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -226,7 +227,7 @@ export default function BulkInventoryPage() {
   }
 
   return (
-    <>
+    <FadeUp>
       <PageHeader title="Bulk Inventory">
         <Button onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Close" : (
@@ -496,6 +497,6 @@ export default function BulkInventoryPage() {
           </>
         )}
       </Card>
-    </>
+    </FadeUp>
   );
 }

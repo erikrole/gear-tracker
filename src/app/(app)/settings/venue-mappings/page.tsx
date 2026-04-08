@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import {
   Select,
@@ -154,6 +155,7 @@ export default function VenueMappingsPage() {
   }
 
   return (
+    <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2>Venue Mappings</h2>
@@ -297,5 +299,6 @@ export default function VenueMappingsPage() {
         </Card>
       </div>
     </div>
+    </FadeUp>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect } from "@/lib/errors";
 import {
   Tooltip,
@@ -191,7 +192,7 @@ export default function CheckoutsReportPage() {
   if (!data) return null;
 
   return (
-    <>
+    <FadeUp>
       {/* Period selector */}
       <div className="flex items-center gap-3 mb-1 flex-wrap">
         <span className="text-sm text-muted-foreground">Period:</span>
@@ -349,6 +350,6 @@ export default function CheckoutsReportPage() {
           )}
         </Card>
       </div>
-    </>
+    </FadeUp>
   );
 }

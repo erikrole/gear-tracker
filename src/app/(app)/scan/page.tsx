@@ -19,6 +19,7 @@ import { ReportDamageDialog } from "./_components/ReportDamageDialog";
 import { ReportLostDialog } from "./_components/ReportLostDialog";
 import { CheckinSummaryDialog } from "./_components/CheckinSummaryDialog";
 import { parseErrorMessage } from "@/lib/errors";
+import { FadeUp } from "@/components/ui/motion";
 import type { ScanMode, SerializedItemStatus } from "./_components/types";
 
 export default function ScanPage() {
@@ -140,6 +141,7 @@ export default function ScanPage() {
 
   // ── Render ──
   return (
+    <FadeUp>
     <div className="flex flex-col gap-2 pb-4 md:gap-3 md:max-w-[640px] md:mx-auto max-md:pb-[100px]">
       {/* ══════ Compact header (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && (
@@ -353,5 +355,6 @@ export default function ScanPage() {
         onClose={() => submission.setItemPreview(null)}
       />
     </div>
+    </FadeUp>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -225,6 +226,7 @@ export default function KioskDevicesPage() {
   }
 
   return (
+    <FadeUp>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -443,5 +445,6 @@ export default function KioskDevicesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </FadeUp>
   );
 }

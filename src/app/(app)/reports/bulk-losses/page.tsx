@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { FadeUp } from "@/components/ui/motion";
 
 type SkuLoss = {
   skuName: string;
@@ -99,6 +100,7 @@ export default function BulkLossesReportPage() {
   }
 
   return (
+    <FadeUp>
     <div className="space-y-6">
       {/* Metrics row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -204,5 +206,6 @@ export default function BulkLossesReportPage() {
         </Card>
       )}
     </div>
+    </FadeUp>
   );
 }

@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/PageHeader";
 import { useFetch } from "@/hooks/use-fetch";
 import { useDebounce } from "@/hooks/use-url-state";
+import { FadeUp } from "@/components/ui/motion";
 
 function LabelQRCode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -103,7 +104,7 @@ export default function LabelsPage() {
   const selectedAssets = (assets ?? []).filter((a) => selectedIds.has(a.id));
 
   return (
-    <>
+    <FadeUp>
       <PageHeader title="Print Labels" className="no-print">
         <Button
           onClick={() => window.print()}
@@ -244,6 +245,6 @@ export default function LabelsPage() {
           }
         }
       `}</style>
-    </>
+    </FadeUp>
   );
 }

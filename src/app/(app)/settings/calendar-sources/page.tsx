@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import StatusIndicator from "@/components/ui/status-indicator";
 
 type CalendarSource = {
   id: string;
@@ -151,16 +152,17 @@ export default function CalendarSourcesPage() {
   }
 
   function healthBadge(source: CalendarSource) {
-    if (!source.enabled) return <Badge variant="gray">disabled</Badge>;
-    if (source.lastError) return <Badge variant="red" title={source.lastError}>error</Badge>;
-    if (!source.lastFetchedAt) return <Badge variant="gray">never synced</Badge>;
+    if (!source.enabled) return <StatusIndicator state="idle" label="Disabled" size="sm" />;
+    if (source.lastError) return <span title={source.lastError}><StatusIndicator state="down" label="Error" size="sm" /></span>;
+    if (!source.lastFetchedAt) return <StatusIndicator state="idle" label="Never synced" size="sm" />;
     const lastSync = new Date(source.lastFetchedAt);
     const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
-    if (hoursSince > 24) return <Badge variant="yellow">stale</Badge>;
-    return <Badge variant="green">healthy</Badge>;
+    if (hoursSince > 24) return <StatusIndicator state="fixing" label="Stale" size="sm" />;
+    return <StatusIndicator state="active" label="Healthy" size="sm" />;
   }
 
   return (
+    <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2>Calendar Sources</h2>
@@ -295,5 +297,6 @@ export default function CalendarSourcesPage() {
         )}
       </div>
     </div>
+    </FadeUp>
   );
 }
