@@ -3,6 +3,9 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
+import { useFetch } from "@/hooks/use-fetch";
+
+type MeData = { user: { id: string } };
 
 /**
  * /profile redirects to /users/{currentUserId}.
@@ -11,27 +14,19 @@ import { Spinner } from "@/components/ui/spinner";
 export default function ProfileRedirect() {
   const router = useRouter();
 
+  const { data, error } = useFetch<MeData>({
+    url: "/api/me",
+    transform: (json) => json as unknown as MeData,
+    refetchOnFocus: false,
+  });
+
   useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/me", { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error("Not authenticated");
-        return res.json();
-      })
-      .then((json) => {
-        if (controller.signal.aborted) return;
-        if (json?.user?.id) {
-          router.replace(`/users/${json.user.id}`);
-        } else {
-          router.replace("/login");
-        }
-      })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        router.replace("/login");
-      });
-    return () => controller.abort();
-  }, [router]);
+    if (data?.user?.id) {
+      router.replace(`/users/${data.user.id}`);
+    } else if (error) {
+      router.replace("/login");
+    }
+  }, [data, error, router]);
 
   return (
     <div className="flex items-center justify-center py-10">

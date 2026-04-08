@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -17,6 +16,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
+import { useFetch } from "@/hooks/use-fetch";
 
 type SkuLoss = {
   skuName: string;
@@ -45,36 +45,9 @@ type ReportData = {
 };
 
 export default function BulkLossesReportPage() {
-  const [data, setData] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const fetchData = useCallback(async () => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setLoading(true);
-    setError(false);
-
-    try {
-      const res = await fetch("/api/reports?type=bulk-losses", {
-        signal: controller.signal,
-      });
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      setData(json.data);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setError(true);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    return () => { abortRef.current?.abort(); };
-  }, [fetchData]);
+  const { data, loading, error, reload } = useFetch<ReportData>({
+    url: "/api/reports?type=bulk-losses",
+  });
 
   if (loading) {
     return (
@@ -91,7 +64,7 @@ export default function BulkLossesReportPage() {
         <AlertCircle className="size-4" />
         <AlertTitle>Failed to load report</AlertTitle>
         <AlertDescription>
-          <Button variant="outline" size="sm" onClick={fetchData} className="mt-2">
+          <Button variant="outline" size="sm" onClick={reload} className="mt-2">
             <RefreshCw className="size-3.5 mr-1.5" /> Retry
           </Button>
         </AlertDescription>

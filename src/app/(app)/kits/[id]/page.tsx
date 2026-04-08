@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { useToast } from "@/components/Toast";
@@ -43,6 +44,7 @@ import EmptyState from "@/components/EmptyState";
 import { FadeUp } from "@/components/ui/motion";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { handleAuthRedirect } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
 import { classifyAssetType, EQUIPMENT_SECTIONS } from "@/lib/equipment-sections";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 
@@ -105,9 +107,30 @@ export default function KitDetailPage() {
   const router = useRouter();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const { toast } = useToast();
-  const [kit, setKit] = useState<KitDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const queryClient = useQueryClient();
+
+  const kitUrl = `/api/kits/${id}`;
+  const { data: kit, loading, error: loadError, reload: reloadKit } = useFetch<KitDetail>({
+    url: kitUrl,
+    transform: (json) => (json as any).data as KitDetail,
+  });
+
+  // Set breadcrumb label when kit loads
+  useEffect(() => {
+    if (kit?.name) setBreadcrumbLabel(kit.name);
+  }, [kit?.name, setBreadcrumbLabel]);
+
+  // Helper to optimistically update kit in the React Query cache
+  const setKit = useCallback(
+    (updater: KitDetail | ((prev: KitDetail | null) => KitDetail | null)) => {
+      queryClient.setQueryData(["fetch", kitUrl], (prev: Record<string, unknown> | undefined) => {
+        const prevKit = prev ? (prev as any).data as KitDetail : null;
+        const next = typeof updater === "function" ? updater(prevKit) : updater;
+        return next ? { data: next } : prev;
+      });
+    },
+    [queryClient, kitUrl],
+  );
 
   // Add member search
   const [addSearch, setAddSearch] = useState("");
@@ -123,29 +146,6 @@ export default function KitDetailPage() {
   // Delete kit
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  // ── Load kit ────────────────────────────────────────────
-
-  const loadKit = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/kits/${id}`);
-      if (!res.ok) {
-        if (handleAuthRedirect(res)) return;
-        if (res.status === 404) { router.replace("/kits"); return; }
-        throw new Error();
-      }
-      const { data } = await res.json();
-      setKit(data);
-      if (data?.name) setBreadcrumbLabel(data.name);
-      setLoadError(false);
-    } catch {
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, router]);
-
-  useEffect(() => { loadKit(); }, [loadKit]);
 
   // ── Inline save handlers ────────────────────────────────
 

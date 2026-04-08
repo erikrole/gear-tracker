@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -37,6 +37,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
 
 type KioskDevice = {
   id: string;
@@ -51,15 +52,12 @@ type KioskDevice = {
 };
 
 type LocationOption = { id: string; name: string };
-type ErrorState = { type: "network" | "server"; message: string };
+type ErrorState = { type: "network" | "server" | "auth"; message: string };
 
 export default function KioskDevicesPage() {
   const { toast } = useToast();
   const confirm = useConfirm();
 
-  const [devices, setDevices] = useState<KioskDevice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ErrorState | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -68,7 +66,6 @@ export default function KioskDevicesPage() {
   const [addName, setAddName] = useState("");
   const [addLocationId, setAddLocationId] = useState("");
   const [adding, setAdding] = useState(false);
-  const [locations, setLocations] = useState<LocationOption[]>([]);
 
   // Activation code display
   const [codeDialog, setCodeDialog] = useState<{
@@ -76,45 +73,23 @@ export default function KioskDevicesPage() {
     code: string;
   } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/kiosk-devices");
-      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
-      if (res.status === 403) {
-        setError({ type: "server", message: "Admin access required" });
-        return;
-      }
-      if (res.ok) {
-        const json = await res.json();
-        setDevices(json.data);
-      } else {
-        setError({ type: "server", message: "Failed to load kiosk devices" });
-      }
-    } catch {
-      setError({ type: "network", message: "Could not connect to server" });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    data: devices,
+    loading,
+    error: fetchError,
+    reload: load,
+  } = useFetch<KioskDevice[]>({ url: "/api/kiosk-devices" });
 
-  const loadLocations = useCallback(async () => {
-    try {
-      const res = await fetch("/api/form-options");
-      if (res.ok) {
-        const json = await res.json();
-        setLocations(json.data?.locations ?? json.locations ?? []);
-      }
-    } catch {
-      // Non-critical — locations just won't be available for the form
-    }
-  }, []);
+  const { data: formOptions } = useFetch<{ locations: LocationOption[] }>({
+    url: "/api/form-options",
+    transform: (json) => (json as Record<string, unknown>).data as { locations: LocationOption[] },
+    refetchOnFocus: false,
+  });
+  const locations = formOptions?.locations ?? [];
 
-  useEffect(() => {
-    load();
-    loadLocations();
-  }, [load, loadLocations]);
+  const error: ErrorState | null = fetchError
+    ? { type: fetchError, message: fetchError === "network" ? "Could not connect to server" : "Failed to load kiosk devices" }
+    : null;
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -128,7 +103,7 @@ export default function KioskDevicesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedName, locationId: addLocationId }),
       });
-      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         setCodeDialog({ name: trimmedName, code: json.activationCode });
@@ -337,7 +312,7 @@ export default function KioskDevicesPage() {
       )}
 
       {/* Device list */}
-      {!loading && !error && devices.length === 0 && (
+      {!loading && !error && (devices ?? []).length === 0 && (
         <Card>
           <CardContent className="py-10 text-center">
             <Monitor className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
@@ -348,9 +323,9 @@ export default function KioskDevicesPage() {
         </Card>
       )}
 
-      {!loading && !error && devices.length > 0 && (
+      {!loading && !error && (devices ?? []).length > 0 && (
         <div className="space-y-3">
-          {devices.map((device) => (
+          {(devices ?? []).map((device) => (
             <Card key={device.id} className={!device.active ? "opacity-60" : ""}>
               <CardContent className="flex items-center gap-4 py-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">

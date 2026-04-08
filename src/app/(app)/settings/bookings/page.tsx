@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFetch } from "@/hooks/use-fetch";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,19 +40,20 @@ function formatDuration(minutes: number): string {
 export default function BookingSettingsPage() {
   const { toast } = useToast();
   const [presets, setPresets] = useState<Preset[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  const { data: settingsData, loading } = useFetch<{ presets: Preset[] }>({
+    url: "/api/settings/extend-presets",
+    refetchOnFocus: false,
+  });
+
+  // Sync fetched presets into local state (only on initial load)
   useEffect(() => {
-    fetch("/api/settings/extend-presets")
-      .then((r) => r.ok ? r.json() : null)
-      .then((json) => {
-        if (json?.data?.presets) setPresets(json.data.presets);
-      })
-      .catch(() => toast("Failed to load settings", "error"))
-      .finally(() => setLoading(false));
-  }, []);
+    if (settingsData?.presets && !dirty) {
+      setPresets(settingsData.presets);
+    }
+  }, [settingsData, dirty]);
 
   function addPreset() {
     if (presets.length >= 10) return;
