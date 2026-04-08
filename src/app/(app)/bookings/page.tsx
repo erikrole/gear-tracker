@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/PageHeader";
 /** Shared fetch wrapper with 401 redirect */
 async function fetchAction(url: string, method = "POST"): Promise<Response> {
   const res = await fetch(url, { method });
-  handleAuthRedirect(res);
+  handleAuthRedirect(res, "/bookings");
   return res;
 }
 

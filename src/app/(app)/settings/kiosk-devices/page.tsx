@@ -81,7 +81,7 @@ export default function KioskDevicesPage() {
     setError(null);
     try {
       const res = await fetch("/api/kiosk-devices");
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.status === 403) {
         setError({ type: "server", message: "Admin access required" });
         return;
@@ -128,7 +128,7 @@ export default function KioskDevicesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedName, locationId: addLocationId }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
         const json = await res.json();
         setCodeDialog({ name: trimmedName, code: json.activationCode });

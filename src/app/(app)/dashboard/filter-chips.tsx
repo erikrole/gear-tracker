@@ -20,8 +20,7 @@ function loadPresets(): FilterPreset[] {
   try {
     const raw = localStorage.getItem(PRESETS_KEY);
     return raw ? JSON.parse(raw) : [];
-  } catch (err) {
-    console.error("Failed to load filter presets from localStorage:", err);
+  } catch {
     return [];
   }
 }
