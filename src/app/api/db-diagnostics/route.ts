@@ -39,7 +39,7 @@ const EXPECTED_TABLES = [
   "student_sport_assignments",
   "student_area_assignments",
   "escalation_rules",
-  "system_configs",
+  "system_config",
   "favorite_items",
 ];
 
