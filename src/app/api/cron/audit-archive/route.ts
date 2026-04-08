@@ -59,9 +59,15 @@ export const GET = withHandler(async (req) => {
     totalDeleted += batchDeleted;
   } while (batchDeleted === BATCH_SIZE);
 
+  // Purge expired sessions
+  const expiredSessions = await db.session.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
+
   return NextResponse.json({
     ok: true,
-    deleted: totalDeleted,
+    auditLogsDeleted: totalDeleted,
+    sessionsDeleted: expiredSessions.count,
     cutoffDate: cutoff.toISOString(),
     retentionDays: RETENTION_DAYS,
   });
