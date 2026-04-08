@@ -280,7 +280,7 @@ export default function ItemDetailsPage() {
         <Card className="mt-3.5 border-border/40 max-w-3xl">
           <CardHeader><CardTitle>Activity Log</CardTitle></CardHeader>
           <CardContent className="p-4">
-            <ActivityFeed assetId={asset.id} />
+            <ActivityFeed assetId={asset.id} assetName={asset.name || asset.assetTag} />
           </CardContent>
         </Card>
       )}
