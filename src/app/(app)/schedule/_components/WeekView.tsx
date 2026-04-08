@@ -65,13 +65,13 @@ function weekRangeLabel(weekStart: Date): string {
 
 function eventBookingClass(entry: CalendarEntry): string {
   if (entry.isHome === true) return "week-event week-event-home";
-  // Neutral sites (null) treated as away
-  return "week-event week-event-away";
+  if (entry.isHome === false) return "week-event week-event-away";
+  return "week-event week-event-neutral";
 }
 
 function eventDisplayName(entry: CalendarEntry): string {
   if (entry.sportCode && entry.opponent) {
-    return `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`;
+    return `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`;
   }
   return entry.summary;
 }

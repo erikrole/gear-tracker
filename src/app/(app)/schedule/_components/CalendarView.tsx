@@ -29,7 +29,8 @@ function isToday(calMonth: Date, day: number) {
 
 function calBookingClass(entry: CalendarEntry): string {
   if (entry.isHome === true) return "cal-booking cal-booking-home";
-  return "cal-booking cal-booking-away";
+  if (entry.isHome === false) return "cal-booking cal-booking-away";
+  return "cal-booking cal-booking-neutral";
 }
 
 function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
@@ -177,7 +178,7 @@ export function CalendarView({
                               )}
                               <span className="truncate">
                                 {entry.sportCode && entry.opponent
-                                  ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
+                                  ? `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`
                                   : entry.summary}
                               </span>
                             </button>
@@ -194,7 +195,7 @@ export function CalendarView({
                               className={calBookingClass(entry)}
                             >
                               {entry.sportCode && entry.opponent
-                                ? `${sportLabel(entry.sportCode)} ${entry.isHome === true ? "vs" : "at"} ${entry.opponent}`
+                                ? `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`
                                 : entry.summary}
                             </Link>
                           </TooltipTrigger>

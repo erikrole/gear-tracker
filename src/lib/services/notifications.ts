@@ -241,7 +241,7 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
   if (existing) return;
 
   const eventTitle = event.opponent
-    ? `${event.isHome ? "vs" : "at"} ${event.opponent}`
+    ? `${event.isHome === false ? "at" : "vs"} ${event.opponent}`
     : event.summary;
 
   const shiftTime = new Date(assignment.shift.startsAt).toLocaleString("en-US", {

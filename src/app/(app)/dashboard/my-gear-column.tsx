@@ -190,7 +190,7 @@ export function MyGearColumn({
             {(filtered?.myShifts ?? data.myShifts).map((s) => {
               const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
               const eventTitle = s.event.opponent
-                ? `${s.event.isHome ? "vs" : "at"} ${s.event.opponent}`
+                ? `${s.event.isHome === false ? "at" : "vs"} ${s.event.opponent}`
                 : s.event.summary;
               return (
                 <div key={s.id} className="ops-row">

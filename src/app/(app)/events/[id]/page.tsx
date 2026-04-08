@@ -213,11 +213,9 @@ export default function EventDetailPage() {
         {event.sportCode && (
           <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>
         )}
-        {event.isHome !== null && (
-          <Badge variant={event.isHome ? "green" : "orange"}>
-            {event.isHome ? "Home" : "Away"}
-          </Badge>
-        )}
+        {event.isHome === true && <Badge variant="green">Home</Badge>}
+        {event.isHome === false && <Badge variant="orange">Away</Badge>}
+        {event.isHome === null && event.opponent && <Badge variant="blue">Neutral</Badge>}
         {event.location ? (
           <Badge variant="blue">{event.location.name}</Badge>
         ) : (
