@@ -7,21 +7,13 @@ import { useFetch } from "@/hooks/use-fetch";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { FadeUp } from "@/components/ui/motion";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
 import MetricCard from "../MetricCard";
+import ActivityTimeline, { type AuditEntry as TimelineEntry } from "@/components/ActivityTimeline";
 
 const LazyActionBreakdownChart = dynamic(
   () => import("./charts").then((m) => ({ default: m.ActionBreakdownChart })),
@@ -44,6 +36,7 @@ type AuditEntry = {
   entityId: string;
   action: string;
   createdAt: string;
+  details?: Record<string, unknown> | null;
 };
 
 type AuditData = {
@@ -55,20 +48,18 @@ type AuditData = {
   offset: number;
 };
 
-function AuditMobileCard({ entry }: { entry: AuditEntry }) {
-  return (
-    <div className="flex flex-col gap-1 px-4 py-3 border-b last:border-b-0">
-      <div className="flex items-center justify-between">
-        <Badge variant="gray">{entry.action}</Badge>
-        <span className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
-      </div>
-      <div className="text-sm">
-        <span>{entry.actor}</span>
-        <span className="text-muted-foreground"> &middot; </span>
-        <span className="font-mono text-xs">{entry.entityType}:{entry.entityId.slice(0, 8)}</span>
-      </div>
-    </div>
-  );
+/** Convert the report API shape to the shared AuditEntry shape */
+function toTimelineEntries(entries: AuditEntry[]): TimelineEntry[] {
+  return entries.map((e) => ({
+    id: e.id,
+    action: e.action,
+    entityType: e.entityType,
+    entityId: e.entityId,
+    createdAt: e.createdAt,
+    beforeJson: null,
+    afterJson: e.details ?? null,
+    actor: { name: e.actor },
+  }));
 }
 
 function downloadCsv(entries: AuditEntry[]) {
@@ -128,6 +119,11 @@ export default function AuditReportPage() {
     url: fetchUrl,
     transform: (json) => json as unknown as AuditData,
   });
+
+  const timelineEntries = useMemo(
+    () => (data?.data ? toTimelineEntries(data.data) : []),
+    [data?.data],
+  );
 
   if (loading && !data) {
     return (
@@ -218,36 +214,13 @@ export default function AuditReportPage() {
           <EmptyState icon="clipboard" title="No audit log entries" />
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Actor</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Entity</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="text-sm">{formatDateTime(entry.createdAt)}</TableCell>
-                      <TableCell>{entry.actor}</TableCell>
-                      <TableCell><Badge variant="gray">{entry.action}</Badge></TableCell>
-                      <TableCell className="text-sm font-mono">{entry.entityType}:{entry.entityId.slice(0, 8)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="md:hidden">
-              {entries.map((entry) => (
-                <AuditMobileCard key={entry.id} entry={entry} />
-              ))}
-            </div>
+            <CardContent className="p-0">
+              <ActivityTimeline
+                entries={timelineEntries}
+                context="report"
+                loading={loading}
+              />
+            </CardContent>
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t">

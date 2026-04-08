@@ -25,9 +25,9 @@ import {
   BookingEditForm,
   BookingItems,
   BookingEquipmentEditor,
-  BookingHistory,
   BookingActions,
 } from "./booking-details";
+import ActivityTimeline from "@/components/ActivityTimeline";
 import type {
   BookingDetail,
   AvailableAsset,
@@ -91,13 +91,10 @@ export default function BookingDetailsSheet({
 
   // History filter + audit log pagination
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
-  const [expandedDiffs, setExpandedDiffs] = useState<Set<string>>(new Set());
   const [extraAuditLogs, setExtraAuditLogs] = useState<BookingDetail["auditLogs"]>([]);
   const [auditLogCursor, setAuditLogCursor] = useState<string | null>(null);
   const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
   const [loadingMoreAuditLogs, setLoadingMoreAuditLogs] = useState(false);
-
-  const isAdmin = currentUserRole === "ADMIN";
 
   const [fetchError, setFetchError] = useState(false);
 
@@ -658,14 +655,6 @@ export default function BookingDetailsSheet({
     setCheckinLoading(false);
   }
 
-  function toggleDiff(entryId: string) {
-    setExpandedDiffs((prev) => {
-      const next = new Set(prev);
-      if (next.has(entryId)) next.delete(entryId);
-      else next.add(entryId);
-      return next;
-    });
-  }
 
   /* ───── Render ───── */
 
@@ -813,15 +802,12 @@ export default function BookingDetailsSheet({
 
               {/* History Tab */}
               {tab === "history" && (
-                <BookingHistory
-                  filteredAuditLogs={filteredAuditLogs}
-                  historyFilter={historyFilter}
-                  onSetHistoryFilter={setHistoryFilter}
-                  isAdmin={isAdmin}
-                  expandedDiffs={expandedDiffs}
-                  onToggleDiff={toggleDiff}
+                <ActivityTimeline
+                  entries={filteredAuditLogs}
+                  context="booking"
+                  entityName={booking?.title}
                   hasMore={hasMoreAuditLogs}
-                  loadingMore={loadingMoreAuditLogs}
+                  loading={loadingMoreAuditLogs}
                   onLoadMore={loadMoreAuditLogs}
                 />
               )}
