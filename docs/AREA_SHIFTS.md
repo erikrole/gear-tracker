@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-04-06
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-04-07
 
 ## Purpose
 
@@ -103,3 +103,4 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-04-03 | **Stress test (5 issues found, 5 fixed):** BRK-001: ShiftGroup PATCH wrapped in SERIALIZABLE transaction (was read-then-write without tx). BRK-002: `approveRequest` now re-checks time conflicts + active assignment at approval time (was missing since initial impl). BRK-003: `directAssignShift` now declines orphaned REQUESTED assignments when filling slot. BRK-004: `removeAssignment` now guards against removing terminal-status assignments. BRK-005: Global ZodError handling in `fail()` returns 400 instead of 500 for invalid payloads. | — |
 | 2026-04-04 | **Doc sync:** Added Information Architecture section (WeekView, stat strip, scan feedback cross-reference). Updated acceptance criteria for V1.5 shipped features. Updated last-updated date. | — |
 | 2026-04-04 | **Event detail hardened (6-pass):** hasLoadedRef pattern (refresh keeps visible data), global `acting` spam-click guard on nudge, `finally` on all mutations, refresh failure toasts instead of clobbering data, EventSkeleton updated to include shift coverage card section, `setBreadcrumbLabel` added to useCallback deps. | — |
+| 2026-04-07 | **Event detail migrated to useFetch:** Replaced 9 useState + 4 raw fetch calls with `useFetch` hook (React Query-backed). Adds cross-page caching, stale-while-revalidate, visibility refresh. Nudge mutation now uses `classifyError` for network vs server error toasts. `handleHideEvent` on schedule page also upgraded with `classifyError` + `parseErrorMessage`. | — |

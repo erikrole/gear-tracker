@@ -18,7 +18,7 @@ import { useScheduleData } from "@/hooks/use-schedule-data";
 import { ScheduleFilters } from "./_components/ScheduleFilters";
 import { CalendarView } from "./_components/CalendarView";
 import { WeekView } from "./_components/WeekView";
-import { handleAuthRedirect } from "@/lib/errors";
+import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { ListView } from "./_components/ListView";
 
 const ShiftDetailPanel = dynamic(
@@ -48,10 +48,18 @@ export default function SchedulePage() {
       if (res.ok) {
         data.loadData();
       } else {
-        toast("Failed to hide event", "error");
+        const msg = await parseErrorMessage(res, "Failed to hide event");
+        toast(msg, "error");
       }
-    } catch {
-      toast("Network error — could not hide event", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(
+        kind === "network"
+          ? "You\u2019re offline \u2014 could not hide event"
+          : "Something went wrong \u2014 could not hide event",
+        "error",
+      );
     } finally {
       hidingRef.current.delete(eventId);
     }

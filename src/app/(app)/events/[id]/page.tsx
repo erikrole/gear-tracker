@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { RefreshCw, WifiOff, AlertTriangle } from "lucide-react";
-import { handleAuthRedirect } from "@/lib/errors";
+import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
 import { useToast } from "@/components/Toast";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import DataList from "@/components/DataList";
@@ -26,132 +27,63 @@ export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const { toast } = useToast();
-  const [event, setEvent] = useState<CalendarEvent | null>(null);
-  const [fetchError, setFetchError] = useState<"network" | "server" | null>(null);
-  const [shiftGroup, setShiftGroup] = useState<ShiftGroupSummary | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState("");
-  const [currentUserRole, setCurrentUserRole] = useState("STUDENT");
-  const [commandCenter, setCommandCenter] = useState<CommandCenterData | null>(null);
   const [acting, setActing] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [, setTick] = useState(0);
 
-  const abortRef = useRef<AbortController | null>(null);
-  const hasLoadedRef = useRef(false);
+  // ── Data fetching via useFetch ──
+  const {
+    data: event,
+    loading: eventLoading,
+    refreshing: eventRefreshing,
+    error: fetchError,
+    lastRefreshed,
+    reload: reloadEvent,
+  } = useFetch<CalendarEvent>({
+    url: `/api/calendar-events/${id}`,
+    returnTo: `/events/${id}`,
+  });
 
-  // Tick for "Updated X ago" freshness
+  const {
+    data: shiftGroup,
+    reload: reloadShiftGroup,
+  } = useFetch<ShiftGroupSummary | null>({
+    url: `/api/shift-groups?eventId=${id}`,
+    transform: (json) => {
+      const groups = (json.data ?? []) as ShiftGroupSummary[];
+      return groups[0] ?? null;
+    },
+  });
+
+  const { data: meData } = useFetch<{ id: string; role: string }>({
+    url: "/api/me",
+    transform: (json) => (json as Record<string, unknown>).user as { id: string; role: string },
+    refetchOnFocus: false,
+  });
+  const currentUserId = meData?.id ?? "";
+  const currentUserRole = meData?.role ?? "STUDENT";
+  const isStaffOrAdmin = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
+
+  const {
+    data: commandCenter,
+    reload: reloadCommandCenter,
+  } = useFetch<CommandCenterData | null>({
+    url: `/api/calendar-events/${id}/command-center`,
+    transform: (json) => (json?.data as CommandCenterData) ?? null,
+    enabled: isStaffOrAdmin,
+  });
+
+  // Set breadcrumb label when event data arrives
   useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 30_000);
-    return () => clearInterval(interval);
-  }, []);
+    if (event?.summary) setBreadcrumbLabel(event.summary);
+  }, [event?.summary, setBreadcrumbLabel]);
 
-  // isRefresh=true means we already have data visible — don't clobber it on failure
-  const loadEvent = useCallback(async (signal?: AbortSignal, isRefresh = false) => {
-    try {
-      const res = await fetch(`/api/calendar-events/${id}`, { signal });
-      if (signal?.aborted) return;
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) {
-        if (!isRefresh) setFetchError("server");
-        return;
-      }
-      const json = await res.json();
-      if (json?.data) {
-        setEvent(json.data);
-        setBreadcrumbLabel(json.data.summary);
-        setFetchError(null);
-        setLastUpdated(new Date());
-        hasLoadedRef.current = true;
-      } else if (!isRefresh) {
-        setFetchError("server");
-      }
-    } catch (err) {
-      if (signal?.aborted) return;
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      if (!isRefresh) setFetchError("network");
-    }
-  }, [id, setBreadcrumbLabel]);
+  const handleRefresh = useCallback(() => {
+    reloadEvent();
+    reloadShiftGroup();
+    if (isStaffOrAdmin) reloadCommandCenter();
+  }, [reloadEvent, reloadShiftGroup, reloadCommandCenter, isStaffOrAdmin]);
 
-  const loadShiftGroup = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await fetch(`/api/shift-groups?eventId=${id}`, { signal });
-      if (signal?.aborted) return;
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        const group = (json.data ?? [])[0];
-        if (group) setShiftGroup(group);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-    }
-  }, [id]);
-
-  const loadCommandCenter = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const res = await fetch(`/api/calendar-events/${id}/command-center`, { signal });
-      if (signal?.aborted) return;
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.data) setCommandCenter(json.data);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-    }
-  }, [id]);
-
-  // Initial load with AbortController
-  useEffect(() => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    loadEvent(controller.signal);
-    loadShiftGroup(controller.signal);
-
-    fetch("/api/me", { signal: controller.signal })
-      .then((r) => {
-        if (handleAuthRedirect(r)) return null;
-        return r.ok ? r.json() : null;
-      })
-      .then((j) => {
-        if (controller.signal.aborted) return;
-        if (j?.user) {
-          setCurrentUserId(j.user.id);
-          setCurrentUserRole(j.user.role);
-          if (j.user.role === "STAFF" || j.user.role === "ADMIN") {
-            loadCommandCenter(controller.signal);
-          }
-        }
-      })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-      });
-
-    return () => controller.abort();
-  }, [id, loadEvent, loadShiftGroup, loadCommandCenter]);
-
-  const handleRefresh = useCallback(async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    const controller = new AbortController();
-    try {
-      await Promise.all([
-        loadEvent(controller.signal, true),
-        loadShiftGroup(controller.signal),
-        ...(currentUserRole === "STAFF" || currentUserRole === "ADMIN"
-          ? [loadCommandCenter(controller.signal)]
-          : []),
-      ]);
-    } catch {
-      toast("Failed to refresh — showing last known data", "error");
-    } finally {
-      setRefreshing(false);
-    }
-  }, [loadEvent, loadShiftGroup, loadCommandCenter, currentUserRole, refreshing, toast]);
+  const refreshing = eventRefreshing;
 
   // Error state (only when we have NO data to show)
   if (fetchError && !event) {
@@ -167,7 +99,7 @@ export default function EventDetailPage() {
           </AlertDescription>
         </Alert>
         <div className="mt-4 flex gap-3 justify-center">
-          <Button variant="outline" onClick={() => { setFetchError(null); handleRefresh(); }}>
+          <Button variant="outline" onClick={reloadEvent}>
             Try again
           </Button>
           <Button variant="ghost" asChild>
@@ -179,7 +111,7 @@ export default function EventDetailPage() {
   }
 
   // Loading skeleton (only on initial load, not refresh)
-  if (!event) {
+  if (eventLoading || !event) {
     return <EventSkeleton />;
   }
 
@@ -200,7 +132,7 @@ export default function EventDetailPage() {
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {lastUpdated ? `Updated ${timeAgo(lastUpdated)}` : "Refresh"}
+              {lastRefreshed ? `Updated ${timeAgo(lastRefreshed)}` : "Refresh"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -279,13 +211,21 @@ export default function EventDetailPage() {
                 body: JSON.stringify({ assignmentId }),
               });
               if (handleAuthRedirect(res)) return;
-              if (res.ok) {
-                toast(`Nudge sent to ${userName}`, "success");
+              if (!res.ok) {
+                const msg = await parseErrorMessage(res, "Failed to send nudge");
+                toast(msg, "error");
               } else {
-                toast("Failed to send nudge", "error");
+                toast(`Nudge sent to ${userName}`, "success");
               }
-            } catch {
-              toast("Network error — nudge not sent", "error");
+            } catch (err) {
+              if (isAbortError(err)) return;
+              const kind = classifyError(err);
+              toast(
+                kind === "network"
+                  ? "You\u2019re offline \u2014 nudge not sent"
+                  : "Something went wrong \u2014 nudge not sent",
+                "error",
+              );
             } finally {
               setActing(null);
             }
@@ -299,11 +239,8 @@ export default function EventDetailPage() {
           groupId={selectedGroupId}
           onClose={() => setSelectedGroupId(null)}
           onUpdated={() => {
-            const signal = abortRef.current?.signal;
-            loadShiftGroup(signal);
-            if (currentUserRole === "STAFF" || currentUserRole === "ADMIN") {
-              loadCommandCenter(signal);
-            }
+            reloadShiftGroup();
+            if (isStaffOrAdmin) reloadCommandCenter();
           }}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}

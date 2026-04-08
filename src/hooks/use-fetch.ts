@@ -24,6 +24,8 @@ export type UseFetchOptions<T> = {
   transform?: (json: Record<string, unknown>) => T;
   /** If true, refetch when the browser tab becomes visible again. Default: true. */
   refetchOnFocus?: boolean;
+  /** If false, the query will not execute. Useful for conditional fetching. Default: true. */
+  enabled?: boolean;
 };
 
 export type UseFetchResult<T> = {
@@ -58,7 +60,7 @@ async function fetchJson(url: string, returnTo?: string, signal?: AbortSignal): 
  * - Manual reload trigger
  */
 export function useFetch<T = unknown>(options: UseFetchOptions<T>): UseFetchResult<T> {
-  const { url, returnTo, refetchOnFocus = true } = options;
+  const { url, returnTo, refetchOnFocus = true, enabled = true } = options;
   const transformRef = useRef(options.transform);
   transformRef.current = options.transform;
 
@@ -78,6 +80,7 @@ export function useFetch<T = unknown>(options: UseFetchOptions<T>): UseFetchResu
       return (json.data ?? json) as T;
     },
     refetchOnWindowFocus: refetchOnFocus,
+    enabled,
   });
 
   // Toast on background refresh failure (preserves existing behavior)
