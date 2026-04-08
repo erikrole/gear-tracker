@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { createAuditEntry } from "@/lib/audit";
 
 const updateLocationSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -22,6 +23,16 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const updated = await db.location.update({
     where: { id },
     data: body,
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "location",
+    entityId: id,
+    action: "updated",
+    before: { name: existing.name, address: existing.address, active: existing.active, isHomeVenue: existing.isHomeVenue },
+    after: body,
   });
 
   return ok({ data: updated });

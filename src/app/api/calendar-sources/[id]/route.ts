@@ -31,7 +31,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     actorRole: user.role,
     entityType: "calendar_source",
     entityId: id,
-    action: "edit",
+    action: "updated",
+    before: { name: source.name, url: source.url, enabled: source.enabled },
     after: body,
   });
 

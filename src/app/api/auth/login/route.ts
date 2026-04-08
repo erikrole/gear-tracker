@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { loginSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { createAuditEntry } from "@/lib/audit";
 
 const LOGIN_LIMIT = { max: 10, windowMs: 15 * 60 * 1000 }; // 10 attempts per 15 min
 
@@ -29,6 +30,15 @@ export const POST = withHandler(async (req) => {
   }
 
   await createSession(user.id, body.rememberMe ?? false);
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "session",
+    entityId: user.id,
+    action: "login",
+    after: { ip },
+  });
 
   return ok({
     user: {

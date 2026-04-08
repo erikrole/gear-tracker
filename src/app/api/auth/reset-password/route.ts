@@ -4,6 +4,7 @@ import { ok, HttpError } from "@/lib/http";
 import { resetPasswordSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { createAuditEntry } from "@/lib/audit";
 
 const RESET_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min
 
@@ -39,6 +40,14 @@ export const POST = withHandler(async (req) => {
       where: { userId: resetToken.userId },
     }),
   ]);
+
+  await createAuditEntry({
+    actorId: resetToken.userId,
+    actorRole: resetToken.user.role,
+    entityType: "user",
+    entityId: resetToken.userId,
+    action: "password_reset_self",
+  });
 
   return ok({ message: "Password reset successfully. Please sign in." });
 });

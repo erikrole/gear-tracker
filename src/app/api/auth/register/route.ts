@@ -5,6 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { registerSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { createAuditEntry } from "@/lib/audit";
 
 const REGISTER_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 attempts per 15 min
 
@@ -68,6 +69,15 @@ export const POST = withHandler(async (req) => {
   }
 
   await createSession(user.id);
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "user",
+    entityId: user.id,
+    action: "registered",
+    after: { name: user.name, email: user.email, role: user.role },
+  });
 
   return ok(
     {
