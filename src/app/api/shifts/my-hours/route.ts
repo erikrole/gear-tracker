@@ -39,6 +39,8 @@ export const GET = withAuth(async (_req, { user }) => {
     },
   });
 
+  // Single-pass accumulation: month query is a superset of week, so we
+  // compute both week and month totals in one loop (no double iteration).
   let weekMinutes = 0;
   let monthMinutes = 0;
   let shiftCountWeek = 0;
