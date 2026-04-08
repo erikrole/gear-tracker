@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import StatusIndicator from "@/components/ui/status-indicator";
 
 type CalendarSource = {
@@ -27,8 +28,22 @@ type CalendarSource = {
 export default function CalendarSourcesPage() {
   const { toast } = useToast();
   const confirm = useConfirm();
-  const [sources, setSources] = useState<CalendarSource[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: fetchedSources, loading, reload } = useFetch<CalendarSource[]>({
+    url: "/api/calendar-sources",
+    returnTo: "/settings/calendar-sources",
+    transform: (json) => (json.data as CalendarSource[]) ?? [],
+  });
+  // Local state for optimistic mutation updates
+  const [localSources, setLocalSources] = useState<CalendarSource[] | null>(null);
+  const sources = localSources ?? fetchedSources ?? [];
+  const [prevFetched, setPrevFetched] = useState(fetchedSources);
+  if (fetchedSources !== prevFetched) {
+    setPrevFetched(fetchedSources);
+    setLocalSources(null);
+  }
+  const setSources = (updater: CalendarSource[] | ((prev: CalendarSource[]) => CalendarSource[])) => {
+    setLocalSources(typeof updater === "function" ? updater(sources) : updater);
+  };
   const [syncing, setSyncing] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
 
@@ -38,23 +53,6 @@ export default function CalendarSourcesPage() {
   const [newUrl, setNewUrl] = useState("");
   const [addBusy, setAddBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/calendar-sources");
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        setSources(json.data ?? []);
-      }
-    } catch {
-      toast("Failed to load calendar sources", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => { load(); }, [load]);
-
   async function handleToggle(source: CalendarSource) {
     setToggling(source.id);
     try {
@@ -63,7 +61,7 @@ export default function CalendarSourcesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: !source.enabled }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
         setSources((prev) =>
           prev.map((s) => s.id === source.id ? { ...s, enabled: !s.enabled } : s)
@@ -73,8 +71,10 @@ export default function CalendarSourcesPage() {
         const msg = await parseErrorMessage(res, "Toggle failed");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Toggle failed", "error");
     }
     setToggling(null);
   }
@@ -83,7 +83,7 @@ export default function CalendarSourcesPage() {
     setSyncing(source.id);
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}/sync`, { method: "POST" });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
         const json = await res.json().catch(() => null);
         if (json?.data?.shiftGenerationError) {
@@ -91,13 +91,15 @@ export default function CalendarSourcesPage() {
         } else {
           toast(`Synced ${source.name}`, "success");
         }
-        load();
+        reload();
       } else {
         const msg = await parseErrorMessage(res, "Sync failed");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Sync failed", "error");
     }
     setSyncing(null);
   }
@@ -112,15 +114,17 @@ export default function CalendarSourcesPage() {
     if (!ok) return;
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}`, { method: "DELETE" });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
         setSources((prev) => prev.filter((s) => s.id !== source.id));
         toast(`Deleted ${source.name}`, "success");
       } else {
         toast("Delete failed", "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed", "error");
     }
   }
 
@@ -134,19 +138,21 @@ export default function CalendarSourcesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim(), url: newUrl.trim() }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
         setNewName("");
         setNewUrl("");
         setShowAdd(false);
         toast("Calendar source added", "success");
-        load();
+        reload();
       } else {
         const msg = await parseErrorMessage(res, "Add failed");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Add failed", "error");
     }
     setAddBusy(false);
   }

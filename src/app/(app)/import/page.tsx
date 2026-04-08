@@ -5,7 +5,7 @@ import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 import type { ColumnMapping, PreviewData, ImportResult, Step } from "./_types";
 import { STEP_LABELS } from "./_types";
 import { ImportUploadStep } from "./_components/ImportUploadStep";
@@ -158,7 +158,7 @@ export default function ImportPage() {
         body: formData,
       });
 
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/import")) return;
 
       const json = await res.json();
 
@@ -171,8 +171,10 @@ export default function ImportPage() {
 
       setPreview(json);
       setStep("preview");
-    } catch {
-      setError("Failed to upload file");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      setError(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to upload file");
     }
     setLoading(false);
   }
@@ -192,7 +194,7 @@ export default function ImportPage() {
         body: formData,
       });
 
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/import")) return;
 
       const json = await res.json();
 
@@ -206,9 +208,12 @@ export default function ImportPage() {
       setResult(json);
       setStep("summary");
       toast(`Imported ${json.created} items successfully`, "success");
-    } catch {
-      setError("Import failed unexpectedly");
-      toast("Import failed unexpectedly", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      const msg = kind === "network" ? "You\u2019re offline. Check your connection." : "Import failed unexpectedly";
+      setError(msg);
+      toast(msg, "error");
       setStep("preview");
     }
   }

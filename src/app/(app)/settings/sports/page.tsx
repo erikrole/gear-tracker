@@ -1,52 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { WifiOff, AlertTriangle, RotateCcw } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 import type { SportConfig } from "./types";
 import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
 
-type FetchError = { type: "network" | "server"; message: string };
-
 export default function SportsSettingsPage() {
   const { toast } = useToast();
-  const [configs, setConfigs] = useState<SportConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<FetchError | null>(null);
+  const { data: fetchedConfigs, loading, error, reload } = useFetch<SportConfig[]>({
+    url: "/api/sport-configs",
+    returnTo: "/settings/sports",
+    transform: (json) => (json.data as SportConfig[]) ?? [],
+  });
+  // Local state for optimistic updates on mutations
+  const [localConfigs, setLocalConfigs] = useState<SportConfig[] | null>(null);
+  const configs = localConfigs ?? fetchedConfigs ?? [];
+  // Sync local state when fetch data changes
+  const [prevFetched, setPrevFetched] = useState(fetchedConfigs);
+  if (fetchedConfigs !== prevFetched) {
+    setPrevFetched(fetchedConfigs);
+    setLocalConfigs(null);
+  }
+  const setConfigs = (updater: SportConfig[] | ((prev: SportConfig[]) => SportConfig[])) => {
+    setLocalConfigs(typeof updater === "function" ? updater(configs) : updater);
+  };
   const [saving, setSaving] = useState<string | null>(null);
-
-  const loadConfigs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/sport-configs");
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) {
-        setError({
-          type: "server",
-          message: `Server returned ${res.status}`,
-        });
-        return;
-      }
-      const json = await res.json();
-      setConfigs(json.data);
-    } catch {
-      setError({
-        type: "network",
-        message: "Could not reach the server. Check your connection and try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadConfigs(); }, [loadConfigs]);
 
   function getConfig(sportCode: string) {
     return configs.find((c) => c.sportCode === sportCode);
@@ -72,7 +58,7 @@ export default function SportsSettingsPage() {
             shiftConfigs: defaultShiftConfigs(),
           }),
         });
-        if (handleAuthRedirect(res)) return;
+        if (handleAuthRedirect(res, "/settings/sports")) return;
         if (res.ok) {
           const json = await res.json();
           setConfigs((prev) => [...prev, json.data]);
@@ -83,15 +69,17 @@ export default function SportsSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active: newActive }),
         });
-        if (handleAuthRedirect(res)) return;
+        if (handleAuthRedirect(res, "/settings/sports")) return;
         if (res.ok) {
           setConfigs((prev) =>
             prev.map((c) => (c.sportCode === sportCode ? { ...c, active: newActive } : c))
           );
         }
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong", "error");
     }
     setSaving(null);
   }
@@ -123,7 +111,7 @@ export default function SportsSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ shiftConfigs: updatedConfigs }),
         });
-        if (handleAuthRedirect(res)) return;
+        if (handleAuthRedirect(res, "/settings/sports")) return;
         if (res.ok) {
           const json = await res.json();
           setConfigs((prev) =>
@@ -131,8 +119,10 @@ export default function SportsSettingsPage() {
           );
         }
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong", "error");
     }
     setSaving(null);
   }
@@ -152,7 +142,7 @@ export default function SportsSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ [field]: value }),
         });
-        if (handleAuthRedirect(res)) return;
+        if (handleAuthRedirect(res, "/settings/sports")) return;
         if (res.ok) {
           const json = await res.json();
           setConfigs((prev) =>
@@ -160,8 +150,10 @@ export default function SportsSettingsPage() {
           );
         }
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong", "error");
     }
     setSaving(null);
   }
@@ -190,7 +182,7 @@ export default function SportsSettingsPage() {
 
   /* ---------- Error state ---------- */
   if (error) {
-    const Icon = error.type === "network" ? WifiOff : AlertTriangle;
+    const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
       <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
@@ -202,11 +194,15 @@ export default function SportsSettingsPage() {
               <Icon className="size-10 text-muted-foreground" />
               <div>
                 <p className="font-semibold">
-                  {error.type === "network" ? "Connection failed" : "Something went wrong"}
+                  {error === "network" ? "Connection failed" : "Something went wrong"}
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">{error.message}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {error === "network"
+                    ? "Could not reach the server. Check your connection and try again."
+                    : "Something went wrong loading sports configuration."}
+                </p>
               </div>
-              <Button variant="outline" onClick={loadConfigs}>
+              <Button variant="outline" onClick={reload}>
                 <RotateCcw className="mr-2 size-4" />
                 Retry
               </Button>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 
 type MigrationRow = { name: string; appliedAt: string | null };
 type DriftItem = { table: string; column: string; status: string };
@@ -32,7 +32,7 @@ export default function DatabasePage() {
     setError(null);
     try {
       const res = await fetch("/api/db-diagnostics");
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/database")) return;
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         setError(json?.error ?? `HTTP ${res.status}`);
@@ -40,8 +40,10 @@ export default function DatabasePage() {
         return;
       }
       setResult(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Network error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      setError(kind === "network" ? "Could not reach the server. Check your connection." : "Something went wrong");
       setResult(null);
     } finally {
       setLoading(false);

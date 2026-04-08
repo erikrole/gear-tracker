@@ -9,16 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
 
 export default function CategoriesPage() {
   const { toast } = useToast();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: categories, loading, error, reload } = useFetch<Category[]>({
+    url: "/api/categories",
+    returnTo: "/settings/categories",
+    transform: (json) => (json.data as Category[]) ?? [],
+  });
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -26,25 +29,6 @@ export default function CategoriesPage() {
   const [creatingRoot, setCreatingRoot] = useState(false);
   const addRef = useRef<HTMLInputElement>(null);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/categories");
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        setCategories(json.data ?? []);
-      } else {
-        setError(`server`);
-      }
-    } catch {
-      setError(`network`);
-    }
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, []);
   useEffect(() => { if (adding) addRef.current?.focus(); }, [adding]);
 
   async function createRoot() {
@@ -56,27 +40,31 @@ export default function CategoriesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/categories")) return;
       setNewName("");
       setAdding(false);
-      load();
-    } catch { toast("Failed to create category — please try again", "error"); }
+      reload();
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create category \u2014 please try again", "error");
+    }
     setCreatingRoot(false);
   }
 
-  let tree = buildTree(categories);
+  let tree = buildTree(categories ?? []);
 
   // Filter by search
   if (search) {
     const q = search.toLowerCase();
     const matchIds = new Set<string>();
-    for (const c of categories) {
+    for (const c of (categories ?? [])) {
       if (c.name.toLowerCase().includes(q)) {
         matchIds.add(c.id);
         if (c.parentId) matchIds.add(c.parentId);
       }
     }
-    const filtered = categories.filter((c) => matchIds.has(c.id));
+    const filtered = (categories ?? []).filter((c) => matchIds.has(c.id));
     tree = buildTree(filtered);
   }
 
@@ -161,7 +149,7 @@ export default function CategoriesPage() {
               <p className="text-sm text-muted-foreground max-w-xs">
                 {errorMessage}
               </p>
-              <Button variant="outline" size="sm" onClick={load}>
+              <Button variant="outline" size="sm" onClick={reload}>
                 Retry
               </Button>
             </div>
@@ -192,7 +180,7 @@ export default function CategoriesPage() {
                 </div>
               ) : (
                 tree.map((node) => (
-                  <CategoryRow key={node.id} node={node} depth={0} onRefresh={load} />
+                  <CategoryRow key={node.id} node={node} depth={0} onRefresh={reload} />
                 ))
               )}
             </div>

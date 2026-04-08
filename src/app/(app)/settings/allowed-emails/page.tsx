@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -25,7 +25,8 @@ import {
   Trash2,
   WifiOff,
 } from "lucide-react";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 
 type AllowedEmail = {
   id: string;
@@ -37,16 +38,40 @@ type AllowedEmail = {
   claimedBy: { id: string; name: string } | null;
 };
 
-type ErrorState = { type: "network" | "server"; message: string };
+type AllowedEmailsResponse = { data: AllowedEmail[]; total: number };
 
 export default function AllowedEmailsPage() {
   const { toast } = useToast();
   const confirm = useConfirm();
 
-  const [items, setItems] = useState<AllowedEmail[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ErrorState | null>(null);
+  // Filter
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  // Build fetch URL from filter state
+  const fetchUrl = (() => {
+    const params = new URLSearchParams({ limit: "100" });
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    return `/api/allowed-emails?${params}`;
+  })();
+
+  const { data: emailsData, loading, error, reload } = useFetch<AllowedEmailsResponse>({
+    url: fetchUrl,
+    returnTo: "/settings/allowed-emails",
+    transform: (json) => ({ data: (json.data as AllowedEmail[]) ?? [], total: (json.total as number) ?? 0 }),
+  });
+
+  // Local state for optimistic mutation updates
+  const [localItems, setLocalItems] = useState<AllowedEmail[] | null>(null);
+  const [localTotal, setLocalTotal] = useState<number | null>(null);
+  const items = localItems ?? emailsData?.data ?? [];
+  const total = localTotal ?? emailsData?.total ?? 0;
+  const [prevData, setPrevData] = useState(emailsData);
+  if (emailsData !== prevData) {
+    setPrevData(emailsData);
+    setLocalItems(null);
+    setLocalTotal(null);
+  }
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Add form
@@ -54,36 +79,6 @@ export default function AllowedEmailsPage() {
   const [addEmail, setAddEmail] = useState("");
   const [addRole, setAddRole] = useState<"STUDENT" | "STAFF">("STUDENT");
   const [adding, setAdding] = useState(false);
-
-  // Filter
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      params.set("limit", "100");
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      const res = await fetch(`/api/allowed-emails?${params}`);
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await res.json();
-        setItems(json.data);
-        setTotal(json.total);
-      } else {
-        setError({ type: "server", message: "Failed to load allowed emails" });
-      }
-    } catch {
-      setError({ type: "network", message: "Could not connect to server" });
-    } finally {
-      setLoading(false);
-    }
-  }, [statusFilter]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -97,19 +92,21 @@ export default function AllowedEmailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, role: addRole }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
       if (res.ok) {
         toast("Email added to allowlist", "success");
         setAddEmail("");
         setAddRole("STUDENT");
         setShowAdd(false);
-        load();
+        reload();
       } else {
         const msg = await parseErrorMessage(res, "Failed to add email");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to add email", "error");
     }
     setAdding(false);
   }
@@ -128,17 +125,19 @@ export default function AllowedEmailsPage() {
       const res = await fetch(`/api/allowed-emails/${item.id}`, {
         method: "DELETE",
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
       if (res.ok) {
-        setItems((prev) => prev.filter((i) => i.id !== item.id));
-        setTotal((prev) => prev - 1);
+        setLocalItems((prev) => (prev ?? items).filter((i) => i.id !== item.id));
+        setLocalTotal((prev) => (prev ?? total) - 1);
         toast("Email removed from allowlist", "success");
       } else {
         const msg = await parseErrorMessage(res, "Failed to remove email");
         toast(msg, "error");
       }
-    } catch {
-      toast("Network error", "error");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to remove email", "error");
     }
     setDeletingId(null);
   }
@@ -173,7 +172,7 @@ export default function AllowedEmailsPage() {
   }
 
   if (error) {
-    const Icon = error.type === "network" ? WifiOff : AlertTriangle;
+    const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
       <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         {sidebar}
@@ -183,15 +182,17 @@ export default function AllowedEmailsPage() {
               <Icon className="size-10 text-muted-foreground" />
               <div>
                 <p className="font-semibold">
-                  {error.type === "network"
+                  {error === "network"
                     ? "Connection Failed"
                     : "Something Went Wrong"}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {error.message}
+                  {error === "network"
+                    ? "Could not connect to server. Check your connection."
+                    : "Failed to load allowed emails. Please try again."}
                 </p>
               </div>
-              <Button variant="outline" onClick={load}>
+              <Button variant="outline" onClick={reload}>
                 <RefreshCw className="size-4" />
                 Retry
               </Button>

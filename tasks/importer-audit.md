@@ -8,7 +8,7 @@
 | Dimension | Score | Notes |
 |---|---|---|
 | Scope clarity | 5/5 | AREA_IMPORTER.md comprehensive with generic CSV architecture, Cheqroom preset mapping, lossless parsing rules, validation categories, error handling, and security. All 6 ACs checked. |
-| Hardening | 2/5 | **No 401 handling on import page.** No AbortController. No useFetch. Raw fetch throughout. Import is a multi-step flow (upload → preview → import) that could fail silently on session expiry. Transaction-wrapped on API side (`$transaction`). |
+| Hardening | 4/5 | Import page hardened with handleAuthRedirect (with returnTo), classifyError, and isAbortError on all fetch calls (preview + import). Multi-step flow now properly redirects to login on 401. Network errors distinguished from server errors. Transaction-wrapped on API side (`$transaction`). |
 | Roadmap | 3/5 | No standalone roadmap. AREA doc tracks V1 scope clearly. Future presets are architecturally supported but unplanned. |
 | Feature completeness | 5/5 | All 6 ACs met. Generic CSV parsing, Cheqroom preset, dry run, create/upsert modes, row-level diagnostics, lossless source payload, $transaction-wrapped. |
 | Doc sync | 4/5 | Last updated 2026-03-25. Only 2 changelog entries (initial + docs hardening). Missing entries for actual feature shipping, GAP-25 sourcePayload fix. |
@@ -16,7 +16,7 @@
 ## Page-by-Page Status
 | Page | Route | Lines | Hardening | Issues |
 |---|---|---|---|---|
-| Import page | `/import` | 320 | Not hardened | No 401 handling. No AbortController. Multi-step flow with raw fetch. |
+| Import page | `/import` | ~330 | Hardened | handleAuthRedirect + classifyError + isAbortError on preview and import fetches. returnTo param for login redirect. |
 
 ## API Route Status
 | Route | Auth | Validation | Transaction | Notes |
