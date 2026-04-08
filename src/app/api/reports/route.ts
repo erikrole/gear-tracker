@@ -326,7 +326,7 @@ async function getScanHistoryReport(
       take: limit,
       skip: offset,
       include: {
-        actor: { select: { id: true, name: true } },
+        actor: { select: { id: true, name: true, avatarUrl: true } },
         asset: { select: { id: true, assetTag: true, name: true } },
         bulkSku: { select: { id: true, name: true } },
         booking: { select: { id: true, title: true } },
@@ -406,7 +406,7 @@ async function getAuditReport(
       take: limit,
       skip: offset,
       include: {
-        actor: { select: { id: true, name: true } }
+        actor: { select: { id: true, name: true, avatarUrl: true } }
       }
     }),
     db.auditLog.count({ where }),
@@ -506,7 +506,7 @@ async function getBulkLossReport() {
         entityId: true,
         afterJson: true,
         createdAt: true,
-        actor: { select: { id: true, name: true } },
+        actor: { select: { id: true, name: true, avatarUrl: true } },
       },
     }),
   ]);

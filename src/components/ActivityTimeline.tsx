@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Cog, ArrowRight } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +21,7 @@ export type AuditEntry = {
   createdAt: string;
   beforeJson: Record<string, unknown> | null;
   afterJson: Record<string, unknown> | null;
-  actor: { id?: string; name: string; email?: string } | null;
+  actor: { id?: string; name: string; email?: string; avatarUrl?: string | null } | null;
 };
 
 /* ── Props ── */
@@ -57,6 +57,12 @@ const HIDDEN_FIELDS = new Set([
   "createdAt",
   "id",
   "organizationId",
+  "sourcePayload",
+  "cheqroomName",
+  "fiscalYear",
+  "fiscalYearPurchased",
+  "consumable",
+  "trackByNumber",
 ]);
 
 /** Fields whose values are opaque IDs — show "changed" instead of raw value */
@@ -154,6 +160,20 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
   admin_override: "purple",
   qr_generated: "muted",
   auto_complete: "muted",
+  accessory_attached: "blue",
+  accessory_detached: "amber",
+  accessory_moved: "blue",
+  image_uploaded: "blue",
+  image_deleted: "amber",
+  escalation_config_updated: "purple",
+  escalation_rule_updated: "purple",
+  profile_updated: "blue",
+  draft_discarded: "rose",
+  password_reset_requested: "muted",
+  password_reset_completed: "muted",
+  user_deactivated: "rose",
+  user_activated: "green",
+  role_changed: "purple",
 };
 
 const RING_CLASSES: Record<ActionColorKey, string> = {
@@ -197,7 +217,11 @@ function describeAction(
     case "booking.created":
       return context === "report"
         ? `${actorName} created ${target}`
-        : `Created ${target}`;
+        : context === "booking"
+          ? "Created this booking"
+          : context === "item"
+            ? "Created this item"
+            : `Created ${target}`;
     case "updated":
     case "update":
       return context === "report"
@@ -265,6 +289,46 @@ function describeAction(
     }
     case "booking.items_qty_changed":
       return `${reportPrefix}Changed item quantities`;
+    case "accessory_attached": {
+      const accName = entry.afterJson?.name || entry.afterJson?.accessoryName;
+      return accName
+        ? `${reportPrefix}Attached accessory "${accName}"`
+        : `${reportPrefix}Attached an accessory`;
+    }
+    case "accessory_detached": {
+      const detName = entry.beforeJson?.name || entry.beforeJson?.accessoryName;
+      return detName
+        ? `${reportPrefix}Detached accessory "${detName}"`
+        : `${reportPrefix}Detached an accessory`;
+    }
+    case "accessory_moved": {
+      const movName = entry.afterJson?.name || entry.afterJson?.accessoryName;
+      return movName
+        ? `${reportPrefix}Moved accessory "${movName}" to another item`
+        : `${reportPrefix}Moved an accessory to another item`;
+    }
+    case "image_uploaded":
+      return `${reportPrefix}Uploaded a photo`;
+    case "image_deleted":
+      return `${reportPrefix}Removed a photo`;
+    case "escalation_config_updated":
+      return `${reportPrefix}Updated escalation settings`;
+    case "escalation_rule_updated":
+      return `${reportPrefix}Updated an escalation rule`;
+    case "profile_updated":
+      return `${reportPrefix}Updated their profile`;
+    case "draft_discarded":
+      return `${reportPrefix}Discarded a draft booking`;
+    case "password_reset_requested":
+      return `${reportPrefix}Requested a password reset`;
+    case "password_reset_completed":
+      return `${reportPrefix}Reset their password`;
+    case "user_deactivated":
+      return `${reportPrefix}Deactivated a user account`;
+    case "user_activated":
+      return `${reportPrefix}Activated a user account`;
+    case "role_changed":
+      return `${reportPrefix}Changed a user's role`;
     default:
       return context === "report"
         ? `${actorName} performed ${entry.action.replace(/_/g, " ")}`
@@ -323,8 +387,9 @@ function describeFieldChange(
     };
   }
 
-  // Skip array fields in generic diff (shown via equipment actions)
+  // Skip array and object fields in generic diff (shown via equipment actions or too complex)
   if (Array.isArray(before) || Array.isArray(after)) return null;
+  if ((before != null && typeof before === "object") || (after != null && typeof after === "object")) return null;
 
   // Status fields - use human-readable labels
   if (key === "status") {
@@ -482,6 +547,9 @@ function TimelineEntry({
         <Avatar
           className={cn("size-8 shrink-0 ring-2", ringClass)}
         >
+          {entry.actor?.avatarUrl && (
+            <AvatarImage src={entry.actor.avatarUrl} alt={actorName} />
+          )}
           <AvatarFallback className={getAvatarColor(actorName)}>
             {getInitials(actorName)}
           </AvatarFallback>

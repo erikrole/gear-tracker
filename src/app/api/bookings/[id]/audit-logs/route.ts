@@ -22,7 +22,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
     orderBy: { createdAt: "desc" },
     take: PAGE_SIZE + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    include: { actor: { select: { id: true, name: true } } },
+    include: { actor: { select: { id: true, name: true, avatarUrl: true } } },
   });
 
   const hasMore = logs.length > PAGE_SIZE;
