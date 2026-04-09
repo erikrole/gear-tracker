@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
@@ -12,7 +13,10 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   });
 
   if (existing) {
-    await db.favoriteItem.delete({ where: { id: existing.id } });
+    // Use deleteMany to handle concurrent delete race (returns count 0 if already gone)
+    await db.favoriteItem.deleteMany({
+      where: { userId: user.id, assetId: id },
+    });
     await createAuditEntry({
       actorId: user.id,
       actorRole: user.role,
@@ -23,9 +27,17 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     return ok({ favorited: false });
   }
 
-  await db.favoriteItem.create({
-    data: { userId: user.id, assetId: id },
-  });
+  try {
+    await db.favoriteItem.create({
+      data: { userId: user.id, assetId: id },
+    });
+  } catch (e) {
+    // Concurrent toggle created it first — treat as idempotent success
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return ok({ favorited: true });
+    }
+    throw e;
+  }
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,

@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -79,6 +80,7 @@ export default function ItemsPage() {
   }, [columnVisibility]);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const busyRef = useRef(false);
 
   // Clear selection when page/filters change
   useEffect(() => {
@@ -131,15 +133,14 @@ export default function ItemsPage() {
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
     const prev = asset.isFavorited;
-    // Optimistic update
     query.setItems((items) =>
       items.map((a) => a.id === asset.id ? { ...a, isFavorited: !prev } : a)
     );
     try {
       const res = await fetch(`/api/assets/${asset.id}/favorite`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error();
     } catch {
-      // Rollback
       query.setItems((items) =>
         items.map((a) => a.id === asset.id ? { ...a, isFavorited: prev } : a)
       );
@@ -163,6 +164,7 @@ export default function ItemsPage() {
       if (filters.showAccessories) params.set("show_accessories", "true");
 
       const res = await fetch(`/api/assets/export?${params}`);
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error();
       const truncated = res.headers.get("X-Truncated") === "true";
       const totalCount = res.headers.get("X-Total-Count");
@@ -185,65 +187,71 @@ export default function ItemsPage() {
   }, [filters]);
 
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
-    if (actionBusy) return;
+    if (busyRef.current) return;
     switch (action) {
       case "open":
         router.push(`/items/${asset.id}`);
         break;
       case "duplicate":
+        busyRef.current = true;
         setActionBusy(true);
         try {
           const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
+          if (handleAuthRedirect(res)) return;
           if (res.ok) {
             toast.success(`Duplicated ${asset.assetTag}`);
             query.reload();
           } else {
-            const body = await res.json().catch(() => null);
-            toast.error(body?.error || "Failed to duplicate item");
+            toast.error(await parseErrorMessage(res, "Failed to duplicate item"));
           }
         } catch {
           toast.error("Network error — could not duplicate item");
         }
+        busyRef.current = false;
         setActionBusy(false);
         break;
       case "maintenance":
+        busyRef.current = true;
         setActionBusy(true);
         try {
           const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
+          if (handleAuthRedirect(res)) return;
           if (res.ok) {
             toast.success(`Updated ${asset.assetTag} maintenance status`);
             query.reload();
           } else {
-            const body = await res.json().catch(() => null);
-            toast.error(body?.error || "Failed to update maintenance status");
+            toast.error(await parseErrorMessage(res, "Failed to update maintenance status"));
           }
         } catch {
           toast.error("Network error — could not update item");
         }
+        busyRef.current = false;
         setActionBusy(false);
         break;
       case "retire":
         setRetireTarget(asset);
         break;
     }
-  }, [actionBusy, query.reload, router]);
+  }, [query.reload, router]);
 
   async function confirmRetireTarget() {
-    if (!retireTarget || actionBusy) return;
+    if (!retireTarget || busyRef.current) return;
+    busyRef.current = true;
     setActionBusy(true);
     try {
       const res = await fetch(`/api/assets/${retireTarget.id}/retire`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success(`Retired ${retireTarget.assetTag}`);
         query.reload();
       } else {
-        const body = await res.json().catch(() => null);
-        toast.error(body?.error || "Failed to retire item");
+        toast.error(await parseErrorMessage(res, "Failed to retire item"));
       }
     } catch {
       toast.error("Network error — could not retire item");
     }
     setRetireTarget(null);
+    busyRef.current = false;
     setActionBusy(false);
   }
 

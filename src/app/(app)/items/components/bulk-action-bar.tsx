@@ -63,12 +63,14 @@ export function BulkActionBar({
   const [kits, setKits] = useState<Kit[]>([]);
 
   useEffect(() => {
-    fetch("/api/kits")
+    const controller = new AbortController();
+    fetch("/api/kits", { signal: controller.signal })
       .then((r) => r.json())
       .then((json) => {
         if (json?.data) setKits(json.data);
       })
       .catch(() => {});
+    return () => controller.abort();
   }, []);
 
   const canDelete = userRole === "ADMIN";
@@ -210,8 +212,9 @@ export function BulkActionBar({
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={() => onAction("retire")}
+              disabled={busy}
             >
-              Retire
+              {busy ? "Retiring…" : "Retire"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -236,8 +239,9 @@ export function BulkActionBar({
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={() => onAction("delete")}
+              disabled={busy}
             >
-              Delete permanently
+              {busy ? "Deleting…" : "Delete permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

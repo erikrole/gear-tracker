@@ -8,17 +8,21 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "asset", "maintenance");
 
   const { id } = params;
-  const before = await db.asset.findUnique({ where: { id } });
-  if (!before) throw new HttpError(404, "Asset not found");
 
-  // Toggle: if already MAINTENANCE, set back to AVAILABLE
-  const newStatus = before.status === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
+  // Wrap in SERIALIZABLE transaction to prevent concurrent toggle lost updates
+  const { asset, beforeStatus, newStatus } = await db.$transaction(async (tx) => {
+    const before = await tx.asset.findUnique({ where: { id } });
+    if (!before) throw new HttpError(404, "Asset not found");
 
-  const asset = await db.asset.update({
-    where: { id },
-    data: { status: newStatus },
-    include: { location: true, category: true },
-  });
+    const toggled = before.status === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
+    const updated = await tx.asset.update({
+      where: { id },
+      data: { status: toggled },
+      include: { location: true, category: true },
+    });
+
+    return { asset: updated, beforeStatus: before.status, newStatus: toggled };
+  }, { isolationLevel: "Serializable" });
 
   await createAuditEntry({
     actorId: user.id,
@@ -26,7 +30,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     entityType: "asset",
     entityId: id,
     action: newStatus === "MAINTENANCE" ? "marked_maintenance" : "cleared_maintenance",
-    before: { status: before.status },
+    before: { status: beforeStatus },
     after: { status: newStatus },
   });
 

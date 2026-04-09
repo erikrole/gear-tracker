@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 const ACTION_LABELS: Record<string, string> = {
   move_location: "Moved",
@@ -26,9 +27,9 @@ export function useBulkActions(getSelectedIds: () => string[], onComplete: () =>
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids, action, ...payload }),
       });
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        const msg = json?.error || "Bulk action failed";
+        const msg = await parseErrorMessage(res, "Bulk action failed");
         setError(msg);
         toast.error(msg);
         setBusy(false);
