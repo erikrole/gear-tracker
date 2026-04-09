@@ -44,13 +44,13 @@ type Props = {
   activeSport: string | null;
   now: Date;
   isStaff: boolean;
-  inlineActionId: string | null;
+  acting: boolean;
   onSelectBooking: (id: string) => void;
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
   onCreateBooking?: (ctx: CreateBookingContext) => void;
 };
 
-export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, inlineActionId, onSelectBooking, onExtend, onCreateBooking }: Props) {
+export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, acting, onSelectBooking, onExtend, onCreateBooking }: Props) {
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
 
   const filteredEvents = useMemo(() => {
@@ -106,7 +106,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                             variant="ghost"
                             size="icon-sm"
                             className="inline-action-btn"
-                            disabled={inlineActionId === c.id}
+                            disabled={acting}
                             onClick={(e) => onExtend(c, e)}
                             aria-label={`Extend checkout "${c.title}" by 1 day`}
                           >

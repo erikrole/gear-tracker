@@ -32,8 +32,7 @@ type Props = {
   filtered: FilteredDashboardData | null;
   activeSport: string | null;
   now: Date;
-  deletingDraftId: string | null;
-  inlineActionId: string | null;
+  acting: boolean;
   ownedAccent?: boolean;
   onSelectBooking: (id: string) => void;
   onDeleteDraft: (draftId: string) => void;
@@ -47,8 +46,7 @@ export function MyGearColumn({
   filtered,
   activeSport,
   now,
-  deletingDraftId,
-  inlineActionId,
+  acting,
   ownedAccent,
   onSelectBooking,
   onDeleteDraft,
@@ -97,7 +95,7 @@ export function MyGearColumn({
                             variant="ghost"
                             size="icon-sm"
                             className="inline-action-btn"
-                            disabled={inlineActionId === c.id}
+                            disabled={acting}
                             onClick={(e) => onExtend(c, e)}
                             aria-label={`Extend checkout "${c.title}" by 1 day`}
                           >
@@ -159,7 +157,7 @@ export function MyGearColumn({
                         variant="ghost"
                         size="icon-sm"
                         className="inline-action-btn"
-                        disabled={inlineActionId === r.id}
+                        disabled={acting}
                         onClick={(e) => onConvert(r.id, e)}
                         aria-label={`Convert reservation "${r.title}" to checkout`}
                       >
@@ -270,7 +268,7 @@ export function MyGearColumn({
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={deletingDraftId !== null}
+                    disabled={acting}
                     onClick={() => onDeleteDraft(d.id)}
                   >
                     Delete draft

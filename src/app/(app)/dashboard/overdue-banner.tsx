@@ -29,6 +29,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
 
   async function handleNudge(e: React.MouseEvent, bookingId: string) {
     e.stopPropagation();
+    if (nudgingId) return;
     setNudgingId(bookingId);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/nudge`, { method: "POST" });
