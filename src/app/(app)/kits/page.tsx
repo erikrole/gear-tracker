@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -305,7 +306,9 @@ export default function KitsPage() {
 
           {/* Pagination */}
           {query.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
+            <>
+              <Separator />
+              <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-muted-foreground">
                 {query.total} kit{query.total !== 1 ? "s" : ""}
               </span>
@@ -330,7 +333,8 @@ export default function KitsPage() {
                   Next
                 </Button>
               </div>
-            </div>
+              </div>
+            </>
           )}
         </Card>
       )}

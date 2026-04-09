@@ -9,6 +9,7 @@ import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -294,13 +295,16 @@ export default function ScanHistoryPage() {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t">
-                <span className="text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => { setPage(page - 1); syncUrl({ page: page === 1 ? "" : page }); }}>Previous</Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => { setPage(page + 1); syncUrl({ page: page + 2 }); }}>Next</Button>
+              <>
+                <Separator />
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page === 0} onClick={() => { setPage(page - 1); syncUrl({ page: page === 1 ? "" : page }); }}>Previous</Button>
+                    <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => { setPage(page + 1); syncUrl({ page: page + 2 }); }}>Next</Button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </>
         )}
