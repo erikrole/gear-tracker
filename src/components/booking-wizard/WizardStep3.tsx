@@ -178,12 +178,12 @@ export function WizardStep3({
         )}
       </div>
 
-      {/* ── Scan recommendation ── */}
+      {/* ── Scan requirement notice ── */}
       {config.kind === "CHECKOUT" && (
-        <div className="flex items-start gap-3 rounded-lg bg-muted/50 border border-border/60 px-4 py-3">
-          <SmartphoneIcon className="size-4 shrink-0 mt-0.5 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            For the fastest pickup, scan items out on a kiosk device or your phone.
+        <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
+          <SmartphoneIcon className="size-4 shrink-0 mt-0.5 text-primary" />
+          <p className="text-sm text-foreground">
+            Each item must be scanned out at pickup. Use a kiosk device or your phone to scan.
           </p>
         </div>
       )}
