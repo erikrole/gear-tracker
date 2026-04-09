@@ -35,9 +35,9 @@ export function useEventContext({
   } | null>(null);
   const autoSelectedEventRef = useRef(false);
 
-  // ── Fetch events when sport selected ──
+  // ── Fetch events (all sports by default, filtered when sport selected) ──
   useEffect(() => {
-    if (!sport || !tieToEvent || !open) {
+    if (!tieToEvent || !open) {
       setEvents([]);
       return;
     }
@@ -46,11 +46,11 @@ export function useEventContext({
     const now = new Date();
     const in3 = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const params = new URLSearchParams({
-      sportCode: sport,
       startDate: now.toISOString(),
       endDate: in3.toISOString(),
-      limit: "20",
+      limit: "30",
     });
+    if (sport) params.set("sportCode", sport);
     fetch(`/api/calendar-events?${params}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {

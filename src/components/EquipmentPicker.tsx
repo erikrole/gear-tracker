@@ -9,7 +9,6 @@ import {
   groupBulkBySection,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
-import { getActiveGuidance, type GuidanceContext } from "@/lib/equipment-guidance";
 import { CheckCircle2Icon, CircleIcon, SearchIcon, XIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -66,6 +65,10 @@ export type EquipmentPickerProps = {
   initialSelectedAssets?: PickerAsset[];
   /** Called when selection changes with resolved asset objects */
   onSelectedAssetsChange?: (assets: PickerAsset[]) => void;
+  /** Controlled active section (for parent tab-advance logic) */
+  activeSection?: EquipmentSectionKey;
+  /** Called when active section changes */
+  onActiveSectionChange?: (section: EquipmentSectionKey) => void;
 };
 
 export { type ConflictInfo };
@@ -83,8 +86,15 @@ export default function EquipmentPicker({
   locationId,
   initialSelectedAssets,
   onSelectedAssetsChange,
+  activeSection: controlledSection,
+  onActiveSectionChange,
 }: EquipmentPickerProps) {
-  const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
+  const [internalSection, setInternalSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
+  const activeSection = controlledSection ?? internalSection;
+  const setActiveSection = (sec: EquipmentSectionKey) => {
+    setInternalSection(sec);
+    onActiveSectionChange?.(sec);
+  };
   const [sectionSearch, setSectionSearch] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
 
@@ -144,25 +154,6 @@ export default function EquipmentPicker({
     }
     return c;
   }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, selectedAssetsCache]);
-
-  // ── Guidance banners ──
-  const selectedSectionKeys = useMemo(() => {
-    const keys = new Set<EquipmentSectionKey>();
-    for (const id of selectedAssetIds) {
-      const a = selectedAssetsCache.get(id) ?? assetById.get(id);
-      if (a) keys.add(classifyAssetType(a.type, a.categoryName));
-    }
-    for (const item of selectedBulkItems) {
-      const sku = bulkById.get(item.bulkSkuId);
-      if (sku) keys.add(classifyAssetType(sku.category, sku.categoryName));
-    }
-    return Array.from(keys);
-  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, selectedAssetsCache]);
-
-  const activeGuidance = useMemo(() => {
-    const ctx: GuidanceContext = { selectedSectionKeys, activeSection };
-    return getActiveGuidance(ctx);
-  }, [selectedSectionKeys, activeSection]);
 
   // ── Notify parent of resolved asset details ──
   useEffect(() => {
@@ -271,15 +262,8 @@ export default function EquipmentPicker({
         </label>
       </div>
 
-      {/* ── Guidance banner ── */}
-      {activeGuidance.length > 0 && (
-        <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
-          {activeGuidance.map((g, i) => <div key={i}>{g.message}</div>)}
-        </div>
-      )}
-
       {/* ── Item list ── */}
-      <ScrollArea className="max-h-72">
+      <ScrollArea className="max-h-[28rem]">
         <div role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label} equipment`}>
           {searchLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>

@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect } from "@/lib/errors";
-import { classifyAssetType } from "@/lib/equipment-sections";
+import { EQUIPMENT_SECTIONS, classifyAssetType } from "@/lib/equipment-sections";
 import { getUnsatisfiedRequirements } from "@/lib/equipment-guidance";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import type { BulkSelection } from "@/components/EquipmentPicker";
@@ -199,6 +199,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(initialAssetIds ?? []);
   const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
   const [selectedAssetDetails, setSelectedAssetDetails] = useState<AvailableAsset[]>([]);
+  const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
 
   // ── Kit state ──
   const [kitId, setKitId] = useState<string>("");
@@ -285,6 +286,14 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       setCreateError("");
       setStep(2);
     } else if (step === 2) {
+      // Advance to next section tab; only go to step 3 from the last tab
+      const sectionIdx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
+      if (sectionIdx < EQUIPMENT_SECTIONS.length - 1) {
+        setCreateError("");
+        setActiveSection(EQUIPMENT_SECTIONS[sectionIdx + 1].key);
+        return;
+      }
+      // Last tab — validate and proceed to confirmation
       const error = validateStep2();
       if (error) { setCreateError(error); return; }
       setCreateError("");
@@ -487,7 +496,8 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           selectedBulkItems={selectedBulkItems}
           setSelectedBulkItems={setSelectedBulkItems}
           onSelectedAssetsChange={setSelectedAssetDetails}
-          unsatisfiedRequirements={unsatisfiedRequirements}
+          activeSection={activeSection}
+          onActiveSectionChange={setActiveSection}
         />
       )}
 
@@ -521,8 +531,14 @@ export function BookingWizard({ kind }: BookingWizardProps) {
         <div className="flex items-center gap-2">
           {step < 3 && (
             <Button onClick={handleNext}>
-              Next
-              {step === 2 && itemCount > 0 && ` (${itemCount} item${itemCount !== 1 ? "s" : ""})`}
+              {step === 2 && (() => {
+                const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
+                if (idx < EQUIPMENT_SECTIONS.length - 1) {
+                  return `Next: ${EQUIPMENT_SECTIONS[idx + 1].label}`;
+                }
+                return `Review${itemCount > 0 ? ` (${itemCount} item${itemCount !== 1 ? "s" : ""})` : ""}`;
+              })()}
+              {step === 1 && "Next"}
             </Button>
           )}
           {step === 3 && (

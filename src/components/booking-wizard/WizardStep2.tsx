@@ -1,10 +1,9 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { TriangleAlertIcon } from "lucide-react";
 import EquipmentPicker from "@/components/EquipmentPicker";
 import type { BulkSelection } from "@/components/EquipmentPicker";
+import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import type { AvailableAsset, BulkSkuOption } from "@/components/booking-list/types";
 import type { FormState } from "@/components/create-booking/types";
 
@@ -17,7 +16,8 @@ type Props = {
   selectedBulkItems: BulkSelection[];
   setSelectedBulkItems: Dispatch<SetStateAction<BulkSelection[]>>;
   onSelectedAssetsChange: (assets: AvailableAsset[]) => void;
-  unsatisfiedRequirements: Array<{ message: string }>;
+  activeSection: EquipmentSectionKey;
+  onActiveSectionChange: (section: EquipmentSectionKey) => void;
 };
 
 export function WizardStep2({
@@ -29,7 +29,8 @@ export function WizardStep2({
   selectedBulkItems,
   setSelectedBulkItems,
   onSelectedAssetsChange,
-  unsatisfiedRequirements,
+  activeSection,
+  onActiveSectionChange,
 }: Props) {
   return (
     <div className="space-y-4">
@@ -42,18 +43,6 @@ export function WizardStep2({
         </p>
       </div>
 
-      {/* Equipment requirement warnings */}
-      {unsatisfiedRequirements.length > 0 && (
-        <Alert variant="destructive">
-          <TriangleAlertIcon className="size-4" />
-          <AlertDescription>
-            {unsatisfiedRequirements.map((r, i) => (
-              <div key={i}>{r.message}</div>
-            ))}
-          </AlertDescription>
-        </Alert>
-      )}
-
       <EquipmentPicker
         bulkSkus={bulkSkus}
         selectedAssetIds={selectedAssetIds}
@@ -64,6 +53,8 @@ export function WizardStep2({
         endsAt={form.endsAt}
         locationId={form.locationId}
         onSelectedAssetsChange={onSelectedAssetsChange}
+        activeSection={activeSection}
+        onActiveSectionChange={onActiveSectionChange}
       />
     </div>
   );
