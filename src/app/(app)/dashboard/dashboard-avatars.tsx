@@ -4,7 +4,7 @@ import { UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 import type { ItemThumb, EventSummary } from "../dashboard-types";
 
 export { UserAvatar } from "@/components/UserAvatar";
@@ -58,7 +58,7 @@ export function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers:
                 {u.avatarUrl ? (
                   <AvatarImage src={u.avatarUrl} alt={u.name} />
                 ) : (
-                  <AvatarFallback className={getAvatarColor(u.name)}>{u.initials}</AvatarFallback>
+                  <AvatarFallback>{u.initials}</AvatarFallback>
                 )}
               </Avatar>
             </TooltipTrigger>

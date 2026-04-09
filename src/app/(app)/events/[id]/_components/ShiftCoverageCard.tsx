@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -179,7 +179,7 @@ export function ShiftCoverageCard({
                       {activeAssignment ? (
                         <span className="flex items-center gap-2">
                           <Avatar className="size-6">
-                            <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(activeAssignment.user.name)}`}>
+                            <AvatarFallback className="text-[10px] font-medium">
                               {getInitials(activeAssignment.user.name)}
                             </AvatarFallback>
                           </Avatar>

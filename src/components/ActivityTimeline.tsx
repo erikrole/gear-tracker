@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 import { formatDateTime, formatDateShort, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -559,7 +559,7 @@ function TimelineEntry({
           {entry.actor?.avatarUrl && (
             <AvatarImage src={entry.actor.avatarUrl} alt={actorName} />
           )}
-          <AvatarFallback className={getAvatarColor(actorName)}>
+          <AvatarFallback>
             {getInitials(actorName)}
           </AvatarFallback>
         </Avatar>

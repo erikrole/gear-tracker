@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 
 const AREA_LABELS: Record<string, string> = {
   VIDEO: "Video",
@@ -55,7 +55,7 @@ export function UserAvatarPicker({ users, loading, search, onSearchChange, onSel
             >
               <Avatar className="size-7 shrink-0">
                 {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.name} />}
-                <AvatarFallback className={`text-xs font-medium ${getAvatarColor(u.name)}`}>
+                <AvatarFallback className="text-xs font-medium">
                   {getInitials(u.name)}
                 </AvatarFallback>
               </Avatar>
