@@ -60,9 +60,6 @@ export function WizardStep2({
         setSelectedAssetIds={setSelectedAssetIds}
         selectedBulkItems={selectedBulkItems}
         setSelectedBulkItems={setSelectedBulkItems}
-        visible
-        onDone={() => {}}
-        onReopen={() => {}}
         startsAt={form.startsAt}
         endsAt={form.endsAt}
         locationId={form.locationId}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePickerSearch } from "@/components/equipment-picker/use-picker-search";
+import { useConflictCheck, type ConflictInfo } from "@/components/equipment-picker/use-conflict-check";
 import {
   EQUIPMENT_SECTIONS,
   classifyAssetType,
@@ -50,108 +51,28 @@ export type BulkSelection = {
 };
 
 export type EquipmentPickerProps = {
-  /** @deprecated Pass assets to use legacy mode. Search mode (omit assets) is preferred. */
-  assets?: PickerAsset[];
   bulkSkus: PickerBulkSku[];
   selectedAssetIds: string[];
   setSelectedAssetIds: React.Dispatch<React.SetStateAction<string[]>>;
   selectedBulkItems: BulkSelection[];
   setSelectedBulkItems: React.Dispatch<React.SetStateAction<BulkSelection[]>>;
-  /** @deprecated No-op — picker is always visible in new design */
-  visible?: boolean;
-  /** @deprecated No-op */
-  onDone?: () => void;
-  /** @deprecated No-op */
-  onReopen?: () => void;
+  /** Booking window start (ISO string) — used for availability conflict check */
   startsAt?: string;
+  /** Booking window end (ISO string) — used for availability conflict check */
   endsAt?: string;
+  /** Location filter for availability check */
   locationId?: string;
+  /** Pre-selected assets to seed the display cache (search mode) */
   initialSelectedAssets?: PickerAsset[];
+  /** Called when selection changes with resolved asset objects */
   onSelectedAssetsChange?: (assets: PickerAsset[]) => void;
 };
 
-/* ───── Conflict check hook (inline — avoids stale selectedAssetIds bug) ───── */
-
-type ConflictInfo = {
-  assetId: string;
-  conflictingBookingTitle?: string;
-  startsAt: string;
-  endsAt: string;
-};
-
-function useConflictCheck({
-  startsAt,
-  endsAt,
-  locationId,
-  selectedAssetIds,
-}: {
-  startsAt?: string;
-  endsAt?: string;
-  locationId?: string;
-  selectedAssetIds: string[];
-}) {
-  const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
-  const [checking, setChecking] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
-
-  const check = useCallback(async (ids: string[], start: string, end: string, loc: string) => {
-    if (ids.length === 0) { setConflicts(new Map()); return; }
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    setChecking(true);
-    try {
-      const res = await fetch("/api/availability/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId: loc,
-          startsAt: new Date(start).toISOString(),
-          endsAt: new Date(end).toISOString(),
-          serializedAssetIds: ids,
-          bulkItems: [],
-        }),
-        signal: ctrl.signal,
-      });
-      if (ctrl.signal.aborted) return;
-      if (res.ok) {
-        const json = await res.json();
-        const data = json.data as {
-          conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string; startsAt: string; endsAt: string }>;
-        };
-        const map = new Map<string, ConflictInfo>();
-        for (const c of data.conflicts ?? []) map.set(c.assetId, c);
-        setConflicts(map);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-    }
-    if (!abortRef.current?.signal.aborted) setChecking(false);
-  }, []);
-
-  useEffect(() => {
-    if (!startsAt || !endsAt || !locationId) { setConflicts(new Map()); return; }
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      check(selectedAssetIds, startsAt, endsAt, locationId);
-    }, 400);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-    // selectedAssetIds intentionally included — re-check whenever selection changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startsAt, endsAt, locationId, selectedAssetIds.join(","), check]);
-
-  useEffect(() => () => abortRef.current?.abort(), []);
-
-  return { conflicts, checking };
-}
+export { type ConflictInfo };
 
 /* ───── Component ───── */
 
 export default function EquipmentPicker({
-  assets,
   bulkSkus,
   selectedAssetIds,
   setSelectedAssetIds,
@@ -163,29 +84,26 @@ export default function EquipmentPicker({
   initialSelectedAssets,
   onSelectedAssetsChange,
 }: EquipmentPickerProps) {
-  const legacyMode = !!assets;
-
   const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
   const [sectionSearch, setSectionSearch] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
 
-  // Asset cache for search mode (so we can display selected items we've seen)
+  // Asset cache so we can display selected items even after switching sections
   const [selectedAssetsCache] = useState<Map<string, PickerAsset>>(() => {
     const m = new Map<string, PickerAsset>();
     if (initialSelectedAssets) for (const a of initialSelectedAssets) m.set(a.id, a);
     return m;
   });
 
-  // Search mode data
+  // ── Data hooks ──
   const { sectionResults, apiSectionCounts, searchLoading } = usePickerSearch({
-    legacyMode,
+    legacyMode: false,
     activeSection,
     equipSearch: sectionSearch,
     onlyAvailable,
     globalSearch: "",
   });
 
-  // Availability conflict check — re-runs when selectedAssetIds changes
   const { conflicts, checking: conflictsLoading } = useConflictCheck({
     startsAt,
     endsAt,
@@ -193,37 +111,19 @@ export default function EquipmentPicker({
     selectedAssetIds,
   });
 
-  // Indexed lookups
+  // ── Indexed lookups ──
   const assetById = useMemo(() => {
-    if (legacyMode) return new Map((assets ?? []).map((a) => [a.id, a]));
     const m = new Map<string, PickerAsset>();
     for (const a of sectionResults) m.set(a.id, a);
     selectedAssetsCache.forEach((a, id) => { if (!m.has(id)) m.set(id, a); });
     return m;
-  }, [legacyMode, assets, sectionResults, selectedAssetsCache]);
+  }, [sectionResults, selectedAssetsCache]);
 
   const bulkById = useMemo(() => new Map(bulkSkus.map((s) => [s.id, s])), [bulkSkus]);
   const bulkBySection = useMemo(() => groupBulkBySection(bulkSkus), [bulkSkus]);
   const selectedIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
-  // Section asset list
-  const sectionAssets = useMemo(() => {
-    if (!legacyMode) return sectionResults;
-    const q = sectionSearch.toLowerCase();
-    return ((assets ?? []).filter((a) => {
-      const inSection = classifyAssetType(a.type, a.categoryName) === activeSection;
-      if (!inSection) return false;
-      if (onlyAvailable && a.computedStatus !== "AVAILABLE") return false;
-      if (!q) return true;
-      return (
-        a.assetTag.toLowerCase().includes(q) ||
-        a.brand.toLowerCase().includes(q) ||
-        a.model.toLowerCase().includes(q) ||
-        a.serialNumber.toLowerCase().includes(q)
-      );
-    }));
-  }, [legacyMode, assets, activeSection, sectionSearch, onlyAvailable, sectionResults]);
-
+  // ── Section data ──
   const sectionBulk = useMemo(() => {
     const q = sectionSearch.toLowerCase();
     return (bulkBySection[activeSection] || []).filter((s) =>
@@ -231,45 +131,33 @@ export default function EquipmentPicker({
     );
   }, [bulkBySection, activeSection, sectionSearch]);
 
-  // Section tab counts
   const sectionCounts = useMemo(() => {
-    if (!legacyMode) {
-      const c = { ...apiSectionCounts };
-      for (const key of Object.keys(c) as EquipmentSectionKey[]) {
-        c[key] = (c[key] || 0) + (bulkBySection[key]?.length || 0);
-      }
-      return c;
-    }
-    const c: Record<EquipmentSectionKey, number> = { cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0 };
-    for (const a of assets ?? []) {
-      const sec = classifyAssetType(a.type, a.categoryName);
-      c[sec] = (c[sec] || 0) + 1;
-    }
+    const c = { ...apiSectionCounts };
     for (const key of Object.keys(c) as EquipmentSectionKey[]) {
       c[key] = (c[key] || 0) + (bulkBySection[key]?.length || 0);
     }
     return c;
-  }, [legacyMode, assets, apiSectionCounts, bulkBySection]);
+  }, [apiSectionCounts, bulkBySection]);
 
-  // Selected count per section (for tab badges)
+  // ── Selected count per section (for tab badges) ──
   const selectedBySection = useMemo(() => {
     const c: Record<EquipmentSectionKey, number> = { cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0 };
     for (const id of selectedAssetIds) {
-      const a = legacyMode ? assetById.get(id) : (selectedAssetsCache.get(id) ?? assetById.get(id));
-      if (a) { const s = classifyAssetType(a.type, a.categoryName); c[s]++; }
+      const a = selectedAssetsCache.get(id) ?? assetById.get(id);
+      if (a) c[classifyAssetType(a.type, a.categoryName)]++;
     }
     for (const item of selectedBulkItems) {
       const sku = bulkById.get(item.bulkSkuId);
-      if (sku) { const s = classifyAssetType(sku.category, sku.categoryName); c[s]++; }
+      if (sku) c[classifyAssetType(sku.category, sku.categoryName)]++;
     }
     return c;
-  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, legacyMode, selectedAssetsCache]);
+  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, selectedAssetsCache]);
 
-  // Selected section keys (for guidance)
+  // ── Guidance banners ──
   const selectedSectionKeys = useMemo(() => {
     const keys = new Set<EquipmentSectionKey>();
     for (const id of selectedAssetIds) {
-      const a = legacyMode ? assetById.get(id) : (selectedAssetsCache.get(id) ?? assetById.get(id));
+      const a = selectedAssetsCache.get(id) ?? assetById.get(id);
       if (a) keys.add(classifyAssetType(a.type, a.categoryName));
     }
     for (const item of selectedBulkItems) {
@@ -277,33 +165,33 @@ export default function EquipmentPicker({
       if (sku) keys.add(classifyAssetType(sku.category, sku.categoryName));
     }
     return Array.from(keys);
-  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, legacyMode, selectedAssetsCache]);
+  }, [selectedAssetIds, selectedBulkItems, assetById, bulkById, selectedAssetsCache]);
 
   const activeGuidance = useMemo(() => {
     const ctx: GuidanceContext = { selectedSectionKeys, activeSection };
     return getActiveGuidance(ctx);
   }, [selectedSectionKeys, activeSection]);
 
-  // Notify parent of selected asset details
+  // ── Notify parent of resolved asset details ──
   useEffect(() => {
-    if (legacyMode || !onSelectedAssetsChange) return;
+    if (!onSelectedAssetsChange) return;
     const resolved = selectedAssetIds
       .map((id) => selectedAssetsCache.get(id))
       .filter((a): a is PickerAsset => !!a);
     onSelectedAssetsChange(resolved);
-  }, [selectedAssetIds, legacyMode, onSelectedAssetsChange, selectedAssetsCache]);
+  }, [selectedAssetIds, onSelectedAssetsChange, selectedAssetsCache]);
 
-  // Resolved selected items for shelf display
+  // ── Resolved selected items for shelf display ──
   const resolvedSelectedAssets = useMemo(() => {
     return selectedAssetIds
-      .map((id) => (legacyMode ? assetById.get(id) : (selectedAssetsCache.get(id) ?? assetById.get(id))))
+      .map((id) => selectedAssetsCache.get(id) ?? assetById.get(id))
       .filter((a): a is PickerAsset => !!a);
-  }, [selectedAssetIds, assetById, legacyMode, selectedAssetsCache]);
+  }, [selectedAssetIds, assetById, selectedAssetsCache]);
 
-  /* ── Helpers ── */
+  // ── Helpers ──
 
   function toggleAsset(id: string, asset?: PickerAsset) {
-    if (!legacyMode && asset && !selectedAssetsCache.has(id)) {
+    if (asset && !selectedAssetsCache.has(id)) {
       selectedAssetsCache.set(id, asset);
     }
     setSelectedAssetIds((prev) =>
@@ -324,6 +212,8 @@ export default function EquipmentPicker({
   }
 
   const totalSelected = selectedAssetIds.length + selectedBulkItems.reduce((s, i) => s + i.quantity, 0);
+
+  // ── Render ──
 
   return (
     <div className="flex flex-col gap-0 rounded-lg border border-border overflow-hidden">
@@ -401,13 +291,13 @@ export default function EquipmentPicker({
         <div role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label} equipment`}>
           {searchLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
-          ) : sectionAssets.length === 0 && sectionBulk.length === 0 ? (
+          ) : sectionResults.length === 0 && sectionBulk.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               {sectionSearch ? "No results" : onlyAvailable ? "Nothing available right now" : "No items in this section"}
             </div>
           ) : (
             <>
-              {sectionAssets.map((asset) => {
+              {sectionResults.map((asset) => {
                 const isSelected = selectedIdSet.has(asset.id);
                 const conflict = conflicts.get(asset.id);
                 const isAvailable = asset.computedStatus === "AVAILABLE";
@@ -435,7 +325,9 @@ export default function EquipmentPicker({
                       <div className="text-xs text-muted-foreground truncate">
                         {asset.brand} {asset.model}
                         {!isAvailable && !isSelected && (
-                          <span className="text-orange-500 ml-1">· {asset.computedStatus.replace(/_/g, " ").toLowerCase()}</span>
+                          <span className="text-orange-500 ml-1">
+                            · {asset.computedStatus.replace(/_/g, " ").toLowerCase()}
+                          </span>
                         )}
                       </div>
                     </div>

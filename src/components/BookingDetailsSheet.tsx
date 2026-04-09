@@ -694,9 +694,6 @@ export default function BookingDetailsSheet({
                         setEditBulkItems(updater);
                       }
                     }}
-                    visible
-                    onDone={() => {}}
-                    onReopen={() => {}}
                     startsAt={booking.startsAt}
                     endsAt={booking.endsAt}
                     locationId={booking.location.id}
