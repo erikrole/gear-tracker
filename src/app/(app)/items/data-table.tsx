@@ -81,7 +81,7 @@ export function DataTable({
         </div>
       )}
 
-      <div className="relative rounded-md border">
+      <div className="relative rounded-md border" role="region" aria-busy={refreshing}>
         {refreshing && (
           <div className="absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden rounded-t-md">
             <div className="h-full w-1/3 bg-primary/40 animate-[shimmer_1.5s_ease-in-out_infinite]" />
