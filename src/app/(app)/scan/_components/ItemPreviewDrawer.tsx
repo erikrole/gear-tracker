@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ScanIcon, UserIcon, CalendarIcon, ExternalLinkIcon } from "lucide-react";
+import { ScanIcon, CalendarIcon, ExternalLinkIcon } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -103,17 +104,11 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                 /* ── Booked state: show holder info ── */
                 <div className="rounded-lg border p-4">
                   <div className="flex items-center gap-3">
-                    {item.activeBooking!.requesterAvatarUrl ? (
-                      <img
-                        src={item.activeBooking!.requesterAvatarUrl}
-                        alt={item.activeBooking!.requesterName}
-                        className="size-10 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                        <UserIcon className="size-5 text-muted-foreground" />
-                      </div>
-                    )}
+                    <UserAvatar
+                      name={item.activeBooking!.requesterName}
+                      avatarUrl={item.activeBooking!.requesterAvatarUrl}
+                      size="default"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">
                         {item.activeBooking!.requesterName}

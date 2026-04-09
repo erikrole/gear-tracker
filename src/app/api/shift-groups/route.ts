@@ -56,7 +56,7 @@ export const GET = withAuth(async (req, { user }) => {
               status: { in: ACTIVE_ASSIGNMENT_STATUSES },
             },
             include: {
-              user: { select: { id: true, name: true, primaryArea: true } },
+              user: { select: { id: true, name: true, primaryArea: true, avatarUrl: true } },
             },
           },
         },
