@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getAvatarColor } from "@/lib/avatar";
 import { AvatarGrid } from "./AvatarGrid";
 
 type KioskUser = { id: string; name: string; avatarUrl: string | null };
@@ -256,7 +255,7 @@ export function IdleScreen({ kioskInfo, onSelectUser }: Props) {
                           {checkout.requesterAvatarUrl && (
                             <AvatarImage src={checkout.requesterAvatarUrl} alt={checkout.requesterName} />
                           )}
-                          <AvatarFallback className={`text-xs font-semibold text-white ${getAvatarColor(checkout.requesterName)}`}>
+                          <AvatarFallback className="text-xs font-semibold">
                             {checkout.requesterInitials}
                           </AvatarFallback>
                         </Avatar>

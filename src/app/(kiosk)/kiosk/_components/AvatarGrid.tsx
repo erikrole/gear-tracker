@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 
 type KioskUser = { id: string; name: string; avatarUrl: string | null };
 
@@ -57,9 +57,7 @@ export function AvatarGrid({ users, onSelect, loading }: Props) {
               {user.avatarUrl ? (
                 <AvatarImage src={user.avatarUrl} alt={user.name} />
               ) : null}
-              <AvatarFallback
-                className={`text-base font-semibold ${getAvatarColor(user.name)}`}
-              >
+              <AvatarFallback className="text-base font-semibold">
                 {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>

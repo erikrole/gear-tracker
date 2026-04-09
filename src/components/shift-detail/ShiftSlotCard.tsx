@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { PlusIcon, XIcon } from "lucide-react";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 
 type ShiftUser = {
@@ -136,7 +136,7 @@ export function ShiftSlotCard({
               {activeAssignment.user.avatarUrl && (
                 <AvatarImage src={activeAssignment.user.avatarUrl} alt={activeAssignment.user.name} />
               )}
-              <AvatarFallback className={`text-xs font-medium ${getAvatarColor(activeAssignment.user.name)}`}>
+              <AvatarFallback className="text-xs font-medium">
                 {getInitials(activeAssignment.user.name)}
               </AvatarFallback>
             </Avatar>
@@ -168,7 +168,7 @@ export function ShiftSlotCard({
             <div key={req.id} className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
                 <Avatar className="size-6">
-                  <AvatarFallback className={`text-xs font-medium ${getAvatarColor(req.user.name)}`}>
+                  <AvatarFallback className="text-xs font-medium">
                     {getInitials(req.user.name)}
                   </AvatarFallback>
                 </Avatar>

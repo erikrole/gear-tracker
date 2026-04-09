@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { UserRow as UserRowType } from "./types";
 import RoleBadge from "./RoleBadge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { getInitials } from "@/lib/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TableRow, TableCell } from "@/components/ui/table";
