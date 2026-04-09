@@ -133,7 +133,7 @@ export default function CategoriesPage() {
                 >
                   <div className="flex items-center gap-2">
                     {i === 1 || i === 3 ? (
-                      <Skeleton className="h-4 w-4 rounded-sm" />
+                      <Skeleton className="size-4 rounded-sm" />
                     ) : null}
                     <Skeleton
                       className={`h-4 rounded ${i % 2 === 0 ? "w-[140px]" : "w-[100px]"}`}

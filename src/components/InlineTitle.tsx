@@ -54,7 +54,7 @@ export function InlineTitle({
     <span className={cn(
       "inline-flex items-center gap-1 text-xs ml-2 align-middle transition-opacity duration-300",
       status === "saving" && "text-muted-foreground",
-      status === "saved" && "text-green-600 dark:text-green-400",
+      status === "saved" && "text-[var(--green-text)]",
       status === "error" && "text-destructive",
     )}>
       {status === "saving" && <Spinner className="size-3.5" />}

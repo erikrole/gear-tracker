@@ -59,9 +59,9 @@ function notifIconBg(type: string) {
     case "checkout_due_now":
     case "checkout_overdue_2h":
     case "checkout_overdue_24h":
-      return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400";
+      return "bg-[var(--orange-bg)] text-[var(--orange-text)]";
     case "shift_gear_up":
-      return "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400";
+      return "bg-[var(--green-bg)] text-[var(--green-text)]";
     default:
       return "bg-muted text-muted-foreground";
   }

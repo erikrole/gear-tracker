@@ -108,7 +108,7 @@ export function ScanInput({
             className="flex items-center gap-2 rounded-lg border bg-card px-4 py-3 cursor-pointer"
             onClick={refocusHiddenInput}
           >
-            <span className="relative flex h-3 w-3">
+            <span className="relative flex size-3">
               <span
                 className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${
                   isFocused && !disabled
@@ -117,7 +117,7 @@ export function ScanInput({
                 }`}
               />
               <span
-                className={`relative inline-flex h-3 w-3 rounded-full ${
+                className={`relative inline-flex size-3 rounded-full ${
                   isFocused && !disabled
                     ? "bg-green-500"
                     : "bg-muted-foreground"

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -28,7 +29,6 @@ import {
 import {
   AlertTriangle,
   Copy,
-  Loader2,
   Monitor,
   Plus,
   Power,
@@ -211,7 +211,7 @@ export default function KioskDevicesPage() {
           </p>
         </div>
         <Button onClick={() => setShowAdd(true)} size="sm">
-          <Plus className="h-4 w-4 mr-1.5" />
+          <Plus className="size-4 mr-1.5" />
           Add Kiosk
         </Button>
       </div>
@@ -254,7 +254,7 @@ export default function KioskDevicesPage() {
                 </Select>
               </div>
               <Button type="submit" disabled={adding || !addName.trim() || !addLocationId}>
-                {adding && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                {adding && <Spinner data-icon="inline-start" />}
                 Create
               </Button>
               <Button
@@ -279,9 +279,9 @@ export default function KioskDevicesPage() {
         <Card className="border-destructive">
           <CardContent className="flex items-center gap-3 py-4">
             {error.type === "network" ? (
-              <WifiOff className="h-5 w-5 text-destructive" />
+              <WifiOff className="size-5 text-destructive" />
             ) : (
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <AlertTriangle className="size-5 text-destructive" />
             )}
             <span className="text-sm text-destructive">{error.message}</span>
             <Button variant="outline" size="sm" className="ml-auto" onClick={load}>
@@ -298,7 +298,7 @@ export default function KioskDevicesPage() {
             <Card key={i}>
               <CardContent className="py-4">
                 <div className="flex items-center gap-4">
-                  <Skeleton className="h-10 w-10 rounded" />
+                  <Skeleton className="size-10 rounded" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-40" />
                     <Skeleton className="h-3 w-24" />
@@ -315,7 +315,7 @@ export default function KioskDevicesPage() {
       {!loading && !error && (devices ?? []).length === 0 && (
         <Card>
           <CardContent className="py-10 text-center">
-            <Monitor className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+            <Monitor className="size-10 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               No kiosk devices yet. Add one to enable self-serve checkout on an iPad.
             </p>
@@ -328,8 +328,8 @@ export default function KioskDevicesPage() {
           {(devices ?? []).map((device) => (
             <Card key={device.id} className={!device.active ? "opacity-60" : ""}>
               <CardContent className="flex items-center gap-4 py-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
-                  <Monitor className="h-5 w-5 text-muted-foreground" />
+                <div className="flex size-10 items-center justify-center rounded bg-muted">
+                  <Monitor className="size-5 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -363,11 +363,11 @@ export default function KioskDevicesPage() {
                     title={device.active ? "Deactivate" : "Activate"}
                   >
                     {togglingId === device.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner />
                     ) : device.active ? (
-                      <PowerOff className="h-4 w-4" />
+                      <PowerOff className="size-4" />
                     ) : (
-                      <Power className="h-4 w-4" />
+                      <Power className="size-4" />
                     )}
                   </Button>
                   <Button
@@ -379,9 +379,9 @@ export default function KioskDevicesPage() {
                     title="Delete"
                   >
                     {deletingId === device.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Spinner />
                     ) : (
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="size-4" />
                     )}
                   </Button>
                 </div>
@@ -411,7 +411,7 @@ export default function KioskDevicesPage() {
               onClick={() => codeDialog && copyCode(codeDialog.code)}
               title="Copy code"
             >
-              <Copy className="h-4 w-4" />
+              <Copy className="size-4" />
             </Button>
           </div>
           <DialogFooter>

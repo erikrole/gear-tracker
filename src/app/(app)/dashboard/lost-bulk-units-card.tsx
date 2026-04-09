@@ -15,10 +15,10 @@ export function LostBulkUnitsCard({ items }: Props) {
   const totalLost = items.reduce((sum, i) => sum + i.count, 0);
 
   return (
-    <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 rounded-[var(--radius)] p-4 mb-4 animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="bg-[var(--red-bg)] border border-[var(--red)]/20 rounded-[var(--radius)] p-4 mb-4 animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       <div className="flex items-center gap-2 mb-2">
-        <AlertTriangleIcon className="size-4 text-red-600 dark:text-red-400 shrink-0" />
-        <span className="text-sm font-semibold text-red-900 dark:text-red-200">
+        <AlertTriangleIcon className="size-4 text-[var(--red-text)] shrink-0" />
+        <span className="text-sm font-semibold text-foreground">
           {totalLost} battery unit{totalLost !== 1 ? "s" : ""} currently lost
         </span>
       </div>
@@ -26,7 +26,7 @@ export function LostBulkUnitsCard({ items }: Props) {
         {items.map((item) => (
           <div
             key={item.skuName}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-red-100/60 dark:bg-red-900/20"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--red)]/8"
           >
             <span className="text-sm font-medium truncate flex-1">
               {item.skuName}

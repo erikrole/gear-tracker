@@ -64,21 +64,21 @@ export function ScanChecklist({
               // Background color
               let rowBg = "";
               if (isLost) {
-                rowBg = "bg-red-50 dark:bg-red-950/20";
+                rowBg = "bg-[var(--red-bg)]";
               } else if (isDamaged) {
-                rowBg = "bg-orange-50 dark:bg-orange-950/20";
+                rowBg = "bg-[var(--orange-bg)]";
               } else if (item.scanned) {
-                rowBg = "bg-green-50/50 dark:bg-green-950/10";
+                rowBg = "bg-[var(--green-bg)]";
               }
 
               // Circle styling — 40px like reference
-              let circleBorder = "border-2 border-gray-200 dark:border-gray-700";
+              let circleBorder = "border-2 border-border";
               let circleInner = "";
               if (isLost) {
-                circleBorder = "border-2 border-orange-500 bg-orange-500";
+                circleBorder = "border-2 border-[var(--orange)] bg-[var(--orange)]";
                 circleInner = "text-white";
               } else if (item.scanned) {
-                circleBorder = "border-2 border-green-500 bg-green-500";
+                circleBorder = "border-2 border-[var(--green)] bg-[var(--green)]";
                 circleInner = "text-white animate-[scan-check-pop_0.3s_ease]";
               }
 

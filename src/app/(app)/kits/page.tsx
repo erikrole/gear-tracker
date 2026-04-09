@@ -8,7 +8,6 @@ import {
   BoxIcon,
   PlusIcon,
   SearchIcon,
-  Loader2,
   ArchiveIcon,
   ArrowUp,
   ArrowDown,
@@ -20,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -96,10 +96,10 @@ export default function KitsPage() {
   }
 
   function SortIcon({ column }: { column: string }) {
-    if (sortBy !== column) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/50" />;
+    if (sortBy !== column) return <ArrowUpDown className="ml-1 size-3.5 text-muted-foreground/50" />;
     return sortOrder === "asc"
-      ? <ArrowUp className="ml-1 h-3.5 w-3.5" />
-      : <ArrowDown className="ml-1 h-3.5 w-3.5" />;
+      ? <ArrowUp className="ml-1 size-3.5" />
+      : <ArrowDown className="ml-1 size-3.5" />;
   }
 
   const hasFilters = !!debouncedSearch || !!locationId || includeArchived;
@@ -109,7 +109,7 @@ export default function KitsPage() {
     return (
       <>
         <PageHeader title="Kits" />
-        <Card className="p-4 space-y-3">
+        <Card className="flex flex-col gap-3 p-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4">
               <Skeleton className="h-5 w-48" />
@@ -127,7 +127,7 @@ export default function KitsPage() {
     <FadeUp>
       <PageHeader title="Kits">
         <Button onClick={() => setSheetOpen(true)}>
-          <PlusIcon className="mr-2 h-4 w-4" />
+          <PlusIcon className="mr-2 size-4" />
           New Kit
         </Button>
       </PageHeader>
@@ -135,7 +135,7 @@ export default function KitsPage() {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search kits…"
             value={search}
@@ -159,10 +159,10 @@ export default function KitsPage() {
             checked={includeArchived}
             onCheckedChange={(v) => setIncludeArchived(!!v)}
           />
-          <ArchiveIcon className="h-3.5 w-3.5" />
+          <ArchiveIcon className="size-3.5" />
           Show archived
         </label>
-        {query.refreshing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        {query.refreshing && <Spinner className="size-4 text-muted-foreground" />}
       </div>
 
       {/* Error state */}
@@ -203,7 +203,7 @@ export default function KitsPage() {
       {!query.loadError && query.kits.length > 0 && (
         <Card>
           {/* Mobile card layout */}
-          <div className="md:hidden space-y-3 p-3">
+          <div className="md:hidden flex flex-col gap-3 p-3">
             {query.kits.map((kit) => (
               <div
                 key={kit.id}
@@ -271,7 +271,7 @@ export default function KitsPage() {
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      <BoxIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <BoxIcon className="size-4 text-muted-foreground shrink-0" />
                       <span>{kit.name}</span>
                       {!kit.active && (
                         <Badge variant="outline" className="text-xs">Archived</Badge>

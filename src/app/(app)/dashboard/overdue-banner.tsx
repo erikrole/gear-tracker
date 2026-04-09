@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangleIcon, BellRingIcon, CheckIcon, ClipboardCheckIcon, Loader2Icon } from "lucide-react";
+import { AlertTriangleIcon, BellRingIcon, CheckIcon, ClipboardCheckIcon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { formatOverdueElapsed } from "@/lib/format";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
 import { Button } from "@/components/ui/button";
@@ -105,7 +106,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                     aria-label={`Nudge ${item.requesterName}`}
                   >
                     {nudgingId === item.bookingId ? (
-                      <Loader2Icon className="size-4 animate-spin" />
+                      <Spinner />
                     ) : nudgedIds.has(item.bookingId) ? (
                       <CheckIcon className="size-4 text-green-500" />
                     ) : (

@@ -34,7 +34,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, CalendarDays, CameraIcon, Copy, KeyRound, Loader2, TrashIcon } from "lucide-react";
+import { AlertCircle, CalendarDays, CameraIcon, Copy, KeyRound, TrashIcon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -277,7 +278,7 @@ export default function UserDetailPage() {
                     </Avatar>
                     <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       {uploadingAvatar ? (
-                        <Loader2 className="size-5 text-white animate-spin" />
+                        <Spinner className="size-5 text-white" />
                       ) : (
                         <CameraIcon className="size-5 text-white" />
                       )}

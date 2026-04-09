@@ -190,7 +190,7 @@ export default function CalendarSourcesPage() {
           <Card style={{ padding: 16, marginBottom: 16 }}>
             <form onSubmit={handleAdd}>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div className="space-y-1.5">
+                <div className="flex flex-col gap-1.5">
                   <Label>Name</Label>
                   <Input
                     type="text"
@@ -200,7 +200,7 @@ export default function CalendarSourcesPage() {
                     required
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="flex flex-col gap-1.5">
                   <Label>ICS URL</Label>
                   <Input
                     type="url"
@@ -225,10 +225,10 @@ export default function CalendarSourcesPage() {
 
         {loading ? (
           <Card style={{ padding: 40, textAlign: "center" }}>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {Array.from({ length: 3 }, (_, i) => (
                 <div key={i} className="flex items-center justify-between py-3">
-                  <div className="space-y-1.5">
+                  <div className="flex flex-col gap-1.5">
                     <Skeleton className="h-4 w-40" />
                     <Skeleton className="h-3 w-56" />
                   </div>

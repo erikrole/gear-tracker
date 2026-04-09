@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Spinner } from "@/components/ui/spinner";
 
 type CheckinSummaryDialogProps = {
   open: boolean;
@@ -63,10 +64,10 @@ export function CheckinSummaryDialog({
           </Button>
           <Button onClick={onFinish} disabled={completing}>
             {completing ? (
-              <span className="flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <>
+                <Spinner data-icon="inline-start" />
                 Completing...
-              </span>
+              </>
             ) : (
               "Finish Check-in"
             )}

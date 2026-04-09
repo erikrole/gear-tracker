@@ -39,8 +39,8 @@ const CHECKOUT_CONFIG: BookingListConfig = {
   apiBase: "/api/checkouts",
   label: "checkout",
   labelPlural: "Checkouts",
-  actionLabel: "Check out equipment",
-  actionLabelProgress: "Checking out\u2026",
+  actionLabel: "Pick up now",
+  actionLabelProgress: "Picking up\u2026",
   requesterLabel: "Checked out to",
   startLabel: "Pickup",
   endLabel: "Return by",
@@ -57,7 +57,7 @@ const RESERVATION_CONFIG: BookingListConfig = {
   apiBase: "/api/reservations",
   label: "reservation",
   labelPlural: "Reservations",
-  actionLabel: "Reserve equipment",
+  actionLabel: "Reserve for later",
   actionLabelProgress: "Reserving\u2026",
   requesterLabel: "Reserved for",
   startLabel: "Start",
@@ -265,15 +265,15 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground m-0 mb-4">Get started by setting up your equipment inventory.</p>
           <div className="flex gap-3 max-md:flex-col">
             <Link href="/items" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
-              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">1</span>
+              <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">1</span>
               <span>Add equipment</span>
             </Link>
             <Link href="/import" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
-              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">2</span>
+              <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">2</span>
               <span>Import from spreadsheet</span>
             </Link>
             <Link href="/settings/calendar-sources" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
-              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">3</span>
+              <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">3</span>
               <span>Set up calendar sync</span>
             </Link>
           </div>

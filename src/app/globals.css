@@ -130,15 +130,21 @@
   /* Semantic palette */
   --green: #22c55e;
   --green-bg: #f0fdf4;
+  --green-text: #16a34a;
   --orange: #f59e0b;
   --orange-bg: #fffbeb;
+  --orange-text: #d97706;
   --red: #ef4444;
   --red-bg: #fef2f2;
+  --red-text: #dc2626;
   --purple: #7c3aed;
   --purple-bg: #f5f3ff;
+  --purple-text: #7c3aed;
   --pink: #ec4899;
   --blue: #3b82f6;
   --blue-bg: #eff6ff;
+  --blue-text: #2563eb;
+  --yellow-text: #ca8a04;
 
   /* Border radius */
   --radius-sm: 4px;
@@ -298,10 +304,16 @@
 
   /* Semantic background tints */
   --green-bg: rgba(34, 197, 94, 0.12);
+  --green-text: #4ade80;
   --orange-bg: rgba(245, 158, 11, 0.12);
+  --orange-text: #fbbf24;
   --red-bg: rgba(239, 68, 68, 0.12);
+  --red-text: #f87171;
   --purple-bg: rgba(124, 58, 237, 0.12);
+  --purple-text: #a78bfa;
   --blue-bg: rgba(59, 130, 246, 0.12);
+  --blue-text: #60a5fa;
+  --yellow-text: #facc15;
 
   /* Shadows — deeper for dark surfaces */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);

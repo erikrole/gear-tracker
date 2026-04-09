@@ -45,7 +45,7 @@ function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
   );
 
   return (
-    <div className="text-xs space-y-1 max-w-[220px]">
+    <div className="text-xs flex flex-col gap-1 max-w-[220px]">
       <div className="font-semibold text-sm">{entry.summary}</div>
       <div className="text-muted-foreground">{timeStr}</div>
       {assignedUsers.length > 0 && (

@@ -165,7 +165,7 @@ export function NewItemSheet({
 
         <SheetBody className="px-6 py-6">
           {showPostCreate ? (
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6">
               <SuccessFlash message={`"${createdLabel}" created successfully!`} />
               <div className="flex flex-col items-center gap-1 py-4">
                 <Button
@@ -183,9 +183,9 @@ export function NewItemSheet({
               </div>
             </div>
           ) : (
-            <form id="new-item-form" onSubmit={handleSubmit} className="space-y-6">
+            <form id="new-item-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
               {/* ── Item type ── */}
-              <section className="space-y-3">
+              <section className="flex flex-col gap-3">
                 <SectionHeading>Item type</SectionHeading>
                 <RadioGroup value={kind} onValueChange={(v) => setKind(v as ItemKind)}>
                   <div className="flex items-start gap-3">

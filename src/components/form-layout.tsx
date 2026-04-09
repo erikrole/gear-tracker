@@ -1,5 +1,6 @@
 import { CheckCircle2Icon } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function FormRow({
   label,
@@ -51,9 +52,9 @@ export function SectionHeading({ children }: { children: React.ReactNode }) {
 
 export function SuccessFlash({ message }: { message: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+    <Alert className="border-[var(--green)]/20 bg-[var(--green-bg)] text-[var(--green-text)]">
       <CheckCircle2Icon className="size-4 shrink-0" />
-      {message}
-    </div>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
   );
 }

@@ -9,7 +9,8 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { handleAuthRedirect } from "@/lib/errors";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -273,7 +274,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
       {effectiveCursor && (
         <div className="flex justify-center pt-2">
           <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
-            {loadingMore ? <><Loader2 className="mr-1.5 size-3.5 animate-spin" />Loading...</> : "Load more"}
+            {loadingMore ? <><Spinner data-icon="inline-start" />Loading...</> : "Load more"}
           </Button>
         </div>
       )}

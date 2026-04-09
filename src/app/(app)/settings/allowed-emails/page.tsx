@@ -19,12 +19,12 @@ import {
 } from "@/components/ui/select";
 import {
   AlertTriangle,
-  Loader2,
   Plus,
   RefreshCw,
   Trash2,
   WifiOff,
 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 
@@ -273,7 +273,7 @@ export default function AllowedEmailsPage() {
                   <Button type="submit" size="sm" disabled={adding}>
                     {adding ? (
                       <>
-                        <Loader2 className="size-4 animate-spin" />
+                        <Spinner data-icon="inline-start" />
                         Adding...
                       </>
                     ) : (
@@ -367,7 +367,7 @@ export default function AllowedEmailsPage() {
                             className="text-destructive hover:text-destructive"
                           >
                             {deletingId === item.id ? (
-                              <Loader2 className="size-4 animate-spin" />
+                              <Spinner />
                             ) : (
                               <Trash2 className="size-4" />
                             )}

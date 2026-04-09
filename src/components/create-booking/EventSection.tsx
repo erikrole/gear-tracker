@@ -65,7 +65,7 @@ export function EventSection({
         </button>
       </AccordionTrigger>
       <AccordionContent>
-        <div className="space-y-3 px-6 py-4">
+        <div className="flex flex-col gap-3 px-6 py-4">
           {/* Tie to event toggle */}
           <div className="flex items-center gap-2">
             <button
@@ -80,7 +80,7 @@ export function EventSection({
           {/* Sport + event list */}
           {tieToEvent && (
             <>
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 <Label>Sport</Label>
                 <Select value={sport} onValueChange={(v) => dispatch({ type: "SET_SPORT", value: v })}>
                   <SelectTrigger>
@@ -97,7 +97,7 @@ export function EventSection({
               </div>
 
               {sport && (
-                <div className="space-y-1">
+                <div className="flex flex-col gap-1">
                   <Label className="text-xs text-muted-foreground">Upcoming events (next 30 days)</Label>
                   {eventsLoading ? (
                     <div className="py-4 text-center text-sm text-muted-foreground">Loading events...</div>
@@ -107,7 +107,7 @@ export function EventSection({
                       create without an event.
                     </div>
                   ) : (
-                    <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-1">
+                    <div className="max-h-48 flex flex-col gap-1 overflow-y-auto rounded-md border p-1">
                       {events.map((ev) => (
                         <button
                           key={ev.id}

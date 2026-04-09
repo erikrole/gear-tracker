@@ -92,7 +92,7 @@ export function ShiftSlotCard({
   return (
     <Card
       elevation="flat"
-      className={`p-3 mb-2 ${isAssigned ? "border-green-200 bg-green-50/50 dark:border-green-900/30 dark:bg-green-950/20" : ""}`}
+      className={`p-3 mb-2 ${isAssigned ? "border-[var(--green)]/20 bg-[var(--green-bg)]" : ""}`}
     >
       {/* Header: worker type + status badge + delete */}
       <div className="flex items-center justify-between mb-1">
@@ -115,7 +115,7 @@ export function ShiftSlotCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                  className="size-7 p-0 text-muted-foreground hover:text-destructive"
                   onClick={onDeleteShift}
                   disabled={acting !== null}
                 >
@@ -163,7 +163,7 @@ export function ShiftSlotCard({
 
       {/* Pending requests */}
       {pendingRequests.length > 0 && (
-        <div className="mt-2 space-y-1">
+        <div className="mt-2 flex flex-col gap-1">
           {pendingRequests.map((req) => (
             <div key={req.id} className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground flex items-center gap-2">

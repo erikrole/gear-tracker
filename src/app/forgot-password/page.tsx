@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Loader2, MailCheck, WifiOff } from "lucide-react";
+import { AlertCircle, MailCheck, WifiOff } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,7 @@ export default function ForgotPasswordPage() {
               <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={submitting}>
                 {submitting ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner data-icon="inline-start" />
                     Sending...
                   </>
                 ) : "Send reset link"}

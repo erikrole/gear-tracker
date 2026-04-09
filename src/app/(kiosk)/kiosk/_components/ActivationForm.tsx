@@ -3,7 +3,8 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Monitor } from "lucide-react";
+import { Monitor } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 type Props = {
   onActivated: (data: { kioskId: string; name: string; locationName: string }) => void;
@@ -93,7 +94,7 @@ export function ActivationForm({ onActivated }: Props) {
             className="w-full h-14 text-lg"
             disabled={loading || code.length !== 6}
           >
-            {loading && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
+            {loading && <Spinner data-icon="inline-start" />}
             Activate
           </Button>
         </form>

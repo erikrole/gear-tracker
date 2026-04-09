@@ -1,5 +1,5 @@
-import { Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Sheet,
   SheetContent,
@@ -115,7 +115,7 @@ export function UnitPickerSheet({
           >
             {processing ? (
               <>
-                <Loader2Icon className="size-4 animate-spin mr-2" />
+                <Spinner data-icon="inline-start" />
                 Scanning...
               </>
             ) : (

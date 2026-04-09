@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 type Location = { id: string; name: string };
 
@@ -90,7 +90,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             </Alert>
           )}
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="kit-name">Name</Label>
             <Input
               id="kit-name"
@@ -102,7 +102,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="kit-description">Description</Label>
             <Textarea
               id="kit-description"
@@ -114,7 +114,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="kit-location">Location</Label>
             <Select value={locationId} onValueChange={setLocationId} disabled={submitting}>
               <SelectTrigger id="kit-location">
@@ -135,7 +135,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {submitting && <Spinner data-icon="inline-start" />}
               Create Kit
             </Button>
           </SheetFooter>

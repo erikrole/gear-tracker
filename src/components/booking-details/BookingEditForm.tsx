@@ -51,7 +51,7 @@ export default function BookingEditForm({
 }: Props) {
   return (
     <div className="px-5 py-4">
-      <div className="mb-3 space-y-1">
+      <div className="mb-3 flex flex-col gap-1">
         <Label>Title</Label>
         <Input
           value={editTitle}
@@ -61,7 +61,7 @@ export default function BookingEditForm({
 
       <div className="flex gap-3">
         {booking.kind === "RESERVATION" && (
-          <div className="mb-3 space-y-1 flex-1">
+          <div className="mb-3 flex flex-col gap-1 flex-1">
             <Label>Start</Label>
             <DateTimePicker
               value={parseLocalDateTime(editStartsAt)}
@@ -69,7 +69,7 @@ export default function BookingEditForm({
             />
           </div>
         )}
-        <div className="mb-3 space-y-1 flex-1">
+        <div className="mb-3 flex flex-col gap-1 flex-1">
           <Label>{booking.kind === "RESERVATION" ? "End" : "Due date"}</Label>
           <DateTimePicker
             value={parseLocalDateTime(editEndsAt)}
@@ -78,7 +78,7 @@ export default function BookingEditForm({
         </div>
       </div>
 
-      <div className="mb-3 space-y-1">
+      <div className="mb-3 flex flex-col gap-1">
         <Label>Notes</Label>
         <Textarea
           rows={3}

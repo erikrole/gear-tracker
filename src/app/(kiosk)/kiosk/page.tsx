@@ -49,7 +49,7 @@ export default function KioskPage() {
   if (checking) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Spinner className="h-8 w-8" />
+        <Spinner className="size-8" />
       </div>
     );
   }

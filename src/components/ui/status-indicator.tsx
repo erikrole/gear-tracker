@@ -27,12 +27,12 @@ const getStateColors = (state: StatusIndicatorProps["state"]) => {
 const getSizeClasses = (size: StatusIndicatorProps["size"]) => {
   switch (size) {
     case "sm":
-      return { dot: "h-2 w-2", ping: "h-2 w-2" };
+      return { dot: "size-2", ping: "size-2" };
     case "lg":
-      return { dot: "h-4 w-4", ping: "h-4 w-4" };
+      return { dot: "size-4", ping: "size-4" };
     case "md":
     default:
-      return { dot: "h-3 w-3", ping: "h-3 w-3" };
+      return { dot: "size-3", ping: "size-3" };
   }
 };
 

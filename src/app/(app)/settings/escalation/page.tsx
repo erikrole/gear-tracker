@@ -129,7 +129,7 @@ export default function EscalationSettingsPage() {
         <div className="min-w-0">
           <Card className="mb-1">
             <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-4 pb-4 flex flex-col gap-3">
               {/* Table header skeleton */}
               <div className="flex gap-4">
                 <Skeleton className="h-4 w-28" />
@@ -152,7 +152,7 @@ export default function EscalationSettingsPage() {
           </Card>
           <Card>
             <CardHeader><CardTitle>Fatigue Controls</CardTitle></CardHeader>
-            <div className="p-4 space-y-2">
+            <div className="p-4 flex flex-col gap-2">
               <div className="flex gap-3 items-center">
                 <Skeleton className="h-4 w-48" />
                 <Skeleton className="h-9 w-20 rounded-md" />

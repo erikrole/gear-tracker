@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeftIcon, ScanIcon, Loader2Icon, AlertCircleIcon } from "lucide-react";
+import { ChevronLeftIcon, ScanIcon, AlertCircleIcon } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
@@ -291,7 +292,7 @@ export default function ScanPage() {
           >
             {session.completing ? (
               <>
-                <Loader2Icon className="size-4 animate-spin mr-2" />
+                <Spinner data-icon="inline-start" />
                 Completing...
               </>
             ) : allComplete ? (
