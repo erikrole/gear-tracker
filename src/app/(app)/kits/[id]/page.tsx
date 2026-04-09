@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import {
   BoxIcon,
   PlusIcon,
@@ -106,7 +106,6 @@ export default function KitDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const kitUrl = `/api/kits/${id}`;
@@ -232,9 +231,9 @@ export default function KitDetailPage() {
       const { data } = await res.json();
       setKit(data);
       setSearchResults((r) => r.filter((a) => a.id !== assetId));
-      toast("Item added to kit", "success");
+      toast.success("Item added to kit");
     } catch (err) {
-      toast((err as Error).message, "error");
+      toast.error((err as Error).message);
     } finally {
       setAddingIds((s) => { const n = new Set(s); n.delete(assetId); return n; });
     }
@@ -251,9 +250,9 @@ export default function KitDetailPage() {
       setKit((prev) =>
         prev ? { ...prev, members: prev.members.filter((m) => m.id !== member.id) } : prev
       );
-      toast(`Removed ${member.asset.assetTag}`, "success");
+      toast.success(`Removed ${member.asset.assetTag}`);
     } catch {
-      toast("Failed to remove item", "error");
+      toast.error("Failed to remove item");
     } finally {
       setRemovingId(null);
       setRemoveTarget(null);
@@ -274,9 +273,9 @@ export default function KitDetailPage() {
       if (!res.ok) throw new Error("Failed to update");
       const { data } = await res.json();
       setKit(data);
-      toast(data.active ? "Kit restored" : "Kit archived", "success");
+      toast.success(data.active ? "Kit restored" : "Kit archived");
     } catch {
-      toast("Failed to update kit", "error");
+      toast.error("Failed to update kit");
     }
   }
 
@@ -288,10 +287,10 @@ export default function KitDetailPage() {
       const res = await fetch(`/api/kits/${id}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error("Failed to delete");
-      toast("Kit deleted", "success");
+      toast.success("Kit deleted");
       router.replace("/kits");
     } catch {
-      toast("Failed to delete kit", "error");
+      toast.error("Failed to delete kit");
     } finally {
       setDeleting(false);
       setDeleteOpen(false);
@@ -571,9 +570,9 @@ export default function KitDetailPage() {
                                 try {
                                   await fetch(`/api/kits/${kit.id}/bulk-members?membershipId=${bm.id}`, { method: "DELETE" });
                                   setKit((prev) => prev ? { ...prev, bulkMembers: prev.bulkMembers.filter((m) => m.id !== bm.id) } : prev);
-                                  toast("Bulk item removed from kit", "success");
+                                  toast.success("Bulk item removed from kit");
                                 } catch {
-                                  toast("Failed to remove bulk item", "error");
+                                  toast.error("Failed to remove bulk item");
                                 }
                               }}
                             >

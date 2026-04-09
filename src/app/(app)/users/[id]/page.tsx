@@ -8,7 +8,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -53,7 +53,6 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
 
   const [activeTab, setActiveTab] = useState<TabKey>("info");
@@ -111,13 +110,13 @@ export default function UserDetailPage() {
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
-        toast(json.error || "Failed to upload avatar", "error");
+        toast.error(json.error || "Failed to upload avatar");
       } else {
         setUserOverrides((prev) => ({ ...prev, avatarUrl: json.data?.avatarUrl ?? null }));
-        toast("Avatar updated", "success");
+        toast.success("Avatar updated");
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
     setUploadingAvatar(false);
   }
@@ -133,13 +132,13 @@ export default function UserDetailPage() {
       const json = await res.json();
       if (!res.ok) {
         setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
-        toast(json.error || "Failed to remove avatar", "error");
+        toast.error(json.error || "Failed to remove avatar");
       } else {
-        toast("Avatar removed", "success");
+        toast.success("Avatar removed");
       }
     } catch {
       setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
-      toast("Network error", "error");
+      toast.error("Network error");
     }
     setUploadingAvatar(false);
   }
@@ -159,13 +158,13 @@ export default function UserDetailPage() {
       if (!res.ok) {
         setUserOverrides((prev) => ({ ...prev, active: !newActive }));
         const msg = await parseErrorMessage(res, "Failed to update status");
-        toast(msg, "error");
+        toast.error(msg);
       } else {
-        toast(newActive ? "User activated" : "User deactivated", "success");
+        toast.success(newActive ? "User activated" : "User deactivated");
       }
     } catch {
       setUserOverrides((prev) => ({ ...prev, active: !newActive }));
-      toast("Network error", "error");
+      toast.error("Network error");
     } finally {
       setTogglingActive(false);
     }
@@ -177,14 +176,14 @@ export default function UserDetailPage() {
       const res = await fetch(`/api/users/${id}/reset-password`, { method: "POST" });
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Password reset failed");
-        toast(msg, "error");
+        toast.error(msg);
       } else {
         const json = await res.json();
         setTempPassword(json.data?.temporaryPassword ?? null);
-        toast("Password reset successfully", "success");
+        toast.success("Password reset successfully");
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
     setResetBusy(false);
   }
@@ -358,7 +357,7 @@ export default function UserDetailPage() {
                       size="icon"
                       onClick={() => {
                         navigator.clipboard.writeText(tempPassword);
-                        toast("Copied to clipboard", "success");
+                        toast.success("Copied to clipboard");
                       }}
                     >
                       <Copy className="size-4" />

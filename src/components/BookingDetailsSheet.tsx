@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -54,7 +54,6 @@ export default function BookingDetailsSheet({
   onUpdated,
   currentUserRole,
 }: Props) {
-  const { toast } = useToast();
   const confirm = useConfirm();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -166,7 +165,7 @@ export default function BookingDetailsSheet({
       }
     } catch {
       setOptionsError(true);
-      toast("Failed to load equipment options", "error");
+      toast.error("Failed to load equipment options");
     }
   }, [toast]);
 
@@ -188,7 +187,7 @@ export default function BookingDetailsSheet({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      toast("Failed to load equipment — check your connection and try again.", "error");
+      toast.error("Failed to load equipment — check your connection and try again.");
     } finally {
       setPickerSearchLoading(false);
     }
@@ -440,7 +439,7 @@ export default function BookingDetailsSheet({
 
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("Equipment updated", "success");
+        toast.success("Equipment updated");
         setEquipEditMode(false);
         await fetchBooking({ silent: true });
         onUpdated?.();
@@ -449,10 +448,10 @@ export default function BookingDetailsSheet({
         if (res.status === 409 && json.data) {
           setConflictError(json.data as ConflictData);
         }
-        toast((json.error as string) || "Failed to save equipment changes", "error");
+        toast.error((json.error as string) || "Failed to save equipment changes");
       }
     } catch {
-      toast("Failed to save", "error");
+      toast.error("Failed to save");
     }
     setEquipSaving(false);
   }
@@ -474,7 +473,7 @@ export default function BookingDetailsSheet({
     }
 
     if (Object.keys(payload).length === 0) {
-      toast("No changes to save", "info");
+      toast.info("No changes to save");
       setSaving(false);
       return;
     }
@@ -490,7 +489,7 @@ export default function BookingDetailsSheet({
 
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("Booking updated", "success");
+        toast.success("Booking updated");
         setEditMode(false);
         await fetchBooking({ silent: true });
         onUpdated?.();
@@ -499,10 +498,10 @@ export default function BookingDetailsSheet({
         if (res.status === 409 && json.data) {
           setConflictError(json.data as ConflictData);
         }
-        toast((json.error as string) || "Failed to save", "error");
+        toast.error((json.error as string) || "Failed to save");
       }
     } catch {
-      toast("Failed to save", "error");
+      toast.error("Failed to save");
     }
     setSaving(false);
   }
@@ -521,15 +520,15 @@ export default function BookingDetailsSheet({
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const newDate = new Date(endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-        toast(`Extended to ${newDate}`, "success");
+        toast.success(`Extended to ${newDate}`);
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const msg = await parseErrorMessage(res, "Failed to extend");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Failed to extend", "error");
+      toast.error("Failed to extend");
     }
     setExtending(false);
   }
@@ -553,15 +552,15 @@ export default function BookingDetailsSheet({
 
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("Booking cancelled", "success");
+        toast.success("Booking cancelled");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const msg = await parseErrorMessage(res, "Failed to cancel");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Failed to cancel", "error");
+      toast.error("Failed to cancel");
     }
     setCancelling(false);
   }
@@ -584,16 +583,16 @@ export default function BookingDetailsSheet({
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
-        toast("Converted to checkout", "success");
+        toast.success("Converted to checkout");
         onUpdated?.();
         onClose();
         window.location.href = `/checkouts/${json.data.id}`;
       } else {
         const msg = await parseErrorMessage(res, "Failed to convert");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Failed to convert", "error");
+      toast.error("Failed to convert");
     }
     setConverting(false);
   }
@@ -610,15 +609,15 @@ export default function BookingDetailsSheet({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast(`${item?.asset.assetTag ?? "Item"} checked in`, "success");
+        toast.success(`${item?.asset.assetTag ?? "Item"} checked in`);
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const msg = await parseErrorMessage(res, "Failed to check in");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Failed to check in", "error");
+      toast.error("Failed to check in");
     }
     setCheckinLoading(false);
   }
@@ -643,15 +642,15 @@ export default function BookingDetailsSheet({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("All items checked in", "success");
+        toast.success("All items checked in");
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
         const msg = await parseErrorMessage(res, "Failed to check in");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Failed to check in", "error");
+      toast.error("Failed to check in");
     }
     setCheckinLoading(false);
   }

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { ImageIcon } from "lucide-react";
 import { useConfirm } from "./ConfirmDialog";
-import { useToast } from "./Toast";
+import { toast } from "sonner";
 import { parseErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,6 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
-  const { toast } = useToast();
 
   const reset = useCallback(() => {
     setUrl("");
@@ -111,11 +110,11 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
         throw new Error(msg);
       }
       const json = await res.json();
-      toast("Image updated", "success");
+      toast.success("Image updated");
       onImageChanged(json.imageUrl);
       handleClose();
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to save image", "error");
+      toast.error(err instanceof Error ? err.message : "Failed to save image");
     } finally {
       setSaving(false);
     }
@@ -136,11 +135,11 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
         throw new Error(msg);
       }
       const json = await res.json();
-      toast("Image uploaded", "success");
+      toast.success("Image uploaded");
       onImageChanged(json.imageUrl);
       handleClose();
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Upload failed", "error");
+      toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setSaving(false);
     }
@@ -161,11 +160,11 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
         const msg = await parseErrorMessage(res, "Failed to remove image");
         throw new Error(msg);
       }
-      toast("Image removed", "success");
+      toast.success("Image removed");
       onImageChanged(null);
       handleClose();
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to remove image", "error");
+      toast.error(err instanceof Error ? err.message : "Failed to remove image");
     } finally {
       setSaving(false);
     }

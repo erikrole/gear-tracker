@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
 const CreateBookingSheet = dynamic(() => import("@/components/CreateBookingSheet"), { ssr: false });
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,6 @@ export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 /* ───── Component ───── */
 
 export default function BookingListPage({ config, viewMode = "table", hideHeader = false }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean }) {
-  const { toast } = useToast();
   const urlParams = useSearchParams();
 
   // ── Filter state ──
@@ -174,14 +173,14 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast(`Extended by ${days} day${days !== 1 ? "s" : ""}`, "success");
+        toast.success(`Extended by ${days} day${days !== 1 ? "s" : ""}`);
       } else {
         const msg = await parseErrorMessage(res, "Extend failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
       await reload();
     } catch {
-      toast("Network error \u2014 please try again.", "error");
+      toast.error("Network error \u2014 please try again.");
     }
     extendingRef.current = false;
     setExtendingId(null);

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import type { DashboardData } from "@/app/(app)/dashboard-types";
 
 const DASHBOARD_KEY = ["dashboard"];
@@ -49,9 +49,6 @@ export type UseDashboardDataResult = {
 
 export function useDashboardData(): UseDashboardDataResult {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const toastRef = useRef(toast);
-  toastRef.current = toast;
 
   const {
     data,
@@ -70,7 +67,7 @@ export function useDashboardData(): UseDashboardDataResult {
   const prevFetchingRef = useRef(false);
   useEffect(() => {
     if (prevFetchingRef.current && !isFetching && queryError && data !== undefined) {
-      toastRef.current("Failed to refresh dashboard", "error");
+      toast.error("Failed to refresh dashboard");
     }
     prevFetchingRef.current = isFetching;
   }, [isFetching, queryError, data]);

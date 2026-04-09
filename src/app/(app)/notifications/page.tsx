@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AlertTriangle, Bell, CircleIcon, ShirtIcon, WifiOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -117,7 +117,6 @@ function NotificationsSkeleton() {
 const LIMIT = 20;
 
 export default function NotificationsPage() {
-  const { toast } = useToast();
   const [processing, setProcessing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -197,12 +196,12 @@ export default function NotificationsPage() {
       if (!res.ok) {
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);
-        toast("Failed to mark notifications as read. Please try again.", "error");
+        toast.error("Failed to mark notifications as read. Please try again.");
       }
     } catch {
       // Rollback on network error
       if (prevData) queryClient.setQueryData(queryKey, prevData);
-      toast("Failed to mark notifications as read. Please try again.", "error");
+      toast.error("Failed to mark notifications as read. Please try again.");
     }
     setMarkingAll(false);
   }
@@ -233,12 +232,12 @@ export default function NotificationsPage() {
       if (!res.ok) {
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);
-        toast("Failed to mark notification as read. Please try again.", "error");
+        toast.error("Failed to mark notification as read. Please try again.");
       }
     } catch {
       // Rollback on network error
       if (prevData) queryClient.setQueryData(queryKey, prevData);
-      toast("Failed to mark notification as read. Please try again.", "error");
+      toast.error("Failed to mark notification as read. Please try again.");
     }
     setMarkingId(null);
   }
@@ -250,10 +249,10 @@ export default function NotificationsPage() {
         method: "POST",
       });
       if (res.ok) {
-        toast("Overdue check complete", "success");
+        toast.success("Overdue check complete");
         reload();
       } else {
-        toast("Failed to process overdue notifications", "error");
+        toast.error("Failed to process overdue notifications");
       }
     } finally {
       setProcessing(false);

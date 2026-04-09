@@ -1,17 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { ScanStatus } from "@/app/(app)/scan/_components/types";
 import { scanFeedbackCelebration } from "@/lib/scan-feedback";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
-
-type ToastFn = (message: string, type: "success" | "error" | "info") => void;
 
 type UseScanSessionOptions = {
   checkoutId: string | null;
   phase: string | null;
   isBookingMode: boolean;
-  toast: ToastFn;
 };
 
 type SummaryCounts = { returned: number; damaged: number; lost: number };
@@ -37,7 +35,7 @@ type UseScanSessionResult = {
 export function useScanSession(
   options: UseScanSessionOptions & { router: { push: (url: string) => void }; mode: "checkout" | "checkin" | "lookup" },
 ): UseScanSessionResult {
-  const { checkoutId, phase, isBookingMode, toast, router, mode } = options;
+  const { checkoutId, phase, isBookingMode, router, mode } = options;
 
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(isBookingMode);
@@ -46,9 +44,6 @@ export function useScanSession(
   const [completing, setCompleting] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState<SummaryCounts | null>(null);
-
-  const toastRef = useRef(toast);
-  toastRef.current = toast;
   const loadingStatusRef = useRef(false);
   const completingRef = useRef(false);
 
@@ -65,7 +60,7 @@ export function useScanSession(
       if (!res.ok) {
         setScanStatus((prev) => {
           if (!prev) setLoadError(true);
-          else toastRef.current("Could not refresh scan status", "error");
+          else toast.error("Could not refresh scan status");
           return prev;
         });
         setStatusLoading(false);
@@ -87,7 +82,7 @@ export function useScanSession(
     } catch {
       setScanStatus((prev) => {
         if (!prev) setLoadError(true);
-        else toastRef.current("Network error — could not refresh", "error");
+        else toast.error("Network error — could not refresh");
         return prev;
       });
     }
@@ -106,11 +101,11 @@ export function useScanSession(
       })
         .then((res) => {
           if (!res.ok) {
-            toastRef.current("Scan session could not be started — scans may not be audited", "error");
+            toast.error("Scan session could not be started — scans may not be audited");
           }
         })
         .catch(() => {
-          toastRef.current("Scan session could not be started — scans may not be audited", "error");
+          toast.error("Scan session could not be started — scans may not be audited");
         });
     }
     loadScanStatus();
@@ -139,18 +134,17 @@ export function useScanSession(
     try {
       const res = await fetch(endpoint, { method: "POST" });
       if (res.ok) {
-        toastRef.current(
+        toast.success(
           mode === "checkin" ? "Check-in complete!" : "Checkout confirmed!",
-          "success",
         );
         router.push(`/checkouts/${checkoutId}`);
         return;
       }
       if (handleAuthRedirect(res)) return;
       const msg = await parseErrorMessage(res, "Could not complete");
-      toastRef.current(msg, "error");
+      toast.error(msg);
     } catch {
-      toastRef.current("Network error — try again", "error");
+      toast.error("Network error — try again");
     }
     completingRef.current = false;
     setCompleting(false);

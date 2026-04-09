@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ColumnSizingState, RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,7 +63,6 @@ export default function ItemsPage() {
   });
 
   const isMobile = useIsMobile();
-  const { toast } = useToast();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -157,7 +156,7 @@ export default function ItemsPage() {
       query.setItems((items) =>
         items.map((a) => a.id === asset.id ? { ...a, isFavorited: prev } : a)
       );
-      toast("Failed to update favorite", "error");
+      toast.error("Failed to update favorite");
     }
   }, [query]);
 
@@ -188,12 +187,12 @@ export default function ItemsPage() {
       a.click();
       URL.revokeObjectURL(url);
       if (truncated) {
-        toast(`Export limited to 5,000 items (${totalCount} total). Narrow your filters for a complete export.`, "warning");
+        toast.warning(`Export limited to 5,000 items (${totalCount} total). Narrow your filters for a complete export.`);
       } else {
-        toast("Export downloaded", "success");
+        toast.success("Export downloaded");
       }
     } catch {
-      toast("Export failed", "error");
+      toast.error("Export failed");
     }
     setExporting(false);
   }, [filters]);
@@ -209,14 +208,14 @@ export default function ItemsPage() {
         try {
           const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
           if (res.ok) {
-            toast(`Duplicated ${asset.assetTag}`, "success");
+            toast.success(`Duplicated ${asset.assetTag}`);
             query.reload();
           } else {
             const body = await res.json().catch(() => null);
-            toast(body?.error || "Failed to duplicate item", "error");
+            toast.error(body?.error || "Failed to duplicate item");
           }
         } catch {
-          toast("Network error — could not duplicate item", "error");
+          toast.error("Network error — could not duplicate item");
         }
         setActionBusy(false);
         break;
@@ -225,14 +224,14 @@ export default function ItemsPage() {
         try {
           const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
           if (res.ok) {
-            toast(`Updated ${asset.assetTag} maintenance status`, "success");
+            toast.success(`Updated ${asset.assetTag} maintenance status`);
             query.reload();
           } else {
             const body = await res.json().catch(() => null);
-            toast(body?.error || "Failed to update maintenance status", "error");
+            toast.error(body?.error || "Failed to update maintenance status");
           }
         } catch {
-          toast("Network error — could not update item", "error");
+          toast.error("Network error — could not update item");
         }
         setActionBusy(false);
         break;
@@ -248,14 +247,14 @@ export default function ItemsPage() {
     try {
       const res = await fetch(`/api/assets/${retireTarget.id}/retire`, { method: "POST" });
       if (res.ok) {
-        toast(`Retired ${retireTarget.assetTag}`, "success");
+        toast.success(`Retired ${retireTarget.assetTag}`);
         query.reload();
       } else {
         const body = await res.json().catch(() => null);
-        toast(body?.error || "Failed to retire item", "error");
+        toast.error(body?.error || "Failed to retire item");
       }
     } catch {
-      toast("Network error — could not retire item", "error");
+      toast.error("Network error — could not retire item");
     }
     setRetireTarget(null);
     setActionBusy(false);

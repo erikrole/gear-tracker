@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 
 const ACTION_LABELS: Record<string, string> = {
   move_location: "Moved",
@@ -15,7 +15,6 @@ const ACTION_LABELS: Record<string, string> = {
 export function useBulkActions(getSelectedIds: () => string[], onComplete: () => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const { toast } = useToast();
 
   async function execute(action: string, payload?: Record<string, string | null>) {
     const ids = getSelectedIds();
@@ -31,17 +30,17 @@ export function useBulkActions(getSelectedIds: () => string[], onComplete: () =>
         const json = await res.json().catch(() => null);
         const msg = json?.error || "Bulk action failed";
         setError(msg);
-        toast(msg, "error");
+        toast.error(msg);
         setBusy(false);
         return;
       }
       const label = ACTION_LABELS[action] ?? "Updated";
-      toast(`${label} ${ids.length} item${ids.length === 1 ? "" : "s"}`, "success");
+      toast.success(`${label} ${ids.length} item${ids.length === 1 ? "" : "s"}`);
       setBusy(false);
       onComplete();
     } catch {
       setError("Network error");
-      toast("Network error — bulk action failed", "error");
+      toast.error("Network error — bulk action failed");
       setBusy(false);
     }
   }

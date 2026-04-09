@@ -9,7 +9,7 @@ import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -72,7 +72,6 @@ const UNIT_STATUS_COLORS: Record<string, { bg: string; dot: string; label: strin
 };
 
 export default function BulkInventoryPage() {
-  const { toast } = useToast();
   const [page, setPage] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -152,14 +151,14 @@ export default function BulkInventoryPage() {
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to add units");
-        toast(msg, "error");
+        toast.error(msg);
         return;
       }
-      toast(`Added ${addCount} units`, "success");
+      toast.success(`Added ${addCount} units`);
       setAddingUnits(null);
       reload();
     } catch {
-      toast("Network error — try again", "error");
+      toast.error("Network error — try again");
     } finally {
       setActionLoading(false);
     }
@@ -173,13 +172,13 @@ export default function BulkInventoryPage() {
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to convert");
-        toast(msg, "error");
+        toast.error(msg);
         return;
       }
-      toast("Converted to numbered tracking", "success");
+      toast.success("Converted to numbered tracking");
       reload();
     } catch {
-      toast("Network error — try again", "error");
+      toast.error("Network error — try again");
     } finally {
       setActionLoading(false);
     }
@@ -195,12 +194,12 @@ export default function BulkInventoryPage() {
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to update unit");
-        toast(msg, "error");
+        toast.error(msg);
         return;
       }
       reload();
     } catch {
-      toast("Network error — try again", "error");
+      toast.error("Network error — try again");
     }
   }
 

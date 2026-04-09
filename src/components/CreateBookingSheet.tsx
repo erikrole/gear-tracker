@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, PackageIcon } from "lucide-react";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import EquipmentPicker from "@/components/EquipmentPicker";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import { classifyAssetType } from "@/lib/equipment-sections";
@@ -139,7 +139,6 @@ export default function CreateBookingSheet({
   initialEventId,
   initialSportCode,
 }: CreateBookingSheetProps) {
-  const { toast } = useToast();
 
   // ── Form state ──
   const [form, dispatch] = useReducer(formReducer, {

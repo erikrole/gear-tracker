@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 
 type ConflictInfo = {
@@ -35,7 +35,6 @@ export default function BookingEquipmentTab({
   onCheckinBulk?: (bulkItemId: string, quantity: number) => Promise<boolean>;
   actionLoading?: string | null;
 }) {
-  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const isCheckout = booking.kind === "CHECKOUT";
 
@@ -104,7 +103,7 @@ export default function BookingEquipmentTab({
       setConflicts(map);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      toast("Failed to check equipment conflicts — try refreshing.", "error");
+      toast.error("Failed to check equipment conflicts — try refreshing.");
     }
   }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems, toast]);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { FilterChip } from "@/components/FilterChip";
 import { SkeletonTable } from "@/components/Skeleton";
@@ -68,7 +68,6 @@ const STATUS_BADGES: Record<string, string> = {
 };
 
 export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
-  const { toast } = useToast();
   const confirm = useConfirm();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,13 +117,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       const res = await fetch(`/api/shift-trades/${tradeId}/claim`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("Trade claimed", "success");
+        toast.success("Trade claimed");
         await loadTrades();
       } else {
         const msg = await parseErrorMessage(res, "Failed to claim");
-        toast(msg, "error");
+        toast.error(msg);
       }
-    } catch { toast("Network error", "error"); }
+    } catch { toast.error("Network error"); }
     setActing(null);
   }
 
@@ -134,13 +133,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       const res = await fetch(`/api/shift-trades/${tradeId}/approve`, { method: "PATCH" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("Trade approved — swap executed", "success");
+        toast.success("Trade approved — swap executed");
         await loadTrades();
       } else {
         const msg = await parseErrorMessage(res, "Failed to approve");
-        toast(msg, "error");
+        toast.error(msg);
       }
-    } catch { toast("Network error", "error"); }
+    } catch { toast.error("Network error"); }
     setActing(null);
   }
 
@@ -150,13 +149,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       const res = await fetch(`/api/shift-trades/${tradeId}/decline`, { method: "PATCH" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("Trade declined — reopened", "success");
+        toast.success("Trade declined — reopened");
         await loadTrades();
       } else {
         const msg = await parseErrorMessage(res, "Failed to decline");
-        toast(msg, "error");
+        toast.error(msg);
       }
-    } catch { toast("Network error", "error"); }
+    } catch { toast.error("Network error"); }
     setActing(null);
   }
 
@@ -173,13 +172,13 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       const res = await fetch(`/api/shift-trades/${tradeId}/cancel`, { method: "PATCH" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast("Trade cancelled", "success");
+        toast.success("Trade cancelled");
         await loadTrades();
       } else {
         const msg = await parseErrorMessage(res, "Failed to cancel");
-        toast(msg, "error");
+        toast.error(msg);
       }
-    } catch { toast("Network error", "error"); }
+    } catch { toast.error("Network error"); }
     setActing(null);
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +26,6 @@ type CalendarSource = {
 };
 
 export default function CalendarSourcesPage() {
-  const { toast } = useToast();
   const confirm = useConfirm();
   const { data: fetchedSources, loading, reload } = useFetch<CalendarSource[]>({
     url: "/api/calendar-sources",
@@ -66,15 +65,15 @@ export default function CalendarSourcesPage() {
         setSources((prev) =>
           prev.map((s) => s.id === source.id ? { ...s, enabled: !s.enabled } : s)
         );
-        toast(`${source.name} ${source.enabled ? "disabled" : "enabled"}`, "success");
+        toast.success(`${source.name} ${source.enabled ? "disabled" : "enabled"}`);
       } else {
         const msg = await parseErrorMessage(res, "Toggle failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Toggle failed", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Toggle failed");
     }
     setToggling(null);
   }
@@ -87,19 +86,19 @@ export default function CalendarSourcesPage() {
       if (res.ok) {
         const json = await res.json().catch(() => null);
         if (json?.data?.shiftGenerationError) {
-          toast(`Synced ${source.name}, but shift generation failed`, "warning");
+          toast.warning(`Synced ${source.name}, but shift generation failed`);
         } else {
-          toast(`Synced ${source.name}`, "success");
+          toast.success(`Synced ${source.name}`);
         }
         reload();
       } else {
         const msg = await parseErrorMessage(res, "Sync failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Sync failed", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Sync failed");
     }
     setSyncing(null);
   }
@@ -117,14 +116,14 @@ export default function CalendarSourcesPage() {
       if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
         setSources((prev) => prev.filter((s) => s.id !== source.id));
-        toast(`Deleted ${source.name}`, "success");
+        toast.success(`Deleted ${source.name}`);
       } else {
-        toast("Delete failed", "error");
+        toast.error("Delete failed");
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed");
     }
   }
 
@@ -143,16 +142,16 @@ export default function CalendarSourcesPage() {
         setNewName("");
         setNewUrl("");
         setShowAdd(false);
-        toast("Calendar source added", "success");
+        toast.success("Calendar source added");
         reload();
       } else {
         const msg = await parseErrorMessage(res, "Add failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Add failed", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Add failed");
     }
     setAddBusy(false);
   }

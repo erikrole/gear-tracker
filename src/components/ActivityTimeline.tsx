@@ -5,6 +5,7 @@ import { Cog, ArrowRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { getInitials } from "@/lib/avatar";
@@ -675,7 +676,9 @@ export default function ActivityTimeline({
 
       {/* Load more */}
       {hasMore && onLoadMore && (
-        <div className="py-3 text-center border-t border-border/30">
+        <>
+          <Separator className="opacity-30" />
+          <div className="py-3 text-center">
           <Button
             variant="outline"
             size="sm"
@@ -684,7 +687,8 @@ export default function ActivityTimeline({
           >
             {loading ? "Loading\u2026" : "Load older entries"}
           </Button>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

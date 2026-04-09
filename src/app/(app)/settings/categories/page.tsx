@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { AlertTriangle, SearchIcon, WifiOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
 
 export default function CategoriesPage() {
-  const { toast } = useToast();
   const { data: categories, loading, error, reload } = useFetch<Category[]>({
     url: "/api/categories",
     returnTo: "/settings/categories",
@@ -47,7 +46,7 @@ export default function CategoriesPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create category \u2014 please try again", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create category \u2014 please try again");
     }
     setCreatingRoot(false);
   }

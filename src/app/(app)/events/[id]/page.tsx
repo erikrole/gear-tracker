@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { RefreshCw, WifiOff, AlertTriangle } from "lucide-react";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import DataList from "@/components/DataList";
 import { sportLabel } from "@/lib/sports";
@@ -26,7 +26,6 @@ import { ShiftCoverageCard } from "./_components/ShiftCoverageCard";
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
-  const { toast } = useToast();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
 
@@ -213,18 +212,17 @@ export default function EventDetailPage() {
               if (handleAuthRedirect(res)) return;
               if (!res.ok) {
                 const msg = await parseErrorMessage(res, "Failed to send nudge");
-                toast(msg, "error");
+                toast.error(msg);
               } else {
-                toast(`Nudge sent to ${userName}`, "success");
+                toast.success(`Nudge sent to ${userName}`);
               }
             } catch (err) {
               if (isAbortError(err)) return;
               const kind = classifyError(err);
-              toast(
+              toast.error(
                 kind === "network"
                   ? "You\u2019re offline \u2014 nudge not sent"
                   : "Something went wrong \u2014 nudge not sent",
-                "error",
               );
             } finally {
               setActing(null);

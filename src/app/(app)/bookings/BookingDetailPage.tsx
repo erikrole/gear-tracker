@@ -25,7 +25,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertCircle, Clock, ChevronDown, Copy, RefreshCw } from "lucide-react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
@@ -70,7 +70,6 @@ export default function BookingDetailPage({
 
   // Edit sheet state
   const [editSheetOpen, setEditSheetOpen] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (booking?.title) setBreadcrumbLabel(booking.title);
@@ -88,7 +87,7 @@ export default function BookingDetailPage({
   async function handleExtend() {
     if (!extendDate) return;
     if (new Date(extendDate) <= new Date()) {
-      toast("New end date must be in the future", "error");
+      toast.error("New end date must be in the future");
       return;
     }
     const ok = await actions.extend(extendDate);
@@ -326,9 +325,9 @@ export default function BookingDetailPage({
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(booking.refNumber!);
-                toast("Copied to clipboard", "success");
+                toast.success("Copied to clipboard");
               } catch {
-                toast("Failed to copy", "error");
+                toast.error("Failed to copy");
               }
             }}
             title="Click to copy"

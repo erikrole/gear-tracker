@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
@@ -49,7 +49,6 @@ export function useBookingActions(
 ) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { toast } = useToast();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const busyRef = useRef(false);
 
@@ -77,10 +76,10 @@ export function useBookingActions(
     if (!guardStart("cancel")) return;
     const result = await callAction(`/api/bookings/${bookingId}/cancel`);
     if (result.ok) {
-      toast(`${label.charAt(0).toUpperCase() + label.slice(1)} cancelled`, "success");
+      toast.success(`${label.charAt(0).toUpperCase() + label.slice(1)} cancelled`);
       onSuccess();
     } else {
-      toast(result.error!, "error");
+      toast.error(result.error!);
     }
     guardEnd();
   }, [bookingId, kind, confirm, toast, onSuccess]);
@@ -94,10 +93,10 @@ export function useBookingActions(
       if (result.ok) {
         const d = new Date(endsAt);
         const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        toast(`Extended to ${formatted}`, "success");
+        toast.success(`Extended to ${formatted}`);
         onSuccess();
       } else {
-        toast(result.error!, "error");
+        toast.error(result.error!);
       }
       guardEnd();
       return result.ok;
@@ -116,11 +115,11 @@ export function useBookingActions(
     if (!guardStart("convert")) return;
     const result = await callAction(`/api/reservations/${bookingId}/convert`);
     if (result.ok) {
-      toast("Reservation converted to active checkout", "success");
+      toast.success("Reservation converted to active checkout");
       const checkoutId = (result as { data?: { id?: string } }).data?.id;
       router.push(checkoutId ? `/checkouts/${checkoutId}` : "/checkouts");
     } else {
-      toast(result.error!, "error");
+      toast.error(result.error!);
     }
     guardEnd();
   }, [bookingId, confirm, toast, router]);
@@ -132,7 +131,7 @@ export function useBookingActions(
       const newId = (result as { data?: { id?: string } }).data?.id;
       router.push(newId ? `/reservations/${newId}` : "/reservations");
     } else {
-      toast(result.error!, "error");
+      toast.error(result.error!);
     }
     guardEnd();
   }, [bookingId, toast, router]);
@@ -145,10 +144,10 @@ export function useBookingActions(
         assetIds,
       });
       if (result.ok) {
-        toast(`${assetIds.length} item${assetIds.length > 1 ? "s" : ""} returned`, "success");
+        toast.success(`${assetIds.length} item${assetIds.length > 1 ? "s" : ""} returned`);
         onSuccess();
       } else {
-        toast(result.error!, "error");
+        toast.error(result.error!);
       }
       guardEnd();
       return result.ok;
@@ -165,10 +164,10 @@ export function useBookingActions(
         quantity,
       });
       if (result.ok) {
-        toast("Bulk items returned", "success");
+        toast.success("Bulk items returned");
         onSuccess();
       } else {
-        toast(result.error!, "error");
+        toast.error(result.error!);
       }
       guardEnd();
       return result.ok;
@@ -186,10 +185,10 @@ export function useBookingActions(
     if (!guardStart("complete-checkin")) return;
     const result = await callAction(`/api/checkouts/${bookingId}/complete-checkin`);
     if (result.ok) {
-      toast("Check in completed", "success");
+      toast.success("Check in completed");
       onSuccess();
     } else {
-      toast(result.error!, "error");
+      toast.error(result.error!);
     }
     guardEnd();
   }, [bookingId, confirm, toast, onSuccess]);
@@ -198,9 +197,9 @@ export function useBookingActions(
     if (!guardStart("nudge")) return;
     const result = await callAction(`/api/bookings/${bookingId}/nudge`);
     if (result.ok) {
-      toast("Nudge notification sent", "success");
+      toast.success("Nudge notification sent");
     } else {
-      toast(result.error!, "error");
+      toast.error(result.error!);
     }
     guardEnd();
   }, [bookingId, toast]);

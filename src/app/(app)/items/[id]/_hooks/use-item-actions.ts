@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { AssetDetail } from "../types";
@@ -28,7 +28,6 @@ export default function useItemActions({
 }: UseItemActionsParams): UseItemActionsReturn {
   const router = useRouter();
   const confirmDialog = useConfirm();
-  const { toast } = useToast();
   const [actionBusy, setActionBusy] = useState(false);
 
   const handleToggleFavorite = useCallback(async () => {
@@ -40,7 +39,7 @@ export default function useItemActions({
       if (!res.ok) throw new Error();
     } catch {
       setAsset((a) => a ? { ...a, isFavorited: prev } : a);
-      toast("Failed to update favorite", "error");
+      toast.error("Failed to update favorite");
     }
   }, [asset, setAsset, toast]);
 
@@ -71,7 +70,7 @@ export default function useItemActions({
           router.push(`/items/${json.data.id}`);
         } else {
           const msg = await parseErrorMessage(res, "Duplicate failed");
-          toast(msg, "error");
+          toast.error(msg);
         }
       } else if (action === "retire") {
         const ok = await confirmDialog({
@@ -84,14 +83,14 @@ export default function useItemActions({
         const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
         if (!res.ok) {
           const msg = await parseErrorMessage(res, "Retire failed");
-          toast(msg, "error");
+          toast.error(msg);
         }
         loadAsset();
       } else if (action === "maintenance") {
         const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
         if (!res.ok) {
           const msg = await parseErrorMessage(res, "Action failed");
-          toast(msg, "error");
+          toast.error(msg);
         }
         loadAsset();
       } else if (action === "delete") {
@@ -107,11 +106,11 @@ export default function useItemActions({
           router.push("/items");
         } else {
           const msg = await parseErrorMessage(res, "Delete failed");
-          toast(msg, "error");
+          toast.error(msg);
         }
       }
     } catch {
-      toast("Network error — please try again.", "error");
+      toast.error("Network error — please try again.");
     }
     setActionBusy(false);
   }

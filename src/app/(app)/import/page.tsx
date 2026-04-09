@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
@@ -16,7 +16,6 @@ import { ImportResultStep } from "./_components/ImportResultStep";
 /* ───── Component ───── */
 
 export default function ImportPage() {
-  const { toast } = useToast();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -164,7 +163,7 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Failed to parse CSV");
-        toast(json.error || "Failed to parse CSV", "error");
+        toast.error(json.error || "Failed to parse CSV");
         setLoading(false);
         return;
       }
@@ -200,20 +199,20 @@ export default function ImportPage() {
 
       if (!res.ok) {
         setError(json.error || "Import failed");
-        toast(json.error || "Import failed", "error");
+        toast.error(json.error || "Import failed");
         setStep("preview");
         return;
       }
 
       setResult(json);
       setStep("summary");
-      toast(`Imported ${json.created} items successfully`, "success");
+      toast.success(`Imported ${json.created} items successfully`);
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       const msg = kind === "network" ? "You\u2019re offline. Check your connection." : "Import failed unexpectedly";
       setError(msg);
-      toast(msg, "error");
+      toast.error(msg);
       setStep("preview");
     }
   }

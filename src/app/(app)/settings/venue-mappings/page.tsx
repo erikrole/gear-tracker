@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,6 @@ type Location = {
 };
 
 export default function VenueMappingsPage() {
-  const { toast } = useToast();
   const confirm = useConfirm();
   const { data: fetchedMappings, loading, reload: reloadMappings } = useFetch<LocationMapping[]>({
     url: "/api/location-mappings",
@@ -82,13 +81,13 @@ export default function VenueMappingsPage() {
       if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
       if (!res.ok) {
         setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
-        toast("Failed to update", "error");
+        toast.error("Failed to update");
       }
     } catch (err) {
       if (isAbortError(err)) return;
       setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to update", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to update");
     }
     setTogglingHome(null);
   }
@@ -110,17 +109,17 @@ export default function VenueMappingsPage() {
       if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
       if (res.ok) {
         setShowAdd(false);
-        toast("Venue mapping added", "success");
+        toast.success("Venue mapping added");
         reloadMappings();
         e.currentTarget.reset();
       } else {
         const msg = await parseErrorMessage(res, "Failed to create mapping");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create mapping", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create mapping");
     }
     setAddingMapping(false);
   }
@@ -140,15 +139,15 @@ export default function VenueMappingsPage() {
       });
       if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
       if (res.ok) {
-        toast("Venue mapping deleted", "success");
+        toast.success("Venue mapping deleted");
         reloadMappings();
       } else {
-        toast("Delete failed", "error");
+        toast.error("Delete failed");
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed");
     }
     setDeletingId(null);
   }

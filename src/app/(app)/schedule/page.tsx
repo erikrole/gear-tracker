@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useScheduleData } from "@/hooks/use-schedule-data";
 import { ScheduleFilters } from "./_components/ScheduleFilters";
 import { CalendarView } from "./_components/CalendarView";
@@ -31,7 +31,6 @@ const TradeBoard = dynamic(() => import("@/components/TradeBoard"), {
 
 export default function SchedulePage() {
   const data = useScheduleData();
-  const { toast } = useToast();
   const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
   const hidingRef = useRef<Set<string>>(new Set());
 
@@ -49,16 +48,15 @@ export default function SchedulePage() {
         data.loadData();
       } else {
         const msg = await parseErrorMessage(res, "Failed to hide event");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(
+      toast.error(
         kind === "network"
           ? "You\u2019re offline \u2014 could not hide event"
           : "Something went wrong \u2014 could not hide event",
-        "error",
       );
     } finally {
       hidingRef.current.delete(eventId);

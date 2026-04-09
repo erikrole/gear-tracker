@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +55,6 @@ type LocationOption = { id: string; name: string };
 type ErrorState = { type: "network" | "server" | "auth"; message: string };
 
 export default function KioskDevicesPage() {
-  const { toast } = useToast();
   const confirm = useConfirm();
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -113,10 +112,10 @@ export default function KioskDevicesPage() {
         load();
       } else {
         const msg = await parseErrorMessage(res, "Failed to create kiosk device");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Could not connect to server", "error");
+      toast.error("Could not connect to server");
     } finally {
       setAdding(false);
     }
@@ -142,13 +141,13 @@ export default function KioskDevicesPage() {
         body: JSON.stringify({ active: !device.active }),
       });
       if (res.ok) {
-        toast(`Kiosk ${action}d`, "success");
+        toast.success(`Kiosk ${action}d`);
         load();
       } else {
-        toast(`Failed to ${action} kiosk`, "error");
+        toast.error(`Failed to ${action} kiosk`);
       }
     } catch {
-      toast("Could not connect to server", "error");
+      toast.error("Could not connect to server");
     } finally {
       setTogglingId(null);
     }
@@ -169,13 +168,13 @@ export default function KioskDevicesPage() {
         method: "DELETE",
       });
       if (res.ok) {
-        toast("Kiosk device deleted", "success");
+        toast.success("Kiosk device deleted");
         load();
       } else {
-        toast("Failed to delete kiosk device", "error");
+        toast.error("Failed to delete kiosk device");
       }
     } catch {
-      toast("Could not connect to server", "error");
+      toast.error("Could not connect to server");
     } finally {
       setDeletingId(null);
     }
@@ -183,7 +182,7 @@ export default function KioskDevicesPage() {
 
   function copyCode(code: string) {
     navigator.clipboard.writeText(code);
-    toast("Code copied to clipboard", "success");
+    toast.success("Code copied to clipboard");
   }
 
   function formatRelative(dateStr: string | null): string {

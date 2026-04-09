@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { parseErrorMessage } from "@/lib/errors";
 import type { AssetDetail } from "./types";
@@ -20,7 +20,6 @@ export function AccessoriesSection({
   canEdit: boolean;
   onRefresh: () => void;
 }) {
-  const { toast } = useToast();
   const confirmDialog = useConfirm();
   const [attaching, setAttaching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,17 +68,17 @@ export function AccessoriesSection({
         body: JSON.stringify({ childAssetId: childId }),
       });
       if (res.ok) {
-        toast("Accessory attached", "success");
+        toast.success("Accessory attached");
         setAttaching(false);
         setSearchQuery("");
         setSearchResults([]);
         onRefresh();
       } else {
         const msg = await parseErrorMessage(res, "Failed to attach");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
   }
 
@@ -94,14 +93,14 @@ export function AccessoriesSection({
     try {
       const res = await fetch(`/api/assets/${childId}/accessories`, { method: "DELETE" });
       if (res.ok) {
-        toast("Accessory detached", "success");
+        toast.success("Accessory detached");
         onRefresh();
       } else {
         const msg = await parseErrorMessage(res, "Failed to detach");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
   }
 

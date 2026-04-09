@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUrlState, useDebounce } from "@/hooks/use-url-state";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import {
   BoxIcon,
   PlusIcon,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -45,7 +46,6 @@ import { NewKitSheet } from "./new-kit-sheet";
 type Location = { id: string; name: string };
 
 export default function KitsPage() {
-  const { toast } = useToast();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -80,7 +80,7 @@ export default function KitsPage() {
 
   const handleCreated = useCallback(
     (kitId: string) => {
-      toast("Kit created", "success");
+      toast.success("Kit created");
       router.push(`/kits/${kitId}`);
     },
     [router]
@@ -305,7 +305,9 @@ export default function KitsPage() {
 
           {/* Pagination */}
           {query.totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
+            <>
+              <Separator />
+              <div className="flex items-center justify-between px-4 py-3">
               <span className="text-sm text-muted-foreground">
                 {query.total} kit{query.total !== 1 ? "s" : ""}
               </span>
@@ -330,7 +332,8 @@ export default function KitsPage() {
                   Next
                 </Button>
               </div>
-            </div>
+              </div>
+            </>
           )}
         </Card>
       )}

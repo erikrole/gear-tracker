@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CornerDownRightIcon } from "lucide-react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 import type { TreeNode } from "./types";
@@ -19,7 +19,6 @@ export default function CategoryRow({
   depth: number;
   onRefresh: () => void;
 }) {
-  const { toast } = useToast();
   const confirm = useConfirm();
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState(node.name);
@@ -53,7 +52,7 @@ export default function CategoryRow({
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to rename", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to rename");
     }
     setSavingRename(false);
   }
@@ -74,7 +73,7 @@ export default function CategoryRow({
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create subcategory", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create subcategory");
     }
     setSavingSub(false);
   }
@@ -94,14 +93,14 @@ export default function CategoryRow({
       if (handleAuthRedirect(res, "/settings/categories")) return;
       if (!res.ok) {
         const json = await res.json();
-        toast(json.error || "Delete failed", "error");
+        toast.error(json.error || "Delete failed");
       } else {
         onRefresh();
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to delete", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to delete");
     }
     setDeleting(false);
   }

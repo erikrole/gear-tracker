@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import DataList from "@/components/DataList";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
@@ -87,7 +87,6 @@ export default function ShiftDetailPanel({
   currentUserId,
   currentUserRole,
 }: Props) {
-  const { toast } = useToast();
   const confirm = useConfirm();
   const [group, setGroup] = useState<ShiftGroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -192,17 +191,17 @@ export default function ShiftDetailPanel({
       const res = await fetch(url, opts);
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast(successMsg, "success");
+        toast.success(successMsg);
         await fetchGroup();
         onUpdated?.();
       } else {
         if (prev) setGroup(prev);
         const msg = await parseErrorMessage(res, "Action failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
       if (prev) setGroup(prev);
-      toast("Network error", "error");
+      toast.error("Network error");
     }
     setActing(null);
   }

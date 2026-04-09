@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type Dispatch } from "react";
 import { generateEventTitle } from "@/lib/sports";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import {
   toLocalDateTimeValue,
   type CalendarEvent,
@@ -24,7 +24,6 @@ export function useEventContext({
   initialEventId?: string;
   dispatch: Dispatch<FormAction>;
 }) {
-  const { toast } = useToast();
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
@@ -62,7 +61,7 @@ export function useEventContext({
       .catch((err) => {
         if (err?.name !== "AbortError") {
           setEventsLoading(false);
-          toast("Couldn\u2019t load events \u2014 try again", "error");
+          toast.error("Couldn\u2019t load events \u2014 try again");
         }
       });
     return () => controller.abort();
