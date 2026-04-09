@@ -96,7 +96,7 @@ export default function EquipmentPicker({
   });
 
   // ── Data hooks ──
-  const { sectionResults, apiSectionCounts, searchLoading } = usePickerSearch({
+  const { sectionResults, searchLoading } = usePickerSearch({
     legacyMode: false,
     activeSection,
     equipSearch: sectionSearch,
@@ -130,14 +130,6 @@ export default function EquipmentPicker({
       !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
     );
   }, [bulkBySection, activeSection, sectionSearch]);
-
-  const sectionCounts = useMemo(() => {
-    const c = { ...apiSectionCounts };
-    for (const key of Object.keys(c) as EquipmentSectionKey[]) {
-      c[key] = (c[key] || 0) + (bulkBySection[key]?.length || 0);
-    }
-    return c;
-  }, [apiSectionCounts, bulkBySection]);
 
   // ── Selected count per section (for tab badges) ──
   const selectedBySection = useMemo(() => {
