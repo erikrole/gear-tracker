@@ -134,3 +134,10 @@
 - **`await` async operations before navigation**: `saveDraft(); router.back()` fires navigation before the POST completes. On slow networks, the draft may not persist. Always `await saveDraft()` first.
 - **React Query error state must be surfaced when data is required for form inputs**: If `form-options` fails, dropdowns are empty with no explanation. Check `isError` and show a retry banner — don't silently degrade to empty arrays.
 - **Module-level imports (like `toast` from sonner) are stable — don't add to useCallback deps**: Adding stable imports to dependency arrays is harmless but masks real dependency issues. Use `[]` for callbacks that only reference module-level functions.
+
+### Patterns (Wizard + Picker Stress Test — Round 2)
+- **Every wizard step gate must validate minimum data**: Step 2 allowed 0 equipment items through because `validateStep2()` only checked unsatisfied requirements (which are empty when nothing is selected). Always add a "minimum selection" check.
+- **`handleAuthRedirect` on every client-side mutation, not just fetches**: The wizard submit had no 401 handling. Session can expire between page load and form submit — always call `handleAuthRedirect(res)` before `res.json()`.
+- **`res.json()` can throw on non-JSON responses**: Proxies, CDN errors, and 502s often return HTML. Wrap `res.json()` in try/catch with a user-facing fallback message. Never assume the body is JSON.
+- **URL-param-driven initial state must be consumed once**: `initialSheetTab` was read from URL params and stored in `useState`, but never cleared. Closing and reopening a different booking re-applied the stale tab. Clear one-shot URL params after first use (e.g., on sheet close).
+- **`initialTab` (or any prop used in useEffect) must be in the dep array**: `BookingDetailsSheet` used `initialTab` inside a `useEffect` but didn't include it in deps. If the prop changes without `bookingId` changing, the tab doesn't update. Always include all values read inside useEffect in its deps.
