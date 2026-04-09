@@ -1,13 +1,12 @@
 "use client";
 
-import { type ReactNode, useCallback, useRef } from "react";
+import { type ReactNode } from "react";
 import {
   type ColumnDef,
   type SortingState,
   type VisibilityState,
   type RowSelectionState,
   type OnChangeFn,
-  type ColumnSizingState,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -22,8 +21,8 @@ import {
 } from "@/components/ui/table";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import type { Asset } from "./columns";
-import { ItemCard } from "./components/item-card";
 
 interface DataTableProps {
   columns: ColumnDef<Asset>[];
@@ -34,14 +33,9 @@ interface DataTableProps {
   onColumnVisibilityChange: OnChangeFn<VisibilityState>;
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
-  columnSizing?: ColumnSizingState;
-  onColumnSizingChange?: OnChangeFn<ColumnSizingState>;
-  filterBar?: ReactNode;
-  bulkActionBar?: ReactNode;
   refreshing?: boolean;
-  viewMode?: "table" | "cards";
-  canEdit?: boolean;
-  onRowAction?: (action: string, asset: Asset) => void;
+  toolbar?: ReactNode;
+  bulkBar?: ReactNode;
 }
 
 export function DataTable({
@@ -53,14 +47,9 @@ export function DataTable({
   onColumnVisibilityChange,
   sorting,
   onSortingChange,
-  columnSizing,
-  onColumnSizingChange,
-  filterBar,
-  bulkActionBar,
   refreshing = false,
-  viewMode = "table",
-  canEdit = false,
-  onRowAction,
+  toolbar,
+  bulkBar,
 }: DataTableProps) {
   const router = useRouter();
 
@@ -69,120 +58,37 @@ export function DataTable({
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
-    enableColumnResizing: true,
-    columnResizeMode: "onChange",
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;
       onSortingChange(next);
     },
     onRowSelectionChange,
     onColumnVisibilityChange,
-    onColumnSizingChange,
     state: {
       sorting,
       rowSelection,
       columnVisibility,
-      ...(columnSizing ? { columnSizing } : {}),
     },
     getRowId: (row) => row.id,
     enableRowSelection: true,
   });
 
-  // Resize handler
-  const resizingRef = useRef<{
-    headerId: string;
-    startX: number;
-    startWidth: number;
-  } | null>(null);
-
-  const onResizeStart = useCallback(
-    (e: React.MouseEvent, headerId: string, currentWidth: number) => {
-      e.preventDefault();
-      e.stopPropagation();
-      resizingRef.current = { headerId, startX: e.clientX, startWidth: currentWidth };
-
-      const onMouseMove = (ev: MouseEvent) => {
-        if (!resizingRef.current) return;
-        const delta = ev.clientX - resizingRef.current.startX;
-        const newWidth = Math.max(60, resizingRef.current.startWidth + delta);
-        onColumnSizingChange?.((prev) => ({
-          ...(typeof prev === "function" ? {} : prev),
-          [resizingRef.current!.headerId]: newWidth,
-        }));
-      };
-
-      const onMouseUp = () => {
-        resizingRef.current = null;
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-      };
-
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-    },
-    [onColumnSizingChange],
-  );
-
   return (
-    <div className="relative rounded-md border">
-      {refreshing && (
-        <div className="absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden rounded-t-md">
-          <div className="h-full w-1/3 animate-pulse bg-primary/40" style={{ animation: "shimmer 1.5s ease-in-out infinite", translate: "0%" }} />
-          <style>{`@keyframes shimmer { 0% { translate: -100%; } 100% { translate: 400%; } }`}</style>
-        </div>
-      )}
-      {(filterBar || bulkActionBar) && (
-        <div className="sticky top-0 z-10 bg-background rounded-t-md">
-          <div className="relative">
-            <div className={`flex flex-wrap items-end gap-3 px-4 py-3 ${bulkActionBar ? "invisible" : ""}`}>
-              {filterBar}
-            </div>
-            {bulkActionBar && (
-              <div className="absolute inset-0 flex items-center px-4">
-                {bulkActionBar}
-              </div>
-            )}
-          </div>
+    <div className="space-y-2">
+      {(toolbar || bulkBar) && (
+        <div className="flex items-center gap-2">
+          {bulkBar || toolbar}
         </div>
       )}
 
-      {viewMode === "cards" ? (
-        <div>
-          {data.length ? (
-            data.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                selected={!!rowSelection[item.id]}
-                onSelectChange={(checked) => {
-                  const next = { ...rowSelection, [item.id]: checked };
-                  if (!checked) delete next[item.id];
-                  onRowSelectionChange(next);
-                }}
-                canEdit={canEdit}
-                onRowAction={onRowAction}
-              />
-            ))
-          ) : (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              No items match your filters. Try adjusting your search or filters.
-            </div>
-          )}
-        </div>
-      ) : (
-        <Table style={{ tableLayout: "fixed", width: "100%" }}>
-          <colgroup>
-            {table.getHeaderGroups()[0]?.headers.map((header) => (
-              <col
-                key={header.id}
-                style={{ width: header.getSize() }}
-              />
-            ))}
-          </colgroup>
+      <div className="relative rounded-md border">
+        {refreshing && (
+          <div className="absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden rounded-t-md">
+            <div className="h-full w-1/3 bg-primary/40 animate-[shimmer_1.5s_ease-in-out_infinite]" />
+          </div>
+        )}
+
+        <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="bg-muted/50">
@@ -192,7 +98,7 @@ export function DataTable({
                   return (
                     <TableHead
                       key={header.id}
-                      className={`relative h-10 border-t select-none ${canSort ? "cursor-pointer hover:bg-muted/80" : ""}`}
+                      className={cn("h-10 select-none", canSort && "cursor-pointer hover:bg-muted/80")}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >
                       {header.isPlaceholder ? null : (
@@ -204,13 +110,6 @@ export function DataTable({
                             <ArrowUpDown className="size-3.5 text-muted-foreground/50" />
                           )}
                         </div>
-                      )}
-                      {/* Resize handle */}
-                      {header.column.getCanResize() && (
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none hover:bg-border active:bg-primary/50"
-                          onMouseDown={(e) => onResizeStart(e, header.column.id, header.getSize())}
-                        />
                       )}
                     </TableHead>
                   );
@@ -247,7 +146,7 @@ export function DataTable({
             )}
           </TableBody>
         </Table>
-      )}
+      </div>
     </div>
   );
 }
