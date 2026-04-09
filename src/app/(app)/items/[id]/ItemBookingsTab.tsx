@@ -57,12 +57,16 @@ export function UpcomingReservationsList({
         return (
           <button
             key={r.bookingId}
-            className={`ops-row ${pastStart ? "ops-row-overdue" : startsToday ? "ops-row-due-today" : ""}`}
+            className={cn(
+              "flex items-center justify-between w-full text-left px-4 py-3 min-h-[44px] transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/30",
+              pastStart && "border-l-[3px] border-l-red-600 bg-red-600/[0.06] hover:bg-red-600/10",
+              startsToday && "border-l-[3px] border-l-amber-600 bg-amber-600/[0.04] hover:bg-amber-600/[0.08]",
+            )}
             onClick={() => onSelectBooking(r.bookingId)}
           >
-            <div className="ops-row-main">
-              <span className="ops-row-title">{r.title}</span>
-              <span className="ops-row-meta">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-sm font-medium truncate">{r.title}</span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 {r.requesterName} {"\u00b7"}{" "}
                 {pastStart ? (
                   <>{formatDateShort(r.startsAt)} <Badge variant="red" size="sm">{formatStartsIn(r.startsAt, now)}</Badge></>
@@ -97,10 +101,13 @@ export function ActiveBookingCard({
     <Card>
       <CardHeader><CardTitle>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</CardTitle></CardHeader>
       <CardContent className="p-0 py-1">
-        <button className="possession-card" onClick={() => onSelectBooking(booking.id)}>
-          <div className="possession-card-body">
-            <span className="possession-asset-tag">{booking.title}</span>
-            <span className="possession-asset-name">
+        <button
+          className="flex flex-col w-full text-left px-5 py-2 pb-3 transition-colors hover:bg-muted/50"
+          onClick={() => onSelectBooking(booking.id)}
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="text-base font-semibold">{booking.title}</span>
+            <span className="text-sm">
               {kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {booking.requesterName}
             </span>
             <UrgencyBadge startsAt={booking.startsAt} endsAt={booking.endsAt} now={now} />
@@ -130,16 +137,22 @@ function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; 
         <CardContent className="p-4 pt-0">
           <div className="flex gap-1 items-center">
             <button
-              className="asset-tag-label"
+              className="flex items-center bg-black p-1 cursor-pointer shrink-0"
               onClick={() => setShowModal(true)}
               title="Click to enlarge QR code"
             >
-              <div className="asset-tag-label-text">
+              <div className="flex flex-col items-center justify-center px-3 py-1 min-w-16">
                 {tagLines.map((line, i) => (
-                  <div key={i} className="asset-tag-label-line">{line || "\u00A0"}</div>
+                  <div
+                    key={i}
+                    className="text-[26px] font-[800] text-white tracking-[0.02em] leading-[1.2] text-center"
+                    style={{ fontFamily: '"Gotham XNarrow", "Barlow Condensed", "Arial Narrow", sans-serif' }}
+                  >
+                    {line || "\u00A0"}
+                  </div>
                 ))}
               </div>
-              <div className="asset-tag-label-qr">
+              <div className="shrink-0 leading-none [&_canvas]:block [&_canvas]:invert [&_canvas]:!border-0 [&_canvas]:!rounded-none">
                 <QRCodeCanvas value={asset.qrCodeValue} size={96} margin={0} />
               </div>
             </button>
@@ -397,7 +410,7 @@ export function BookingKindTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-[var(--green)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>
@@ -487,26 +500,46 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
         <CardHeader>
           <div className="flex-center gap-2">
             <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
-            <CardTitle className="cal-month-label">{monthLabel}</CardTitle>
+            <CardTitle className="min-w-40 text-center">{monthLabel}</CardTitle>
             <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
           </div>
           <Button variant="outline" size="sm" onClick={goToday}>Today</Button>
         </CardHeader>
         <CardContent className="p-4">
           {/* Day headers */}
-          <div className="cal-grid">
+          <div className="grid grid-cols-7 gap-px bg-border md:grid max-md:hidden">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="cal-header">{d}</div>
+              <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2 bg-background">{d}</div>
             ))}
             {cells.map((cell, i) => (
-              <div key={i} className={`cal-cell ${cell.day === null ? "cal-cell-empty" : ""} ${cell.day && isToday(cell.day) ? "cal-cell-today" : ""}`}>
+              <div
+                key={i}
+                className={cn(
+                  cell.day === null
+                    ? "bg-background min-h-20"
+                    : "bg-card min-h-20 p-1 overflow-hidden",
+                  cell.day && isToday(cell.day) && "bg-primary/5",
+                )}
+              >
                 {cell.day && (
                   <>
-                    <span className="cal-day-num">{cell.day}</span>
+                    <span
+                      className={cn(
+                        "text-xs font-medium text-muted-foreground inline-flex items-center justify-center size-[22px]",
+                        isToday(cell.day) && "bg-destructive text-destructive-foreground rounded-full",
+                      )}
+                    >
+                      {cell.day}
+                    </span>
                     {dayBookings.get(cell.day)?.slice(0, 3).map((b) => (
                       <button
                         key={b.id}
-                        className={`cal-booking ${b.kind === "CHECKOUT" ? "cal-booking-co" : "cal-booking-res"}`}
+                        className={cn(
+                          "block w-full px-1 py-px text-[10px] font-medium rounded truncate cursor-pointer mb-px leading-[1.4]",
+                          b.kind === "CHECKOUT"
+                            ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20"
+                            : "bg-purple-500/10 text-purple-600 hover:bg-purple-500/20",
+                        )}
                         onClick={() => onSelectBooking(b.id)}
                         title={`${b.kind === "CHECKOUT" ? "CO" : "RES"}: ${b.title} (${b.requester.name})`}
                       >
@@ -514,7 +547,9 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
                       </button>
                     ))}
                     {(dayBookings.get(cell.day)?.length ?? 0) > 3 && (
-                      <span className="cal-more">+{(dayBookings.get(cell.day)?.length ?? 0) - 3} more</span>
+                      <span className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">
+                        +{(dayBookings.get(cell.day)?.length ?? 0) - 3} more
+                      </span>
                     )}
                   </>
                 )}
@@ -636,7 +671,7 @@ export function BookingsTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-[var(--green)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>
