@@ -100,7 +100,7 @@ export function WizardStep1({
 
             {form.sport && (
               <div className="flex flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Upcoming events (next 30 days)</Label>
+                <Label className="text-xs text-muted-foreground">Events — next 3 days</Label>
                 {eventsLoading ? (
                   <div className="py-4 text-center text-sm text-muted-foreground">Loading events...</div>
                 ) : events.length === 0 ? (
@@ -245,7 +245,7 @@ export function WizardStep1({
 
           {/* Location */}
           <div className="flex flex-col gap-1">
-            <Label>Location</Label>
+            <Label>Pickup Location</Label>
             <Select
               value={form.locationId}
               onValueChange={(v) => dispatch({ type: "SET_LOCATION_ID", value: v })}

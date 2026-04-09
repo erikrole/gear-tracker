@@ -45,6 +45,7 @@ type Props = {
   onClose: () => void;
   onUpdated?: () => void;
   currentUserRole?: string;
+  initialTab?: "details" | "equipment" | "history" | null;
 };
 
 /* ───── Component ───── */
@@ -54,11 +55,12 @@ export default function BookingDetailsSheet({
   onClose,
   onUpdated,
   currentUserRole,
+  initialTab,
 }: Props) {
   const confirm = useConfirm();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>("details");
+  const [tab, setTab] = useState<TabKey>(initialTab ?? "details");
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [equipSearch, setEquipSearch] = useState("");
@@ -137,7 +139,7 @@ export default function BookingDetailsSheet({
   useEffect(() => {
     if (bookingId) {
       fetchBooking();
-      setTab("details");
+      setTab(initialTab ?? "details");
       setEditMode(false);
       setEquipEditMode(false);
       setConflictError(null);

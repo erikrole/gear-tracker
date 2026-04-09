@@ -370,7 +370,12 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
       const bookingId = json.data.id;
       const params = new URLSearchParams();
-      if (kind === "RESERVATION") params.set("tab", "reservations");
+      if (kind === "RESERVATION") {
+        params.set("tab", "reservations");
+      } else {
+        // Checkout: open to Equipment tab so user can immediately scan items
+        params.set("sheetTab", "equipment");
+      }
       params.set("highlight", bookingId);
       router.push(`/bookings?${params.toString()}`);
     } catch {

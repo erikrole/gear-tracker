@@ -44,12 +44,12 @@ export function useEventContext({
     setEventsLoading(true);
     const controller = new AbortController();
     const now = new Date();
-    const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const in3 = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const params = new URLSearchParams({
       sportCode: sport,
       startDate: now.toISOString(),
-      endDate: in30.toISOString(),
-      limit: "50",
+      endDate: in3.toISOString(),
+      limit: "20",
     });
     fetch(`/api/calendar-events?${params}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))

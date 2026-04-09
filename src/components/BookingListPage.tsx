@@ -158,7 +158,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sheet + menu ──
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    urlParams.get("highlight") || null
+  );
+  const [initialSheetTab] = useState<string | null>(urlParams.get("sheetTab") || null);
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const extendingRef = useRef(false);
 
@@ -368,6 +371,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         onClose={() => setSelectedBookingId(null)}
         onUpdated={reload}
         currentUserRole={currentUserRole}
+        initialTab={initialSheetTab as "details" | "equipment" | "history" | null}
       />
 
       {/* Create flow is now at /checkouts/new and /reservations/new */}
