@@ -389,15 +389,15 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)} created`);
 
       const bookingId = json.data.id;
-      const params = new URLSearchParams();
-      if (kind === "RESERVATION") {
-        params.set("tab", "reservations");
+      if (kind === "CHECKOUT") {
+        // Checkout: redirect to scan page — scanning is required before pickup
+        router.push(`/scan?checkout=${bookingId}&phase=CHECKOUT`);
       } else {
-        // Checkout: open to Equipment tab so user can immediately scan items
-        params.set("sheetTab", "equipment");
+        const params = new URLSearchParams();
+        params.set("tab", "reservations");
+        params.set("highlight", bookingId);
+        router.push(`/bookings?${params.toString()}`);
       }
-      params.set("highlight", bookingId);
-      router.push(`/bookings?${params.toString()}`);
     } catch {
       setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
     } finally {

@@ -183,7 +183,7 @@ export function WizardStep3({
         <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
           <SmartphoneIcon className="size-4 shrink-0 mt-0.5 text-primary" />
           <p className="text-sm text-foreground">
-            Each item must be scanned out at pickup. Use a kiosk device or your phone to scan.
+            You&apos;ll be taken to the scan screen next. Each item must be scanned before pickup is complete. Use a kiosk device or your phone for the best experience.
           </p>
         </div>
       )}
