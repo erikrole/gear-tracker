@@ -375,6 +375,7 @@ model BulkStockBalance {
   location          Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   @@unique([bulkSkuId, locationId])
+  @@index([locationId])
   @@map("bulk_stock_balances")
 }
 

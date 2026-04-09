@@ -156,20 +156,18 @@ export function useScanSession(
     setCompleting(false);
   }, [checkoutId, mode, router]);
 
-  // Complete checkout/checkin — show summary if reports exist, otherwise complete directly
+  // Complete checkout/checkin — always show summary for check-in
   const handleComplete = useCallback(async () => {
     if (!checkoutId) return;
 
-    // For check-in with damage/lost reports, show summary before completing
+    // For check-in, always show summary before completing
     if (mode === "checkin" && scanStatus) {
       const damaged = scanStatus.progress.damagedCount ?? 0;
       const lost = scanStatus.progress.lostCount ?? 0;
-      if (damaged > 0 || lost > 0) {
-        const returned = scanStatus.progress.serializedScanned - lost;
-        setSummaryData({ returned, damaged, lost });
-        setShowSummary(true);
-        return;
-      }
+      const returned = scanStatus.progress.serializedScanned - lost;
+      setSummaryData({ returned, damaged, lost });
+      setShowSummary(true);
+      return;
     }
 
     await doComplete();

@@ -69,7 +69,7 @@ export function useBookingActions(
     const label = kind === "CHECKOUT" ? "checkout" : "reservation";
     const ok = await confirm({
       title: `Cancel ${label}`,
-      message: `Cancel this ${label}? This action cannot be undone.`,
+      message: `This will return all equipment to available inventory and unblock other bookings.`,
       confirmLabel: `Cancel ${label}`,
       variant: "danger",
     });
@@ -116,6 +116,7 @@ export function useBookingActions(
     if (!guardStart("convert")) return;
     const result = await callAction(`/api/reservations/${bookingId}/convert`);
     if (result.ok) {
+      toast("Reservation converted to active checkout", "success");
       const checkoutId = (result as { data?: { id?: string } }).data?.id;
       router.push(checkoutId ? `/checkouts/${checkoutId}` : "/checkouts");
     } else {
@@ -193,6 +194,17 @@ export function useBookingActions(
     guardEnd();
   }, [bookingId, confirm, toast, onSuccess]);
 
+  const nudge = useCallback(async () => {
+    if (!guardStart("nudge")) return;
+    const result = await callAction(`/api/bookings/${bookingId}/nudge`);
+    if (result.ok) {
+      toast("Nudge notification sent", "success");
+    } else {
+      toast(result.error!, "error");
+    }
+    guardEnd();
+  }, [bookingId, toast]);
+
   const saveField = useCallback(
     async (field: string, value: unknown) => {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -220,6 +232,7 @@ export function useBookingActions(
     checkinItems,
     checkinBulk,
     completeCheckin,
+    nudge,
     saveField,
   };
 }
