@@ -61,7 +61,7 @@ export function usePickerSearch({
       toast.error("Failed to load equipment — check your connection and try again.");
     }
     if (!controller.signal.aborted) setSearchLoading(false);
-  }, [legacyMode, toast]);
+  }, [legacyMode]);
 
   // Trigger search on section change, search text change, or onlyAvailable change
   useEffect(() => {
@@ -105,7 +105,7 @@ export function usePickerSearch({
       toast.error("Failed to search equipment — check your connection and try again.");
     }
     if (!controller.signal.aborted) setGlobalSearchLoading(false);
-  }, [legacyMode, toast]);
+  }, [legacyMode]);
 
   useEffect(() => {
     if (legacyMode) return;

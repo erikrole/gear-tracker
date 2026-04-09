@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { handleAuthRedirect } from "@/lib/errors";
 import { classifyAssetType } from "@/lib/equipment-sections";
 import { getUnsatisfiedRequirements } from "@/lib/equipment-guidance";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
@@ -271,6 +272,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
   // ── Step 2 validation ──
   function validateStep2(): string | null {
+    if (itemCount === 0) return "Add at least one piece of equipment";
     if (unsatisfiedRequirements.length > 0) return unsatisfiedRequirements[0].message;
     return null;
   }
@@ -328,7 +330,16 @@ export function BookingWizard({ kind }: BookingWizardProps) {
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
+      if (handleAuthRedirect(res)) return;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let json: any;
+      try { json = await res.json(); } catch {
+        setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
+        submittingRef.current = false;
+        setSubmitting(false);
+        return;
+      }
       if (!res.ok) {
         if (res.status === 409 && json.data) {
           const msgs: string[] = [];

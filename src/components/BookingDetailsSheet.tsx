@@ -145,7 +145,9 @@ export default function BookingDetailsSheet({
       setConflictError(null);
     }
     return () => { abortRef.current?.abort(); };
-  }, [bookingId, fetchBooking]);
+    // initialTab intentionally included — deep-link ?sheetTab must be applied
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, fetchBooking, initialTab]);
 
   const loadFormOptions = useCallback(async () => {
     try {

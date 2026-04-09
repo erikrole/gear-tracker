@@ -161,7 +161,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     urlParams.get("highlight") || null
   );
-  const [initialSheetTab] = useState<string | null>(urlParams.get("sheetTab") || null);
+  const [initialSheetTab, setInitialSheetTab] = useState<string | null>(urlParams.get("sheetTab") || null);
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const extendingRef = useRef(false);
 
@@ -368,7 +368,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       {/* ════════ Booking details sheet ════════ */}
       <BookingDetailsSheet
         bookingId={selectedBookingId}
-        onClose={() => setSelectedBookingId(null)}
+        onClose={() => { setSelectedBookingId(null); setInitialSheetTab(null); }}
         onUpdated={reload}
         currentUserRole={currentUserRole}
         initialTab={initialSheetTab as "details" | "equipment" | "history" | null}
