@@ -33,17 +33,17 @@ function GearAvatarStack({ items, bulkItems }: {
   return (
     <div className="flex items-center -space-x-2">
       {shown.map((si, i) => (
-        <Avatar key={i} size="sm" className="border-2 border-[var(--panel-solid)] bg-[var(--surface)]">
+        <Avatar key={i} size="sm" className="border-2 border-card bg-muted">
           {si.asset.imageUrl ? (
             <AvatarImage src={si.asset.imageUrl} alt={si.asset.assetTag} />
           ) : null}
-          <AvatarFallback className="text-[9px] font-semibold bg-[var(--surface)] text-[var(--text-secondary)]">
+          <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
             {si.asset.brand?.[0] ?? si.asset.assetTag?.[0] ?? "?"}
           </AvatarFallback>
         </Avatar>
       ))}
       {overflow > 0 && (
-        <span className="flex items-center justify-center size-6 rounded-full border-2 border-[var(--panel-solid)] bg-[var(--elevated)] text-[10px] font-semibold text-[var(--text-secondary)]">
+        <span className="flex items-center justify-center size-6 rounded-full border-2 border-card bg-[var(--elevated)] text-[10px] font-semibold text-muted-foreground">
           +{overflow > 99 ? "99" : overflow}
         </span>
       )}
@@ -68,7 +68,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
   return (
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <div
-        className="group relative rounded-lg border border-[var(--border)] bg-[var(--panel-solid)] p-4 cursor-pointer transition-colors hover:bg-[var(--accent-soft)] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+        className="group relative rounded-lg border border-border bg-card p-4 cursor-pointer transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
         role="button"
         tabIndex={0}
         aria-label={`View booking: ${item.title}`}
@@ -83,39 +83,39 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
               style={{ background: sv.dot }}
               aria-hidden="true"
             />
-            <span className="text-xs font-medium text-[var(--text-secondary)]">
+            <span className="text-xs font-medium text-muted-foreground">
               {sv.label}
             </span>
           </div>
-          <span className="text-xs text-[var(--text-muted)]">
+          <span className="text-xs text-muted-foreground">
             {duration}
           </span>
         </div>
 
         {/* Title — big and bold; red when overdue */}
-        <h3 className={`text-[15px] font-semibold leading-snug mb-1 line-clamp-2 pr-6 ${isOverdue ? "text-[var(--red)]" : "text-[var(--text-primary)]"}`}>
+        <h3 className={`text-[15px] font-semibold leading-snug mb-1 line-clamp-2 pr-6 ${isOverdue ? "text-[var(--red)]" : "text-foreground"}`}>
           {item.title}
         </h3>
 
         {/* Date + location row */}
-        <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)] mb-3">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
           <span className="flex items-center gap-1">
-            <CalendarIcon className="size-3 text-[var(--text-muted)]" />
+            <CalendarIcon className="size-3 text-muted-foreground" />
             {formatCardDate(item.startsAt)} · {formatCardTime(item.startsAt)}
           </span>
           {item.location?.name && (
             <span className="flex items-center gap-1">
-              <MapPinIcon className="size-3 text-[var(--text-muted)]" />
+              <MapPinIcon className="size-3 text-muted-foreground" />
               {item.location.name}
             </span>
           )}
         </div>
 
         {/* Bottom row: user avatar + gear avatars */}
-        <div className="flex items-center justify-between pt-3 border-t border-dashed border-[var(--border)]">
+        <div className="flex items-center justify-between pt-3 border-t border-dashed border-border">
           {/* User */}
           <div className="flex items-center gap-2">
-            <Avatar size="sm" className="border border-[var(--border)]">
+            <Avatar size="sm" className="border border-border">
               {item.requester?.avatarUrl ? (
                 <AvatarImage src={item.requester.avatarUrl} alt={item.requester.name} />
               ) : null}
@@ -123,7 +123,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
                 {getInitials(item.requester?.name ?? "?")}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs font-medium text-[var(--text-primary)]">
+            <span className="text-xs font-medium text-foreground">
               {item.requester?.name ?? "Unknown"}
             </span>
           </div>
@@ -142,7 +142,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
         >
           <BookingOverflowMenu item={item} {...menuProps}>
             <button
-              className="flex items-center justify-center size-7 rounded-md hover:bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              className="flex items-center justify-center size-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               aria-label="More actions"
             >
               <MoreHorizontalIcon className="size-4" />

@@ -144,7 +144,7 @@ export default function ScanPage() {
     <div className="flex flex-col gap-2 pb-4 md:gap-3 md:max-w-[640px] md:mx-auto max-md:pb-[100px]">
       {/* ══════ Compact header (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && (
-        <div className="flex items-center gap-2.5 sticky top-[56px] z-[1] bg-[var(--bg)] -mx-4 -mt-4 px-4 py-2 max-md:border-b max-md:border-[var(--border-light)] md:static md:mx-0 md:px-0 md:py-2">
+        <div className="flex items-center gap-2.5 sticky top-[56px] z-[1] bg-background -mx-4 -mt-4 px-4 py-2 max-md:border-b max-md:border-border md:static md:mx-0 md:px-0 md:py-2">
           <button
             type="button"
             className="flex items-center gap-2 flex-1 min-w-0 no-underline text-inherit [-webkit-tap-highlight-color:transparent]"
@@ -187,7 +187,7 @@ export default function ScanPage() {
       {mode === "lookup" && (
         <div className="flex items-center justify-between gap-3 py-1">
           <h1>Scan</h1>
-          <div className="inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 bg-[var(--accent-soft)] text-muted-foreground">
+          <div className="inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 bg-accent text-muted-foreground">
             <div className="w-[7px] h-[7px] rounded-full bg-[#9ca3af]" />
             Look Up
           </div>
@@ -281,7 +281,7 @@ export default function ScanPage() {
 
       {/* ══════ Sticky bottom bar (booking modes) ══════ */}
       {isBookingMode && session.scanStatus && (
-        <div className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-[calc(12px+56px+env(safe-area-inset-bottom,0px))] bg-[var(--panel)] border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.08)] z-[25] md:static md:p-0 md:bg-transparent md:border-none md:shadow-none">
+        <div className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-[calc(12px+56px+env(safe-area-inset-bottom,0px))] bg-card border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.08)] z-[25] md:static md:p-0 md:bg-transparent md:border-none md:shadow-none">
           <Button
             variant={allComplete ? "default" : "outline"}
             className="w-full py-3.5 px-6 text-base font-bold min-h-[52px] justify-center disabled:opacity-60 disabled:font-medium"
@@ -310,7 +310,7 @@ export default function ScanPage() {
           role="dialog"
           aria-label="All items scanned"
         >
-          <div className="bg-[var(--panel-solid)] rounded-[20px] px-10 py-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-[scale-in_0.3s_ease] max-md:mx-6 max-md:px-6 max-md:py-7">
+          <div className="bg-card rounded-[20px] px-10 py-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-[scale-in_0.3s_ease] max-md:mx-6 max-md:px-6 max-md:py-7">
             <div className="text-5xl mb-2">{"\u2705"}</div>
             <div className="text-xl font-bold mb-1">All items scanned!</div>
             <div className="text-sm text-muted-foreground">

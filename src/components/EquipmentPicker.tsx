@@ -422,7 +422,7 @@ export default function EquipmentPicker({
   return (
     <div className="mt-2">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-[length:var(--text-xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)]">
+        <label className="text-xs font-semibold text-muted-foreground">
           Equipment
         </label>
         <div className="flex gap-1.5 items-center">
@@ -452,13 +452,13 @@ export default function EquipmentPicker({
 
       {/* Sectioned picker */}
       {visible && (
-        <div className="border border-[var(--border)] rounded-[var(--radius)] overflow-hidden" role="region" aria-label="Equipment picker">
+        <div className="border border-border rounded-md overflow-hidden" role="region" aria-label="Equipment picker">
           {/* Global search bar */}
           <div className="relative flex items-center mb-2">
-            <SearchIcon className="absolute left-2.5 max-md:left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none size-3.5" aria-hidden="true" />
+            <SearchIcon className="absolute left-2.5 max-md:left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none size-3.5" aria-hidden="true" />
             <input
               ref={globalSearchRef}
-              className="w-full py-2 pr-3 pl-8 border border-[var(--border)] rounded-[var(--radius)] text-[length:var(--text-sm)] outline-none box-border focus:border-[var(--primary,#3b82f6)] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.15)] max-md:min-h-[44px] max-md:text-[length:var(--text-lg)] max-md:pl-9"
+              className="w-full py-2 pr-3 pl-8 border border-border rounded-md text-sm outline-none box-border focus:border-[var(--primary,#3b82f6)] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.15)] max-md:min-h-[44px] max-md:text-lg max-md:pl-9"
               placeholder="Search all equipment..."
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
@@ -489,7 +489,7 @@ export default function EquipmentPicker({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 bg-none border-none shadow-none text-[length:var(--text-lg)] text-[var(--text-secondary)] cursor-pointer p-1 leading-none h-auto min-h-0 hover:bg-[var(--accent-soft)]"
+                className="absolute right-1 top-1/2 -translate-y-1/2 bg-none border-none shadow-none text-lg text-muted-foreground cursor-pointer p-1 leading-none h-auto min-h-0 hover:bg-accent"
                 onClick={() => { setGlobalSearch(""); globalSearchRef.current?.focus(); }}
                 aria-label="Clear global search"
               >
@@ -503,12 +503,12 @@ export default function EquipmentPicker({
             <div className="p-3 max-md:p-2">
               <ScrollArea className="max-h-[280px] max-md:max-h-[300px]" role="listbox" aria-label="Search results">
                 {globalSearchLoading ? (
-                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">Searching...</div>
+                  <div className="py-6 text-center text-muted-foreground text-sm" role="status">Searching...</div>
                 ) : globalSearchResults.length === 0 ? (
-                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">No matching items across any section</div>
+                  <div className="py-6 text-center text-muted-foreground text-sm" role="status">No matching items across any section</div>
                 ) : (
                   <>
-                    <div className="text-[length:var(--text-3xs)] text-[var(--text-muted)] ml-auto px-2 pb-1" aria-live="polite">
+                    <div className="text-[length:var(--text-3xs)] text-muted-foreground ml-auto px-2 pb-1" aria-live="polite">
                       {globalSearchResults.length} result{globalSearchResults.length !== 1 ? "s" : ""}
                     </div>
                     {globalSearchResults.map((hit, idx) => {
@@ -530,8 +530,8 @@ export default function EquipmentPicker({
                           aria-disabled={isDisabled}
                           tabIndex={0}
                           className={cn(
-                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] data-[unavailable]:cursor-default data-[unavailable]:opacity-50 data-[unavailable]:hover:bg-transparent max-md:py-3 max-md:min-h-[52px]",
-                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
+                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-border transition-[background,border-color] duration-100 last:border-b-0 hover:bg-muted data-[unavailable]:cursor-default data-[unavailable]:opacity-50 data-[unavailable]:hover:bg-transparent max-md:py-3 max-md:min-h-[52px]",
+                            isSelected && "bg-accent border-l-[var(--primary,#3b82f6)] hover:bg-accent",
                             conflict && "border-l-[var(--orange)]",
                             isHighlighted && "outline-2 outline-[var(--primary,#3b82f6)] -outline-offset-2",
                           )}
@@ -560,13 +560,13 @@ export default function EquipmentPicker({
                             aria-hidden="true"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">
+                            <div className="font-bold text-base leading-[1.3]">
                               {asset.assetTag}
                               <Badge variant="gray" size="sm" className="ml-1.5">
                                 {EQUIPMENT_SECTIONS.find((s) => s.key === hit.section)?.label || hit.section}
                               </Badge>
                             </div>
-                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">
+                            <div className="text-xs text-muted-foreground leading-[1.4] mt-px">
                               {asset.name || `${asset.brand} ${asset.model}`}
                               {asset.serialNumber ? ` \u00b7 ${asset.serialNumber}` : ""}
                               {asset.location ? ` \u00b7 ${asset.location.name}` : ""}
@@ -588,7 +588,7 @@ export default function EquipmentPicker({
           ) : (
           <>
           {/* Section tabs */}
-          <div className="flex flex-wrap border-b border-b-[var(--border)]" role="tablist" aria-label="Equipment sections">
+          <div className="flex flex-wrap border-b border-b-border" role="tablist" aria-label="Equipment sections">
             {EQUIPMENT_SECTIONS.map((sec, idx) => {
               const isActive = activeSection === sec.key;
               const selCount = selectedCountBySection[sec.key] || 0;
@@ -602,15 +602,15 @@ export default function EquipmentPicker({
                   aria-controls={`picker-panel-${sec.key}`}
                   tabIndex={isActive ? 0 : -1}
                   className={cn(
-                    "flex-auto py-2.5 px-3 text-[length:var(--text-xs)] font-[number:var(--weight-medium)] bg-transparent border-none border-b-2 border-b-transparent cursor-pointer text-[var(--text-secondary)] whitespace-nowrap min-h-[40px] max-md:min-h-[44px] max-md:px-2.5 transition-[color,border-color] duration-150 hover:text-[var(--text-primary)]",
-                    isActive && "font-[number:var(--weight-bold)] border-b-[var(--primary,#3b82f6)] text-[var(--primary,#3b82f6)]",
+                    "flex-auto py-2.5 px-3 text-xs font-medium bg-transparent border-none border-b-2 border-b-transparent cursor-pointer text-muted-foreground whitespace-nowrap min-h-[40px] max-md:min-h-[44px] max-md:px-2.5 transition-[color,border-color] duration-150 hover:text-foreground",
+                    isActive && "font-bold border-b-[var(--primary,#3b82f6)] text-[var(--primary,#3b82f6)]",
                   )}
                   onClick={() => setActiveSection(sec.key)}
                   onKeyDown={(e) => handleTabKeyDown(e, idx)}
                 >
                   {sec.label}
                   {selCount > 0 ? (
-                    <span className="ml-1 text-[length:var(--text-3xs)] text-[var(--primary,#3b82f6)] font-[number:var(--weight-bold)] opacity-100">({selCount})</span>
+                    <span className="ml-1 text-[length:var(--text-3xs)] text-[var(--primary,#3b82f6)] font-bold opacity-100">({selCount})</span>
                   ) : sectionTotalCounts[sec.key] > 0 ? (
                     <span className="ml-1 text-[length:var(--text-3xs)] opacity-60">({sectionTotalCounts[sec.key]})</span>
                   ) : null}
@@ -630,9 +630,9 @@ export default function EquipmentPicker({
               {/* Search + "Only available" filter */}
               <div className="flex gap-2 mb-2 items-stretch max-md:flex-wrap">
                 <div className="flex-1 relative">
-                  <SearchIcon className="absolute left-2.5 max-md:left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none size-3.5" aria-hidden="true" />
+                  <SearchIcon className="absolute left-2.5 max-md:left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none size-3.5" aria-hidden="true" />
                   <input
-                    className="w-full py-2 pr-3 pl-8 border border-[var(--border)] rounded-[var(--radius)] text-[length:var(--text-sm)] outline-none box-border focus:border-[var(--primary,#3b82f6)] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.15)] max-md:min-h-[44px] max-md:text-[length:var(--text-lg)] max-md:pl-9"
+                    className="w-full py-2 pr-3 pl-8 border border-border rounded-md text-sm outline-none box-border focus:border-[var(--primary,#3b82f6)] focus:shadow-[0_0_0_2px_rgba(59,130,246,0.15)] max-md:min-h-[44px] max-md:text-lg max-md:pl-9"
                     placeholder={`Search ${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label.toLowerCase() || "items"}...`}
                     value={equipSearch}
                     onChange={(e) => setSearch(e.target.value)}
@@ -643,7 +643,7 @@ export default function EquipmentPicker({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 bg-none border-none shadow-none text-[length:var(--text-lg)] text-[var(--text-secondary)] cursor-pointer p-1 leading-none h-auto min-h-0 hover:bg-[var(--accent-soft)]"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 bg-none border-none shadow-none text-lg text-muted-foreground cursor-pointer p-1 leading-none h-auto min-h-0 hover:bg-accent"
                       onClick={() => setSearch("")}
                       aria-label="Clear search"
                     >
@@ -656,7 +656,7 @@ export default function EquipmentPicker({
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "py-1.5 px-3 text-[length:var(--text-xs)] font-[number:var(--weight-medium)] rounded-full border border-[var(--border)] bg-[var(--panel)] shadow-none cursor-pointer h-auto text-[var(--text-secondary)] whitespace-nowrap transition-all duration-150 hover:bg-[var(--accent-soft)] max-md:min-h-[40px] max-md:py-2 max-md:px-3.5 max-md:text-[length:var(--text-sm)]",
+                    "py-1.5 px-3 text-xs font-medium rounded-full border border-border bg-card shadow-none cursor-pointer h-auto text-muted-foreground whitespace-nowrap transition-all duration-150 hover:bg-accent max-md:min-h-[40px] max-md:py-2 max-md:px-3.5 max-md:text-sm",
                     onlyAvailable && "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] border-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-bg-hover)]",
                   )}
                   onClick={() => setOnlyAvailable((v) => !v)}
@@ -669,7 +669,7 @@ export default function EquipmentPicker({
 
               {/* Column header with select-all checkbox */}
               {sectionAssets.length > 0 && (
-                <div className="flex items-center gap-2 py-1.5 border-b border-b-[var(--border-light)] mb-0.5">
+                <div className="flex items-center gap-2 py-1.5 border-b border-b-border mb-0.5">
                   <div className="flex items-center cursor-pointer">
                     <Checkbox
                       checked={allSectionSelected ? true : someSectionSelected ? "indeterminate" : false}
@@ -677,25 +677,25 @@ export default function EquipmentPicker({
                       aria-label={allSectionSelected ? "Deselect all items in section" : "Select all available items in section"}
                     />
                   </div>
-                  <span className="text-[length:var(--text-3xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)] uppercase tracking-[var(--tracking-wider)]">Item</span>
+                  <span className="text-[length:var(--text-3xs)] font-semibold text-muted-foreground uppercase tracking-[var(--tracking-wider)]">Item</span>
                   {currentSectionSelected > 0 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="ml-auto text-[length:var(--text-3xs)] text-[var(--text-secondary)] bg-none border-none shadow-none cursor-pointer py-0.5 px-1.5 rounded-[var(--radius)] h-auto min-h-0 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                      className="ml-auto text-[length:var(--text-3xs)] text-muted-foreground bg-none border-none shadow-none cursor-pointer py-0.5 px-1.5 rounded-md h-auto min-h-0 hover:bg-accent hover:text-[var(--accent)]"
                       onClick={deselectAllInSection}
                     >
                       Deselect ({currentSectionSelected})
                     </Button>
                   )}
                   {equipSearch && (
-                    <span className="text-[length:var(--text-3xs)] text-[var(--text-muted)] ml-auto" aria-live="polite">
+                    <span className="text-[length:var(--text-3xs)] text-muted-foreground ml-auto" aria-live="polite">
                       {sectionAssets.length + sectionBulk.length} results
                     </span>
                   )}
                   {conflictsLoading && (
-                    <span className="text-[length:var(--text-3xs)] text-[var(--text-muted)] italic ml-auto" aria-live="polite">Checking availability...</span>
+                    <span className="text-[length:var(--text-3xs)] text-muted-foreground italic ml-auto" aria-live="polite">Checking availability...</span>
                   )}
                   {conflictsError && !conflictsLoading && (
                     <button
@@ -730,8 +730,8 @@ export default function EquipmentPicker({
                           aria-disabled={isBookedOut && !isSelected}
                           tabIndex={0}
                           className={cn(
-                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] max-md:py-3 max-md:min-h-[52px]",
-                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
+                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-border transition-[background,border-color] duration-100 last:border-b-0 hover:bg-muted max-md:py-3 max-md:min-h-[52px]",
+                            isSelected && "bg-accent border-l-[var(--primary,#3b82f6)] hover:bg-accent",
                             isBookedOut && !isSelected && "opacity-50 cursor-default hover:bg-transparent",
                           )}
                           onClick={() => {
@@ -761,8 +761,8 @@ export default function EquipmentPicker({
                             tabIndex={-1}
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">{sku.name}</div>
-                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">{sku.category} {"\u00b7"} {sku.unit}</div>
+                            <div className="font-bold text-base leading-[1.3]">{sku.name}</div>
+                            <div className="text-xs text-muted-foreground leading-[1.4] mt-px">{sku.category} {"\u00b7"} {sku.unit}</div>
                           </div>
                           {isSelected ? (
                             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -779,7 +779,7 @@ export default function EquipmentPicker({
                               >
                                 &minus;
                               </Button>
-                              <span className="w-6 text-center text-[length:var(--text-sm)] font-[number:var(--weight-semibold)] tabular-nums">{qty}</span>
+                              <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -791,12 +791,12 @@ export default function EquipmentPicker({
                               >
                                 +
                               </Button>
-                              <span className="text-[length:var(--text-3xs)] text-[var(--text-secondary)] ml-1 whitespace-nowrap">/ {maxQty}</span>
+                              <span className="text-[length:var(--text-3xs)] text-muted-foreground ml-1 whitespace-nowrap">/ {maxQty}</span>
                             </div>
                           ) : maxQty === 0 && bulkAvail ? (
-                            <span className="text-[length:var(--text-xs)] text-[var(--orange)] shrink-0">Booked out</span>
+                            <span className="text-xs text-[var(--orange)] shrink-0">Booked out</span>
                           ) : (
-                            <span className="text-[length:var(--text-xs)] text-[var(--text-secondary)] shrink-0">
+                            <span className="text-xs text-muted-foreground shrink-0">
                               {hasDateConstraint ? `${maxQty} of ${bulkAvail!.onHand} free` : `${maxQty} available`}
                             </span>
                           )}
@@ -810,7 +810,7 @@ export default function EquipmentPicker({
                 {sectionAssets.length > 0 && (
                   <>
                     {sectionBulk.length > 0 && (
-                      <div className="text-[length:var(--text-2xs)] font-[number:var(--weight-semibold)] text-[var(--text-secondary)] pt-2.5 pb-1 uppercase tracking-[0.05em]" role="separator">Serialized Items</div>
+                      <div className="text-[length:var(--text-2xs)] font-semibold text-muted-foreground pt-2.5 pb-1 uppercase tracking-[0.05em]" role="separator">Serialized Items</div>
                     )}
                     {sectionAssets.map((asset) => {
                       const isSelected = selectedIdSet.has(asset.id);
@@ -829,8 +829,8 @@ export default function EquipmentPicker({
                           aria-disabled={isDisabled}
                           tabIndex={0}
                           className={cn(
-                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-[var(--border-light)] transition-[background,border-color] duration-100 last:border-b-0 hover:bg-[var(--bg-hover,#f8fafc)] data-[unavailable]:cursor-default data-[unavailable]:opacity-50 data-[unavailable]:hover:bg-transparent max-md:py-3 max-md:min-h-[52px]",
-                            isSelected && "bg-[var(--bg-active,#f0f4ff)] border-l-[var(--primary,#3b82f6)] hover:bg-[var(--bg-active,#f0f4ff)]",
+                            "flex items-center gap-2.5 py-2.5 px-2 cursor-pointer border-l-[3px] border-l-transparent border-b border-b-border transition-[background,border-color] duration-100 last:border-b-0 hover:bg-muted data-[unavailable]:cursor-default data-[unavailable]:opacity-50 data-[unavailable]:hover:bg-transparent max-md:py-3 max-md:min-h-[52px]",
+                            isSelected && "bg-accent border-l-[var(--primary,#3b82f6)] hover:bg-accent",
                             conflict && "border-l-[var(--orange)]",
                           )}
                           data-unavailable={isDisabled ? true : undefined}
@@ -857,10 +857,10 @@ export default function EquipmentPicker({
                             aria-hidden="true"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-[number:var(--weight-bold)] text-[length:var(--text-base)] leading-[1.3]">
+                            <div className="font-bold text-base leading-[1.3]">
                               {asset.assetTag}
                             </div>
-                            <div className="text-[length:var(--text-xs)] text-[var(--text-secondary)] leading-[1.4] mt-px">
+                            <div className="text-xs text-muted-foreground leading-[1.4] mt-px">
                               {asset.name || `${asset.brand} ${asset.model}`}
                               {asset.serialNumber ? ` \u00b7 ${asset.serialNumber}` : ""}
                               {asset.location ? ` \u00b7 ${asset.location.name}` : ""}
@@ -879,10 +879,10 @@ export default function EquipmentPicker({
                 )}
 
                 {searchLoading && !legacyMode && (
-                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">Searching...</div>
+                  <div className="py-6 text-center text-muted-foreground text-sm" role="status">Searching...</div>
                 )}
                 {sectionAssets.length === 0 && sectionBulk.length === 0 && !(searchLoading && !legacyMode) && (
-                  <div className="py-6 text-center text-[var(--text-secondary)] text-[length:var(--text-sm)]" role="status">
+                  <div className="py-6 text-center text-muted-foreground text-sm" role="status">
                     {equipSearch
                       ? "No matching items"
                       : onlyAvailable && (sectionTotalCounts[activeSection] || 0) > 0
@@ -900,7 +900,7 @@ export default function EquipmentPicker({
                   key={rule.id}
                   data-guidance={rule.id}
                   className={cn(
-                    "py-2 px-3 mt-2 rounded-[var(--radius)] text-[length:var(--text-xs)]",
+                    "py-2 px-3 mt-2 rounded-md text-xs",
                     rule.level === "warning" ? "bg-[var(--bg-warning,#fef9c3)] text-[var(--text-warning,#92400e)]" : "bg-[var(--bg-info,#eff6ff)] text-[var(--text-info,#1e40af)]",
                   )}
                   role="alert"
@@ -910,7 +910,7 @@ export default function EquipmentPicker({
               ))}
 
               {/* Section navigation */}
-              <div className="flex justify-between mt-2.5 pt-2.5 border-t border-t-[var(--border-light)]">
+              <div className="flex justify-between mt-2.5 pt-2.5 border-t border-t-border">
                 {(() => {
                   const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
                   const prev = idx > 0 ? EQUIPMENT_SECTIONS[idx - 1] : null;
@@ -942,9 +942,9 @@ export default function EquipmentPicker({
 
           {/* Sticky selection footer */}
           {equipmentCount > 0 && (
-            <div className="border-t border-t-[var(--border)] py-2.5 px-3 bg-[var(--panel)]" aria-live="polite">
-              <div className="text-[length:var(--text-sm)] font-[number:var(--weight-semibold)] mb-1.5 flex items-center gap-1.5">
-                <Badge variant="default" className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[var(--primary,#3b82f6)] text-white text-[length:var(--text-xs)] font-[number:var(--weight-bold)]">{equipmentCount}</Badge>
+            <div className="border-t border-t-border py-2.5 px-3 bg-card" aria-live="polite">
+              <div className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+                <Badge variant="default" className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[var(--primary,#3b82f6)] text-white text-xs font-bold">{equipmentCount}</Badge>
                 item{equipmentCount !== 1 ? "s" : ""} selected
               </div>
               <div className="flex flex-wrap gap-1 max-md:overflow-x-auto max-md:flex-nowrap max-md:[overflow-scrolling:touch] max-md:pb-0.5">
@@ -953,7 +953,7 @@ export default function EquipmentPicker({
                   if (!asset) return null;
                   const conflict = conflicts.get(assetId);
                   return (
-                    <span key={assetId} className={cn("inline-flex items-center gap-0.5 py-[3px] px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-xs)] font-[number:var(--weight-medium)]", conflict && "border-[var(--orange)] bg-[rgba(234,179,8,0.08)]")}>
+                    <span key={assetId} className={cn("inline-flex items-center gap-0.5 py-[3px] px-1.5 rounded-md bg-accent border border-border text-xs font-medium", conflict && "border-[var(--orange)] bg-[rgba(234,179,8,0.08)]")}>
                       {asset.imageUrl && (
                         <img
                           src={asset.imageUrl}
@@ -966,7 +966,7 @@ export default function EquipmentPicker({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="bg-none border-none shadow-none cursor-pointer text-[length:var(--text-sm)] text-[var(--text-secondary)] px-0.5 py-0 leading-none h-auto min-h-0 hover:text-[var(--red)] hover:bg-none max-md:min-w-7 max-md:min-h-7 max-md:inline-flex max-md:items-center max-md:justify-center"
+                        className="bg-none border-none shadow-none cursor-pointer text-sm text-muted-foreground px-0.5 py-0 leading-none h-auto min-h-0 hover:text-[var(--red)] hover:bg-none max-md:min-w-7 max-md:min-h-7 max-md:inline-flex max-md:items-center max-md:justify-center"
                         onClick={() => setSelectedAssetIds((prev) => prev.filter((id) => id !== assetId))}
                         aria-label={`Remove ${asset.assetTag}`}
                       >
@@ -978,14 +978,14 @@ export default function EquipmentPicker({
                 {selectedBulkItems.map((item) => {
                   const sku = bulkById.get(item.bulkSkuId);
                   return (
-                    <span key={item.bulkSkuId} className="inline-flex items-center gap-0.5 py-[3px] px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-xs)] font-[number:var(--weight-medium)]">
+                    <span key={item.bulkSkuId} className="inline-flex items-center gap-0.5 py-[3px] px-1.5 rounded-md bg-accent border border-border text-xs font-medium">
                       {sku?.name || item.bulkSkuId}
                       <span className="inline-flex items-center gap-0.5 ml-0.5 text-[length:var(--text-3xs)]">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-[length:var(--text-xs)] font-[number:var(--weight-bold)] h-auto min-h-0 px-0.5 py-0 bg-none border-none shadow-none cursor-pointer leading-none"
+                          className="text-xs font-bold h-auto min-h-0 px-0.5 py-0 bg-none border-none shadow-none cursor-pointer leading-none"
                           onClick={() => {
                             if (item.quantity <= 1) setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId));
                             else setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity - 1 } : i));
@@ -999,7 +999,7 @@ export default function EquipmentPicker({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-[length:var(--text-xs)] font-[number:var(--weight-bold)] h-auto min-h-0 px-0.5 py-0 bg-none border-none shadow-none cursor-pointer leading-none"
+                          className="text-xs font-bold h-auto min-h-0 px-0.5 py-0 bg-none border-none shadow-none cursor-pointer leading-none"
                           onClick={() => setSelectedBulkItems((prev) => prev.map((i) => i.bulkSkuId === item.bulkSkuId ? { ...i, quantity: i.quantity + 1 } : i))}
                           disabled={!!sku && sku.currentQuantity > 0 && item.quantity >= sku.currentQuantity}
                           aria-label={`Increase ${sku?.name || "item"} quantity`}
@@ -1011,7 +1011,7 @@ export default function EquipmentPicker({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="bg-none border-none shadow-none cursor-pointer text-[length:var(--text-sm)] text-[var(--text-secondary)] px-0.5 py-0 leading-none h-auto min-h-0 hover:text-[var(--red)] hover:bg-none max-md:min-w-7 max-md:min-h-7 max-md:inline-flex max-md:items-center max-md:justify-center"
+                        className="bg-none border-none shadow-none cursor-pointer text-sm text-muted-foreground px-0.5 py-0 leading-none h-auto min-h-0 hover:text-[var(--red)] hover:bg-none max-md:min-w-7 max-md:min-h-7 max-md:inline-flex max-md:items-center max-md:justify-center"
                         onClick={() => setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== item.bulkSkuId))}
                         aria-label={`Remove ${sku?.name || "item"}`}
                       >
@@ -1044,8 +1044,8 @@ export default function EquipmentPicker({
       {/* When picker is closed but items are selected, show compact summary */}
       {equipmentCount > 0 && !visible && (
         <div className="flex items-center gap-2.5 py-2 flex-wrap max-md:flex-col max-md:items-start max-md:gap-1.5">
-          <div className="text-[length:var(--text-sm)] font-[number:var(--weight-semibold)] flex items-center gap-1.5 shrink-0">
-            <Badge variant="default" className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[var(--primary,#3b82f6)] text-white text-[length:var(--text-xs)] font-[number:var(--weight-bold)]">{equipmentCount}</Badge>
+          <div className="text-sm font-semibold flex items-center gap-1.5 shrink-0">
+            <Badge variant="default" className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[var(--primary,#3b82f6)] text-white text-xs font-bold">{equipmentCount}</Badge>
             item{equipmentCount !== 1 ? "s" : ""} selected
           </div>
           <div className="flex flex-wrap gap-1 flex-1 min-w-0">
@@ -1053,7 +1053,7 @@ export default function EquipmentPicker({
               const asset = assetById.get(assetId);
               if (!asset) return null;
               return (
-                <span key={assetId} className="inline-flex items-center gap-0.5 py-0.5 px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-3xs)] font-[number:var(--weight-medium)]">
+                <span key={assetId} className="inline-flex items-center gap-0.5 py-0.5 px-1.5 rounded-md bg-accent border border-border text-[length:var(--text-3xs)] font-medium">
                   {asset.imageUrl && <img src={asset.imageUrl} alt="" className="size-[18px] rounded-[3px] object-cover shrink-0" />}
                   {asset.assetTag}
                 </span>
@@ -1061,7 +1061,7 @@ export default function EquipmentPicker({
             })}
             {selectedBulkItems.map((item) => {
               const sku = bulkById.get(item.bulkSkuId);
-              return <span key={item.bulkSkuId} className="inline-flex items-center gap-0.5 py-0.5 px-1.5 rounded-[var(--radius)] bg-[var(--bg-active,#f0f4ff)] border border-[var(--border-light)] text-[length:var(--text-3xs)] font-[number:var(--weight-medium)]">{sku?.name || item.bulkSkuId} &times;{item.quantity}</span>;
+              return <span key={item.bulkSkuId} className="inline-flex items-center gap-0.5 py-0.5 px-1.5 rounded-md bg-accent border border-border text-[length:var(--text-3xs)] font-medium">{sku?.name || item.bulkSkuId} &times;{item.quantity}</span>;
             })}
           </div>
           <Button type="button" variant="outline" size="sm" onClick={onReopen}>Edit</Button>
@@ -1078,7 +1078,7 @@ export default function EquipmentPicker({
           onClick={(e) => { if (e.target === e.currentTarget) setShowScanner(false); }}
           onKeyDown={(e) => { if (e.key === "Escape") setShowScanner(false); }}
         >
-          <div className="bg-[var(--panel,#fff)] rounded-2xl max-md:rounded-b-none p-5 max-w-[440px] w-full max-h-[90vh] max-md:max-h-[85vh] overflow-y-auto">
+          <div className="bg-card rounded-2xl max-md:rounded-b-none p-5 max-w-[440px] w-full max-h-[90vh] max-md:max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold m-0">Scan to add equipment</h3>
               <Button

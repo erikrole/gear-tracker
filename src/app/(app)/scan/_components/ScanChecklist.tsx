@@ -38,8 +38,8 @@ export function ScanChecklist({
   const isCheckin = mode === "checkin";
 
   return (
-    <div className="bg-[var(--panel)] border border-border rounded-xl shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 md:px-4 md:py-3 border-b border-[var(--border-light)]">
+    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 md:px-4 md:py-3 border-b border-border">
         <h2 className="text-sm md:text-[15px] font-bold m-0">Items</h2>
         <span className="text-sm font-bold text-muted-foreground">
           {scannedItems}/{totalItems}
@@ -88,7 +88,7 @@ export function ScanChecklist({
               return (
                 <div
                   key={item.assetId}
-                  className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${rowBg}`}
+                  className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-border transition-colors duration-300 last:border-b-0 ${rowBg}`}
                 >
                   {/* Item image */}
                   {item.imageUrl ? (
@@ -186,7 +186,7 @@ export function ScanChecklist({
             return (
               <div
                 key={item.bulkSkuId}
-                className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-[var(--border-light)] transition-colors duration-300 last:border-b-0 ${done ? "bg-green-50/50 dark:bg-green-950/10" : ""}`}
+                className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-border transition-colors duration-300 last:border-b-0 ${done ? "bg-green-50/50 dark:bg-green-950/10" : ""}`}
               >
                 <div className="size-12 md:size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
                   <Package className="size-5 md:size-6 text-muted-foreground" />

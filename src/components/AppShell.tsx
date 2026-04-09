@@ -372,8 +372,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex flex-1 flex-col min-w-0 max-md:pl-[env(safe-area-inset-left,0px)] max-md:pr-[env(safe-area-inset-right,0px)] print:ml-0">
-        <header className="h-12 bg-[var(--panel-solid)] border-b border-black/[0.06] flex items-center px-6 gap-3 sticky top-0 z-10 max-md:px-3 max-md:gap-2 print:hidden">
-          <SidebarTrigger className="shrink-0 text-[var(--text)] hover:bg-[var(--panel)] hover:text-[var(--text)]" />
+        <header className="h-12 bg-card border-b border-black/[0.06] flex items-center px-6 gap-3 sticky top-0 z-10 max-md:px-3 max-md:gap-2 print:hidden">
+          <SidebarTrigger className="shrink-0 text-foreground hover:bg-card hover:text-foreground" />
           {/* Search trigger (desktop + mobile) */}
           <button
             className="flex-1 max-w-[400px] flex items-center gap-2 w-full py-2 px-3 border border-border rounded-lg bg-background cursor-pointer transition-colors text-[13px] text-muted-foreground hover:border-[var(--accent)] max-md:hidden [&_svg]:shrink-0 [&_svg]:text-muted-foreground"
@@ -433,7 +433,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav aria-label="Mobile navigation" className="hidden max-md:flex fixed bottom-0 left-0 right-0 z-[var(--z-overlay)] bg-[var(--panel-solid)] border-t border-border shadow-[0_-1px_3px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,4px)] pt-1 justify-around items-stretch print:hidden">
+      <nav aria-label="Mobile navigation" className="hidden max-md:flex fixed bottom-0 left-0 right-0 z-[var(--z-overlay)] bg-card border-t border-border shadow-[0_-1px_3px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,4px)] pt-1 justify-around items-stretch print:hidden">
         {bottomNavItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -443,7 +443,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 min-w-14 min-h-12 no-underline text-[var(--text-secondary)] text-[11px] font-medium border-none bg-transparent cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent] hover:text-[var(--text)]${isActive ? " !text-[var(--wi-red)]" : ""}`}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 min-w-14 min-h-12 no-underline text-muted-foreground text-[11px] font-medium border-none bg-transparent cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent] hover:text-foreground${isActive ? " !text-[var(--wi-red)]" : ""}`}
             >
               {item.icon}
               <span>{item.label}</span>
