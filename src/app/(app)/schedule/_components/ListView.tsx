@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
@@ -5,8 +7,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -314,11 +315,7 @@ export function ListView({
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               {user ? (
                                 <>
-                                  <Avatar className="size-6 shrink-0">
-                                    <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(user.name)}`}>
-                                      {getInitials(user.name)}
-                                    </AvatarFallback>
-                                  </Avatar>
+                                  <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
                                   <span className="text-sm truncate">{user.name}</span>
                                 </>
                               ) : (
@@ -478,11 +475,7 @@ function EventRows({
               <div className="flex items-center gap-2 pl-4">
                 {user ? (
                   <>
-                    <Avatar className="size-6 shrink-0">
-                      <AvatarFallback className={`text-[10px] font-medium ${getAvatarColor(user.name)}`}>
-                        {getInitials(user.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
                     <span className="text-sm">{user.name}</span>
                   </>
                 ) : isStaff ? (

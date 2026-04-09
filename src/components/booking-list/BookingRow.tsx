@@ -3,6 +3,7 @@
 import { formatDateShort } from "@/lib/format";
 import { formatDateCol, formatDuration, getStatusVisual, type BookingItem } from "./types";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
+import { UserAvatar } from "@/components/UserAvatar";
 
 /* ───── Desktop table row ───── */
 
@@ -56,7 +57,12 @@ export function BookingTableRow({
           </div>
         </td>
         <td className="hide-mobile">{formatDuration(item.startsAt, item.endsAt)}</td>
-        <td className="hide-mobile">{item.requester?.name ?? "Unknown"}</td>
+        <td className="hide-mobile">
+          <div className="flex items-center gap-2">
+            <UserAvatar name={item.requester?.name ?? "Unknown"} avatarUrl={item.requester?.avatarUrl} />
+            <span>{item.requester?.name ?? "Unknown"}</span>
+          </div>
+        </td>
         <td className="hide-mobile">{(item.serializedItems?.length ?? 0) + (item.bulkItems?.length ?? 0)}</td>
         <td onClick={(e) => e.stopPropagation()}>
           <BookingOverflowMenu item={item} {...menuProps}>
@@ -114,9 +120,10 @@ export function BookingMobileCard({
           </button>
         </BookingOverflowMenu>
       </div>
-      <div className="flex flex-wrap gap-1 text-xs text-[var(--text-secondary)]">
+      <div className="flex flex-wrap gap-1 text-xs text-[var(--text-secondary)] items-center">
         <span>{formatDateShort(item.startsAt)} {"\u2013"} {formatDateShort(item.endsAt)}</span>
         <span>{"\u00b7"}</span>
+        <UserAvatar name={item.requester?.name ?? "Unknown"} avatarUrl={item.requester?.avatarUrl} size="sm" />
         <span>{item.requester?.name ?? "Unknown"}</span>
         <span>{"\u00b7"}</span>
         <span>{formatDuration(item.startsAt, item.endsAt)}</span>

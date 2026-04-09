@@ -7,16 +7,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { getInitials, getAvatarColor } from "@/lib/avatar";
 import type { ItemThumb, EventSummary } from "../dashboard-types";
 
-/** User avatar with color-coded initials fallback. Pass `name` for auto-derived initials, or override with `initials`. */
-export function UserAvatar({ name, initials, avatarUrl, size = "sm" }: { name: string; initials?: string; avatarUrl?: string | null; size?: "sm" | "default" }) {
-  const display = initials ?? getInitials(name);
-  return (
-    <Avatar size={size}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
-      <AvatarFallback className={getAvatarColor(name)}>{display}</AvatarFallback>
-    </Avatar>
-  );
-}
+export { UserAvatar } from "@/components/UserAvatar";
 
 export function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; totalCount: number }) {
   if (totalCount === 0) return null;

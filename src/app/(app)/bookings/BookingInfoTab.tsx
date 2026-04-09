@@ -4,8 +4,7 @@ import { useCallback } from "react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, getAvatarColor } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,9 +103,7 @@ export default function BookingInfoTab({
       {/* User */}
       <SaveableField label="User">
         <span className="inline-flex items-center gap-2 text-sm">
-          <Avatar className="size-5 text-[10px]">
-            <AvatarFallback className={getAvatarColor(booking.requester?.name ?? "U")}>{getInitials(booking.requester?.name ?? "U")}</AvatarFallback>
-          </Avatar>
+          <UserAvatar name={booking.requester?.name ?? "U"} avatarUrl={booking.requester?.avatarUrl} />
           {booking.requester?.name ?? "Unknown"}
         </span>
       </SaveableField>
@@ -115,9 +112,7 @@ export default function BookingInfoTab({
       {booking.creator && (
         <SaveableField label="Created by">
           <span className="inline-flex items-center gap-2 text-sm">
-            <Avatar className="size-5 text-[10px]">
-              <AvatarFallback className={getAvatarColor(booking.creator.name)}>{getInitials(booking.creator.name)}</AvatarFallback>
-            </Avatar>
+            <UserAvatar name={booking.creator.name} avatarUrl={booking.creator.avatarUrl} />
             {booking.creator.name}
           </span>
         </SaveableField>

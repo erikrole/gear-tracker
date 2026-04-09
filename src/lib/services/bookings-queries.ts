@@ -87,7 +87,7 @@ export async function getBookingDetail(bookingId: string) {
     where: { id: bookingId },
     include: {
       ...bookingInclude,
-      creator: { select: { id: true, name: true, email: true } },
+      creator: { select: { id: true, name: true, email: true, avatarUrl: true } },
       serializedItems: { include: { asset: { include: { location: { select: { id: true, name: true } } } } } },
       event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
       sourceReservation: { select: { id: true, refNumber: true, title: true } },

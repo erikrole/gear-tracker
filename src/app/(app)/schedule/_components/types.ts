@@ -17,7 +17,7 @@ export type CalendarEvent = {
   source: { name: string } | null;
 };
 
-export type ShiftUser = { id: string; name: string; primaryArea: string | null };
+export type ShiftUser = { id: string; name: string; primaryArea: string | null; avatarUrl?: string | null };
 
 export type ShiftAssignment = {
   id: string;

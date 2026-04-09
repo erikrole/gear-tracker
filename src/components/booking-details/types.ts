@@ -44,8 +44,8 @@ export type BookingDetail = {
   createdAt: string;
   updatedAt: string;
   location: LocationInfo;
-  requester: { id: string; name: string; email: string };
-  creator?: { id: string; name: string; email: string };
+  requester: { id: string; name: string; email: string; avatarUrl?: string | null };
+  creator?: { id: string; name: string; email: string; avatarUrl?: string | null };
   serializedItems: SerializedItem[];
   bulkItems: BulkItem[];
   isOverdue: boolean;
