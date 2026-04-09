@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,6 @@ type EscalationData = {
 };
 
 export default function EscalationSettingsPage() {
-  const { toast } = useToast();
   const { data: escalationData, loading, error, reload } = useFetch<EscalationData>({
     url: "/api/settings/escalation",
     returnTo: "/settings/escalation",
@@ -80,12 +79,12 @@ export default function EscalationSettingsPage() {
         setLocalRules((prev) => (prev ?? rules).map((r) => r.id === ruleId ? { ...r, [field]: !current } : r));
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed");
     }
     setSaving(null);
   }
@@ -101,15 +100,15 @@ export default function EscalationSettingsPage() {
       if (handleAuthRedirect(res, "/settings/escalation")) return;
       if (res.ok) {
         setLocalConfig({ maxNotificationsPerBooking: newCap });
-        toast("Cap updated", "success");
+        toast.success("Cap updated");
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed");
     }
     setSaving(null);
   }

@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { RefreshCwIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
@@ -77,7 +77,6 @@ export default function DashboardPage() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
   const confirm = useConfirm();
-  const { toast } = useToast();
 
   // ── Create booking sheet state ──
   const [createCtx, setCreateCtx] = useState<CreateBookingContext | null>(null);
@@ -135,14 +134,14 @@ export default function DashboardPage() {
       const res = await fetch(`/api/drafts/${draftId}`, { method: "DELETE" });
       if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
-        toast("Draft deleted", "success");
+        toast.success("Draft deleted");
       } else {
         setData((prev) => prev ? { ...prev, drafts: prevDrafts } : prev);
-        toast("Failed to delete draft", "error");
+        toast.error("Failed to delete draft");
       }
     } catch {
       setData((prev) => prev ? { ...prev, drafts: prevDrafts } : prev);
-      toast("Network error \u2014 couldn\u2019t delete draft", "error");
+      toast.error("Network error \u2014 couldn\u2019t delete draft");
     } finally {
       setDeletingDraftId(null);
     }
@@ -168,14 +167,14 @@ export default function DashboardPage() {
       });
       if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
-        toast("Extended by 1 day", "success");
+        toast.success("Extended by 1 day");
         loadData(true);
       } else {
         const msg = await parseErrorMessage(res, "Extend failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Network error — couldn\u2019t extend", "error");
+      toast.error("Network error — couldn\u2019t extend");
     } finally {
       setInlineActionId(null);
     }
@@ -189,14 +188,14 @@ export default function DashboardPage() {
       const res = await fetch(`/api/reservations/${bookingId}/convert`, { method: "POST" });
       if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
-        toast("Converted to checkout", "success");
+        toast.success("Converted to checkout");
         loadData(true);
       } else {
         const msg = await parseErrorMessage(res, "Convert failed");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Network error — couldn\u2019t convert", "error");
+      toast.error("Network error — couldn\u2019t convert");
     } finally {
       setInlineActionId(null);
     }

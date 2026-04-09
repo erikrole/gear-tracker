@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { BoxesIcon, CameraIcon, Copy, TriangleAlert } from "lucide-react";
 import { formatDateTime, formatDuration } from "@/lib/format";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import type { BookingDetail, BookingPhoto } from "@/components/booking-details/types";
 
 export default function BookingInfoTab({
@@ -25,7 +25,6 @@ export default function BookingInfoTab({
   onSave: (field: string, value: unknown) => Promise<void>;
   onPatch: (patch: Partial<BookingDetail>) => void;
 }) {
-  const { toast } = useToast();
 
   const titleSave = useSaveField(
     useCallback(async (v: string) => {
@@ -72,9 +71,9 @@ export default function BookingInfoTab({
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(booking.location.name);
-                toast("Location copied", "success");
+                toast.success("Location copied");
               } catch {
-                toast("Failed to copy", "error");
+                toast.error("Failed to copy");
               }
             }}
             title="Click to copy"

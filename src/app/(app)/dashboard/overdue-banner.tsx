@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import type { OverdueItem } from "../dashboard-types";
 import Link from "next/link";
 
@@ -23,7 +23,6 @@ type Props = {
 };
 
 export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking }: Props) {
-  const { toast } = useToast();
   const [nudgedIds, setNudgedIds] = useState<Set<string>>(new Set());
   const [nudgingId, setNudgingId] = useState<string | null>(null);
 
@@ -34,13 +33,13 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
       const res = await fetch(`/api/bookings/${bookingId}/nudge`, { method: "POST" });
       if (!res.ok) {
         const json = await res.json().catch(() => null);
-        toast(json?.error ?? "Failed to send nudge", "error");
+        toast.error(json?.error ?? "Failed to send nudge");
         return;
       }
       setNudgedIds((prev) => new Set(prev).add(bookingId));
-      toast("Nudge sent", "success");
+      toast.success("Nudge sent");
     } catch {
-      toast("Network error — couldn't send nudge", "error");
+      toast.error("Network error — couldn't send nudge");
     } finally {
       setNudgingId(null);
     }

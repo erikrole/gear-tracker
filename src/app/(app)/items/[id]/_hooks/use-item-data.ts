@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import {
   classifyError,
   isAbortError,
@@ -32,7 +32,6 @@ export type UseItemDataReturn = {
 };
 
 export default function useItemData(id: string): UseItemDataReturn {
-  const { toast } = useToast();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
@@ -89,7 +88,7 @@ export default function useItemData(id: string): UseItemDataReturn {
       .catch((err) => {
         if (isAbortError(err)) return;
         if (isRefresh) {
-          toast("Failed to refresh — your data may be stale.", "error");
+          toast.error("Failed to refresh — your data may be stale.");
         } else {
           const kind = classifyError(err);
           fetchErrorRef.current = kind;

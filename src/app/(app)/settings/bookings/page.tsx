@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +38,6 @@ function formatDuration(minutes: number): string {
 }
 
 export default function BookingSettingsPage() {
-  const { toast } = useToast();
   const [presets, setPresets] = useState<Preset[]>([]);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -80,7 +79,7 @@ export default function BookingSettingsPage() {
     if (saving || presets.length === 0) return;
     // Validate all labels are non-empty
     if (presets.some((p) => !p.label.trim())) {
-      toast("All presets need a label", "error");
+      toast.error("All presets need a label");
       return;
     }
     setSaving(true);
@@ -94,10 +93,10 @@ export default function BookingSettingsPage() {
         const msg = await parseErrorMessage(res, "Failed to save");
         throw new Error(msg);
       }
-      toast("Extend presets saved", "success");
+      toast.success("Extend presets saved");
       setDirty(false);
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to save", "error");
+      toast.error(err instanceof Error ? err.message : "Failed to save");
     }
     setSaving(false);
   }

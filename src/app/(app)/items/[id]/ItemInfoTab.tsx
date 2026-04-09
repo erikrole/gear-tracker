@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -316,7 +316,6 @@ function SaveableCategoryField({
   displayName: string;
   ghost?: boolean;
 }) {
-  const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -345,10 +344,10 @@ function SaveableCategoryField({
         if (json.data?.id) await onSave(json.data.id);
       } else {
         const msg = await parseErrorMessage(res, "Failed to create category");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch {
-      toast("Failed to create category", "error");
+      toast.error("Failed to create category");
     }
     setSaving(false);
     setCreating(false);

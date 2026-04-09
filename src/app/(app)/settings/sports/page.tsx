@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { WifiOff, AlertTriangle, RotateCcw } from "lucide-react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
 
 export default function SportsSettingsPage() {
-  const { toast } = useToast();
   const { data: fetchedConfigs, loading, error, reload } = useFetch<SportConfig[]>({
     url: "/api/sport-configs",
     returnTo: "/settings/sports",
@@ -79,7 +78,7 @@ export default function SportsSettingsPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong");
     }
     setSaving(null);
   }
@@ -122,7 +121,7 @@ export default function SportsSettingsPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong");
     }
     setSaving(null);
   }
@@ -153,7 +152,7 @@ export default function SportsSettingsPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong");
     }
     setSaving(null);
   }

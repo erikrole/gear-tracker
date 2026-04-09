@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BookingListPage, { type BookingListConfig, type BookingItem } from "@/components/BookingListPage";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ClipboardCheckIcon, CalendarPlusIcon } from "lucide-react";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -20,7 +20,6 @@ async function fetchAction(url: string, method = "POST"): Promise<Response> {
 
 export default function BookingsPage() {
   const confirm = useConfirm();
-  const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "reservations" ? "reservations" : "checkouts";
@@ -79,14 +78,14 @@ export default function BookingsPage() {
               // Rollback on server error
               setItems?.(() => prevItems);
               const msg = await parseErrorMessage(res, "Cancel failed");
-              toast(msg, "error");
+              toast.error(msg);
             } else {
-              toast("Checkout cancelled", "success");
+              toast.success("Checkout cancelled");
             }
           } catch {
             // Rollback on network error
             setItems?.(() => prevItems);
-            toast("Failed to cancel checkout. Please try again.", "error");
+            toast.error("Failed to cancel checkout. Please try again.");
           }
         },
       },
@@ -133,11 +132,11 @@ export default function BookingsPage() {
               setActiveTab("checkouts"); router.push("/bookings?tab=checkouts");
             } else {
               const msg = await parseErrorMessage(res, "Conversion failed");
-              toast(msg, "error");
+              toast.error(msg);
               await reload();
             }
           } catch {
-            toast("Network error \u2014 please try again.", "error");
+            toast.error("Network error \u2014 please try again.");
           }
         },
       },
@@ -148,14 +147,14 @@ export default function BookingsPage() {
           try {
             const res = await fetchAction(`/api/reservations/${bookingId}/duplicate`);
             if (res.ok) {
-              toast("Reservation duplicated", "success");
+              toast.success("Reservation duplicated");
               setActiveTab("reservations"); router.push("/bookings?tab=reservations");
             } else {
               const msg = await parseErrorMessage(res, "Duplicate failed");
-              toast(msg, "error");
+              toast.error(msg);
             }
           } catch {
-            toast("Network error \u2014 please try again.", "error");
+            toast.error("Network error \u2014 please try again.");
           }
         },
       },
@@ -186,14 +185,14 @@ export default function BookingsPage() {
               // Rollback on server error
               setItems?.(() => prevItems);
               const msg = await parseErrorMessage(res, "Cancel failed");
-              toast(msg, "error");
+              toast.error(msg);
             } else {
-              toast("Reservation cancelled", "success");
+              toast.success("Reservation cancelled");
             }
           } catch {
             // Rollback on network error
             setItems?.(() => prevItems);
-            toast("Failed to cancel reservation. Please try again.", "error");
+            toast.error("Failed to cancel reservation. Please try again.");
           }
         },
       },

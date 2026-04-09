@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { SPORT_CODES } from "@/lib/sports";
 import type { UserDetail, Location, Role } from "../types";
@@ -163,7 +163,6 @@ export default function UserInfoTab({
   isSelf?: boolean;
   onUpdated: () => void;
 }) {
-  const { toast } = useToast();
   const [savingPassword, setSavingPassword] = useState(false);
   const [addingSport, setAddingSport] = useState(false);
   const [addingArea, setAddingArea] = useState(false);
@@ -214,7 +213,7 @@ export default function UserInfoTab({
     if (handleAuthRedirect(res)) return;
     const json = await res.json();
     if (!res.ok) {
-      toast(json.error || "Failed to change role", "error");
+      toast.error(json.error || "Failed to change role");
       throw new Error(json.error);
     }
     onUpdated();
@@ -235,13 +234,13 @@ export default function UserInfoTab({
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
-        toast(json.error || "Failed to update password", "error");
+        toast.error(json.error || "Failed to update password");
       } else {
         e.currentTarget.reset();
-        toast("Password updated", "success");
+        toast.success("Password updated");
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
     setSavingPassword(false);
   }
@@ -257,12 +256,12 @@ export default function UserInfoTab({
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
-        toast(json.error || "Failed to add sport", "error");
+        toast.error(json.error || "Failed to add sport");
       } else {
         onUpdated();
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
     setAddingSport(false);
   }
@@ -275,12 +274,12 @@ export default function UserInfoTab({
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
-        toast(json.error || "Failed to remove sport", "error");
+        toast.error(json.error || "Failed to remove sport");
       } else {
         onUpdated();
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
   }
 
@@ -295,12 +294,12 @@ export default function UserInfoTab({
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
-        toast(json.error || "Failed to add area", "error");
+        toast.error(json.error || "Failed to add area");
       } else {
         onUpdated();
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
     setAddingArea(false);
   }
@@ -313,12 +312,12 @@ export default function UserInfoTab({
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
-        toast(json.error || "Failed to remove area", "error");
+        toast.error(json.error || "Failed to remove area");
       } else {
         onUpdated();
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
   }
 
@@ -332,12 +331,12 @@ export default function UserInfoTab({
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
-        toast(json.error || "Failed to update area", "error");
+        toast.error(json.error || "Failed to update area");
       } else {
         onUpdated();
       }
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     }
   }
 

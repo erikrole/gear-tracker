@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
 import EmptyState from "@/components/EmptyState";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -125,7 +125,6 @@ function actionColor(entityType: string): string {
 /* ── Component ─────────────────────────────────────────── */
 
 export default function UserActivityTab({ userId }: { userId: string }) {
-  const { toast } = useToast();
   const [loadingMore, setLoadingMore] = useState(false);
   const [extraEntries, setExtraEntries] = useState<AuditEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -156,14 +155,14 @@ export default function UserActivityTab({ userId }: { userId: string }) {
       const res = await fetch(`/api/users/${userId}/activity?cursor=${effectiveCursor}`);
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast("Failed to load more activity", "error");
+        toast.error("Failed to load more activity");
         return;
       }
       const json = await res.json();
       if (json?.data) setExtraEntries((prev) => [...prev, ...json.data]);
       setNextCursor(json?.nextCursor ?? null);
     } catch {
-      toast("Network error", "error");
+      toast.error("Network error");
     } finally {
       setLoadingMore(false);
     }

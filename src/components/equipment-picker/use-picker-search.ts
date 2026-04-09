@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 
@@ -20,7 +20,6 @@ export function usePickerSearch({
   onlyAvailable,
   globalSearch,
 }: UsePickerSearchParams) {
-  const { toast } = useToast();
   const [sectionResults, setSectionResults] = useState<PickerAsset[]>([]);
   const [apiSectionCounts, setApiSectionCounts] = useState<Record<EquipmentSectionKey, number>>({
     cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
@@ -59,7 +58,7 @@ export function usePickerSearch({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      toast("Failed to load equipment — check your connection and try again.", "error");
+      toast.error("Failed to load equipment — check your connection and try again.");
     }
     if (!controller.signal.aborted) setSearchLoading(false);
   }, [legacyMode, toast]);
@@ -103,7 +102,7 @@ export function usePickerSearch({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      toast("Failed to search equipment — check your connection and try again.", "error");
+      toast.error("Failed to search equipment — check your connection and try again.");
     }
     if (!controller.signal.aborted) setGlobalSearchLoading(false);
   }, [legacyMode, toast]);

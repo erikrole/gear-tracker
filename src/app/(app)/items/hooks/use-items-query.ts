@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import type { SortingState } from "@tanstack/react-table";
 import type { Asset } from "../columns";
 
@@ -76,7 +76,6 @@ async function fetchAssets(url: string, signal?: AbortSignal): Promise<AssetsRes
 }
 
 export function useItemsQuery(deps: QueryDeps) {
-  const { toast } = useToast();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
@@ -99,7 +98,7 @@ export function useItemsQuery(deps: QueryDeps) {
   const prevFetchingRef = useRef(false);
   useEffect(() => {
     if (prevFetchingRef.current && !isFetching && isError && response !== undefined) {
-      toast("Failed to refresh items", "error");
+      toast.error("Failed to refresh items");
     }
     prevFetchingRef.current = isFetching;
   }, [isFetching, isError, response]);

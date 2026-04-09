@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { toLocalDateTimeValue } from "../booking-list/types";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { AvailableAsset, BookingListConfig } from "../booking-list/types";
@@ -34,7 +34,6 @@ export function useDraftManagement({
   onDraftIdChange: (id: string | null) => void;
   config: BookingListConfig;
 }) {
-  const { toast } = useToast();
   const draftLoadedRef = useRef(false);
 
   // ── Load draft ──
@@ -65,7 +64,7 @@ export function useDraftManagement({
         }
       })
       .catch(() => {
-        toast("Couldn\u2019t load your draft \u2014 starting fresh", "error");
+        toast.error("Couldn\u2019t load your draft \u2014 starting fresh");
       });
   }, [draftId, open]);
 
@@ -99,10 +98,10 @@ export function useDraftManagement({
       if (res.ok) {
         const json = await res.json();
         onDraftIdChange(json.data.id);
-        toast("Draft saved", "info");
+        toast.info("Draft saved");
       }
     } catch {
-      toast("Draft couldn\u2019t be saved \u2014 your changes may be lost", "error");
+      toast.error("Draft couldn\u2019t be saved \u2014 your changes may be lost");
     }
   }, [form, selectedAssetIds, selectedBulkItems, draftId, config.kind, onDraftIdChange]);
 

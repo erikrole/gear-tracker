@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUrlState, useDebounce } from "@/hooks/use-url-state";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import {
   BoxIcon,
   PlusIcon,
@@ -46,7 +46,6 @@ import { NewKitSheet } from "./new-kit-sheet";
 type Location = { id: string; name: string };
 
 export default function KitsPage() {
-  const { toast } = useToast();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -81,7 +80,7 @@ export default function KitsPage() {
 
   const handleCreated = useCallback(
     (kitId: string) => {
-      toast("Kit created", "success");
+      toast.success("Kit created");
       router.push(`/kits/${kitId}`);
     },
     [router]

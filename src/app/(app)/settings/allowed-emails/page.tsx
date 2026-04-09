@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +41,6 @@ type AllowedEmail = {
 type AllowedEmailsResponse = { data: AllowedEmail[]; total: number };
 
 export default function AllowedEmailsPage() {
-  const { toast } = useToast();
   const confirm = useConfirm();
 
   // Filter
@@ -94,19 +93,19 @@ export default function AllowedEmailsPage() {
       });
       if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
       if (res.ok) {
-        toast("Email added to allowlist", "success");
+        toast.success("Email added to allowlist");
         setAddEmail("");
         setAddRole("STUDENT");
         setShowAdd(false);
         reload();
       } else {
         const msg = await parseErrorMessage(res, "Failed to add email");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to add email", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to add email");
     }
     setAdding(false);
   }
@@ -129,15 +128,15 @@ export default function AllowedEmailsPage() {
       if (res.ok) {
         setLocalItems((prev) => (prev ?? items).filter((i) => i.id !== item.id));
         setLocalTotal((prev) => (prev ?? total) - 1);
-        toast("Email removed from allowlist", "success");
+        toast.success("Email removed from allowlist");
       } else {
         const msg = await parseErrorMessage(res, "Failed to remove email");
-        toast(msg, "error");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to remove email", "error");
+      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to remove email");
     }
     setDeletingId(null);
   }

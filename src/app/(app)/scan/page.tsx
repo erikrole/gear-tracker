@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeftIcon, ScanIcon, AlertCircleIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { useToast } from "@/components/Toast";
+import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -26,7 +26,6 @@ import type { ScanMode, SerializedItemStatus } from "./_components/types";
 export default function ScanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
   const confirm = useConfirm();
 
   // Determine mode from URL params
@@ -50,7 +49,6 @@ export default function ScanPage() {
     checkoutId,
     phase: phaseParam,
     isBookingMode,
-    toast,
     router,
     mode,
   });
@@ -88,7 +86,7 @@ export default function ScanPage() {
       });
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to submit report");
-        toast(msg, "error");
+        toast.error(msg);
         return;
       }
       // Optimistically update the local scan status
@@ -117,17 +115,17 @@ export default function ScanPage() {
           },
         };
       });
-      toast(type === "DAMAGED" ? "Damage reported" : "Item reported as lost", "info");
+      toast.info(type === "DAMAGED" ? "Damage reported" : "Item reported as lost");
       // Sync with server
       session.loadScanStatus();
     } catch {
-      toast("Network error — try again", "error");
+      toast.error("Network error — try again");
     } finally {
       setReportSubmitting(false);
       setReportDamageTarget(null);
       setReportLostTarget(null);
     }
-  }, [checkoutId, toast, session]);
+  }, [checkoutId, session]);
 
   // ── Guard against accidental navigation when items have been scanned ──
   const hasScannedItems = scannedItems > 0 && !allComplete;
