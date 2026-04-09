@@ -148,12 +148,52 @@ export const GET = withAuth(async (req, { user }) => {
     assets = sorted.map((a) => ({ ...a, computedStatus: a.status as string }));
   }
 
+  // For non-available assets, fetch current holder info (who has it + which booking)
+  const unavailableIds = assets
+    .filter((a) => a.computedStatus !== "AVAILABLE")
+    .map((a) => a.id);
+
+  const holderMap = new Map<string, { bookingId: string; bookingTitle: string; holderName: string }>();
+  if (unavailableIds.length > 0) {
+    const activeAllocs = await db.assetAllocation.findMany({
+      where: {
+        assetId: { in: unavailableIds },
+        active: true,
+        booking: { status: { in: ["BOOKED", "OPEN"] } },
+      },
+      select: {
+        assetId: true,
+        booking: {
+          select: {
+            id: true,
+            title: true,
+            requester: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    for (const alloc of activeAllocs) {
+      if (!holderMap.has(alloc.assetId)) {
+        holderMap.set(alloc.assetId, {
+          bookingId: alloc.booking.id,
+          bookingTitle: alloc.booking.title,
+          holderName: alloc.booking.requester.name,
+        });
+      }
+    }
+  }
+
   // Flatten category name for client-side section classification
-  const assetsWithCategory = assets.map((a) => ({
-    ...a,
-    isFavorited: favoriteAssetIds.has(a.id),
-    categoryName: a.category?.name ?? null,
-  }));
+  const assetsWithCategory = assets.map((a) => {
+    const holder = holderMap.get(a.id);
+    return {
+      ...a,
+      isFavorited: favoriteAssetIds.has(a.id),
+      categoryName: a.category?.name ?? null,
+      currentHolder: holder ?? null,
+    };
+  });
 
   // Section counts: how many non-retired assets per section (for tab badges)
   // Only compute when not doing a specific ID or QR lookup

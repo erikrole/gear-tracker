@@ -9,10 +9,10 @@ import {
   groupBulkBySection,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
-import { CheckCircle2Icon, CircleIcon, SearchIcon, XIcon } from "lucide-react";
+import { CheckCircle2Icon, CircleIcon, SearchIcon, XIcon, ExternalLinkIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// Native overflow-y-auto used instead of Radix ScrollArea (max-height incompatibility)
 import { AssetImage } from "@/components/AssetImage";
 
 /* ───── Types ───── */
@@ -31,6 +31,7 @@ export type PickerAsset = {
   categoryName?: string | null;
   imageUrl?: string | null;
   location: { id: string; name: string } | null;
+  currentHolder?: { bookingId: string; bookingTitle: string; holderName: string } | null;
 };
 
 export type PickerBulkSku = {
@@ -96,7 +97,7 @@ export default function EquipmentPicker({
     onActiveSectionChange?.(sec);
   };
   const [sectionSearch, setSectionSearch] = useState("");
-  const [onlyAvailable, setOnlyAvailable] = useState(true);
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
 
   // Asset cache so we can display selected items even after switching sections
   const [selectedAssetsCache] = useState<Map<string, PickerAsset>>(() => {
@@ -263,7 +264,7 @@ export default function EquipmentPicker({
       </div>
 
       {/* ── Item list ── */}
-      <ScrollArea className="max-h-[28rem]">
+      <div className="max-h-[28rem] overflow-y-auto">
         <div role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label} equipment`}>
           {searchLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
@@ -281,45 +282,68 @@ export default function EquipmentPicker({
                 const isSelected = selectedIdSet.has(asset.id);
                 const conflict = conflicts.get(asset.id);
                 const isAvailable = asset.computedStatus === "AVAILABLE";
-                const isDisabled = !isAvailable && !isSelected;
+                const isUnavailable = !isAvailable && !isSelected;
+                const holder = asset.currentHolder;
 
                 return (
-                  <button
+                  <div
                     key={asset.id}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    disabled={isDisabled}
-                    onClick={() => toggleAsset(asset.id, asset)}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-border/50 last:border-b-0 min-h-[52px]",
-                      isSelected
-                        ? "bg-primary/5 hover:bg-primary/10"
-                        : "hover:bg-muted/50",
-                      isDisabled && "opacity-40 cursor-not-allowed hover:bg-transparent"
+                      isUnavailable && "opacity-50"
                     )}
                   >
-                    <AssetImage src={asset.imageUrl} alt={asset.assetTag} size={40} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold truncate">{asset.assetTag}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {asset.brand} {asset.model}
-                        {!isAvailable && !isSelected && (
-                          <span className="text-orange-500 ml-1">
-                            · {asset.computedStatus.replace(/_/g, " ").toLowerCase()}
-                          </span>
-                        )}
+                    {/* Clickable area for available/selected items */}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      disabled={isUnavailable}
+                      onClick={() => toggleAsset(asset.id, asset)}
+                      className={cn(
+                        "flex items-center gap-3 flex-1 min-w-0 text-left",
+                        !isUnavailable && (isSelected ? "cursor-pointer" : "cursor-pointer"),
+                        isUnavailable && "cursor-default"
+                      )}
+                    >
+                      <AssetImage src={asset.imageUrl} alt={asset.assetTag} size={40} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate">{asset.assetTag}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {asset.brand} {asset.model}
+                        </div>
                       </div>
-                    </div>
-                    {conflict && !isSelected && (
-                      <Badge variant="orange" size="sm" className="shrink-0">Conflict</Badge>
-                    )}
-                    {isSelected ? (
-                      <CheckCircle2Icon className="size-5 text-primary shrink-0" />
+                    </button>
+                    {/* Right side: holder badge or selection indicator */}
+                    {isUnavailable && holder ? (
+                      <a
+                        href={`/bookings?highlight=${holder.bookingId}`}
+                        className="shrink-0 flex items-center gap-1 max-w-[140px]"
+                        title={`${holder.bookingTitle} — ${holder.holderName}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Badge variant="secondary" size="sm" className="truncate gap-1">
+                          {holder.holderName}
+                          <ExternalLinkIcon className="size-2.5 shrink-0 opacity-60" />
+                        </Badge>
+                      </a>
+                    ) : isUnavailable ? (
+                      <Badge variant="secondary" size="sm" className="shrink-0">
+                        {asset.computedStatus.replace(/_/g, " ").toLowerCase()}
+                      </Badge>
                     ) : (
-                      <CircleIcon className="size-5 text-border shrink-0" />
+                      <>
+                        {conflict && !isSelected && (
+                          <Badge variant="orange" size="sm" className="shrink-0">Conflict</Badge>
+                        )}
+                        {isSelected ? (
+                          <CheckCircle2Icon className="size-5 text-primary shrink-0" />
+                        ) : (
+                          <CircleIcon className="size-5 text-border shrink-0" />
+                        )}
+                      </>
                     )}
-                  </button>
+                  </div>
                 );
               })}
 
@@ -364,7 +388,7 @@ export default function EquipmentPicker({
             </>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* ── Conflict check indicator ── */}
       {conflictsLoading && (

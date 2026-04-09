@@ -72,7 +72,9 @@ export function useEventContext({
     (ev: CalendarEvent) => {
       const title = generateEventTitle(ev.sportCode || sport, ev.opponent, ev.isHome);
       const start = new Date(new Date(ev.startsAt).getTime() - 2 * 60 * 60 * 1000);
-      const end = new Date(new Date(ev.endsAt).getTime() + 2 * 60 * 60 * 1000);
+      // Away events get +1 day return buffer for travel; home/neutral get +2 hours
+      const returnBuffer = ev.isHome === false ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+      const end = new Date(new Date(ev.endsAt).getTime() + returnBuffer);
       dispatch({
         type: "SELECT_EVENT",
         event: ev,

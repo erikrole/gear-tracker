@@ -129,7 +129,10 @@ export function WizardStep1({
                     >
                       <div className="min-w-0">
                         <div className="font-medium truncate">
-                          {ev.opponent ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}` : ev.summary}
+                          {ev.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(ev.sportCode)}</span>}
+                          {ev.opponent
+                            ? <span className="text-muted-foreground font-normal">{ev.isHome === false ? "at" : "vs"} {ev.opponent}</span>
+                            : (!ev.sportCode ? ev.summary : "")}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {formatDate(ev.startsAt)}
@@ -138,10 +141,9 @@ export function WizardStep1({
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        {ev.isHome === true && <Badge variant="gray" size="sm">HOME</Badge>}
-                        {ev.isHome === false && <Badge variant="gray" size="sm">AWAY</Badge>}
-                        {ev.isHome === null && ev.opponent && <Badge variant="gray" size="sm">NEUTRAL</Badge>}
-                        {ev.sportCode && <Badge variant="sport" size="sm">{ev.sportCode}</Badge>}
+                        {ev.isHome === true && <Badge variant="green" size="sm">Home</Badge>}
+                        {ev.isHome === false && <Badge variant="red" size="sm">Away</Badge>}
+                        {ev.isHome === null && ev.opponent && <Badge variant="blue" size="sm">Neutral</Badge>}
                       </div>
                     </button>
                   ))}
