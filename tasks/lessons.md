@@ -53,6 +53,9 @@
 - **Radix Dialog retains DOM between close/open**: Reset form state in `useEffect(() => { if (open) reset(); }, [open])`.
 - **Every inline `fetch()` needs its own error path**: Each fetch in a chain can fail independently.
 - **`useCallback` deps on hook returns = infinite loop risk**: Use refs for unstable values (`toastRef.current = toast`).
+- **Stale closure on boolean guards (e.g. `actionBusy`)**: `useCallback` captures the value at render time. Two rapid clicks both see `false`. Fix: use a `useRef` for the guard check and sync state separately for UI disabling.
+- **Favorite toggle TOCTOU**: `findUnique` → `create` races on concurrent toggle. Catch P2002 as idempotent success. Use `deleteMany` instead of `delete` to handle concurrent unfavorite (returns count 0 instead of throwing).
+- **Maintenance toggle lost update**: Read-then-toggle without transaction. Two concurrent toggles both read same status and write same result. Fix: wrap in SERIALIZABLE transaction.
 
 ## UX Patterns
 
