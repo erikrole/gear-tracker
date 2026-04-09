@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
+import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
@@ -14,7 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
@@ -101,7 +103,11 @@ export function ListView({
           id: u.id, name: u.name, role: u.role, primaryArea: u.primaryArea, avatarUrl: u.avatarUrl,
         })));
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      toast.error("Failed to load users");
+      usersLoadedRef.current = false; // allow retry
+    }
     finally { setUsersLoading(false); }
   }, []);
 
@@ -127,8 +133,13 @@ export function ListView({
         setPickerShiftId(null);
         setUserSearch("");
         loadData();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to assign shift");
+        toast.error(msg);
       }
-    } catch { /* ignore */ }
+    } catch {
+      toast.error("Network error — could not assign shift");
+    }
     finally { setAssigning(false); }
   }, [loadData]);
 
@@ -194,23 +205,21 @@ export function ListView({
                 new Date(dateKey).toDateString() === new Date().toDateString();
               return (
                 <div key={dateKey}>
-                  <div className={`event-date-header ${isGroupToday ? "event-date-header-today" : ""}`}>
+                  <div className={cn(
+                    "sticky top-0 z-10 bg-card px-4 py-2.5 text-sm font-semibold border-b border-border flex items-center gap-2",
+                    isGroupToday && "border-l-[3px] border-l-primary bg-primary/5",
+                  )}>
                     {formatDate(groupEntries[0].startsAt)}
-                    <span className="event-date-count">
+                    <span className="text-xs font-normal text-muted-foreground">
                       {groupEntries.length} event{groupEntries.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <table className={`data-table data-table-grouped${groupIdx === 0 ? " data-table-show-head" : ""}`} style={{ tableLayout: "fixed" }}>
-                    <colgroup>
-                      <col style={{ width: 28 }} />
-                      <col />
-                      <col style={{ width: 180 }} />
-                    </colgroup>
-                    <thead>
+                  <table className="w-full border-collapse">
+                    <thead className={groupIdx === 0 ? "" : "hidden"}>
                       <tr>
-                        <th></th>
-                        <th>Event</th>
-                        <th>Time</th>
+                        <th className="w-7"></th>
+                        <th className="text-left px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">Event</th>
+                        <th className="text-left px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border w-[180px]">Time</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -402,14 +411,14 @@ function EventRows({
         onClick={hasShifts ? onToggle : undefined}
         onKeyDown={hasShifts ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } } : undefined}
       >
-        <td className="px-1">
+        <td className="px-1 py-3">
           {hasShifts && (
             isExpanded
               ? <ChevronDownIcon className="size-4 text-muted-foreground" />
               : <ChevronRightIcon className="size-4 text-muted-foreground" />
           )}
         </td>
-        <td>
+        <td className="px-4 py-3 border-b border-border/30">
           <div className="flex items-center gap-2">
             <Link
               href={`/events/${entry.id}`}
@@ -451,7 +460,7 @@ function EventRows({
             )}
           </div>
         </td>
-        <td className="text-sm text-muted-foreground whitespace-nowrap">{timeStr}</td>
+        <td className="px-4 py-3 border-b border-border/30 text-sm text-muted-foreground whitespace-nowrap">{timeStr}</td>
       </tr>
 
       {/* Child shift rows */}
@@ -470,8 +479,8 @@ function EventRows({
             onClick={() => !isPickerOpen && onSelectGroup()}
             onKeyDown={(e) => { if (!isPickerOpen && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onSelectGroup(); } }}
           >
-            <td></td>
-            <td>
+            <td className="py-3"></td>
+            <td className="px-4 py-3 border-b border-border/30">
               <div className="flex items-center gap-2 pl-4">
                 {user ? (
                   <>
@@ -521,7 +530,7 @@ function EventRows({
                 </Badge>
               </div>
             </td>
-            <td className="text-sm text-muted-foreground whitespace-nowrap">{shiftTime}</td>
+            <td className="px-4 py-3 border-b border-border/30 text-sm text-muted-foreground whitespace-nowrap">{shiftTime}</td>
           </tr>
         );
       })}

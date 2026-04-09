@@ -57,7 +57,6 @@ export type UseScheduleDataResult = {
   setExpandedRowId: (id: string | null) => void;
   expandedDay: number | null;
   setExpandedDay: (d: number | null) => void;
-  myHours: { thisWeek: number; thisMonth: number; shiftCountWeek: number; shiftCountMonth: number } | null;
 };
 
 /** Merge events + shift groups into unified entries */
@@ -164,15 +163,6 @@ async function fetchTradeCount(): Promise<number> {
   return j?.data?.length ?? 0;
 }
 
-type MyHours = { thisWeek: number; thisMonth: number; shiftCountWeek: number; shiftCountMonth: number };
-
-async function fetchMyHours(): Promise<MyHours | null> {
-  const r = await fetch("/api/shifts/my-hours");
-  if (!r.ok) return null;
-  const j = await r.json();
-  return j?.data ?? null;
-}
-
 /** Get Monday of the week containing the given date */
 function getMonday(d: Date): Date {
   const result = new Date(d);
@@ -238,13 +228,6 @@ export function useScheduleData(): UseScheduleDataResult {
   const { data: tradeCount = 0, refetch: refetchTrades } = useQuery({
     queryKey: ["shift-trades", "OPEN", "count"],
     queryFn: fetchTradeCount,
-  });
-
-  // --- React Query: my shift hours ---
-  const { data: myHours = null } = useQuery({
-    queryKey: ["shifts", "my-hours"],
-    queryFn: fetchMyHours,
-    staleTime: 5 * 60_000,
   });
 
   // --- React Query: schedule entries ---
@@ -355,6 +338,5 @@ export function useScheduleData(): UseScheduleDataResult {
     setExpandedRowId,
     expandedDay,
     setExpandedDay,
-    myHours,
   };
 }

@@ -61,7 +61,7 @@ export default function SchedulePage() {
     } finally {
       hidingRef.current.delete(eventId);
     }
-  }, [data, toast]);
+  }, [data.loadData]);
 
   return (
     <FadeUp>
@@ -86,7 +86,7 @@ export default function SchedulePage() {
       {/* Calendar View */}
       {data.filters.viewMode === "calendar" && (
         <CalendarView
-          entries={data.entries}
+          entries={data.filteredEntries}
           calMonth={data.calMonth}
           setCalMonth={data.setCalMonth}
           expandedDay={data.expandedDay}
