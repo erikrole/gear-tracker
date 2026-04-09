@@ -14,7 +14,7 @@ describe("getActiveGuidance", () => {
     const hints = getActiveGuidance(ctx);
     expect(hints).toHaveLength(1);
     expect(hints[0].id).toBe("body-needs-batteries");
-    expect(hints[0].level).toBe("warning");
+    expect(hints[0].level).toBe("requirement");
   });
 
   it("does NOT show battery hint when no body is selected", () => {
@@ -63,7 +63,7 @@ describe("EQUIPMENT_GUIDANCE_RULES", () => {
     for (const rule of EQUIPMENT_GUIDANCE_RULES) {
       expect(rule.id).toBeTruthy();
       expect(rule.message).toBeTruthy();
-      expect(["info", "warning"]).toContain(rule.level);
+      expect(["info", "warning", "requirement"]).toContain(rule.level);
       expect(typeof rule.condition).toBe("function");
     }
   });
