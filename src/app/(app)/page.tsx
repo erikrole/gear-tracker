@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
-const CreateBookingSheet = dynamic(() => import("@/components/CreateBookingSheet"), { ssr: false });
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
@@ -15,8 +15,6 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
-import { useFetch } from "@/hooks/use-fetch";
-
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { DashboardSkeleton } from "./dashboard/dashboard-skeleton";
@@ -29,46 +27,6 @@ import { MyGearColumn } from "./dashboard/my-gear-column";
 import { TeamActivityColumn } from "./dashboard/team-activity-column";
 import { PageTransition, StaggerList, StaggerItem } from "@/components/ui/motion";
 import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
-import type { BookingListConfig } from "@/components/booking-list";
-import { toLocalDateTimeValue } from "@/components/booking-list";
-
-/* ── Minimal configs for the create sheet (only used for dashboard) ── */
-
-const CHECKOUT_CONFIG: BookingListConfig = {
-  kind: "CHECKOUT",
-  apiBase: "/api/checkouts",
-  label: "checkout",
-  labelPlural: "Checkouts",
-  actionLabel: "Pick up now",
-  actionLabelProgress: "Picking up\u2026",
-  requesterLabel: "Checked out to",
-  startLabel: "Pickup",
-  endLabel: "Return by",
-  statusOptions: [],
-  defaultTieToEvent: true,
-  hasSportFilter: true,
-  overdueStatus: "OPEN",
-  showEventBadge: true,
-  contextMenuExtras: [],
-};
-
-const RESERVATION_CONFIG: BookingListConfig = {
-  kind: "RESERVATION",
-  apiBase: "/api/reservations",
-  label: "reservation",
-  labelPlural: "Reservations",
-  actionLabel: "Reserve for later",
-  actionLabelProgress: "Reserving\u2026",
-  requesterLabel: "Reserved for",
-  startLabel: "Start",
-  endLabel: "End",
-  statusOptions: [],
-  defaultTieToEvent: true,
-  hasSportFilter: true,
-  overdueStatus: "BOOKED",
-  showEventBadge: true,
-  contextMenuExtras: [],
-};
 
 export default function DashboardPage() {
   const { data, fetchError, refreshing, lastRefreshed, loadData, setData } = useDashboardData();
@@ -78,37 +36,21 @@ export default function DashboardPage() {
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
   const confirm = useConfirm();
 
-  // ── Create booking sheet state ──
-  const [createCtx, setCreateCtx] = useState<CreateBookingContext | null>(null);
-  const [draftId, setDraftId] = useState<string | null>(null);
-
-  // Lazy-fetch form options + current user (fires once createCtx is set)
-  const shouldFetchFormData = !!createCtx;
-
-  const { data: rawFormOptions } = useFetch<{ users: any[]; locations: any[]; bulkSkus: any[] }>({
-    url: "/api/form-options",
-    enabled: shouldFetchFormData,
-    refetchOnFocus: false,
-    transform: (json) => ({
-      users: (json.data as any)?.users || [],
-      locations: (json.data as any)?.locations || [],
-      bulkSkus: (json.data as any)?.bulkSkus || [],
-    }),
-  });
-
-  const { data: meData } = useFetch<{ id: string }>({
-    url: "/api/me",
-    enabled: shouldFetchFormData,
-    refetchOnFocus: false,
-    transform: (json) => (json as any)?.user ?? { id: "" },
-  });
-
-  const formOptions = rawFormOptions ?? null;
-  const currentUserId = meData?.id ?? "";
+  // ── Navigate to booking wizard ──
+  const router = useRouter();
 
   const handleCreateBooking = useCallback((ctx: CreateBookingContext) => {
-    setCreateCtx(ctx);
-  }, []);
+    const base = ctx.kind === "CHECKOUT" ? "/checkouts/new" : "/reservations/new";
+    const params = new URLSearchParams();
+    if (ctx.title) params.set("title", ctx.title);
+    if (ctx.startsAt) params.set("startsAt", ctx.startsAt);
+    if (ctx.endsAt) params.set("endsAt", ctx.endsAt);
+    if (ctx.locationId) params.set("locationId", ctx.locationId);
+    if (ctx.eventId) params.set("eventId", ctx.eventId);
+    if (ctx.sportCode) params.set("sportCode", ctx.sportCode);
+    const qs = params.toString();
+    router.push(qs ? `${base}?${qs}` : base);
+  }, [router]);
 
   // Live countdown tick every 60 seconds
   useEffect(() => {
@@ -335,31 +277,7 @@ export default function DashboardPage() {
         onUpdated={() => loadData(true)}
       />
 
-      {/* ══════ Create Booking Sheet (in-place on dashboard) ══════ */}
-      {createCtx && formOptions && (
-        <CreateBookingSheet
-          open
-          onOpenChange={(open) => { if (!open) setCreateCtx(null); }}
-          config={createCtx.kind === "CHECKOUT" ? CHECKOUT_CONFIG : RESERVATION_CONFIG}
-          users={formOptions.users}
-          locations={formOptions.locations}
-          bulkSkus={formOptions.bulkSkus}
-          onCreated={(bookingId) => {
-            setCreateCtx(null);
-            setSelectedBookingId(bookingId);
-            loadData(true);
-          }}
-          draftId={draftId}
-          onDraftIdChange={setDraftId}
-          initialTitle={createCtx.title}
-          initialStartsAt={createCtx.startsAt ? toLocalDateTimeValue(new Date(createCtx.startsAt)) : undefined}
-          initialEndsAt={createCtx.endsAt ? toLocalDateTimeValue(new Date(createCtx.endsAt)) : undefined}
-          initialLocationId={createCtx.locationId}
-          initialRequester={currentUserId}
-          initialEventId={createCtx.eventId}
-          initialSportCode={createCtx.sportCode}
-        />
-      )}
+      {/* Create flow is now at /checkouts/new and /reservations/new */}
     </PageTransition>
   );
 }

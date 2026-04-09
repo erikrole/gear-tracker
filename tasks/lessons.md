@@ -122,3 +122,15 @@
 - **`finally` blocks are mandatory on all mutations**: Even when `setNudgingId(null)` appears after the try/catch, move it to `finally` to guarantee cleanup on unexpected throws or early returns (e.g., after 401 redirect).
 - **Skeleton must match actual page layout**: When the page has N cards/sections, the skeleton must have N matching skeleton sections. Audit by comparing rendered page sections against skeleton sections 1:1.
 - **useCallback deps must include all referenced functions**: `setBreadcrumbLabel` was missing from `loadEvent`'s useCallback deps, which could cause stale closures. Always include setter functions even when they appear stable.
+
+## Session 2026-04-09
+
+### Patterns (Booking Flow Overhaul + Stress Test)
+- **`router.push` URL construction must use `URLSearchParams`**: String concatenation with `&` assumes a `?` already exists in the path. For checkout redirect, `"/bookings" + "&highlight=id"` produces an invalid URL. Always use `new URLSearchParams()` and `.toString()`.
+- **Scan hooks need local optimistic state for rapid workflows**: After a successful scan-to-return, the server hasn't refreshed `booking` yet. A second scan of the same item hits the stale `serializedItems` array and sends a duplicate request. Fix: maintain a `checkedInLocallyRef` (Set of assetIds) that `findItemByQr` skips. Clear when booking updates.
+- **`finally` blocks on all submission handlers**: If `router.push()` fails after a successful submit (e.g., target page throws), `submittingRef.current` stays `true` forever. Always reset in `finally`, not just the error path.
+- **Validate dates on the client before advancing multi-step forms**: Server-side date validation returns a generic error on Step 3 after the user completed the full wizard. Validate `endsAt > startsAt` in Step 1's `validateStep1()` for immediate feedback.
+- **`useMemo` deps must reference the derived value, not the source**: `filteredAuditLogs` depended on `[booking, historyFilter]` but read from `allAuditLogs` (derived from `booking + extraAuditLogs`). When `extraAuditLogs` changed, the memo didn't recompute. Dep array should be `[allAuditLogs, historyFilter]`.
+- **`await` async operations before navigation**: `saveDraft(); router.back()` fires navigation before the POST completes. On slow networks, the draft may not persist. Always `await saveDraft()` first.
+- **React Query error state must be surfaced when data is required for form inputs**: If `form-options` fails, dropdowns are empty with no explanation. Check `isError` and show a retry banner — don't silently degrade to empty arrays.
+- **Module-level imports (like `toast` from sonner) are stable — don't add to useCallback deps**: Adding stable imports to dependency arrays is harmless but masks real dependency issues. Use `[]` for callbacks that only reference module-level functions.

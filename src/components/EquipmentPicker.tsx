@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AssetImage } from "@/components/AssetImage";
 
 /* ───── Status dot colors ───── */
 
@@ -856,6 +857,7 @@ export default function EquipmentPicker({
                             title={conflict ? "Scheduling conflict" : statusLabel}
                             aria-hidden="true"
                           />
+                          <AssetImage src={asset.imageUrl} alt={asset.assetTag} size={36} />
                           <div className="flex-1 min-w-0">
                             <div className="font-bold text-base leading-[1.3]">
                               {asset.assetTag}

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-06
+- Last Updated: 2026-04-09
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -19,12 +19,14 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 
 ## V1 Workflow
 
-### Create Reservation
-1. Start from `New Reservation`.
-2. Optional event linkage can prefill context fields.
-3. Select owner, date window, location, and equipment.
-4. Validate overlap and availability before commit.
-5. Save as `BOOKED`.
+### Create Reservation (Wizard — `/reservations/new`)
+Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
+
+**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates.
+**Step 2 — Equipment:** Full `EquipmentPicker` — browse-first on mobile (no default camera). Equipment requirements enforced.
+**Step 3 — Confirmation:** Summary with thumbnails. Submit → POST `/api/reservations`. Save as `BOOKED`.
+
+**Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?draftId`.
 
 ### Edit Reservation
 1. Allowed fields depend on role, ownership, and lifecycle state.
@@ -253,3 +255,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-03-30: **Photo requirement (D-028)** — Condition photos required on checkout/checkin completion. Camera-only capture. Scan-only checkin (manual checkbox return removed). Admin override available.
 - 2026-03-31: **Booking sheet deep links** — Reservation redirect page forwards all URL search params. Dashboard buttons open CreateBookingSheet in-place with event auto-fill. Item detail "Reserve" deep-links with asset pre-selection.
 - 2026-04-06: **Doc sync** — ACs converted to checkbox format. 11/12 checked (AC-8 conflict badges partial). Changelog backfilled for kit integration, overdue sort, list hardening, photo requirement.
+- 2026-04-09: **Booking flow overhaul** — Creation flow moved from side-sheet to full-page 3-step wizard at `/reservations/new`. BookingDetailsSheet gains Equipment tab with full EquipmentPicker in edit mode. `CreateBookingSheet` deleted. Asset thumbnails on all equipment rows. Stress-tested with 8 fixes applied.

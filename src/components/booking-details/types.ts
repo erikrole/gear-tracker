@@ -9,6 +9,8 @@ export type SerializedItem = {
     serialNumber: string;
     type: string;
     imageUrl?: string | null;
+    qrCodeValue?: string | null;
+    primaryScanCode?: string | null;
     location?: { id: string; name: string };
   };
 };
@@ -79,6 +81,7 @@ export type AvailableAsset = {
   brand: string;
   model: string;
   locationId: string;
+  imageUrl?: string | null;
 };
 
 export type BulkSkuOption = {
@@ -100,7 +103,7 @@ export type ConflictData = {
   }>;
 };
 
-export type TabKey = "details" | "history";
+export type TabKey = "details" | "equipment" | "history";
 
 export type HistoryFilter = "all" | "booking" | "equipment";
 

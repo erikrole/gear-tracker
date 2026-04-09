@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
-const CreateBookingSheet = dynamic(() => import("@/components/CreateBookingSheet"), { ssr: false });
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -20,15 +19,12 @@ import {
   BookingTableRow,
   BookingMobileCard,
   BookingCard,
-  roundTo15Min,
-  toLocalDateTimeValue,
   type BookingItem,
   type BookingListConfig,
   type StatusOption,
   type ContextMenuExtra,
   type FormUser,
   type Location,
-  type BulkSkuOption,
   type ListResponse,
 } from "./booking-list";
 
@@ -39,6 +35,7 @@ export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 
 export default function BookingListPage({ config, viewMode = "table", hideHeader = false }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean }) {
   const urlParams = useSearchParams();
+  const router = useRouter();
 
   // ── Filter state ──
   const [page, setPage] = useState(0);
@@ -106,7 +103,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   });
   const users: FormUser[] = formOpts?.users ?? [];
   const locations: Location[] = formOpts?.locations ?? [];
-  const bulkSkus: BulkSkuOption[] = formOpts?.bulkSkus ?? [];
 
   // ── Current user (React Query, shared cache) ──
   const { data: meData } = useQuery({
@@ -121,7 +117,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   });
   const currentUserId = meData?.id ?? "";
   const currentUserRole = meData?.role ?? "";
-  const initialRequester = meData?.id ?? "";
+  // initialRequester is now handled inside the wizard page
 
   // Apply "mine" filter from URL once user data loads
   useEffect(() => {
@@ -130,11 +126,36 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     }
   }, [meData?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Create sheet state ──
-  const [showCreate, setShowCreate] = useState(
-    urlParams.get("create") === "true" || !!urlParams.get("title") || !!urlParams.get("draftId") || !!urlParams.get("newFor")
-  );
-  const [draftId, setDraftId] = useState<string | null>(urlParams.get("draftId"));
+  // ── Navigate to wizard page for creation ──
+  function navigateToCreate() {
+    const base = config.kind === "CHECKOUT" ? "/checkouts/new" : "/reservations/new";
+    const params = new URLSearchParams();
+    const title = urlParams.get("title");
+    const startsAt = urlParams.get("startsAt");
+    const endsAt = urlParams.get("endsAt");
+    const locationId = urlParams.get("locationId");
+    const newFor = urlParams.get("newFor");
+    const eventId = urlParams.get("eventId");
+    const sportCode = urlParams.get("sportCode");
+    const draftId = urlParams.get("draftId");
+    if (title) params.set("title", title);
+    if (startsAt) params.set("startsAt", startsAt);
+    if (endsAt) params.set("endsAt", endsAt);
+    if (locationId) params.set("locationId", locationId);
+    if (newFor) params.set("newFor", newFor);
+    if (eventId) params.set("eventId", eventId);
+    if (sportCode) params.set("sportCode", sportCode);
+    if (draftId) params.set("draftId", draftId);
+    const qs = params.toString();
+    router.push(qs ? `${base}?${qs}` : base);
+  }
+
+  // Auto-navigate to wizard if deep-link params present
+  useEffect(() => {
+    if (urlParams.get("create") === "true" || urlParams.get("title") || urlParams.get("draftId") || urlParams.get("newFor")) {
+      navigateToCreate();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sheet + menu ──
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -186,12 +207,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     setExtendingId(null);
   }
 
-  // ── Create sheet callbacks ──
-
-  async function handleCreated(bookingId: string) {
-    setSelectedBookingId(bookingId);
-    await reload();
-  }
+  // (Create flow is now a separate page — no sheet callbacks needed)
 
   // ── Derived ──
 
@@ -211,15 +227,15 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       {!hideHeader && (
         <div className="flex items-center justify-between mb-6 max-md:mb-4 max-md:flex-col max-md:items-start max-md:gap-3">
           <h1 className="text-[30px] tracking-[-0.03em] leading-none m-0 max-md:text-[22px]">{config.labelPlural}</h1>
-          <Button onClick={() => setShowCreate((v) => !v)}>
-            {showCreate ? "Close" : `New ${config.label}`}
+          <Button onClick={navigateToCreate}>
+            New {config.label}
           </Button>
         </div>
       )}
       {hideHeader && (
         <div className="flex justify-end px-4 pt-3">
-          <Button onClick={() => setShowCreate((v) => !v)}>
-            {showCreate ? "Close" : `New ${config.label}`}
+          <Button onClick={navigateToCreate}>
+            New {config.label}
           </Button>
         </div>
       )}
@@ -354,26 +370,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         currentUserRole={currentUserRole}
       />
 
-      {/* ════════ Create booking sheet ════════ */}
-      <CreateBookingSheet
-        open={showCreate}
-        onOpenChange={setShowCreate}
-        config={config}
-        users={users}
-        locations={locations}
-        bulkSkus={bulkSkus}
-        onCreated={handleCreated}
-        draftId={draftId}
-        onDraftIdChange={setDraftId}
-        initialTitle={urlParams.get("title") || ""}
-        initialStartsAt={urlParams.get("startsAt") ? toLocalDateTimeValue(new Date(urlParams.get("startsAt")!)) : undefined}
-        initialEndsAt={urlParams.get("endsAt") ? toLocalDateTimeValue(new Date(urlParams.get("endsAt")!)) : undefined}
-        initialLocationId={urlParams.get("locationId") || undefined}
-        initialRequester={initialRequester}
-        initialAssetIds={urlParams.get("newFor") ? [urlParams.get("newFor")!] : undefined}
-        initialEventId={urlParams.get("eventId") || undefined}
-        initialSportCode={urlParams.get("sportCode") || undefined}
-      />
+      {/* Create flow is now at /checkouts/new and /reservations/new */}
     </>
   );
 }

@@ -24,13 +24,14 @@ import {
   BookingOverview,
   BookingEditForm,
   BookingItems,
-  BookingEquipmentEditor,
   BookingActions,
+  ScanToReturnView,
 } from "./booking-details";
+import { useCheckinScan } from "./booking-details/useCheckinScan";
+import EquipmentPicker, { type PickerBulkSku } from "@/components/EquipmentPicker";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import type {
   BookingDetail,
-  AvailableAsset,
   BulkSkuOption,
   ConflictData,
   TabKey,
@@ -74,15 +75,7 @@ export default function BookingDetailsSheet({
   const [editBulkItems, setEditBulkItems] = useState<
     { bulkSkuId: string; quantity: number }[]
   >([]);
-  const [addingItems, setAddingItems] = useState(false);
-  const [pickerSearch, setPickerSearch] = useState("");
-  const [pickerTab, setPickerTab] = useState<"serialized" | "bulk">(
-    "serialized"
-  );
-  const [pickerSearchResults, setPickerSearchResults] = useState<AvailableAsset[]>([]);
-  const [pickerSearchLoading, setPickerSearchLoading] = useState(false);
-  const pickerSearchAbortRef = useRef<AbortController | null>(null);
-  const pickerSearchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  // (Inline picker state removed — EquipmentPicker manages its own search/selection)
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [equipSaving, setEquipSaving] = useState(false);
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
@@ -167,31 +160,7 @@ export default function BookingDetailsSheet({
       setOptionsError(true);
       toast.error("Failed to load equipment options");
     }
-  }, [toast]);
-
-  // Fetch assets for inline picker via picker-search API
-  const fetchPickerAssets = useCallback(async (q: string) => {
-    pickerSearchAbortRef.current?.abort();
-    const controller = new AbortController();
-    pickerSearchAbortRef.current = controller;
-    setPickerSearchLoading(true);
-    try {
-      const params = new URLSearchParams({ only_available: "true", limit: "50" });
-      if (q) params.set("q", q);
-      const res = await fetchWithTimeout(`/api/assets/picker-search?${params}`, {
-        signal: controller.signal,
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setPickerSearchResults(json.data?.assets || []);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      toast.error("Failed to load equipment — check your connection and try again.");
-    } finally {
-      setPickerSearchLoading(false);
-    }
-  }, [toast]);
+  }, []);
 
   /* ───── Audit log load-more ───── */
 
@@ -236,47 +205,7 @@ export default function BookingDetailsSheet({
       return allAuditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
     }
     return allAuditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
-  }, [booking, historyFilter]);
-
-  // Debounced search for inline picker
-  useEffect(() => {
-    if (!addingItems) return;
-    if (pickerSearchDebounceRef.current) clearTimeout(pickerSearchDebounceRef.current);
-    pickerSearchDebounceRef.current = setTimeout(() => {
-      fetchPickerAssets(pickerSearch);
-    }, 300);
-    return () => {
-      if (pickerSearchDebounceRef.current) clearTimeout(pickerSearchDebounceRef.current);
-    };
-  }, [pickerSearch, addingItems, fetchPickerAssets]);
-
-  // Trigger initial fetch when entering add-items mode
-  useEffect(() => {
-    if (addingItems) fetchPickerAssets(pickerSearch);
-    return () => { pickerSearchAbortRef.current?.abort(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addingItems]);
-
-  const pickerAssets = useMemo(() => {
-    if (!booking) return [];
-    // Filter out already-selected assets from search results
-    const editSet = new Set(editSerializedIds);
-    return pickerSearchResults.filter((a) => !editSet.has(a.id));
-  }, [pickerSearchResults, editSerializedIds, booking]);
-
-  const pickerBulkSkus = useMemo(() => {
-    if (!booking) return [];
-    const q = pickerSearch.toLowerCase();
-    const existingSkuIds = new Set(editBulkItems.map((i) => i.bulkSkuId));
-    return bulkSkus.filter((s) => {
-      if (existingSkuIds.has(s.id)) return false;
-      if (!q) return true;
-      return (
-        s.name.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
-      );
-    });
-  }, [bulkSkus, editBulkItems, pickerSearch, booking]);
+  }, [allAuditLogs, historyFilter]);
 
   const returnSuggestion = useMemo(() => {
     if (!booking) return null;
@@ -287,41 +216,7 @@ export default function BookingDetailsSheet({
     return `Return to both: ${names.join(" + ")}`;
   }, [booking]);
 
-  const resolveAssetName = useCallback(
-    (assetId: string) => {
-      const fromBooking = booking?.serializedItems.find(
-        (i) => i.asset.id === assetId
-      );
-      if (fromBooking)
-        return `${fromBooking.asset.assetTag} - ${fromBooking.asset.brand} ${fromBooking.asset.model}`;
-      const fromSearch = pickerSearchResults.find((a) => a.id === assetId);
-      if (fromSearch)
-        return `${fromSearch.assetTag} - ${fromSearch.brand} ${fromSearch.model}`;
-      return assetId;
-    },
-    [booking, pickerSearchResults]
-  );
-
-  const resolveSkuName = useCallback(
-    (skuId: string) => {
-      const fromBooking = booking?.bulkItems.find(
-        (i) => i.bulkSku.id === skuId
-      );
-      if (fromBooking) return fromBooking.bulkSku.name;
-      const fromOptions = bulkSkus.find((s) => s.id === skuId);
-      if (fromOptions) return fromOptions.name;
-      return skuId;
-    },
-    [booking, bulkSkus]
-  );
-
-  const resolveSkuMaxQty = useCallback(
-    (skuId: string) => {
-      const sku = bulkSkus.find((s) => s.id === skuId);
-      return sku?.currentQuantity ?? 100;
-    },
-    [bulkSkus]
-  );
+  // (Resolve functions removed — EquipmentPicker handles its own asset display)
 
   /* ───── Permission flags ───── */
 
@@ -332,6 +227,17 @@ export default function BookingDetailsSheet({
   const canCheckin = booking && booking.kind === "CHECKOUT" && actions.includes("checkin");
   const canConvert = booking && booking.kind === "RESERVATION" && actions.includes("convert");
   const canEditEquipment = canEdit;
+
+  /* ───── Scan-to-return ───── */
+
+  const unreturnedCount = (booking?.serializedItems ?? []).filter(
+    (i) => i.allocationStatus !== "returned"
+  ).length;
+
+  const checkinScan = useCheckinScan({
+    booking: booking ?? { id: "", kind: "CHECKOUT", serializedItems: [] } as unknown as BookingDetail,
+    onItemCheckedIn: () => fetchBooking({ silent: true }),
+  });
 
   /* ───── Filtered equipment ───── */
 
@@ -372,53 +278,12 @@ export default function BookingDetailsSheet({
       }))
     );
     setEquipEditMode(true);
-    setAddingItems(false);
+    setTab("equipment");
     setConflictError(null);
     loadFormOptions();
   }
 
-  async function handleRemoveSerializedItem(assetId: string) {
-    const ok = await confirm({
-      title: "Remove item",
-      message: "Remove this item from the booking?",
-      confirmLabel: "Remove",
-      variant: "danger",
-    });
-    if (ok) {
-      setEditSerializedIds((prev) => prev.filter((id) => id !== assetId));
-    }
-  }
-
-  function addSerializedItem(assetId: string) {
-    setEditSerializedIds((prev) =>
-      prev.includes(assetId) ? prev : [...prev, assetId]
-    );
-  }
-
-  function updateBulkQty(skuId: string, qty: number) {
-    if (qty <= 0) {
-      setEditBulkItems((prev) =>
-        prev.filter((item) => item.bulkSkuId !== skuId)
-      );
-      return;
-    }
-    setEditBulkItems((prev) =>
-      prev.map((item) =>
-        item.bulkSkuId === skuId ? { ...item, quantity: qty } : item
-      )
-    );
-  }
-
-  function removeBulkItem(skuId: string) {
-    setEditBulkItems((prev) =>
-      prev.filter((item) => item.bulkSkuId !== skuId)
-    );
-  }
-
-  function addBulkItem(skuId: string) {
-    if (editBulkItems.some((i) => i.bulkSkuId === skuId)) return;
-    setEditBulkItems((prev) => [...prev, { bulkSkuId: skuId, quantity: 1 }]);
-  }
+  // (Manual add/remove helpers removed — EquipmentPicker manages selection)
 
   async function handleEquipSave() {
     if (!booking || equipSaving) return;
@@ -694,6 +559,14 @@ export default function BookingDetailsSheet({
           <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
             <TabsList className="w-full justify-start">
               <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="equipment" className="gap-1.5">
+                Equipment
+                {unreturnedCount > 0 && canCheckin && (
+                  <Badge variant="secondary" size="sm" className="ml-0.5 text-[10px] px-1.5 min-w-[18px] h-[18px]">
+                    {unreturnedCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -718,31 +591,17 @@ export default function BookingDetailsSheet({
             <div className="py-10 px-5 text-center text-muted-foreground">Booking not found</div>
           ) : (
             <>
-              {/* Details Tab — combined Info + Equipment */}
+              {/* Details Tab — Info only (equipment is now in its own tab) */}
               {tab === "details" && !editMode && !equipEditMode && (
-                <>
-                  <BookingOverview
-                    booking={booking}
-                    conflictError={conflictError}
-                    returnSuggestion={returnSuggestion}
-                    checkinProgress={checkinProgress}
-                    canExtend={!!canExtend}
-                    extending={extending}
-                    onExtendTo={handleExtendTo}
-                  />
-                  <BookingItems
-                    booking={booking}
-                    equipSearch={equipSearch}
-                    onEquipSearchChange={setEquipSearch}
-                    filteredSerializedItems={filteredSerializedItems}
-                    filteredBulkItems={filteredBulkItems}
-                    canEditEquipment={!!canEditEquipment}
-                    canCheckin={!!canCheckin}
-                    checkinLoading={checkinLoading}
-                    onEnterEquipEditMode={enterEquipEditMode}
-                    onCheckinItem={handleCheckinItem}
-                  />
-                </>
+                <BookingOverview
+                  booking={booking}
+                  conflictError={conflictError}
+                  returnSuggestion={returnSuggestion}
+                  checkinProgress={checkinProgress}
+                  canExtend={!!canExtend}
+                  extending={extending}
+                  onExtendTo={handleExtendTo}
+                />
               )}
 
               {/* Details Tab - Edit booking info */}
@@ -763,41 +622,90 @@ export default function BookingDetailsSheet({
                 />
               )}
 
-              {/* Details Tab - Edit equipment */}
-              {tab === "details" && equipEditMode && optionsError && (
-                <Alert variant="destructive" className="mb-3">
-                  <AlertDescription className="flex items-center justify-between">
-                    <span>Failed to load equipment options.</span>
-                    <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
-                  </AlertDescription>
-                </Alert>
+              {/* Equipment Tab */}
+              {tab === "equipment" && !equipEditMode && (
+                <>
+                  {/* Scan-to-return */}
+                  {canCheckin && (
+                    <ScanToReturnView
+                      scanning={checkinScan.scanning}
+                      setScanning={checkinScan.setScanning}
+                      cameraError={checkinScan.cameraError}
+                      setCameraError={checkinScan.setCameraError}
+                      feedback={checkinScan.feedback}
+                      setFeedback={checkinScan.setFeedback}
+                      onScan={checkinScan.handleScan}
+                    />
+                  )}
+                  <BookingItems
+                    booking={booking}
+                    equipSearch={equipSearch}
+                    onEquipSearchChange={setEquipSearch}
+                    filteredSerializedItems={filteredSerializedItems}
+                    filteredBulkItems={filteredBulkItems}
+                    canEditEquipment={!!canEditEquipment}
+                    canCheckin={!!canCheckin}
+                    checkinLoading={checkinLoading}
+                    onEnterEquipEditMode={() => { enterEquipEditMode(); setTab("equipment"); }}
+                    onCheckinItem={handleCheckinItem}
+                  />
+                </>
               )}
 
-              {tab === "details" && equipEditMode && (
-                <BookingEquipmentEditor
-                  conflictError={conflictError}
-                  editSerializedIds={editSerializedIds}
-                  editBulkItems={editBulkItems}
-                  addingItems={addingItems}
-                  pickerTab={pickerTab}
-                  pickerSearch={pickerSearch}
-                  pickerAssets={pickerAssets}
-                  pickerBulkSkus={pickerBulkSkus}
-                  equipSaving={equipSaving}
-                  resolveAssetName={resolveAssetName}
-                  resolveSkuName={resolveSkuName}
-                  resolveSkuMaxQty={resolveSkuMaxQty}
-                  onRemoveSerializedItem={handleRemoveSerializedItem}
-                  onAddSerializedItem={addSerializedItem}
-                  onUpdateBulkQty={updateBulkQty}
-                  onRemoveBulkItem={removeBulkItem}
-                  onAddBulkItem={addBulkItem}
-                  onSetAddingItems={setAddingItems}
-                  onSetPickerTab={setPickerTab}
-                  onSetPickerSearch={setPickerSearch}
-                  onSave={handleEquipSave}
-                  onCancel={() => { setEquipEditMode(false); setConflictError(null); }}
-                />
+              {/* Equipment Tab - Edit mode (full picker) */}
+              {tab === "equipment" && equipEditMode && (
+                <div className="flex flex-col gap-3">
+                  {optionsError && (
+                    <Alert variant="destructive">
+                      <AlertDescription className="flex items-center justify-between">
+                        <span>Failed to load equipment options.</span>
+                        <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        <strong className="block mb-1">Scheduling conflict</strong>
+                        {conflictError.conflicts.map((c, i) => (
+                          <div key={i} className="text-xs">
+                            {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}
+                          </div>
+                        ))}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <EquipmentPicker
+                    bulkSkus={bulkSkus as unknown as PickerBulkSku[]}
+                    selectedAssetIds={editSerializedIds}
+                    setSelectedAssetIds={setEditSerializedIds}
+                    selectedBulkItems={editBulkItems.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity }))}
+                    setSelectedBulkItems={(updater) => {
+                      if (typeof updater === "function") {
+                        setEditBulkItems((prev) => {
+                          const result = updater(prev.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity })));
+                          return result;
+                        });
+                      } else {
+                        setEditBulkItems(updater);
+                      }
+                    }}
+                    visible
+                    onDone={() => {}}
+                    onReopen={() => {}}
+                    startsAt={booking.startsAt}
+                    endsAt={booking.endsAt}
+                    locationId={booking.location.id}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <Button disabled={equipSaving} onClick={handleEquipSave}>
+                      {equipSaving ? "Saving..." : "Save equipment"}
+                    </Button>
+                    <Button variant="outline" onClick={() => { setEquipEditMode(false); setConflictError(null); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
               )}
 
               {/* History Tab */}

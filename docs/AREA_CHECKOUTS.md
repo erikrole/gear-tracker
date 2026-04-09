@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-06
+- Last Updated: 2026-04-09
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -19,24 +19,34 @@ Optimize handoff and return execution so daily operators can move fast without d
 
 ## V1 Workflow
 
-### Create Checkout
-1. Start from `New Checkout`.
-2. Event tie-in defaults ON.
-3. If event tie-in ON:
-   - Select sport
-   - Select event in next 30 days (30-day window via `resolveEventDefaults` in `src/lib/services/event-defaults.ts`)
-   - Prefill title, time window, and location from event context
-4. Select borrower/owner.
-5. Select equipment using the sectioned picker (see Equipment Picker section below).
-6. Save as:
-   - `OPEN` for immediate handoff
-   - `BOOKED` for future handoff
-7. Interrupted flows save as `DRAFT` and are recoverable from dashboard Drafts section.
+### Create Checkout (Wizard — `/checkouts/new`)
+Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
+
+**Step 1 — Context & Details:**
+1. Event tie-in defaults ON. Select sport → event (next 30 days) → auto-fills title, dates, location.
+2. If no event: manual title + optional sport.
+3. Select requester (borrower), location, optional kit, start/end dates.
+4. Client-side validation: title, requester, location required; dates must be valid range.
+
+**Step 2 — Equipment:**
+1. Full `EquipmentPicker` with section tabs, search, availability conflict markers, QR scan-to-add.
+2. Equipment requirement rules enforced (e.g., camera body → batteries). Hard gate: cannot advance without satisfying requirements.
+3. On mobile checkout: scan-first UI (camera open by default).
+
+**Step 3 — Confirmation:**
+1. Full summary with thumbnails, equipment list, checkout scan notice.
+2. Submit → POST `/api/checkouts`. 409 conflicts shown inline (returns to Step 2).
+3. Items will be scanned at pickup (hard gate for checkout fulfillment).
+
+**Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?draftId`.
+
+**Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`.
 
 ### Edit Checkout
-1. User opens checkout detail.
+1. User opens checkout detail via BookingDetailsSheet.
 2. Editable fields respect role and ownership.
-3. Mutations must preserve overlap and transaction constraints.
+3. Equipment editing uses full `EquipmentPicker` in the Equipment tab (same UX as creation — QR scan-to-add, section tabs, availability conflicts).
+4. Mutations must preserve overlap and transaction constraints.
 
 ### Extend Checkout
 1. `OPEN` checkouts can be extended if no conflicts exist.
@@ -46,6 +56,7 @@ Optimize handoff and return execution so daily operators can move fast without d
 1. Partial check-in allowed for multi-item allocations.
 2. Checkout remains `OPEN` until all allocated items are returned.
 3. Auto-transition to `COMPLETED` when full return is confirmed.
+4. **Scan-to-return** available in BookingDetailsSheet Equipment tab — inline camera with audio/haptic feedback, local QR lookup (zero API round-trip), celebration on all items returned.
 
 ### Cancel Checkout
 1. Allowed only by policy and role.
@@ -183,10 +194,10 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Returned items show green checkmark and muted row background
 - Breadcrumb handled by global `PageBreadcrumb` in AppShell (no duplicate)
 
-### Tabs
-1. **Info** — Card with "Checkout details" heading. SaveableField rows: title (editable), location, from/to dates, requester (with avatar), creator (with avatar), notes (editable), created. Mixed-location Alert if applicable.
-2. **Equipment** — Card with progress bar, search (3+ items), serialized rows with context menu, bulk rows with return controls
-3. **History** — Collapsible section with one-line preview when collapsed, ToggleGroup filters (All / Booking changes / Equipment changes), natural-language action labels
+### Tabs (BookingDetailsSheet)
+1. **Details** — Booking overview: dates, requester, location, event context, extend presets, checkin progress, conflict banner.
+2. **Equipment** — Item list with thumbnails, scan-to-return camera (for checkouts with `canCheckin`), "Edit equipment" opens full `EquipmentPicker` with QR scan-to-add. Badge shows unreturned item count.
+3. **History** — Audit timeline with ToggleGroup filters (All / Booking changes / Equipment changes), cursor-paginated load-more.
 
 ### Inline Editing
 - Title: `InlineTitle` component with save status indicator (spinner/check/error)
@@ -289,3 +300,4 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-03-31: **Booking sheet deep links** — (1) Redirect pages forward all URL search params to `/bookings`. (2) Dashboard buttons ("New checkout", "New reservation", "Prep gear", event dropdown) open CreateBookingSheet in-place on the dashboard — no page navigation. (3) Event-context buttons auto-fill sport, event tie-in, title, dates, and location. (4) Item detail "Check out"/"Reserve" deep-link with `?newFor=assetId` to pre-select the asset. (5) `initialEventId`/`initialSportCode` props added to CreateBookingSheet for event auto-selection.
 - 2026-03-30: **Photo requirement + scan-only checkin (D-028)** — (1) New `BookingPhoto` model stores condition photos per booking per phase (CHECKOUT/CHECKIN). (2) Camera-only `PhotoCapture` component captures still frames via `getUserMedia`. (3) `PhotoCaptureDialog` intercepts completion flow on scan page — photo must be taken and uploaded before checkout/checkin can complete. (4) Photos uploaded to Vercel Blob (`bookings/{id}/{phase}/`), stored as `BookingPhoto` records. (5) `completeCheckoutScan()` and `completeCheckinScan()` now enforce photo existence (admin override bypasses). (6) Manual checkbox-based item return removed from `BookingEquipmentTab` — all checkins now require scan-based flow. (7) "Complete check in" dropdown action removed from detail page. (8) Condition photos displayed in booking info tab with checkout/checkin grouping, actor attribution, and clickable full-size view.
 - 2026-04-06: **Auth permission gates** — (1) `GET /api/bookings/[id]/audit-logs` now enforces `requireBookingAction(id, user, "view")` — students can only see audit logs for their own bookings. (2) `POST /api/checkouts/[id]/photo` now checks student ownership — students can only upload photos for their own checkouts.
+- 2026-04-09: **Booking flow overhaul** — (1) Creation flow moved from side-sheet to full-page 3-step wizard at `/checkouts/new`. Steps: Context & Details → Equipment → Confirmation. (2) BookingDetailsSheet gains 3rd "Equipment" tab with unreturned badge count, scan-to-return (inline camera, local QR lookup, audio/haptic feedback), and full EquipmentPicker in edit mode (QR scan-to-add, section tabs, availability conflicts). (3) `CreateBookingSheet` and `BookingEquipmentEditor` deleted — replaced by wizard pages and EquipmentPicker respectively. (4) Asset thumbnails (`<AssetImage size={36}>`) added to all equipment rows (items, editor, picker). (5) Bulk qty stepper capped at `currentQuantity`, touch targets 32px→44px. (6) Stress-tested: 12 issues found, 8 fixed (broken redirect URL, stale scan state, date validation, audit log deps, draft save await, form-options error state).
