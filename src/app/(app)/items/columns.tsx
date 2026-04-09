@@ -166,7 +166,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
   columns.push({
     id: "favorite",
     header: () => <><Star className="size-3.5 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Favorite</span></>,
-    size: 44,
     enableSorting: false,
     enableHiding: true,
     cell: ({ row }) => {
@@ -200,8 +199,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       header: "Name",
       accessorKey: "assetTag",
       id: "assetTag",
-      size: 380,
-      minSize: 200,
       enableSorting: true,
       cell: ({ row }) => {
         const item = row.original;
@@ -230,16 +227,12 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Status",
       id: "status",
-      size: 140,
-      minSize: 100,
       cell: ({ row }) => statusBadge(row.original),
       enableSorting: false,
     },
     {
       header: "Category",
       id: "category",
-      size: 120,
-      minSize: 80,
       accessorFn: (row) => row.category?.name || row.type,
       cell: ({ row }) => (
         <span className="truncate block">{row.original.category?.name || row.original.type}</span>
@@ -249,8 +242,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Department",
       id: "department",
-      size: 120,
-      minSize: 80,
       accessorFn: (row) => row.department?.name ?? "",
       cell: ({ row }) => (
         <span className="truncate block">{row.original.department?.name ?? "—"}</span>
@@ -260,8 +251,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Location",
       id: "location",
-      size: 130,
-      minSize: 80,
       accessorFn: (row) => row.location.name,
       cell: ({ row }) => (
         <span className="truncate block">{row.original.location.name}</span>

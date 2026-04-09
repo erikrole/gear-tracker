@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ColumnSizingState, RowSelectionState, VisibilityState } from "@tanstack/react-table";
+import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -38,7 +38,6 @@ import { BulkActionBar } from "./components/bulk-action-bar";
 import { ItemsToolbar } from "./components/items-toolbar";
 import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
-import { useIsMobile } from "./hooks/use-media-query";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download } from "lucide-react";
@@ -62,7 +61,6 @@ export default function ItemsPage() {
     sortKey: filters.sortKey,
   });
 
-  const isMobile = useIsMobile();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -79,17 +77,6 @@ export default function ItemsPage() {
       localStorage.setItem("items-column-visibility", JSON.stringify(columnVisibility));
     } catch { /* ignore */ }
   }, [columnVisibility]);
-  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(() => {
-    try {
-      const saved = localStorage.getItem("items-column-sizing");
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem("items-column-sizing", JSON.stringify(columnSizing));
-    } catch { /* ignore */ }
-  }, [columnSizing]);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -417,15 +404,10 @@ export default function ItemsPage() {
             onRowSelectionChange={setRowSelection}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
-            columnSizing={columnSizing}
-            onColumnSizingChange={setColumnSizing}
             sorting={filters.sorting}
             onSortingChange={(next) => { filters.setSorting(next); query.setPage(0); }}
             refreshing={query.refreshing}
-            viewMode={isMobile ? "cards" : "table"}
-            canEdit={options.canEdit}
-            onRowAction={handleRowAction}
-            filterBar={
+            toolbar={
               <ItemsToolbar
                 searchInputRef={searchInputRef}
                 search={filters.search}
@@ -452,7 +434,7 @@ export default function ItemsPage() {
                 brands={options.brands}
               />
             }
-            bulkActionBar={
+            bulkBar={
               options.canEdit && selectedCount > 0 ? (
                 <BulkActionBar
                   count={selectedCount}
