@@ -80,6 +80,8 @@
 - **No inline `<style>` tags in components**: Use global CSS keyframes or Tailwind arbitrary animation values (`animate-[name_duration_easing_iteration]`). Inline `<style>` bypasses Tailwind's purge and creates duplicate keyframe definitions.
 - **No `tableLayout: fixed` + `<colgroup>` for column sizing**: Let columns auto-size via CSS. Fixed layout causes clipping and misalignment at varying viewport widths — the root cause of "feels off" tables.
 - **Toolbar above the table border, not inside it**: shadcn data table pattern renders filter bar as a sibling div above the `rounded-md border` container, not as a sticky child inside it.
+- **Missing CSS classes render elements invisible**: If a function returns a CSS class name that doesn't exist in globals.css (e.g., `cal-booking-neutral`, `week-event-neutral`), the element gets no background/color and becomes invisible against the page. Always verify every class string maps to a real CSS rule — or use Tailwind where there's no disconnect.
+- **Pass filtered data to all views, not just some**: When a page has multiple view modes (list, week, calendar), every view must receive the same filtered data. CalendarView received `entries` (unfiltered) while siblings got `filteredEntries` — filters silently had no effect in one view.
 
 ## Input Validation
 
