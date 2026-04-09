@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, isHomeLocationText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
 
 // ── unescapeIcsText unit tests ──
 
@@ -622,5 +622,101 @@ describe("splitEventsForSync", () => {
 
   it("WRITE_CHUNK_SIZE is exported and equals 500", () => {
     expect(WRITE_CHUNK_SIZE).toBe(500);
+  });
+
+  it("'vs' + Madison, WI location → isHome: true", () => {
+    const parsed = [makeParsedEvent({
+      uid: "home-1",
+      summary: "Wisconsin Badgers Softball vs Iowa",
+      location: "Madison, WI, Goodman Diamond",
+    })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0].isHome).toBe(true);
+  });
+
+  it("'vs' + non-Madison location → isHome: null (neutral)", () => {
+    const parsed = [makeParsedEvent({
+      uid: "neutral-1",
+      summary: "Wisconsin Badgers Softball vs Iowa",
+      location: "Minneapolis, MN, Target Field",
+    })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0].isHome).toBeNull();
+  });
+
+  it("'at' + any location → isHome: false (away)", () => {
+    const parsed = [makeParsedEvent({
+      uid: "away-1",
+      summary: "Wisconsin Badgers Softball at Iowa",
+      location: "Iowa City, IA",
+    })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0].isHome).toBe(false);
+  });
+
+  it("no location text + 'vs' → isHome: true (summary fallback)", () => {
+    const parsed = [makeParsedEvent({
+      uid: "vs-no-loc",
+      summary: "Wisconsin Badgers Softball vs Iowa",
+      location: "",
+    })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0].isHome).toBe(true);
+  });
+
+  it("known Wisconsin facility without Madison, WI → isHome: true", () => {
+    const parsed = [makeParsedEvent({
+      uid: "facility-1",
+      summary: "Wisconsin Badgers Football vs Ohio State",
+      location: "Camp Randall Stadium",
+    })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0].isHome).toBe(true);
+  });
+
+  it("McClimon location → isHome: true", () => {
+    const parsed = [makeParsedEvent({
+      uid: "mcClimon-1",
+      summary: "Wisconsin Badgers Women's Soccer vs Minnesota",
+      location: "Madison, WI, McClimon Track/Soccer Complex",
+    })];
+    const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0].isHome).toBe(true);
+  });
+});
+
+// ── isHomeLocationText unit tests ──
+
+describe("isHomeLocationText", () => {
+  it("returns true for 'Madison, WI, Goodman Diamond'", () => {
+    expect(isHomeLocationText("Madison, WI, Goodman Diamond")).toBe(true);
+  });
+
+  it("returns true for 'Madison, WI, McClimon Track/Soccer Complex'", () => {
+    expect(isHomeLocationText("Madison, WI, McClimon Track/Soccer Complex")).toBe(true);
+  });
+
+  it("returns true for 'madison, wi' (case-insensitive)", () => {
+    expect(isHomeLocationText("madison, wi, some venue")).toBe(true);
+  });
+
+  it("returns true for Camp Randall without Madison, WI", () => {
+    expect(isHomeLocationText("Camp Randall Stadium")).toBe(true);
+  });
+
+  it("returns true for Kohl Center", () => {
+    expect(isHomeLocationText("Kohl Center")).toBe(true);
+  });
+
+  it("returns false for 'Minneapolis, MN'", () => {
+    expect(isHomeLocationText("Minneapolis, MN")).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isHomeLocationText("")).toBe(false);
+  });
+
+  it("returns false for non-Wisconsin venue", () => {
+    expect(isHomeLocationText("Iowa City, IA, Carver-Hawkeye Arena")).toBe(false);
   });
 });

@@ -267,6 +267,33 @@ export function extractSportInfo(summary: string): {
   return { sportCode: null, opponent: null, isHome: null };
 }
 
+// ── Hardcoded home-location detection ──
+
+/** Known Wisconsin facility keywords (case-insensitive substring match). */
+const HOME_VENUE_KEYWORDS = [
+  "camp randall",
+  "kohl center",
+  "field house",
+  "labahn",
+  "goodman",
+  "mcClimon",
+  "soderholm",
+  "nielsen",
+  "university ridge",
+  "zimmer",
+  "porter boathouse",
+];
+
+/**
+ * Returns true if the raw ICS location text indicates a home event.
+ * Rule: "Madison, WI" in text OR any known Wisconsin facility keyword.
+ */
+export function isHomeLocationText(locationText: string): boolean {
+  const lower = locationText.toLowerCase();
+  if (lower.includes("madison, wi")) return true;
+  return HOME_VENUE_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()));
+}
+
 // ── Validated event shape for DB writes ──
 
 type ValidatedEventData = {
@@ -320,7 +347,6 @@ export function splitEventsForSync(
   parsedEvents: ParsedIcsEvent[],
   existingRows: ExistingEventRow[],
   mappings: Array<{ pattern: string; locationId: string; isHomeVenue?: boolean }>,
-  homeVenueKeywords: Array<{ keyword: string; locationId: string }> = [],
 ) {
   const existingMap = new Map(existingRows.map((r) => [r.externalId, r]));
 
@@ -339,42 +365,27 @@ export function splitEventsForSync(
 
       const status = mapIcsStatus(event.status);
       let locationId: string | null = null;
-      let matchedHomeVenue: boolean | undefined;
       const searchText = `${event.location} ${event.summary}`.toLowerCase();
 
       for (const mapping of mappings) {
         try {
-          if (new RegExp(mapping.pattern, "i").test(searchText)) { locationId = mapping.locationId; matchedHomeVenue = mapping.isHomeVenue; break; }
+          if (new RegExp(mapping.pattern, "i").test(searchText)) { locationId = mapping.locationId; break; }
         } catch {
-          if (searchText.includes(mapping.pattern.toLowerCase())) { locationId = mapping.locationId; matchedHomeVenue = mapping.isHomeVenue; break; }
-        }
-      }
-
-      // If no pattern mapping matched, try home venue keyword matching
-      if (!locationId && homeVenueKeywords.length > 0 && searchText) {
-        const venueText = (event.location || "").toLowerCase();
-        if (venueText) {
-          const match = homeVenueKeywords.find((hv) => venueText.includes(hv.keyword));
-          if (match) {
-            locationId = match.locationId;
-            matchedHomeVenue = true;
-          } else {
-            // Venue text exists but doesn't match any home venue → Away
-            matchedHomeVenue = false;
-          }
+          if (searchText.includes(mapping.pattern.toLowerCase())) { locationId = mapping.locationId; break; }
         }
       }
 
       const cleaned = cleanSummary(event.summary);
       let { sportCode, opponent, isHome } = extractSportInfo(cleaned);
 
-      // Override isHome based on venue when title parsing was inconclusive,
-      // or detect neutral-site games (summary says "vs" but venue is not home)
-      if (matchedHomeVenue !== undefined) {
+      // Hardcoded home detection: "Madison, WI" or known Wisconsin facility → home
+      const locationText = event.location || "";
+      if (locationText) {
+        const homeByLocation = isHomeLocationText(locationText);
         if (isHome === null) {
-          isHome = matchedHomeVenue;
-        } else if (isHome === true && matchedHomeVenue === false) {
-          // Summary says "vs" but venue maps to non-home location → neutral site
+          isHome = homeByLocation;
+        } else if (isHome === true && !homeByLocation) {
+          // Summary says "vs" but venue is not in Madison/Wisconsin → neutral site
           isHome = null;
         }
       }
@@ -505,24 +516,6 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     console.error("[calendar-sync] Failed to load venue mappings", err);
   }
 
-  // Auto-generate keyword matchers from home venue location names
-  // e.g. "Camp Randall" → keywords ["camp", "randall"]
-  let homeVenueKeywords: Array<{ keyword: string; locationId: string }> = [];
-  try {
-    const homeVenues = await db.location.findMany({
-      where: { isHomeVenue: true, active: true },
-      select: { id: true, name: true },
-    });
-    homeVenueKeywords = homeVenues.flatMap((loc) =>
-      loc.name.split(/\s+/).filter((w) => w.length >= 3).map((w) => ({
-        keyword: w.toLowerCase(),
-        locationId: loc.id,
-      }))
-    );
-  } catch (err) {
-    console.error("[calendar-sync] Failed to load home venue keywords", err);
-  }
-
   const existingRows = await db.calendarEvent.findMany({
     where: { sourceId },
     select: {
@@ -534,7 +527,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   // ── Phase 2: In-memory validate + diff (0 queries) ──
 
-  const { toCreate, toUpdate, unchanged, skippedErrors } = splitEventsForSync(events, existingRows, mappings, homeVenueKeywords);
+  const { toCreate, toUpdate, unchanged, skippedErrors } = splitEventsForSync(events, existingRows, mappings);
 
   let added = 0;
   const updated = toUpdate.length + unchanged.length;
