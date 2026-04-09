@@ -151,3 +151,11 @@
 - **`initialTab` (or any prop used in useEffect) must be in the dep array**: `BookingDetailsSheet` used `initialTab` inside a `useEffect` but didn't include it in deps. If the prop changes without `bookingId` changing, the tab doesn't update. Always include all values read inside useEffect in its deps.
 - **Non-OK fetch responses must not be silent**: `usePickerSearch` returned `sectionResults: []` on a 500 response, making the UI show "Nothing available" instead of an error. Always add an error state alongside loading state in search hooks — show "Failed to load" (destructive text) rather than a misleading empty state.
 - **Inline hooks in a component should be extracted when independently testable**: `useConflictCheck` was 66 lines embedded in a 561-line component. Extracting it to its own file makes it testable, reduces the parent to ~450 lines, and makes the dependency graph visible.
+
+## Session 2026-04-09 (Dashboard)
+
+### Patterns (Dashboard Hardening + Stress Test)
+- **useRef guard on ALL async mutation handlers**: `useState` guards (`if (inlineActionId) return`) have a TOCTOU window — two rapid clicks both read the pre-setState value. Always add `if (actionBusyRef.current) return; actionBusyRef.current = true;` before any setState + fetch. Reset in `finally`. State variable still needed for UI disabling.
+- **Unified `acting` boolean > per-item disabled checks**: `disabled={inlineActionId === c.id}` only blocks the specific button — other mutation buttons stay clickable. Replace with `disabled={acting}` where `acting = inlineActionId !== null || deletingDraftId !== null`. Blocks ALL buttons during ANY mutation.
+- **Cross-mutation guard must span all mutation types on a page**: Dashboard had extend/convert guarded by `inlineActionId` and delete-draft guarded by `deletingDraftId` independently. User could fire both simultaneously. Fix: combine both into a single `acting` boolean.
+- **CSS variables with Tailwind token equivalents should use Tailwind**: `var(--text-sm)` → `text-sm`, `var(--panel)` → `bg-card`, `var(--panel-hover)` → `hover:bg-muted/60`. Preserves dark mode, reduces CSS variable surface area, and aligns with shadcn design system. Exception: intentional brand colors (e.g., `var(--wi-red)` for Wisconsin identity red) should stay as CSS variables.
