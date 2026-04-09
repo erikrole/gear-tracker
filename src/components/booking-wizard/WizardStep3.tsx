@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
-import { CalendarIcon, MapPinIcon, BoxesIcon } from "lucide-react";
+import { CalendarIcon, MapPinIcon, BoxesIcon, SmartphoneIcon } from "lucide-react";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 import type { FormUser, Location, BulkSkuOption } from "@/components/booking-list/types";
@@ -178,6 +178,15 @@ export function WizardStep3({
         )}
       </div>
 
+      {/* ── Scan recommendation ── */}
+      {config.kind === "CHECKOUT" && (
+        <div className="flex items-start gap-3 rounded-lg bg-muted/50 border border-border/60 px-4 py-3">
+          <SmartphoneIcon className="size-4 shrink-0 mt-0.5 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            For the fastest pickup, scan items out on a kiosk device or your phone.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
