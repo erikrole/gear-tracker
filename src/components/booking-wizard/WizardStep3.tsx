@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AssetImage } from "@/components/AssetImage";
-import { CalendarIcon, MapPinIcon, UserIcon, BoxesIcon, ScanIcon } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
+import { CalendarIcon, MapPinIcon, BoxesIcon, ScanIcon } from "lucide-react";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 import type { FormUser, Location, BulkSkuOption } from "@/components/booking-list/types";
@@ -94,7 +95,11 @@ export function WizardStep3({
 
             {/* Requester */}
             <div className="px-4 py-3 flex items-center gap-3">
-              <UserIcon className="size-4 text-muted-foreground shrink-0" />
+              {requester ? (
+                <UserAvatar name={requester.name} avatarUrl={requester.avatarUrl} size="sm" />
+              ) : (
+                <div className="size-6 rounded-full bg-muted" />
+              )}
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground mb-0.5">{config.requesterLabel}</p>
                 <p className="font-medium">{requester?.name || "—"}</p>

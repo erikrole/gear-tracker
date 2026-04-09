@@ -79,16 +79,21 @@ export function WizardStep1({
           <span className="text-sm">Link to event</span>
         </div>
 
-        {/* Sport + event list */}
+        {/* Event list with optional sport filter */}
         {form.tieToEvent && (
           <div className="space-y-3">
+            {/* Sport filter (optional — narrows the event list) */}
             <div className="flex flex-col gap-1">
-              <Label>Sport</Label>
-              <Select value={form.sport} onValueChange={(v) => dispatch({ type: "SET_SPORT", value: v })}>
+              <Label className="text-xs text-muted-foreground">Filter by sport</Label>
+              <Select
+                value={form.sport || "__all__"}
+                onValueChange={(v) => dispatch({ type: "SET_SPORT", value: v === "__all__" ? "" : v })}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select sport..." />
+                  <SelectValue placeholder="All sports" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__all__">All sports</SelectItem>
                   {SPORT_CODES.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
                       {s.code} - {s.label}
@@ -98,51 +103,51 @@ export function WizardStep1({
               </Select>
             </div>
 
-            {form.sport && (
-              <div className="flex flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Events — next 3 days</Label>
-                {eventsLoading ? (
-                  <div className="py-4 text-center text-sm text-muted-foreground">Loading events...</div>
-                ) : events.length === 0 ? (
-                  <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                    No upcoming events for {sportLabel(form.sport)}. Toggle off &ldquo;Link to event&rdquo; to
-                    create without an event.
-                  </div>
-                ) : (
-                  <div className="max-h-64 flex flex-col gap-1 overflow-y-auto rounded-md border p-1">
-                    {events.map((ev) => (
-                      <button
-                        key={ev.id}
-                        type="button"
-                        className={`flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-sm transition-colors max-md:min-h-[44px] ${
-                          form.selectedEvent?.id === ev.id
-                            ? "bg-primary/10 ring-1 ring-primary/30"
-                            : "hover:bg-muted/50"
-                        }`}
-                        onClick={() => selectEvent(ev)}
-                      >
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">
-                            {ev.opponent ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}` : ev.summary}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {formatDate(ev.startsAt)}
-                            {ev.rawLocationText ? ` \u00b7 ${ev.rawLocationText}` : ""}
-                            {ev.location ? ` \u00b7 ${ev.location.name}` : ""}
-                          </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">
+                Events — next 3 days{form.sport ? ` · ${sportLabel(form.sport)}` : ""}
+              </Label>
+              {eventsLoading ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">Loading events...</div>
+              ) : events.length === 0 ? (
+                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                  No upcoming events{form.sport ? ` for ${sportLabel(form.sport)}` : ""}. Toggle off &ldquo;Link to event&rdquo; to
+                  create without an event.
+                </div>
+              ) : (
+                <div className="max-h-64 flex flex-col gap-1 overflow-y-auto rounded-md border p-1">
+                  {events.map((ev) => (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      className={`flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-sm transition-colors max-md:min-h-[44px] ${
+                        form.selectedEvent?.id === ev.id
+                          ? "bg-primary/10 ring-1 ring-primary/30"
+                          : "hover:bg-muted/50"
+                      }`}
+                      onClick={() => selectEvent(ev)}
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">
+                          {ev.opponent ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}` : ev.summary}
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          {ev.isHome === true && <Badge variant="gray" size="sm">HOME</Badge>}
-                          {ev.isHome === false && <Badge variant="gray" size="sm">AWAY</Badge>}
-                          {ev.isHome === null && ev.opponent && <Badge variant="gray" size="sm">NEUTRAL</Badge>}
-                          {ev.sportCode && <Badge variant="sport" size="sm">{ev.sportCode}</Badge>}
+                        <div className="text-xs text-muted-foreground truncate">
+                          {formatDate(ev.startsAt)}
+                          {ev.rawLocationText ? ` \u00b7 ${ev.rawLocationText}` : ""}
+                          {ev.location ? ` \u00b7 ${ev.location.name}` : ""}
                         </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {ev.isHome === true && <Badge variant="gray" size="sm">HOME</Badge>}
+                        {ev.isHome === false && <Badge variant="gray" size="sm">AWAY</Badge>}
+                        {ev.isHome === null && ev.opponent && <Badge variant="gray" size="sm">NEUTRAL</Badge>}
+                        {ev.sportCode && <Badge variant="sport" size="sm">{ev.sportCode}</Badge>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

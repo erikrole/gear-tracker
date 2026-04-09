@@ -21,7 +21,7 @@ export type BookingItem = {
   event?: { id: string; summary: string; sportCode: string | null; opponent: string | null; isHome: boolean | null } | null;
 };
 
-export type FormUser = { id: string; name: string };
+export type FormUser = { id: string; name: string; avatarUrl?: string | null };
 export type Location = { id: string; name: string };
 
 export type CalendarEvent = {
