@@ -91,7 +91,7 @@ export function useItemsQuery(deps: QueryDeps) {
   const { data: response, isLoading, isFetching, isError, refetch } = useQuery<AssetsResponse>({
     queryKey,
     queryFn: ({ signal }) => fetchAssets(url, signal),
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
   });
 
   // Toast on background refresh failure
