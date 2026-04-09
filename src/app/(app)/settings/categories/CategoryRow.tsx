@@ -111,7 +111,7 @@ export default function CategoryRow({
 
   return (
     <>
-      <div className="flex items-center justify-between py-3 px-4 border-b border-[var(--border-light)] min-h-12 last:border-b-0 hover:bg-[var(--panel-hover)] max-md:!pl-3 max-md:!pr-3" style={{ paddingLeft: depth > 0 ? 24 + depth * 24 : 16 }}>
+      <div className="flex items-center justify-between py-3 px-4 border-b border-border min-h-12 last:border-b-0 hover:bg-muted max-md:!pl-3 max-md:!pr-3" style={{ paddingLeft: depth > 0 ? 24 + depth * 24 : 16 }}>
         <div className="flex items-center text-base min-w-0" style={{ fontWeight: isChild ? 400 : 600 }}>
           {isChild && <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />}
           {renaming ? (
@@ -156,7 +156,7 @@ export default function CategoryRow({
       </div>
 
       {addingSub && (
-        <div className="flex items-center justify-between py-3 px-4 border-b border-[var(--border-light)] min-h-12 last:border-b-0 hover:bg-[var(--panel-hover)]" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
+        <div className="flex items-center justify-between py-3 px-4 border-b border-border min-h-12 last:border-b-0 hover:bg-muted" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
           <div className="flex items-center text-base min-w-0">
             <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />
             <input

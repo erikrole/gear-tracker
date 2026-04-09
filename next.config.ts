@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  experimental: {
+    optimizePackageImports: ["date-fns", "motion"],
+  },
   images: {
     remotePatterns: [
       {

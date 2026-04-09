@@ -38,21 +38,21 @@ export function CheckinSummaryDialog({
         </DialogHeader>
 
         <div className="space-y-3 py-2">
-          <div className="flex items-center justify-between rounded-lg border border-[var(--border-primary)] p-3">
-            <span className="text-sm text-[var(--muted)]">Items returned</span>
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <span className="text-sm text-muted-foreground">Items returned</span>
             <Badge variant="green">{counts.returned}</Badge>
           </div>
 
           {counts.damaged > 0 && (
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-primary)] p-3">
-              <span className="text-sm text-[var(--muted)]">Reported damaged</span>
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <span className="text-sm text-muted-foreground">Reported damaged</span>
               <Badge variant="orange">{counts.damaged}</Badge>
             </div>
           )}
 
           {counts.lost > 0 && (
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border-primary)] p-3">
-              <span className="text-sm text-[var(--muted)]">Reported lost</span>
+            <div className="flex items-center justify-between rounded-lg border border-border p-3">
+              <span className="text-sm text-muted-foreground">Reported lost</span>
               <Badge variant="red">{counts.lost}</Badge>
             </div>
           )}

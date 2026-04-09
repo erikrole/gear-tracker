@@ -238,7 +238,6 @@ export function useScheduleData(): UseScheduleDataResult {
   const { data: tradeCount = 0, refetch: refetchTrades } = useQuery({
     queryKey: ["shift-trades", "OPEN", "count"],
     queryFn: fetchTradeCount,
-    refetchOnWindowFocus: true,
   });
 
   // --- React Query: my shift hours ---
@@ -246,7 +245,6 @@ export function useScheduleData(): UseScheduleDataResult {
     queryKey: ["shifts", "my-hours"],
     queryFn: fetchMyHours,
     staleTime: 5 * 60_000,
-    refetchOnWindowFocus: true,
   });
 
   // --- React Query: schedule entries ---
@@ -256,7 +254,6 @@ export function useScheduleData(): UseScheduleDataResult {
   const { data: entries = [], isLoading, error: scheduleError, refetch: refetchSchedule } = useQuery({
     queryKey: scheduleQueryKey,
     queryFn: ({ signal }) => fetchSchedule(eventsUrl, groupsUrl, signal),
-    refetchOnWindowFocus: true,
   });
 
   // Classify error — only show error screen when no cached data

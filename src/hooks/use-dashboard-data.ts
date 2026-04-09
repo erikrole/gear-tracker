@@ -60,7 +60,7 @@ export function useDashboardData(): UseDashboardDataResult {
   } = useQuery<DashboardData>({
     queryKey: DASHBOARD_KEY,
     queryFn: ({ signal }) => fetchDashboard(signal),
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60_000,
   });
 
   // Toast on background refresh failure
