@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { CategoryCombobox } from "@/components/FormCombobox";
@@ -338,6 +338,7 @@ function SaveableCategoryField({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newCatName.trim() }),
       });
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
         onCategoriesChanged();
@@ -455,6 +456,7 @@ export function QRModal({
       const res = await fetch(`/api/assets/${asset.id}/generate-qr`, {
         method: "POST",
       });
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed");
         setError(msg);
@@ -478,6 +480,7 @@ export function QRModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ qrCodeValue: qrDraft.trim() }),
     });
+    if (handleAuthRedirect(res)) return;
     if (!res.ok) {
       const msg = await parseErrorMessage(res, "Failed");
       setError(msg);
@@ -614,6 +617,7 @@ export default function ItemInfoCard({
         body: JSON.stringify(body),
       });
 
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Save failed");
         throw new Error(msg);
@@ -640,14 +644,12 @@ export default function ItemInfoCard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ categoryId: categoryId || null }),
     });
-    if (!res.ok) {
-      throw new Error("Failed to save category");
-    }
+    if (handleAuthRedirect(res)) return;
+    if (!res.ok) throw new Error("Failed to save category");
     onRefresh();
   }
 
   async function saveDepartment(departmentName: string) {
-    // Find department by name
     const dept = departments.find((d) => d.name === departmentName);
     const departmentId = dept?.id || null;
     const res = await fetch(`/api/assets/${asset.id}`, {
@@ -655,9 +657,8 @@ export default function ItemInfoCard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ departmentId }),
     });
-    if (!res.ok) {
-      throw new Error("Failed to save department");
-    }
+    if (handleAuthRedirect(res)) return;
+    if (!res.ok) throw new Error("Failed to save department");
     onRefresh();
   }
 
@@ -667,9 +668,8 @@ export default function ItemInfoCard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locationId }),
     });
-    if (!res.ok) {
-      throw new Error("Failed to save location");
-    }
+    if (handleAuthRedirect(res)) return;
+    if (!res.ok) throw new Error("Failed to save location");
     onRefresh();
   }
 

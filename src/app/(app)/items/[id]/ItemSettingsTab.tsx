@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +67,7 @@ export function AccessoriesSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ childAssetId: childId }),
       });
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success("Accessory attached");
         setAttaching(false);
@@ -92,6 +93,7 @@ export function AccessoriesSection({
     if (!ok) return;
     try {
       const res = await fetch(`/api/assets/${childId}/accessories`, { method: "DELETE" });
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success("Accessory detached");
         onRefresh();

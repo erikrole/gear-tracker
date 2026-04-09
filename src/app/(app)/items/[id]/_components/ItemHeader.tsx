@@ -188,8 +188,8 @@ export function ItemHeader({
               )}
             </button>
           ) : canEdit ? (
-            <button className="relative rounded-lg border border-dashed border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 cursor-pointer hover:border-[var(--accent)] hover:bg-[var(--accent-soft)] aspect-square size-[120px]" onClick={onImageModalOpen} title="Add image" aria-label="Add image">
-              <ImageIcon className="size-8 text-[var(--text-tertiary)]" />
+            <button className="relative rounded-lg border border-dashed border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center p-0 cursor-pointer hover:border-primary hover:bg-primary/10 aspect-square size-[120px]" onClick={onImageModalOpen} title="Add image" aria-label="Add image">
+              <ImageIcon className="size-8 text-muted-foreground" />
             </button>
           ) : null}
           <div className="min-w-0 flex-1">
@@ -201,7 +201,7 @@ export function ItemHeader({
                 className="text-2xl font-bold tracking-tight"
               />
               {asset.metadata?.uwAssetTag && (
-                <span className="text-base text-secondary font-medium">
+                <span className="text-base text-muted-foreground font-medium">
                   UW {asset.metadata.uwAssetTag}
                 </span>
               )}
@@ -210,7 +210,7 @@ export function ItemHeader({
               value={asset.name || ""}
               canEdit={canEdit}
               onSave={(v) => onSaveHeaderField("name", v)}
-              className="text-base text-secondary mt-2 block"
+              className="text-base text-muted-foreground mt-2 block"
               placeholder="Add item name"
             />
           </div>

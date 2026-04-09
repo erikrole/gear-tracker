@@ -154,7 +154,7 @@ export default function ItemDetailsPage() {
         {/* Tabs skeleton */}
         <Skeleton className="h-9 w-full max-w-[500px] mb-14" />
         {/* Content skeleton */}
-        <div className="details-grid mt-0">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 mt-0">
           <Card className="details-card">
             <CardHeader>
               <Skeleton className="h-6 w-40" />
@@ -237,7 +237,7 @@ export default function ItemDetailsPage() {
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
         <>
-          <div className="details-grid mt-3.5">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 mt-3.5">
             <ItemInfoCard
               asset={asset}
               canEdit={canEdit}

@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Label } from "@/components/ui/label";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { handleAuthRedirect } from "@/lib/errors";
 import {
   Table,
   TableBody,
@@ -236,6 +237,7 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ [t.field]: !t.value }),
               });
+              if (handleAuthRedirect(res)) return;
               if (!res.ok) throw new Error();
               onRefresh();
             }}

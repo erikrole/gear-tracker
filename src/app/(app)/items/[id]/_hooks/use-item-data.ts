@@ -98,7 +98,8 @@ export default function useItemData(id: string): UseItemDataReturn {
       .finally(() => {
         if (!controller.signal.aborted) setRefreshing(false);
       });
-  }, [id, toast, setBreadcrumbLabel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, setBreadcrumbLabel]);
 
   const loadCategories = useCallback(() => {
     fetch("/api/categories")
