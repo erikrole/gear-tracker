@@ -98,12 +98,12 @@ export function ScanLookup({ countdown, onBack }: Props) {
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b">
         <Button variant="ghost" size="lg" onClick={onBack} className="gap-2 text-lg">
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="size-5" />
           Back
         </Button>
         <h1 className="text-xl font-semibold">Scan / Lookup</h1>
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Clock className="h-4 w-4" />
+          <Clock className="size-4" />
           <span className="font-mono">{countdown}</span>
         </div>
       </div>

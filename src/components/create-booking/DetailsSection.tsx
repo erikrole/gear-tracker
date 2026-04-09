@@ -71,9 +71,9 @@ export function DetailsSection({
         </button>
       </AccordionTrigger>
       <AccordionContent>
-        <div className="space-y-3 px-6 py-4">
+        <div className="flex flex-col gap-3 px-6 py-4">
           {/* Title */}
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <Label>
               Booking name{form.tieToEvent && form.selectedEvent ? " (auto-filled from event)" : ""}
             </Label>
@@ -87,7 +87,7 @@ export function DetailsSection({
 
           {/* Sport (when not tied to event) */}
           {!form.tieToEvent && (
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <Label>Sport (optional)</Label>
               <Select
                 value={form.sport || "__none__"}
@@ -109,7 +109,7 @@ export function DetailsSection({
           )}
 
           {/* Requester */}
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <Label>{config.requesterLabel}</Label>
             <Select value={form.requester} onValueChange={(v) => dispatch({ type: "SET_REQUESTER", value: v })} required>
               <SelectTrigger>
@@ -126,7 +126,7 @@ export function DetailsSection({
           </div>
 
           {/* Location */}
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <Label>Location</Label>
             <Select
               value={form.locationId}
@@ -148,7 +148,7 @@ export function DetailsSection({
 
           {/* Kit (optional) */}
           {kits.length > 0 && (
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <Label className="flex items-center gap-1.5">
                 <BoxesIcon className="size-3.5" />
                 Kit (optional)
@@ -174,7 +174,7 @@ export function DetailsSection({
 
           {/* Dates */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <Label>{config.startLabel}</Label>
               <DateTimePicker
                 value={form.startsAt ? new Date(form.startsAt) : undefined}
@@ -182,7 +182,7 @@ export function DetailsSection({
                 placeholder="Start date & time"
               />
             </div>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <Label>{config.endLabel}</Label>
               <DateTimePicker
                 value={form.endsAt ? new Date(form.endsAt) : undefined}

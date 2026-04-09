@@ -7,6 +7,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { ChevronDown, X } from "lucide-react";
 
 export function FilterChip({
@@ -55,20 +62,24 @@ export function FilterChip({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={4} className="w-auto min-w-[140px] max-h-[240px] overflow-y-auto p-1">
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={`flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-hidden select-none cursor-default hover:bg-accent hover:text-accent-foreground ${opt.value === value ? "bg-accent text-accent-foreground font-medium" : ""}`}
-            onClick={() => { onSelect(opt.value); setOpen(false); }}
-          >
-            {opt.label}
-          </button>
-        ))}
-        {options.length === 0 && (
-          <div className="px-2 py-1.5 text-sm text-muted-foreground">No options</div>
-        )}
+      <PopoverContent align="start" sideOffset={4} className="w-auto min-w-[140px] p-0">
+        <Command>
+          <CommandList className="max-h-[240px]">
+            <CommandEmpty>No options</CommandEmpty>
+            <CommandGroup>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  onSelect={() => { onSelect(opt.value); setOpen(false); }}
+                  className={opt.value === value ? "font-medium" : ""}
+                >
+                  {opt.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );

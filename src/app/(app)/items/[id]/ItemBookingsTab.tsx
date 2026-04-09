@@ -395,7 +395,7 @@ export function BookingKindTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-gray-400"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-[var(--green)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>
@@ -634,7 +634,7 @@ export function BookingsTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-gray-400"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-[var(--green)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>

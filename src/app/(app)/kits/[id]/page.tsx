@@ -10,13 +10,13 @@ import {
   PlusIcon,
   Trash2Icon,
   SearchIcon,
-  Loader2,
   ArchiveIcon,
   ArchiveRestoreIcon,
   ArrowLeftIcon,
   XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -313,13 +313,13 @@ export default function KitDetailPage() {
           <Skeleton className="h-8 w-48" />
         </div>
         <div className="grid gap-4">
-          <Card className="p-6 space-y-4">
+          <Card className="flex flex-col gap-4 p-6">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-20 w-full" />
           </Card>
-          <Card className="p-6 space-y-3">
+          <Card className="flex flex-col gap-3 p-6">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />
             ))}
@@ -349,22 +349,22 @@ export default function KitDetailPage() {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" aria-label="Back to kits" onClick={() => router.push("/kits")}>
-            <ArrowLeftIcon className="h-4 w-4" />
+            <ArrowLeftIcon className="size-4" />
           </Button>
-          <BoxIcon className="h-5 w-5 text-muted-foreground" />
+          <BoxIcon className="size-5 text-muted-foreground" />
           <h1>{kit.name}</h1>
           {!kit.active && <Badge variant="outline">Archived</Badge>}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleToggleActive}>
             {kit.active ? (
-              <><ArchiveIcon className="mr-2 h-4 w-4" />Archive</>
+              <><ArchiveIcon className="mr-2 size-4" />Archive</>
             ) : (
-              <><ArchiveRestoreIcon className="mr-2 h-4 w-4" />Restore</>
+              <><ArchiveRestoreIcon className="mr-2 size-4" />Restore</>
             )}
           </Button>
           <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2Icon className="mr-2 h-4 w-4" />Delete
+            <Trash2Icon className="mr-2 size-4" />Delete
           </Button>
         </div>
       </div>
@@ -375,7 +375,7 @@ export default function KitDetailPage() {
           <CardHeader>
             <CardTitle className="text-base">Kit Info</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="flex flex-col gap-1">
             <SaveableField label="Name" status={saveName.status} htmlFor="kit-name">
               <Input
                 id="kit-name"
@@ -413,11 +413,11 @@ export default function KitDetailPage() {
               Equipment ({kit.members.length} item{kit.members.length !== 1 ? "s" : ""})
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             {/* Add member search */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="relative">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
                   placeholder="Search items to add…"
                   value={addSearch}
@@ -429,13 +429,13 @@ export default function KitDetailPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     onClick={() => { setAddSearch(""); setSearchResults([]); }}
                   >
-                    <XIcon className="h-4 w-4" />
+                    <XIcon className="size-4" />
                   </button>
                 )}
               </div>
               {searching && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+                  <Spinner className="size-3.5" /> Searching…
                 </div>
               )}
               {searchResults.length > 0 && (
@@ -458,9 +458,9 @@ export default function KitDetailPage() {
                         onClick={() => handleAddMember(asset.id)}
                       >
                         {addingIds.has(asset.id) ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <Spinner className="size-3.5" />
                         ) : (
-                          <><PlusIcon className="h-3.5 w-3.5 mr-1" />Add</>
+                          <><PlusIcon className="size-3.5 mr-1" />Add</>
                         )}
                       </Button>
                     </div>
@@ -512,14 +512,14 @@ export default function KitDetailPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                className="size-8 text-muted-foreground hover:text-destructive"
                                 disabled={removingId === member.id}
                                 onClick={() => setRemoveTarget(member)}
                               >
                                 {removingId === member.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <Spinner />
                                 ) : (
-                                  <Trash2Icon className="h-4 w-4" />
+                                  <Trash2Icon className="size-4" />
                                 )}
                               </Button>
                             </TableCell>
@@ -566,7 +566,7 @@ export default function KitDetailPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              className="size-7 p-0 text-muted-foreground hover:text-destructive"
                               onClick={async () => {
                                 try {
                                   await fetch(`/api/kits/${kit.id}/bulk-members?membershipId=${bm.id}`, { method: "DELETE" });
@@ -577,7 +577,7 @@ export default function KitDetailPage() {
                                 }
                               }}
                             >
-                              <Trash2Icon className="h-3.5 w-3.5" />
+                              <Trash2Icon className="size-3.5" />
                             </Button>
                           )}
                         </TableCell>
@@ -631,7 +631,7 @@ export default function KitDetailPage() {
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleting && <Spinner data-icon="inline-start" />}
               Delete Kit
             </AlertDialogAction>
           </AlertDialogFooter>

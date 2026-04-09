@@ -88,7 +88,7 @@ export default function BookingOverview({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* Conflict error banner */}
       {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
         <Alert variant="destructive">
@@ -199,7 +199,7 @@ export default function BookingOverview({
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-auto p-3">
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <label className="text-xs font-medium text-muted-foreground">Extend to</label>
                   <Input
                     type="datetime-local"

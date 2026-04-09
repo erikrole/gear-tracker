@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, ChevronsUpDown, ClockIcon, Loader2, X } from "lucide-react";
+import { Check, ChevronsUpDown, ClockIcon, X } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -608,7 +609,7 @@ export default function UserInfoTab({
                 <Input id="newPassword" name="newPassword" type="password" required minLength={8} disabled={savingPassword} />
               </div>
               <Button type="submit" disabled={savingPassword} className="w-fit">
-                {savingPassword && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+                {savingPassword && <Spinner data-icon="inline-start" />}
                 {savingPassword ? "Updating..." : "Update password"}
               </Button>
             </form>

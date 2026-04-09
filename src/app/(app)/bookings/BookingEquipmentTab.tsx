@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
+import { useToast } from "@/components/Toast";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 
 type ConflictInfo = {
@@ -34,6 +35,7 @@ export default function BookingEquipmentTab({
   onCheckinBulk?: (bulkItemId: string, quantity: number) => Promise<boolean>;
   actionLoading?: string | null;
 }) {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const isCheckout = booking.kind === "CHECKOUT";
 
@@ -102,8 +104,9 @@ export default function BookingEquipmentTab({
       setConflicts(map);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
+      toast("Failed to check equipment conflicts — try refreshing.", "error");
     }
-  }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems]);
+  }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems, toast]);
 
   useEffect(() => {
     fetchConflicts();
@@ -268,7 +271,7 @@ function SerializedRow({
           </Badge>
         )}
         {returned && (
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">
+          <span className="text-xs font-medium text-[var(--green-text)]">
             Returned
           </span>
         )}
@@ -346,7 +349,7 @@ function BulkRow({
       {/* Status + Return All button */}
       <div className="shrink-0 flex items-center gap-2">
         {allReturned ? (
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">
+          <span className="text-xs font-medium text-[var(--green-text)]">
             Returned
           </span>
         ) : canReturn ? (

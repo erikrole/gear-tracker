@@ -81,7 +81,7 @@ export default function BookingEquipmentEditor({
 
       {/* Current serialized items */}
       {editSerializedIds.length > 0 && (
-        <div className="px-5 py-4 space-y-1">
+        <div className="px-5 py-4 flex flex-col gap-1">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Serialized Items ({editSerializedIds.length})
           </div>
@@ -98,7 +98,7 @@ export default function BookingEquipmentEditor({
 
       {/* Current bulk items with qty steppers */}
       {editBulkItems.length > 0 && (
-        <div className="px-5 py-4 space-y-1">
+        <div className="px-5 py-4 flex flex-col gap-1">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Bulk Items ({editBulkItems.length})
           </div>
@@ -116,7 +116,7 @@ export default function BookingEquipmentEditor({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-none border-r border-border"
+                    className="size-8 rounded-none border-r border-border"
                     aria-label={`Decrease quantity for ${resolveSkuName(item.bulkSkuId)}`}
                     disabled={item.quantity <= 1}
                     onClick={() => onUpdateBulkQty(item.bulkSkuId, Math.max(1, item.quantity - 1))}
@@ -138,7 +138,7 @@ export default function BookingEquipmentEditor({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-none border-l border-border"
+                    className="size-8 rounded-none border-l border-border"
                     aria-label={`Increase quantity for ${resolveSkuName(item.bulkSkuId)}`}
                     disabled={item.quantity >= maxQty}
                     onClick={() => onUpdateBulkQty(item.bulkSkuId, Math.min(maxQty, item.quantity + 1))}
@@ -149,7 +149,7 @@ export default function BookingEquipmentEditor({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  className="size-8 text-destructive hover:text-destructive"
                   aria-label={`Remove ${resolveSkuName(item.bulkSkuId)}`}
                   onClick={() => onRemoveBulkItem(item.bulkSkuId)}
                 >
@@ -171,7 +171,7 @@ export default function BookingEquipmentEditor({
             + Add items
           </Button>
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <ToggleGroup
               type="single"
               value={pickerTab}

@@ -80,8 +80,8 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                   />
                 </div>
               ) : (
-                <div className="mx-auto mb-3 flex h-28 w-28 items-center justify-center rounded-xl border bg-muted">
-                  <ScanIcon className="h-10 w-10 text-muted-foreground" />
+                <div className="mx-auto mb-3 flex size-28 items-center justify-center rounded-xl border bg-muted">
+                  <ScanIcon className="size-10 text-muted-foreground" />
                 </div>
               )}
 
@@ -107,11 +107,11 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                       <img
                         src={item.activeBooking!.requesterAvatarUrl}
                         alt={item.activeBooking!.requesterName}
-                        className="h-10 w-10 shrink-0 rounded-full object-cover"
+                        className="size-10 shrink-0 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                        <UserIcon className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <UserIcon className="size-5 text-muted-foreground" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                         {item.activeBooking!.title}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                        <CalendarIcon className="h-3 w-3" />
+                        <CalendarIcon className="size-3" />
                         {new Date(item.activeBooking!.startsAt).toLocaleDateString()}{" "}
                         &ndash;{" "}
                         {new Date(item.activeBooking!.endsAt).toLocaleDateString()}
@@ -166,7 +166,7 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
               </Button>
               <Button className="flex-1" variant="secondary" asChild>
                 <Link href={`/items/${item.id}`}>
-                  <ExternalLinkIcon className="mr-1.5 h-4 w-4" />
+                  <ExternalLinkIcon className="mr-1.5 size-4" />
                   View Details
                 </Link>
               </Button>

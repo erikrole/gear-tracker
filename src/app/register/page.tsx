@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, EyeIcon, EyeOffIcon, Loader2, WifiOff } from "lucide-react";
+import { AlertCircle, EyeIcon, EyeOffIcon, WifiOff } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -191,7 +192,7 @@ export default function RegisterPage() {
             <Button type="submit" className="w-full h-11 text-base font-semibold transition-all" disabled={submitting}>
               {submitting ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <Spinner data-icon="inline-start" />
                   Creating account...
                 </>
               ) : "Create account"}

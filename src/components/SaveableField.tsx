@@ -56,7 +56,7 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
       className={cn(
         "inline-flex items-center gap-1 text-xs shrink-0 transition-opacity duration-300",
         status === "saving" && "text-muted-foreground",
-        status === "saved" && "text-green-600 dark:text-green-400",
+        status === "saved" && "text-[var(--green-text)]",
         status === "error" && "text-destructive",
       )}
     >

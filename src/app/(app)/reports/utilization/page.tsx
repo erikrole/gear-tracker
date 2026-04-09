@@ -174,7 +174,7 @@ export default function UtilizationPage() {
   if (error && !data) {
     return (
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        <AlertCircle className="size-4" />
         <AlertTitle>Failed to load utilization report</AlertTitle>
         <AlertDescription className="flex items-center gap-3">
           <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load utilization report. Please try again."}</span>
@@ -191,8 +191,8 @@ export default function UtilizationPage() {
       <div className="flex items-center mb-1 justify-end gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={reload}>
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <Button variant="ghost" size="icon" className="size-8" onClick={reload}>
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </TooltipTrigger>
           <TooltipContent>

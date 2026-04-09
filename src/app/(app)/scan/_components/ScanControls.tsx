@@ -50,7 +50,7 @@ export function ScanControls({
             />
           </div>
           <button
-            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 text-white border-none flex items-center justify-center cursor-pointer z-[1] [-webkit-tap-highlight-color:transparent]"
+            className="absolute top-2 right-2 size-8 rounded-full bg-black/50 text-white border-none flex items-center justify-center cursor-pointer z-[1] [-webkit-tap-highlight-color:transparent]"
             onClick={() => {
               setScanning(false);
               setCameraError("");

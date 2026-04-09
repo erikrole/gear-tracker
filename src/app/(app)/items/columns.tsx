@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { STATUS_STYLES, statusColor, type StatusColor } from "@/lib/status-styles";
 
 export type ActiveBooking = {
   id: string;
@@ -49,35 +50,7 @@ export type Asset = {
   _count?: { accessories: number };
 };
 
-/** Status badge color map — dot + tinted background pattern (badge-18 style) */
-const STATUS_STYLES = {
-  green: {
-    badge: "border-none bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400",
-    dot: "bg-green-600 dark:bg-green-400",
-  },
-  blue: {
-    badge: "border-none bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400",
-    dot: "bg-blue-600 dark:bg-blue-400",
-  },
-  red: {
-    badge: "border-none bg-red-600/10 text-red-600 dark:bg-red-400/10 dark:text-red-400",
-    dot: "bg-red-600 dark:bg-red-400",
-  },
-  purple: {
-    badge: "border-none bg-purple-600/10 text-purple-600 dark:bg-purple-400/10 dark:text-purple-400",
-    dot: "bg-purple-600 dark:bg-purple-400",
-  },
-  orange: {
-    badge: "border-none bg-amber-600/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400",
-    dot: "bg-amber-600 dark:bg-amber-400",
-  },
-  gray: {
-    badge: "border-none bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground",
-  },
-} as const;
-
-function StatusDot({ color }: { color: keyof typeof STATUS_STYLES }) {
+function StatusDot({ color }: { color: StatusColor }) {
   return (
     <span
       className={`size-1.5 rounded-full ${STATUS_STYLES[color].dot}`}

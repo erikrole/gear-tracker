@@ -21,6 +21,8 @@ import {
   CommandItem,
   CommandSeparator,
 } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
+import { STATUS_STYLES } from "@/lib/status-styles";
 
 type User = { id: string; name: string; email: string; role: string; avatarUrl?: string | null };
 
@@ -258,18 +260,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {cmdResults.filter((r) => r.type === "item").map((r) => {
                 const status = r.computedStatus ?? "AVAILABLE";
                 const isOverdue = r.activeBooking?.isOverdue ?? false;
-                const dotColor = isOverdue ? "bg-red-600"
-                  : status === "CHECKED_OUT" ? "bg-[var(--blue)]"
-                  : status === "RESERVED" ? "bg-[var(--purple)]"
-                  : status === "MAINTENANCE" ? "bg-[var(--orange)]"
-                  : status === "RETIRED" ? "bg-[var(--text-muted)]"
-                  : "bg-[var(--green)]";
-                const badgeStyle = isOverdue ? "bg-red-600/12 text-red-600"
-                  : status === "CHECKED_OUT" ? "bg-blue-500/12 text-blue-600"
-                  : status === "RESERVED" ? "bg-purple-500/12 text-purple-600"
-                  : status === "MAINTENANCE" ? "bg-amber-500/12 text-amber-600"
-                  : status === "RETIRED" ? "bg-neutral-400/12 text-[var(--text-muted)]"
-                  : "bg-green-500/12 text-green-600";
+                const dotColor = isOverdue ? STATUS_STYLES.red.dot
+                  : status === "CHECKED_OUT" ? STATUS_STYLES.blue.dot
+                  : status === "RESERVED" ? STATUS_STYLES.purple.dot
+                  : status === "MAINTENANCE" ? STATUS_STYLES.orange.dot
+                  : status === "RETIRED" ? STATUS_STYLES.gray.dot
+                  : STATUS_STYLES.green.dot;
+                const badgeStyle = isOverdue ? STATUS_STYLES.red.badge
+                  : status === "CHECKED_OUT" ? STATUS_STYLES.blue.badge
+                  : status === "RESERVED" ? STATUS_STYLES.purple.badge
+                  : status === "MAINTENANCE" ? STATUS_STYLES.orange.badge
+                  : status === "RETIRED" ? STATUS_STYLES.gray.badge
+                  : STATUS_STYLES.green.badge;
                 const dueLabel = r.activeBooking?.endsAt
                   ? ` · Due ${new Date(r.activeBooking.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                   : "";
@@ -285,7 +287,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="min-w-0">
                       <div className="truncate font-medium">{r.title}</div>
                       <div className="mt-0.5">
-                        <span className={`inline-block text-[11px] font-medium leading-none px-2 py-[3px] rounded-full ${badgeStyle}`}>{statusLabel}</span>
+                        <Badge className={badgeStyle} size="sm">{statusLabel}</Badge>
                       </div>
                     </div>
                   </CommandItem>
@@ -403,7 +405,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <Link href="/notifications" aria-label={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : "Notifications"}>
                     <BellIcon className="size-5" />
                     {unreadNotifications > 0 && (
-                      <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+                      <span className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
                     )}
                   </Link>
                 </Button>

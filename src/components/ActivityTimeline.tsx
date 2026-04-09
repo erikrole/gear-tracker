@@ -182,18 +182,12 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
 };
 
 const RING_CLASSES: Record<ActionColorKey, string> = {
-  green:
-    "ring-emerald-400/50 dark:ring-emerald-500/40",
-  blue:
-    "ring-blue-400/50 dark:ring-blue-500/40",
-  amber:
-    "ring-amber-400/50 dark:ring-amber-500/40",
-  rose:
-    "ring-rose-400/50 dark:ring-rose-500/40",
-  purple:
-    "ring-purple-400/50 dark:ring-purple-500/40",
-  muted:
-    "ring-border",
+  green:  "ring-[var(--green)]/40",
+  blue:   "ring-[var(--blue)]/40",
+  amber:  "ring-[var(--orange)]/40",
+  rose:   "ring-[var(--red)]/40",
+  purple: "ring-[var(--purple)]/40",
+  muted:  "ring-border",
 };
 
 /** Generate a natural-language description of an action */
@@ -494,11 +488,11 @@ function formatTimestamp(iso: string, today: Date): string {
 
 function TimelineSkeleton() {
   return (
-    <div className="space-y-4 p-4">
+    <div className="flex flex-col gap-4 p-4">
       {Array.from({ length: 5 }, (_, i) => (
         <div key={i} className="flex gap-3 items-start">
           <Skeleton className="size-8 rounded-full shrink-0" />
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 flex flex-col gap-2">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
           </div>

@@ -40,6 +40,7 @@ import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { useIsMobile } from "./hooks/use-media-query";
 import { Badge } from "@/components/ui/badge";
+import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 
@@ -315,13 +316,13 @@ export default function ItemsPage() {
         <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground flex-wrap">
           <span className="font-medium text-foreground">{query.total} items</span>
           {query.statusBreakdown.checkedOut > 0 && (
-            <Badge className="border-none bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400 font-normal">{query.statusBreakdown.checkedOut} checked out</Badge>
+            <Badge className={`${STATUS_STYLES.blue.badge} font-normal`}>{query.statusBreakdown.checkedOut} checked out</Badge>
           )}
           {query.statusBreakdown.reserved > 0 && (
-            <Badge className="border-none bg-purple-600/10 text-purple-600 dark:bg-purple-400/10 dark:text-purple-400 font-normal">{query.statusBreakdown.reserved} reserved</Badge>
+            <Badge className={`${STATUS_STYLES.purple.badge} font-normal`}>{query.statusBreakdown.reserved} reserved</Badge>
           )}
           {query.statusBreakdown.maintenance > 0 && (
-            <Badge className="border-none bg-amber-600/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400 font-normal">{query.statusBreakdown.maintenance} maintenance</Badge>
+            <Badge className={`${STATUS_STYLES.orange.badge} font-normal`}>{query.statusBreakdown.maintenance} maintenance</Badge>
           )}
           {query.statusBreakdown.retired > 0 && (
             <Badge variant="secondary" className="font-normal">{query.statusBreakdown.retired} retired</Badge>
@@ -338,7 +339,7 @@ export default function ItemsPage() {
         onCreated={query.reload}
       />
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {query.loading ? (
           <>
           {/* Desktop skeleton table */}
@@ -359,7 +360,7 @@ export default function ItemsPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Skeleton className="size-9 rounded-md shrink-0" />
-                        <div className="space-y-1.5 flex-1">
+                        <div className="flex flex-col gap-1.5 flex-1">
                           <Skeleton className="h-4" style={{ width: `${55 + (r % 3) * 15}%` }} />
                           <Skeleton className="h-3" style={{ width: `${35 + (r % 4) * 10}%` }} />
                         </div>
@@ -379,7 +380,7 @@ export default function ItemsPage() {
             {Array.from({ length: 5 }, (_, r) => (
               <div key={r} className="flex items-start gap-3 px-3 py-3 border-b last:border-b-0">
                 <Skeleton className="size-10 rounded-md shrink-0" />
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 flex flex-col gap-2">
                   <Skeleton className="h-4" style={{ width: `${50 + (r % 3) * 15}%` }} />
                   <Skeleton className="h-3" style={{ width: `${35 + (r % 4) * 10}%` }} />
                   <div className="flex items-center gap-2">
