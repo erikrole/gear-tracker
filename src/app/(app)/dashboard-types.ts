@@ -51,6 +51,7 @@ export type EventSummary = {
   opponent: string | null;
   isHome: boolean | null;
   totalShiftSlots: number;
+  filledShiftSlots: number;
   assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null; area: string | null }>;
 };
 

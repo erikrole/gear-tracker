@@ -212,7 +212,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                   </span>
                 </a>
                 <div className="event-row-right">
-                  <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} />
+                  <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} filledSlots={e.filledShiftSlots} />
                   {e.isHome === true && <Badge variant="green">Home</Badge>}
                   {e.isHome === false && <Badge variant="red">Away</Badge>}
                   {e.isHome === null && e.opponent && <Badge variant="blue">Neutral</Badge>}

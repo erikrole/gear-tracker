@@ -39,9 +39,9 @@ const AREA_LABELS: Record<string, string> = {
   COMMS: "Comms",
 };
 
-export function ShiftAvatarStack({ assignedUsers, totalSlots }: { assignedUsers: EventSummary["assignedUsers"]; totalSlots: number }) {
+export function ShiftAvatarStack({ assignedUsers, totalSlots, filledSlots }: { assignedUsers: EventSummary["assignedUsers"]; totalSlots: number; filledSlots: number }) {
   if (totalSlots === 0) return null;
-  const emptySlots = Math.max(0, totalSlots - assignedUsers.length);
+  const emptySlots = Math.max(0, totalSlots - filledSlots);
   const maxShow = 5;
   const showUsers = assignedUsers.slice(0, maxShow);
   const showEmpty = Math.min(emptySlots, maxShow - showUsers.length);

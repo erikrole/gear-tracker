@@ -159,6 +159,7 @@ export const GET = withAuth(async (_req, { user }) => {
       where: {
         startsAt: { gte: now, lte: sevenDaysFromNow },
         status: "CONFIRMED",
+        isHidden: false,
       },
       orderBy: { startsAt: "asc" },
       take: 20,
@@ -335,6 +336,7 @@ export const GET = withAuth(async (_req, { user }) => {
     // Collect assigned users across all shifts (include shift area for tooltip)
     const shifts = e.shiftGroup?.shifts ?? [];
     const totalShiftSlots = shifts.length;
+    const filledShiftSlots = shifts.filter((s) => s.assignments.length > 0).length;
     const seenUserIds = new Set<string>();
     const assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null; area: string | null }> = [];
     for (const shift of shifts) {
@@ -363,6 +365,7 @@ export const GET = withAuth(async (_req, { user }) => {
       opponent: e.opponent ?? null,
       isHome: e.isHome ?? null,
       totalShiftSlots,
+      filledShiftSlots,
       assignedUsers,
     };
   });
