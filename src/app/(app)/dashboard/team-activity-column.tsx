@@ -73,12 +73,12 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <a href="/bookings?tab=checkouts" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
-          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Checked out</h2>
+        <a href="/bookings?tab=checkouts" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+          <h2 className="text-sm font-semibold text-foreground m-0">Checked out</h2>
           <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
         </a>
         {(filtered?.teamCheckouts ?? data.teamCheckouts.items).length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.teamCheckouts ?? data.teamCheckouts.items).map((c) => {
@@ -138,12 +138,12 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <a href="/bookings?tab=reservations" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
-          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Reserved</h2>
+        <a href="/bookings?tab=reservations" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+          <h2 className="text-sm font-semibold text-foreground m-0">Reserved</h2>
           <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
         </a>
         {(filtered?.teamReservations ?? data.teamReservations.items).length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.teamReservations ?? data.teamReservations.items).map((r) => (
@@ -177,7 +177,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       <Card>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
           <a href="/schedule" className="no-underline text-inherit hover:no-underline">
-            <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">Upcoming events</h2>
+            <h2 className="text-sm font-semibold text-foreground m-0">Upcoming events</h2>
           </a>
           <ToggleGroup
             type="single"
@@ -191,7 +191,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           </ToggleGroup>
         </div>
         {cappedEvents.length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]">
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm">
             <CalendarIcon className="size-6 opacity-40" />
             {homeAwayFilter !== "all"
               ? `No ${homeAwayFilter} events this week`

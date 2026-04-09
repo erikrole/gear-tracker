@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { handleAuthRedirect } from "@/lib/errors";
 import type { OverdueItem } from "../dashboard-types";
 import Link from "next/link";
 
@@ -31,6 +32,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
     setNudgingId(bookingId);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/nudge`, { method: "POST" });
+      if (handleAuthRedirect(res, "/")) return;
       if (!res.ok) {
         const json = await res.json().catch(() => null);
         toast.error(json?.error ?? "Failed to send nudge");
@@ -48,14 +50,14 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
   if (overdueCount === 0) return null;
 
   return (
-    <div className="bg-[var(--wi-red)] rounded-[var(--radius)] p-4 mb-4 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="bg-[var(--wi-red)] rounded-lg p-4 mb-4 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       <div className="flex items-center justify-between gap-3 mb-2.5 max-md:flex-wrap">
-        <div className="flex items-center gap-2 text-[var(--text-md)] font-semibold">
+        <div className="flex items-center gap-2 text-[15px] font-semibold">
           <AlertTriangleIcon className="shrink-0 size-[18px]" />
-          <span className="size-2 rounded-full bg-[var(--panel-solid)] shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none" />
+          <span className="size-2 rounded-full bg-background shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none" />
           <strong>{overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}</strong>
         </div>
-        <a href="/checkouts?filter=overdue" className="text-white/85 text-[var(--text-sm)] font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">Resolve all overdue &rarr;</a>
+        <a href="/checkouts?filter=overdue" className="text-white/85 text-sm font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">Resolve all overdue &rarr;</a>
       </div>
       <div className="flex flex-col gap-1.5">
         {overdueItems.map((item) => (
@@ -68,13 +70,13 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectBooking(item.bookingId); } }}
           >
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-[var(--text-sm)] font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
+              <span className="text-sm font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
               <span className="flex items-center gap-1 text-xs opacity-75 [&_[data-slot=avatar-fallback]]:bg-white/20 [&_[data-slot=avatar-fallback]]:text-white">
                 <UserAvatar name={item.requesterName} />
                 {item.requesterName}
                 {item.items.length > 0 && <> &middot; <GearAvatarStack items={item.items} totalCount={item.assetTags.length} /></>}
                 {item.items.length === 0 && item.assetTags.length > 0 && <> &middot; {item.assetTags.join(", ")}</>}
-                 &middot; <span className="text-[var(--text-3xs)] font-bold bg-white/20 px-2 py-0.5 rounded-full whitespace-nowrap">{formatOverdueElapsed(item.endsAt, now)}</span>
+                 &middot; <span className="text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full whitespace-nowrap">{formatOverdueElapsed(item.endsAt, now)}</span>
               </span>
             </div>
             <div className="flex items-center gap-1 shrink-0">

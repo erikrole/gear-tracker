@@ -10,7 +10,7 @@ export function DashboardSkeleton() {
       <PageHeader title="Dashboard" className="mb-6 max-md:mb-4" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center min-h-16 md:min-h-auto px-3 py-2 md:py-3 bg-[var(--panel)] border border-border rounded-[var(--radius)]">
+          <div key={i} className="flex flex-col items-center min-h-16 md:min-h-auto px-3 py-2 md:py-3 bg-card border border-border rounded-lg">
             <Skeleton className="h-7 w-10 mb-1" />
             <Skeleton className="h-3 w-16" />
           </div>

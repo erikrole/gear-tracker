@@ -202,18 +202,18 @@ export default function DashboardPage() {
         && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0
         && data.myReservations.length === 0 && data.drafts.length === 0 && data.myShifts.length === 0 && (
         <div className="bg-card border border-border rounded-xl p-6 mb-4 animate-[empty-fade-in_0.4s_ease-out] max-md:p-4">
-          <h2 className="font-[var(--font-heading)] text-lg font-extrabold m-0 mb-1">Welcome to Gear Tracker</h2>
+          <h2 className="font-heading text-lg font-extrabold m-0 mb-1">Welcome to Gear Tracker</h2>
           <p className="text-sm text-muted-foreground m-0 mb-4">Get started by setting up your equipment inventory.</p>
           <div className="flex gap-3 max-md:flex-col">
-            <Link href="/items" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
+            <Link href="/items" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-primary hover:bg-primary/5">
               <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">1</span>
               <span>Add equipment</span>
             </Link>
-            <Link href="/import" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
+            <Link href="/import" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-primary hover:bg-primary/5">
               <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">2</span>
               <span>Import from spreadsheet</span>
             </Link>
-            <Link href="/settings/calendar-sources" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]">
+            <Link href="/settings/calendar-sources" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-primary hover:bg-primary/5">
               <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">3</span>
               <span>Set up calendar sync</span>
             </Link>

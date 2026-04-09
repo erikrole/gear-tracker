@@ -64,12 +64,12 @@ export function MyGearColumn({
       {/* My Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <a href="/checkouts?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
-          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My checkouts</h2>
+        <a href="/checkouts?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+          <h2 className="text-sm font-semibold text-foreground m-0">My checkouts</h2>
           <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
         </a>
         {(filtered?.myCheckouts ?? data.myCheckouts.items).length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myCheckouts ?? data.myCheckouts.items).map((c) => {
@@ -129,12 +129,12 @@ export function MyGearColumn({
       {/* My Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <a href="/reservations?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
-          <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My reservations</h2>
+        <a href="/reservations?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+          <h2 className="text-sm font-semibold text-foreground m-0">My reservations</h2>
           <Badge variant="gray" size="sm">{data.myReservations.length}</Badge>
         </a>
         {(filtered?.myReservations ?? data.myReservations).length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-[var(--text-muted)] text-[var(--text-sm)]"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
+          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myReservations ?? data.myReservations).map((r) => (
@@ -184,8 +184,8 @@ export function MyGearColumn({
       {(filtered?.myShifts ?? data.myShifts).length > 0 && (
         <ScaleIn delay={0.1}>
         <Card>
-          <a href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-[var(--radius)] hover:bg-[var(--panel-hover)] hover:no-underline">
-            <h2 className="text-[var(--text-sm)] font-semibold text-foreground m-0">My shifts</h2>
+          <a href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+            <h2 className="text-sm font-semibold text-foreground m-0">My shifts</h2>
             <Badge variant="gray" size="sm">{data.myShifts.length}</Badge>
           </a>
           <CardContent className="p-0 py-1">
