@@ -382,6 +382,8 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-04-06: **Accessory operations wrapped in transactions** — Attach, move, and detach now use `$transaction` to prevent TOCTOU races (e.g., concurrent attach of same child to different parents).
 - 2026-04-06: **Export permission corrected** — `/api/assets/export` now uses `requirePermission("asset", "export")` instead of `"asset", "create"`. New `export` action added to permissions map. Same ADMIN/STAFF gate, correct semantics.
 
+- 2026-04-09: **DataTable rebuilt with standard shadcn pattern** — Removed custom column resizing (fixed layout, colgroup, mouse-drag handlers), removed mobile card view (`ItemCard` deleted — table scrolls horizontally via `overflow-x-auto`), moved toolbar/bulkBar slots above the bordered table container instead of inside it. Shimmer animation now uses global CSS keyframe instead of inline `<style>` tag. Added `aria-busy` for screen reader refresh indication. Fixed `data-state` attribute emitting `"false"` instead of `undefined`. Column size/minSize constraints removed — columns auto-size via CSS.
+
 ## Roadmaps
 - **Items list page**: `tasks/items-roadmap.md` — V1 polish, V2 enhanced UX, V3 advanced features
 - **Item details page**: `tasks/item-details-roadmap.md` — V1 hardening, V2 reduced friction, V3 predictive/proactive

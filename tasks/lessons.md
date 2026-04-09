@@ -74,6 +74,9 @@
 - **`-webkit-tap-highlight-color: transparent`** on all interactive elements. Global rule.
 - **`overscroll-behavior-y: none`** on body for native app feel on iOS.
 - **Progress component replaces custom progress bars**: Use `[&>[data-slot=progress-indicator]]:bg-color` for custom colors.
+- **No inline `<style>` tags in components**: Use global CSS keyframes or Tailwind arbitrary animation values (`animate-[name_duration_easing_iteration]`). Inline `<style>` bypasses Tailwind's purge and creates duplicate keyframe definitions.
+- **No `tableLayout: fixed` + `<colgroup>` for column sizing**: Let columns auto-size via CSS. Fixed layout causes clipping and misalignment at varying viewport widths — the root cause of "feels off" tables.
+- **Toolbar above the table border, not inside it**: shadcn data table pattern renders filter bar as a sibling div above the `rounded-md border` container, not as a sticky child inside it.
 
 ## Input Validation
 
