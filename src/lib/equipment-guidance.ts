@@ -21,8 +21,8 @@ export type GuidanceRule = {
   section: EquipmentSectionKey | null;
   /** Human-readable guidance message */
   message: string;
-  /** Severity for styling: "info" (default) or "warning" */
-  level: "info" | "warning";
+  /** Severity: "info", "warning", or "requirement" (blocks submission) */
+  level: "info" | "warning" | "requirement";
   /** Return true if this rule should be shown */
   condition: (ctx: GuidanceContext) => boolean;
 };
@@ -36,8 +36,8 @@ export const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
   {
     id: "body-needs-batteries",
     section: "batteries",
-    message: "You selected a camera body \u2014 don\u2019t forget batteries and chargers.",
-    level: "warning",
+    message: "Camera body requires batteries \u2014 add batteries before checking out.",
+    level: "requirement",
     condition: (ctx) =>
       ctx.selectedSectionKeys.includes("cameras") &&
       !ctx.selectedSectionKeys.includes("batteries"),
@@ -145,5 +145,16 @@ export function getActiveGuidance(ctx: GuidanceContext): GuidanceRule[] {
     (rule) =>
       (rule.section === null || rule.section === ctx.activeSection) &&
       rule.condition(ctx)
+  );
+}
+
+/**
+ * Return all unsatisfied requirement-level rules (blocks submission).
+ * Pass `activeSection: null` context to check across all sections.
+ */
+export function getUnsatisfiedRequirements(selectedSectionKeys: EquipmentSectionKey[]): GuidanceRule[] {
+  const ctx: GuidanceContext = { selectedSectionKeys, activeSection: "cameras" };
+  return EQUIPMENT_GUIDANCE_RULES.filter(
+    (rule) => rule.level === "requirement" && rule.condition(ctx)
   );
 }

@@ -31,8 +31,8 @@ export default function BookingsPage() {
     apiBase: "/api/checkouts",
     label: "checkout",
     labelPlural: "Checkouts",
-    actionLabel: "Check out equipment",
-    actionLabelProgress: "Checking out\u2026",
+    actionLabel: "Pick up now",
+    actionLabelProgress: "Picking up\u2026",
     requesterLabel: "Checked out to",
     startLabel: "Pickup",
     endLabel: "Return by",
@@ -61,7 +61,7 @@ export default function BookingsPage() {
           if (!c) return;
           const ok = await confirm({
             title: "Cancel checkout",
-            message: `Cancel "${c.title}"? This action cannot be undone.`,
+            message: `This will return all equipment to available inventory and unblock other bookings.`,
             confirmLabel: "Cancel checkout",
             variant: "danger",
           });
@@ -98,7 +98,7 @@ export default function BookingsPage() {
     apiBase: "/api/reservations",
     label: "reservation",
     labelPlural: "Reservations",
-    actionLabel: "Reserve equipment",
+    actionLabel: "Reserve for later",
     actionLabelProgress: "Reserving\u2026",
     requesterLabel: "Reserved for",
     startLabel: "Start",
@@ -112,6 +112,7 @@ export default function BookingsPage() {
     defaultTieToEvent: true,
     hasSportFilter: true,
     overdueStatus: "BOOKED",
+    defaultStatusFilter: "BOOKED",
     showEventBadge: true,
     contextMenuExtras: [
       {

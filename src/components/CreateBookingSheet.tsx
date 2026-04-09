@@ -28,6 +28,9 @@ import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useToast } from "@/components/Toast";
 import EquipmentPicker from "@/components/EquipmentPicker";
 import type { BulkSelection } from "@/components/EquipmentPicker";
+import { classifyAssetType } from "@/lib/equipment-sections";
+import { getUnsatisfiedRequirements } from "@/lib/equipment-guidance";
+import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import { ConfirmBookingDialog } from "./booking-list/ConfirmBookingDialog";
 import {
   roundTo15Min,
@@ -222,6 +225,18 @@ export default function CreateBookingSheet({
       setCreateError("Choose a pickup location");
       setOpenSection("details");
       return;
+    }
+    // Check equipment requirement rules (e.g., camera body requires batteries)
+    if (selectedAssetDetails.length > 0) {
+      const sectionKeys = [...new Set(
+        selectedAssetDetails.map((a) => classifyAssetType(a.type, a.categoryName))
+      )] as EquipmentSectionKey[];
+      if (selectedBulkItems.length > 0) sectionKeys.push("batteries"); // bulk batteries count
+      const unsatisfied = getUnsatisfiedRequirements(sectionKeys);
+      if (unsatisfied.length > 0) {
+        setCreateError(unsatisfied[0].message);
+        return;
+      }
     }
     setCreateError("");
     setShowConfirm(true);
@@ -483,7 +498,7 @@ export default function CreateBookingSheet({
 
           <SheetFooter>
             <Button variant="outline" onClick={handleClose}>
-              Discard
+              Save Draft
             </Button>
             <Button disabled={submitting} onClick={handleCreateClick}>
               {submitting ? config.actionLabelProgress : config.actionLabel}

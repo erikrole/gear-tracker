@@ -115,9 +115,11 @@ export default function BookingDetailPage({
   const canCheckin = allowedActions.includes("checkin");
   const canConvert = kind === "RESERVATION" && allowedActions.includes("convert");
   const canDuplicate = kind === "RESERVATION" && allowedActions.includes("duplicate");
+  const canForceComplete = allowedActions.includes("force-complete");
+  const canNudge = allowedActions.includes("nudge");
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
-  const hasAnyAction = canEdit || canExtend || canConvert || canCancel || canDuplicate || canCheckin;
+  const hasAnyAction = canEdit || canExtend || canConvert || canCancel || canDuplicate || canCheckin || canForceComplete || canNudge;
 
   // Keyboard shortcut: E to open edit sheet
   useEffect(() => {
@@ -219,7 +221,7 @@ export default function BookingDetailPage({
 
         {hasAnyAction && <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
           {/* Actions dropdown — secondary/less-common actions */}
-          {(canDuplicate || canCancel || (kind === "CHECKOUT" && isOpen) || (kind === "CHECKOUT" && canCheckin)) && (
+          {(canDuplicate || canCancel || canForceComplete || canNudge || (kind === "CHECKOUT" && isOpen) || (kind === "CHECKOUT" && canCheckin)) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-1.5">
@@ -236,6 +238,22 @@ export default function BookingDetailPage({
                 {kind === "CHECKOUT" && canCheckin && (
                   <DropdownMenuItem asChild>
                     <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan items in</Link>
+                  </DropdownMenuItem>
+                )}
+                {canNudge && (
+                  <DropdownMenuItem
+                    onSelect={actions.nudge}
+                    disabled={!!actions.actionLoading}
+                  >
+                    {actions.actionLoading === "nudge" ? "Sending..." : "Nudge borrower"}
+                  </DropdownMenuItem>
+                )}
+                {canForceComplete && (
+                  <DropdownMenuItem
+                    onSelect={actions.completeCheckin}
+                    disabled={!!actions.actionLoading}
+                  >
+                    {actions.actionLoading === "complete-checkin" ? "Completing..." : "Force complete"}
                   </DropdownMenuItem>
                 )}
                 {canDuplicate && (

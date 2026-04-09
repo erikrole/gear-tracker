@@ -188,10 +188,11 @@ export default function BookingDetailsSheet({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
+      toast("Failed to load equipment — check your connection and try again.", "error");
     } finally {
       setPickerSearchLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   /* ───── Audit log load-more ───── */
 

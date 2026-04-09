@@ -29,7 +29,7 @@ import type { AuthUser } from "@/lib/auth";
  * "owner" = STUDENT who is the requester or creator of the booking
  */
 
-export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open";
+export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open" | "force-complete" | "nudge";
 export type ReservationAction = "edit" | "extend" | "cancel" | "convert" | "duplicate";
 export type BookingAction = string;
 
@@ -69,7 +69,7 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   [BookingKind.CHECKOUT]: {
     [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
     [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "open"]),
-    [BookingStatus.OPEN]: new Set(["edit", "extend", "cancel", "checkin"]),
+    [BookingStatus.OPEN]: new Set(["edit", "extend", "cancel", "checkin", "force-complete", "nudge"]),
     [BookingStatus.COMPLETED]: new Set(),
     [BookingStatus.CANCELLED]: new Set(),
   },
@@ -82,7 +82,7 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   },
 };
 
-const ALL_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open"];
+const ALL_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open", "force-complete", "nudge"];
 const ALL_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert", "duplicate"];
 
 /**
@@ -113,6 +113,22 @@ export function canPerformBookingAction(
         allowed: false,
         reason: "Only staff or admin can cancel an active checkout",
       };
+    }
+    return { allowed: true };
+  }
+
+  // Force-complete requires ADMIN only
+  if (action === "force-complete") {
+    if (actor.role !== Role.ADMIN) {
+      return { allowed: false, reason: "Only admins can force-complete a checkout" };
+    }
+    return { allowed: true };
+  }
+
+  // Nudge requires staff+
+  if (action === "nudge") {
+    if (!isStaffOrAbove(actor.role)) {
+      return { allowed: false, reason: "Only staff or admin can send nudge notifications" };
     }
     return { allowed: true };
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useToast } from "@/components/Toast";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 
@@ -19,6 +20,7 @@ export function usePickerSearch({
   onlyAvailable,
   globalSearch,
 }: UsePickerSearchParams) {
+  const { toast } = useToast();
   const [sectionResults, setSectionResults] = useState<PickerAsset[]>([]);
   const [apiSectionCounts, setApiSectionCounts] = useState<Record<EquipmentSectionKey, number>>({
     cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
@@ -57,9 +59,10 @@ export function usePickerSearch({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
+      toast("Failed to load equipment — check your connection and try again.", "error");
     }
     if (!controller.signal.aborted) setSearchLoading(false);
-  }, [legacyMode]);
+  }, [legacyMode, toast]);
 
   // Trigger search on section change, search text change, or onlyAvailable change
   useEffect(() => {
@@ -100,9 +103,10 @@ export function usePickerSearch({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
+      toast("Failed to search equipment — check your connection and try again.", "error");
     }
     if (!controller.signal.aborted) setGlobalSearchLoading(false);
-  }, [legacyMode]);
+  }, [legacyMode, toast]);
 
   useEffect(() => {
     if (legacyMode) return;

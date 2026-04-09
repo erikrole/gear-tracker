@@ -8,7 +8,9 @@ const DEFAULT_SCHEDULE = [
   { hoursFromDue: -4, type: "checkout_due_reminder", title: "Checkout due in 4 hours", notifyRequester: true, notifyAdmins: false },
   { hoursFromDue: 0, type: "checkout_due_now", title: "Checkout is due now", notifyRequester: true, notifyAdmins: false },
   { hoursFromDue: 2, type: "checkout_overdue_2h", title: "Checkout is 2 hours overdue", notifyRequester: true, notifyAdmins: false },
-  { hoursFromDue: 24, type: "checkout_overdue_24h", title: "Checkout is 24 hours overdue", notifyRequester: true, notifyAdmins: true }
+  { hoursFromDue: 6, type: "checkout_overdue_6h", title: "Checkout is 6 hours overdue", notifyRequester: true, notifyAdmins: false },
+  { hoursFromDue: 12, type: "checkout_overdue_12h", title: "Checkout is 12 hours overdue", notifyRequester: true, notifyAdmins: true },
+  { hoursFromDue: 24, type: "checkout_overdue_24h", title: "Checkout is 24 hours overdue", notifyRequester: true, notifyAdmins: true },
 ];
 
 async function getEscalationRules() {
