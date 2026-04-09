@@ -96,7 +96,7 @@ export default function EquipmentPicker({
   });
 
   // ── Data hooks ──
-  const { sectionResults, searchLoading } = usePickerSearch({
+  const { sectionResults, searchLoading, searchError } = usePickerSearch({
     legacyMode: false,
     activeSection,
     equipSearch: sectionSearch,
@@ -283,6 +283,10 @@ export default function EquipmentPicker({
         <div role="listbox" aria-label={`${EQUIPMENT_SECTIONS.find((s) => s.key === activeSection)?.label} equipment`}>
           {searchLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
+          ) : searchError ? (
+            <div className="py-8 text-center text-sm text-destructive">
+              Failed to load equipment — check your connection and try again.
+            </div>
           ) : sectionResults.length === 0 && sectionBulk.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               {sectionSearch ? "No results" : onlyAvailable ? "Nothing available right now" : "No items in this section"}

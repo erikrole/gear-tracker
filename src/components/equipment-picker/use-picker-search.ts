@@ -25,6 +25,7 @@ export function usePickerSearch({
     cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0,
   });
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
   const [globalSearchApiResults, setGlobalSearchApiResults] = useState<PickerAsset[]>([]);
   const searchAbortRef = useRef<AbortController | null>(null);
@@ -40,6 +41,7 @@ export function usePickerSearch({
     const controller = new AbortController();
     searchAbortRef.current = controller;
     setSearchLoading(true);
+    setSearchError(false);
     try {
       const params = new URLSearchParams();
       params.set("section", section);
@@ -55,10 +57,14 @@ export function usePickerSearch({
         if (data.sectionCounts) {
           setApiSectionCounts(data.sectionCounts as Record<EquipmentSectionKey, number>);
         }
+      } else {
+        setSearchError(true);
+        setSectionResults([]);
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      toast.error("Failed to load equipment — check your connection and try again.");
+      setSearchError(true);
+      setSectionResults([]);
     }
     if (!controller.signal.aborted) setSearchLoading(false);
   }, [legacyMode]);
@@ -126,5 +132,5 @@ export function usePickerSearch({
     };
   }, []);
 
-  return { sectionResults, apiSectionCounts, searchLoading, globalSearchApiResults, globalSearchLoading };
+  return { sectionResults, apiSectionCounts, searchLoading, searchError, globalSearchApiResults, globalSearchLoading };
 }
