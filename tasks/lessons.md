@@ -152,6 +152,15 @@
 - **Non-OK fetch responses must not be silent**: `usePickerSearch` returned `sectionResults: []` on a 500 response, making the UI show "Nothing available" instead of an error. Always add an error state alongside loading state in search hooks — show "Failed to load" (destructive text) rather than a misleading empty state.
 - **Inline hooks in a component should be extracted when independently testable**: `useConflictCheck` was 66 lines embedded in a 561-line component. Extracting it to its own file makes it testable, reduces the parent to ~450 lines, and makes the dependency graph visible.
 
+## Session 2026-04-09 (Scan Page Hardening Pass)
+
+### Patterns (Scan Page 5-Pass Audit)
+- **`finally` applies to ref guards too, not just state**: `processingRef.current = false` and `loadingStatusRef.current = false` were manually scattered across 3–4 return sites in `handleLookupScan` and `loadScanStatus`. Both converted to `finally` blocks — same rule as `setSubmitting(false)`.
+- **15s polling without Page Visibility wastes battery**: Scan page polled every 15s even when backgrounded. Add a `visibilitychange` listener that calls `loadScanStatus()` on tab return — data is fresh immediately without waiting for the next poll tick. Keep the poll for multi-device sync.
+- **Camera error messages should be complete sentences, not prefixed**: `"Camera error: {message}"` doubled the word "error" when the message was already `"Camera permission denied. Go to settings…"`. Display the QrScanner message directly — it's already user-facing.
+- **CSS var references beat hardcoded dark-mode pairs**: `text-amber-700 dark:text-amber-400` is fragile. Use `text-[var(--orange-text)]` which is defined once in globals.css with both light and dark variants — one class, correct everywhere.
+- **Doc file names must match actual component names**: AREA_SCAN.md referenced `ItemPreviewSheet.tsx`; the file is `ItemPreviewDrawer.tsx`. Always grep before writing doc references — component names drift during refactors.
+
 ## Session 2026-04-09 (Scan Flow Stress Test)
 
 ### Patterns (Scan Flow Hardening)

@@ -13,7 +13,7 @@ src/app/(app)/scan/
     ├── ScanControls.tsx        — camera toggle, QrScanner, manual entry, feedback banner
     ├── ScanChecklist.tsx       — serialized + bulk item checklist with status badges
     ├── UnitPickerSheet.tsx     — numbered bulk unit selection sheet
-    └── ItemPreviewSheet.tsx    — lookup mode item preview bottom sheet
+    └── ItemPreviewDrawer.tsx   — lookup mode item preview bottom drawer (Drawer, not Sheet)
 
 src/hooks/
 ├── use-scan-session.ts         — status loading, 15s polling, session start, celebration, completion
@@ -63,3 +63,5 @@ src/components/
 | 2026-03-23 | Scan page hardened (5-pass): design system alignment, data flow, resilience, UX polish |
 | 2026-03-25 | Decomposed from 1,038→251 lines: extracted 2 hooks + 4 components + shared types (GAP-14 closed) |
 | 2026-04-03 | Audio + haptic scan feedback: distinct tones & vibration patterns for success/error/info/celebration via Web Audio API (`src/lib/scan-feedback.ts`) |
+| 2026-04-09 | **Scan flow stress test (4 fixes):** scanValue normalization (trim+lowercase), bulk bin case-insensitive matching, cross-booking numbered bulk unit check-in integrity guard + frontend picker scope fix, completeCheckinScan booking status guard |
+| 2026-04-09 | **Hardening pass (6 fixes):** mode badges → Badge component; bulk row/circle dark-mode color normalization; handleLookupScan finally block; loadScanStatus finally block; Page Visibility refresh on tab return; camera error prefix removed |
