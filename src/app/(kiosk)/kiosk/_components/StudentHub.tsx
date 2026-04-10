@@ -1,18 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  Clock,
-  ChevronRight,
-  Package,
-  ScanLine,
-  Undo2,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, ChevronRight, Package, ScanLine, Undo2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getInitials } from "@/lib/avatar";
 
 type KioskInfo = { kioskId: string; locationId: string; locationName: string };
 type KioskUser = { id: string; name: string; avatarUrl: string | null };
@@ -41,6 +33,37 @@ type Props = {
   onReturn: (bookingId: string) => void;
   onScanLookup: () => void;
 };
+
+const HDG: React.CSSProperties = { fontFamily: "var(--font-heading)" };
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <div className="h-3 w-0.5 rounded-full" style={{ background: "#c5050c" }} />
+      <span
+        className="text-[10px] uppercase tracking-[0.15em] text-white/35"
+        style={HDG}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function formatDueTime(endsAt: string) {
+  return new Date(endsAt).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export function StudentHub({
   kioskInfo,
@@ -78,184 +101,305 @@ export function StudentHub({
   }, [fetchData]);
 
   const hasCheckouts = checkouts.length > 0;
-
-  function formatDueTime(endsAt: string) {
-    const date = new Date(endsAt);
-    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }
-
-  function formatDate(dateStr: string) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString([], {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  }
+  // kioskInfo used for location context — available for future scoped queries
+  void kioskInfo;
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-background">
-      {/* Top bar */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="size-5" />
+    <div
+      className="flex h-full w-full flex-col"
+      style={{ background: "#0b0b0d" }}
+    >
+      {/* ── Top bar ── */}
+      <div
+        className="flex h-[52px] shrink-0 items-center gap-3 px-5"
+        style={{ borderBottom: "2px solid #c5050c" }}
+      >
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-white/40 transition-colors hover:text-white/80"
+          style={HDG}
+        >
+          <ArrowLeft className="size-4" />
           Back
-        </Button>
-        <span className="text-lg font-semibold">{user.name}</span>
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Clock className="size-4" />
-          {countdown}
+        </button>
+
+        <div className="mx-1 h-4 w-px" style={{ background: "rgba(255,255,255,0.10)" }} />
+
+        <div className="flex items-center gap-2.5">
+          <Avatar className="size-7 ring-1 ring-[#c5050c]/40 ring-offset-1 ring-offset-[#0b0b0d]">
+            {user.avatarUrl && (
+              <AvatarImage src={user.avatarUrl} alt={user.name} />
+            )}
+            <AvatarFallback style={{ background: "#252530", fontFamily: "var(--font-heading)", fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>
+              {getInitials(user.name)}
+            </AvatarFallback>
+          </Avatar>
+          <span
+            style={{ ...HDG, fontWeight: 800, letterSpacing: "0.06em" }}
+            className="text-sm uppercase text-white"
+          >
+            {user.name}
+          </span>
+        </div>
+
+        <div className="ml-auto">
+          <span
+            style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}
+            className="tabular-nums text-white/30"
+          >
+            {countdown}
+          </span>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* ── Main content ── */}
       <div className="flex min-h-0 flex-1 gap-4 p-4">
-        {/* Left column */}
+        {/* Left: gear + reservations */}
         <div className="flex w-[55%] flex-col gap-4 overflow-y-auto">
           {loading ? (
-            <div className="flex flex-1 items-center justify-center">
-              <div className="space-y-4 w-full max-w-lg mx-auto">
-                <Skeleton className="h-8 w-40 mx-auto" />
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }, (_, i) => (
-                    <Skeleton key={i} className="h-16 rounded-lg" />
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-24 rounded" />
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
             </div>
           ) : error ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3">
-              <p className="text-sm text-destructive">{error}</p>
-              <Button variant="outline" size="sm" onClick={fetchData}>
+            <div className="flex flex-col items-center gap-3 py-8">
+              <p className="text-sm text-red-400">{error}</p>
+              <button
+                type="button"
+                onClick={fetchData}
+                className="rounded-lg px-4 py-2 text-sm text-white/50 transition-colors hover:text-white"
+                style={{ border: "1px solid rgba(255,255,255,0.10)" }}
+              >
                 Retry
-              </Button>
+              </button>
             </div>
           ) : (
             <>
               {/* My Gear */}
-              <Card elevation="flat">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    My Gear
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 pb-4">
+              <div>
+                <SectionHeader>My Gear</SectionHeader>
+                <div className="space-y-1.5">
                   {hasCheckouts ? (
                     checkouts.map((checkout) => (
                       <button
                         key={checkout.id}
                         type="button"
-                        className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-accent"
+                        className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition-all"
+                        style={{
+                          background: "#131316",
+                          border: checkout.isOverdue
+                            ? "1px solid rgba(197,5,12,0.35)"
+                            : "1px solid rgba(255,255,255,0.07)",
+                        }}
                         onClick={() => onReturn(checkout.id)}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.background = "#1e1e24";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.background = "#131316";
+                        }}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">
+                          <p className="truncate text-sm font-semibold text-white/90">
                             {checkout.title}
                           </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {checkout.items
-                              .map((i) => i.tagName)
-                              .join(", ")}
+                          <p className="truncate text-xs text-white/35">
+                            {checkout.items.map((i) => i.tagName).join(", ")}
                           </p>
                         </div>
                         <div className="ml-3 flex shrink-0 items-center gap-2">
                           {checkout.isOverdue ? (
-                            <Badge variant="destructive">Overdue</Badge>
+                            <span
+                              style={{
+                                ...HDG,
+                                fontWeight: 800,
+                                fontSize: "0.6rem",
+                                letterSpacing: "0.12em",
+                                color: "#c5050c",
+                              }}
+                              className="uppercase"
+                            >
+                              Overdue
+                            </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground">
+                            <span
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                fontSize: "0.7rem",
+                              }}
+                              className="tabular-nums text-white/35"
+                            >
                               Due {formatDueTime(checkout.endsAt)}
                             </span>
                           )}
+                          <ChevronRight className="size-3.5 text-white/20" />
                         </div>
                       </button>
                     ))
                   ) : (
-                    <p className="py-4 text-center text-sm text-muted-foreground">
+                    <p className="py-4 text-center text-sm text-white/25">
                       No active checkouts
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Upcoming Reservations */}
               {reservations.length > 0 && (
-                <Card elevation="flat">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                      Upcoming Reservations
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 pb-4">
-                    {reservations.map((reservation) => (
+                <div>
+                  <SectionHeader>Upcoming Reservations</SectionHeader>
+                  <div className="space-y-1.5">
+                    {reservations.map((res) => (
                       <div
-                        key={reservation.id}
-                        className="flex items-center justify-between rounded-lg border p-3"
+                        key={res.id}
+                        className="flex items-center justify-between rounded-xl px-4 py-3"
+                        style={{
+                          background: "#131316",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                        }}
                       >
-                        <p className="truncate text-sm font-medium">
-                          {reservation.title}
+                        <p className="truncate text-sm font-medium text-white/80">
+                          {res.title}
                         </p>
-                        <span className="ml-3 shrink-0 text-xs text-muted-foreground">
-                          {formatDate(reservation.startsAt)}
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.7rem",
+                          }}
+                          className="ml-3 shrink-0 text-white/35"
+                        >
+                          {formatDate(res.startsAt)}
                         </span>
                       </div>
                     ))}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {/* Team checkouts toggle */}
               <button
                 type="button"
-                className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="flex items-center gap-1 text-xs text-white/25 transition-colors hover:text-white/50"
                 onClick={() => setShowTeam((prev) => !prev)}
               >
                 All team checkouts
                 <ChevronRight
-                  className={`size-4 transition-transform ${showTeam ? "rotate-90" : ""}`}
+                  className={`size-3.5 transition-transform ${showTeam ? "rotate-90" : ""}`}
                 />
               </button>
               {showTeam && (
-                <Card elevation="flat">
-                  <CardContent className="py-4">
-                    <p className="text-center text-sm text-muted-foreground">
-                      Team checkout view coming soon
-                    </p>
-                  </CardContent>
-                </Card>
+                <div
+                  className="rounded-xl px-4 py-4"
+                  style={{
+                    background: "#131316",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                  }}
+                >
+                  <p className="text-center text-sm text-white/30">
+                    Team checkout view coming soon
+                  </p>
+                </div>
               )}
             </>
           )}
         </div>
 
-        {/* Right column */}
+        {/* Right: action buttons */}
         <div className="flex w-[45%] flex-col gap-3">
-          <Button
-            className="h-24 text-lg font-semibold"
+          {/* Check Out — primary action */}
+          <button
+            type="button"
             onClick={onCheckout}
+            className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl transition-all"
+            style={{
+              background: "#c5050c",
+              border: "1px solid rgba(255,255,255,0.10)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#d90a13";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#c5050c";
+            }}
           >
-            <Package className="size-6" />
-            Check Out
-          </Button>
-
-          {hasCheckouts && (
-            <Button
-              variant="secondary"
-              className="h-24 text-lg font-semibold"
-              onClick={() => onReturn(checkouts[0].id)}
+            <Package className="size-8 text-white" />
+            <span
+              style={{
+                ...HDG,
+                fontWeight: 900,
+                fontSize: "1.1rem",
+                letterSpacing: "0.12em",
+              }}
+              className="uppercase text-white"
             >
-              <Undo2 className="size-6" />
-              Return Gear
-            </Button>
+              Check Out
+            </span>
+          </button>
+
+          {/* Return Gear — secondary, only if has checkouts */}
+          {hasCheckouts && (
+            <button
+              type="button"
+              onClick={() => onReturn(checkouts[0].id)}
+              className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl transition-all"
+              style={{
+                background: "#1e1e24",
+                border: "1px solid rgba(255,255,255,0.10)",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#28282f";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#1e1e24";
+              }}
+            >
+              <Undo2 className="size-7 text-white/70" />
+              <span
+                style={{
+                  ...HDG,
+                  fontWeight: 800,
+                  fontSize: "1rem",
+                  letterSpacing: "0.10em",
+                }}
+                className="uppercase text-white/80"
+              >
+                Return Gear
+              </span>
+            </button>
           )}
 
-          <Button
-            variant="outline"
-            className="h-24 text-lg font-semibold"
+          {/* Scan Lookup — tertiary */}
+          <button
+            type="button"
             onClick={onScanLookup}
+            className="flex h-[72px] shrink-0 items-center justify-center gap-3 rounded-xl transition-all"
+            style={{
+              background: "#131316",
+              border: "1px solid rgba(255,255,255,0.07)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#1a1a1e";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = "#131316";
+            }}
           >
-            <ScanLine className="size-6" />
-            Scan / Lookup
-          </Button>
+            <ScanLine className="size-5 text-white/40" />
+            <span
+              style={{
+                ...HDG,
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                letterSpacing: "0.10em",
+              }}
+              className="uppercase text-white/50"
+            >
+              Scan / Lookup
+            </span>
+          </button>
         </div>
       </div>
     </div>

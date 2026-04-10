@@ -1,16 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import {
-  ArrowLeft,
-  Check,
-  AlertTriangle,
-  X,
-  Package,
-  Clock,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Check, AlertTriangle, X, Package } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ScanInput } from "./ScanInput";
 
@@ -36,6 +27,8 @@ type Props = {
   onBack: () => void;
   onComplete: (itemCount: number) => void;
 };
+
+const HDG: React.CSSProperties = { fontFamily: "var(--font-heading)" };
 
 export function CheckoutFlow({
   kioskInfo,
@@ -79,7 +72,6 @@ export function CheckoutFlow({
           return;
         }
 
-        // Check for duplicate
         if (items.some((i) => i.id === data.item!.id)) {
           setFeedback({
             type: "warning",
@@ -133,91 +125,173 @@ export function CheckoutFlow({
   };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Top bar */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ArrowLeft className="size-4" />
-            Back
-          </Button>
-          <span className="text-lg font-semibold">
-            Checking Out &middot; {user.name}
+    <div
+      className="flex h-full flex-col"
+      style={{ background: "#0b0b0d" }}
+    >
+      {/* ── Header ── */}
+      <div
+        className="flex h-[52px] shrink-0 items-center gap-3 px-5"
+        style={{ borderBottom: "2px solid #c5050c" }}
+      >
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-white/40 transition-colors hover:text-white/80"
+          style={HDG}
+        >
+          <ArrowLeft className="size-4" />
+          Back
+        </button>
+        <div className="mx-1 h-4 w-px" style={{ background: "rgba(255,255,255,0.10)" }} />
+        <span
+          style={{ ...HDG, fontWeight: 800, fontSize: "0.8rem", letterSpacing: "0.12em", color: "#c5050c" }}
+          className="uppercase"
+        >
+          Checking Out
+        </span>
+        <span className="text-white/30">·</span>
+        <span
+          style={{ ...HDG, fontWeight: 700, fontSize: "0.8rem", letterSpacing: "0.08em" }}
+          className="uppercase text-white/80"
+        >
+          {user.name}
+        </span>
+        <div className="ml-auto">
+          <span
+            style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}
+            className="tabular-nums text-white/30"
+          >
+            {countdown}
           </span>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Clock className="size-4" />
-          <span className="text-sm font-mono">{countdown}</span>
         </div>
       </div>
 
-      {/* Two-column layout */}
+      {/* ── Two columns ── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left column: scan input + feedback */}
-        <div className="flex w-1/2 flex-col gap-4 border-r p-4">
-          <ScanInput onScan={handleScan} disabled={scanning || completing} />
+        {/* Left: scan zone */}
+        <div
+          className="flex w-1/2 flex-col gap-4 p-4"
+          style={{ borderRight: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="h-3 w-0.5 rounded-full" style={{ background: "#c5050c" }} />
+              <span
+                className="text-[10px] uppercase tracking-[0.15em] text-white/35"
+                style={HDG}
+              >
+                Scan Item
+              </span>
+            </div>
+            <ScanInput onScan={handleScan} disabled={scanning || completing} />
+          </div>
 
-          {/* Scan feedback */}
+          {/* Feedback */}
           {scanning && (
-            <div className="flex items-center gap-2 rounded-lg border bg-card px-4 py-3">
-              <Spinner className="size-4" />
-              <span className="text-sm">Looking up item...</span>
+            <div
+              className="flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <Spinner className="size-4 text-white/40" />
+              <span className="text-sm text-white/50">Looking up item...</span>
             </div>
           )}
 
-          {feedback && (
+          {feedback && !scanning && (
             <div
-              className={`flex items-center gap-2 rounded-lg border px-4 py-3 ${
-                feedback.type === "success"
-                  ? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
-                  : feedback.type === "warning"
-                    ? "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200"
-                    : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
-              }`}
+              className="flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{
+                background:
+                  feedback.type === "success"
+                    ? "rgba(34,197,94,0.08)"
+                    : feedback.type === "warning"
+                      ? "rgba(245,158,11,0.08)"
+                      : "rgba(197,5,12,0.10)",
+                border:
+                  feedback.type === "success"
+                    ? "1px solid rgba(34,197,94,0.30)"
+                    : feedback.type === "warning"
+                      ? "1px solid rgba(245,158,11,0.30)"
+                      : "1px solid rgba(197,5,12,0.30)",
+              }}
             >
-              {feedback.type === "success" && <Check className="size-4" />}
-              {feedback.type === "warning" && (
-                <AlertTriangle className="size-4" />
+              {feedback.type === "success" && (
+                <Check className="size-4 shrink-0 text-green-400" />
               )}
-              {feedback.type === "error" && <X className="size-4" />}
-              <span className="text-sm">{feedback.message}</span>
+              {feedback.type === "warning" && (
+                <AlertTriangle className="size-4 shrink-0 text-amber-400" />
+              )}
+              {feedback.type === "error" && (
+                <X className="size-4 shrink-0 text-red-400" />
+              )}
+              <span
+                className={`text-sm ${
+                  feedback.type === "success"
+                    ? "text-green-300"
+                    : feedback.type === "warning"
+                      ? "text-amber-300"
+                      : "text-red-300"
+                }`}
+              >
+                {feedback.message}
+              </span>
             </div>
           )}
         </div>
 
-        {/* Right column: scanned items list */}
+        {/* Right: scanned items */}
         <div className="flex w-1/2 flex-col p-4">
           <div className="mb-3 flex items-center gap-2">
-            <Package className="size-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold">
-              Scanned Items ({items.length})
-            </h2>
+            <div className="h-3 w-0.5 rounded-full" style={{ background: "#c5050c" }} />
+            <span
+              className="text-[10px] uppercase tracking-[0.15em] text-white/35"
+              style={HDG}
+            >
+              Scanned Items
+            </span>
+            <span
+              style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}
+              className="ml-auto tabular-nums text-white/30"
+            >
+              {items.length}
+            </span>
           </div>
 
-          {/* Scrollable list */}
           <div className="flex-1 overflow-y-auto">
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Package className="size-10 mb-2 opacity-40" />
-                <p className="text-sm">No items scanned yet</p>
-                <p className="text-xs">Scan barcodes to add items</p>
+              <div className="flex flex-col items-center justify-center gap-2 py-12">
+                <Package className="size-10 text-white/10" />
+                <p className="text-sm text-white/25">No items scanned yet</p>
+                <p className="text-xs text-white/15">Scan barcodes to add items</p>
               </div>
             ) : (
-              <ul className="flex flex-col gap-2">
-                {items.map((item) => (
+              <ul className="flex flex-col gap-1.5">
+                {items.map((item, idx) => (
                   <li
                     key={item.id}
-                    className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3"
+                    className="flex items-center gap-3 rounded-xl px-4 py-3"
+                    style={{
+                      background: "#131316",
+                      border: "1px solid rgba(34,197,94,0.20)",
+                      animationDelay: `${idx * 50}ms`,
+                    }}
                   >
-                    <Check className="size-4 text-green-600 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                    <Check className="size-4 shrink-0 text-green-400" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-white/90">
                         {item.name}
                       </p>
                     </div>
-                    <Badge variant="secondary" size="sm">
+                    <span
+                      style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem" }}
+                      className="shrink-0 text-white/35"
+                    >
                       {item.tagName}
-                    </Badge>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -225,23 +299,41 @@ export function CheckoutFlow({
           </div>
 
           {/* Done button */}
-          <div className="mt-4 pt-3 border-t">
-            <Button
-              className="w-full h-12 text-lg font-semibold"
+          <div
+            className="mt-4 pt-3"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <button
+              type="button"
+              className="h-12 w-full rounded-xl text-base transition-all"
+              style={{
+                ...HDG,
+                fontWeight: 900,
+                letterSpacing: "0.12em",
+                background:
+                  items.length > 0 && !completing ? "#c5050c" : "rgba(255,255,255,0.06)",
+                color:
+                  items.length > 0 && !completing ? "#fff" : "rgba(255,255,255,0.20)",
+                border:
+                  items.length > 0 && !completing
+                    ? "1px solid #c5050c"
+                    : "1px solid rgba(255,255,255,0.06)",
+                cursor: items.length > 0 && !completing ? "pointer" : "not-allowed",
+              }}
               disabled={items.length === 0 || completing}
               onClick={handleComplete}
             >
               {completing ? (
-                <>
-                  <Spinner className="size-5" />
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner className="size-4" />
                   Processing...
-                </>
+                </span>
               ) : (
-                <>
-                  DONE ({items.length} item{items.length !== 1 ? "s" : ""})
-                </>
+                <span className="uppercase">
+                  Done — {items.length} item{items.length !== 1 ? "s" : ""}
+                </span>
               )}
-            </Button>
+            </button>
           </div>
         </div>
       </div>
