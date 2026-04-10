@@ -71,6 +71,7 @@ export const GET = withAuth(async (req, { user }) => {
   const categoryIds = searchParams.getAll("category_id").filter(Boolean);
   const brandParams = searchParams.getAll("brand").map((b) => b.trim()).filter(Boolean);
   const departmentIds = searchParams.getAll("department_id").filter(Boolean);
+  const missingField = searchParams.get("missing"); // "category" | "department"
 
   // Server-side sorting: ?sort=brand&order=desc or ?sort=-brand
   const sortParam = searchParams.get("sort") ?? "";
@@ -86,10 +87,8 @@ export const GET = withAuth(async (req, { user }) => {
     ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
-    ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),
-    ...(categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
-    ...(departmentIds.length === 1 ? { departmentId: departmentIds[0] } : {}),
-    ...(departmentIds.length > 1 ? { departmentId: { in: departmentIds } } : {}),
+    ...(missingField === "category" ? { categoryId: null } : categoryIds.length === 1 ? { categoryId: categoryIds[0] } : categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
+    ...(missingField === "department" ? { departmentId: null } : departmentIds.length === 1 ? { departmentId: departmentIds[0] } : departmentIds.length > 1 ? { departmentId: { in: departmentIds } } : {}),
     ...(brandParams.length === 1
       ? { brand: { equals: brandParams[0], mode: "insensitive" as const } }
       : brandParams.length > 1

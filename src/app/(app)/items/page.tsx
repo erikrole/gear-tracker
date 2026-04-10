@@ -30,6 +30,7 @@ import {
 import { type Asset, getColumns } from "./columns";
 import { DataTable } from "./data-table";
 import { NewItemSheet } from "./new-item-sheet";
+import { GapWizardDialog } from "./gap-wizard-dialog";
 import { useUrlFilters } from "./hooks/use-url-filters";
 import { useItemsQuery, type BulkItem } from "./hooks/use-items-query";
 import { useFilterOptions } from "./hooks/use-filter-options";
@@ -64,6 +65,7 @@ export default function ItemsPage() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showGapWizard, setShowGapWizard] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => {
     try {
@@ -298,6 +300,9 @@ export default function ItemsPage() {
                 <Download className="size-4 mr-1.5" aria-hidden="true" />
                 {exporting ? "Exporting…" : "Export"}
               </Button>
+              <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => setShowGapWizard(true)}>
+                Fill gaps
+              </Button>
               <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
               <Button onClick={() => setShowCreate(true)}>New item</Button>
             </>
@@ -331,6 +336,14 @@ export default function ItemsPage() {
         departments={options.departments}
         categories={options.categories}
         onCreated={query.reload}
+      />
+
+      <GapWizardDialog
+        open={showGapWizard}
+        onOpenChange={setShowGapWizard}
+        categories={options.categories}
+        departments={options.departments}
+        onAssigned={query.reload}
       />
 
       <div className="flex flex-col gap-4">
