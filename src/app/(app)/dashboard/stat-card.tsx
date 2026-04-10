@@ -7,28 +7,45 @@ type StatCardProps = {
   accent?: "red" | "amber";
 };
 
-const accentBorder = {
-  red: "border-red-600/25 bg-red-600/[0.04]",
-  amber: "border-amber-600/25 bg-amber-600/[0.04]",
-} as const;
-
-const accentText = {
-  red: "text-red-600",
-  amber: "text-amber-600",
+const accentStyles = {
+  red: {
+    bar: "bg-[var(--wi-red)]",
+    card: "border-[var(--wi-red)]/20 bg-[var(--wi-red)]/[0.035]",
+    num: "text-[var(--wi-red)]",
+  },
+  amber: {
+    bar: "bg-amber-500",
+    card: "border-amber-500/20 bg-amber-500/[0.035]",
+    num: "text-amber-600 dark:text-amber-400",
+  },
 } as const;
 
 export function StatCard({ href, value, label, accent }: StatCardProps) {
+  const a = accent ? accentStyles[accent] : null;
+
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center px-3 py-2 md:py-3 bg-card border border-border rounded-lg no-underline cursor-pointer transition-colors hover:bg-accent/50 ${accent ? accentBorder[accent] : ""}`}
+      className={`relative flex flex-col justify-between px-4 py-3.5 md:py-4 bg-card border rounded-lg no-underline overflow-hidden transition-colors hover:bg-muted/40 ${a ? a.card : "border-border"}`}
     >
+      {/* Left accent bar */}
+      {a && (
+        <div
+          className={`absolute left-0 top-0 bottom-0 w-[3px] ${a.bar}`}
+          aria-hidden="true"
+        />
+      )}
+
       <span
-        className={`font-heading text-xl font-extrabold leading-none ${accent ? accentText[accent] : "text-foreground"}`}
+        className={`text-[38px] md:text-[46px] font-black leading-none tabular-nums ${a ? a.num : "text-foreground"}`}
+        style={{ fontFamily: "var(--font-heading)" }}
       >
         {value}
       </span>
-      <span className="text-[10px] md:text-xs text-muted-foreground mt-1 tracking-normal font-medium">
+      <span
+        className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground/50 mt-2"
+        style={{ fontFamily: "var(--font-mono)" }}
+      >
         {label}
       </span>
     </Link>

@@ -24,48 +24,70 @@ export function FlaggedItemsBanner({ items }: Props) {
   const parts: string[] = [];
   if (damaged > 0) parts.push(`${damaged} damaged`);
   if (lost > 0) parts.push(`${lost} lost`);
-  if (maintenance > 0) parts.push(`${maintenance} in maintenance`);
+  if (maintenance > 0) parts.push(`${maintenance} maintenance`);
 
   return (
-    <div className="bg-amber-50 dark:bg-amber-500/[0.12] border border-amber-500/20 rounded-lg p-4 mb-4 animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
-      <div className="flex items-center gap-2 mb-2">
-        <AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
-        <span className="text-sm font-semibold text-foreground">
-          {parts.join(", ")} — items needing attention
-        </span>
+    <div className="border border-amber-500/20 bg-amber-500/[0.04] dark:bg-amber-500/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-amber-500/15">
+        <div className="flex items-center gap-2">
+          <AlertTriangleIcon className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span
+            className="text-[11px] uppercase tracking-[0.14em] text-amber-700 dark:text-amber-400/80 font-semibold"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {parts.join(" · ")}
+          </span>
+        </div>
+        <a
+          href="/items?status=flagged"
+          className="text-[10.5px] text-muted-foreground/60 hover:text-muted-foreground no-underline transition-colors whitespace-nowrap"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
+          {items.length > 5 ? `+${items.length - 5} more →` : "View all →"}
+        </a>
       </div>
-      <div className="flex flex-col gap-1">
+
+      {/* Item rows */}
+      <div className="flex flex-col">
         {items.slice(0, 5).map((item) => {
           const cfg = TYPE_CONFIG[item.type];
           return (
             <a
               key={item.id}
               href={`/items/${item.assetId}`}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-500/[0.08] no-underline text-inherit transition-colors hover:bg-amber-500/[0.15] focus-visible:outline-2 focus-visible:outline-ring"
+              className="flex items-center gap-2.5 px-4 py-2.5 no-underline text-inherit transition-colors hover:bg-amber-500/[0.07] border-b border-amber-500/10 last:border-b-0"
             >
               {item.type === "MAINTENANCE" ? (
-                <WrenchIcon className="size-3.5 text-muted-foreground shrink-0" />
+                <WrenchIcon className="size-3.5 text-muted-foreground/50 shrink-0" />
               ) : (
-                <AlertTriangleIcon className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <AlertTriangleIcon className="size-3.5 text-amber-600/70 dark:text-amber-400/70 shrink-0" />
               )}
-              <span className="text-sm font-medium truncate">
+              <span
+                className="text-[13px] font-semibold truncate min-w-0"
+                style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}
+              >
                 {item.assetTag}
-                {item.assetName && ` — ${item.assetName}`}
+                {item.assetName && (
+                  <span className="font-normal text-muted-foreground ml-1.5">
+                    {item.assetName}
+                  </span>
+                )}
               </span>
-              <Badge variant={cfg.variant} size="sm">{cfg.label}</Badge>
+              <Badge variant={cfg.variant} size="sm" className="shrink-0">
+                {cfg.label}
+              </Badge>
               {item.bookingTitle && (
-                <span className="text-xs text-muted-foreground truncate ml-auto hidden sm:inline">
+                <span
+                  className="text-[10.5px] text-muted-foreground/50 truncate ml-auto hidden sm:inline"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
                   {item.bookingTitle}
                 </span>
               )}
             </a>
           );
         })}
-        {items.length > 5 && (
-          <a href="/items?status=flagged" className="block text-center text-xs text-muted-foreground py-1.5 no-underline transition-colors hover:text-foreground">
-            View all {items.length} flagged items &rarr;
-          </a>
-        )}
       </div>
     </div>
   );

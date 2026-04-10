@@ -211,22 +211,48 @@ export default function DashboardPage() {
       {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
         && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0
         && data.myReservations.length === 0 && data.drafts.length === 0 && data.myShifts.length === 0 && (
-        <div className="bg-card border border-border rounded-xl p-6 mb-4 animate-[empty-fade-in_0.4s_ease-out] max-md:p-4">
-          <h2 className="font-heading text-lg font-extrabold m-0 mb-1">Welcome to Gear Tracker</h2>
-          <p className="text-sm text-muted-foreground m-0 mb-4">Get started by setting up your equipment inventory.</p>
-          <div className="flex gap-3 max-md:flex-col">
-            <Link href="/items" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-primary hover:bg-primary/5">
-              <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">1</span>
-              <span>Add equipment</span>
-            </Link>
-            <Link href="/import" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-primary hover:bg-primary/5">
-              <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">2</span>
-              <span>Import from spreadsheet</span>
-            </Link>
-            <Link href="/settings/calendar-sources" className="flex items-center gap-2.5 py-3 px-4 border border-border rounded-lg text-[13px] font-medium text-foreground no-underline flex-1 transition-colors hover:border-primary hover:bg-primary/5">
-              <span className="size-6 rounded-full bg-primary text-primary-foreground font-bold text-xs grid place-items-center shrink-0">3</span>
-              <span>Set up calendar sync</span>
-            </Link>
+        <div className="relative bg-card border border-border rounded-xl mb-4 overflow-hidden animate-[empty-fade-in_0.4s_ease-out]">
+          {/* Red accent stripe */}
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--wi-red)]" aria-hidden="true" />
+          <div className="px-6 py-5 pl-8">
+            <p
+              className="text-[9px] uppercase tracking-[0.22em] text-muted-foreground/50 mb-1"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              Getting started
+            </p>
+            <h2
+              className="text-[20px] font-black leading-tight mb-4"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              Welcome to Gear Tracker
+            </h2>
+            <div className="flex gap-3 max-md:flex-col">
+              {[
+                { href: "/items", label: "Add equipment", n: "01" },
+                { href: "/import", label: "Import from spreadsheet", n: "02" },
+                { href: "/settings/calendar-sources", label: "Set up calendar sync", n: "03" },
+              ].map(({ href, label, n }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center gap-3 py-2.5 px-3.5 border border-border rounded-lg no-underline flex-1 transition-colors hover:border-[var(--wi-red)]/30 hover:bg-[var(--wi-red)]/[0.03] group"
+                >
+                  <span
+                    className="text-[11px] tabular-nums text-muted-foreground/40 group-hover:text-[var(--wi-red)]/60 transition-colors shrink-0"
+                    style={{ fontFamily: "var(--font-mono)" }}
+                  >
+                    {n}
+                  </span>
+                  <span
+                    className="text-[13px] text-foreground/80"
+                    style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}
+                  >
+                    {label}
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
