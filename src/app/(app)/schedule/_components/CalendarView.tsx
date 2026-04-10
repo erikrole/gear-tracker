@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { sportLabel } from "@/lib/sports";
 import { formatTimeShort } from "@/lib/format";
@@ -28,13 +27,6 @@ function isToday(calMonth: Date, day: number) {
   );
 }
 
-/** Tailwind color classes for home/away/neutral booking chips */
-function bookingColorClass(entry: CalendarEntry): string {
-  if (entry.isHome === true) return "bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20";
-  if (entry.isHome === false) return "bg-orange-500/10 text-orange-700 dark:text-orange-400 hover:bg-orange-500/20";
-  return "bg-muted text-muted-foreground hover:bg-muted/80";
-}
-
 function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
   const timeStr = entry.allDay
     ? "All day"
@@ -43,7 +35,7 @@ function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
   const assignedUsers = entry.shifts.flatMap((s) =>
     s.assignments
       .filter((a) => ACTIVE_STATUSES.includes(a.status))
-      .map((a) => ({ name: a.user.name, area: AREA_LABELS[s.area] ?? s.area }))
+      .map((a) => ({ name: a.user.name, area: AREA_LABELS[s.area] ?? s.area })),
   );
 
   return (
@@ -53,7 +45,10 @@ function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
       {assignedUsers.length > 0 && (
         <div className="text-muted-foreground">
           {assignedUsers.map((u, i) => (
-            <span key={i}>{i > 0 && ", "}{u.name} ({u.area})</span>
+            <span key={i}>
+              {i > 0 && ", "}
+              {u.name} ({u.area})
+            </span>
           ))}
         </div>
       )}
@@ -65,6 +60,91 @@ function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
     </div>
   );
 }
+
+/* ── Event chip inside a calendar cell ── */
+
+function EventChip({
+  entry,
+  onSelectGroup,
+}: {
+  entry: CalendarEntry;
+  onSelectGroup: (groupId: string | null) => void;
+}) {
+  const title =
+    entry.sportCode && entry.opponent
+      ? `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`
+      : entry.summary;
+
+  const barColor =
+    entry.isHome === true
+      ? "bg-emerald-500"
+      : entry.isHome === false
+        ? "bg-amber-500"
+        : "bg-muted-foreground/30";
+
+  const chipBg =
+    entry.isHome === true
+      ? "bg-emerald-500/10 hover:bg-emerald-500/18"
+      : entry.isHome === false
+        ? "bg-amber-500/10 hover:bg-amber-500/18"
+        : "bg-muted/50 hover:bg-muted";
+
+  const chipClass = cn(
+    "flex items-stretch rounded-sm w-full text-left mb-px overflow-hidden transition-colors cursor-pointer",
+  );
+
+  const inner = (
+    <>
+      <div className={cn("w-[2.5px] flex-shrink-0", barColor)} />
+      <div className={cn("flex-1 px-1 py-[2px] min-w-0", chipBg)}>
+        <div className="flex items-center gap-1 min-w-0">
+          {entry.coverage && (
+            <span
+              className="size-1.5 rounded-full flex-shrink-0"
+              style={{ background: coverageDot(entry.coverage.percentage) }}
+            />
+          )}
+          <span className="text-[10px] font-medium leading-[1.35] truncate">
+            {title}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+
+  if (entry.shiftGroupId) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            className={chipClass}
+            onClick={() => onSelectGroup(entry.shiftGroupId)}
+          >
+            {inner}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" align="start">
+          {buildTooltipContent(entry)}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link href={`/events/${entry.id}`} className={chipClass}>
+          {inner}
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="top" align="start">
+        {buildTooltipContent(entry)}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/* ── Main CalendarView ── */
 
 export function CalendarView({
   entries,
@@ -110,39 +190,62 @@ export function CalendarView({
     setCalMonth(new Date(d.getFullYear(), d.getMonth(), 1));
   }
 
-  const bookingBase = "block w-full text-left px-1 py-0.5 text-[10px] font-medium rounded truncate mb-px leading-[1.4]";
-
   return (
-    <Card className="mb-1">
-      <CardHeader className="flex-row items-center justify-between">
+    <div className="mb-1">
+      {/* ── Calendar Header ── */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="size-8" onClick={prevMonth} aria-label="Previous month">
+          <button
+            onClick={prevMonth}
+            aria-label="Previous month"
+            className="size-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
             <ChevronLeft className="size-4" />
-          </Button>
-          <CardTitle className="text-center min-w-[160px]">
+          </button>
+          <button
+            onClick={nextMonth}
+            aria-label="Next month"
+            className="size-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+          <h2
+            className="text-xl font-bold tracking-tight uppercase"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             {calMonth.toLocaleDateString("en-US", {
               month: "long",
               year: "numeric",
             })}
-          </CardTitle>
-          <Button variant="outline" size="icon" className="size-8" onClick={nextMonth} aria-label="Next month">
-            <ChevronRight className="size-4" />
-          </Button>
+          </h2>
         </div>
         <Button variant="outline" size="sm" onClick={goCalToday}>
           Today
         </Button>
-      </CardHeader>
-      <div className="p-4">
-        <div className="hidden max-md:block text-center py-6 px-4 text-muted-foreground text-sm">
-          Switch to List view for the best mobile experience.
-        </div>
-        <div className="hidden md:grid grid-cols-7 gap-px bg-border">
+      </div>
+
+      {/* ── Mobile notice ── */}
+      <div className="hidden max-md:flex items-center justify-center py-8 px-4 text-muted-foreground text-sm border border-border/60 rounded-lg bg-muted/20">
+        Switch to List view for the best mobile experience.
+      </div>
+
+      {/* ── Calendar Grid ── */}
+      <div className="hidden md:block border border-border/60 rounded-lg overflow-hidden">
+        {/* Day-of-week headers */}
+        <div className="grid grid-cols-7 border-b border-border/60 bg-muted/25">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2 bg-background">
+            <div
+              key={d}
+              className="py-2 text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-widest"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
               {d}
             </div>
           ))}
+        </div>
+
+        {/* Day cells */}
+        <div className="grid grid-cols-7">
           {calCells.map((cell, i) => {
             const dayEntries = cell.day
               ? calEntriesByDay.get(cell.day)
@@ -153,83 +256,49 @@ export function CalendarView({
               : dayEntries?.slice(0, 3);
             const hiddenCount = (dayEntries?.length ?? 0) - 3;
             const today = cell.day ? isToday(calMonth, cell.day) : false;
+
             return (
               <div
                 key={i}
                 className={cn(
-                  "min-h-20 p-1 overflow-hidden",
-                  cell.day === null ? "bg-background" : "bg-card",
-                  today && "bg-primary/5",
-                  isExpanded && "z-10 relative shadow-md",
+                  "min-h-[88px] p-1 overflow-hidden border-t border-border/40",
+                  i % 7 !== 0 && "border-l border-l-border/40",
+                  cell.day === null ? "bg-muted/15" : "bg-card",
+                  today && "bg-[#A00000]/[0.04]",
+                  isExpanded && "z-10 relative shadow-lg",
                 )}
               >
                 {cell.day && (
                   <>
-                    <span
-                      className={cn(
-                        "text-xs font-medium text-muted-foreground inline-flex items-center justify-center size-[22px]",
-                        today && "bg-destructive text-destructive-foreground rounded-full",
-                      )}
-                    >
-                      {cell.day}
-                    </span>
-                    {visibleEntries?.map((entry) =>
-                      entry.shiftGroupId ? (
-                        <Tooltip key={entry.id}>
-                          <TooltipTrigger asChild>
-                            <button
-                              className={cn(
-                                bookingBase,
-                                "flex items-center gap-1 cursor-pointer",
-                                bookingColorClass(entry),
-                              )}
-                              onClick={() =>
-                                onSelectGroup(entry.shiftGroupId)
-                              }
-                            >
-                              {entry.coverage && (
-                                <span
-                                  className="size-1.5 rounded-full flex-shrink-0"
-                                  style={{
-                                    background: coverageDot(
-                                      entry.coverage.percentage,
-                                    ),
-                                  }}
-                                />
-                              )}
-                              <span className="truncate">
-                                {entry.sportCode && entry.opponent
-                                  ? `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`
-                                  : entry.summary}
-                              </span>
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" align="start">
-                            {buildTooltipContent(entry)}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip key={entry.id}>
-                          <TooltipTrigger asChild>
-                            <Link
-                              href={`/events/${entry.id}`}
-                              className={cn(bookingBase, bookingColorClass(entry))}
-                            >
-                              {entry.sportCode && entry.opponent
-                                ? `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`
-                                : entry.summary}
-                            </Link>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" align="start">
-                            {buildTooltipContent(entry)}
-                          </TooltipContent>
-                        </Tooltip>
-                      ),
-                    )}
+                    {/* Date numeral */}
+                    <div className="flex justify-center mb-1">
+                      <span
+                        className={cn(
+                          "inline-flex items-center justify-center size-[26px] text-sm leading-none rounded-full font-bold transition-colors",
+                          today
+                            ? "bg-[#A00000] text-white"
+                            : "text-foreground hover:bg-muted/60",
+                        )}
+                        style={{ fontFamily: "var(--font-heading)" }}
+                      >
+                        {cell.day}
+                      </span>
+                    </div>
+
+                    {/* Events */}
+                    {visibleEntries?.map((entry) => (
+                      <EventChip
+                        key={entry.id}
+                        entry={entry}
+                        onSelectGroup={onSelectGroup}
+                      />
+                    ))}
+
+                    {/* Show more / less */}
                     {!isExpanded && hiddenCount > 0 && (
                       <button
                         type="button"
-                        className="block text-[10px] text-muted-foreground cursor-pointer hover:text-foreground px-1"
+                        className="block text-[9px] font-medium text-muted-foreground hover:text-foreground px-1 w-full text-left transition-colors"
                         onClick={() => setExpandedDay(cell.day)}
                       >
                         +{hiddenCount} more
@@ -238,7 +307,7 @@ export function CalendarView({
                     {isExpanded && hiddenCount > 0 && (
                       <button
                         type="button"
-                        className="block text-[10px] text-muted-foreground cursor-pointer hover:text-foreground px-1"
+                        className="block text-[9px] font-medium text-muted-foreground hover:text-foreground px-1 w-full text-left transition-colors"
                         onClick={() => setExpandedDay(null)}
                       >
                         show less
@@ -251,6 +320,6 @@ export function CalendarView({
           })}
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

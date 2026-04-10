@@ -3,10 +3,10 @@ import { FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon } from "luc
 import { FilterChip } from "@/components/FilterChip";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
+import { cn } from "@/lib/utils";
 import {
   AREAS,
   AREA_LABELS,
@@ -19,6 +19,19 @@ type ScheduleFiltersProps = {
   entries: CalendarEntry[];
 };
 
+const VIEW_MODES: { value: ViewMode; label: string; icon: React.ReactNode }[] = [
+  { value: "list", label: "List", icon: <ListIcon className="size-3.5" /> },
+  { value: "week", label: "Week", icon: <CalendarDaysIcon className="size-3.5" /> },
+  { value: "calendar", label: "Calendar", icon: <CalendarIcon className="size-3.5" /> },
+];
+
+const HOME_AWAY_OPTIONS: { value: HomeAwayFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "home", label: "Home" },
+  { value: "away", label: "Away" },
+  { value: "neutral", label: "Neutral" },
+];
+
 export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   const sportOptions = useMemo(() => {
     const codes = new Set(
@@ -30,7 +43,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
     }));
   }, [entries]);
 
-  // Count active data filters (excludes my-shifts and past-events which are now in toolbar)
   const activeFilterCount = [
     filters.sportFilter,
     filters.areaFilter,
@@ -38,74 +50,112 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   ].filter(Boolean).length;
 
   return (
-    <div className="flex flex-row items-center gap-2 flex-wrap mb-1">
-      {/* View mode — always visible */}
-      <ToggleGroup
-        type="single"
-        value={filters.viewMode}
-        onValueChange={(v) => { if (v) filters.setViewMode(v as ViewMode); }}
-        className="h-9"
-        aria-label="Schedule view mode"
-      >
-        <ToggleGroupItem value="list" className="h-9 px-3 gap-1.5 text-sm font-medium">
-          <ListIcon className="size-4" />
-          List
-        </ToggleGroupItem>
-        <ToggleGroupItem value="week" className="h-9 px-3 gap-1.5 text-sm font-medium">
-          <CalendarDaysIcon className="size-4" />
-          Week
-        </ToggleGroupItem>
-        <ToggleGroupItem value="calendar" className="h-9 px-3 gap-1.5 text-sm font-medium">
-          <CalendarIcon className="size-4" />
-          Calendar
-        </ToggleGroupItem>
-      </ToggleGroup>
+    <div className="flex flex-row items-center gap-1.5 flex-wrap mb-4 pb-3 border-b border-border/60">
+      {/* View mode toggle */}
+      <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
+        {VIEW_MODES.map((mode, i) => {
+          const isActive = filters.viewMode === mode.value;
+          return (
+            <button
+              key={mode.value}
+              onClick={() => filters.setViewMode(mode.value)}
+              aria-pressed={isActive}
+              className={cn(
+                "flex items-center gap-1.5 px-3 h-8 text-[13px] font-medium transition-all",
+                i > 0 && "border-l border-border",
+                isActive
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+              )}
+            >
+              {mode.icon}
+              <span className="max-sm:hidden">{mode.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Home/Away — always visible */}
-      <ToggleGroup
-        type="single"
-        value={filters.homeAwayFilter}
-        onValueChange={(v) => { if (v) filters.setHomeAwayFilter(v as HomeAwayFilter); }}
-        aria-label="Home or away filter"
-      >
-        <ToggleGroupItem value="all" className="h-9 px-3 text-sm font-medium">All</ToggleGroupItem>
-        <ToggleGroupItem value="home" className="h-9 px-3 text-sm font-medium">Home</ToggleGroupItem>
-        <ToggleGroupItem value="away" className="h-9 px-3 text-sm font-medium">Away</ToggleGroupItem>
-        <ToggleGroupItem value="neutral" className="h-9 px-3 text-sm font-medium">Neutral</ToggleGroupItem>
-      </ToggleGroup>
+      {/* Divider */}
+      <div className="h-5 w-px bg-border/80 mx-0.5 max-sm:hidden" />
 
-      {/* My Shifts — prominent toggle in toolbar */}
-      <div className="flex items-center gap-1.5 h-9 px-2 rounded-md border border-border bg-background">
+      {/* Home / Away filter */}
+      <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
+        {HOME_AWAY_OPTIONS.map((opt, i) => {
+          const isActive = filters.homeAwayFilter === opt.value;
+          const activeColor =
+            opt.value === "home"
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+              : opt.value === "away"
+                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                : "bg-background text-foreground";
+          return (
+            <button
+              key={opt.value}
+              onClick={() => filters.setHomeAwayFilter(opt.value)}
+              aria-pressed={isActive}
+              className={cn(
+                "px-2.5 h-8 text-[13px] font-medium transition-all",
+                i > 0 && "border-l border-border",
+                isActive
+                  ? cn(activeColor, "shadow-sm")
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Divider */}
+      <div className="h-5 w-px bg-border/80 mx-0.5 max-sm:hidden" />
+
+      {/* My Shifts toggle */}
+      <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-muted/30">
         <Switch
           id="my-shifts-toggle"
           checked={filters.myShiftsOnly}
           onCheckedChange={filters.setMyShiftsOnly}
-          className="scale-90"
+          className="scale-[0.8] origin-center"
         />
-        <Label htmlFor="my-shifts-toggle" className="text-sm font-medium cursor-pointer whitespace-nowrap">My Shifts</Label>
+        <Label
+          htmlFor="my-shifts-toggle"
+          className="text-[13px] font-medium cursor-pointer whitespace-nowrap"
+        >
+          My Shifts
+        </Label>
       </div>
 
-      {/* Past events — prominent toggle in toolbar (list view only) */}
+      {/* Past events toggle — list view only */}
       {filters.viewMode === "list" && (
-        <div className="flex items-center gap-1.5 h-9 px-2 rounded-md border border-border bg-background">
+        <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-muted/30">
           <Switch
             id="past-events-toggle"
             checked={filters.includePast}
             onCheckedChange={filters.setIncludePast}
-            className="scale-90"
+            className="scale-[0.8] origin-center"
           />
-          <Label htmlFor="past-events-toggle" className="text-sm font-medium cursor-pointer whitespace-nowrap">Past events</Label>
+          <Label
+            htmlFor="past-events-toggle"
+            className="text-[13px] font-medium cursor-pointer whitespace-nowrap"
+          >
+            Past
+          </Label>
         </div>
       )}
 
-      {/* Data filters — in a popover */}
+      {/* Data filters popover */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant={activeFilterCount > 0 ? "default" : "outline"} size="sm" className="h-9 gap-1.5">
+          <Button
+            variant={activeFilterCount > 0 ? "default" : "outline"}
+            size="sm"
+            className="h-8 gap-1.5 text-[13px]"
+          >
             <FilterIcon className="size-3.5" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="ml-0.5 inline-flex items-center justify-center size-5 rounded-full bg-white/20 text-xs font-bold">
+              <span className="ml-0.5 inline-flex items-center justify-center size-[18px] rounded-full bg-white/20 text-[10px] font-bold">
                 {activeFilterCount}
               </span>
             )}
@@ -113,7 +163,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 p-3">
           <div className="flex flex-col gap-3">
-            {/* Sport */}
             <FilterChip
               label="Sport"
               value={filters.sportFilter}
@@ -124,8 +173,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
               onSelect={(v) => filters.setSportFilter(v)}
               onClear={() => filters.setSportFilter("")}
             />
-
-            {/* Area */}
             <FilterChip
               label="Area"
               value={filters.areaFilter}
@@ -138,8 +185,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
               onSelect={(v) => filters.setAreaFilter(v)}
               onClear={() => filters.setAreaFilter("")}
             />
-
-            {/* Coverage */}
             <FilterChip
               label="Coverage"
               value={filters.coverageFilter}
@@ -157,8 +202,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
               onSelect={(v) => filters.setCoverageFilter(v)}
               onClear={() => filters.setCoverageFilter("")}
             />
-
-            {/* Clear all */}
             {filters.hasFilters && (
               <div className="pt-1 border-t border-border/50">
                 <Button

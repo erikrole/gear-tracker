@@ -12,7 +12,6 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
@@ -53,9 +52,35 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
   GRAPHICS: "blue",
 };
 
+/* Left-bar color per home/away */
+const rowBarClass = (entry: CalendarEntry) =>
+  entry.isHome === true
+    ? "border-l-emerald-500"
+    : entry.isHome === false
+      ? "border-l-amber-500"
+      : "border-l-transparent";
+
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
   return active?.user ?? null;
+}
+
+/* ── Coverage fraction badge ── */
+function CoveragePill({ percentage, filled, total }: { percentage: number; filled: number; total: number }) {
+  const variant = coverageVariant(percentage);
+  return (
+    <span className="flex items-center gap-1">
+      <span
+        className={cn(
+          "inline-flex size-[7px] rounded-full flex-shrink-0",
+          variant === "green" ? "bg-emerald-500" : variant === "orange" ? "bg-amber-500" : "bg-red-500",
+        )}
+      />
+      <Badge variant={variant} size="sm">
+        {filled}/{total}
+      </Badge>
+    </span>
+  );
 }
 
 export function ListView({
@@ -106,7 +131,7 @@ export function ListView({
     } catch (err) {
       if (isAbortError(err)) return;
       toast.error("Failed to load users");
-      usersLoadedRef.current = false; // allow retry
+      usersLoadedRef.current = false;
     }
     finally { setUsersLoading(false); }
   }, []);
@@ -144,21 +169,29 @@ export function ListView({
   }, [loadData]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {myShiftsOnly ? "My" : includePast ? "All" : "Upcoming"} Events{" "}
-          ({filteredEntries.length !== entries.length
-            ? `${filteredEntries.length} of ${entries.length}`
-            : filteredEntries.length})
-        </CardTitle>
-      </CardHeader>
+    <div className="border border-border/60 rounded-lg overflow-hidden bg-card">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/20">
+        <div className="flex items-center gap-2">
+          <h3
+            className="text-sm font-bold uppercase tracking-wider text-foreground"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            {myShiftsOnly ? "My Shifts" : includePast ? "All Events" : "Upcoming Events"}
+          </h3>
+          <span className="text-xs text-muted-foreground font-medium">
+            {filteredEntries.length !== entries.length
+              ? `${filteredEntries.length} of ${entries.length}`
+              : filteredEntries.length}
+          </span>
+        </div>
+      </div>
 
       {loading ? (
         <SkeletonTable rows={6} cols={3} />
       ) : loadError ? (
-        <div className="p-4 text-center">
-          <p className="text-muted-foreground mb-2">
+        <div className="p-8 text-center">
+          <p className="text-sm text-muted-foreground mb-3">
             {loadError === "network"
               ? "You appear to be offline. Check your connection and try again."
               : "Something went wrong loading schedule data."}
@@ -198,35 +231,87 @@ export function ListView({
         />
       ) : (
         <>
-          {/* ── Desktop: Asana-style expandable shift schedule ── */}
+          {/* ── Desktop: timeline table ── */}
           <div className="max-md:hidden">
             {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
+              const groupDate = new Date(dateKey);
               const isGroupToday =
-                new Date(dateKey).toDateString() === new Date().toDateString();
+                groupDate.toDateString() === new Date().toDateString();
+
               return (
                 <div key={dateKey}>
-                  <div className={cn(
-                    "sticky top-0 z-10 bg-card px-4 py-2.5 text-sm font-semibold border-b border-border flex items-center gap-2",
-                    isGroupToday && "border-l-[3px] border-l-primary bg-primary/5",
-                  )}>
-                    {formatDate(groupEntries[0].startsAt)}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      {groupEntries.length} event{groupEntries.length !== 1 ? "s" : ""}
-                    </span>
+                  {/* Date group header — timeline style */}
+                  <div
+                    className={cn(
+                      "sticky top-0 z-10 flex items-stretch border-b border-border/50",
+                      isGroupToday ? "bg-[#A00000]/[0.04]" : "bg-card",
+                    )}
+                  >
+                    {/* Date marker */}
+                    <div
+                      className={cn(
+                        "flex flex-col items-center justify-center px-4 py-2 border-r border-border/40 w-[56px] flex-shrink-0",
+                        isGroupToday ? "text-[#A00000]" : "text-muted-foreground",
+                      )}
+                    >
+                      <span
+                        className="text-[9px] font-bold uppercase tracking-widest leading-none"
+                        style={{ fontFamily: "var(--font-heading)" }}
+                      >
+                        {groupDate.toLocaleDateString("en-US", { weekday: "short" })}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[22px] font-black leading-tight tabular-nums",
+                          isGroupToday ? "text-[#A00000]" : "text-foreground",
+                        )}
+                        style={{ fontFamily: "var(--font-heading)" }}
+                      >
+                        {groupDate.getDate()}
+                      </span>
+                      <span
+                        className="text-[9px] leading-none text-muted-foreground"
+                        style={{ fontFamily: "var(--font-heading)" }}
+                      >
+                        {groupDate.toLocaleDateString("en-US", { month: "short" })}
+                      </span>
+                    </div>
+
+                    {/* Event count + today label */}
+                    <div className="flex items-center gap-2 px-3">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {groupEntries.length} event{groupEntries.length !== 1 ? "s" : ""}
+                      </span>
+                      {isGroupToday && (
+                        <span
+                          className="text-[10px] font-black text-[#A00000] uppercase tracking-widest"
+                          style={{ fontFamily: "var(--font-heading)" }}
+                        >
+                          Today
+                        </span>
+                      )}
+                    </div>
                   </div>
+
                   <table className="w-full border-collapse">
                     <thead className={groupIdx === 0 ? "" : "hidden"}>
                       <tr>
-                        <th className="w-7"></th>
-                        <th className="text-left px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">Event</th>
-                        <th className="text-left px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border w-[180px]">Time</th>
+                        <th className="w-12"></th>
+                        <th className="text-left px-4 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
+                          Event
+                        </th>
+                        <th className="text-left px-4 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40 w-[160px]">
+                          Time
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {groupEntries.map((entry) => {
                         const isExpanded = expandedRowId === entry.id;
                         const hasShifts = entry.shifts.length > 0;
-                        const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
+                        const shiftStatus = currentUserId
+                          ? userShiftStatus(entry, currentUserId)
+                          : null;
 
                         return (
                           <EventRows
@@ -236,16 +321,29 @@ export function ListView({
                             hasShifts={hasShifts}
                             shiftStatus={shiftStatus}
                             isStaff={isStaff}
-                            onToggle={() => setExpandedRowId(isExpanded ? null : entry.id)}
-                            onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
-                            onHide={onHideEvent ? () => onHideEvent(entry.id) : undefined}
+                            onToggle={() =>
+                              setExpandedRowId(isExpanded ? null : entry.id)
+                            }
+                            onSelectGroup={() =>
+                              onSelectGroup(entry.shiftGroupId)
+                            }
+                            onHide={
+                              onHideEvent ? () => onHideEvent(entry.id) : undefined
+                            }
                             pickerShiftId={pickerShiftId}
                             pickerUsers={filteredUsers}
                             pickerLoading={usersLoading}
                             pickerSearch={userSearch}
                             assigning={assigning}
-                            onOpenPicker={(shiftId) => { setPickerShiftId(shiftId); setUserSearch(""); loadUsers(); }}
-                            onClosePicker={() => { setPickerShiftId(null); setUserSearch(""); }}
+                            onOpenPicker={(shiftId) => {
+                              setPickerShiftId(shiftId);
+                              setUserSearch("");
+                              loadUsers();
+                            }}
+                            onClosePicker={() => {
+                              setPickerShiftId(null);
+                              setUserSearch("");
+                            }}
                             onPickerSearchChange={setUserSearch}
                             onInlineAssign={handleInlineAssign}
                           />
@@ -262,41 +360,66 @@ export function ListView({
           <div className="hidden max-md:flex flex-col">
             {filteredEntries.map((entry) => {
               const isExpanded = expandedRowId === entry.id;
-              const shiftStatus = currentUserId ? userShiftStatus(entry, currentUserId) : null;
+              const shiftStatus = currentUserId
+                ? userShiftStatus(entry, currentUserId)
+                : null;
+
+              const barColor =
+                entry.isHome === true
+                  ? "border-l-emerald-500"
+                  : entry.isHome === false
+                    ? "border-l-amber-500"
+                    : "border-l-muted-foreground/20";
 
               return (
-                <div key={entry.id} className="block px-4 py-3 border-b border-border/50 last:border-b-0 no-underline text-inherit active:bg-accent/50">
+                <div
+                  key={entry.id}
+                  className={cn(
+                    "border-b border-border/50 last:border-b-0 border-l-[3px]",
+                    barColor,
+                  )}
+                >
                   <button
-                    className="w-full text-left p-3"
-                    onClick={() => entry.shifts.length > 0
-                      ? setExpandedRowId(isExpanded ? null : entry.id)
-                      : undefined}
+                    className="w-full text-left px-4 py-3"
+                    onClick={() =>
+                      entry.shifts.length > 0
+                        ? setExpandedRowId(isExpanded ? null : entry.id)
+                        : undefined
+                    }
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-sm flex items-center gap-1.5">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <span className="font-semibold text-sm flex items-center gap-1.5 leading-tight">
                         {entry.shifts.length > 0 && (
-                          isExpanded
-                            ? <ChevronDownIcon className="size-3.5 text-muted-foreground shrink-0" />
-                            : <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0" />
+                          isExpanded ? (
+                            <ChevronDownIcon className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                          ) : (
+                            <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                          )
                         )}
                         {entry.opponent
                           ? `${entry.isHome === false ? "at " : "vs "}${entry.opponent}`
                           : entry.summary}
                       </span>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         {shiftStatus && (
-                          <Badge variant={shiftStatus === "Confirmed" ? "green" : "orange"} size="sm">
+                          <Badge
+                            variant={shiftStatus === "Confirmed" ? "green" : "orange"}
+                            size="sm"
+                          >
                             {shiftStatus}
                           </Badge>
                         )}
                         {entry.coverage && (
-                          <Badge variant={coverageVariant(entry.coverage.percentage)} size="sm">
+                          <Badge
+                            variant={coverageVariant(entry.coverage.percentage)}
+                            size="sm"
+                          >
                             {entry.coverage.filled}/{entry.coverage.total}
                           </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground flex gap-2 flex-wrap">
+                    <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
                       <span>
                         {formatDateShort(entry.startsAt)}{" "}
                         {entry.allDay ? "All day" : formatTimeShort(entry.startsAt)}
@@ -307,36 +430,48 @@ export function ListView({
                     </div>
                   </button>
 
-                  {/* Expanded shift rows on mobile */}
                   {isExpanded && entry.shifts.length > 0 && (
-                    <div className="border-t border-border">
+                    <div className="border-t border-border/40">
                       {entry.shifts.map((shift) => {
                         const user = shiftAssignee(shift);
                         return (
                           <div
                             key={shift.id}
-                            className="flex items-center gap-3 px-3 py-2 pl-8 border-b border-border/50 last:border-b-0 cursor-pointer hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                            className="flex items-center gap-3 px-4 py-2.5 pl-8 border-b border-border/30 last:border-b-0 cursor-pointer hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
                             tabIndex={0}
                             role="link"
                             onClick={() => onSelectGroup(entry.shiftGroupId)}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectGroup(entry.shiftGroupId); } }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onSelectGroup(entry.shiftGroupId);
+                              }
+                            }}
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               {user ? (
                                 <>
-                                  <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
+                                  <UserAvatar
+                                    name={user.name}
+                                    avatarUrl={user.avatarUrl}
+                                  />
                                   <span className="text-sm truncate">{user.name}</span>
                                 </>
                               ) : (
                                 <>
-                                  <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
+                                  <div className="size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
                                     <UserIcon className="size-3 text-muted-foreground/40" />
                                   </div>
-                                  <span className="text-sm text-muted-foreground">Unassigned</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    Unassigned
+                                  </span>
                                 </>
                               )}
                             </div>
-                            <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm">
+                            <Badge
+                              variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
+                              size="sm"
+                            >
                               {AREA_LABELS[shift.area] ?? shift.area}
                             </Badge>
                           </div>
@@ -350,7 +485,7 @@ export function ListView({
           </div>
         </>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -401,45 +536,76 @@ function EventRows({
     ? "All day"
     : `${formatTime(entry.startsAt)} – ${formatTime(entry.endsAt)}`;
 
+  const borderBar =
+    entry.isHome === true
+      ? "border-l-emerald-500"
+      : entry.isHome === false
+        ? "border-l-amber-500"
+        : "border-l-transparent";
+
   return (
     <>
       {/* Parent event row */}
       <tr
-        className={`group/row ${hasShifts ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]" : ""} ${isExpanded ? "bg-accent/30" : ""}`}
+        className={cn(
+          "group/row border-l-[3px] transition-colors",
+          borderBar,
+          hasShifts ? "cursor-pointer" : "",
+          isExpanded ? "bg-muted/20" : "hover:bg-muted/10",
+        )}
         tabIndex={hasShifts ? 0 : undefined}
         role={hasShifts ? "link" : undefined}
         onClick={hasShifts ? onToggle : undefined}
-        onKeyDown={hasShifts ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } } : undefined}
+        onKeyDown={
+          hasShifts
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onToggle();
+                }
+              }
+            : undefined
+        }
       >
-        <td className="px-1 py-3">
-          {hasShifts && (
-            isExpanded
-              ? <ChevronDownIcon className="size-4 text-muted-foreground" />
-              : <ChevronRightIcon className="size-4 text-muted-foreground" />
-          )}
+        <td className="pl-3 pr-1 py-3 border-b border-border/20 w-7">
+          {hasShifts &&
+            (isExpanded ? (
+              <ChevronDownIcon className="size-4 text-muted-foreground" />
+            ) : (
+              <ChevronRightIcon className="size-4 text-muted-foreground" />
+            ))}
         </td>
-        <td className="px-4 py-3 border-b border-border/30">
-          <div className="flex items-center gap-2">
+        <td className="px-4 py-3 border-b border-border/20">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href={`/events/${entry.id}`}
-              className="font-semibold hover:underline"
+              className="font-semibold text-sm hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               {eventTitle}
             </Link>
             {entry.sportCode && (
-              <Badge variant="purple" size="sm">{sportLabel(entry.sportCode)}</Badge>
-            )}
-            {entry.coverage && (
-              <Badge variant={coverageVariant(entry.coverage.percentage)} size="sm">
-                {entry.coverage.filled}/{entry.coverage.total}
+              <Badge variant="purple" size="sm">
+                {sportLabel(entry.sportCode)}
               </Badge>
             )}
+            {entry.coverage && (
+              <CoveragePill
+                percentage={entry.coverage.percentage}
+                filled={entry.coverage.filled}
+                total={entry.coverage.total}
+              />
+            )}
             {entry.isPremier && (
-              <Badge variant="blue" size="sm">Premier</Badge>
+              <Badge variant="blue" size="sm">
+                Premier
+              </Badge>
             )}
             {shiftStatus && (
-              <Badge variant={shiftStatus === "Confirmed" ? "green" : "orange"} size="sm">
+              <Badge
+                variant={shiftStatus === "Confirmed" ? "green" : "orange"}
+                size="sm"
+              >
                 {shiftStatus}
               </Badge>
             )}
@@ -450,7 +616,10 @@ function EventRows({
                     variant="ghost"
                     size="icon-sm"
                     className="opacity-0 group-hover/row:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); onHide(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onHide();
+                    }}
                   >
                     <EyeOffIcon className="size-3.5" />
                   </Button>
@@ -460,80 +629,108 @@ function EventRows({
             )}
           </div>
         </td>
-        <td className="px-4 py-3 border-b border-border/30 text-sm text-muted-foreground whitespace-nowrap">{timeStr}</td>
+        <td className="px-4 py-3 border-b border-border/20 text-sm text-muted-foreground whitespace-nowrap">
+          {timeStr}
+        </td>
       </tr>
 
       {/* Child shift rows */}
-      {isExpanded && entry.shifts.map((shift) => {
-        const user = shiftAssignee(shift);
-        const isAway = entry.isHome !== true;
-        const shiftTime = isAway ? "—" : `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
-        const isPickerOpen = pickerShiftId === shift.id;
+      {isExpanded &&
+        entry.shifts.map((shift) => {
+          const user = shiftAssignee(shift);
+          const isAway = entry.isHome !== true;
+          const shiftTime = isAway
+            ? "—"
+            : `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
+          const isPickerOpen = pickerShiftId === shift.id;
 
-        return (
-          <tr
-            key={shift.id}
-            className="bg-muted/20 hover:bg-accent/40 cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
-            tabIndex={0}
-            role="link"
-            onClick={() => !isPickerOpen && onSelectGroup()}
-            onKeyDown={(e) => { if (!isPickerOpen && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onSelectGroup(); } }}
-          >
-            <td className="py-3"></td>
-            <td className="px-4 py-3 border-b border-border/30">
-              <div className="flex items-center gap-2 pl-4">
-                {user ? (
-                  <>
-                    <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
-                    <span className="text-sm">{user.name}</span>
-                  </>
-                ) : isStaff ? (
-                  <Popover
-                    open={isPickerOpen}
-                    onOpenChange={(open) => {
-                      if (open) onOpenPicker(shift.id);
-                      else onClosePicker();
-                    }}
-                  >
-                    <PopoverTrigger asChild>
-                      <button
-                        className="flex items-center gap-2 hover:bg-accent/50 rounded px-1 py-0.5 -ml-1 transition-colors"
-                        onClick={(e) => { e.stopPropagation(); onOpenPicker(shift.id); }}
+          return (
+            <tr
+              key={shift.id}
+              className="bg-muted/10 hover:bg-muted/25 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+              tabIndex={0}
+              role="link"
+              onClick={() => !isPickerOpen && onSelectGroup()}
+              onKeyDown={(e) => {
+                if (!isPickerOpen && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  onSelectGroup();
+                }
+              }}
+            >
+              <td className="py-2.5 border-b border-border/15"></td>
+              <td className="px-4 py-2.5 border-b border-border/15">
+                <div className="flex items-center gap-2.5 pl-5">
+                  {user ? (
+                    <>
+                      <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
+                      <span className="text-sm">{user.name}</span>
+                    </>
+                  ) : isStaff ? (
+                    <Popover
+                      open={isPickerOpen}
+                      onOpenChange={(open) => {
+                        if (open) onOpenPicker(shift.id);
+                        else onClosePicker();
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          className="flex items-center gap-2 hover:bg-muted/60 rounded px-1.5 py-1 -ml-1.5 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenPicker(shift.id);
+                          }}
+                        >
+                          <div className="size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
+                            <UserIcon className="size-3 text-muted-foreground/40" />
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            Unassigned
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-64 p-2"
+                        align="start"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
-                          <UserIcon className="size-3 text-muted-foreground/40" />
-                        </div>
-                        <span className="text-sm text-muted-foreground">Unassigned</span>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-                      <UserAvatarPicker
-                        users={pickerUsers}
-                        loading={pickerLoading}
-                        search={pickerSearch}
-                        onSearchChange={onPickerSearchChange}
-                        onSelect={(userId) => onInlineAssign(shift.id, userId)}
-                        disabled={assigning}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                ) : (
-                  <>
-                    <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
-                      <UserIcon className="size-3 text-muted-foreground/40" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">Unassigned</span>
-                  </>
-                )}
-                <Badge variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"} size="sm">
-                  {AREA_LABELS[shift.area] ?? shift.area}
-                </Badge>
-              </div>
-            </td>
-            <td className="px-4 py-3 border-b border-border/30 text-sm text-muted-foreground whitespace-nowrap">{shiftTime}</td>
-          </tr>
-        );
-      })}
+                        <UserAvatarPicker
+                          users={pickerUsers}
+                          loading={pickerLoading}
+                          search={pickerSearch}
+                          onSearchChange={onPickerSearchChange}
+                          onSelect={(userId) =>
+                            onInlineAssign(shift.id, userId)
+                          }
+                          disabled={assigning}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <>
+                      <div className="size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
+                        <UserIcon className="size-3 text-muted-foreground/40" />
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        Unassigned
+                      </span>
+                    </>
+                  )}
+                  <Badge
+                    variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
+                    size="sm"
+                  >
+                    {AREA_LABELS[shift.area] ?? shift.area}
+                  </Badge>
+                </div>
+              </td>
+              <td className="px-4 py-2.5 border-b border-border/15 text-sm text-muted-foreground whitespace-nowrap">
+                {shiftTime}
+              </td>
+            </tr>
+          );
+        })}
     </>
   );
 }
