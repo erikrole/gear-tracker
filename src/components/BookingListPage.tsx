@@ -10,6 +10,7 @@ import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
@@ -353,13 +354,19 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             )}
 
             {totalPages > 1 && (
-              <nav className="pagination" aria-label="Pagination">
-                <span>Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}</span>
-                <div className="pagination-btns">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Previous page">Previous</Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Next page">Next</Button>
-                </div>
-              </nav>
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm text-muted-foreground">
+                <span>Showing {page * limit + 1}–{Math.min((page + 1) * limit, total)} of {total}</span>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious onClick={() => setPage(page - 1)} aria-disabled={page === 0} className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext onClick={() => setPage(page + 1)} aria-disabled={page >= totalPages - 1} className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             )}
           </>
         )}
