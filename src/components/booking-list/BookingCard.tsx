@@ -5,13 +5,13 @@ import { cn } from "@/lib/utils";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/avatar";
-import { MoreHorizontalIcon, MapPinIcon, CalendarIcon } from "lucide-react";
+import { MoreHorizontalIcon } from "lucide-react";
 
 /* ───── Helpers ───── */
 
 function formatCardDate(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function formatCardTime(iso: string) {
@@ -69,74 +69,116 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
   return (
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <div
-        className="group relative rounded-lg border border-border bg-card p-4 cursor-pointer transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+        className={cn(
+          "group relative rounded-lg border bg-card overflow-hidden cursor-pointer transition-colors hover:bg-muted/30 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]",
+          isOverdue && "border-[var(--wi-red)]/25 bg-[var(--wi-red)]/[0.02]",
+        )}
         role="button"
         tabIndex={0}
         aria-label={`View booking: ${item.title}`}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       >
-        {/* Top row: status + date range */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
+        {/* Status left-border accent */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-[3px]"
+          style={{ background: sv.dot }}
+          aria-hidden="true"
+        />
+
+        <div className="p-4 pl-5">
+          {/* Top row: status indicator + duration */}
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="size-1.5 rounded-full shrink-0"
+                style={{ background: sv.dot }}
+                aria-hidden="true"
+              />
+              <span
+                className={cn(
+                  "text-[10px] uppercase tracking-[0.16em] font-semibold",
+                  isOverdue ? "text-destructive" : "text-muted-foreground/70",
+                )}
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                {sv.label}
+              </span>
+            </div>
             <span
-              className="size-2 rounded-full shrink-0"
-              style={{ background: sv.dot }}
-              aria-hidden="true"
-            />
-            <span className="text-xs font-medium text-muted-foreground">
-              {sv.label}
+              className="text-[10.5px] text-muted-foreground/50 tabular-nums"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              {duration}
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">
-            {duration}
-          </span>
-        </div>
 
-        {/* Title */}
-        <h3 className={cn("text-[15px] font-semibold leading-snug mb-1 line-clamp-2 pr-6 text-foreground", sv.titleClass)}>
-          {item.title}
-        </h3>
-
-        {/* Date + location row */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-          <span className="flex items-center gap-1">
-            <CalendarIcon className="size-3 text-muted-foreground" />
-            {formatCardDate(item.startsAt)} · {formatCardTime(item.startsAt)}
-          </span>
-          {item.location?.name && (
-            <span className="flex items-center gap-1">
-              <MapPinIcon className="size-3 text-muted-foreground" />
-              {item.location.name}
-            </span>
+          {/* Ref number */}
+          {item.refNumber && (
+            <div className="mb-1">
+              <span
+                className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/40"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                #{item.refNumber}
+              </span>
+            </div>
           )}
-        </div>
 
-        {/* Bottom row: user avatar + gear avatars */}
-        <div className="flex items-center justify-between pt-3 border-t border-dashed border-border">
-          {/* User */}
-          <div className="flex items-center gap-2">
-            <Avatar size="sm" className="border border-border">
-              {item.requester?.avatarUrl ? (
-                <AvatarImage src={item.requester.avatarUrl} alt={item.requester.name} />
-              ) : null}
-              <AvatarFallback className="text-[10px] font-semibold">
-                {getInitials(item.requester?.name ?? "?")}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs font-medium text-foreground">
-              {item.requester?.name ?? "Unknown"}
+          {/* Title */}
+          <h3
+            className={cn(
+              "text-[14.5px] leading-snug mb-2 line-clamp-2 pr-6",
+              sv.titleClass,
+            )}
+            style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}
+          >
+            {item.title}
+          </h3>
+
+          {/* Date + location */}
+          <div
+            className="flex items-center gap-2 text-[11px] text-muted-foreground/60 mb-3"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            <span className="whitespace-nowrap">
+              {formatCardDate(item.startsAt)} · {formatCardTime(item.startsAt)}
             </span>
+            {item.location?.name && (
+              <>
+                <span className="text-muted-foreground/30" aria-hidden="true">/</span>
+                <span className="truncate">{item.location.name}</span>
+              </>
+            )}
           </div>
 
-          {/* Gear */}
-          <GearAvatarStack
-            items={item.serializedItems}
-            bulkItems={item.bulkItems}
-          />
+          {/* Bottom row: user + gear */}
+          <div className="flex items-center justify-between pt-2.5 border-t border-border/40">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Avatar size="sm" className="border border-border shrink-0">
+                {item.requester?.avatarUrl ? (
+                  <AvatarImage src={item.requester.avatarUrl} alt={item.requester.name} />
+                ) : null}
+                <AvatarFallback className="text-[10px] font-semibold">
+                  {getInitials(item.requester?.name ?? "?")}
+                </AvatarFallback>
+              </Avatar>
+              <span
+                className="text-[12px] truncate"
+                style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}
+              >
+                {item.requester?.name ?? "Unknown"}
+              </span>
+            </div>
+
+            <GearAvatarStack
+              items={item.serializedItems}
+              bulkItems={item.bulkItems}
+            />
+          </div>
         </div>
 
-        {/* Overflow menu — top-right */}
+        {/* Overflow menu — top-right, reveal on hover */}
         <div
           className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}

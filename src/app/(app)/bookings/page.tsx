@@ -205,13 +205,13 @@ export default function BookingsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="px-4 max-md:px-2" aria-label="Booking type">
-          <TabsTrigger value="checkouts" className="flex items-center gap-1.5">
+          <TabsTrigger value="checkouts" className="flex items-center gap-1.5 data-[state=active]:border-[var(--wi-red)]">
             <ClipboardCheckIcon className="size-4" />
-            Checkouts
+            <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>Checkouts</span>
           </TabsTrigger>
-          <TabsTrigger value="reservations" className="flex items-center gap-1.5">
+          <TabsTrigger value="reservations" className="flex items-center gap-1.5 data-[state=active]:border-[var(--wi-red)]">
             <CalendarPlusIcon className="size-4" />
-            Reservations
+            <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>Reservations</span>
           </TabsTrigger>
         </TabsList>
 
