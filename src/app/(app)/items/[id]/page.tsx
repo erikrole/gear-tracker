@@ -222,12 +222,23 @@ export default function ItemDetailsPage() {
               tab.key === "accessories" ? accessoriesCount :
               0;
             return (
-              <TabsTrigger key={tab.key} value={tab.key} className="shrink-0">
-                {tab.label}
+              <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 gap-1.5">
+                <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
                 {count > 0 && (
-                  <span className="ml-1 text-[10px] text-muted-foreground">{count}</span>
+                  <span
+                    className="text-[10px] tabular-nums text-muted-foreground/70"
+                    style={{ fontFamily: "var(--font-mono)" }}
+                  >
+                    {count}
+                  </span>
                 )}
-                <kbd className="ml-1 hidden sm:inline-block text-[10px] text-muted-foreground/50 font-mono" aria-hidden="true">{i + 1}</kbd>
+                <span
+                  className="hidden sm:inline-block text-[9px] tabular-nums text-muted-foreground/35"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                  aria-hidden="true"
+                >
+                  {i + 1}
+                </span>
               </TabsTrigger>
             );
           })}
