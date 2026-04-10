@@ -13,29 +13,28 @@ import {
   SheetBody,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
-import { statusBadgeVariant, EQUIPMENT_ACTIONS } from "./booking-details/helpers";
+import { statusBadgeVariant } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
   BookingOverview,
   BookingEditForm,
   BookingItems,
-  BookingActions,
   ScanToReturnView,
 } from "./booking-details";
 import { useCheckinScan } from "./booking-details/useCheckinScan";
 import EquipmentPicker, { type PickerBulkSku } from "@/components/EquipmentPicker";
 import ActivityTimeline from "@/components/ActivityTimeline";
+import Link from "next/link";
+import { ExternalLinkIcon } from "lucide-react";
 import type {
   BookingDetail,
   BulkSkuOption,
   ConflictData,
-  TabKey,
-  HistoryFilter,
 } from "./booking-details/types";
 
 /* ───── Props ───── */
@@ -48,19 +47,41 @@ type Props = {
   initialTab?: "details" | "equipment" | "history" | null;
 };
 
+/* ───── Section heading ───── */
+
+function SectionHead({
+  label,
+  right,
+}: {
+  label: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-6 py-3 border-b border-border bg-muted/20">
+      <span
+        className="h-[18px] w-[3px] shrink-0 rounded-full"
+        style={{ backgroundColor: "var(--wi-red)" }}
+      />
+      <span className="text-[11px] font-black uppercase tracking-[0.15em] flex-1 text-foreground">
+        {label}
+      </span>
+      {right}
+    </div>
+  );
+}
+
 /* ───── Component ───── */
 
 export default function BookingDetailsSheet({
   bookingId,
   onClose,
   onUpdated,
-  currentUserRole,
-  initialTab,
+  currentUserRole: _currentUserRole,
+  initialTab: _initialTab,
 }: Props) {
   const confirm = useConfirm();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>(initialTab ?? "details");
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [equipSearch, setEquipSearch] = useState("");
@@ -77,14 +98,12 @@ export default function BookingDetailsSheet({
   const [editBulkItems, setEditBulkItems] = useState<
     { bulkSkuId: string; quantity: number }[]
   >([]);
-  // (Inline picker state removed — EquipmentPicker manages its own search/selection)
   const [bulkSkus, setBulkSkus] = useState<BulkSkuOption[]>([]);
   const [equipSaving, setEquipSaving] = useState(false);
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
   const [optionsError, setOptionsError] = useState(false);
 
-  // History filter + audit log pagination
-  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
+  // Audit log pagination
   const [extraAuditLogs, setExtraAuditLogs] = useState<BookingDetail["auditLogs"]>([]);
   const [auditLogCursor, setAuditLogCursor] = useState<string | null>(null);
   const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
@@ -92,7 +111,6 @@ export default function BookingDetailsSheet({
 
   const [fetchError, setFetchError] = useState(false);
 
-  // Action loading states (must be before early return to satisfy Rules of Hooks)
   const [extending, setExtending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [converting, setConverting] = useState(false);
@@ -104,11 +122,9 @@ export default function BookingDetailsSheet({
 
   const fetchBooking = useCallback(async (opts?: { silent?: boolean }) => {
     if (!bookingId) return;
-    // Only show skeleton on initial load, not on refresh after mutations
     if (!opts?.silent) setLoading(true);
     setFetchError(false);
 
-    // Abort any in-flight request to prevent stale data overwriting fresh
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -139,15 +155,12 @@ export default function BookingDetailsSheet({
   useEffect(() => {
     if (bookingId) {
       fetchBooking();
-      setTab(initialTab ?? "details");
       setEditMode(false);
       setEquipEditMode(false);
       setConflictError(null);
     }
     return () => { abortRef.current?.abort(); };
-    // initialTab intentionally included — deep-link ?sheetTab must be applied
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingId, fetchBooking, initialTab]);
+  }, [bookingId, fetchBooking]);
 
   const loadFormOptions = useCallback(async () => {
     try {
@@ -182,7 +195,7 @@ export default function BookingDetailsSheet({
         setHasMoreAuditLogs(json.hasMore ?? false);
       }
     } catch {
-      // Silently fail — user can retry
+      // silently fail
     }
     setLoadingMoreAuditLogs(false);
   }, [bookingId, auditLogCursor, loadingMoreAuditLogs]);
@@ -203,13 +216,6 @@ export default function BookingDetailsSheet({
     return [...(booking.auditLogs ?? []), ...extraAuditLogs];
   }, [booking, extraAuditLogs]);
 
-  const filteredAuditLogs = useMemo(() => {
-    if (historyFilter === "all") return allAuditLogs;
-    if (historyFilter === "equipment") {
-      return allAuditLogs.filter((e) => EQUIPMENT_ACTIONS.has(e.action));
-    }
-    return allAuditLogs.filter((e) => !EQUIPMENT_ACTIONS.has(e.action));
-  }, [allAuditLogs, historyFilter]);
 
   const returnSuggestion = useMemo(() => {
     if (!booking) return null;
@@ -219,8 +225,6 @@ export default function BookingDetailsSheet({
     const names = booking.itemLocations.map((l) => l.name);
     return `Return to both: ${names.join(" + ")}`;
   }, [booking]);
-
-  // (Resolve functions removed — EquipmentPicker handles its own asset display)
 
   /* ───── Permission flags ───── */
 
@@ -261,6 +265,9 @@ export default function BookingDetailsSheet({
     return item.bulkSku.name.toLowerCase().includes(equipSearch.toLowerCase());
   });
 
+  const totalEquipItems =
+    (booking?.serializedItems?.length ?? 0) + (booking?.bulkItems?.length ?? 0);
+
   /* ───── Handlers ───── */
 
   function enterEditMode() {
@@ -282,12 +289,9 @@ export default function BookingDetailsSheet({
       }))
     );
     setEquipEditMode(true);
-    setTab("equipment");
     setConflictError(null);
     loadFormOptions();
   }
-
-  // (Manual add/remove helpers removed — EquipmentPicker manages selection)
 
   async function handleEquipSave() {
     if (!booking || equipSaving) return;
@@ -314,9 +318,7 @@ export default function BookingDetailsSheet({
         onUpdated?.();
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        if (res.status === 409 && json.data) {
-          setConflictError(json.data as ConflictData);
-        }
+        if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
         toast.error((json.error as string) || "Failed to save equipment changes");
       }
     } catch {
@@ -364,9 +366,7 @@ export default function BookingDetailsSheet({
         onUpdated?.();
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        if (res.status === 409 && json.data) {
-          setConflictError(json.data as ConflictData);
-        }
+        if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
         toast.error((json.error as string) || "Failed to save");
       }
     } catch {
@@ -378,17 +378,17 @@ export default function BookingDetailsSheet({
   async function handleExtendTo(endsAt: string) {
     if (!booking || extending) return;
     setExtending(true);
-
     try {
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt }),
       });
-
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const newDate = new Date(endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        const newDate = new Date(endsAt).toLocaleDateString("en-US", {
+          month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+        });
         toast.success(`Extended to ${newDate}`);
         await fetchBooking({ silent: true });
         onUpdated?.();
@@ -415,10 +415,7 @@ export default function BookingDetailsSheet({
 
     setCancelling(true);
     try {
-      const res = await fetchWithTimeout(`/api/bookings/${booking.id}/cancel`, {
-        method: "POST",
-      });
-
+      const res = await fetchWithTimeout(`/api/bookings/${booking.id}/cancel`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success("Booking cancelled");
@@ -445,10 +442,7 @@ export default function BookingDetailsSheet({
 
     setConverting(true);
     try {
-      const res = await fetchWithTimeout(`/api/reservations/${booking.id}/convert`, {
-        method: "POST",
-      });
-
+      const res = await fetchWithTimeout(`/api/reservations/${booking.id}/convert`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await res.json();
@@ -524,26 +518,32 @@ export default function BookingDetailsSheet({
     setCheckinLoading(false);
   }
 
-
   /* ───── Render ───── */
+
+  const detailHref = booking
+    ? booking.kind === "CHECKOUT"
+      ? `/checkouts/${booking.id}`
+      : `/reservations/${booking.id}`
+    : "#";
 
   return (
     <Sheet open={!!bookingId} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="sm:max-w-lg">
+      <SheetContent className="sm:max-w-lg flex flex-col">
+
         {/* Header */}
         <SheetHeader>
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <SheetTitle className="truncate">
                 {booking?.title || "Loading..."}
               </SheetTitle>
               {booking && (
                 <p className="text-[11px] text-white/55 mt-0.5 leading-relaxed">
                   {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
-                  {booking.refNumber && " · "}
+                  {booking.refNumber && " \u00b7 "}
                   {booking.bookingType}
-                  {booking.requester?.name && ` · ${booking.requester.name}`}
-                  {booking.location?.name && ` · ${booking.location.name}`}
+                  {booking.requester?.name && ` \u00b7 ${booking.requester.name}`}
+                  {booking.location?.name && ` \u00b7 ${booking.location.name}`}
                 </p>
               )}
             </div>
@@ -558,28 +558,10 @@ export default function BookingDetailsSheet({
           </div>
         </SheetHeader>
 
-        {/* Tabs */}
-        <div className="px-6">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-            <TabsList className="w-full justify-start">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="equipment" className="gap-1.5">
-                Equipment
-                {unreturnedCount > 0 && canCheckin && (
-                  <Badge variant="secondary" size="sm" className="ml-0.5 text-[10px] px-1.5 min-w-[18px] h-[18px]">
-                    {unreturnedCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {/* Body */}
-        <SheetBody className="px-6 py-4">
+        {/* Body — single scrollable column */}
+        <SheetBody className="px-0 py-0 flex flex-col relative">
           {loading ? (
-            <div className="space-y-4 px-5 py-4">
+            <div className="space-y-3 px-6 py-5">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
               <Skeleton className="h-4 w-2/3" />
@@ -587,50 +569,125 @@ export default function BookingDetailsSheet({
               <Skeleton className="h-4 w-3/5" />
             </div>
           ) : fetchError ? (
-            <div className="py-10 px-5 text-center space-y-3">
+            <div className="py-10 px-6 text-center space-y-3">
               <p className="text-muted-foreground">Failed to load booking details.</p>
               <Button variant="outline" size="sm" onClick={() => fetchBooking()}>Retry</Button>
             </div>
           ) : !booking ? (
-            <div className="py-10 px-5 text-center text-muted-foreground">Booking not found</div>
+            <div className="py-10 px-6 text-center text-muted-foreground">Booking not found</div>
+          ) : editMode ? (
+
+            /* ── Edit mode ── */
+            <div className="px-6 py-5 flex-1">
+              <BookingEditForm
+                booking={booking}
+                editTitle={editTitle}
+                editStartsAt={editStartsAt}
+                editEndsAt={editEndsAt}
+                editNotes={editNotes}
+                saving={saving}
+                onEditTitle={setEditTitle}
+                onEditStartsAt={setEditStartsAt}
+                onEditEndsAt={setEditEndsAt}
+                onEditNotes={setEditNotes}
+                onSave={handleSave}
+                onCancel={() => setEditMode(false)}
+              />
+            </div>
+
+          ) : equipEditMode ? (
+
+            /* ── Equipment edit mode ── */
+            <div className="px-6 py-4 flex flex-col gap-3 flex-1">
+              {optionsError && (
+                <Alert variant="destructive">
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Failed to load equipment options.</span>
+                    <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    <strong className="block mb-1">Scheduling conflict</strong>
+                    {conflictError.conflicts.map((c, i) => (
+                      <div key={i} className="text-xs">
+                        {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}
+                      </div>
+                    ))}
+                  </AlertDescription>
+                </Alert>
+              )}
+              <EquipmentPicker
+                bulkSkus={bulkSkus as unknown as PickerBulkSku[]}
+                selectedAssetIds={editSerializedIds}
+                setSelectedAssetIds={setEditSerializedIds}
+                selectedBulkItems={editBulkItems.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity }))}
+                setSelectedBulkItems={(updater) => {
+                  if (typeof updater === "function") {
+                    setEditBulkItems((prev) => {
+                      const result = updater(prev.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity })));
+                      return result;
+                    });
+                  } else {
+                    setEditBulkItems(updater);
+                  }
+                }}
+                startsAt={booking.startsAt}
+                endsAt={booking.endsAt}
+                locationId={booking.location.id}
+              />
+              <div className="flex gap-2">
+                <Button disabled={equipSaving} onClick={handleEquipSave}>
+                  {equipSaving ? "Saving..." : "Save equipment"}
+                </Button>
+                <Button variant="outline" onClick={() => { setEquipEditMode(false); setConflictError(null); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+
           ) : (
+
+            /* ── Normal single-scroll view ── */
             <>
-              {/* Details Tab — Info only (equipment is now in its own tab) */}
-              {tab === "details" && !editMode && !equipEditMode && (
-                <BookingOverview
-                  booking={booking}
-                  conflictError={conflictError}
-                  returnSuggestion={returnSuggestion}
-                  checkinProgress={checkinProgress}
-                  canExtend={!!canExtend}
-                  extending={extending}
-                  onExtendTo={handleExtendTo}
-                />
-              )}
+              {/* ─ Details section ─ */}
+              <div className="border-b border-border">
+                <div className="px-6 py-4">
+                  <BookingOverview
+                    booking={booking}
+                    conflictError={conflictError}
+                    returnSuggestion={returnSuggestion}
+                    checkinProgress={checkinProgress}
+                    canExtend={!!canExtend}
+                    extending={extending}
+                    onExtendTo={handleExtendTo}
+                  />
+                </div>
+              </div>
 
-              {/* Details Tab - Edit booking info */}
-              {tab === "details" && editMode && (
-                <BookingEditForm
-                  booking={booking}
-                  editTitle={editTitle}
-                  editStartsAt={editStartsAt}
-                  editEndsAt={editEndsAt}
-                  editNotes={editNotes}
-                  saving={saving}
-                  onEditTitle={setEditTitle}
-                  onEditStartsAt={setEditStartsAt}
-                  onEditEndsAt={setEditEndsAt}
-                  onEditNotes={setEditNotes}
-                  onSave={handleSave}
-                  onCancel={() => setEditMode(false)}
+              {/* ─ Equipment section ─ */}
+              <div className="border-b border-border">
+                <SectionHead
+                  label={`Equipment${totalEquipItems > 0 ? ` \u00b7 ${totalEquipItems}` : ""}`}
+                  right={
+                    canEditEquipment ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={enterEquipEditMode}
+                      >
+                        Edit
+                      </Button>
+                    ) : undefined
+                  }
                 />
-              )}
 
-              {/* Equipment Tab */}
-              {tab === "equipment" && !equipEditMode && (
-                <>
-                  {/* Scan-to-return */}
-                  {canCheckin && (
+                {/* Scan to return */}
+                {canCheckin && (
+                  <div className="px-6 pt-3 pb-0">
                     <ScanToReturnView
                       scanning={checkinScan.scanning}
                       setScanning={checkinScan.setScanning}
@@ -640,107 +697,105 @@ export default function BookingDetailsSheet({
                       setFeedback={checkinScan.setFeedback}
                       onScan={checkinScan.handleScan}
                     />
-                  )}
+                  </div>
+                )}
+
+                <div className="px-6 py-4">
                   <BookingItems
                     booking={booking}
                     equipSearch={equipSearch}
                     onEquipSearchChange={setEquipSearch}
                     filteredSerializedItems={filteredSerializedItems}
                     filteredBulkItems={filteredBulkItems}
-                    canEditEquipment={!!canEditEquipment}
+                    canEditEquipment={false}
                     canCheckin={!!canCheckin}
                     checkinLoading={checkinLoading}
-                    onEnterEquipEditMode={() => { enterEquipEditMode(); setTab("equipment"); }}
+                    onEnterEquipEditMode={enterEquipEditMode}
                     onCheckinItem={handleCheckinItem}
                   />
-                </>
-              )}
-
-              {/* Equipment Tab - Edit mode (full picker) */}
-              {tab === "equipment" && equipEditMode && (
-                <div className="flex flex-col gap-3">
-                  {optionsError && (
-                    <Alert variant="destructive">
-                      <AlertDescription className="flex items-center justify-between">
-                        <span>Failed to load equipment options.</span>
-                        <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
-                    <Alert variant="destructive">
-                      <AlertDescription>
-                        <strong className="block mb-1">Scheduling conflict</strong>
-                        {conflictError.conflicts.map((c, i) => (
-                          <div key={i} className="text-xs">
-                            {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}
-                          </div>
-                        ))}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <EquipmentPicker
-                    bulkSkus={bulkSkus as unknown as PickerBulkSku[]}
-                    selectedAssetIds={editSerializedIds}
-                    setSelectedAssetIds={setEditSerializedIds}
-                    selectedBulkItems={editBulkItems.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity }))}
-                    setSelectedBulkItems={(updater) => {
-                      if (typeof updater === "function") {
-                        setEditBulkItems((prev) => {
-                          const result = updater(prev.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity })));
-                          return result;
-                        });
-                      } else {
-                        setEditBulkItems(updater);
-                      }
-                    }}
-                    startsAt={booking.startsAt}
-                    endsAt={booking.endsAt}
-                    locationId={booking.location.id}
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <Button disabled={equipSaving} onClick={handleEquipSave}>
-                      {equipSaving ? "Saving..." : "Save equipment"}
-                    </Button>
-                    <Button variant="outline" onClick={() => { setEquipEditMode(false); setConflictError(null); }}>
-                      Cancel
-                    </Button>
-                  </div>
                 </div>
-              )}
+              </div>
 
-              {/* History Tab */}
-              {tab === "history" && (
-                <ActivityTimeline
-                  entries={filteredAuditLogs}
-                  context="booking"
-                  entityName={booking?.title}
-                  hasMore={hasMoreAuditLogs}
-                  loading={loadingMoreAuditLogs}
-                  onLoadMore={loadMoreAuditLogs}
-                />
+              {/* ─ History section ─ */}
+              <div>
+                <SectionHead label="History" />
+                <div className="px-6 py-4">
+                  <ActivityTimeline
+                    entries={allAuditLogs}
+                    context="booking"
+                    entityName={booking?.title}
+                    hasMore={hasMoreAuditLogs}
+                    loading={loadingMoreAuditLogs}
+                    onLoadMore={loadMoreAuditLogs}
+                  />
+                </div>
+              </div>
+
+              {/* ─ Sticky check-in bar ─ */}
+              {canCheckin && unreturnedCount > 0 && (
+                <div
+                  className="sticky bottom-0 left-0 right-0 z-10 flex items-center gap-4 px-6 py-4 border-t border-white/10"
+                  style={{ backgroundColor: "var(--sidebar-bg)" }}
+                >
+                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                    <Progress
+                      value={checkinProgress?.percent ?? 0}
+                      className="h-1.5"
+                      style={
+                        {
+                          "--progress-bg": "rgba(255,255,255,0.12)",
+                          "--progress-fill": "var(--wi-red)",
+                        } as React.CSSProperties
+                      }
+                    />
+                    <span className="text-[11px] text-white/55">
+                      {checkinProgress?.returned ?? 0} of {checkinProgress?.total ?? unreturnedCount} items returned
+                    </span>
+                  </div>
+                  <Button
+                    onClick={handleCheckinAll}
+                    disabled={checkinLoading}
+                    className="rounded-sm text-white text-xs font-bold uppercase tracking-wider shrink-0 hover:opacity-90 transition-opacity"
+                    style={{ backgroundColor: "var(--wi-red)" }}
+                  >
+                    {checkinLoading ? "Checking in..." : "Check in all"}
+                  </Button>
+                </div>
               )}
             </>
           )}
         </SheetBody>
 
-        {/* Footer actions */}
+        {/* Footer */}
         {booking && !editMode && !equipEditMode && (
           <SheetFooter>
-            <BookingActions
-              booking={booking}
-              canEdit={!!canEdit}
-              canCheckin={!!canCheckin}
-              canConvert={!!canConvert}
-              canCancel={!!canCancel}
-              checkinLoading={checkinLoading}
-              converting={converting}
-              cancelling={cancelling}
-              onEdit={enterEditMode}
-              onCheckinAll={handleCheckinAll}
-              onConvert={handleConvert}
-              onCancel={handleCancel}
-            />
+            <div className="flex items-center gap-2 w-full">
+              {/* Left: Edit + Cancel */}
+              {canEdit && (
+                <Button variant="outline" size="sm" onClick={enterEditMode}>
+                  Edit
+                </Button>
+              )}
+              {canCancel && (
+                <Button variant="destructive" size="sm" onClick={handleCancel} disabled={cancelling}>
+                  {cancelling ? "Cancelling..." : "Cancel"}
+                </Button>
+              )}
+
+              <div className="flex-1" />
+
+              {/* Right: Convert (reservations) + Full page */}
+              {canConvert && (
+                <Button size="sm" variant="brand" onClick={handleConvert} disabled={converting}>
+                  {converting ? "Converting..." : "Start checkout"}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={detailHref}>
+                  Full page <ExternalLinkIcon className="size-3.5 ml-1" />
+                </Link>
+              </Button>
+            </div>
           </SheetFooter>
         )}
       </SheetContent>
