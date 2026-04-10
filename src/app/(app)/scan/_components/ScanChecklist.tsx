@@ -207,7 +207,7 @@ export function ScanChecklist({
                     return (
                       <>
                         {stillOut.length > 0 && (
-                          <div className="text-xs font-medium text-amber-700 dark:text-amber-400 mt-0.5">
+                          <div className="text-xs font-medium text-[var(--orange-text)] mt-0.5">
                             Still out: {stillOut.map((u) => `#${u.unitNumber}`).join(", ")}
                           </div>
                         )}

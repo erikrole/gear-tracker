@@ -81,7 +81,7 @@ export function ScanControls({
           className="rounded-none border-x-0 border-b-0"
         >
           <AlertCircleIcon className="size-4" />
-          <AlertDescription>Camera error: {cameraError}</AlertDescription>
+          <AlertDescription>{cameraError}</AlertDescription>
         </Alert>
       )}
 
