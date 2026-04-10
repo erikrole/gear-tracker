@@ -294,13 +294,18 @@ export function ListView({
                   </div>
 
                   <table className="w-full border-collapse">
+                    <colgroup>
+                      <col style={{ width: "48px" }} />
+                      <col />
+                      <col style={{ width: "180px" }} />
+                    </colgroup>
                     <thead className={groupIdx === 0 ? "" : "hidden"}>
                       <tr>
                         <th className="w-12"></th>
                         <th className="text-left px-4 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
                           Event
                         </th>
-                        <th className="text-left px-4 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40 w-[160px]">
+                        <th className="text-left px-4 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
                           Time
                         </th>
                       </tr>
