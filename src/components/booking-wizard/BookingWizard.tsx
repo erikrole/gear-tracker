@@ -32,7 +32,7 @@ import { useKitFetching } from "@/components/create-booking/use-kit-fetching";
 import { WizardStep1 } from "./WizardStep1";
 import { WizardStep2 } from "./WizardStep2";
 import { WizardStep3 } from "./WizardStep3";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, AlertCircleIcon } from "lucide-react";
 
 /* ───── Config per kind ───── */
 
@@ -72,7 +72,7 @@ const RESERVATION_CONFIG: WizardConfig = {
   defaultTieToEvent: true,
 };
 
-/* ───── Form reducer (reused from CreateBookingSheet) ───── */
+/* ───── Form reducer ───── */
 
 function formReducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
@@ -138,7 +138,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const initialSportCode = searchParams.get("sportCode") || undefined;
   const initialDraftId = searchParams.get("draftId") || null;
 
-  // ── Form options (React Query, shared cache with BookingListPage) ──
+  // ── Form options ──
   const { data: formOpts, isError: formOptsError, refetch: refetchFormOpts } = useQuery({
     queryKey: ["form-options"],
     queryFn: async ({ signal }) => {
@@ -182,7 +182,6 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     endsAt: initialEndsAt || toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))),
   });
 
-  // Set requester/location defaults once data loads
   useEffect(() => {
     if (initialRequester && !form.requester) {
       dispatch({ type: "SET_REQUESTER", value: initialRequester });
@@ -266,7 +265,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     if (!form.locationId) return "Choose a pickup location";
     const s = new Date(form.startsAt);
     const e = new Date(form.endsAt);
-    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "Invalid date — check start and end times";
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "Invalid date \u2014 check start and end times";
     if (e <= s) return "End date must be after start date";
     return null;
   }
@@ -286,14 +285,12 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       setCreateError("");
       setStep(2);
     } else if (step === 2) {
-      // Advance to next section tab; only go to step 3 from the last tab
       const sectionIdx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
       if (sectionIdx < EQUIPMENT_SECTIONS.length - 1) {
         setCreateError("");
         setActiveSection(EQUIPMENT_SECTIONS[sectionIdx + 1].key);
         return;
       }
-      // Last tab — validate and proceed to confirmation
       const error = validateStep2();
       if (error) { setCreateError(error); return; }
       setCreateError("");
@@ -360,7 +357,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           if (d.conflicts?.length) {
             for (const c of d.conflicts) {
               const tag = selectedAssetDetails.find((a) => a.id === c.assetId)?.assetTag || c.assetId;
-              msgs.push(`${tag} conflicts with "${c.conflictingBookingTitle || "another booking"}"`);
+              msgs.push(`${tag} conflicts with \u201c${c.conflictingBookingTitle || "another booking"}\u201d`);
             }
           }
           if (d.unavailableAssets?.length) {
@@ -376,7 +373,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             }
           }
           setCreateError(msgs.length > 0 ? msgs.join(". ") : json.error || "Availability conflict");
-          setStep(2); // Go back to equipment step on conflict
+          setStep(2);
         } else {
           setCreateError(json.error || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
         }
@@ -390,7 +387,6 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
       const bookingId = json.data.id;
       if (kind === "CHECKOUT") {
-        // Checkout: redirect to scan page — scanning is required before pickup
         router.push(`/scan?checkout=${bookingId}&phase=CHECKOUT`);
       } else {
         const params = new URLSearchParams();
@@ -406,7 +402,6 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     }
   }
 
-  // ── Step labels for progress indicator ──
   const steps = [
     { label: "Details", step: 1 as const },
     { label: "Equipment", step: 2 as const },
@@ -415,56 +410,109 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:py-10">
+
       {/* ── Header ── */}
-      <h1 className="text-2xl font-bold mb-1">
-        New {config.label}
-      </h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        {kind === "CHECKOUT"
-          ? "Check out equipment for immediate pickup. Items will be scanned at pickup."
-          : "Reserve equipment for later. Browse and pick the gear you need."}
-      </p>
+      <div className="mb-8">
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <h1
+            className="text-[2rem] font-black uppercase leading-none tracking-tight"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            New {config.label}
+          </h1>
+          <span
+            className="shrink-0 mt-1 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.2em] border"
+            style={
+              kind === "CHECKOUT"
+                ? { borderColor: "var(--wi-red)", color: "var(--wi-red)" }
+                : { borderColor: "var(--blue)", color: "var(--blue)" }
+            }
+          >
+            {kind}
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {kind === "CHECKOUT"
+            ? "Check out equipment for immediate pickup. Items will be scanned at pickup."
+            : "Reserve equipment for later. Browse and pick the gear you need."}
+        </p>
+      </div>
 
       {/* ── Step progress ── */}
-      <div className="flex items-center gap-2 mb-8" role="navigation" aria-label="Wizard steps">
-        {steps.map((s, i) => (
-          <div key={s.step} className="flex items-center gap-2">
-            {i > 0 && <div className={`h-px flex-1 min-w-6 ${step > s.step - 1 ? "bg-primary" : "bg-border"}`} />}
+      <div
+        className="grid grid-cols-3 border border-border mb-8 overflow-hidden"
+        style={{ borderRadius: "4px" }}
+        role="navigation"
+        aria-label="Wizard steps"
+      >
+        {steps.map((s, i) => {
+          const isActive = step === s.step;
+          const isDone = step > s.step;
+          const isLocked = s.step > step;
+          return (
             <button
+              key={s.step}
               type="button"
-              disabled={s.step > step}
-              onClick={() => { if (s.step < step) { setCreateError(""); setStep(s.step); } }}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                step === s.step
-                  ? "bg-primary text-primary-foreground"
-                  : step > s.step
-                    ? "bg-primary/10 text-primary cursor-pointer hover:bg-primary/20"
-                    : "bg-muted text-muted-foreground cursor-default"
-              }`}
+              disabled={isLocked}
+              onClick={() => { if (isDone) { setCreateError(""); setStep(s.step); } }}
+              className={[
+                "relative flex items-center gap-2 px-4 py-3 text-left transition-colors",
+                i < steps.length - 1 ? "border-r border-border" : "",
+                isActive ? "bg-foreground text-background" : "",
+                isDone ? "cursor-pointer hover:bg-muted/60" : "",
+                isLocked ? "cursor-default" : "",
+              ].join(" ")}
             >
-              {step > s.step ? (
-                <CheckIcon className="size-3.5" />
-              ) : (
-                <span className="text-xs">{s.step}</span>
+              {/* Step number / check */}
+              <span
+                className={[
+                  "flex size-5 shrink-0 items-center justify-center text-[11px] font-black",
+                  isActive ? "text-background" : "",
+                  isDone ? "" : "",
+                  isLocked ? "opacity-30" : "",
+                ].join(" ")}
+                style={isDone ? { color: "var(--wi-red)" } : undefined}
+              >
+                {isDone ? <CheckIcon className="size-3.5" /> : s.step}
+              </span>
+
+              {/* Label */}
+              <span
+                className={[
+                  "text-[11px] font-bold uppercase tracking-wider",
+                  isLocked ? "opacity-30" : "",
+                ].join(" ")}
+              >
+                {s.label}
+              </span>
+
+              {/* Active bottom bar */}
+              {isActive && (
+                <span
+                  className="absolute bottom-0 left-0 right-0 h-0.5"
+                  style={{ backgroundColor: "var(--wi-red)" }}
+                />
               )}
-              {s.label}
             </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Form options error ── */}
       {formOptsError && (
-        <div className="rounded-md bg-destructive/10 px-3 py-2.5 text-sm text-destructive mb-4 flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive mb-5">
           <span>Failed to load form data. Dropdowns may be empty.</span>
-          <Button variant="outline" size="sm" onClick={() => refetchFormOpts()}>Retry</Button>
+          <Button variant="outline" size="sm" onClick={() => refetchFormOpts()} className="shrink-0">
+            Retry
+          </Button>
         </div>
       )}
 
       {/* ── Error banner ── */}
       {createError && (
-        <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive mb-4">
-          {createError}
+        <div className="flex items-start gap-2.5 rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive mb-5">
+          <AlertCircleIcon className="size-4 shrink-0 mt-0.5" />
+          <span>{createError}</span>
         </div>
       )}
 
@@ -515,22 +563,34 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       )}
 
       {/* ── Footer navigation ── */}
-      <div className="flex items-center justify-between mt-8 pt-4 border-t">
+      <div className="flex items-center justify-between mt-10 pt-5 border-t border-border">
         <div>
           {step > 1 && (
-            <Button variant="outline" onClick={handleBack}>
-              Back
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              className="rounded-sm text-xs font-bold uppercase tracking-wider"
+            >
+              ← Back
             </Button>
           )}
           {step === 1 && (
-            <Button variant="ghost" onClick={async () => { await saveDraft(); router.back(); }}>
+            <Button
+              variant="ghost"
+              onClick={async () => { await saveDraft(); router.back(); }}
+              className="text-xs text-muted-foreground"
+            >
               Save draft & exit
             </Button>
           )}
         </div>
+
         <div className="flex items-center gap-2">
           {step < 3 && (
-            <Button onClick={handleNext}>
+            <Button
+              onClick={handleNext}
+              className="rounded-sm bg-foreground text-background hover:bg-foreground/85 text-xs font-bold uppercase tracking-wider px-5"
+            >
               {step === 2 && (() => {
                 const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
                 if (idx < EQUIPMENT_SECTIONS.length - 1) {
@@ -538,11 +598,16 @@ export function BookingWizard({ kind }: BookingWizardProps) {
                 }
                 return `Review${itemCount > 0 ? ` (${itemCount} item${itemCount !== 1 ? "s" : ""})` : ""}`;
               })()}
-              {step === 1 && "Next"}
+              {step === 1 && "Next \u2192"}
             </Button>
           )}
           {step === 3 && (
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="rounded-sm text-white text-xs font-bold uppercase tracking-wider px-5 hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: "var(--wi-red)" }}
+            >
               {submitting ? config.actionLabelProgress : config.actionLabel}
               {itemCount > 0 && ` (${itemCount})`}
             </Button>

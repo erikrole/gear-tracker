@@ -2,7 +2,6 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
@@ -12,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarIcon, ClockIcon, BoxesIcon } from "lucide-react";
+import { ClockIcon, BoxesIcon, CheckIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import {
   toLocalDateTimeValue,
@@ -45,6 +44,37 @@ type Props = {
   selectEvent: (ev: CalendarEvent) => void;
 };
 
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
+      {children}
+    </span>
+  );
+}
+
+function SectionHeader({
+  children,
+  right,
+}: {
+  children: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <span
+        className="h-[18px] w-[3px] shrink-0 rounded-full"
+        style={{ backgroundColor: "var(--wi-red)" }}
+      />
+      <h2
+        className="text-[11px] font-black uppercase tracking-[0.15em] text-foreground flex-1"
+      >
+        {children}
+      </h2>
+      {right}
+    </div>
+  );
+}
+
 export function WizardStep1({
   form,
   dispatch,
@@ -60,31 +90,40 @@ export function WizardStep1({
   selectEvent,
 }: Props) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
+
       {/* ═══ Event Section ═══ */}
       <section>
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarIcon className="size-4 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Event</h2>
-        </div>
+        <SectionHeader
+          right={
+            <button
+              type="button"
+              onClick={() => dispatch({ type: "SET_TIE_TO_EVENT", value: !form.tieToEvent })}
+              className={[
+                "relative h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                form.tieToEvent ? "" : "bg-muted",
+              ].join(" ")}
+              style={form.tieToEvent ? { backgroundColor: "var(--wi-red)" } : undefined}
+              aria-label="Link to event"
+              aria-pressed={form.tieToEvent}
+            >
+              <span
+                className={[
+                  "absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow-sm transition-transform",
+                  form.tieToEvent ? "translate-x-4" : "translate-x-0",
+                ].join(" ")}
+              />
+            </button>
+          }
+        >
+          Link to Event
+        </SectionHeader>
 
-        {/* Tie to event toggle */}
-        <div className="flex items-center gap-2 mb-3">
-          <button
-            type="button"
-            className={`toggle ${form.tieToEvent ? "on" : ""}`}
-            onClick={() => dispatch({ type: "SET_TIE_TO_EVENT", value: !form.tieToEvent })}
-            aria-label="Link to event"
-          />
-          <span className="text-sm">Link to event</span>
-        </div>
-
-        {/* Event list with optional sport filter */}
         {form.tieToEvent && (
-          <div className="space-y-3">
-            {/* Sport filter (optional — narrows the event list) */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">Filter by sport</Label>
+          <div className="space-y-4">
+            {/* Sport filter */}
+            <div>
+              <FieldLabel>Filter by sport</FieldLabel>
               <Select
                 value={form.sport || "__all__"}
                 onValueChange={(v) => dispatch({ type: "SET_SPORT", value: v === "__all__" ? "" : v })}
@@ -96,57 +135,104 @@ export function WizardStep1({
                   <SelectItem value="__all__">All sports</SelectItem>
                   {SPORT_CODES.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
-                      {s.code} - {s.label}
+                      {s.code} \u2014 {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">
-                Events — next 3 days{form.sport ? ` · ${sportLabel(form.sport)}` : ""}
-              </Label>
+            {/* Events list */}
+            <div>
+              <FieldLabel>
+                Upcoming events — next 3 days{form.sport ? ` \u00b7 ${sportLabel(form.sport)}` : ""}
+              </FieldLabel>
+
               {eventsLoading ? (
-                <div className="py-4 text-center text-sm text-muted-foreground">Loading events...</div>
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  Loading events\u2026
+                </div>
               ) : events.length === 0 ? (
-                <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                  No upcoming events{form.sport ? ` for ${sportLabel(form.sport)}` : ""}. Toggle off &ldquo;Link to event&rdquo; to
-                  create without an event.
+                <div className="border border-dashed rounded-sm p-4 text-sm text-muted-foreground leading-relaxed">
+                  No upcoming events{form.sport ? ` for ${sportLabel(form.sport)}` : ""}. Toggle off
+                  &ldquo;Link to event&rdquo; to create without an event.
                 </div>
               ) : (
-                <div className="max-h-64 flex flex-col gap-1 overflow-y-auto rounded-md border p-1">
-                  {events.map((ev) => (
-                    <button
-                      key={ev.id}
-                      type="button"
-                      className={`flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-sm transition-colors max-md:min-h-[44px] ${
-                        form.selectedEvent?.id === ev.id
-                          ? "bg-primary/10 ring-1 ring-primary/30"
-                          : "hover:bg-muted/50"
-                      }`}
-                      onClick={() => selectEvent(ev)}
-                    >
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">
-                          {ev.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(ev.sportCode)}</span>}
-                          {ev.opponent
-                            ? <span className="text-muted-foreground font-normal">{ev.isHome === false ? "at" : "vs"} {ev.opponent}</span>
-                            : (!ev.sportCode ? ev.summary : "")}
+                <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto border border-border rounded-sm p-1">
+                  {events.map((ev) => {
+                    const selected = form.selectedEvent?.id === ev.id;
+                    return (
+                      <button
+                        key={ev.id}
+                        type="button"
+                        onClick={() => selectEvent(ev)}
+                        className={[
+                          "group flex w-full items-center gap-3 rounded-[3px] px-3 py-2.5 text-left transition-all max-md:min-h-[44px]",
+                          selected ? "text-white" : "hover:bg-muted/60",
+                        ].join(" ")}
+                        style={selected ? { backgroundColor: "var(--wi-red)" } : undefined}
+                      >
+                        {/* Sport code chip */}
+                        {ev.sportCode && (
+                          <span
+                            className={[
+                              "shrink-0 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-[2px]",
+                              selected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground",
+                            ].join(" ")}
+                          >
+                            {ev.sportCode}
+                          </span>
+                        )}
+
+                        {/* Match info */}
+                        <div className="min-w-0 flex-1">
+                          <div
+                            className={[
+                              "text-sm font-semibold truncate",
+                              selected ? "text-white" : "text-foreground",
+                            ].join(" ")}
+                          >
+                            {ev.opponent ? (
+                              <>
+                                <span className="font-normal opacity-70">{ev.isHome === false ? "at " : "vs "}</span>
+                                {ev.opponent}
+                              </>
+                            ) : (
+                              ev.summary
+                            )}
+                          </div>
+                          <div
+                            className={[
+                              "text-xs mt-0.5 truncate",
+                              selected ? "text-white/70" : "text-muted-foreground",
+                            ].join(" ")}
+                          >
+                            {formatDate(ev.startsAt)}
+                            {ev.rawLocationText ? ` \u00b7 ${ev.rawLocationText}` : ""}
+                            {ev.location ? ` \u00b7 ${ev.location.name}` : ""}
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {formatDate(ev.startsAt)}
-                          {ev.rawLocationText ? ` \u00b7 ${ev.rawLocationText}` : ""}
-                          {ev.location ? ` \u00b7 ${ev.location.name}` : ""}
+
+                        {/* Home/Away/Neutral badge */}
+                        <div className="shrink-0 flex items-center gap-1.5">
+                          {ev.isHome === true && (
+                            <Badge variant="green" size="sm">Home</Badge>
+                          )}
+                          {ev.isHome === false && (
+                            <Badge variant="red" size="sm">Away</Badge>
+                          )}
+                          {ev.isHome === null && ev.opponent && (
+                            <Badge variant="blue" size="sm">Neutral</Badge>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        {ev.isHome === true && <Badge variant="green" size="sm">Home</Badge>}
-                        {ev.isHome === false && <Badge variant="red" size="sm">Away</Badge>}
-                        {ev.isHome === null && ev.opponent && <Badge variant="blue" size="sm">Neutral</Badge>}
-                      </div>
-                    </button>
-                  ))}
+
+                        {/* Selected check */}
+                        {selected && (
+                          <CheckIcon className="size-4 shrink-0 text-white ml-0.5" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -155,12 +241,14 @@ export function WizardStep1({
 
         {/* Shift context banner */}
         {myShiftForEvent && form.selectedEvent && (
-          <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm mt-3">
-            <ClockIcon className="size-4 shrink-0 text-muted-foreground" />
-            <div className="min-w-0">
-              <span className="font-medium">Your shift</span>
-              <span className="text-muted-foreground">
-                {" "}
+          <div
+            className="flex items-center gap-3 mt-4 px-3 py-2.5 rounded-r-sm bg-muted/40 border-l-[3px]"
+            style={{ borderLeftColor: "var(--wi-red)" }}
+          >
+            <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-bold">Your shift</span>
+              <span className="text-xs text-muted-foreground ml-1.5">
                 {myShiftForEvent.area} &middot;{" "}
                 {new Date(myShiftForEvent.startsAt)
                   .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
@@ -180,6 +268,7 @@ export function WizardStep1({
                       ? "orange"
                       : "gray"
                 }
+                size="sm"
               >
                 {myShiftForEvent.gearStatus === "checked_out"
                   ? "Gear out"
@@ -192,28 +281,28 @@ export function WizardStep1({
         )}
       </section>
 
-      {/* ═══ Details Section ═══ */}
+      {/* ═══ Booking Details Section ═══ */}
       <section>
-        <h2 className="text-lg font-semibold mb-4">Booking Details</h2>
+        <SectionHeader>Booking Details</SectionHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Title */}
-          <div className="flex flex-col gap-1">
-            <Label>
-              Booking name{form.tieToEvent && form.selectedEvent ? " (auto-filled from event)" : ""}
-            </Label>
+          <div>
+            <FieldLabel>
+              Booking name{form.tieToEvent && form.selectedEvent ? " \u2014 auto-filled from event" : ""}
+            </FieldLabel>
             <Input
               value={form.title}
               onChange={(e) => dispatch({ type: "SET_TITLE", value: e.target.value })}
-              placeholder={form.tieToEvent ? "Select an event above..." : "e.g. Game day equipment"}
+              placeholder={form.tieToEvent ? "Select an event above\u2026" : "e.g. Game day equipment"}
               required
             />
           </div>
 
           {/* Sport (when not tied to event) */}
           {!form.tieToEvent && (
-            <div className="flex flex-col gap-1">
-              <Label>Sport (optional)</Label>
+            <div>
+              <FieldLabel>Sport (optional)</FieldLabel>
               <Select
                 value={form.sport || "__none__"}
                 onValueChange={(v) => dispatch({ type: "SET_SPORT", value: v === "__none__" ? "" : v })}
@@ -225,7 +314,7 @@ export function WizardStep1({
                   <SelectItem value="__none__">None</SelectItem>
                   {SPORT_CODES.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
-                      {s.code} - {s.label}
+                      {s.code} \u2014 {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -233,51 +322,58 @@ export function WizardStep1({
             </div>
           )}
 
-          {/* Requester */}
-          <div className="flex flex-col gap-1">
-            <Label>{config.requesterLabel}</Label>
-            <Select value={form.requester} onValueChange={(v) => dispatch({ type: "SET_REQUESTER", value: v })} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select..." />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Requester + Location (2-col on sm+) */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel>{config.requesterLabel}</FieldLabel>
+              <Select
+                value={form.requester}
+                onValueChange={(v) => dispatch({ type: "SET_REQUESTER", value: v })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select\u2026" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Location */}
-          <div className="flex flex-col gap-1">
-            <Label>Pickup Location</Label>
-            <Select
-              value={form.locationId}
-              onValueChange={(v) => dispatch({ type: "SET_LOCATION_ID", value: v })}
-              required
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select..." />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div>
+              <FieldLabel>Location</FieldLabel>
+              <Select
+                value={form.locationId}
+                onValueChange={(v) => dispatch({ type: "SET_LOCATION_ID", value: v })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select\u2026" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Kit (optional) */}
           {kits.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <Label className="flex items-center gap-1.5">
-                <BoxesIcon className="size-3.5" />
-                Kit (optional)
-              </Label>
+            <div>
+              <FieldLabel>
+                <span className="inline-flex items-center gap-1.5">
+                  <BoxesIcon className="size-3" />
+                  Kit (optional)
+                </span>
+              </FieldLabel>
               <Select
                 value={kitId || "__none__"}
                 onValueChange={(v) => setKitId(v === "__none__" ? "" : v)}
@@ -297,18 +393,18 @@ export function WizardStep1({
             </div>
           )}
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <Label>{config.startLabel}</Label>
+          {/* Dates (2-col) */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel>{config.startLabel}</FieldLabel>
               <DateTimePicker
                 value={form.startsAt ? new Date(form.startsAt) : undefined}
                 onChange={(d) => dispatch({ type: "SET_STARTS_AT", value: toLocalDateTimeValue(d) })}
                 placeholder="Start date & time"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <Label>{config.endLabel}</Label>
+            <div>
+              <FieldLabel>{config.endLabel}</FieldLabel>
               <DateTimePicker
                 value={form.endsAt ? new Date(form.endsAt) : undefined}
                 onChange={(d) => dispatch({ type: "SET_ENDS_AT", value: toLocalDateTimeValue(d) })}
@@ -318,6 +414,7 @@ export function WizardStep1({
           </div>
         </div>
       </section>
+
     </div>
   );
 }
