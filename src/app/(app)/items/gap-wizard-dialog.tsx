@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -175,6 +175,37 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
   const departmentOptions = departments.map((d) => ({ value: d.id, label: d.name }));
   const remaining = Math.max(0, total - skipped);
 
+  // Infer top suggestions from item text vs option names
+  const suggestions = useMemo(() => {
+    if (!item || !field) return [];
+    const itemText = [item.assetTag, item.name, item.brand, item.model]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    if (field === "category") {
+      return categories
+        .map((cat) => {
+          const words = cat.name.toLowerCase().split(/[\s/\-_]+/).filter((w) => w.length > 2);
+          const score = words.filter((w) => itemText.includes(w)).length;
+          return { id: cat.id, name: cat.name, score };
+        })
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4);
+    } else {
+      return departments
+        .map((dep) => {
+          const words = dep.name.toLowerCase().split(/[\s/\-_]+/).filter((w) => w.length > 2);
+          const score = words.filter((w) => itemText.includes(w)).length;
+          return { id: dep.id, name: dep.name, score };
+        })
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4);
+    }
+  }, [item, field, categories, departments]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -251,6 +282,28 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
                     )}
                   </div>
                 </div>
+
+                {/* Quick suggestions */}
+                {suggestions.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-xs text-muted-foreground">Suggested</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {suggestions.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedValue(s.id)}
+                          className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                            selectedValue === s.id
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border bg-background hover:bg-muted"
+                          }`}
+                        >
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Picker */}
                 <div className="flex flex-col gap-1.5">
