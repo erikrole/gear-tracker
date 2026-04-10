@@ -390,13 +390,6 @@ export default function EquipmentPicker({
         </div>
       </div>
 
-      {/* ── Conflict check indicator ── */}
-      {conflictsLoading && (
-        <div className="px-3 py-1.5 text-xs text-muted-foreground border-t border-border/50 bg-muted/20">
-          Checking availability…
-        </div>
-      )}
-
       {/* ── Selected items shelf ── */}
       {totalSelected > 0 && (
         <div className="border-t border-border bg-muted/20">
@@ -405,6 +398,11 @@ export default function EquipmentPicker({
             <span className="inline-flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
               {totalSelected}
             </span>
+            {conflictsLoading && (
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                Checking availability\u2026
+              </span>
+            )}
           </div>
           <div className="flex flex-col">
             {resolvedSelectedAssets.map((asset) => (

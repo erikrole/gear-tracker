@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MapPinIcon, SmartphoneIcon } from "lucide-react";
+import { sportLabel } from "@/lib/sports";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 import type { FormUser, Location, BulkSkuOption } from "@/components/booking-list/types";
@@ -105,18 +106,19 @@ export function WizardStep3({
         {/* Event */}
         {form.selectedEvent && (
           <SummaryRow label="Event">
-            <div className="flex items-center gap-2 justify-end flex-wrap">
+            <span>
               {form.selectedEvent.sportCode && (
-                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-muted rounded-[2px]">
-                  {form.selectedEvent.sportCode}
+                <span className="font-normal text-muted-foreground">
+                  {sportLabel(form.selectedEvent.sportCode)}
+                  {form.selectedEvent.opponent ? " \u00b7 " : ""}
                 </span>
               )}
-              <span>
-                {form.selectedEvent.opponent
-                  ? `${form.selectedEvent.isHome === false ? "at" : "vs"} ${form.selectedEvent.opponent}`
-                  : form.selectedEvent.summary}
-              </span>
-            </div>
+              {form.selectedEvent.opponent
+                ? `${form.selectedEvent.isHome === false ? "at" : "vs"} ${form.selectedEvent.opponent}`
+                : !form.selectedEvent.sportCode
+                  ? form.selectedEvent.summary
+                  : ""}
+            </span>
           </SummaryRow>
         )}
 

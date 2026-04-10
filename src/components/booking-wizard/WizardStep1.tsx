@@ -172,19 +172,7 @@ export function WizardStep1({
                         ].join(" ")}
                         style={selected ? { backgroundColor: "var(--wi-red)" } : undefined}
                       >
-                        {/* Sport code chip */}
-                        {ev.sportCode && (
-                          <span
-                            className={[
-                              "shrink-0 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-[2px]",
-                              selected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground",
-                            ].join(" ")}
-                          >
-                            {ev.sportCode}
-                          </span>
-                        )}
-
-                        {/* Match info */}
+                        {/* Match info — sport name inline, no chip */}
                         <div className="min-w-0 flex-1">
                           <div
                             className={[
@@ -192,13 +180,21 @@ export function WizardStep1({
                               selected ? "text-white" : "text-foreground",
                             ].join(" ")}
                           >
+                            {ev.sportCode && (
+                              <span
+                                className={[
+                                  "font-normal",
+                                  selected ? "text-white/75" : "text-muted-foreground",
+                                ].join(" ")}
+                              >
+                                {sportLabel(ev.sportCode)}
+                                {ev.opponent ? " \u00b7 " : ""}
+                              </span>
+                            )}
                             {ev.opponent ? (
-                              <>
-                                <span className="font-normal opacity-70">{ev.isHome === false ? "at " : "vs "}</span>
-                                {ev.opponent}
-                              </>
+                              <>{ev.isHome === false ? "at " : "vs "}{ev.opponent}</>
                             ) : (
-                              ev.summary
+                              !ev.sportCode ? ev.summary : ""
                             )}
                           </div>
                           <div

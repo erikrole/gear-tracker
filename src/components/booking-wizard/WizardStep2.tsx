@@ -34,13 +34,23 @@ export function WizardStep2({
 }: Props) {
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold mb-1">Select Equipment</h2>
-        <p className="text-sm text-muted-foreground">
-          {kind === "CHECKOUT"
-            ? "Pick the gear to check out. Items will be scanned at pickup to confirm."
-            : "Browse and reserve the equipment you\u2019ll need."}
-        </p>
+      <div className="flex items-start gap-3">
+        <span
+          className="mt-0.5 h-[18px] w-[3px] shrink-0 rounded-full"
+          style={{ backgroundColor: "var(--wi-red)" }}
+        />
+        <div>
+          <h2
+            className="text-[11px] font-black uppercase tracking-[0.15em] text-foreground mb-1"
+          >
+            Select Equipment
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {kind === "CHECKOUT"
+              ? "Pick the gear to check out. Items will be scanned at pickup to confirm."
+              : "Browse and reserve the equipment you\u2019ll need."}
+          </p>
+        </div>
       </div>
 
       <EquipmentPicker
