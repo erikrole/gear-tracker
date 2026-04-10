@@ -163,18 +163,9 @@ export function useScanSubmission(
         const res = await fetch(
           `/api/assets?q=${encodeURIComponent(searchTerm)}${qrParam}&limit=5`,
         );
-        if (handleAuthRedirect(res)) {
-          processingRef.current = false;
-          setProcessing(false);
-          return;
-        }
+        if (handleAuthRedirect(res)) return;
         if (!res.ok) {
-          setFeedback({
-            message: "Failed to look up item",
-            type: "error",
-          });
-          processingRef.current = false;
-          setProcessing(false);
+          setFeedback({ message: "Failed to look up item", type: "error" });
           return;
         }
         const json = await res.json();
@@ -210,17 +201,16 @@ export function useScanSubmission(
               activeBooking: null,
             });
           }
-          processingRef.current = false;
-          setProcessing(false);
           return;
         }
 
         setFeedback({ message: `No item found for: ${value}`, type: "error" });
       } catch {
         setFeedback({ message: "Network error", type: "error" });
+      } finally {
+        processingRef.current = false;
+        setProcessing(false);
       }
-      processingRef.current = false;
-      setProcessing(false);
     },
     [],
   );

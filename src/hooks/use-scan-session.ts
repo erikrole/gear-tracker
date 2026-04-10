@@ -53,18 +53,13 @@ export function useScanSession(
     loadingStatusRef.current = true;
     try {
       const res = await fetch(`/api/checkouts/${checkoutId}/scan-status?phase=${phase}`);
-      if (handleAuthRedirect(res)) {
-        loadingStatusRef.current = false;
-        return;
-      }
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         setScanStatus((prev) => {
           if (!prev) setLoadError(true);
           else toast.error("Could not refresh scan status");
           return prev;
         });
-        setStatusLoading(false);
-        loadingStatusRef.current = false;
         return;
       }
       const json = await res.json();
@@ -85,9 +80,10 @@ export function useScanSession(
         else toast.error("Network error — could not refresh");
         return prev;
       });
+    } finally {
+      setStatusLoading(false);
+      loadingStatusRef.current = false;
     }
-    setStatusLoading(false);
-    loadingStatusRef.current = false;
   }, [checkoutId, phase]);
 
   // Start scan session + load status on mount
@@ -118,6 +114,16 @@ export function useScanSession(
       loadScanStatus();
     }, 15_000);
     return () => clearInterval(interval);
+  }, [isBookingMode, checkoutId, phase, loadScanStatus]);
+
+  // Refresh immediately when tab returns to foreground (e.g. after 30min in background)
+  useEffect(() => {
+    if (!isBookingMode || !checkoutId || !phase) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") loadScanStatus();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [isBookingMode, checkoutId, phase, loadScanStatus]);
 
   // Actually call the completion endpoint (used after photo is uploaded)
