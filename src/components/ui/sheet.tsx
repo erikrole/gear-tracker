@@ -31,7 +31,7 @@ function SheetOverlay({
     <DialogPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/60 backdrop-blur-sm",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/65 backdrop-blur-[2px]",
         className,
       )}
       {...props}
@@ -40,16 +40,16 @@ function SheetOverlay({
 }
 
 const sheetContentVariants = cva(
-  "bg-background fixed z-50 flex flex-col border shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  "bg-background fixed z-50 flex flex-col shadow-xl transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
   {
     variants: {
       side: {
         top: "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 border-b",
         bottom:
           "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 border-t",
-        left: "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
+        left: "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 sm:max-w-sm",
         right:
-          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-full border-l sm:max-w-lg",
+          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-full sm:max-w-lg",
       },
     },
     defaultVariants: {
@@ -74,11 +74,12 @@ function SheetContent({
         {...props}
       >
         {children}
+        {/* Close button — white to contrast with dark header */}
         <DialogPrimitive.Close
           data-slot="sheet-close-button"
-          className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 flex size-8 items-center justify-center rounded-md opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
+          className="absolute top-[18px] right-5 flex size-7 items-center justify-center rounded-sm text-white/60 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-1 focus:ring-white/20 disabled:pointer-events-none"
         >
-          <X className="size-4" />
+          <X className="size-3.5" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -90,7 +91,11 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("flex flex-col gap-1.5 border-b px-6 py-5", className)}
+      className={cn("flex shrink-0 flex-col gap-1 px-6 py-[18px] pr-14", className)}
+      style={{
+        backgroundColor: "var(--sidebar-bg)",
+        borderBottom: "2px solid var(--wi-red)",
+      }}
       {...props}
     />
   )
@@ -101,7 +106,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-footer"
       className={cn(
-        "flex shrink-0 flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end",
+        "flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-muted/20 px-6 py-4 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -116,7 +121,11 @@ function SheetTitle({
   return (
     <DialogPrimitive.Title
       data-slot="sheet-title"
-      className={cn("text-foreground text-lg font-semibold", className)}
+      className={cn(
+        "text-[13px] font-black uppercase tracking-[0.12em] text-white leading-snug",
+        className,
+      )}
+      style={{ fontFamily: "var(--font-heading)" }}
       {...props}
     />
   )
@@ -129,7 +138,7 @@ function SheetDescription({
   return (
     <DialogPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-muted-foreground text-sm", className)}
+      className={cn("text-[11px] text-white/55 leading-relaxed", className)}
       {...props}
     />
   )

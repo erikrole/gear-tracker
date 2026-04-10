@@ -534,11 +534,11 @@ export default function BookingDetailsSheet({
         <SheetHeader>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <SheetTitle className="text-xl font-bold tracking-tight truncate">
+              <SheetTitle className="truncate">
                 {booking?.title || "Loading..."}
               </SheetTitle>
               {booking && (
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-white/55 mt-0.5 leading-relaxed">
                   {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
                   {booking.refNumber && " · "}
                   {booking.bookingType}
