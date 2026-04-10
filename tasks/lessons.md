@@ -152,6 +152,15 @@
 - **Non-OK fetch responses must not be silent**: `usePickerSearch` returned `sectionResults: []` on a 500 response, making the UI show "Nothing available" instead of an error. Always add an error state alongside loading state in search hooks — show "Failed to load" (destructive text) rather than a misleading empty state.
 - **Inline hooks in a component should be extracted when independently testable**: `useConflictCheck` was 66 lines embedded in a 561-line component. Extracting it to its own file makes it testable, reduces the parent to ~450 lines, and makes the dependency graph visible.
 
+## Session 2026-04-09 (Scan Flow Stress Test)
+
+### Patterns (Scan Flow Hardening)
+- **Bulk bin QR matching must be case-insensitive**: Serialized asset matching lowercases both sides; bulk bin matching did `binQrCodeValue === scanValue` (exact). Scanner may return different casing — always normalize both sides to `.toLowerCase().trim()` before comparison.
+- **scanValue must be trimmed at the schema layer**: Add `.trim()` to the Zod schema field (`z.string().trim().min(1)`) so whitespace from manual entry or BarcodeDetector never reaches the service. Belt-and-suspenders: also `.trim()` in the service itself.
+- **Cross-booking unit theft via numbered bulk check-in**: For numbered bulk SKUs, `unit.status === CHECKED_OUT` is insufficient — any CHECKED_OUT unit passes, even one belonging to a different booking. Always verify `bookingBulkUnitAllocation` ownership (`bookingBulkItemId = bulkItem.id AND bulkSkuUnitId IN units AND checkedInAt IS NULL`) before allowing check-in. Without this, a student can mark another booking's unit as returned.
+- **Use already-loaded scan status for check-in unit picker**: The CHECKIN unit picker previously fetched `GET /api/bulk-skus/{id}/units` and filtered by `CHECKED_OUT` — showing ALL checked-out units across ALL bookings. For check-in, use `scanStatus.bulkItems[i].allocatedUnits` (already loaded, scoped to this booking) instead. For checkout, the SKU endpoint fetch is still correct (any AVAILABLE unit is fungible at checkout time).
+- **Symmetric status guards on both complete functions**: `completeCheckoutScan` had `if (booking.status !== OPEN) throw`. `completeCheckinScan` did not. Both completion functions must guard the booking status — the absence was caught eventually by `markCheckoutCompleted`, but only after scan sessions were already closed, creating a partial-state gap.
+
 ## Session 2026-04-09 (Dashboard)
 
 ### Patterns (Dashboard Hardening + Stress Test)
