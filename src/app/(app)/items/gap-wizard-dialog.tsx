@@ -175,31 +175,39 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
   const departmentOptions = departments.map((d) => ({ value: d.id, label: d.name }));
   const remaining = Math.max(0, total - skipped);
 
-  // Infer top suggestions from item text vs option names
+  // Infer top suggestions by bidirectional word matching:
+  // item words in option name, AND option words in item text
   const suggestions = useMemo(() => {
     if (!item || !field) return [];
-    const itemText = [item.assetTag, item.name, item.brand, item.model]
+
+    // Extract meaningful words from the item — skip pure numbers and short tokens
+    const itemWords = [item.assetTag, item.name, item.brand, item.model]
       .filter(Boolean)
       .join(" ")
-      .toLowerCase();
+      .toLowerCase()
+      .split(/[\s/\-_,.()+]+/)
+      .filter((w) => w.length > 2 && !/^\d+$/.test(w));
+
+    const itemText = itemWords.join(" ");
+
+    function scoreOption(name: string) {
+      const optWords = name.toLowerCase().split(/[\s/\-_,.()+]+/).filter((w) => w.length > 2);
+      // Forward: option word found in item text
+      const forward = optWords.filter((w) => itemText.includes(w)).length;
+      // Reverse: item word found in option name
+      const reverse = itemWords.filter((w) => name.toLowerCase().includes(w)).length;
+      return forward + reverse;
+    }
 
     if (field === "category") {
       return categories
-        .map((cat) => {
-          const words = cat.name.toLowerCase().split(/[\s/\-_]+/).filter((w) => w.length > 2);
-          const score = words.filter((w) => itemText.includes(w)).length;
-          return { id: cat.id, name: cat.name, score };
-        })
+        .map((cat) => ({ id: cat.id, name: cat.name, score: scoreOption(cat.name) }))
         .filter(({ score }) => score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 4);
     } else {
       return departments
-        .map((dep) => {
-          const words = dep.name.toLowerCase().split(/[\s/\-_]+/).filter((w) => w.length > 2);
-          const score = words.filter((w) => itemText.includes(w)).length;
-          return { id: dep.id, name: dep.name, score };
-        })
+        .map((dep) => ({ id: dep.id, name: dep.name, score: scoreOption(dep.name) }))
         .filter(({ score }) => score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, 4);
@@ -208,7 +216,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         {/* ── Pick field ── */}
         {stage === "pick" && (
           <>
@@ -263,36 +271,36 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
             </DialogHeader>
 
             {loading || !item ? (
-              <div className="flex flex-col gap-3 py-2">
-                <Skeleton className="h-[68px] w-full rounded-lg" />
+              <div className="flex flex-col gap-4 py-3">
+                <Skeleton className="h-20 w-full rounded-lg" />
                 <Skeleton className="h-9 w-full" />
               </div>
             ) : (
-              <div className="flex flex-col gap-4 py-1">
+              <div className="flex flex-col gap-5 py-2">
                 {/* Item card */}
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <AssetImage src={item.imageUrl} alt={item.assetTag} size={48} className="shrink-0" />
+                <div className="flex items-center gap-4 rounded-lg border p-4">
+                  <AssetImage src={item.imageUrl} alt={item.assetTag} size={56} className="shrink-0" />
                   <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">{item.assetTag}</div>
-                    <div className="text-xs text-muted-foreground truncate">
+                    <div className="font-medium truncate">{item.assetTag}</div>
+                    <div className="text-sm text-muted-foreground truncate">
                       {[item.brand, item.model].filter(Boolean).join(" ")}
                     </div>
                     {item.name && (
-                      <div className="text-xs text-muted-foreground truncate">{item.name}</div>
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">{item.name}</div>
                     )}
                   </div>
                 </div>
 
                 {/* Quick suggestions */}
                 {suggestions.length > 0 && (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-xs text-muted-foreground">Suggested</span>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Suggested</span>
+                    <div className="flex flex-wrap gap-2">
                       {suggestions.map((s) => (
                         <button
                           key={s.id}
                           onClick={() => setSelectedValue(s.id)}
-                          className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                          className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
                             selectedValue === s.id
                               ? "border-primary bg-primary text-primary-foreground"
                               : "border-border bg-background hover:bg-muted"
@@ -306,7 +314,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
                 )}
 
                 {/* Picker */}
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium capitalize">{field}</label>
                   {field === "category" ? (
                     <CategoryCombobox
@@ -326,15 +334,14 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
 
                 {/* Actions */}
                 <div className="flex items-center justify-between gap-2 pt-1">
-                  <Button variant="ghost" size="sm" onClick={handleSkip} disabled={saving}>
+                  <Button variant="ghost" onClick={handleSkip} disabled={saving}>
                     Skip
                   </Button>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setStage("done")}>
+                    <Button variant="outline" onClick={() => setStage("done")}>
                       Stop
                     </Button>
                     <Button
-                      size="sm"
                       onClick={handleAssign}
                       disabled={!selectedValue || saving}
                     >
