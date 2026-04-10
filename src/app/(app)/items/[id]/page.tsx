@@ -222,7 +222,7 @@ export default function ItemDetailsPage() {
               tab.key === "accessories" ? accessoriesCount :
               0;
             return (
-              <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 gap-1.5">
+              <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 gap-1.5 data-[state=active]:border-[var(--wi-red)]">
                 <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
                 {count > 0 && (
                   <span

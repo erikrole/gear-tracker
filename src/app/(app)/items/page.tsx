@@ -39,7 +39,6 @@ import { BulkActionBar } from "./components/bulk-action-bar";
 import { ItemsToolbar } from "./components/items-toolbar";
 import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
-import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
@@ -312,19 +311,77 @@ export default function ItemsPage() {
 
       {/* Inventory summary bar */}
       {query.statusBreakdown && !query.loading && (
-        <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground flex-wrap">
-          <span className="font-medium text-foreground">{query.total} items</span>
-          {query.statusBreakdown.checkedOut > 0 && (
-            <Badge className={`${STATUS_STYLES.blue.badge} font-normal`}>{query.statusBreakdown.checkedOut} checked out</Badge>
-          )}
-          {query.statusBreakdown.reserved > 0 && (
-            <Badge className={`${STATUS_STYLES.purple.badge} font-normal`}>{query.statusBreakdown.reserved} reserved</Badge>
-          )}
-          {query.statusBreakdown.maintenance > 0 && (
-            <Badge className={`${STATUS_STYLES.orange.badge} font-normal`}>{query.statusBreakdown.maintenance} maintenance</Badge>
-          )}
-          {query.statusBreakdown.retired > 0 && (
-            <Badge variant="secondary" className="font-normal">{query.statusBreakdown.retired} retired</Badge>
+        <div className="flex items-center gap-5 mb-5 pb-4 border-b border-border/40 flex-wrap">
+          {/* Primary count */}
+          <div className="flex items-baseline gap-1.5">
+            <span
+              className="text-[28px] font-black leading-none tracking-tight"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              {query.total}
+            </span>
+            <span
+              className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground/45"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              items
+            </span>
+          </div>
+
+          {/* Status breakdown — dot + count + label */}
+          {(query.statusBreakdown.checkedOut > 0 ||
+            query.statusBreakdown.reserved > 0 ||
+            query.statusBreakdown.maintenance > 0 ||
+            query.statusBreakdown.retired > 0) && (
+            <>
+              <div className="hidden sm:block h-5 w-px bg-border/50 shrink-0" aria-hidden="true" />
+              <div className="flex items-center gap-4 flex-wrap">
+                {query.statusBreakdown.checkedOut > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.blue.dot}`} aria-hidden="true" />
+                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+                      {query.statusBreakdown.checkedOut}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
+                      out
+                    </span>
+                  </div>
+                )}
+                {query.statusBreakdown.reserved > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.purple.dot}`} aria-hidden="true" />
+                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+                      {query.statusBreakdown.reserved}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
+                      reserved
+                    </span>
+                  </div>
+                )}
+                {query.statusBreakdown.maintenance > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.orange.dot}`} aria-hidden="true" />
+                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+                      {query.statusBreakdown.maintenance}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
+                      maintenance
+                    </span>
+                  </div>
+                )}
+                {query.statusBreakdown.retired > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.gray.dot}`} aria-hidden="true" />
+                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+                      {query.statusBreakdown.retired}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
+                      retired
+                    </span>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

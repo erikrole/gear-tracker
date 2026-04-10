@@ -208,7 +208,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
             <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} className="shrink-0" />
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-medium truncate">{item.assetTag}</span>
+                <span className="font-semibold truncate" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{item.assetTag}</span>
                 {(item._count?.accessories ?? 0) > 0 && (
                   <Badge variant="secondary" size="sm" className="shrink-0 rounded-sm px-1 font-normal">
                     +{item._count!.accessories}
