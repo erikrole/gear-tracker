@@ -264,11 +264,6 @@ export function ItemHeader({
             <div className="flex items-center gap-3 flex-wrap mt-3">
               <StatusLine asset={asset} />
 
-              {/* Divider */}
-              {(asset.location || asset.category || asset.department || asset.serialNumber) && (
-                <span className="h-3.5 w-px bg-border/60 shrink-0" aria-hidden="true" />
-              )}
-
               {asset.location && (
                 <span
                   className="text-[11px] text-muted-foreground/70"
