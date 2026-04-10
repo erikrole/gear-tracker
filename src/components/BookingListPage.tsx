@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
@@ -301,20 +302,20 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             ) : (
               <>
                 {/* Desktop table */}
-                <div className="overflow-x-auto max-md:hidden">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
+                <div className="max-md:hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
                         <SortHeader label="Name" sortKey="title" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
                         <SortHeader label="From" sortKey="startsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
                         <SortHeader label="To" sortKey="endsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
-                        <th className="hide-mobile">Duration</th>
-                        <th className="hide-mobile">User</th>
-                        <th className="hide-mobile">Items</th>
-                        <th className="w-11"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                        <TableHead className="hidden md:table-cell">Duration</TableHead>
+                        <TableHead className="hidden md:table-cell">User</TableHead>
+                        <TableHead className="hidden md:table-cell">Items</TableHead>
+                        <TableHead className="w-11" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {sortedItems.map((item) => (
                         <BookingTableRow
                           key={item.id}
@@ -329,8 +330,8 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                           }}
                         />
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
 
                 {/* Mobile card list */}

@@ -117,19 +117,46 @@ export function parseSortParam(s: string): { key: SortKey; dir: SortDir } | null
   return null;
 }
 
-export function getStatusVisual(status: string, isOverdue: boolean): { dot: string; label: string; className: string } {
-  if (isOverdue) return { dot: "var(--red)", label: "Overdue", className: "status-overdue" };
+export function getStatusVisual(status: string, isOverdue: boolean): {
+  dot: string;
+  label: string;
+  /** Tailwind classes to apply to the row wrapper */
+  rowClass: string;
+  /** Tailwind classes to apply to the booking title */
+  titleClass: string;
+} {
+  if (isOverdue) return {
+    dot: "var(--red)",
+    label: "Overdue",
+    rowClass: "",
+    titleClass: "text-destructive",
+  };
   switch (status) {
     case "OPEN":
     case "DRAFT":
     case "BOOKED":
-      return { dot: "var(--green)", label: status === "BOOKED" ? "Booked" : status === "DRAFT" ? "Draft" : "Open", className: "status-active" };
+      return {
+        dot: "var(--green)",
+        label: status === "BOOKED" ? "Booked" : status === "DRAFT" ? "Draft" : "Open",
+        rowClass: "",
+        titleClass: "",
+      };
     case "CANCELLED":
-      return { dot: "var(--text-muted)", label: "Cancelled", className: "status-cancelled" };
+      return {
+        dot: "var(--text-muted)",
+        label: "Cancelled",
+        rowClass: "",
+        titleClass: "line-through text-muted-foreground",
+      };
     case "COMPLETED":
-      return { dot: "var(--text-muted)", label: "Completed", className: "status-completed" };
+      return {
+        dot: "var(--text-muted)",
+        label: "Completed",
+        rowClass: "opacity-60",
+        titleClass: "text-muted-foreground",
+      };
     default:
-      return { dot: "var(--text-muted)", label: status.toLowerCase(), className: "" };
+      return { dot: "var(--text-muted)", label: status.toLowerCase(), rowClass: "", titleClass: "" };
   }
 }
 

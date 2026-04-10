@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDuration, getStatusVisual, type BookingItem } from "./types";
+import { cn } from "@/lib/utils";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/avatar";
@@ -92,8 +93,8 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
           </span>
         </div>
 
-        {/* Title — big and bold; red when overdue */}
-        <h3 className={`text-[15px] font-semibold leading-snug mb-1 line-clamp-2 pr-6 ${isOverdue ? "text-[var(--red)]" : "text-foreground"}`}>
+        {/* Title */}
+        <h3 className={cn("text-[15px] font-semibold leading-snug mb-1 line-clamp-2 pr-6 text-foreground", sv.titleClass)}>
           {item.title}
         </h3>
 
