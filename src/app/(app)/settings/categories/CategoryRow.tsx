@@ -9,6 +9,7 @@ import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 import type { TreeNode } from "./types";
 import KebabMenu from "./KebabMenu";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 export default function CategoryRow({
   node,
@@ -112,12 +113,11 @@ export default function CategoryRow({
   return (
     <>
       <div className="flex items-center justify-between py-3 px-4 border-b border-border min-h-12 last:border-b-0 hover:bg-muted max-md:!pl-3 max-md:!pr-3" style={{ paddingLeft: depth > 0 ? 24 + depth * 24 : 16 }}>
-        <div className="flex items-center text-base min-w-0" style={{ fontWeight: isChild ? 400 : 600 }}>
+        <div className={`flex items-center text-base min-w-0 ${isChild ? "font-normal" : "font-semibold"}`}>
           {isChild && <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />}
           {renaming ? (
-            <input
+            <Input
               ref={inputRef}
-              className="py-1 px-2 border border-border rounded-md text-sm w-[min(200px,100%)] max-md:w-full max-md:min-h-11 max-md:text-lg"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onBlur={saveRename}
@@ -126,7 +126,7 @@ export default function CategoryRow({
                 if (e.key === "Escape") { setRenaming(false); setNewName(node.name); }
               }}
               disabled={savingRename}
-              style={{ fontWeight: isChild ? 400 : 600, opacity: savingRename ? 0.6 : 1 }}
+              className={`w-[min(200px,100%)] h-8 ${isChild ? "font-normal" : "font-semibold"} ${savingRename ? "opacity-60" : ""}`}
             />
           ) : (
             <Link
@@ -159,9 +159,8 @@ export default function CategoryRow({
         <div className="flex items-center justify-between py-3 px-4 border-b border-border min-h-12 last:border-b-0 hover:bg-muted" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
           <div className="flex items-center text-base min-w-0">
             <CornerDownRightIcon className="size-3.5 text-muted-foreground mr-2 shrink-0" />
-            <input
+            <Input
               ref={subInputRef}
-              className="py-1 px-2 border border-border rounded-md text-sm w-[min(200px,100%)] max-md:w-full max-md:min-h-11 max-md:text-lg"
               value={subName}
               onChange={(e) => setSubName(e.target.value)}
               placeholder="Subcategory name"
@@ -171,7 +170,7 @@ export default function CategoryRow({
                 if (e.key === "Escape") { setAddingSub(false); setSubName(""); }
               }}
               disabled={savingSub}
-              style={{ opacity: savingSub ? 0.6 : 1 }}
+              className={`w-[min(200px,100%)] h-8 ${savingSub ? "opacity-60" : ""}`}
             />
           </div>
         </div>

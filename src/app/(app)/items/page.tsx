@@ -280,7 +280,7 @@ export default function ItemsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={confirmRetireTarget}
               disabled={actionBusy}
             >

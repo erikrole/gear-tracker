@@ -300,7 +300,6 @@ export default function NotificationsPage() {
                 setUnreadOnly(checked);
                 setPage(0);
               }}
-              className="scale-75"
             />
             <Label htmlFor="unread-filter" className="text-sm cursor-pointer">
               Unread only

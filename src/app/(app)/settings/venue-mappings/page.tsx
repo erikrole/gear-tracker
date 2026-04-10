@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { FadeUp } from "@/components/ui/motion";
@@ -156,8 +157,8 @@ export default function VenueMappingsPage() {
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
-        <h2>Venue Mappings</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-[22px] font-bold mb-2">Venue Mappings</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           Configure home venues and map calendar venue text to locations. Events at home venues are automatically marked as home games.
         </p>
       </div>
@@ -256,43 +257,41 @@ export default function VenueMappingsPage() {
               <Spinner className="size-8" />
             </CardContent>
           ) : mappings.length === 0 ? (
-            <CardContent className="py-10 text-center text-muted-foreground">
+            <CardContent className="py-10 text-center text-muted-foreground text-sm">
               No venue mappings configured. Add patterns to automatically assign locations to calendar events.
             </CardContent>
           ) : (
-            <div className="data-table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Pattern</th>
-                    <th>Location</th>
-                    <th>Priority</th>
-                    <th style={{ textAlign: "right" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mappings.map((m) => (
-                    <tr key={m.id}>
-                      <td className="font-mono text-xs">{m.pattern}</td>
-                      <td>
-                        <Badge variant="blue">{m.location.name}</Badge>
-                      </td>
-                      <td>{m.priority}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteMapping(m.id)}
-                          disabled={deletingId === m.id}
-                        >
-                          {deletingId === m.id ? "..." : "Delete"}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pattern</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mappings.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="font-mono text-xs">{m.pattern}</TableCell>
+                    <TableCell>
+                      <Badge variant="blue">{m.location.name}</Badge>
+                    </TableCell>
+                    <TableCell>{m.priority}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteMapping(m.id)}
+                        disabled={deletingId === m.id}
+                      >
+                        {deletingId === m.id ? "..." : "Delete"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </Card>
       </div>

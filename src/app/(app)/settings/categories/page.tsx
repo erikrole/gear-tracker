@@ -82,7 +82,7 @@ export default function CategoriesPage() {
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Categories</h2>
-        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+        <p className="text-sm text-muted-foreground leading-relaxed">
           Organize your inventory under categories and subcategories to make equipment easier to find and manage.
         </p>
       </div>
@@ -103,7 +103,7 @@ export default function CategoriesPage() {
                 placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 text-sm md:min-h-[44px] md:text-lg"
+                className="w-full pl-9"
                 aria-label="Search categories"
               />
             </div>
@@ -112,12 +112,14 @@ export default function CategoriesPage() {
           <div className="px-4 py-2.5 border-b border-border">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSortAsc((v) => !v)}
-                  className="flex items-center gap-1 bg-transparent border-none cursor-pointer text-xs font-semibold text-muted-foreground uppercase tracking-wider min-h-[44px]"
+                  className="text-xs font-semibold text-muted-foreground uppercase tracking-wider h-auto px-0 hover:bg-transparent hover:text-foreground"
                 >
-                  Name {sortAsc ? "\u2191\u2193" : "\u2193\u2191"}
-                </button>
+                  Name {sortAsc ? "↑↓" : "↓↑"}
+                </Button>
               </TooltipTrigger>
               <TooltipContent>{sortAsc ? "Sort Z\u2013A" : "Sort A\u2013Z"}</TooltipContent>
             </Tooltip>
@@ -157,12 +159,12 @@ export default function CategoriesPage() {
               {adding && (
                 <div className="flex items-center justify-between pl-4 pr-4 py-3 min-h-[48px] border-b border-border">
                   <div className="flex items-center font-semibold">
-                    <input
+                    <Input
                       ref={addRef}
-                      className={`px-2 py-1 border border-border rounded-md text-sm w-full max-w-[200px] md:w-full md:min-h-[44px] md:text-lg font-semibold${creatingRoot ? " opacity-60" : ""}`}
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="Category name"
+                      className="w-full max-w-[200px] font-semibold"
                       onBlur={createRoot}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") createRoot();

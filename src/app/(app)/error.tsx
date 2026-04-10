@@ -15,12 +15,12 @@ export default function AppError({
   }, [error]);
 
   return (
-    <div style={{ padding: 40, textAlign: "center", maxWidth: 480, margin: "80px auto" }}>
-      <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: 12 }}>Something went wrong</h1>
-      <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
+    <div className="px-10 text-center max-w-[480px] mt-20 mx-auto">
+      <h1 className="text-2xl mb-3">Something went wrong</h1>
+      <p className="text-muted-foreground mb-6">
         This may be caused by an expired session or a temporary loading issue.
       </p>
-      <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+      <div className="flex gap-3 justify-center">
         <Button onClick={reset}>
           Try again
         </Button>

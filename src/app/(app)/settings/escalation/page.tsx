@@ -121,7 +121,7 @@ export default function EscalationSettingsPage() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
           <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
         </div>
@@ -160,14 +160,14 @@ export default function EscalationSettingsPage() {
             </div>
           </Card>
         </div>
-      </div>
+      </div></FadeUp>
     );
   }
 
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
           <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
         </div>
@@ -192,7 +192,7 @@ export default function EscalationSettingsPage() {
             </div>
           </Card>
         </div>
-      </div>
+      </div></FadeUp>
     );
   }
 
@@ -201,7 +201,7 @@ export default function EscalationSettingsPage() {
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
-        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+        <p className="text-muted-foreground text-sm leading-relaxed">
           Configure when and how overdue checkout notifications are sent.
           Notifications are deduped per booking — each trigger fires at most once.
         </p>

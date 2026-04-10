@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircleIcon } from "lucide-react";
 import type { ColumnMapping, PreviewData, ImportResult, Step } from "./_types";
 import { STEP_LABELS } from "./_types";
 import { ImportUploadStep } from "./_components/ImportUploadStep";
@@ -275,9 +277,10 @@ export default function ImportPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 text-destructive px-4 py-3 mb-4 text-sm">
-          {error}
-        </div>
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircleIcon className="size-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* ── Upload step ── */}

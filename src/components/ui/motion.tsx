@@ -20,9 +20,9 @@ export function FadeUp({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.2, delay, ease: [0.16, 1, 0.3, 1] }}
       className={className}
     >
       {children}
@@ -41,11 +41,11 @@ const staggerContainer: Variants = {
 };
 
 const staggerItem: Variants = {
-  hidden: { opacity: 0, y: 6 },
+  hidden: { opacity: 0, y: 4 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+    transition: { duration: 0.15, ease: [0.16, 1, 0.3, 1] },
   },
 };
 
@@ -92,9 +92,9 @@ export function PageTransition({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
       className={cn("flex flex-col flex-1", className)}
     >
       {children}
@@ -119,7 +119,7 @@ export function ScaleIn({
       transition={{
         duration: 0.2,
         delay,
-        ease: [0.34, 1.56, 0.64, 1], // spring-like
+        ease: [0.16, 1, 0.3, 1],
       }}
       className={className}
     >

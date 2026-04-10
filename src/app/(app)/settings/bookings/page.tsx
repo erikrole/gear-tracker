@@ -106,7 +106,7 @@ export default function BookingSettingsPage() {
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Bookings</h2>
-        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+        <p className="text-muted-foreground text-sm leading-relaxed">
           Configure default extend presets shown when extending a booking&apos;s due date.
         </p>
       </div>

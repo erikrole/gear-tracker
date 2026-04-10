@@ -160,7 +160,7 @@ export default function SportsSettingsPage() {
   /* ---------- Loading skeleton ---------- */
   if (loading) {
     return (
-      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
           <h2 className="text-[22px] font-bold mb-2">Sports</h2>
         </div>
@@ -175,7 +175,7 @@ export default function SportsSettingsPage() {
             </div>
           ))}
         </div>
-      </div>
+      </div></FadeUp>
     );
   }
 
@@ -183,7 +183,7 @@ export default function SportsSettingsPage() {
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
           <h2 className="text-[22px] font-bold mb-2">Sports</h2>
         </div>
@@ -208,7 +208,7 @@ export default function SportsSettingsPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </div></FadeUp>
     );
   }
 
@@ -218,7 +218,7 @@ export default function SportsSettingsPage() {
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Sports</h2>
-        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+        <p className="text-muted-foreground text-sm leading-relaxed">
           Configure shift coverage and call times for each sport.
           Grouped sports share the same settings across men&apos;s and women&apos;s programs.
         </p>

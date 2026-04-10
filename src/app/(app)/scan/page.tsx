@@ -185,7 +185,7 @@ export default function ScanPage() {
         <div className="flex items-center justify-between gap-3 py-1">
           <h1>Scan</h1>
           <Badge variant="gray" className="gap-1.5 py-1 font-bold shrink-0">
-            <div className="w-[6px] h-[6px] rounded-full bg-[var(--text-secondary,#9ca3af)]" />
+            <div className="w-[6px] h-[6px] rounded-full bg-muted-foreground" />
             Look Up
           </Badge>
         </div>
@@ -302,7 +302,7 @@ export default function ScanPage() {
       {/* ══════ Celebration overlay ══════ */}
       {session.showCelebration && (
         <div
-          className="fixed inset-0 flex items-center justify-center bg-black/40 z-40 animate-[fadeIn_0.2s_ease] p-[env(safe-area-inset-top)_env(safe-area-inset-right)_env(safe-area-inset-bottom)_env(safe-area-inset-left)]"
+          className="fixed inset-0 flex items-center justify-center bg-black/40 z-40 animate-[fade-in_0.2s_ease] p-[env(safe-area-inset-top)_env(safe-area-inset-right)_env(safe-area-inset-bottom)_env(safe-area-inset-left)]"
           onClick={() => session.setShowCelebration(false)}
           role="dialog"
           aria-label="All items scanned"

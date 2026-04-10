@@ -255,7 +255,7 @@ export default function SearchPage() {
             return (
               <div key={type}>
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm text-secondary text-uppercase m-0">
+                  <h2 className="text-sm text-muted-foreground uppercase m-0">
                     {sectionLabels[type]} ({items.length}{items.length >= 10 ? "+" : ""})
                   </h2>
                   {items.length >= 10 && (
@@ -273,7 +273,7 @@ export default function SearchPage() {
                     >
                       <div>
                         <div className="font-semibold">{r.title}</div>
-                        {r.subtitle && <div className="text-sm text-secondary">{r.subtitle}</div>}
+                        {r.subtitle && <div className="text-sm text-muted-foreground">{r.subtitle}</div>}
                       </div>
                       {r.status && (
                         <Badge variant={statusBadgeVariant(r.status) as BadgeProps["variant"]}>

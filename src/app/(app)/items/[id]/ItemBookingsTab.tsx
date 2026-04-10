@@ -498,7 +498,7 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
     <div className="mt-3.5">
       <Card>
         <CardHeader>
-          <div className="flex-center gap-2">
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
             <CardTitle className="min-w-40 text-center">{monthLabel}</CardTitle>
             <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>

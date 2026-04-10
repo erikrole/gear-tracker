@@ -9,9 +9,9 @@ const cardVariants = cva(
     variants: {
       elevation: {
         flat: "shadow-none",
-        raised: "shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)] hover:-translate-y-px",
-        elevated: "shadow-[var(--shadow)] hover:shadow-[var(--shadow-md)] hover:-translate-y-px",
-        prominent: "shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)] hover:-translate-y-0.5 border-[var(--border-light)]",
+        raised: "shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)]",
+        elevated: "shadow-[var(--shadow)] hover:shadow-[var(--shadow-md)]",
+        prominent: "shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)] border-[var(--border-light)]",
       },
     },
     defaultVariants: {
@@ -80,7 +80,7 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-content"
-      className={cn("px-6", className)}
+      className={cn("px-6 py-4", className)}
       {...props}
     />
   )

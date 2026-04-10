@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
@@ -55,7 +56,7 @@ export default function DatabasePage() {
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
         <h2 className="text-[22px] font-bold mb-2">Database Health</h2>
-        <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+        <p className="text-sm text-muted-foreground leading-relaxed">
           Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift.
         </p>
       </div>
@@ -79,18 +80,11 @@ export default function DatabasePage() {
           <>
             {/* Overall status */}
             <Card className="mb-1">
-              <CardContent className="flex-center gap-3">
+              <CardContent className="flex items-center gap-3">
                 <span
-                  className="shrink-0"
-                  style={{
-                    display: "inline-block",
-                    width: 12,
-                    height: 12,
-                    borderRadius: "50%",
-                    background: result.ok ? "#22c55e" : "#ef4444",
-                  }}
+                  className={`shrink-0 inline-block size-3 rounded-full ${result.ok ? "bg-[var(--green)]" : "bg-destructive"}`}
                 />
-                <span className="font-semibold" style={{ fontSize: "var(--text-md)" }}>
+                <span className="font-semibold text-[length:var(--text-md)]">
                   {result.ok ? "Schema is healthy" : "Issues detected"}
                 </span>
               </CardContent>
@@ -106,13 +100,7 @@ export default function DatabasePage() {
                   {result.remediation.map((step, i) => (
                     <div
                       key={i}
-                      className="text-sm font-mono"
-                      style={{
-                        padding: "8px 12px",
-                        background: "rgba(239, 68, 68, 0.06)",
-                        borderRadius: 8,
-                        lineHeight: 1.5,
-                      }}
+                      className="text-sm font-mono px-3 py-2 bg-destructive/5 rounded-md leading-relaxed"
                     >
                       {step}
                     </div>
@@ -128,25 +116,25 @@ export default function DatabasePage() {
                 <StatusBadge ok={result.checks.migrationTable.exists} label={result.checks.migrationTable.exists ? "Table exists" : "Table missing"} />
               </CardHeader>
               {result.checks.migrationTable.migrations.length > 0 && (
-                <CardContent style={{ padding: 0 }}>
-                  <table className="diag-table">
-                    <thead>
-                      <tr>
-                        <th>Migration</th>
-                        <th>Applied</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <CardContent className="px-0 py-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Migration</TableHead>
+                        <TableHead>Applied</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {result.checks.migrationTable.migrations.map((m) => (
-                        <tr key={m.name}>
-                          <td>{m.name}</td>
-                          <td>
-                            {m.appliedAt ? new Date(m.appliedAt).toLocaleDateString() : "\u2014"}
-                          </td>
-                        </tr>
+                        <TableRow key={m.name}>
+                          <TableCell>{m.name}</TableCell>
+                          <TableCell>
+                            {m.appliedAt ? new Date(m.appliedAt).toLocaleDateString() : "—"}
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </CardContent>
               )}
             </Card>
@@ -212,27 +200,27 @@ export default function DatabasePage() {
                   <span className="font-semibold text-sm">Column Drift</span>
                   <StatusBadge ok={false} label={`${result.checks.columns.drift.length} missing`} />
                 </CardHeader>
-                <CardContent style={{ padding: 0 }}>
-                  <table className="diag-table">
-                    <thead>
-                      <tr>
-                        <th>Table</th>
-                        <th>Column</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <CardContent className="px-0 py-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Table</TableHead>
+                        <TableHead>Column</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {result.checks.columns.drift.map((d, i) => (
-                        <tr key={i}>
-                          <td><code>{d.table}</code></td>
-                          <td><code>{d.column}</code></td>
-                          <td>
+                        <TableRow key={i}>
+                          <TableCell><code>{d.table}</code></TableCell>
+                          <TableCell><code>{d.column}</code></TableCell>
+                          <TableCell>
                             <Badge variant="red" size="sm">{d.status}</Badge>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             )}

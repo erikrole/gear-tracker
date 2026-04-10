@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,7 +145,7 @@ export default function AllowedEmailsPage() {
   const sidebar = (
     <div className="sticky top-20 max-md:static">
       <h2 className="text-[22px] font-bold mb-2">Allowed Emails</h2>
-      <p className="text-[var(--text-secondary)] text-sm leading-relaxed m-0">
+      <p className="text-sm text-muted-foreground leading-relaxed">
         Manage which email addresses can register for an account.
         Only pre-approved emails can sign up.
       </p>
@@ -153,52 +154,51 @@ export default function AllowedEmailsPage() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-        {sidebar}
-        <div className="min-w-0 space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 rounded-md border p-4"
-            >
-              <Skeleton className="h-5 w-48" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-            </div>
-          ))}
+      <FadeUp>
+        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+          {sidebar}
+          <div className="min-w-0 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 rounded-md border p-4">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </FadeUp>
     );
   }
 
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-        {sidebar}
-        <div className="min-w-0">
-          <Card>
-            <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-              <Icon className="size-10 text-muted-foreground" />
-              <div>
-                <p className="font-semibold">
-                  {error === "network"
-                    ? "Connection Failed"
-                    : "Something Went Wrong"}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {error === "network"
-                    ? "Could not connect to server. Check your connection."
-                    : "Failed to load allowed emails. Please try again."}
-                </p>
-              </div>
-              <Button variant="outline" onClick={reload}>
-                <RefreshCw className="size-4" />
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+      <FadeUp>
+        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+          {sidebar}
+          <div className="min-w-0">
+            <Card>
+              <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+                <Icon className="size-10 text-muted-foreground" />
+                <div>
+                  <p className="font-semibold">
+                    {error === "network" ? "Connection Failed" : "Something Went Wrong"}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {error === "network"
+                      ? "Could not connect to server. Check your connection."
+                      : "Failed to load allowed emails. Please try again."}
+                  </p>
+                </div>
+                <Button variant="outline" onClick={reload}>
+                  <RefreshCw className="size-4" />
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </FadeUp>
     );
   }
 
@@ -317,67 +317,52 @@ export default function AllowedEmailsPage() {
               </p>
             </CardContent>
           ) : (
-            <div className="data-table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Added by</th>
-                    <th style={{ textAlign: "right" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="font-medium">{item.email}</td>
-                      <td>
-                        <Badge
-                          variant={
-                            item.role === "STAFF" ? "blue" : "gray"
-                          }
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Added by</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={item.role === "STAFF" ? "blue" : "gray"} size="sm">
+                        {item.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {item.claimedAt ? (
+                        <Badge variant="green" size="sm">Claimed</Badge>
+                      ) : (
+                        <Badge variant="orange" size="sm">Pending</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {item.createdBy.name}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {!item.claimedAt && (
+                        <Button
+                          variant="ghost"
                           size="sm"
+                          onClick={() => handleDelete(item)}
+                          disabled={deletingId === item.id}
+                          className="text-destructive hover:text-destructive"
                         >
-                          {item.role}
-                        </Badge>
-                      </td>
-                      <td>
-                        {item.claimedAt ? (
-                          <Badge variant="green" size="sm">
-                            Claimed
-                          </Badge>
-                        ) : (
-                          <Badge variant="orange" size="sm">
-                            Pending
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="text-muted-foreground text-xs">
-                        {item.createdBy.name}
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        {!item.claimedAt && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(item)}
-                            disabled={deletingId === item.id}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            {deletingId === item.id ? (
-                              <Spinner />
-                            ) : (
-                              <Trash2 className="size-4" />
-                            )}
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          {deletingId === item.id ? <Spinner /> : <Trash2 className="size-4" />}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </Card>
       </div>

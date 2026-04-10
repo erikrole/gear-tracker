@@ -151,20 +151,19 @@ export default function LabelsPage() {
             {(assets ?? []).map((asset) => (
               <label
                 key={asset.id}
-                className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer border-b border-border ${selectedIds.has(asset.id) ? "bg-green-50 dark:bg-green-950/30" : "bg-background"}`}
+                className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer border-b border-border transition-colors ${selectedIds.has(asset.id) ? "bg-[var(--green-bg)]" : "hover:bg-muted/50"}`}
               >
                 <Checkbox
                   checked={selectedIds.has(asset.id)}
                   onCheckedChange={() => toggleSelect(asset.id)}
-                  className="size-[18px]"
                 />
                 <div className="flex-1">
                   <span className="font-semibold">{asset.assetTag}</span>
-                  <span className="text-secondary text-xs ml-2">
+                  <span className="text-muted-foreground text-xs ml-2">
                     {asset.brand} {asset.model}
                   </span>
                 </div>
-                <span className="text-xs text-secondary">
+                <span className="text-xs text-muted-foreground">
                   {asset.location.name}
                 </span>
               </label>
@@ -175,83 +174,25 @@ export default function LabelsPage() {
 
       {/* Label grid (visible when printing) */}
       {selectedAssets.length > 0 && (
-        <div className="label-grid">
+        <div className="label-print-grid">
           {selectedAssets.map((asset) => (
-            <div key={asset.id} className="label-card">
-              <div className="label-qr">
+            <div key={asset.id} className="label-print-card">
+              <div className="shrink-0">
                 <LabelQRCode value={asset.qrCodeValue} />
               </div>
-              <div className="label-info">
-                <div className="label-tag">{asset.assetTag}</div>
-                <div className="label-detail">
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm mb-0.5">{asset.assetTag}</div>
+                <div className="text-[11px] text-muted-foreground">
                   {asset.brand} {asset.model}
                 </div>
                 {asset.primaryScanCode && (
-                  <div className="label-barcode">{asset.primaryScanCode}</div>
+                  <div className="font-mono text-[10px] text-muted-foreground mt-0.5">{asset.primaryScanCode}</div>
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
-
-      <style>{`
-        .label-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-          padding: 12px;
-        }
-        .label-card {
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          padding: 12px;
-          display: flex;
-          gap: 10px;
-          align-items: center;
-          page-break-inside: avoid;
-        }
-        .label-info {
-          flex: 1;
-          min-width: 0;
-        }
-        .label-tag {
-          font-weight: 700;
-          font-size: 14px;
-          margin-bottom: 2px;
-        }
-        .label-detail {
-          font-size: 11px;
-          color: #666;
-        }
-        .label-barcode {
-          font-family: monospace;
-          font-size: 10px;
-          color: #888;
-          margin-top: 2px;
-        }
-
-        @media print {
-          .no-print { display: none !important; }
-          .label-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            padding: 0;
-          }
-          .label-card {
-            border: 1px solid #000;
-            border-radius: 0;
-            padding: 8px;
-          }
-          body { margin: 0; padding: 8px; }
-        }
-
-        @media (max-width: 768px) {
-          .label-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-      `}</style>
     </FadeUp>
   );
 }

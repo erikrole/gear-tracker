@@ -201,19 +201,23 @@ export default function KioskDevicesPage() {
 
   return (
     <FadeUp>
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Kiosk Devices</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage iPad kiosk stations for self-serve gear checkout
-          </p>
-        </div>
-        <Button onClick={() => setShowAdd(true)} size="sm">
-          <Plus className="size-4 mr-1.5" />
-          Add Kiosk
-        </Button>
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+      <div className="sticky top-20 max-md:static">
+        <h2 className="text-[22px] font-bold mb-2">Kiosk Devices</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Manage iPad kiosk stations for self-serve gear checkout.
+        </p>
       </div>
+
+      <div className="min-w-0 space-y-4">
+        <div className="flex justify-end">
+          {!showAdd && (
+            <Button onClick={() => setShowAdd(true)} size="sm">
+              <Plus className="size-4 mr-1.5" />
+              Add Kiosk
+            </Button>
+          )}
+        </div>
 
       {/* Add form */}
       {showAdd && (
@@ -418,6 +422,7 @@ export default function KioskDevicesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
     </FadeUp>
   );

@@ -7,6 +7,9 @@ import { useUrlState } from "@/hooks/use-url-state";
 import { PlusIcon, ChevronDownIcon, AlertCircleIcon } from "lucide-react";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { PageHeader } from "@/components/PageHeader";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { toast } from "sonner";
@@ -64,14 +67,15 @@ type Location = { id: string; name: string };
 
 type BulkSkuResponse = { data: BulkSku[]; total: number; limit: number; offset: number };
 
-const UNIT_STATUS_COLORS: Record<string, { bg: string; dot: string; label: string }> = {
-  AVAILABLE: { bg: "#dcfce7", dot: "#22c55e", label: "Available" },
-  CHECKED_OUT: { bg: "#dbeafe", dot: "#3b82f6", label: "Checked Out" },
-  LOST: { bg: "#fee2e2", dot: "#ef4444", label: "Lost" },
-  RETIRED: { bg: "#f3f4f6", dot: "#9ca3af", label: "Retired" },
+const UNIT_STATUS_CLASSES: Record<string, { card: string; dot: string; label: string }> = {
+  AVAILABLE: { card: "bg-[var(--green-bg)]", dot: "bg-[var(--green)]", label: "Available" },
+  CHECKED_OUT: { card: "bg-[var(--blue-bg)]", dot: "bg-[var(--blue)]", label: "Checked Out" },
+  LOST: { card: "bg-[var(--red-bg)]", dot: "bg-destructive", label: "Lost" },
+  RETIRED: { card: "bg-muted", dot: "bg-muted-foreground", label: "Retired" },
 };
 
 export default function BulkInventoryPage() {
+  const confirm = useConfirm();
   const [page, setPage] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -165,7 +169,12 @@ export default function BulkInventoryPage() {
   }
 
   async function handleConvertToNumbered(skuId: string) {
-    if (!confirm("Convert this SKU to numbered tracking? This will create individual unit records from the current on-hand quantity.")) return;
+    const ok = await confirm({
+      title: "Convert to numbered tracking",
+      message: "This will create individual unit records from the current on-hand quantity.",
+      confirmLabel: "Convert",
+    });
+    if (!ok) return;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/bulk-skus/${skuId}/convert-to-numbered`, { method: "POST" });
@@ -285,19 +294,19 @@ export default function BulkInventoryPage() {
               />
               <Label htmlFor="trackByNumber" className="cursor-pointer">
                 <div className="font-semibold text-base">Track by number</div>
-                <div className="text-sm text-secondary">
+                <div className="text-sm text-muted-foreground">
                   Number each unit individually for loss tracking
                 </div>
               </Label>
             </div>
 
             {trackByNumber && (
-              <div className="col-span-full text-sm rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3.5 py-2.5 text-blue-800 dark:text-blue-300">
+              <div className="col-span-full text-sm rounded-lg bg-[var(--blue-bg)] px-3.5 py-2.5 text-[var(--blue-text)]">
                 This will create individually numbered units. Make sure to physically label each item with its number.
               </div>
             )}
 
-            <div className="col-span-full flex-end">
+            <div className="col-span-full flex justify-end">
               <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create SKU"}</Button>
             </div>
             {formError && <div className="col-span-full text-destructive">{formError}</div>}
@@ -306,7 +315,7 @@ export default function BulkInventoryPage() {
       )}
 
       <Card>
-        <CardHeader className="!flex !flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap">
+        <CardHeader className="flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap">
           <Input
             className="flex-1 min-w-[120px] max-w-full max-md:flex-[1_1_100%] max-md:min-w-0"
             type="text"
@@ -332,19 +341,18 @@ export default function BulkInventoryPage() {
           <EmptyState icon="box" title="No bulk SKUs found" description={search ? "Try adjusting your search." : "Add your first bulk SKU above."} />
         ) : (
           <>
-            <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Unit</th>
-                  <th>On Hand</th>
-                  <th>Min Threshold</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>On Hand</TableHead>
+                  <TableHead>Min Threshold</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredItems.map((sku) => {
                   const onHand = sku.balances?.[0]?.onHandQuantity ?? 0;
                   const isLow = onHand <= sku.minThreshold && sku.minThreshold > 0;
@@ -352,18 +360,18 @@ export default function BulkInventoryPage() {
                   const units = sku.units ?? [];
 
                   return (
-                    <tr key={sku.id} style={{ cursor: sku.trackByNumber ? "pointer" : undefined }}
+                    <TableRow
+                      key={sku.id}
+                      className={sku.trackByNumber ? "cursor-pointer" : undefined}
                       onClick={() => sku.trackByNumber && setExpandedSku(isExpanded ? null : sku.id)}
                     >
-                      <td className="font-medium">
-                        <div className="flex-center gap-1.5">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-1.5">
                           {sku.name}
-                          {sku.trackByNumber && (
-                            <Badge variant="blue" size="sm">#</Badge>
-                          )}
+                          {sku.trackByNumber && <Badge variant="blue" size="sm">#</Badge>}
                         </div>
                         {sku.trackByNumber && units.length > 0 && (
-                          <div className="text-sm text-secondary mt-2">
+                          <div className="text-sm text-muted-foreground mt-1">
                             {unitSummary(units)}
                           </div>
                         )}
@@ -376,31 +384,32 @@ export default function BulkInventoryPage() {
                             Convert to numbered
                           </Button>
                         )}
-                      </td>
-                      <td>{sku.categoryRel?.name || sku.category}</td>
-                      <td>{sku.unit}</td>
-                      <td>
-                        <span className={`font-semibold ${isLow ? "text-red" : ""}`}>
+                      </TableCell>
+                      <TableCell>{sku.categoryRel?.name || sku.category}</TableCell>
+                      <TableCell>{sku.unit}</TableCell>
+                      <TableCell>
+                        <span className={`font-semibold ${isLow ? "text-destructive" : ""}`}>
                           {sku.trackByNumber ? `${units.filter((u) => u.status === "AVAILABLE").length}/${units.length}` : onHand}
                         </span>
-                      </td>
-                      <td>{sku.minThreshold}</td>
-                      <td>
-                        {isLow ? (
-                          <Badge variant="orange">low stock</Badge>
-                        ) : (
-                          <Badge variant="green">in stock</Badge>
-                        )}
-                        {sku.trackByNumber && (
-                          <ChevronDownIcon className={`ml-2 size-3 text-secondary transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
-                        )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>{sku.minThreshold}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {isLow ? (
+                            <Badge variant="orange">low stock</Badge>
+                          ) : (
+                            <Badge variant="green">in stock</Badge>
+                          )}
+                          {sku.trackByNumber && (
+                            <ChevronDownIcon className={`size-3 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-            </div>
+              </TableBody>
+            </Table>
 
             {/* Expanded units grid */}
             {expandedSku && (() => {
@@ -410,10 +419,10 @@ export default function BulkInventoryPage() {
 
               return (
                 <div className="p-4 border-t border-border bg-[var(--bg)]">
-                  <div className="flex-between mb-3">
-                    <h3 className="m-0 text-md">{sku.name} — Units</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="m-0 text-base font-semibold">{sku.name} — Units</h3>
                     {addingUnits === sku.id ? (
-                      <div className="flex-center gap-2">
+                      <div className="flex items-center gap-2">
                         <Input
                           type="number" min={1} max={500} value={addCount}
                           onChange={(e) => setAddCount(Number(e.target.value))}
@@ -442,7 +451,7 @@ export default function BulkInventoryPage() {
                   ) : (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
                       {units.map((u) => {
-                        const colors = UNIT_STATUS_COLORS[u.status];
+                        const colors = UNIT_STATUS_CLASSES[u.status];
                         const lastAlloc = u.allocations?.[0]?.bookingBulkItem?.booking;
                         const lastUser = lastAlloc?.requester?.name;
                         const lastRef = lastAlloc?.refNumber || lastAlloc?.title;
@@ -451,8 +460,7 @@ export default function BulkInventoryPage() {
                           <div
                             key={u.id}
                             title={`#${u.unitNumber} — ${colors.label}${lastInfo}${u.notes ? ` · ${u.notes}` : ""}`}
-                            className={`flex flex-col items-center justify-center gap-0 px-1 py-1 rounded-md text-sm font-semibold relative ${u.status !== "CHECKED_OUT" ? "cursor-pointer" : "cursor-default"}`}
-                            style={{ background: colors.bg }}
+                            className={`flex flex-col items-center justify-center gap-0 px-1 py-1 rounded-md text-sm font-semibold relative ${colors.card} ${u.status !== "CHECKED_OUT" ? "cursor-pointer" : "cursor-default"}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (u.status === "CHECKED_OUT") return;
@@ -463,7 +471,7 @@ export default function BulkInventoryPage() {
                             }}
                           >
                             <div className="flex items-center gap-1">
-                              <div className="size-1.5 rounded-full shrink-0" style={{ background: colors.dot }} />
+                              <div className={`size-1.5 rounded-full shrink-0 ${colors.dot}`} />
                               {u.unitNumber}
                             </div>
                             {u.status === "LOST" && lastUser && (
@@ -477,7 +485,7 @@ export default function BulkInventoryPage() {
                     </div>
                   )}
 
-                  <div className="mt-2.5 text-sm text-secondary">
+                  <div className="mt-2.5 text-sm text-muted-foreground">
                     Click a unit to cycle status: Available &rarr; Lost &rarr; Retired &rarr; Available
                   </div>
                 </div>
@@ -485,13 +493,19 @@ export default function BulkInventoryPage() {
             })()}
 
             {totalPages > 1 && (
-              <nav className="pagination" aria-label="Pagination">
-                <span>Showing {page * limit + 1}-{Math.min((page + 1) * limit, total)} of {total}</span>
-                <div className="pagination-btns">
-                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Previous page">Previous</Button>
-                  <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Next page">Next</Button>
-                </div>
-              </nav>
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm text-muted-foreground">
+                <span>Showing {page * limit + 1}–{Math.min((page + 1) * limit, total)} of {total}</span>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious onClick={() => setPage(page - 1)} aria-disabled={page === 0} className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext onClick={() => setPage(page + 1)} aria-disabled={page >= totalPages - 1} className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             )}
           </>
         )}

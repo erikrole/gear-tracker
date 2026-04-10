@@ -8,7 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
@@ -170,8 +171,8 @@ export default function CalendarSourcesPage() {
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
-        <h2>Calendar Sources</h2>
-        <p className="text-secondary text-sm">
+        <h2 className="text-[22px] font-bold mb-2">Calendar Sources</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           Manage ICS calendar feeds for event syncing. Events are automatically imported and used for shift scheduling.
         </p>
       </div>
@@ -186,9 +187,9 @@ export default function CalendarSourcesPage() {
         </div>
 
         {showAdd && (
-          <Card style={{ padding: 16, marginBottom: 16 }}>
+          <Card className="p-4 mb-4">
             <form onSubmit={handleAdd}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1.5">
                   <Label>Name</Label>
                   <Input
@@ -209,7 +210,7 @@ export default function CalendarSourcesPage() {
                     required
                   />
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="flex gap-2">
                   <Button type="submit" size="sm" disabled={addBusy}>
                     {addBusy ? "Adding..." : "Add"}
                   </Button>
@@ -223,7 +224,7 @@ export default function CalendarSourcesPage() {
         )}
 
         {loading ? (
-          <Card style={{ padding: 40, textAlign: "center" }}>
+          <Card className="p-10">
             <div className="flex flex-col gap-3">
               {Array.from({ length: 3 }, (_, i) => (
                 <div key={i} className="flex items-center justify-between py-3">
@@ -237,37 +238,37 @@ export default function CalendarSourcesPage() {
             </div>
           </Card>
         ) : sources.length === 0 ? (
-          <Card style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+          <Card className="flex items-center justify-center p-10 text-center text-muted-foreground text-sm">
             No calendar sources configured. Add one to start syncing events.
           </Card>
         ) : (
           <Card>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Source</th>
-                  <th>Health</th>
-                  <th className="hide-mobile">Events</th>
-                  <th className="hide-mobile">Last synced</th>
-                  <th style={{ textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Health</TableHead>
+                  <TableHead className="hidden md:table-cell">Events</TableHead>
+                  <TableHead className="hidden md:table-cell">Last synced</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {sources.map((source) => (
-                  <tr key={source.id}>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{source.name}</div>
-                      <div className="text-xs text-secondary" style={{ wordBreak: "break-all", maxWidth: 300 }}>
+                  <TableRow key={source.id}>
+                    <TableCell>
+                      <div className="font-semibold">{source.name}</div>
+                      <div className="text-xs text-muted-foreground break-all max-w-[300px]">
                         {source.url}
                       </div>
-                    </td>
-                    <td>{healthBadge(source)}</td>
-                    <td className="hide-mobile">{source._count?.events ?? 0}</td>
-                    <td className="hide-mobile">
-                      {source.lastFetchedAt ? formatDateTime(source.lastFetchedAt) : "\u2014"}
-                    </td>
-                    <td>
-                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                    </TableCell>
+                    <TableCell>{healthBadge(source)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{source._count?.events ?? 0}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {source.lastFetchedAt ? formatDateTime(source.lastFetchedAt) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1.5 justify-end flex-wrap">
                         <Button
                           variant="outline"
                           size="sm"
@@ -293,16 +294,16 @@ export default function CalendarSourcesPage() {
                           Delete
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
             {sources.some((s) => s.lastError) && (
-              <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)", fontSize: "var(--text-sm)" }}>
+              <div className="px-4 py-3 border-t text-sm">
                 <strong>Errors:</strong>
                 {sources.filter((s) => s.lastError).map((s) => (
-                  <div key={s.id} style={{ color: "var(--red)", marginTop: 4 }}>
+                  <div key={s.id} className="text-destructive mt-1">
                     {s.name}: {s.lastError}
                   </div>
                 ))}
