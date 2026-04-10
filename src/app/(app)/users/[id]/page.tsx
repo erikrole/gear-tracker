@@ -250,92 +250,131 @@ export default function UserDetailPage() {
 
   return (
     <FadeUp>
-      {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <div className="flex gap-3 items-center">
-          {isSelf ? (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadAvatar(file);
-                  e.target.value = "";
-                }}
-              />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild disabled={uploadingAvatar}>
-                  <button type="button" className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    <Avatar className="size-12 cursor-pointer">
-                      {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                      <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
-                        {getInitials(user.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      {uploadingAvatar ? (
-                        <Spinner className="size-5 text-white" />
-                      ) : (
-                        <CameraIcon className="size-5 text-white" />
-                      )}
-                    </div>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                    <CameraIcon className="mr-2 size-4" />
-                    {user.avatarUrl ? "Change photo" : "Upload photo"}
-                  </DropdownMenuItem>
-                  {user.avatarUrl && (
-                    <DropdownMenuItem variant="destructive" onClick={removeAvatar}>
-                      <TrashIcon className="mr-2 size-4" />
-                      Remove photo
+      {/* ── Profile hero ── */}
+      <div className="relative mb-8 rounded-xl border bg-card overflow-hidden">
+        {/* Atmospheric red wash — very subtle */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at 0% 0%, rgba(160,0,0,0.045) 0%, transparent 55%)" }}
+        />
+
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-5 p-6 sm:p-7">
+          {/* Avatar */}
+          <div className="shrink-0">
+            {isSelf ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadAvatar(file);
+                    e.target.value = "";
+                  }}
+                />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild disabled={uploadingAvatar}>
+                    <button
+                      type="button"
+                      className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <Avatar className="size-20 cursor-pointer ring-2 ring-border ring-offset-2 ring-offset-card">
+                        {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                        <AvatarFallback
+                          className="bg-secondary text-secondary-foreground text-2xl font-black"
+                          style={{ fontFamily: "var(--font-heading)" }}
+                        >
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        {uploadingAvatar ? (
+                          <Spinner className="size-6 text-white" />
+                        ) : (
+                          <CameraIcon className="size-6 text-white" />
+                        )}
+                      </div>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                      <CameraIcon className="mr-2 size-4" />
+                      {user.avatarUrl ? "Change photo" : "Upload photo"}
                     </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : (
-            <Avatar className="size-12" aria-hidden="true">
-              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-              <AvatarFallback className="bg-secondary text-secondary-foreground text-xl font-semibold">
-                {getInitials(user.name)}
-              </AvatarFallback>
-            </Avatar>
-          )}
-          <div>
-            <h1 className="mb-0">{isSelf ? "My profile" : user.name}</h1>
-            <div className="text-sm text-muted-foreground mt-1">{user.email}</div>
-            {user.createdAt && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                <CalendarDays className="size-3" />
-                Member since {formatDateFull(user.createdAt)}
-              </div>
+                    {user.avatarUrl && (
+                      <DropdownMenuItem variant="destructive" onClick={removeAvatar}>
+                        <TrashIcon className="mr-2 size-4" />
+                        Remove photo
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Avatar
+                className="size-20 ring-2 ring-border ring-offset-2 ring-offset-card"
+                aria-hidden="true"
+              >
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                <AvatarFallback
+                  className="bg-secondary text-secondary-foreground text-2xl font-black"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  {getInitials(user.name)}
+                </AvatarFallback>
+              </Avatar>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <RoleBadge role={user.role} />
-          {user.active === false && <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>}
-          {currentUserRole === "ADMIN" && !isSelf && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">Admin</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={toggleActive}>
-                  {user.active !== false ? "Deactivate user" : "Activate user"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setResetPwDialog(true)}>
-                  <KeyRound className="mr-2 size-4" />
-                  Reset password
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+
+          {/* Name + meta */}
+          <div className="flex-1 min-w-0">
+            <h1
+              className="text-[28px] sm:text-[32px] leading-none tracking-tight mb-0"
+              style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}
+            >
+              {isSelf ? "My Profile" : user.name}
+            </h1>
+            <div className="mt-2.5 space-y-1">
+              <p
+                className="text-[12px] text-muted-foreground leading-none"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                {user.email}
+              </p>
+              {user.createdAt && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarDays className="size-3 shrink-0" />
+                  Member since {formatDateFull(user.createdAt)}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Badges + admin controls */}
+          <div className="flex items-center gap-2 flex-wrap sm:self-start sm:mt-0.5">
+            <RoleBadge role={user.role} />
+            {user.active === false && (
+              <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
+            )}
+            {currentUserRole === "ADMIN" && !isSelf && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">Admin</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={toggleActive}>
+                    {user.active !== false ? "Deactivate user" : "Activate user"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setResetPwDialog(true)}>
+                    <KeyRound className="mr-2 size-4" />
+                    Reset password
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
       </div>
 
