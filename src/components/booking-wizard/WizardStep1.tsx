@@ -135,7 +135,7 @@ export function WizardStep1({
                   <SelectItem value="__all__">All sports</SelectItem>
                   {SPORT_CODES.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
-                      {s.code} \u2014 {s.label}
+                      {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -310,7 +310,7 @@ export function WizardStep1({
                   <SelectItem value="__none__">None</SelectItem>
                   {SPORT_CODES.map((s) => (
                     <SelectItem key={s.code} value={s.code}>
-                      {s.code} \u2014 {s.label}
+                      {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
