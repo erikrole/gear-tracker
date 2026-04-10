@@ -21,6 +21,7 @@ import { ReportLostDialog } from "./_components/ReportLostDialog";
 import { CheckinSummaryDialog } from "./_components/CheckinSummaryDialog";
 import { parseErrorMessage } from "@/lib/errors";
 import { FadeUp } from "@/components/ui/motion";
+import { Badge } from "@/components/ui/badge";
 import type { ScanMode, SerializedItemStatus } from "./_components/types";
 
 export default function ScanPage() {
@@ -170,16 +171,12 @@ export default function ScanPage() {
               </span>
             </div>
           </button>
-          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap shrink-0 ${
-            mode === "checkout"
-              ? "bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400"
-              : "bg-green-600/10 text-green-600 dark:bg-green-400/10 dark:text-green-400"
-          }`}>
+          <Badge variant={mode === "checkout" ? "blue" : "green"} className="gap-1.5 py-1 font-bold shrink-0">
             <div className={`w-[6px] h-[6px] rounded-full animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none ${
-              mode === "checkout" ? "bg-blue-600 dark:bg-blue-400" : "bg-green-600 dark:bg-green-400"
+              mode === "checkout" ? "bg-[var(--blue-text)]" : "bg-[var(--green-text)]"
             }`} />
             {mode === "checkout" ? "Out" : "In"}
-          </div>
+          </Badge>
         </div>
       )}
 
@@ -187,10 +184,10 @@ export default function ScanPage() {
       {mode === "lookup" && (
         <div className="flex items-center justify-between gap-3 py-1">
           <h1>Scan</h1>
-          <div className="inline-flex items-center gap-1.5 px-3 py-[5px] rounded-[20px] text-xs font-bold whitespace-nowrap shrink-0 bg-accent text-muted-foreground">
-            <div className="w-[7px] h-[7px] rounded-full bg-[#9ca3af]" />
+          <Badge variant="gray" className="gap-1.5 py-1 font-bold shrink-0">
+            <div className="w-[6px] h-[6px] rounded-full bg-[var(--text-secondary,#9ca3af)]" />
             Look Up
-          </div>
+          </Badge>
         </div>
       )}
 

@@ -186,7 +186,7 @@ export function ScanChecklist({
             return (
               <div
                 key={item.bulkSkuId}
-                className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-border transition-colors duration-300 last:border-b-0 ${done ? "bg-green-50/50 dark:bg-green-950/10" : ""}`}
+                className={`flex items-center gap-2.5 px-3 py-2 md:py-3 border-b border-border transition-colors duration-300 last:border-b-0 ${done ? "bg-[var(--green-bg)]" : ""}`}
               >
                 <div className="size-12 md:size-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
                   <Package className="size-5 md:size-6 text-muted-foreground" />
@@ -233,8 +233,8 @@ export function ScanChecklist({
                 </div>
                 <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
                   done
-                    ? "border-2 border-green-500 bg-green-500 text-white animate-[scan-check-pop_0.3s_ease]"
-                    : "border-2 border-gray-200 dark:border-gray-700"
+                    ? "border-2 border-[var(--green)] bg-[var(--green)] text-white animate-[scan-check-pop_0.3s_ease]"
+                    : "border-2 border-border"
                 }`}>
                   {done && (
                     <svg className="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
