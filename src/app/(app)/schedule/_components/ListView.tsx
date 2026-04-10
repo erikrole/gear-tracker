@@ -589,11 +589,6 @@ function EventRows({
             >
               {eventTitle}
             </Link>
-            {entry.sportCode && (
-              <Badge variant="purple" size="sm">
-                {sportLabel(entry.sportCode)}
-              </Badge>
-            )}
             {entry.coverage && (
               <CoveragePill
                 percentage={entry.coverage.percentage}
