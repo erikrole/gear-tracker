@@ -35,7 +35,7 @@ export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 
 /* ───── Component ───── */
 
-export default function BookingListPage({ config, viewMode = "table", hideHeader = false }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean }) {
+export default function BookingListPage({ config, viewMode = "table", hideHeader = false, hideNewButton = false }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean; hideNewButton?: boolean }) {
   const urlParams = useSearchParams();
   const router = useRouter();
 
@@ -237,7 +237,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
           </Button>
         </div>
       )}
-      {hideHeader && (
+      {hideHeader && !hideNewButton && (
         <div className="flex justify-end px-4 pt-3">
           <Button onClick={navigateToCreate}>
             New {config.label}

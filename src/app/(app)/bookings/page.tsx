@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BookingListPage, { type BookingListConfig, type BookingItem } from "@/components/BookingListPage";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ClipboardCheckIcon, CalendarPlusIcon } from "lucide-react";
+import { ClipboardCheckIcon, CalendarPlusIcon, LayersIcon, LayoutGridIcon, ListIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { FadeUp } from "@/components/ui/motion";
 import { PageHeader } from "@/components/PageHeader";
@@ -22,8 +23,23 @@ export default function BookingsPage() {
   const confirm = useConfirm();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "reservations" ? "reservations" : "checkouts";
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const initialTab = (["all", "checkouts", "reservations"] as const).includes(searchParams.get("tab") as never)
+    ? (searchParams.get("tab") as "all" | "checkouts" | "reservations")
+    : "checkouts";
+  const [activeTab, setActiveTab] = useState<"all" | "checkouts" | "reservations">(initialTab);
+  const [viewMode, setViewModeRaw] = useState<"cards" | "table">("cards");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bookings-view-mode");
+      if (saved === "table") setViewModeRaw("table");
+    } catch { /* ignore */ }
+  }, []);
+
+  function setViewMode(mode: "cards" | "table") {
+    setViewModeRaw(mode);
+    try { localStorage.setItem("bookings-view-mode", mode); } catch { /* ignore */ }
+  }
 
   const checkoutConfig: BookingListConfig = useMemo(() => ({
     kind: "CHECKOUT",
@@ -91,6 +107,31 @@ export default function BookingsPage() {
       },
     ],
   }), [confirm, toast]);
+
+  const allConfig: BookingListConfig = useMemo(() => ({
+    kind: "ALL",
+    apiBase: "/api/bookings",
+    label: "booking",
+    labelPlural: "All Bookings",
+    actionLabel: "",
+    actionLabelProgress: "",
+    requesterLabel: "Requested by",
+    startLabel: "Start",
+    endLabel: "End",
+    statusOptions: [
+      { value: "OPEN", label: "Open" },
+      { value: "DRAFT", label: "Draft" },
+      { value: "BOOKED", label: "Booked" },
+      { value: "COMPLETED", label: "Completed" },
+      { value: "CANCELLED", label: "Cancelled" },
+    ],
+    defaultTieToEvent: false,
+    hasSportFilter: true,
+    overdueStatus: "",
+    defaultStatusFilter: "",
+    showEventBadge: true,
+    contextMenuExtras: [],
+  }), []);
 
   const reservationConfig: BookingListConfig = useMemo(() => ({
     kind: "RESERVATION",
@@ -203,24 +244,54 @@ export default function BookingsPage() {
     <FadeUp>
       <PageHeader title="Bookings" />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="px-4 max-md:px-2" aria-label="Booking type">
-          <TabsTrigger value="checkouts" className="flex items-center gap-1.5 data-[state=active]:border-[var(--wi-red)]">
-            <ClipboardCheckIcon className="size-4" />
-            <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>Checkouts</span>
-          </TabsTrigger>
-          <TabsTrigger value="reservations" className="flex items-center gap-1.5 data-[state=active]:border-[var(--wi-red)]">
-            <CalendarPlusIcon className="size-4" />
-            <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>Reservations</span>
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+        <div className="flex items-center border-b border-border">
+          <TabsList className="border-b-0 flex-1 px-4 max-md:px-2" aria-label="Booking type">
+            <TabsTrigger value="all" className="flex items-center gap-1.5 data-[state=active]:border-[var(--wi-red)]">
+              <LayersIcon className="size-4" />
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>All</span>
+            </TabsTrigger>
+            <TabsTrigger value="checkouts" className="flex items-center gap-1.5 data-[state=active]:border-[var(--wi-red)]">
+              <ClipboardCheckIcon className="size-4" />
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>Checkouts</span>
+            </TabsTrigger>
+            <TabsTrigger value="reservations" className="flex items-center gap-1.5 data-[state=active]:border-[var(--wi-red)]">
+              <CalendarPlusIcon className="size-4" />
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>Reservations</span>
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-0.5 px-3 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={viewMode === "cards" ? "text-foreground bg-accent" : "text-muted-foreground"}
+              onClick={() => setViewMode("cards")}
+              aria-label="Card view"
+            >
+              <LayoutGridIcon className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={viewMode === "table" ? "text-foreground bg-accent" : "text-muted-foreground"}
+              onClick={() => setViewMode("table")}
+              aria-label="List view"
+            >
+              <ListIcon className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        <TabsContent value="all">
+          <BookingListPage config={allConfig} viewMode={viewMode} hideHeader hideNewButton />
+        </TabsContent>
 
         <TabsContent value="checkouts">
-          <BookingListPage config={checkoutConfig} viewMode="cards" hideHeader />
+          <BookingListPage config={checkoutConfig} viewMode={viewMode} hideHeader />
         </TabsContent>
 
         <TabsContent value="reservations">
-          <BookingListPage config={reservationConfig} viewMode="cards" hideHeader />
+          <BookingListPage config={reservationConfig} viewMode={viewMode} hideHeader />
         </TabsContent>
       </Tabs>
     </FadeUp>

@@ -51,7 +51,7 @@ export type ContextMenuExtra = {
 };
 
 export type BookingListConfig = {
-  kind: BookingKind;
+  kind: BookingKind | string; // string allows "ALL" discriminator for combined view
   apiBase: string;
   cancelApiBase?: string;
   label: string;

@@ -49,12 +49,13 @@ function MenuItems({
   Item: React.ComponentType<{ children?: React.ReactNode; className?: string; onSelect?: () => void; disabled?: boolean }>;
 }) {
   const actor = { id: currentUserId, role: currentUserRole };
+  const kindForActions = config.kind === "CHECKOUT" || config.kind === "RESERVATION" ? config.kind : null;
   const allowed = new Set(
-    getAllowedBookingActions(actor, {
+    kindForActions ? getAllowedBookingActions(actor, {
       status: item.status,
       requester: item.requester,
       createdBy: item.createdBy,
-    }, config.kind)
+    }, kindForActions) : []
   );
 
   return (
