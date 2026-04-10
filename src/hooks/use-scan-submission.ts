@@ -279,35 +279,36 @@ export function useScanSubmission(
           );
 
           if (matchingBulk && errCode === "SCAN_NOT_IN_CHECKOUT") {
-            const unitsRes = await fetch(
-              `/api/bulk-skus/${matchingBulk.bulkSkuId}/units`,
-            );
-            if (unitsRes.ok) {
-              const unitsJson = await unitsRes.json();
-              const units = (unitsJson.data ?? []) as Array<{
-                unitNumber: number;
-                status: string;
-              }>;
+            let availableUnits: number[] = [];
 
-              const availableUnits =
-                phase === "CHECKOUT"
-                  ? units
-                      .filter((u) => u.status === "AVAILABLE")
-                      .map((u) => u.unitNumber)
-                  : units
-                      .filter((u) => u.status === "CHECKED_OUT")
-                      .map((u) => u.unitNumber);
-
-              if (availableUnits.length > 0) {
-                setUnitPicker({
-                  bulkSkuId: matchingBulk.bulkSkuId,
-                  scanValue: value,
-                  name: matchingBulk.name,
-                  availableUnits,
-                });
-                setSelectedUnits(new Set(availableUnits));
-                return;
+            if (phase === "CHECKIN") {
+              // For check-in: use already-loaded allocations from scan status — only
+              // shows units that belong to THIS booking, preventing cross-booking theft.
+              availableUnits = (matchingBulk.allocatedUnits ?? [])
+                .filter((u) => u.checkedOut && !u.checkedIn)
+                .map((u) => u.unitNumber);
+            } else {
+              // For checkout: fetch all available units from the SKU (fungible at checkout time)
+              const unitsRes = await fetch(
+                `/api/bulk-skus/${matchingBulk.bulkSkuId}/units`,
+              );
+              if (unitsRes.ok) {
+                const unitsJson = await unitsRes.json();
+                availableUnits = ((unitsJson.data ?? []) as Array<{ unitNumber: number; status: string }>)
+                  .filter((u) => u.status === "AVAILABLE")
+                  .map((u) => u.unitNumber);
               }
+            }
+
+            if (availableUnits.length > 0) {
+              setUnitPicker({
+                bulkSkuId: matchingBulk.bulkSkuId,
+                scanValue: value,
+                name: matchingBulk.name,
+                availableUnits,
+              });
+              setSelectedUnits(new Set(availableUnits));
+              return;
             }
           }
 

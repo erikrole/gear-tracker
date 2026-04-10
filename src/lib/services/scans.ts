@@ -92,7 +92,7 @@ export async function recordScan(args: {
     }
 
     if (args.scanType === ScanType.SERIALIZED) {
-      const sv = args.scanValue.toLowerCase();
+      const sv = args.scanValue.toLowerCase().trim();
       const asset = booking.serializedItems.find((item) => {
         const a = item.asset;
         const qr = a.qrCodeValue.toLowerCase();
@@ -142,7 +142,10 @@ export async function recordScan(args: {
     return earlyReturn;
   }
 
-  const bulkItem = booking.bulkItems.find((item) => item.bulkSku.binQrCodeValue === args.scanValue);
+  const scanValueNorm = args.scanValue.toLowerCase().trim();
+  const bulkItem = booking.bulkItems.find(
+    (item) => item.bulkSku.binQrCodeValue.toLowerCase().trim() === scanValueNorm
+  );
 
   if (!bulkItem) {
     await db.scanEvent.create({
@@ -194,6 +197,23 @@ export async function recordScan(args: {
         const notCheckedOut = units.filter((u) => u.status !== BulkUnitStatus.CHECKED_OUT);
         if (notCheckedOut.length > 0) {
           throw new HttpError(409, `Units not checked out: ${notCheckedOut.map((u) => `#${u.unitNumber} (${u.status})`).join(", ")}`);
+        }
+
+        // Verify these units are actually allocated to THIS booking — prevents a student
+        // from checking in units that belong to a different booking's checkout.
+        const ownedAllocations = await tx.bookingBulkUnitAllocation.findMany({
+          where: {
+            bookingBulkItemId: bulkItem.id,
+            bulkSkuUnitId: { in: units.map((u) => u.id) },
+            checkedOutAt: { not: null },
+            checkedInAt: null,
+          },
+          select: { bulkSkuUnitId: true },
+        });
+        if (ownedAllocations.length !== units.length) {
+          const ownedIds = new Set(ownedAllocations.map((a) => a.bulkSkuUnitId));
+          const unowned = units.filter((u) => !ownedIds.has(u.id));
+          throw new HttpError(409, `Units not checked out on this booking: ${unowned.map((u) => `#${u.unitNumber}`).join(", ")}`);
         }
       }
 
@@ -469,6 +489,11 @@ export async function completeCheckinScan(bookingId: string, actorUserId: string
   // Wrap state validation + session close in a transaction to prevent concurrent completions
   const result = await db.$transaction(async (tx) => {
     const state = await buildScanCompletionState(tx, bookingId, ScanPhase.CHECKIN);
+
+    if (state.booking.status !== BookingStatus.OPEN) {
+      throw new HttpError(400, "Checkout must be open");
+    }
+
     const overrideCount = await tx.overrideEvent.count({ where: { bookingId } });
     const override = overrideCount > 0;
 

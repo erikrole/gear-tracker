@@ -51,7 +51,7 @@ export const startScanSessionSchema = z.object({
 export const scanSchema = z.object({
   phase: z.enum(["CHECKOUT", "CHECKIN"]),
   scanType: z.enum(["SERIALIZED", "BULK_BIN"]),
-  scanValue: z.string().min(1),
+  scanValue: z.string().trim().min(1),
   quantity: z.number().int().positive().optional(),
   unitNumbers: z.array(z.number().int().positive()).optional(),
   deviceContext: z.string().max(500).optional()
