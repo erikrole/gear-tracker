@@ -9,6 +9,13 @@ Last updated: 2026-04-09
 
 ## Recently Shipped
 
+### Kiosk Mode — Full Flow (2026-04-14)
+- [x] **Verified all 12 kiosk API routes** — all use `withKiosk`, correct auth on all mutations
+- [x] **Confirmed `source: "KIOSK"`** on checkout/complete and checkin/complete audit entries
+- [x] **Confirmed 5-min inactivity timer** in KioskShell
+- [x] **Updated AREA_KIOSK.md** — all 11 ACs marked complete, full implementation documented
+- [x] **Archived `tasks/kiosk-plan.md`** → `tasks/archive/`
+
 ### Scan Flow Hardening (2026-04-09)
 - [x] **Stress test** — 4 issues found, 4 fixed: scanValue normalization, bulk bin case-insensitive match, cross-booking numbered bulk unit integrity, completeCheckinScan status guard
 - [x] **Harden pass** — 6 fixes across 4 files: Badge components, dark-mode color consistency, finally blocks on both hooks, Page Visibility refresh, camera error UX
