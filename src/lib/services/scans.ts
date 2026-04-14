@@ -549,12 +549,42 @@ export async function createAdminOverride(args: {
     throw new HttpError(404, "Checkout not found");
   }
 
+  // Compute which items are being bypassed from the active scan session
+  const activeSession = await db.scanSession.findFirst({
+    where: { bookingId: args.bookingId, status: ScanSessionStatus.OPEN },
+    orderBy: { startedAt: "desc" },
+  });
+
+  let bypassed: Record<string, unknown> | undefined;
+  if (activeSession) {
+    try {
+      const state = await db.$transaction(
+        (tx) => buildScanCompletionState(tx, args.bookingId, activeSession.phase),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+      bypassed = {
+        phase: activeSession.phase,
+        missingSerialized: state.missingSerialized,
+        missingBulk: state.missingBulk,
+        missingUnits: state.missingUnits,
+      };
+    } catch {
+      // Non-blocking — record the override even if bypassed computation fails
+    }
+  }
+
+  // Caller-supplied details take precedence over computed bypassed data on key collision
+  const mergedDetails: Record<string, unknown> | undefined =
+    bypassed || args.details
+      ? { ...(bypassed ?? {}), ...(args.details ?? {}) }
+      : undefined;
+
   const event = await db.overrideEvent.create({
     data: {
       bookingId: args.bookingId,
       actorUserId: args.actorUserId,
       reason: args.reason,
-      details: (args.details ?? undefined) as never
+      details: (mergedDetails ?? undefined) as never
     }
   });
 
@@ -566,7 +596,7 @@ export async function createAdminOverride(args: {
     action: "admin_override",
     after: {
       reason: args.reason,
-      details: args.details ?? null,
+      details: mergedDetails ?? null,
     },
   });
 

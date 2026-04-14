@@ -39,6 +39,10 @@ type UseScanSubmissionResult = {
   handleUnitPickerSubmit: () => Promise<void>;
 };
 
+function getDeviceContext(): string | undefined {
+  return typeof navigator === "undefined" ? undefined : navigator.userAgent || undefined;
+}
+
 export function useScanSubmission(
   options: UseScanSubmissionOptions,
 ): UseScanSubmissionResult {
@@ -78,7 +82,7 @@ export function useScanSubmission(
         const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phase, ...payload }),
+          body: JSON.stringify({ phase, ...payload, deviceContext: getDeviceContext() }),
         });
 
         if (res.ok) {
@@ -242,6 +246,7 @@ export function useScanSubmission(
               phase,
               scanType: "SERIALIZED",
               scanValue: value,
+              deviceContext: getDeviceContext(),
             }),
           });
 

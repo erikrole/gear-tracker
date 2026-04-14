@@ -40,9 +40,9 @@ Last updated: 2026-04-09
 ---
 
 ## Scan Flow — Low Priority (from 2026-04-09 stress test)
-- [ ] **Admin override detail logging** — `createAdminOverride` records reason but not which specific serialized/bulk items were bypassed. Capture missing item IDs in `details` field for richer audit trail.
+- [x] ~~**Admin override detail logging**~~ — Shipped 2026-04-14: `createAdminOverride` now queries the active scan session, calls `buildScanCompletionState`, and stores `bypassed.missingSerialized`, `bypassed.missingBulk`, `bypassed.missingUnits`, and `bypassed.phase` in the `details` field of both the `OverrideEvent` and the audit entry.
 - [ ] **Server-side rate limiting on scan endpoints** — `/api/checkouts/[id]/scan` and `/checkin-scan` have no per-session rate limit. Client-side 1s debounce is the only guard. Migrate to Upstash KV rate limiter when user base grows (tracked in GAP-32).
-- [ ] **Device context never sent from client** — `scanSchema` accepts `deviceContext` but `use-scan-submission.ts` never populates it. Send `navigator.userAgent` or a device fingerprint for scan debugging.
+- [x] ~~**Device context never sent from client**~~ — Shipped 2026-04-14: `use-scan-submission.ts` now sends `deviceContext: navigator.userAgent` on all scan POST requests (both `submitScan` and the numbered-bulk inline fetch).
 
 ---
 
