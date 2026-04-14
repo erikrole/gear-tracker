@@ -171,7 +171,7 @@ export default function CalendarSourcesPage() {
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
-        <h2 className="text-[22px] font-bold mb-2">Calendar Sources</h2>
+        <h2 className="text-2xl font-bold mb-2">Calendar Sources</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Manage ICS calendar feeds for event syncing. Events are automatically imported and used for shift scheduling.
         </p>

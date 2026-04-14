@@ -55,7 +55,7 @@ export default function DatabasePage() {
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
-        <h2 className="text-[22px] font-bold mb-2">Database Health</h2>
+        <h2 className="text-2xl font-bold mb-2">Database Health</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift.
         </p>

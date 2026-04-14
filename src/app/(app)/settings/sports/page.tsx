@@ -162,7 +162,7 @@ export default function SportsSettingsPage() {
     return (
       <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
-          <h2 className="text-[22px] font-bold mb-2">Sports</h2>
+          <h2 className="text-2xl font-bold mb-2">Sports</h2>
         </div>
         <div className="min-w-0 space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -185,7 +185,7 @@ export default function SportsSettingsPage() {
     return (
       <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
-          <h2 className="text-[22px] font-bold mb-2">Sports</h2>
+          <h2 className="text-2xl font-bold mb-2">Sports</h2>
         </div>
         <div className="min-w-0">
           <Card className="mx-auto max-w-md">
@@ -217,7 +217,7 @@ export default function SportsSettingsPage() {
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
-        <h2 className="text-[22px] font-bold mb-2">Sports</h2>
+        <h2 className="text-2xl font-bold mb-2">Sports</h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Configure shift coverage and call times for each sport.
           Grouped sports share the same settings across men&apos;s and women&apos;s programs.

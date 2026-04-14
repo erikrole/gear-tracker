@@ -144,7 +144,7 @@ export default function AllowedEmailsPage() {
 
   const sidebar = (
     <div className="sticky top-20 max-md:static">
-      <h2 className="text-[22px] font-bold mb-2">Allowed Emails</h2>
+      <h2 className="text-2xl font-bold mb-2">Allowed Emails</h2>
       <p className="text-sm text-muted-foreground leading-relaxed">
         Manage which email addresses can register for an account.
         Only pre-approved emails can sign up.

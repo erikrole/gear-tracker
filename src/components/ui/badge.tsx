@@ -16,16 +16,12 @@ const badgeVariants = cva(
           "bg-destructive text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90",
         outline:
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 [a&]:hover:underline",
         red: "bg-[var(--red-bg)] text-[var(--red-text)]",
         green: "bg-[var(--green-bg)] text-[var(--green-text)]",
         orange: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
         blue: "bg-[var(--blue-bg)] text-[var(--blue-text)]",
         purple: "bg-[var(--purple-bg)] text-[var(--purple-text)]",
         gray: "bg-[var(--accent-soft)] text-muted-foreground",
-        yellow: "bg-[var(--orange-bg)] text-[var(--yellow-text)]",
-        mixed: "bg-[var(--purple-bg)] text-[var(--purple-text)]",
         sport: "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)]",
       },
       size: {

@@ -123,7 +123,7 @@ export default function EscalationSettingsPage() {
     return (
       <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
-          <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
+          <h2 className="text-2xl font-bold mb-2">Escalation</h2>
         </div>
         <div className="min-w-0">
           <Card className="mb-1">
@@ -169,7 +169,7 @@ export default function EscalationSettingsPage() {
     return (
       <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
         <div className="sticky top-20 max-md:static">
-          <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
+          <h2 className="text-2xl font-bold mb-2">Escalation</h2>
         </div>
         <div className="min-w-0">
           <Card>
@@ -200,7 +200,7 @@ export default function EscalationSettingsPage() {
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
-        <h2 className="text-[22px] font-bold mb-2">Escalation</h2>
+        <h2 className="text-2xl font-bold mb-2">Escalation</h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Configure when and how overdue checkout notifications are sent.
           Notifications are deduped per booking — each trigger fires at most once.

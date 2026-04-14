@@ -157,7 +157,7 @@ export default function VenueMappingsPage() {
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
       <div className="sticky top-20 max-md:static">
-        <h2 className="text-[22px] font-bold mb-2">Venue Mappings</h2>
+        <h2 className="text-2xl font-bold mb-2">Venue Mappings</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Configure home venues and map calendar venue text to locations. Events at home venues are automatically marked as home games.
         </p>
