@@ -1,5 +1,21 @@
 /* Dashboard shared types — used by page.tsx, hooks, and section components */
 
+/** Shape returned by /api/dashboard/stats — lightweight, 60s TTL */
+export type DashboardStats = {
+  stats: {
+    checkedOut: number;
+    overdue: number;
+    reserved: number;
+    dueToday: number;
+  };
+  overdueCount: number;
+  myCheckoutsTotal: number;
+  myOverdueCount: number;
+  teamCheckoutsTotal: number;
+  teamCheckoutsOverdue: number;
+  teamReservationsTotal: number;
+};
+
 export type ItemThumb = {
   id: string;
   name: string | null;
@@ -129,7 +145,7 @@ export type DashboardData = {
     reserved: number;
     dueToday: number;
   };
-  myCheckouts: { total: number; items: BookingSummary[] };
+  myCheckouts: { total: number; overdue: number; items: BookingSummary[] };
   teamCheckouts: { total: number; overdue: number; items: BookingSummary[] };
   teamReservations: { total: number; items: BookingSummary[] };
   upcomingEvents: EventSummary[];

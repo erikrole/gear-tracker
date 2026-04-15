@@ -15,7 +15,9 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
-import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useDashboardData, DASHBOARD_STATS_KEY } from "@/hooks/use-dashboard-data";
+import { useQuery } from "@tanstack/react-query";
+import type { DashboardStats } from "./dashboard-types";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import { DashboardSkeleton } from "./dashboard/dashboard-skeleton";
 import { FilterChips } from "./dashboard/filter-chips";
@@ -30,6 +32,17 @@ import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
 
 export default function DashboardPage() {
   const { data, fetchError, refreshing, lastRefreshed, loadData, setData } = useDashboardData();
+
+  // Fast stats — populated from cache immediately on return visits, then kept
+  // fresh every 60s. Drives the stat strip and overdue count before the full
+  // payload finishes loading, so the top of the page is never skeleton-only.
+  const { data: liveStats } = useQuery<DashboardStats>({
+    queryKey: DASHBOARD_STATS_KEY,
+    enabled: false, // managed by useDashboardData; we just read from cache here
+  });
+  const stats = data?.stats ?? liveStats?.stats ?? null;
+  const overdueCount = data?.overdueCount ?? liveStats?.overdueCount ?? null;
+
   const filters = useDashboardFilters(data);
   const [now, setNow] = useState(() => new Date());
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -167,15 +180,19 @@ export default function DashboardPage() {
     );
   }
 
-  if (!data) return <DashboardSkeleton />;
+  // Show full skeleton only on true first load (no cache at all).
+  // If we have fast stats from a prior session, render the top section
+  // immediately and skeleton only the columns.
+  if (!data && !stats) return <DashboardSkeleton />;
 
-  const isStudent = data.role === "STUDENT";
-  const isFirstRun =
-    data.stats.checkedOut === 0 && data.stats.overdue === 0 &&
-    data.stats.reserved === 0 && data.stats.dueToday === 0 &&
-    data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 &&
-    data.upcomingEvents.length === 0 && data.myReservations.length === 0 &&
-    data.drafts.length === 0 && data.myShifts.length === 0;
+  const isStudent = data?.role === "STUDENT";
+  const isFirstRun = stats
+    ? stats.checkedOut === 0 && stats.overdue === 0 &&
+      stats.reserved === 0 && stats.dueToday === 0 &&
+      (data ? data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 &&
+        data.upcomingEvents.length === 0 && data.myReservations.length === 0 &&
+        data.drafts.length === 0 && data.myShifts.length === 0 : true)
+    : false;
 
   return (
     <PageTransition>
@@ -206,11 +223,11 @@ export default function DashboardPage() {
 
       {/* ══════ Stat Strip ══════ */}
       {refreshing && <Progress className="h-0.5 mb-1" />}
-      {!isStudent && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
-        <StaggerItem><StatCard href="/checkouts?filter=overdue" value={data.stats.overdue} label="Overdue" accent={data.stats.overdue > 0 ? "red" : undefined} /></StaggerItem>
-        <StaggerItem><StatCard href="/bookings?tab=checkouts&filter=due-today" value={data.stats.dueToday} label="Due today" accent={data.stats.dueToday > 0 ? "amber" : undefined} /></StaggerItem>
-        <StaggerItem><StatCard href="/bookings?tab=checkouts" value={data.stats.checkedOut} label="Active checkouts" /></StaggerItem>
-        <StaggerItem><StatCard href="/bookings?tab=reservations" value={data.stats.reserved} label="Reserved" /></StaggerItem>
+      {!isStudent && stats && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
+        <StaggerItem><StatCard href="/checkouts?filter=overdue" value={stats.overdue} label="Overdue" accent={stats.overdue > 0 ? "red" : undefined} /></StaggerItem>
+        <StaggerItem><StatCard href="/bookings?tab=checkouts&filter=due-today" value={stats.dueToday} label="Due today" accent={stats.dueToday > 0 ? "amber" : undefined} /></StaggerItem>
+        <StaggerItem><StatCard href="/bookings?tab=checkouts" value={stats.checkedOut} label="Active checkouts" /></StaggerItem>
+        <StaggerItem><StatCard href="/bookings?tab=reservations" value={stats.reserved} label="Reserved" /></StaggerItem>
       </StaggerList>}
 
       {/* ══════ Welcome Banner (first-run) ══════ */}
@@ -262,52 +279,60 @@ export default function DashboardPage() {
       )}
 
       {/* ══════ Overdue Banner ══════ */}
-      <OverdueBanner
-        overdueCount={data.overdueCount}
-        overdueItems={data.overdueItems}
-        now={now}
-        onSelectBooking={setSelectedBookingId}
-      />
+      {overdueCount !== null && (
+        <OverdueBanner
+          overdueCount={overdueCount}
+          overdueItems={data?.overdueItems ?? []}
+          now={now}
+          onSelectBooking={setSelectedBookingId}
+        />
+      )}
 
       {/* ══════ Flagged Items Banner (staff/admin only) ══════ */}
-      {!isStudent && data.flaggedItems.length > 0 && (
+      {!isStudent && data && data.flaggedItems.length > 0 && (
         <FlaggedItemsBanner items={data.flaggedItems} />
       )}
 
       {/* ══════ Lost Bulk Units (admin only) ══════ */}
-      {data.role === "ADMIN" && data.lostBulkUnits.length > 0 && (
+      {data?.role === "ADMIN" && data.lostBulkUnits.length > 0 && (
         <LostBulkUnitsCard items={data.lostBulkUnits} />
       )}
 
       {/* ══════ Two-Column Split ══════ */}
-      <div className={isStudent ? "grid grid-cols-1 gap-6 max-w-[640px]" : "grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start"}>
-        <MyGearColumn
-          data={data}
-          filtered={filters.filtered}
-          activeSport={filters.activeSport}
-          now={now}
-          acting={inlineActionId !== null || deletingDraftId !== null}
-          ownedAccent
-          onSelectBooking={setSelectedBookingId}
-          onDeleteDraft={handleDeleteDraft}
-          onExtend={handleExtend}
-          onConvert={handleConvert}
-          onCreateBooking={handleCreateBooking}
-        />
-        {!isStudent && (
-          <TeamActivityColumn
+      {data ? (
+        <div className={isStudent ? "grid grid-cols-1 gap-6 max-w-[640px]" : "grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start"}>
+          <MyGearColumn
             data={data}
             filtered={filters.filtered}
             activeSport={filters.activeSport}
             now={now}
-            isStaff={data.role === "STAFF" || data.role === "ADMIN"}
             acting={inlineActionId !== null || deletingDraftId !== null}
+            ownedAccent
             onSelectBooking={setSelectedBookingId}
+            onDeleteDraft={handleDeleteDraft}
             onExtend={handleExtend}
+            onConvert={handleConvert}
             onCreateBooking={handleCreateBooking}
           />
-        )}
-      </div>
+          {!isStudent && (
+            <TeamActivityColumn
+              data={data}
+              filtered={filters.filtered}
+              activeSport={filters.activeSport}
+              now={now}
+              isStaff={data.role === "STAFF" || data.role === "ADMIN"}
+              acting={inlineActionId !== null || deletingDraftId !== null}
+              onSelectBooking={setSelectedBookingId}
+              onExtend={handleExtend}
+              onCreateBooking={handleCreateBooking}
+            />
+          )}
+        </div>
+      ) : (
+        /* Stats were available from cache but full data is still loading — */
+        /* show column skeletons only, the top section already rendered.    */
+        <DashboardSkeleton columnsOnly />
+      )}
 
       {/* ══════ Booking Detail Sheet ══════ */}
       <BookingDetailsSheet
