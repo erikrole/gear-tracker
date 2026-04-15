@@ -1,7 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { getGuide, updateGuide, deleteGuide } from "@/lib/guides";
+import { getGuide, getGuideBySlug, updateGuide, deleteGuide } from "@/lib/guides";
 import { updateGuideSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import { Role } from "@prisma/client";
@@ -9,7 +9,13 @@ import { Role } from "@prisma/client";
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "guide", "view");
 
-  const guide = await getGuide(params.id);
+  // Accept both IDs (cuid) and slugs — try ID first, fall back to slug
+  let guide;
+  try {
+    guide = await getGuide(params.id);
+  } catch {
+    guide = await getGuideBySlug(params.id);
+  }
 
   // Students cannot access unpublished guides
   if (user.role === Role.STUDENT && !guide.published) {

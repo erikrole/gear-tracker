@@ -9,6 +9,12 @@ Last updated: 2026-04-09
 
 ## Recently Shipped
 
+### Guides Feature (2026-04-14)
+- [x] **Slice 1** — Guide model + migration (0032), service layer (`src/lib/guides.ts`), 5 API routes with auth + audit logging
+- [x] **Slice 2** — `/guides` list page (category chips, search, card grid), `/guides/[slug]` BlockNote reader, sidebar nav entry
+- [x] **Slice 3** — `/guides/new` create page, `/guides/[slug]/edit` edit page (publish toggle, admin delete with AlertDialog)
+- [x] **Doc sync** — `AREA_GUIDES.md` created, `guides-plan.md` archived
+
 ### Kiosk Mode — Full Flow (2026-04-14)
 - [x] **Verified all 12 kiosk API routes** — all use `withKiosk`, correct auth on all mutations
 - [x] **Confirmed `source: "KIOSK"`** on checkout/complete and checkin/complete audit entries
