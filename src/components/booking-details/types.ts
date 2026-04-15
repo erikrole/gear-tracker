@@ -18,8 +18,8 @@ export type SerializedItem = {
 export type BulkItem = {
   id: string;
   plannedQuantity: number;
-  checkedOutQuantity: number | null;
-  checkedInQuantity: number | null;
+  checkedOutQuantity: number;
+  checkedInQuantity: number;
   bulkSku: { id: string; name: string; category: string; unit: string; imageUrl?: string | null };
 };
 

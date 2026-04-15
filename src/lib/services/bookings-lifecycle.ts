@@ -151,8 +151,6 @@ export async function createBooking(input: CreateBookingInput) {
             bookingId: booking.id,
             bulkSkuId: item.bulkSkuId,
             plannedQuantity: item.quantity,
-            checkedOutQuantity: input.kind === BookingKind.CHECKOUT ? 0 : null,
-            checkedInQuantity: null
           }))
         });
 
@@ -513,8 +511,6 @@ export async function updateCheckout(
             bookingId,
             bulkSkuId: item.bulkSkuId,
             plannedQuantity: item.quantity,
-            checkedOutQuantity: 0,
-            checkedInQuantity: null
           }))
         });
       }

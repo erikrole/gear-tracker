@@ -40,6 +40,8 @@ export type PickerBulkSku = {
   unit: string;
   category: string;
   currentQuantity: number;
+  availableQuantity?: number;
+  trackByNumber?: boolean;
   binQrCodeValue?: string | null;
   categoryName?: string | null;
   imageUrl?: string | null;
@@ -349,17 +351,23 @@ export default function EquipmentPicker({
 
               {sectionBulk.map((sku) => {
                 const current = selectedBulkItems.find((i) => i.bulkSkuId === sku.id)?.quantity ?? 0;
-                const max = sku.currentQuantity;
+                const available = sku.availableQuantity ?? sku.currentQuantity;
+                const noneAvailable = available === 0;
 
                 return (
                   <div
                     key={sku.id}
-                    className="flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-b-0 min-h-[52px]"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-b-0 min-h-[52px]",
+                      noneAvailable && current === 0 && "opacity-50"
+                    )}
                   >
                     <AssetImage src={sku.imageUrl} alt={sku.name} size={40} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold truncate">{sku.name}</div>
-                      <div className="text-xs text-muted-foreground">{max} available</div>
+                      <div className={cn("text-xs", noneAvailable ? "text-destructive" : "text-muted-foreground")}>
+                        {noneAvailable ? "None available" : `${available} available`}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
@@ -375,7 +383,7 @@ export default function EquipmentPicker({
                       <button
                         type="button"
                         onClick={() => setBulkQty(sku.id, current + 1)}
-                        disabled={current >= max}
+                        disabled={current >= available}
                         className="size-8 flex items-center justify-center rounded-md border border-border text-sm font-bold hover:bg-muted disabled:opacity-30 min-h-[44px] min-w-[44px]"
                         aria-label={`Add one ${sku.name}`}
                       >

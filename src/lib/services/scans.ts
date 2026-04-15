@@ -302,11 +302,11 @@ export async function recordScan(args: {
     }
 
     const currentQty = args.phase === ScanPhase.CHECKOUT
-      ? (freshBulkItem.checkedOutQuantity ?? 0)
-      : (freshBulkItem.checkedInQuantity ?? 0);
+      ? freshBulkItem.checkedOutQuantity
+      : freshBulkItem.checkedInQuantity;
     const maxQty = args.phase === ScanPhase.CHECKOUT
       ? freshBulkItem.plannedQuantity
-      : (freshBulkItem.checkedOutQuantity ?? freshBulkItem.plannedQuantity);
+      : freshBulkItem.checkedOutQuantity;
     if (currentQty + args.quantity! > maxQty) {
       throw new HttpError(400, `Scan would exceed ${args.phase === ScanPhase.CHECKOUT ? "planned" : "checked-out"} quantity. Current: ${currentQty}, scanning: ${args.quantity}, max: ${maxQty}`);
     }

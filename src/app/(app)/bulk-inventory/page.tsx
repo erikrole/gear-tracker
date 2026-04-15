@@ -56,6 +56,7 @@ type BulkSku = {
   minThreshold: number;
   trackByNumber: boolean;
   active: boolean;
+  availableQuantity?: number;
   location?: { name: string };
   balances?: Array<{ onHandQuantity: number }>;
   units?: BulkSkuUnit[];
@@ -351,7 +352,7 @@ export default function BulkInventoryPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead>On Hand</TableHead>
+                  <TableHead>Available / On Hand</TableHead>
                   <TableHead>Min Threshold</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -359,7 +360,8 @@ export default function BulkInventoryPage() {
               <TableBody>
                 {filteredItems.map((sku) => {
                   const onHand = sku.balances?.[0]?.onHandQuantity ?? 0;
-                  const isLow = onHand <= sku.minThreshold && sku.minThreshold > 0;
+                  const available = sku.availableQuantity ?? (sku.trackByNumber ? (sku.units ?? []).filter((u) => u.status === "AVAILABLE").length : onHand);
+                  const isLow = available <= sku.minThreshold && sku.minThreshold > 0;
                   const isExpanded = expandedSku === sku.id;
                   const units = sku.units ?? [];
 
@@ -393,13 +395,17 @@ export default function BulkInventoryPage() {
                       <TableCell>{sku.unit}</TableCell>
                       <TableCell>
                         <span className={`font-semibold ${isLow ? "text-destructive" : ""}`}>
-                          {sku.trackByNumber ? `${units.filter((u) => u.status === "AVAILABLE").length}/${units.length}` : onHand}
+                          {sku.trackByNumber
+                            ? `${units.filter((u) => u.status === "AVAILABLE").length} / ${units.length}`
+                            : `${available} / ${onHand}`}
                         </span>
                       </TableCell>
                       <TableCell>{sku.minThreshold}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          {isLow ? (
+                          {available === 0 ? (
+                            <Badge variant="red">none available</Badge>
+                          ) : isLow ? (
                             <Badge variant="orange">low stock</Badge>
                           ) : (
                             <Badge variant="green">in stock</Badge>

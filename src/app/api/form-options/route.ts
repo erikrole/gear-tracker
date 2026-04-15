@@ -17,17 +17,34 @@ export const GET = withAuth(async () => {
     db.bulkSku.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, category: true, unit: true, locationId: true, binQrCodeValue: true, categoryRel: { select: { name: true } }, balances: { select: { onHandQuantity: true } } }
+      select: {
+        id: true, name: true, category: true, unit: true, locationId: true, binQrCodeValue: true, trackByNumber: true,
+        categoryRel: { select: { name: true } },
+        balances: { select: { onHandQuantity: true } },
+        // Available units count for numbered SKUs
+        units: { where: { status: "AVAILABLE" }, select: { id: true } },
+        // Active checked-out quantities for non-numbered SKUs
+        bookingItems: {
+          where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
+          select: { checkedOutQuantity: true },
+        },
+      }
     })
   ]);
 
-  const bulkSkusFlat = bulkSkus.map((s) => ({
-    ...s,
-    categoryName: s.categoryRel?.name ?? null,
-    currentQuantity: s.balances.reduce((sum, b) => sum + b.onHandQuantity, 0),
-    categoryRel: undefined,
-    balances: undefined,
-  }));
+  const bulkSkusFlat = bulkSkus.map((s) => {
+    const onHandQuantity = s.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+    const availableQuantity = s.trackByNumber
+      ? s.units.length
+      : Math.max(0, onHandQuantity - s.bookingItems.reduce((sum, b) => sum + (b.checkedOutQuantity ?? 0), 0));
+    return {
+      id: s.id, name: s.name, category: s.category, unit: s.unit,
+      locationId: s.locationId, binQrCodeValue: s.binQrCodeValue, trackByNumber: s.trackByNumber,
+      categoryName: s.categoryRel?.name ?? null,
+      currentQuantity: onHandQuantity,
+      availableQuantity,
+    };
+  });
 
   return ok({ data: { locations, departments, users, bulkSkus: bulkSkusFlat } });
 });
