@@ -5,6 +5,10 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/archive-shifts",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/audit-archive",
       "schedule": "0 3 * * 0"
     }
