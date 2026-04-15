@@ -5,7 +5,7 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/archive-shifts",
+      "path": "/api/cron/morning-refresh",
       "schedule": "0 8 * * *"
     },
     {
