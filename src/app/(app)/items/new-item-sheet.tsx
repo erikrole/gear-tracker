@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircleIcon, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +34,7 @@ export function NewItemSheet({
   categories,
   onCreated,
 }: NewItemSheetProps) {
+  const router = useRouter();
   const [kind, setKind] = useState<ItemKind>("serialized");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -143,6 +146,7 @@ export function NewItemSheet({
         bulkRef.current?.reset();
         showSuccessMessage(`"${label}" created — ready for next item`);
       } else {
+        toast.success(`"${label}" added to inventory`);
         onOpenChange(false);
         resetAll();
       }
@@ -248,9 +252,25 @@ export function NewItemSheet({
                   Add Another
                 </Button>
               )}
+              {createdAssetId && (
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    toast.success(`"${createdLabel}" added to inventory`);
+                    onCreated();
+                    onOpenChange(false);
+                    resetAll();
+                    router.push(`/items/${createdAssetId}`);
+                  }}
+                >
+                  View Item
+                </Button>
+              )}
               <Button
                 type="button"
                 onClick={() => {
+                  toast.success(`"${createdLabel}" added to inventory`);
                   onCreated();
                   onOpenChange(false);
                   resetAll();

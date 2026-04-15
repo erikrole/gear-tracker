@@ -644,7 +644,9 @@ export function BookingsTab({
         </CardHeader>
         {allEntries.length === 0 ? (
           <Empty className="py-8 border-0">
-            <EmptyDescription>No bookings for this item.</EmptyDescription>
+            <EmptyDescription>
+              {filter === "checkouts" ? "No checkouts" : filter === "reservations" ? "No reservations" : "No bookings"} for this item.
+            </EmptyDescription>
           </Empty>
         ) : (
           <Table>

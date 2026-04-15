@@ -106,8 +106,29 @@ export function AccessoriesSection({
     }
   }
 
-  // Don't render for items that are themselves accessories
-  if (isChild) return null;
+  // For items that are themselves accessories, show parent info
+  if (isChild) {
+    return (
+      <div className="mt-3.5 max-w-2xl">
+        <Card className="border-border/40">
+          <CardHeader>
+            <CardTitle>Accessories</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <Empty className="py-6 border-0">
+              <EmptyDescription>
+                This item is an accessory of{" "}
+                <Link href={`/items/${asset.parentAsset!.id}`} className="text-primary hover:underline font-mono font-medium">
+                  {asset.parentAsset!.assetTag}
+                </Link>
+                {" "}and cannot have its own accessories.
+              </EmptyDescription>
+            </Empty>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-3.5 max-w-2xl">
