@@ -58,7 +58,9 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
           <span className="size-2 rounded-full bg-background shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none" />
           <strong>{overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}</strong>
         </div>
-        <a href="/checkouts?filter=overdue" className="text-white/85 text-sm font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">Resolve all overdue &rarr;</a>
+        <a href="/checkouts?filter=overdue" className="text-white/85 text-sm font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">
+          {overdueCount === 1 ? "Resolve overdue" : "Resolve all overdue"} &rarr;
+        </a>
       </div>
       <div className="flex flex-col gap-1.5">
         {overdueItems.map((item) => (

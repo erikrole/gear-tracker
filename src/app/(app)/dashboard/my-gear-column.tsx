@@ -274,7 +274,7 @@ export function MyGearColumn({
                 <div className="flex gap-1.5 shrink-0">
                   <Button variant="outline" size="sm" asChild>
                     <a href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
-                      Resume
+                      Continue
                     </a>
                   </Button>
                   <Button
@@ -283,7 +283,7 @@ export function MyGearColumn({
                     disabled={acting}
                     onClick={() => onDeleteDraft(d.id)}
                   >
-                    Delete draft
+                    Delete
                   </Button>
                 </div>
               </div>

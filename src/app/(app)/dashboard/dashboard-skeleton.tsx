@@ -3,10 +3,11 @@
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/PageHeader";
+import { PageTransition } from "@/components/ui/motion";
 
 export function DashboardSkeleton() {
   return (
-    <>
+    <PageTransition>
       <PageHeader title="Dashboard" className="mb-6 max-md:mb-4" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -58,6 +59,6 @@ export function DashboardSkeleton() {
           ))}
         </div>
       </div>
-    </>
+    </PageTransition>
   );
 }

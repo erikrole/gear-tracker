@@ -202,8 +202,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm">
             <CalendarIcon className="size-6 opacity-40" />
             {homeAwayFilter !== "all"
-              ? `No ${homeAwayFilter} events this week`
-              : activeSport ? `No ${activeSport} events` : "No upcoming events"}
+              ? `No upcoming ${homeAwayFilter} events`
+              : activeSport ? `No upcoming ${activeSport} events` : "No upcoming events"}
           </div>
         ) : (
           <CardContent className="p-0 py-1">

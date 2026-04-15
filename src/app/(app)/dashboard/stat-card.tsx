@@ -43,7 +43,7 @@ export function StatCard({ href, value, label, accent }: StatCardProps) {
         {value}
       </span>
       <span
-        className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground/50 mt-2"
+        className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 mt-2"
         style={{ fontFamily: "var(--font-mono)" }}
       >
         {label}
