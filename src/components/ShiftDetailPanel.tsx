@@ -37,6 +37,7 @@ type ShiftAssignment = {
   notes: string | null;
   hasConflict: boolean;
   conflictNote: string | null;
+  attended: boolean | null;
   createdAt: string;
   user: ShiftUser;
   assigner?: { id: string; name: string } | null;
@@ -58,6 +59,7 @@ type ShiftGroupDetail = {
   isPremier: boolean;
   manuallyEdited?: boolean;
   notes: string | null;
+  archivedAt: string | null;
   event: {
     id: string;
     summary: string;
@@ -95,6 +97,7 @@ export default function ShiftDetailPanel({
   const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [acting, setActing] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const usersAbortRef = useRef<AbortController | null>(null);
 
@@ -228,7 +231,7 @@ export default function ShiftDetailPanel({
               ...s,
               assignments: [...s.assignments, {
                 id: `optimistic-${Date.now()}`, status: "DIRECT_ASSIGNED",
-                notes: null, hasConflict: false, conflictNote: null,
+                notes: null, hasConflict: false, conflictNote: null, attended: null,
                 createdAt: new Date().toISOString(),
                 user: { ...assignedUser, email: undefined }, assigner: null,
               }],
@@ -287,6 +290,56 @@ export default function ShiftDetailPanel({
     setAutoFilling(false);
   }
 
+  async function handleSetAttendance(assignmentId: string, attended: boolean | null) {
+    if (!group) return;
+    // Optimistic update
+    setGroup({
+      ...group,
+      shifts: group.shifts.map((s) => ({
+        ...s,
+        assignments: s.assignments.map((a) =>
+          a.id === assignmentId ? { ...a, attended } : a
+        ),
+      })),
+    });
+    try {
+      const res = await fetch(`/api/shift-assignments/${assignmentId}/attendance`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attended }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed to update attendance");
+        toast.error(msg);
+        await fetchGroup(); // revert
+      }
+    } catch {
+      toast.error("Network error");
+      await fetchGroup(); // revert
+    }
+  }
+
+  async function handleArchive() {
+    if (!group) return;
+    setArchiving(true);
+    try {
+      const res = await fetch(`/api/shift-groups/${group.id}/archive`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Event archived");
+        await fetchGroup();
+        onUpdated?.();
+      } else {
+        const msg = await parseErrorMessage(res, "Archive failed");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setArchiving(false);
+  }
+
   async function handleTogglePremier() {
     if (!group) return;
     mutate("premier", `/api/shift-groups/${group.id}`, {
@@ -316,6 +369,9 @@ export default function ShiftDetailPanel({
   }
 
   /* ── Derived data ── */
+
+  const isPast = group ? new Date(group.event.endsAt) < new Date() : false;
+  const showAttendance = isStaff && isPast;
 
   const shiftsByArea = useMemo(() => {
     const map: Record<string, Shift[]> = {};
@@ -412,9 +468,36 @@ export default function ShiftDetailPanel({
                   onApprove={handleApprove}
                   onDecline={handleDecline}
                   onRequest={handleRequest}
+                  showAttendance={showAttendance}
+                  onSetAttendance={handleSetAttendance}
                 />
               );
             })}
+
+            {/* Archive footer (past events, staff only) */}
+            {isStaff && isPast && (
+              <div className="mt-4 pt-4 border-t flex items-center justify-between gap-3">
+                {group.archivedAt ? (
+                  <Badge variant="gray" className="text-xs">
+                    Archived {new Date(group.archivedAt).toLocaleDateString()}
+                  </Badge>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Log attendance above, then archive to lock the record.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleArchive}
+                      disabled={archiving || acting !== null}
+                    >
+                      {archiving ? "Archiving…" : "Archive event"}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
 
             {group.notes && (
               <div className="mt-4 p-3 rounded-md bg-muted/50 text-sm">

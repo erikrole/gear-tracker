@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { AlertTriangle, PlusIcon, XIcon } from "lucide-react";
+import { AlertTriangle, CheckIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 import { getInitials } from "@/lib/avatar";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 
@@ -23,6 +23,7 @@ type ShiftAssignment = {
   status: string;
   hasConflict?: boolean;
   conflictNote?: string | null;
+  attended?: boolean | null;
   user: ShiftUser;
 };
 
@@ -63,6 +64,9 @@ type Props = {
   onDecline: (assignmentId: string) => void;
   onRequest: () => void;
   onDeleteShift: () => void;
+  // Attendance (post-event, staff only)
+  showAttendance?: boolean;
+  onSetAttendance?: (assignmentId: string, attended: boolean | null) => void;
 };
 
 export function ShiftSlotCard({
@@ -87,6 +91,8 @@ export function ShiftSlotCard({
   onDecline,
   onRequest,
   onDeleteShift,
+  showAttendance,
+  onSetAttendance,
 }: Props) {
   const isAssigned = !!activeAssignment;
   const userHasRequested = pendingRequests.some((a) => a.user.id === currentUserId);
@@ -170,6 +176,66 @@ export function ShiftSlotCard({
               </Button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Attendance logging (past events, staff only) */}
+      {activeAssignment && showAttendance && onSetAttendance && (
+        <div className="flex items-center gap-1 mt-1.5 pl-9">
+          <span className="text-xs text-muted-foreground mr-1">Attended:</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() =>
+                  onSetAttendance(
+                    activeAssignment.id,
+                    activeAssignment.attended === true ? null : true,
+                  )
+                }
+                disabled={acting !== null}
+                className={`flex items-center justify-center size-6 rounded border transition-colors ${
+                  activeAssignment.attended === true
+                    ? "bg-green-500/15 border-green-500/40 text-green-600"
+                    : "border-border text-muted-foreground hover:border-green-400 hover:text-green-600"
+                }`}
+                aria-label="Mark attended"
+              >
+                <CheckIcon className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {activeAssignment.attended === true ? "Attended — click to clear" : "Mark attended"}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() =>
+                  onSetAttendance(
+                    activeAssignment.id,
+                    activeAssignment.attended === false ? null : false,
+                  )
+                }
+                disabled={acting !== null}
+                className={`flex items-center justify-center size-6 rounded border transition-colors ${
+                  activeAssignment.attended === false
+                    ? "bg-red-500/15 border-red-500/40 text-red-600"
+                    : "border-border text-muted-foreground hover:border-red-400 hover:text-red-600"
+                }`}
+                aria-label="Mark no-show"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {activeAssignment.attended === false ? "No-show — click to clear" : "Mark no-show"}
+            </TooltipContent>
+          </Tooltip>
+          {activeAssignment.attended == null && (
+            <span className="text-[10px] text-muted-foreground/60 ml-0.5">
+              <MinusIcon className="size-3 inline" /> not logged
+            </span>
+          )}
         </div>
       )}
 

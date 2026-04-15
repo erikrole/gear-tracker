@@ -21,6 +21,7 @@ type ShiftAssignment = {
   status: string;
   hasConflict?: boolean;
   conflictNote?: string | null;
+  attended?: boolean | null;
   user: ShiftUser;
 };
 
@@ -55,6 +56,8 @@ type Props = {
   onApprove: (assignmentId: string) => void;
   onDecline: (assignmentId: string) => void;
   onRequest: (shiftId: string) => void;
+  showAttendance?: boolean;
+  onSetAttendance?: (assignmentId: string, attended: boolean | null) => void;
 };
 
 export function ShiftAreaSection({
@@ -78,6 +81,8 @@ export function ShiftAreaSection({
   onApprove,
   onDecline,
   onRequest,
+  showAttendance,
+  onSetAttendance,
 }: Props) {
   return (
     <div className="mt-4">
@@ -138,6 +143,8 @@ export function ShiftAreaSection({
               onDecline={onDecline}
               onRequest={() => onRequest(shift.id)}
               onDeleteShift={() => onDeleteShift(shift.id, !!activeAssignment)}
+              showAttendance={showAttendance}
+              onSetAttendance={onSetAttendance}
             />
           );
         })
