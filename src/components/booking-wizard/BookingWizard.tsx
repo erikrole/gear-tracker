@@ -32,7 +32,7 @@ import { useKitFetching } from "@/components/create-booking/use-kit-fetching";
 import { WizardStep1 } from "./WizardStep1";
 import { WizardStep2 } from "./WizardStep2";
 import { WizardStep3 } from "./WizardStep3";
-import { CheckIcon, AlertCircleIcon } from "lucide-react";
+import { CheckIcon, AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 
 /* ───── Config per kind ───── */
 
@@ -166,6 +166,22 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     staleTime: 5 * 60_000,
   });
   const initialRequester = meData?.id ?? "";
+
+  // ── Existing drafts (for resume banner) ──
+  const [draftBannerDismissed, setDraftBannerDismissed] = useState(false);
+  const { data: draftsData } = useQuery({
+    queryKey: ["drafts"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/drafts", { signal });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json?.data ?? null;
+    },
+    staleTime: 30_000,
+    enabled: !initialDraftId, // skip if already resuming a draft
+  });
+  const existingDrafts: Array<{ id: string; kind: string; title: string; itemCount: number; updatedAt: string }> =
+    (draftsData ?? []).filter((d: { kind: string }) => d.kind === kind);
 
   // ── Step state ──
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -447,6 +463,49 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             : "Reserve equipment for later. Browse and pick the gear you need."}
         </p>
       </div>
+
+      {/* ── Existing drafts banner ── */}
+      {!draftBannerDismissed && existingDrafts.length > 0 && (
+        <div className="mb-6 rounded-sm border border-border bg-muted/40 overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 border-b border-border">
+            <div className="flex items-center gap-2">
+              <RotateCcwIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="text-xs font-semibold text-foreground">
+                {existingDrafts.length === 1
+                  ? "You have an unfinished draft"
+                  : `You have ${existingDrafts.length} unfinished drafts`}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDraftBannerDismissed(true)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Dismiss"
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          </div>
+          <div className="divide-y divide-border">
+            {existingDrafts.slice(0, 3).map((d) => (
+              <div key={d.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{d.title || "Untitled draft"}</p>
+                  {d.itemCount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {d.itemCount} item{d.itemCount !== 1 ? "s" : ""}
+                    </p>
+                  )}
+                </div>
+                <Button variant="outline" size="sm" asChild className="shrink-0">
+                  <a href={`/${kind === "CHECKOUT" ? "checkouts" : "reservations"}/new?draftId=${d.id}`}>
+                    Resume
+                  </a>
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Step progress ── */}
       <div
