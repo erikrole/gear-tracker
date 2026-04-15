@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeftIcon, ScanIcon, AlertCircleIcon } from "lucide-react";
+import { ChevronLeftIcon, ScanIcon, AlertCircleIcon, CheckCircle2Icon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -224,7 +224,9 @@ export default function ScanPage() {
         <Alert variant="destructive">
           <AlertCircleIcon className="size-4" />
           <AlertDescription className="flex items-center gap-3">
-            Failed to load checkout details.
+            {session.loadError === "network"
+              ? "Can\u2019t connect \u2014 check your connection."
+              : "Checkout not found or access denied."}
             <Button variant="outline" size="sm" onClick={session.loadScanStatus}>
               Retry
             </Button>
@@ -249,7 +251,7 @@ export default function ScanPage() {
       {mode === "lookup" && !scanning && !submission.feedback && (
         <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-muted-foreground text-sm opacity-60">
           <ScanIcon className="size-12" />
-          <span>Scan any item&apos;s QR code to view details.</span>
+          <span>Start the camera above to scan any QR code.</span>
         </div>
       )}
 
@@ -293,7 +295,7 @@ export default function ScanPage() {
             ) : allComplete ? (
               mode === "checkout" ? "Complete Checkout" : "Complete Check-in"
             ) : (
-              `${totalItems - scannedItems} item${totalItems - scannedItems !== 1 ? "s" : ""} remaining`
+              `${totalItems - scannedItems} item${totalItems - scannedItems !== 1 ? "s" : ""} left to scan`
             )}
           </Button>
         </div>
@@ -308,10 +310,10 @@ export default function ScanPage() {
           aria-label="All items scanned"
         >
           <div className="bg-card rounded-[20px] px-10 py-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-[scale-in_0.3s_ease] max-md:mx-6 max-md:px-6 max-md:py-7">
-            <div className="text-5xl mb-2">{"\u2705"}</div>
+            <CheckCircle2Icon className="size-12 text-green-500 mx-auto mb-3" />
             <div className="text-xl font-bold mb-1">All items scanned!</div>
             <div className="text-sm text-muted-foreground">
-              Tap to dismiss, then complete {mode === "checkin" ? "check-in" : "checkout"} below
+              Tap anywhere to dismiss
             </div>
           </div>
         </div>

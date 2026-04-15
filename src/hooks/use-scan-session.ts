@@ -18,7 +18,7 @@ type UseScanSessionResult = {
   scanStatus: ScanStatus | null;
   setScanStatus: React.Dispatch<React.SetStateAction<ScanStatus | null>>;
   statusLoading: boolean;
-  loadError: boolean;
+  loadError: "network" | "server" | null;
   showCelebration: boolean;
   setShowCelebration: (v: boolean) => void;
   completing: boolean;
@@ -39,7 +39,7 @@ export function useScanSession(
 
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(isBookingMode);
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<"network" | "server" | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
@@ -56,7 +56,7 @@ export function useScanSession(
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         setScanStatus((prev) => {
-          if (!prev) setLoadError(true);
+          if (!prev) setLoadError("server");
           else toast.error("Could not refresh scan status");
           return prev;
         });
@@ -73,10 +73,10 @@ export function useScanSession(
         }
         return data;
       });
-      setLoadError(false);
+      setLoadError(null);
     } catch {
       setScanStatus((prev) => {
-        if (!prev) setLoadError(true);
+        if (!prev) setLoadError("network");
         else toast.error("Network error — could not refresh");
         return prev;
       });

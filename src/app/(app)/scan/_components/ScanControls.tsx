@@ -71,7 +71,7 @@ export function ScanControls({
           }}
         >
           <ScanIcon className="size-5" />
-          <span>Tap to start camera</span>
+          <span>Resume scanning</span>
         </button>
       )}
 
@@ -81,7 +81,24 @@ export function ScanControls({
           className="rounded-none border-x-0 border-b-0"
         >
           <AlertCircleIcon className="size-4" />
-          <AlertDescription>{cameraError}</AlertDescription>
+          <AlertDescription className="flex flex-col gap-1.5">
+            {cameraError.includes("NotAllowed") || cameraError.toLowerCase().includes("permission") ? (
+              <>
+                <span>Camera access was blocked. Check your browser settings to allow camera on this page.</span>
+              </>
+            ) : (
+              <>
+                <span>{cameraError}</span>
+                <button
+                  type="button"
+                  className="self-start text-xs underline underline-offset-2 opacity-80 hover:opacity-100"
+                  onClick={() => { setScanning(true); setCameraError(""); }}
+                >
+                  Try again
+                </button>
+              </>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 
