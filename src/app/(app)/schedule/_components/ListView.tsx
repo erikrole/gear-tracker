@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
+import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -432,6 +432,12 @@ export function ListView({
                       {entry.sportCode && (
                         <span>{sportLabel(entry.sportCode)}</span>
                       )}
+                      {entry.archivedAt && (
+                        <span className="inline-flex items-center gap-0.5 text-muted-foreground/50">
+                          <ArchiveIcon className="size-3" />
+                          Archived
+                        </span>
+                      )}
                     </div>
                   </button>
 
@@ -608,6 +614,12 @@ function EventRows({
               >
                 {shiftStatus}
               </Badge>
+            )}
+            {entry.archivedAt && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50">
+                <ArchiveIcon className="size-3" />
+                Archived
+              </span>
             )}
             {isStaff && onHide && (
               <Tooltip>

@@ -19,6 +19,16 @@ import {
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { ShiftAreaSection } from "./shift-detail/ShiftAreaSection";
 import type { PickerUser } from "./shift-detail/UserAvatarPicker";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 /* ───── Types ───── */
 
@@ -98,6 +108,9 @@ export default function ShiftDetailPanel({
   const [acting, setActing] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [tradeDialogAssignmentId, setTradeDialogAssignmentId] = useState<string | null>(null);
+  const [tradeNotes, setTradeNotes] = useState("");
+  const [posting, setPosting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const usersAbortRef = useRef<AbortController | null>(null);
 
@@ -340,6 +353,32 @@ export default function ShiftDetailPanel({
     setArchiving(false);
   }
 
+  async function handlePostTrade(assignmentId: string) {
+    setPosting(true);
+    try {
+      const res = await fetch("/api/shift-trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shiftAssignmentId: assignmentId,
+          ...(tradeNotes.trim() ? { notes: tradeNotes.trim() } : {}),
+        }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Shift posted to trade board");
+        setTradeDialogAssignmentId(null);
+        setTradeNotes("");
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to post trade");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setPosting(false);
+  }
+
   async function handleTogglePremier() {
     if (!group) return;
     mutate("premier", `/api/shift-groups/${group.id}`, {
@@ -385,6 +424,7 @@ export default function ShiftDetailPanel({
   /* ── Render ── */
 
   return (
+    <>
     <Sheet open={!!groupId} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent className="sm:max-w-lg">
         <SheetHeader>
@@ -468,6 +508,9 @@ export default function ShiftDetailPanel({
                   onApprove={handleApprove}
                   onDecline={handleDecline}
                   onRequest={handleRequest}
+                  onPostTrade={!isStaff && !isPast && !group.archivedAt
+                    ? (assignmentId) => { setTradeDialogAssignmentId(assignmentId); setTradeNotes(""); }
+                    : undefined}
                   showAttendance={showAttendance}
                   onSetAttendance={handleSetAttendance}
                 />
@@ -508,5 +551,51 @@ export default function ShiftDetailPanel({
         )}
       </SheetContent>
     </Sheet>
+
+    {/* Post for Trade dialog */}
+    <Dialog
+      open={!!tradeDialogAssignmentId}
+      onOpenChange={(open) => {
+        if (!open) { setTradeDialogAssignmentId(null); setTradeNotes(""); }
+      }}
+    >
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Post Shift for Trade</DialogTitle>
+          <DialogDescription>
+            Anyone on the crew can claim your shift. Staff will be notified to approve.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-1">
+          <Label htmlFor="trade-notes" className="text-xs font-medium">
+            Notes <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Textarea
+            id="trade-notes"
+            placeholder="e.g. Conflict with class, available all week"
+            value={tradeNotes}
+            onChange={(e) => setTradeNotes(e.target.value)}
+            className="text-sm resize-none"
+            rows={3}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => { setTradeDialogAssignmentId(null); setTradeNotes(""); }}
+            disabled={posting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => tradeDialogAssignmentId && handlePostTrade(tradeDialogAssignmentId)}
+            disabled={posting}
+          >
+            {posting ? "Posting…" : "Post trade"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

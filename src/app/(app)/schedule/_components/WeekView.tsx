@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react";
+import { ArchiveIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -186,6 +186,12 @@ function EventCard({
         {hasShift && (
           <span className="mt-0.5 block text-[9px] font-semibold text-blue-600 dark:text-blue-400">
             You
+          </span>
+        )}
+        {entry.archivedAt && (
+          <span className="mt-0.5 flex items-center gap-0.5 text-[9px] text-muted-foreground/50">
+            <ArchiveIcon className="size-2.5" />
+            Archived
           </span>
         )}
       </div>

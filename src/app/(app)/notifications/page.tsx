@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { AlertTriangle, Bell, CircleIcon, ShirtIcon, WifiOff } from "lucide-react";
+import { AlertTriangle, ArrowLeftRightIcon, Bell, CircleIcon, ShirtIcon, WifiOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
@@ -48,6 +48,11 @@ function notifIcon(type: string) {
       return <AlertTriangle className="size-4" />;
     case "shift_gear_up":
       return <ShirtIcon className="size-4" />;
+    case "trade_claimed":
+    case "trade_approved":
+    case "trade_declined":
+    case "trade_expired":
+      return <ArrowLeftRightIcon className="size-4" />;
     default:
       return <CircleIcon className="size-4" />;
   }
@@ -62,6 +67,12 @@ function notifIconBg(type: string) {
       return "bg-[var(--orange-bg)] text-[var(--orange-text)]";
     case "shift_gear_up":
       return "bg-[var(--green-bg)] text-[var(--green-text)]";
+    case "trade_claimed":
+    case "trade_approved":
+      return "bg-[var(--blue-bg)] text-[var(--blue-text)]";
+    case "trade_declined":
+    case "trade_expired":
+      return "bg-[var(--red-bg)] text-[var(--red-text)]";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -400,6 +411,16 @@ export default function NotificationsPage() {
                               </Button>
                             );
                           })()}
+                        {n.payload?.shiftGroupId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            asChild
+                          >
+                            <Link href="/schedule">View shift →</Link>
+                          </Button>
+                        )}
                         {!n.readAt && (
                           <Button
                             variant="ghost"

@@ -10,6 +10,7 @@ import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarDaysIcon } from "lucide-react";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 /* ───── Types ───── */
@@ -186,6 +187,17 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
 
   return (
     <>
+      {/* Student: how to post a trade */}
+      {!isStaff && (
+        <div className="flex items-start gap-2.5 px-3 py-2.5 mb-3 rounded-md bg-muted/50 border border-border/60 text-sm">
+          <CalendarDaysIcon className="size-4 text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-muted-foreground leading-snug">
+            To post a shift for trade, open any event you&apos;re scheduled for and tap{" "}
+            <span className="font-medium text-foreground">Post for trade</span> on your shift.
+          </p>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap mb-1">
         <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">

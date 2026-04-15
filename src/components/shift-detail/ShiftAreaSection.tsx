@@ -56,6 +56,7 @@ type Props = {
   onApprove: (assignmentId: string) => void;
   onDecline: (assignmentId: string) => void;
   onRequest: (shiftId: string) => void;
+  onPostTrade?: (assignmentId: string) => void;
   showAttendance?: boolean;
   onSetAttendance?: (assignmentId: string, attended: boolean | null) => void;
 };
@@ -81,6 +82,7 @@ export function ShiftAreaSection({
   onApprove,
   onDecline,
   onRequest,
+  onPostTrade,
   showAttendance,
   onSetAttendance,
 }: Props) {
@@ -143,6 +145,7 @@ export function ShiftAreaSection({
               onDecline={onDecline}
               onRequest={() => onRequest(shift.id)}
               onDeleteShift={() => onDeleteShift(shift.id, !!activeAssignment)}
+              onPostTrade={onPostTrade}
               showAttendance={showAttendance}
               onSetAttendance={onSetAttendance}
             />

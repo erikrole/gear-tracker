@@ -72,6 +72,7 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
       coverage: g?.coverage ?? null,
       shifts: g?.shifts ?? [],
       isPremier: g?.isPremier ?? false,
+      archivedAt: g?.archivedAt ?? null,
     };
   });
 }

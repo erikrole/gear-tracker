@@ -64,6 +64,8 @@ type Props = {
   onDecline: (assignmentId: string) => void;
   onRequest: () => void;
   onDeleteShift: () => void;
+  // Trade
+  onPostTrade?: (assignmentId: string) => void;
   // Attendance (post-event, staff only)
   showAttendance?: boolean;
   onSetAttendance?: (assignmentId: string, attended: boolean | null) => void;
@@ -91,6 +93,7 @@ export function ShiftSlotCard({
   onDecline,
   onRequest,
   onDeleteShift,
+  onPostTrade,
   showAttendance,
   onSetAttendance,
 }: Props) {
@@ -138,45 +141,62 @@ export function ShiftSlotCard({
 
       {/* Active assignment */}
       {activeAssignment && (
-        <div className="flex items-center justify-between">
-          <span className="text-sm flex items-center gap-2">
-            <Avatar className="size-7">
-              {activeAssignment.user.avatarUrl && (
-                <AvatarImage src={activeAssignment.user.avatarUrl} alt={activeAssignment.user.name} />
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-sm flex items-center gap-2">
+              <Avatar className="size-7">
+                {activeAssignment.user.avatarUrl && (
+                  <AvatarImage src={activeAssignment.user.avatarUrl} alt={activeAssignment.user.name} />
+                )}
+                <AvatarFallback className="text-xs font-medium">
+                  {getInitials(activeAssignment.user.name)}
+                </AvatarFallback>
+              </Avatar>
+              {activeAssignment.user.name}
+              {activeAssignment.hasConflict && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AlertTriangle className="size-3.5 text-amber-500 shrink-0" aria-label="Schedule conflict" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {activeAssignment.conflictNote ?? "Schedule conflict"}
+                  </TooltipContent>
+                </Tooltip>
               )}
-              <AvatarFallback className="text-xs font-medium">
-                {getInitials(activeAssignment.user.name)}
-              </AvatarFallback>
-            </Avatar>
-            {activeAssignment.user.name}
-            {activeAssignment.hasConflict && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AlertTriangle className="size-3.5 text-amber-500 shrink-0" aria-label="Schedule conflict" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  {activeAssignment.conflictNote ?? "Schedule conflict"}
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </span>
-          <div className="flex items-center gap-1">
-            <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">
-              {activeAssignment.status.replace("_", " ")}
-            </Badge>
-            {isStaff && (
+            </span>
+            <div className="flex items-center gap-1">
+              <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">
+                {activeAssignment.status.replace("_", " ")}
+              </Badge>
+              {isStaff && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-destructive"
+                  onClick={() => onRemove(activeAssignment.id)}
+                  disabled={acting !== null}
+                >
+                  {acting === activeAssignment.id ? "..." : "Remove"}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Post for trade (own shift, student only) */}
+          {!isStaff && onPostTrade && activeAssignment.user.id === currentUserId && (
+            <div className="mt-1 pl-9">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs text-destructive"
-                onClick={() => onRemove(activeAssignment.id)}
+                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                onClick={() => onPostTrade(activeAssignment.id)}
                 disabled={acting !== null}
               >
-                {acting === activeAssignment.id ? "..." : "Remove"}
+                Post for trade
               </Button>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Attendance logging (past events, staff only) */}
@@ -278,9 +298,9 @@ export function ShiftSlotCard({
         </div>
       )}
 
-      {/* Assignment actions */}
+      {/* Empty slot — hover quick-assign (staff) or request (student) */}
       {!isAssigned && (
-        <div className="flex items-center gap-1 mt-2">
+        <div className="mt-1">
           {isStaff && (
             <Popover
               open={pickerOpen}
@@ -290,10 +310,17 @@ export function ShiftSlotCard({
               }}
             >
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
-                  <PlusIcon className="size-3" />
-                  Assign
-                </Button>
+                <button
+                  className="group flex items-center gap-2 w-full rounded-md px-1 py-1 hover:bg-muted/50 transition-colors text-left"
+                  disabled={acting !== null}
+                >
+                  <div className="size-7 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/25 group-hover:border-primary/50 flex items-center justify-center transition-colors">
+                    <PlusIcon className="size-3 text-muted-foreground/35 group-hover:text-primary transition-colors" />
+                  </div>
+                  <span className="text-sm text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+                    Assign someone…
+                  </span>
+                </button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-2" align="start">
                 <UserAvatarPicker
@@ -311,7 +338,7 @@ export function ShiftSlotCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
+              className="h-7 text-xs mt-1"
               onClick={onRequest}
               disabled={acting !== null}
             >
@@ -319,7 +346,7 @@ export function ShiftSlotCard({
             </Button>
           )}
           {userHasRequested && (
-            <span className="text-xs text-muted-foreground">You have requested this shift</span>
+            <span className="text-xs text-muted-foreground pl-1">You have requested this shift</span>
           )}
         </div>
       )}
