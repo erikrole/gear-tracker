@@ -127,8 +127,8 @@ export function DataTable({
                   tabIndex={0}
                   role="row"
                   aria-label={`View ${row.original.assetTag}`}
-                  onClick={() => router.push(`/items/${row.original.id}`)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(`/items/${row.original.id}`); } }}
+                  onClick={() => router.push(row.original.id.startsWith("bulk-") ? "/bulk-inventory" : `/items/${row.original.id}`)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(row.original.id.startsWith("bulk-") ? "/bulk-inventory" : `/items/${row.original.id}`); } }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="overflow-hidden text-ellipsis">
