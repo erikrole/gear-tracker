@@ -12,6 +12,7 @@ import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, CalendarCheckIcon, LinkIcon, StickyNoteIcon, TriangleAlert } from "lucide-react";
 import type { BookingDetail, CheckinProgress, ConflictData } from "./types";
+import { InlineDateField } from "./InlineDateField";
 
 type ExtendPreset = { label: string; minutes: number };
 
@@ -23,6 +24,8 @@ type Props = {
   canExtend: boolean;
   extending: boolean;
   onExtendTo: (endsAt: string) => void;
+  canEdit?: boolean;
+  onSaveDate?: (field: "startsAt" | "endsAt", iso: string) => Promise<void>;
 };
 
 function InfoRow({ icon: Icon, label, children }: { icon: React.ComponentType<{ className?: string }>; label: string; children: React.ReactNode }) {
@@ -50,6 +53,8 @@ export default function BookingOverview({
   canExtend,
   extending,
   onExtendTo,
+  canEdit = false,
+  onSaveDate,
 }: Props) {
   const [presets, setPresets] = useState<ExtendPreset[]>([]);
   const [customOpen, setCustomOpen] = useState(false);
@@ -118,11 +123,22 @@ export default function BookingOverview({
       {/* Main info card */}
       <Card elevation="flat">
         <CardContent className="py-1 divide-y divide-border/40">
+          {/* Start — editable inline for reservations */}
           <InfoRow icon={CalendarIcon} label="Start">
-            {formatDateTime(booking.startsAt)}
+            <InlineDateField
+              value={booking.startsAt}
+              canEdit={canEdit && !!onSaveDate && booking.kind === "RESERVATION"}
+              onSave={(iso) => onSaveDate!("startsAt", iso)}
+            />
           </InfoRow>
-          <InfoRow icon={ClockIcon} label="Due">
-            {formatDateTime(booking.endsAt)}
+          {/* Due / End — editable inline for both kinds */}
+          <InfoRow icon={ClockIcon} label={booking.kind === "RESERVATION" ? "End" : "Due"}>
+            <InlineDateField
+              value={booking.endsAt}
+              canEdit={canEdit && !!onSaveDate}
+              onSave={(iso) => onSaveDate!("endsAt", iso)}
+              minDate={booking.startsAt}
+            />
           </InfoRow>
           <InfoRow icon={UserIcon} label="Requester">
             {booking.requester?.name ?? "Unknown"}

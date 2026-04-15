@@ -375,6 +375,25 @@ export default function BookingDetailsSheet({
     setSaving(false);
   }
 
+  async function handleSaveDate(field: "startsAt" | "endsAt", iso: string) {
+    if (!booking) return;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
+    const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ [field]: iso }),
+    });
+    if (handleAuthRedirect(res)) return;
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}) as Record<string, unknown>);
+      if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
+      throw new Error((json.error as string) || "Failed to save date");
+    }
+    await fetchBooking({ silent: true });
+    onUpdated?.();
+  }
+
   async function handleExtendTo(endsAt: string) {
     if (!booking || extending) return;
     setExtending(true);
@@ -663,6 +682,8 @@ export default function BookingDetailsSheet({
                     canExtend={!!canExtend}
                     extending={extending}
                     onExtendTo={handleExtendTo}
+                    canEdit={!!canEdit}
+                    onSaveDate={handleSaveDate}
                   />
                 </div>
               </div>
