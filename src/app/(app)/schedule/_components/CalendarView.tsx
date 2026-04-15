@@ -16,6 +16,7 @@ type CalendarViewProps = {
   expandedDay: number | null;
   setExpandedDay: (d: number | null) => void;
   onSelectGroup: (groupId: string | null) => void;
+  onSwitchToList?: () => void;
 };
 
 function isToday(calMonth: Date, day: number) {
@@ -149,6 +150,7 @@ function EventChip({
 export function CalendarView({
   entries,
   calMonth,
+  onSwitchToList,
   setCalMonth,
   expandedDay,
   setExpandedDay,
@@ -225,8 +227,13 @@ export function CalendarView({
       </div>
 
       {/* ── Mobile notice ── */}
-      <div className="hidden max-md:flex items-center justify-center py-8 px-4 text-muted-foreground text-sm border border-border/60 rounded-lg bg-muted/20">
-        Switch to List view for the best mobile experience.
+      <div className="hidden max-md:flex flex-col items-center gap-3 py-8 px-4 text-muted-foreground text-sm border border-border/60 rounded-lg bg-muted/20 text-center">
+        <span>Calendar view is best on desktop.</span>
+        {onSwitchToList && (
+          <Button variant="outline" size="sm" onClick={onSwitchToList}>
+            Switch to List view
+          </Button>
+        )}
       </div>
 
       {/* ── Calendar Grid ── */}

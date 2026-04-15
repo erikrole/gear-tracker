@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import { CalendarView } from "./_components/CalendarView";
 import { WeekView } from "./_components/WeekView";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { ListView } from "./_components/ListView";
+import { NewEventSheet } from "./_components/NewEventSheet";
 
 const ShiftDetailPanel = dynamic(
   () => import("@/components/ShiftDetailPanel"),
@@ -33,6 +34,7 @@ export default function SchedulePage() {
   const data = useScheduleData();
   const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
   const hidingRef = useRef<Set<string>>(new Set());
+  const [newEventOpen, setNewEventOpen] = useState(false);
 
   const handleHideEvent = useCallback(async (eventId: string) => {
     if (hidingRef.current.has(eventId)) return;
@@ -66,6 +68,11 @@ export default function SchedulePage() {
   return (
     <FadeUp>
       <PageHeader title="Schedule">
+        {isStaff && (
+          <Button variant="outline" size="sm" onClick={() => setNewEventOpen(true)}>
+            New event
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -92,6 +99,7 @@ export default function SchedulePage() {
           expandedDay={data.expandedDay}
           setExpandedDay={data.setExpandedDay}
           onSelectGroup={data.setSelectedGroupId}
+          onSwitchToList={() => data.filters.setViewMode("list")}
         />
       )}
 
@@ -139,6 +147,15 @@ export default function SchedulePage() {
           onUpdated={data.loadData}
           currentUserId={data.currentUserId}
           currentUserRole={data.currentUserRole}
+        />
+      )}
+
+      {/* New Event sheet (staff/admin only) */}
+      {isStaff && (
+        <NewEventSheet
+          open={newEventOpen}
+          onOpenChange={setNewEventOpen}
+          onCreated={data.loadData}
         />
       )}
 

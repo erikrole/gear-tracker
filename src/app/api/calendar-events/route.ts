@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok, parsePagination } from "@/lib/http";
+import { HttpError, ok, parsePagination } from "@/lib/http";
 
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -42,4 +42,42 @@ export const GET = withAuth(async (req) => {
   ]);
 
   return ok({ data, total, limit, offset });
+});
+
+export const POST = withAuth(async (req, { user }) => {
+  if (user.role !== "ADMIN" && user.role !== "STAFF") {
+    throw new HttpError(403, "Only staff and admins can create events");
+  }
+
+  const body = await req.json();
+  const { summary, startsAt, endsAt, allDay, locationId, sportCode, isHome, opponent } = body;
+
+  if (!summary?.trim()) throw new HttpError(400, "Title is required");
+  if (!startsAt) throw new HttpError(400, "Start date/time is required");
+  if (!endsAt) throw new HttpError(400, "End date/time is required");
+
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) throw new HttpError(400, "Invalid date");
+  if (end <= start) throw new HttpError(400, "End must be after start");
+
+  const event = await db.calendarEvent.create({
+    data: {
+      sourceId: null,
+      externalId: crypto.randomUUID(),
+      summary: summary.trim(),
+      startsAt: start,
+      endsAt: end,
+      allDay: allDay === true,
+      locationId: locationId || null,
+      sportCode: sportCode || null,
+      isHome: sportCode ? (isHome ?? null) : null,
+      opponent: (sportCode && opponent?.trim()) ? opponent.trim() : null,
+    },
+    include: {
+      location: { select: { id: true, name: true } },
+    },
+  });
+
+  return ok({ data: event }, 201);
 });

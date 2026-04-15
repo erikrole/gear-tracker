@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -573,7 +574,7 @@ model CalendarSource {
 
 model CalendarEvent {
   id                String              @id @default(cuid())
-  sourceId          String              @map("source_id")
+  sourceId          String?             @map("source_id")
   externalId        String              @map("external_id")
   summary           String
   description       String?
@@ -591,7 +592,7 @@ model CalendarEvent {
   opponent          String?
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
-  source            CalendarSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source            CalendarSource?     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   location          Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
   bookings          Booking[]
   shiftGroup        ShiftGroup?
