@@ -15,6 +15,7 @@ import {
   BoxIcon,
   UsersIcon,
   BookOpenIcon,
+  ScrollTextIcon,
   BarChart3Icon,
   SettingsIcon,
   LogOutIcon,
@@ -56,6 +57,7 @@ const navGroups: NavGroup[] = [
       { label: "Schedule", href: "/schedule", icon: CalendarIcon },
       { label: "Items", href: "/items", icon: LayersIcon },
       { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
+      { label: "Guides", href: "/guides", icon: ScrollTextIcon },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
     ],
   },
@@ -314,23 +316,25 @@ export default function AppSidebar({
 
       {/* ── Footer: theme toggle + logout ── */}
       <SidebarFooter className="border-t border-white/[0.07] py-2">
-        <div className="theme-toggle-row group-data-[collapsible=icon]:hidden">
+        <div className="flex items-center justify-center px-3 py-1 group-data-[collapsible=icon]:hidden">
           <ToggleGroup
             type="single"
             value={theme}
             onValueChange={(v) => {
               if (v) setTheme(v as ThemePref);
             }}
+            className="bg-white/[0.06] rounded-md p-0.5"
           >
-            <ToggleGroupItem value="light" aria-label="Light theme">
-              <SunIcon className="size-3.5" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="dark" aria-label="Dark theme">
-              <MoonIcon className="size-3.5" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="system" aria-label="System theme">
-              <MonitorIcon className="size-3.5" />
-            </ToggleGroupItem>
+            {(["light", "dark", "system"] as const).map((val, i) => (
+              <ToggleGroupItem
+                key={val}
+                value={val}
+                aria-label={`${val.charAt(0).toUpperCase() + val.slice(1)} theme`}
+                className="text-white/35 px-2.5 py-1 text-xs hover:bg-transparent hover:text-white/70 data-[state=on]:bg-white/[0.12] data-[state=on]:text-white/90 data-[state=on]:shadow-none data-[state=on]:rounded"
+              >
+                {i === 0 ? <SunIcon className="size-3.5" /> : i === 1 ? <MoonIcon className="size-3.5" /> : <MonitorIcon className="size-3.5" />}
+              </ToggleGroupItem>
+            ))}
           </ToggleGroup>
         </div>
         <SidebarMenu className="px-2">
