@@ -92,7 +92,6 @@ export const POST = withAuth(async (req, { user }) => {
         })),
       });
 
-      // Fetch created records for audit
       const created = await db.allowedEmail.findMany({
         where: { email: { in: toCreate.map((e) => e.email) } },
         select: { id: true, email: true, role: true },
@@ -125,7 +124,6 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(403, "Only admins can pre-approve staff accounts");
   }
 
-  // Check if email already registered
   const existingUser = await db.user.findUnique({ where: { email } });
   if (existingUser) {
     throw new HttpError(409, "A user with this email is already registered");

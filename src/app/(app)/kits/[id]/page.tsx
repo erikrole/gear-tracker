@@ -111,7 +111,7 @@ export default function KitDetailPage() {
   const kitUrl = `/api/kits/${id}`;
   const { data: kit, loading, error: loadError, reload: reloadKit } = useFetch<KitDetail>({
     url: kitUrl,
-    transform: (json) => (json as any).data as KitDetail,
+    transform: (json) => (json as Record<string, unknown>).data as KitDetail,
   });
 
   // Set breadcrumb label when kit loads
@@ -123,7 +123,7 @@ export default function KitDetailPage() {
   const setKit = useCallback(
     (updater: KitDetail | ((prev: KitDetail | null) => KitDetail | null)) => {
       queryClient.setQueryData(["fetch", kitUrl], (prev: Record<string, unknown> | undefined) => {
-        const prevKit = prev ? (prev as any).data as KitDetail : null;
+        const prevKit = prev ? (prev as Record<string, unknown>).data as KitDetail : null;
         const next = typeof updater === "function" ? updater(prevKit) : updater;
         return next ? { data: next } : prev;
       });

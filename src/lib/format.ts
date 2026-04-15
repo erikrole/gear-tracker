@@ -178,6 +178,21 @@ export function formatDateWithDayTime(iso: string): { date: string; dayTime: str
   return { date, dayTime };
 }
 
+/** "Today", "Tomorrow", or "Wednesday, Apr 9" */
+export function formatDayLabel(dateStr: string, now: Date): string {
+  const date = new Date(dateStr);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  const dayAfterTomorrow = new Date(tomorrowStart);
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+
+  if (date >= todayStart && date < tomorrowStart) return "Today";
+  if (date >= tomorrowStart && date < dayAfterTomorrow) return "Tomorrow";
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
+
 /** "Mar 11 – Mar 14" or "Mar 11" if same day */
 export function formatDateRange(startsAt: string, endsAt: string) {
   const s = new Date(startsAt);

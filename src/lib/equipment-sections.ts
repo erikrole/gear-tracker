@@ -34,21 +34,6 @@ export const EQUIPMENT_SECTIONS: EquipmentSection[] = [
   { key: "others", label: "Others", description: "Lighting, media storage, and office" },
 ];
 
-/** Index lookup for section ordering. */
-export function sectionIndex(key: EquipmentSectionKey): number {
-  return EQUIPMENT_SECTIONS.findIndex((s) => s.key === key);
-}
-
-/**
- * All tabs are always reachable (no forward-lock).
- */
-export function isSectionReachable(
-  _sectionKey: EquipmentSectionKey,
-  _highestReachedKey: EquipmentSectionKey
-): boolean {
-  return true;
-}
-
 /**
  * Category name → equipment section mapping.
  * Keys are lowercased category names.
@@ -139,30 +124,7 @@ export function classifyBulkCategory(category: string, categoryName?: string | n
   return classifyAssetType(category, categoryName);
 }
 
-type SerializedAssetLike = { id: string; type: string; categoryName?: string | null; [k: string]: unknown };
 type BulkSkuLike = { id: string; category: string; categoryName?: string | null; [k: string]: unknown };
-
-/**
- * Group serialized assets by equipment section.
- */
-export function groupAssetsBySection<T extends SerializedAssetLike>(
-  assets: T[]
-): Record<EquipmentSectionKey, T[]> {
-  const groups: Record<EquipmentSectionKey, T[]> = {
-    cameras: [],
-    lenses: [],
-    batteries: [],
-    accessories: [],
-    others: [],
-  };
-
-  for (const asset of assets) {
-    const section = classifyAssetType(asset.type, asset.categoryName);
-    groups[section].push(asset);
-  }
-
-  return groups;
-}
 
 /**
  * Group bulk SKUs by equipment section.

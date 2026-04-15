@@ -1,3 +1,26 @@
+/** Equipment status → human-readable label */
+export function statusLabelEquipment(status: string): string {
+  switch (status) {
+    case "AVAILABLE": return "Available";
+    case "CHECKED_OUT": return "Checked Out";
+    case "RESERVED": return "Reserved";
+    case "MAINTENANCE": return "In Maintenance";
+    case "RETIRED": return "Retired";
+    default: return status;
+  }
+}
+
+/** Equipment status → badge variant */
+export function statusBadgeVariantEquipment(status: string): "green" | "blue" | "purple" | "orange" | "gray" {
+  switch (status) {
+    case "AVAILABLE": return "green";
+    case "CHECKED_OUT": return "blue";
+    case "RESERVED": return "purple";
+    case "MAINTENANCE": return "orange";
+    default: return "gray";
+  }
+}
+
 /** Unified status → badge variant mapping for all pages */
 export function statusBadgeVariant(status: string): string {
   switch (status) {
@@ -21,19 +44,3 @@ export function statusBadgeVariant(status: string): string {
   }
 }
 
-/** Status → Tailwind color classes for inline rendering (e.g. scan item preview) */
-export function statusColorClasses(status: string): { bg: string; text: string } {
-  switch (status) {
-    case "AVAILABLE":
-      return { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-400" };
-    case "CHECKED_OUT":
-      return { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400" };
-    case "RESERVED":
-      return { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-400" };
-    case "MAINTENANCE":
-      return { bg: "bg-orange-100 dark:bg-orange-900/30", text: "text-orange-700 dark:text-orange-400" };
-    case "RETIRED":
-    default:
-      return { bg: "bg-muted", text: "text-muted-foreground" };
-  }
-}

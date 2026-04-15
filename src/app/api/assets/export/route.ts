@@ -67,12 +67,7 @@ export const GET = withAuth(async (req, { user }) => {
   ]);
   const truncated = totalCount > EXPORT_LIMIT;
 
-  let assets;
-  try {
-    assets = await enrichAssetsWithStatusFromLoaded(rawAssets);
-  } catch {
-    assets = rawAssets.map((a) => ({ ...a, computedStatus: a.status as string }));
-  }
+  const assets = await enrichAssetsWithStatusFromLoaded(rawAssets);
 
   // Build CSV
   const headers = ["Asset Tag", "Name", "Brand", "Model", "Serial Number", "Status", "Category", "Department", "Location", "Purchase Date", "Purchase Price"];

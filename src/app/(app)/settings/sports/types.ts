@@ -1,5 +1,8 @@
+import { AREAS } from "@/types/areas";
+import type { Area } from "@/types/areas";
+
 export type ShiftConfig = {
-  area: "VIDEO" | "PHOTO" | "GRAPHICS" | "COMMS";
+  area: Area;
   homeCount: number;
   awayCount: number;
 };
@@ -13,14 +16,8 @@ export type SportConfig = {
   shiftConfigs: ShiftConfig[];
 };
 
-export const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
-
-export const AREA_LABELS: Record<string, string> = {
-  VIDEO: "Video",
-  PHOTO: "Photo",
-  GRAPHICS: "Graphics",
-  COMMS: "Comms",
-};
+export { AREAS, AREA_LABELS } from "@/types/areas";
+export type { Area };
 
 export function defaultShiftConfigs(): ShiftConfig[] {
   return AREAS.map((area) => ({ area, homeCount: 1, awayCount: 1 }));

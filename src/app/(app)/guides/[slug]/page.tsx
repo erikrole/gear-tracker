@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
 import { getGuideBySlug } from "@/lib/guides";
+import { HttpError } from "@/lib/http";
 import { Role } from "@prisma/client";
 import { GuideReader } from "./_components/GuideReader";
 
@@ -14,8 +15,9 @@ export default async function GuideReaderPage({ params }: Props) {
   let guide;
   try {
     guide = await getGuideBySlug(slug);
-  } catch {
-    notFound();
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 404) notFound();
+    throw err;
   }
 
   // Students cannot access unpublished guides

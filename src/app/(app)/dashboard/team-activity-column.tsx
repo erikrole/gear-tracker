@@ -15,29 +15,13 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, ClockIcon, InboxIcon, PackageIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
-import { formatDueLabel, formatEventDateTime, formatTimeShort, isDueToday } from "@/lib/format";
+import { formatDayLabel, formatDueLabel, formatEventDateTime, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { UserAvatar, GearAvatarStack, ShiftAvatarStack } from "./dashboard-avatars";
 import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type HomeAwayFilter = "all" | "home" | "away";
-
-/** "Today", "Tomorrow", or "Wednesday, Apr 9" */
-function formatDayLabel(dateStr: string, now: Date): string {
-  const date = new Date(dateStr);
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-  const dayAfterTomorrow = new Date(tomorrowStart);
-  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-
-  if (date >= todayStart && date < tomorrowStart) return "Today";
-  if (date >= tomorrowStart && date < dayAfterTomorrow) return "Tomorrow";
-  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-}
-
 
 type Props = {
   data: DashboardData;

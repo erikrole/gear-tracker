@@ -1,7 +1,6 @@
 import type { CategoryOption } from "@/types/category";
-
-export type Location = { id: string; name: string };
-export type Department = { id: string; name: string };
+import type { Location, Department } from "@/types/common";
+export type { Location, Department };
 
 export type ParentSearchResult = {
   id: string;

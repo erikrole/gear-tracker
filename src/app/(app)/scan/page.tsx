@@ -29,7 +29,6 @@ export default function ScanPage() {
   const searchParams = useSearchParams();
   const confirm = useConfirm();
 
-  // Determine mode from URL params
   const checkoutId = searchParams.get("checkout");
   const phaseParam = searchParams.get("phase");
   const mode: ScanMode =

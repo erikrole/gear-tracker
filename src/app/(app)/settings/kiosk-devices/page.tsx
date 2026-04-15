@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
+import { formatRelativeTime } from "@/lib/format";
 
 type KioskDevice = {
   id: string;
@@ -187,16 +188,7 @@ export default function KioskDevicesPage() {
 
   function formatRelative(dateStr: string | null): string {
     if (!dateStr) return "Never";
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return "Just now";
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}h ago`;
-    const diffDay = Math.floor(diffHr / 24);
-    return `${diffDay}d ago`;
+    return formatRelativeTime(dateStr, new Date());
   }
 
   return (

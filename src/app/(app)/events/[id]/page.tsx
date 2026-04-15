@@ -19,7 +19,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { PageHeader } from "@/components/PageHeader";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import type { CalendarEvent, ShiftGroupSummary, CommandCenterData } from "./_utils";
-import { formatDateTime, formatDate, timeAgo } from "./_utils";
+import { formatDateTime, formatDate } from "./_utils";
+import { formatRelativeTime } from "@/lib/format";
 import { EventSkeleton } from "./_components/EventSkeleton";
 import { ShiftCoverageCard } from "./_components/ShiftCoverageCard";
 
@@ -131,7 +132,7 @@ export default function EventDetailPage() {
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {lastRefreshed ? `Updated ${timeAgo(lastRefreshed)}` : "Refresh"}
+              {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), new Date())}` : "Refresh"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

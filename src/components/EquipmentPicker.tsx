@@ -110,11 +110,9 @@ export default function EquipmentPicker({
 
   // ── Data hooks ──
   const { sectionResults, searchLoading, searchError } = usePickerSearch({
-    legacyMode: false,
     activeSection,
     equipSearch: sectionSearch,
     onlyAvailable,
-    globalSearch: "",
   });
 
   const { conflicts, checking: conflictsLoading } = useConflictCheck({

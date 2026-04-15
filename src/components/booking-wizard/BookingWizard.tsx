@@ -354,9 +354,8 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
       if (handleAuthRedirect(res)) return;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let json: any;
-      try { json = await res.json(); } catch {
+      let json: Record<string, unknown>;
+      try { json = await res.json() as Record<string, unknown>; } catch {
         setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
         submittingRef.current = false;
         setSubmitting(false);
@@ -397,10 +396,10 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           }
           const removedCount = conflictingAssetIds.size;
           const removedSuffix = removedCount > 0 ? ` \u2014 ${removedCount} item${removedCount !== 1 ? "s" : ""} removed from your selection` : "";
-          setCreateError((msgs.length > 0 ? msgs.join(". ") : json.error || "Availability conflict") + removedSuffix);
+          setCreateError((msgs.length > 0 ? msgs.join(". ") : (json.error as string | undefined) || "Availability conflict") + removedSuffix);
           setStep(2);
         } else {
-          setCreateError(json.error || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
+          setCreateError((json.error as string | undefined) || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
         }
         submittingRef.current = false;
         setSubmitting(false);
@@ -408,10 +407,11 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       }
 
       await deleteDraft();
-      const refNumber: string | undefined = json.data?.refNumber;
+      const created = json.data as { id: string; refNumber?: string | null };
+      const refNumber = created.refNumber ?? undefined;
       toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)} created${refNumber ? ` \u2014 ${refNumber}` : ""}`);
 
-      const bookingId = json.data.id;
+      const bookingId = created.id;
       if (kind === "CHECKOUT") {
         router.push(`/scan?checkout=${bookingId}&phase=CHECKOUT`);
       } else {

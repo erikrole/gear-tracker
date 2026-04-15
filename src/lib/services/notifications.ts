@@ -238,7 +238,6 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
   const event = assignment.shift.shiftGroup.event;
   const dedupeKey = `shift:${assignmentId}:gear_up`;
 
-  // Check for existing notification
   const existing = await db.notification.findUnique({ where: { dedupeKey } });
   if (existing) return;
 

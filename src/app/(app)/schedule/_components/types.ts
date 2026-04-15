@@ -55,13 +55,8 @@ export type CalendarEntry = CalendarEvent & {
 
 /* ───── Constants ───── */
 
-export const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
-export const AREA_LABELS: Record<string, string> = {
-  VIDEO: "Video",
-  PHOTO: "Photo",
-  GRAPHICS: "Graphics",
-  COMMS: "Comms",
-};
+export { AREAS, AREA_LABELS } from "@/types/areas";
+export type { Area } from "@/types/areas";
 
 export const ACTIVE_STATUSES = ["DIRECT_ASSIGNED", "APPROVED"];
 

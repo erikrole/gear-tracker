@@ -58,15 +58,12 @@ export function useCheckinScan({
       if (checkedInLocallyRef.current.has(item.asset.id)) continue;
       const a = item.asset;
 
-      // Check qrCodeValue
       if (a.qrCodeValue && (a.qrCodeValue.toLowerCase() === valNormalized || a.qrCodeValue === valWithPrefix)) {
         return a.id;
       }
-      // Check primaryScanCode
       if (a.primaryScanCode && (a.primaryScanCode.toLowerCase() === valNormalized || a.primaryScanCode === valWithPrefix)) {
         return a.id;
       }
-      // Check assetTag
       if (a.assetTag.toLowerCase() === valNormalized) {
         return a.id;
       }

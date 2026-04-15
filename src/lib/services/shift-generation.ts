@@ -34,7 +34,6 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
     return { created: false, shiftGroupId: event.shiftGroup.id, shiftCount: 0 };
   }
 
-  // Load sport config
   const sportConfig = await db.sportConfig.findUnique({
     where: { sportCode: event.sportCode },
     include: { shiftConfigs: true },

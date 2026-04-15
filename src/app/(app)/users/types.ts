@@ -32,7 +32,7 @@ export type UserDetail = UserRow & {
   areaAssignments: AreaAssignment[];
 };
 
-export type Location = { id: string; name: string };
+export type { Location } from "@/types/common";
 
 export type ListResponse = {
   data: UserRow[];

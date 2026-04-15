@@ -32,7 +32,8 @@ export type AuditEntry = {
   actor: { id: string; name: string } | null;
 };
 
-export type LocationInfo = { id: string; name: string };
+import type { Location } from "@/types/common";
+export type LocationInfo = Location;
 
 export type BookingDetail = {
   id: string;

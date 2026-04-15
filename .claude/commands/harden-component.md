@@ -1,3 +1,10 @@
+---
+version: 1.0.0
+rollback: git checkout HEAD -- .claude/commands/harden-component.md
+observe: echo "[harden-component] run at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ~/.claude/logs/skill-runs.log
+feedback: cat ~/.claude/logs/skill-feedback.log
+---
+
 # Harden Component
 
 Five-pass audit and hardening pipeline for a reusable component.

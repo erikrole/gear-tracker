@@ -1,3 +1,10 @@
+---
+version: 1.0.0
+rollback: git checkout HEAD -- .claude/commands/feature.md
+observe: echo "[feature] run at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ~/.claude/logs/skill-runs.log
+feedback: cat ~/.claude/logs/skill-feedback.log
+---
+
 # Feature
 
 Two-phase feature command: discover the highest-impact opportunity, then implement

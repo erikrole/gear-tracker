@@ -568,8 +568,8 @@ export async function createAdminOverride(args: {
         missingBulk: state.missingBulk,
         missingUnits: state.missingUnits,
       };
-    } catch {
-      // Non-blocking — record the override even if bypassed computation fails
+    } catch (err) {
+      console.error("[SCAN] Failed to compute bypassed state for audit override:", err);
     }
   }
 

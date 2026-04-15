@@ -22,7 +22,7 @@ export type BookingItem = {
 };
 
 export type FormUser = { id: string; name: string; avatarUrl?: string | null };
-export type Location = { id: string; name: string };
+export type { Location } from "@/types/common";
 
 export type CalendarEvent = {
   id: string;

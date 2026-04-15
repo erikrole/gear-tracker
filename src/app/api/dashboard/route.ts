@@ -321,14 +321,11 @@ export const GET = withAuth(async (_req, { user }) => {
   const totalReserved = Number(c.total_reserved);
   const dueTodayCount = Number(c.due_today);
 
-  // Format team checkouts
   const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   teamCheckouts.sort(sortOverdueFirst);
 
-  // Format team reservations
   const teamReservations = teamReservationsRaw.map((r) => toBookingSummary(r, now, false));
 
-  // Format my checkouts
   const myCheckouts = myCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   myCheckouts.sort(sortOverdueFirst);
 

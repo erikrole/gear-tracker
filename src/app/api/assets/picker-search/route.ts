@@ -141,12 +141,7 @@ export const GET = withAuth(async (req, { user }) => {
   });
 
   // Enrich with computed status (CHECKED_OUT, RESERVED, etc.)
-  let assets;
-  try {
-    assets = await enrichAssetsWithStatusFromLoaded(sorted);
-  } catch {
-    assets = sorted.map((a) => ({ ...a, computedStatus: a.status as string }));
-  }
+  const assets = await enrichAssetsWithStatusFromLoaded(sorted);
 
   // For non-available assets, fetch current holder info (who has it + which booking)
   const unavailableIds = assets

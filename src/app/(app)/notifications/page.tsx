@@ -133,7 +133,6 @@ export default function NotificationsPage() {
     (v) => (v ? "true" : null),
   );
 
-  // Build fetch URL from filter state
   const fetchUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set("limit", String(LIMIT));

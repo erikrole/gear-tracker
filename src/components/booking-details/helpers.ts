@@ -1,14 +1,5 @@
-export function formatRelative(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const hours = Math.floor(diffMs / 3600_000);
-  if (hours < 1) return "just now";
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return d.toLocaleDateString();
-}
+import { formatRelativeTime } from "@/lib/format";
+export function formatRelative(iso: string) { return formatRelativeTime(iso, new Date()); }
 
 export function toLocalDateTimeValue(date: Date) {
   const y = date.getFullYear();

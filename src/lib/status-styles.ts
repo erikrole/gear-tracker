@@ -31,31 +31,6 @@ export const STATUS_STYLES = {
 export type StatusColor = keyof typeof STATUS_STYLES;
 
 /**
- * Maps a computed equipment status string to a Badge variant name.
- * Use with `<Badge variant={statusVariant(status)}>`.
- */
-export function statusVariant(
-  computedStatus: string,
-  isOverdue?: boolean,
-): NonNullable<BadgeProps["variant"]> {
-  if (isOverdue) return "red";
-  switch (computedStatus) {
-    case "AVAILABLE":
-      return "green";
-    case "CHECKED_OUT":
-      return "blue";
-    case "RESERVED":
-      return "purple";
-    case "MAINTENANCE":
-      return "orange";
-    case "RETIRED":
-      return "gray";
-    default:
-      return "gray";
-  }
-}
-
-/**
  * Maps a computed equipment status to a StatusColor key.
  * Use with STATUS_STYLES[statusColor(status)] for the dot+badge pattern.
  */

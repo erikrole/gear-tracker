@@ -32,7 +32,7 @@ type UserLoss = {
 type RecentLoss = {
   id: string;
   bookingId: string;
-  lostUnits: unknown;
+  lostUnits: Record<string, unknown> | null;
   createdAt: string;
   actor: { id: string; name: string } | null;
 };

@@ -147,12 +147,7 @@ export const GET = withAuth(async (req, { user }) => {
     db.asset.count({ where }),
   ]);
 
-  let data;
-  try {
-    data = await enrichAssetsWithStatusFromLoaded(rawData);
-  } catch {
-    data = rawData.map((a) => ({ ...a, computedStatus: a.status as string }));
-  }
+  const data = await enrichAssetsWithStatusFromLoaded(rawData);
 
   const [enrichedWithBookings, favoriteItems] = await Promise.all([
     attachActiveBookings(data),

@@ -14,41 +14,8 @@ import {
   DrawerDescription,
   DrawerFooter,
 } from "@/components/ui/drawer";
+import { statusLabelEquipment, statusBadgeVariantEquipment } from "@/lib/status-colors";
 import type { ItemPreview } from "./types";
-
-function statusLabel(s: string) {
-  switch (s) {
-    case "AVAILABLE":
-      return "Available";
-    case "CHECKED_OUT":
-      return "Checked Out";
-    case "RESERVED":
-      return "Reserved";
-    case "MAINTENANCE":
-      return "In Maintenance";
-    case "RETIRED":
-      return "Retired";
-    default:
-      return s;
-  }
-}
-
-function statusBadgeVariant(
-  s: string,
-): "green" | "blue" | "purple" | "orange" | "gray" {
-  switch (s) {
-    case "AVAILABLE":
-      return "green";
-    case "CHECKED_OUT":
-      return "blue";
-    case "RESERVED":
-      return "purple";
-    case "MAINTENANCE":
-      return "orange";
-    default:
-      return "gray";
-  }
-}
 
 type ItemPreviewDrawerProps = {
   item: ItemPreview | null;
@@ -93,8 +60,8 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
               </DrawerDescription>
 
               <div className="mt-2 flex justify-center">
-                <Badge variant={statusBadgeVariant(item.computedStatus)}>
-                  {statusLabel(item.computedStatus)}
+                <Badge variant={statusBadgeVariantEquipment(item.computedStatus)}>
+                  {statusLabelEquipment(item.computedStatus)}
                 </Badge>
               </div>
             </DrawerHeader>

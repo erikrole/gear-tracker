@@ -1,3 +1,10 @@
+---
+version: 1.0.0
+rollback: git checkout HEAD -- .claude/commands/roadmap-component.md
+observe: echo "[roadmap-component] run at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ~/.claude/logs/skill-runs.log
+feedback: cat ~/.claude/logs/skill-feedback.log
+---
+
 # Roadmap Component
 
 Create a versioned roadmap (V1 → V2 → V3) for a reusable component. Focus on API

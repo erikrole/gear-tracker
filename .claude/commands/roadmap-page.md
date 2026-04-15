@@ -1,3 +1,10 @@
+---
+version: 1.0.0
+rollback: git checkout HEAD -- .claude/commands/roadmap-page.md
+observe: echo "[roadmap-page] run at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ~/.claude/logs/skill-runs.log
+feedback: cat ~/.claude/logs/skill-feedback.log
+---
+
 # Roadmap Page
 
 Create a versioned roadmap (V1 → V2 → V3) for a single page. Each version must feel

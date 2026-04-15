@@ -1,3 +1,10 @@
+---
+version: 1.0.0
+rollback: git checkout HEAD -- .claude/commands/break-this.md
+observe: echo "[break-this] run at $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> ~/.claude/logs/skill-runs.log
+feedback: cat ~/.claude/logs/skill-feedback.log
+---
+
 # Break This
 
 Single-pass reliability stress test. Adopt the mindset of a hostile user, a flaky
