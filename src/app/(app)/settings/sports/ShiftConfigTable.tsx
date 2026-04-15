@@ -95,8 +95,8 @@ export default function ShiftConfigTable({
             {active && (
               <CardContent className="pt-0 space-y-4">
                 {/* Shift counts table */}
-                <div className="data-table-wrap">
-                  <table className="data-table text-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm [&_th]:text-left [&_th]:px-4 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-muted-foreground [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_td]:px-4 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-border/40 [&_tr:last-child_td]:border-b-0">
                     <thead>
                       <tr>
                         <th className="w-24"></th>

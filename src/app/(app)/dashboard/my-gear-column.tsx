@@ -6,6 +6,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
+import { cn } from "@/lib/utils";
 import { formatDueLabel, formatEventDateTime, formatRelativeTime, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
@@ -54,7 +55,6 @@ export function MyGearColumn({
   onConvert,
   onCreateBooking,
 }: Props) {
-  const accentClass = ownedAccent ? " border-l-2 border-l-primary" : "";
   return (
     <div className="flex flex-col gap-4">
       <span className="text-xs font-semibold text-muted-foreground pl-0.5">My Gear</span>
@@ -75,26 +75,35 @@ export function MyGearColumn({
               return (
                 <button
                   key={c.id}
-                  className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}${accentClass}`}
+                  className={cn(
+                    "group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
+                    ownedAccent
+                      ? "border-l-primary hover:bg-muted/50"
+                      : c.isOverdue
+                      ? "border-l-red-600 bg-red-600/[0.06] hover:bg-red-600/10"
+                      : isDueToday(c.endsAt, now)
+                      ? "border-l-amber-600 bg-amber-600/[0.04] hover:bg-amber-600/[0.08]"
+                      : "border-l-blue-500 hover:bg-muted/50"
+                  )}
                   onClick={() => onSelectBooking(c.id)}
                 >
-                  <div className="ops-row-main">
-                    <span className="ops-row-title-bold">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm font-bold text-foreground truncate tracking-tight">
                       {c.title}
                     </span>
-                    <span className="ops-row-meta">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                       <UserAvatar name={c.requesterName} avatarUrl={c.requesterAvatarUrl} />
                       {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="ops-row-right">
+                  <div className="flex items-center gap-2.5 shrink-0">
                     {(c.isOverdue || isDueToday(c.endsAt, now)) && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="inline-action-btn"
+                            className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
                             disabled={acting}
                             onClick={(e) => onExtend(c, e)}
                             aria-label={`Extend checkout "${c.title}" by 1 day`}
@@ -138,25 +147,28 @@ export function MyGearColumn({
             {(filtered?.myReservations ?? data.myReservations).map((r) => (
               <button
                 key={r.id}
-                className={`ops-row ops-row-status ops-row-reserved${accentClass}`}
+                className={cn(
+                  "group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
+                  ownedAccent ? "border-l-primary hover:bg-muted/50" : "border-l-purple-600 hover:bg-muted/50"
+                )}
                 onClick={() => onSelectBooking(r.id)}
               >
-                <div className="ops-row-main">
-                  <span className="ops-row-title-bold">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm font-bold text-foreground truncate tracking-tight">
                     {r.title}
                   </span>
-                  <span className="ops-row-meta">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                     <UserAvatar name={r.requesterName} avatarUrl={r.requesterAvatarUrl} />
                     {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <div className="ops-row-right">
+                <div className="flex items-center gap-2.5 shrink-0">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="inline-action-btn"
+                        className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
                         disabled={acting}
                         onClick={(e) => onConvert(r.id, e)}
                         aria-label={`Convert reservation "${r.title}" to checkout`}
@@ -193,18 +205,18 @@ export function MyGearColumn({
                 ? `${s.event.isHome === false ? "at" : "vs"} ${s.event.opponent}`
                 : s.event.summary;
               return (
-                <div key={s.id} className="ops-row">
-                  <div className="ops-row-main">
-                    <span className="ops-row-title-bold">
+                <div key={s.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm font-bold text-foreground truncate tracking-tight">
                       {s.event.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(s.event.sportCode)}</span>}
                       <span className="text-muted-foreground font-normal">{eventTitle}</span>
                     </span>
-                    <span className="ops-row-meta">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                       {formatDayLabel(s.startsAt, now)}, {formatTimeShort(s.startsAt)} – {formatTimeShort(s.event.endsAt)}
                       {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
                     </span>
                   </div>
-                  <div className="ops-row-actions">
+                  <div className="flex items-center gap-2 shrink-0">
                     {gearLabel ? (
                       <>
                         <GearAvatarStack items={s.gearItems} totalCount={s.gearItemCount} />
@@ -248,13 +260,13 @@ export function MyGearColumn({
           </CardHeader>
           <CardContent className="p-0 py-1">
             {data.drafts.map((d) => (
-              <div key={d.id} className="ops-row flex items-center gap-3">
-                <div className="ops-row-main">
-                  <span className="ops-row-title">
+              <div key={d.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm font-medium text-foreground truncate tracking-tight">
                     <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
                     {d.title || "Untitled"}
                   </span>
-                  <span className="ops-row-meta">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                     {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
                     Edited {formatRelativeTime(d.updatedAt, now)}
                   </span>

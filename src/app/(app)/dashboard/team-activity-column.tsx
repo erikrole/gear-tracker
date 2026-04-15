@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, ClockIcon, InboxIcon, PackageIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
+import { cn } from "@/lib/utils";
 import { formatDueLabel, formatEventDateTime, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { UserAvatar, GearAvatarStack, ShiftAvatarStack } from "./dashboard-avatars";
@@ -86,26 +87,33 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               return (
                 <button
                   key={c.id}
-                  className={`ops-row ops-row-status ${c.isOverdue ? "ops-row-overdue" : isDueToday(c.endsAt, now) ? "ops-row-due-today" : "ops-row-checked-out"}`}
+                  className={cn(
+                    "group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
+                    c.isOverdue
+                      ? "border-l-red-600 bg-red-600/[0.06] hover:bg-red-600/10"
+                      : isDueToday(c.endsAt, now)
+                      ? "border-l-amber-600 bg-amber-600/[0.04] hover:bg-amber-600/[0.08]"
+                      : "border-l-blue-500 hover:bg-muted/50"
+                  )}
                   onClick={() => onSelectBooking(c.id)}
                 >
-                  <div className="ops-row-main">
-                    <span className="ops-row-title-bold">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm font-bold text-foreground truncate tracking-tight">
                       {c.title}
                     </span>
-                    <span className="ops-row-meta">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                       <UserAvatar name={c.requesterName} avatarUrl={c.requesterAvatarUrl} />
                       {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="ops-row-right">
+                  <div className="flex items-center gap-2.5 shrink-0">
                     {isStaff && (c.isOverdue || isDueToday(c.endsAt, now)) && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="inline-action-btn"
+                            className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
                             disabled={acting}
                             onClick={(e) => onExtend(c, e)}
                             aria-label={`Extend checkout "${c.title}" by 1 day`}
@@ -149,14 +157,14 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
             {(filtered?.teamReservations ?? data.teamReservations.items).map((r) => (
               <button
                 key={r.id}
-                className="ops-row ops-row-status ops-row-reserved"
+                className="group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px] border-l-purple-600"
                 onClick={() => onSelectBooking(r.id)}
               >
-                <div className="ops-row-main">
-                  <span className="ops-row-title-bold">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm font-bold text-foreground truncate tracking-tight">
                     {r.title}
                   </span>
-                  <span className="ops-row-meta">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                     <UserAvatar name={r.requesterName} avatarUrl={r.requesterAvatarUrl} />
                     {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
                   </span>
@@ -200,18 +208,18 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
         ) : (
           <CardContent className="p-0 py-1">
             {cappedEvents.map((e) => (
-              <div key={e.id} className="ops-row no-underline text-inherit">
-                <a href={`/events/${e.id}`} className="ops-row-main no-underline">
-                  <span className="ops-row-title-bold">
+              <div key={e.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit">
+                <a href={`/events/${e.id}`} className="flex flex-col gap-0.5 min-w-0 no-underline">
+                  <span className="text-sm font-bold text-foreground truncate tracking-tight">
                     {e.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(e.sportCode)}</span>}
                     {e.opponent ? <span className="text-muted-foreground font-normal">vs {e.opponent}</span> : (!e.sportCode ? e.title : "")}
                   </span>
-                  <span className="ops-row-meta">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                     {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
                     {e.location && ` \u00B7 ${e.location}`}
                   </span>
                 </a>
-                <div className="event-row-right">
+                <div className="flex items-center gap-2 shrink-0">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} filledSlots={e.filledShiftSlots} />
                   {e.isHome === true && <Badge variant="green">Home</Badge>}
                   {e.isHome === false && <Badge variant="red">Away</Badge>}

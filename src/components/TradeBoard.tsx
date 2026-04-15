@@ -243,7 +243,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         ) : (
           <>
             {/* Desktop table */}
-            <table className="data-table max-md:hidden">
+            <table className="w-full border-collapse max-md:hidden [&_th]:text-left [&_th]:px-4 [&_th]:py-2.5 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-muted-foreground [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_th]:whitespace-nowrap [&_td]:px-4 [&_td]:py-3 [&_td]:border-b [&_td]:border-border/40 [&_td]:text-sm [&_td]:align-top [&_tr:last-child_td]:border-b-0 [&_tbody_tr:hover_td]:bg-muted/50">
               <thead>
                 <tr>
                   <th>Event</th>
