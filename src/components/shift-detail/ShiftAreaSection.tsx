@@ -19,6 +19,8 @@ type ShiftUser = {
 type ShiftAssignment = {
   id: string;
   status: string;
+  hasConflict?: boolean;
+  conflictNote?: string | null;
   user: ShiftUser;
 };
 

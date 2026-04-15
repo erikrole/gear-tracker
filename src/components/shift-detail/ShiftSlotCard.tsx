@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { PlusIcon, XIcon } from "lucide-react";
+import { AlertTriangle, PlusIcon, XIcon } from "lucide-react";
 import { getInitials } from "@/lib/avatar";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 
@@ -21,6 +21,8 @@ type ShiftUser = {
 type ShiftAssignment = {
   id: string;
   status: string;
+  hasConflict?: boolean;
+  conflictNote?: string | null;
   user: ShiftUser;
 };
 
@@ -141,6 +143,16 @@ export function ShiftSlotCard({
               </AvatarFallback>
             </Avatar>
             {activeAssignment.user.name}
+            {activeAssignment.hasConflict && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertTriangle className="size-3.5 text-amber-500 shrink-0" aria-label="Schedule conflict" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {activeAssignment.conflictNote ?? "Schedule conflict"}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </span>
           <div className="flex items-center gap-1">
             <Badge variant={(STATUS_BADGES[activeAssignment.status] ?? "gray") as BadgeProps["variant"]} size="sm">

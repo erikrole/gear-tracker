@@ -35,6 +35,8 @@ type ShiftAssignment = {
   id: string;
   status: string;
   notes: string | null;
+  hasConflict: boolean;
+  conflictNote: string | null;
   createdAt: string;
   user: ShiftUser;
   assigner?: { id: string; name: string } | null;
@@ -92,6 +94,7 @@ export default function ShiftDetailPanel({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [acting, setActing] = useState<string | null>(null);
+  const [autoFilling, setAutoFilling] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const usersAbortRef = useRef<AbortController | null>(null);
 
@@ -225,7 +228,8 @@ export default function ShiftDetailPanel({
               ...s,
               assignments: [...s.assignments, {
                 id: `optimistic-${Date.now()}`, status: "DIRECT_ASSIGNED",
-                notes: null, createdAt: new Date().toISOString(),
+                notes: null, hasConflict: false, conflictNote: null,
+                createdAt: new Date().toISOString(),
                 user: { ...assignedUser, email: undefined }, assigner: null,
               }],
             } : s
@@ -253,6 +257,34 @@ export default function ShiftDetailPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shiftId }),
     }, "Shift requested");
+  }
+
+  async function handleAutoFill() {
+    if (!group) return;
+    setAutoFilling(true);
+    try {
+      const res = await fetch(`/api/shift-groups/${group.id}/auto-assign`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        const json = await res.json();
+        const { assigned, conflicts } = json.data as { assigned: number; conflicts: number; skipped: number };
+        if (assigned === 0) {
+          toast.info("No eligible workers found for open shifts");
+        } else if (conflicts > 0) {
+          toast.warning(`${assigned} shift${assigned !== 1 ? "s" : ""} filled — ${conflicts} have schedule conflicts`);
+        } else {
+          toast.success(`${assigned} shift${assigned !== 1 ? "s" : ""} auto-filled`);
+        }
+        await fetchGroup();
+        onUpdated?.();
+      } else {
+        const msg = await parseErrorMessage(res, "Auto-fill failed");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setAutoFilling(false);
   }
 
   async function handleTogglePremier() {
@@ -340,6 +372,19 @@ export default function ShiftDetailPanel({
                 }] : []),
               ]}
             />
+
+            {isStaff && (
+              <div className="flex justify-end mb-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAutoFill}
+                  disabled={autoFilling || acting !== null}
+                >
+                  {autoFilling ? "Filling…" : "Auto-fill"}
+                </Button>
+              </div>
+            )}
 
             {(AREAS as readonly string[]).map((area) => {
               const shifts = shiftsByArea[area] ?? [];
