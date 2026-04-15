@@ -37,6 +37,8 @@ export function ItemsToolbar({
   onShowAccessoriesChange,
   favoritesOnly,
   onFavoritesOnlyChange,
+  itemType,
+  onItemTypeChange,
   hasActiveFilters,
   onClearAllFilters,
   locations,
@@ -61,6 +63,8 @@ export function ItemsToolbar({
   onShowAccessoriesChange: (value: boolean) => void;
   favoritesOnly: boolean;
   onFavoritesOnlyChange: (value: boolean) => void;
+  itemType: "all" | "serialized" | "bulk";
+  onItemTypeChange: (value: "all" | "serialized" | "bulk") => void;
   hasActiveFilters: boolean;
   onClearAllFilters: () => void;
   locations: Location[];
@@ -144,6 +148,19 @@ export function ItemsToolbar({
         <Star className={`size-3.5 ${favoritesOnly ? "fill-current" : ""}`} />
         Favorites
       </Button>
+      <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0" role="group" aria-label="Item type filter">
+        {(["all", "serialized", "bulk"] as const).map((type) => (
+          <button
+            key={type}
+            type="button"
+            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${itemType === type ? "bg-foreground text-background" : "hover:bg-muted text-muted-foreground"}`}
+            onClick={() => onItemTypeChange(type)}
+            aria-pressed={itemType === type}
+          >
+            {type === "all" ? "All" : type === "serialized" ? "Serialized" : "Bulk"}
+          </button>
+        ))}
+      </div>
       <div className="flex items-center gap-1.5">
         <Switch
           id="show-accessories"

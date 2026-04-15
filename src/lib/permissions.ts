@@ -51,7 +51,9 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
   bulk_sku: {
     view: ["ADMIN", "STAFF", "STUDENT"],
     create: ["ADMIN", "STAFF"],
+    edit: ["ADMIN", "STAFF"],
     adjust: ["ADMIN", "STAFF"],
+    delete: ["ADMIN"],
   },
   calendar_source: {
     view: ["ADMIN", "STAFF", "STUDENT"],

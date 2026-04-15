@@ -81,6 +81,17 @@ export const createBulkSkuSchema = z.object({
   trackByNumber: z.boolean().default(false)
 });
 
+export const updateBulkSkuSchema = z.object({
+  name: z.string().min(1).max(500).optional(),
+  category: z.string().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
+  unit: z.string().min(1).max(100).optional(),
+  locationId: z.string().cuid().optional(),
+  binQrCodeValue: z.string().min(1).max(500).optional(),
+  minThreshold: z.number().int().min(0).optional(),
+  active: z.boolean().optional(),
+}).strict();
+
 export const addBulkUnitsSchema = z.object({
   count: z.number().int().min(1).max(500)
 });

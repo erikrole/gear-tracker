@@ -12,9 +12,11 @@ import ActivityTimeline, { type AuditEntry } from "@/components/ActivityTimeline
 export default function ActivityFeed({
   assetId,
   assetName,
+  endpoint,
 }: {
   assetId: string;
   assetName?: string;
+  endpoint?: string;
 }) {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +25,7 @@ export default function ActivityFeed({
   const loadActivity = useCallback(() => {
     setLoading(true);
     setFetchError(false);
-    fetch(`/api/assets/${assetId}/activity`)
+    fetch(endpoint ?? `/api/assets/${assetId}/activity`)
       .then((res) => {
         if (!res.ok) {
           setFetchError(true);
@@ -36,7 +38,7 @@ export default function ActivityFeed({
       })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
-  }, [assetId]);
+  }, [assetId, endpoint]);
 
   useEffect(() => {
     loadActivity();

@@ -41,6 +41,9 @@ export function useUrlFilters() {
   const [categoryFilter, setCategoryFilter] = useState<Set<string>>(() => readSet(searchParams, "category"));
   const [brandFilter, setBrandFilter] = useState<Set<string>>(() => readSet(searchParams, "brand"));
   const [departmentFilter, setDepartmentFilter] = useState<Set<string>>(() => readSet(searchParams, "department"));
+  const [itemType, setItemType] = useState<"all" | "serialized" | "bulk">(
+    () => (searchParams.get("type") as "serialized" | "bulk") ?? "all"
+  );
   const [showAccessories, setShowAccessories] = useState(() => searchParams.get("accessories") === "1");
   const [favoritesOnly, setFavoritesOnly] = useState(() => searchParams.get("favorites") === "1");
   const [sorting, setSorting] = useState<SortingState>(() => {
@@ -62,7 +65,8 @@ export function useUrlFilters() {
     categoryFilter.size > 0 ||
     brandFilter.size > 0 ||
     departmentFilter.size > 0 ||
-    favoritesOnly;
+    favoritesOnly ||
+    itemType !== "all";
 
   // Sync filters to URL search params
   useEffect(() => {
@@ -73,6 +77,7 @@ export function useUrlFilters() {
     categoryFilter.forEach((v) => params.append("category", v));
     brandFilter.forEach((v) => params.append("brand", v));
     departmentFilter.forEach((v) => params.append("department", v));
+    if (itemType !== "all") params.set("type", itemType);
     if (showAccessories) params.set("accessories", "1");
     if (favoritesOnly) params.set("favorites", "1");
     if (sorting.length > 0) {
@@ -82,7 +87,7 @@ export function useUrlFilters() {
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", newUrl);
-  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, showAccessories, favoritesOnly, sorting]);
+  }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, itemType, showAccessories, favoritesOnly, sorting]);
 
   const clearAllFilters = useCallback(() => {
     setStatusFilter(new Set());
@@ -91,6 +96,7 @@ export function useUrlFilters() {
     setBrandFilter(new Set());
     setDepartmentFilter(new Set());
     setFavoritesOnly(false);
+    setItemType("all");
   }, []);
 
   // Stable serialized keys for dependency tracking
@@ -103,6 +109,7 @@ export function useUrlFilters() {
 
   return {
     // State
+    itemType,
     favoritesOnly,
     showAccessories,
     search,
@@ -122,6 +129,7 @@ export function useUrlFilters() {
     departmentKey,
     sortKey,
     // Actions
+    setItemType,
     setFavoritesOnly,
     setShowAccessories,
     setSearch,

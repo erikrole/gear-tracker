@@ -109,27 +109,31 @@ export default function ItemsPage() {
 
   // Merge bulk items into the main table as Asset-shaped rows
   const mergedData = useMemo(() => {
-    if (!query.bulkItems.length) return query.items;
-    const bulkAssets: Asset[] = query.bulkItems.map((b: BulkItem) => ({
-      id: `bulk-${b.id}`,
-      assetTag: b.name,
-      name: null,
-      type: "Bulk",
-      brand: "",
-      model: "",
-      serialNumber: "",
-      status: "AVAILABLE",
-      computedStatus: `${b.onHandQuantity} ${b.unit}`,
-      createdAt: "",
-      location: { id: b.locationId, name: b.locationName },
-      category: b.categoryId ? { id: b.categoryId, name: b.category } : null,
-      department: null,
-      imageUrl: null,
-      activeBooking: null,
-      isFavorited: false,
-    }));
-    return [...query.items, ...bulkAssets];
-  }, [query.items, query.bulkItems]);
+    const bulkAssets: Asset[] = filters.itemType !== "serialized"
+      ? query.bulkItems.map((b: BulkItem) => ({
+          id: `bulk-${b.id}`,
+          assetTag: b.name,
+          name: null,
+          type: "Bulk",
+          brand: "",
+          model: "",
+          serialNumber: "",
+          status: "AVAILABLE",
+          computedStatus: `${b.onHandQuantity} ${b.unit}`,
+          createdAt: "",
+          location: { id: b.locationId, name: b.locationName },
+          category: b.categoryId ? { id: b.categoryId, name: b.category } : null,
+          department: null,
+          imageUrl: null,
+          activeBooking: null,
+          isFavorited: false,
+        }))
+      : [];
+
+    const serializedItems = filters.itemType !== "bulk" ? query.items : [];
+
+    return [...serializedItems, ...bulkAssets];
+  }, [query.items, query.bulkItems, filters.itemType]);
 
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
@@ -504,6 +508,8 @@ export default function ItemsPage() {
                 onShowAccessoriesChange={(v) => { filters.setShowAccessories(v); query.setPage(0); }}
                 favoritesOnly={filters.favoritesOnly}
                 onFavoritesOnlyChange={(v) => { filters.setFavoritesOnly(v); query.setPage(0); }}
+                itemType={filters.itemType}
+                onItemTypeChange={(v) => { filters.setItemType(v); query.setPage(0); }}
                 hasActiveFilters={filters.hasActiveFilters}
                 onClearAllFilters={() => { filters.clearAllFilters(); query.setPage(0); }}
                 locations={options.locations}
