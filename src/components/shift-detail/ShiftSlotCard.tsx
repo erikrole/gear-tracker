@@ -27,11 +27,6 @@ type ShiftAssignment = {
   user: ShiftUser;
 };
 
-const WORKER_LABELS: Record<string, string> = {
-  FT: "Full-time",
-  ST: "Student",
-};
-
 const STATUS_BADGES: Record<string, string> = {
   DIRECT_ASSIGNED: "blue",
   REQUESTED: "orange",
@@ -105,12 +100,9 @@ export function ShiftSlotCard({
       elevation="flat"
       className={`p-3 mb-2 ${isAssigned ? "border-[var(--green)]/20 bg-[var(--green-bg)]" : ""}`}
     >
-      {/* Header: worker type + status badge + delete */}
+      {/* Header: status badge + FT indicator (only shown for Full-time) + delete */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium">
-          {WORKER_LABELS[workerType] ?? workerType}
-        </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {isAssigned ? (
             <Badge variant="green" size="sm">Filled</Badge>
           ) : pendingRequests.length > 0 ? (
@@ -120,23 +112,26 @@ export function ShiftSlotCard({
           ) : (
             <Badge variant="red" size="sm">Open</Badge>
           )}
-          {isStaff && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="size-7 p-0 text-muted-foreground hover:text-destructive"
-                  onClick={onDeleteShift}
-                  disabled={acting !== null}
-                >
-                  <XIcon className="size-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Remove shift</TooltipContent>
-            </Tooltip>
+          {workerType === "FT" && (
+            <Badge variant="gray" size="sm">Full-time</Badge>
           )}
         </div>
+        {isStaff && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                onClick={onDeleteShift}
+                disabled={acting !== null}
+              >
+                <XIcon className="size-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Remove shift</TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {/* Active assignment */}

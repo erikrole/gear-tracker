@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
-import { AREA_LABELS, WORKER_LABELS } from "../_utils";
+import { AREA_LABELS } from "../_utils";
 
 type ShiftCoverageCardProps = {
   shiftGroup: ShiftGroupSummary;
@@ -72,7 +72,6 @@ export function ShiftCoverageCard({
               <TableHeader>
                 <TableRow>
                   <TableHead>Area</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead>Assigned</TableHead>
                   <TableHead>Shift</TableHead>
                   <TableHead>Gear</TableHead>
@@ -85,8 +84,12 @@ export function ShiftCoverageCard({
                   );
                   return (
                     <TableRow key={shift.id}>
-                      <TableCell>{AREA_LABELS[shift.area] ?? shift.area}</TableCell>
-                      <TableCell>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-1.5">
+                          {AREA_LABELS[shift.area] ?? shift.area}
+                          {shift.workerType === "FT" && <Badge variant="gray" size="sm">FT</Badge>}
+                        </span>
+                      </TableCell>
                       <TableCell>{shift.assignment ? shift.assignment.userName : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
                       <TableCell>
                         {shift.assignment ? (
@@ -160,7 +163,6 @@ export function ShiftCoverageCard({
             <TableHeader>
               <TableRow>
                 <TableHead>Area</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead>Assigned</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -173,8 +175,12 @@ export function ShiftCoverageCard({
                 const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
                 return (
                   <TableRow key={shift.id}>
-                    <TableCell>{AREA_LABELS[shift.area] ?? shift.area}</TableCell>
-                    <TableCell>{WORKER_LABELS[shift.workerType] ?? shift.workerType}</TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1.5">
+                        {AREA_LABELS[shift.area] ?? shift.area}
+                        {shift.workerType === "FT" && <Badge variant="gray" size="sm">FT</Badge>}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       {activeAssignment ? (
                         <span className="flex items-center gap-2">

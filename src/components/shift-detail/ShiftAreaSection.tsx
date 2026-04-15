@@ -1,4 +1,10 @@
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PlusIcon } from "lucide-react";
 import { ShiftSlotCard } from "./ShiftSlotCard";
 import type { PickerUser } from "./UserAvatarPicker";
@@ -49,7 +55,7 @@ type Props = {
   onPickerSearchChange: (value: string) => void;
   onOpenPicker: (shiftId: string) => void;
   onClosePicker: () => void;
-  onAddShift: () => void;
+  onAddShift: (workerType: string) => void;
   onDeleteShift: (shiftId: string, hasAssignment: boolean) => void;
   onAssign: (shiftId: string, userId: string) => void;
   onRemove: (assignmentId: string) => void;
@@ -96,17 +102,27 @@ export function ShiftAreaSection({
           )}
         </h3>
         {isStaff && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs text-muted-foreground"
-            onClick={onAddShift}
-            disabled={acting !== null}
-            title={`Add ${AREA_LABELS[area]} shift`}
-          >
-            <PlusIcon className="size-3.5 mr-0.5" />
-            Shift
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                disabled={acting !== null}
+              >
+                <PlusIcon className="size-3.5 mr-0.5" />
+                Shift
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={() => onAddShift("ST")}>
+                Student
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddShift("FT")}>
+                Full-time
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 

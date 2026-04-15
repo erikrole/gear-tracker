@@ -485,6 +485,9 @@ export function ListView({
                             >
                               {AREA_LABELS[shift.area] ?? shift.area}
                             </Badge>
+                            {shift.workerType === "FT" && (
+                              <Badge variant="gray" size="sm">FT</Badge>
+                            )}
                           </div>
                         );
                       })}

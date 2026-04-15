@@ -388,13 +388,14 @@ export default function ShiftDetailPanel({
     }, group.isPremier ? "Removed premier status" : "Marked as premier");
   }
 
-  function handleAddShift(area: string) {
+  function handleAddShift(area: string, workerType: string) {
     if (!group) return;
+    const label = workerType === "FT" ? "Full-time" : "Student";
     mutate(`add-${area}`, `/api/shift-groups/${group.id}/shifts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ area, workerType: "ST" }),
-    }, `Added ${area.charAt(0) + area.slice(1).toLowerCase()} shift`);
+      body: JSON.stringify({ area, workerType }),
+    }, `Added ${label} ${area.charAt(0) + area.slice(1).toLowerCase()} shift`);
   }
 
   async function handleDeleteShift(shiftId: string, hasAssignment: boolean) {
@@ -501,7 +502,7 @@ export default function ShiftDetailPanel({
                   onPickerSearchChange={setUserSearch}
                   onOpenPicker={(shiftId) => { setPickerShiftId(shiftId); setUserSearch(""); loadUsers(); }}
                   onClosePicker={() => setPickerShiftId(null)}
-                  onAddShift={() => handleAddShift(area)}
+                  onAddShift={(wt) => handleAddShift(area, wt)}
                   onDeleteShift={handleDeleteShift}
                   onAssign={handleAssign}
                   onRemove={handleRemove}
