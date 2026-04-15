@@ -53,8 +53,8 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
       shiftsData.push({
         area: sc.area,
         workerType: "ST" as ShiftWorkerType, // Default to student; staff can override
-        startsAt: event.startsAt,
-        endsAt: event.endsAt,
+        startsAt: new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
+        endsAt: new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
       });
     }
   }
@@ -176,6 +176,8 @@ export async function generateShiftsForEvents(opts: {
     const isHome = event.isHome ?? true;
 
     let hasShifts = false;
+    const shiftStart = new Date(event.startsAt.getTime() - config.shiftStartOffset * 60_000);
+    const shiftEnd = new Date(event.endsAt.getTime() + config.shiftEndOffset * 60_000);
     for (const sc of config.shiftConfigs) {
       const count = isHome ? sc.homeCount : sc.awayCount;
       for (let j = 0; j < count; j++) {
@@ -183,8 +185,8 @@ export async function generateShiftsForEvents(opts: {
           eventIndex: groupsToCreate.length,
           area: sc.area,
           workerType: "ST",
-          startsAt: event.startsAt,
-          endsAt: event.endsAt,
+          startsAt: shiftStart,
+          endsAt: shiftEnd,
         });
         hasShifts = true;
       }
@@ -313,8 +315,8 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
         shiftGroupId: event.shiftGroup.id,
         area: sc.area,
         workerType: "ST",
-        startsAt: event.startsAt,
-        endsAt: event.endsAt,
+        startsAt: new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
+        endsAt: new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
       });
     }
   }

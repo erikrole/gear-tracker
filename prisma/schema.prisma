@@ -108,6 +108,7 @@ model User {
   allowedEmailsCreated AllowedEmail[]    @relation("AllowedEmailCreator")
   allowedEmailsClaimed AllowedEmail[]    @relation("AllowedEmailClaimer")
   guides               Guide[]
+  availabilityBlocks   StudentAvailabilityBlock[]
 
   @@map("users")
 }
@@ -855,6 +856,21 @@ model ShiftTrade {
   @@index([postedByUserId])
   @@index([claimedByUserId])
   @@map("shift_trades")
+}
+
+model StudentAvailabilityBlock {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  dayOfWeek     Int      @map("day_of_week")    // 0=Sun, 1=Mon … 6=Sat
+  startsAt      String   @map("starts_at")      // "09:00" HH:mm local time
+  endsAt        String   @map("ends_at")        // "11:00" HH:mm local time
+  label         String?                          // e.g. "CHEM 101"
+  semesterLabel String?  @map("semester_label") // e.g. "Spring 2026"
+  createdAt     DateTime @default(now()) @map("created_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("student_availability_blocks")
 }
 
 model BookingPhoto {

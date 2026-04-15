@@ -8,6 +8,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
+import UserAvailabilityTab from "./UserAvailabilityTab";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -42,11 +43,12 @@ import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
-type TabKey = "info" | "activity";
+type TabKey = "info" | "activity" | "availability";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
   { key: "activity", label: "Activity" },
+  { key: "availability", label: "Availability" },
 ];
 
 /* ── Main Page ─────────────────────────────────────────── */
@@ -448,6 +450,10 @@ export default function UserDetailPage() {
 
       {activeTab === "activity" && (
         <UserActivityTab userId={user.id} />
+      )}
+
+      {activeTab === "availability" && (
+        <UserAvailabilityTab userId={user.id} canEdit={canEdit} />
       )}
     </FadeUp>
   );
