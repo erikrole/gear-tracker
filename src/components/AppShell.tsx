@@ -376,7 +376,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarTrigger className="shrink-0 text-foreground hover:bg-card hover:text-foreground" />
           {/* Search trigger (desktop + mobile) */}
           <button
-            className="flex-1 max-w-[400px] flex items-center gap-2 w-full py-2 px-3 border border-border rounded-lg bg-background cursor-pointer transition-colors text-[13px] text-muted-foreground hover:border-[var(--accent)] max-md:hidden [&_svg]:shrink-0 [&_svg]:text-muted-foreground"
+            className="flex-1 max-w-[400px] flex items-center gap-2 w-full py-2 px-3 border border-border rounded-lg bg-background cursor-pointer transition-colors text-[13px] text-muted-foreground hover:border-primary max-md:hidden [&_svg]:shrink-0 [&_svg]:text-muted-foreground"
             onClick={() => setCmdOpen(true)}
             type="button"
             aria-label="Search items, checkouts, reservations, users (⌘K)"
