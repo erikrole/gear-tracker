@@ -178,9 +178,9 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
           </div>
         </div>
 
-        {/* Overflow menu — top-right, reveal on hover */}
+        {/* Overflow menu — top-right, always visible on touch, reveal on hover for pointer devices */}
         <div
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}
         >
           <BookingOverflowMenu item={item} {...menuProps}>

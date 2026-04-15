@@ -62,10 +62,6 @@ function MenuItems({
     <>
       <Item onSelect={() => onViewDetails(item.id)}>View details</Item>
 
-      {allowed.has("edit") && (
-        <Item onSelect={() => onViewDetails(item.id)}>Edit</Item>
-      )}
-
       {allowed.has("extend") && (
         <>
           <Separator />
@@ -73,13 +69,13 @@ function MenuItems({
             onSelect={() => onExtend(item.id, 1)}
             disabled={extendingId === item.id}
           >
-            {extendingId === item.id ? "Extending..." : "Extend +1 day"}
+            {extendingId === item.id ? "Extending…" : "Extend +1 day"}
           </Item>
           <Item
             onSelect={() => onExtend(item.id, 7)}
             disabled={extendingId === item.id}
           >
-            {extendingId === item.id ? "Extending..." : "Extend +1 week"}
+            {extendingId === item.id ? "Extending…" : "Extend +1 week"}
           </Item>
         </>
       )}

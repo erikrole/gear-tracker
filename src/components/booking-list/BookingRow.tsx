@@ -5,6 +5,7 @@ import { formatDateCol, formatDuration, getStatusVisual, type BookingItem } from
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
 import { UserAvatar } from "@/components/UserAvatar";
 import { TableRow, TableCell } from "@/components/ui/table";
+import { MoreHorizontalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ───── Desktop table row ───── */
@@ -122,10 +123,10 @@ export function BookingTableRow({
         <TableCell onClick={(e) => e.stopPropagation()}>
           <BookingOverflowMenu item={item} {...menuProps}>
             <button
-              className="bg-transparent border-none text-muted-foreground text-xl p-1 px-2 cursor-pointer leading-none tracking-[2px] min-w-9 min-h-11 grid place-items-center [-webkit-tap-highlight-color:transparent] hover:text-foreground hover:bg-accent hover:rounded-md"
+              className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent [-webkit-tap-highlight-color:transparent] cursor-pointer bg-transparent border-none"
               aria-label="More actions"
             >
-              {"\u2026"}
+              <MoreHorizontalIcon className="size-4" />
             </button>
           </BookingOverflowMenu>
         </TableCell>
@@ -198,11 +199,11 @@ export function BookingMobileCard({
         </div>
         <BookingOverflowMenu item={item} {...menuProps}>
           <button
-            className="bg-transparent border-none text-muted-foreground text-xl p-1 px-2 cursor-pointer leading-none tracking-[2px] min-w-9 min-h-11 grid place-items-center [-webkit-tap-highlight-color:transparent] hover:text-foreground hover:bg-accent hover:rounded-md"
+            className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent [-webkit-tap-highlight-color:transparent] cursor-pointer bg-transparent border-none shrink-0"
             aria-label="More actions"
             onClick={(e) => e.stopPropagation()}
           >
-            {"\u2026"}
+            <MoreHorizontalIcon className="size-4" />
           </button>
         </BookingOverflowMenu>
       </div>
