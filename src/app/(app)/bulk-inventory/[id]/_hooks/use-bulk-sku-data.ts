@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { handleAuthRedirect, isAbortError, classifyError, type FetchErrorKind } from "@/lib/errors";
+import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import type { BulkSkuDetail } from "../types";
 
 export type UseBulkSkuDataReturn = {
@@ -22,6 +23,7 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
   const [currentUserRole, setCurrentUserRole] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const hasLoadedOnce = useRef(false);
+  const { setBreadcrumbLabel } = useBreadcrumbLabel();
 
   const loadSku = useCallback(() => {
     abortRef.current?.abort();
@@ -46,6 +48,7 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
         if (!json || controller.signal.aborted) return;
         if (json?.data) {
           setSku(json.data);
+          setBreadcrumbLabel(json.data.name);
           setFetchError(false);
           hasLoadedOnce.current = true;
         }

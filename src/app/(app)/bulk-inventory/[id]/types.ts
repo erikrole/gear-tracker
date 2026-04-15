@@ -18,6 +18,7 @@ export type BulkSkuDetail = {
   binQrCodeValue: string;
   minThreshold: number;
   trackByNumber: boolean;
+  imageUrl: string | null;
   active: boolean;
   onHand: number;
   availableQuantity: number;

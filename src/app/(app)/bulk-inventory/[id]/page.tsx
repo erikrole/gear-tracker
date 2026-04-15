@@ -73,7 +73,13 @@ export default function BulkSkuDetailPage() {
 
   return (
     <FadeUp>
-      <BulkSkuHeader sku={sku} refreshing={refreshing} canEdit={canEdit} onRefresh={loadSku} />
+      <BulkSkuHeader
+        sku={sku}
+        refreshing={refreshing}
+        canEdit={canEdit}
+        onRefresh={loadSku}
+        onImageChanged={(url) => setSku((prev) => prev ? { ...prev, imageUrl: url } : prev)}
+      />
 
       <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
         <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">

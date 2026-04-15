@@ -120,3 +120,13 @@ Plan files in `tasks/` follow this lifecycle:
 2. Active during implementation (slices checked off)
 3. Moved to `tasks/archive/` when all slices ship
 4. Never deleted — archive preserves decision context
+
+### 15. Edit Discipline (NON-NEGOTIABLE)
+Derived from claude-doctor analysis of 34 sessions (edit-thrashing #1 issue):
+- **Read the full file before editing.** No partial reads before making changes.
+- **Plan all changes first, then make ONE complete edit.** If you've touched a file 3+ times, stop and re-read the user's original requirements.
+- **Re-read the user's last message before responding.** Follow through on every instruction completely.
+- **Every few turns, re-read the original request** to confirm you haven't drifted from the goal.
+- **When the user corrects you:** stop, quote back what they asked for, confirm before proceeding.
+- **After 2 consecutive tool/approach failures:** stop entirely, summarize what failed, ask the user for guidance. Do not retry the same approach.
+- **Complete the FULL task before stopping.** If the user asked for multiple things, implement all of them before presenting results.

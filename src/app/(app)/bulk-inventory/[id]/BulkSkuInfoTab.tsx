@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { useSaveField } from "@/components/SaveableField";
 import type { BulkSkuDetail } from "./types";
@@ -77,30 +78,25 @@ export function BulkSkuInfoTab({
         <span className="text-sm">{sku.location.name}</span>
       </InfoRow>
 
-      <InfoRow label="Unit">
-        {canEdit ? (
-          <EditableText
-            value={sku.unit}
-            onSave={(v) => patchField("unit", v)}
-            placeholder="e.g. each, pair"
-          />
-        ) : (
-          <span className="text-sm">{sku.unit || "—"}</span>
-        )}
-      </InfoRow>
-
       <InfoRow label="Min threshold">
         {canEdit ? (
-          <EditableNumber
-            value={sku.minThreshold}
-            onSave={(v) => patchField("minThreshold", v)}
-          />
+          <div className="flex flex-col items-end gap-0.5">
+            <EditableNumber
+              value={sku.minThreshold}
+              onSave={(v) => patchField("minThreshold", v)}
+            />
+            <span className="text-xs text-muted-foreground">
+              {sku.minThreshold === 0 ? "No minimum set — low-stock alert disabled" : "Low-stock alert triggers below this"}
+            </span>
+          </div>
         ) : (
-          <span className="text-sm">{sku.minThreshold}</span>
+          <span className="text-sm">
+            {sku.minThreshold === 0 ? <span className="text-muted-foreground">No minimum</span> : sku.minThreshold}
+          </span>
         )}
       </InfoRow>
 
-      <InfoRow label="Bin QR code">
+      <InfoRow label="Bin QR">
         {canEdit ? (
           <EditableText
             value={sku.binQrCodeValue}
@@ -112,8 +108,10 @@ export function BulkSkuInfoTab({
         )}
       </InfoRow>
 
-      <InfoRow label="Track by number">
-        <span className="text-sm">{sku.trackByNumber ? "Yes" : "No"}</span>
+      <InfoRow label="Tracked by #">
+        <Badge variant={sku.trackByNumber ? "secondary" : "outline"} className="text-xs">
+          {sku.trackByNumber ? "Numbered units" : "Quantity only"}
+        </Badge>
       </InfoRow>
     </Card>
   );

@@ -55,6 +55,7 @@ const LABEL_MAP: Record<string, string> = {
 
 const HREF_OVERRIDE: Record<string, string> = {
   events: "/schedule",
+  "bulk-inventory": "/items",
 };
 
 const SIBLING_MAP: Record<string, ReadonlyArray<{ href: string; label: string }>> = {

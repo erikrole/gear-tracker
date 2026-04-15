@@ -21,15 +21,20 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 type Props = {
   open: boolean;
   onClose: () => void;
-  assetId: string;
+  /** Base upload endpoint, e.g. `/api/assets/{id}/image` or `/api/bulk-skus/{id}/image` */
+  uploadEndpoint?: string;
   currentImageUrl: string | null;
   onImageChanged: (newUrl: string | null) => void;
+  /** @deprecated Use uploadEndpoint instead */
+  assetId?: string;
 };
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_SIZE = 4.5 * 1024 * 1024;
 
-export default function ChooseImageModal({ open, onClose, assetId, currentImageUrl, onImageChanged }: Props) {
+export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetId, currentImageUrl, onImageChanged }: Props) {
+  // Support legacy assetId prop
+  const endpoint = uploadEndpoint ?? `/api/assets/${assetId}/image`;
   const [tab, setTab] = useState<"url" | "upload">("url");
   const [url, setUrl] = useState("");
   const [urlPreview, setUrlPreview] = useState<string | null>(null);
@@ -100,7 +105,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
     if (!urlPreview) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/assets/${assetId}/image`, {
+      const res = await fetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: urlPreview }),
@@ -126,7 +131,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`/api/assets/${assetId}/image`, {
+      const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -155,7 +160,7 @@ export default function ChooseImageModal({ open, onClose, assetId, currentImageU
     if (!ok) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/assets/${assetId}/image`, { method: "DELETE" });
+      const res = await fetch(endpoint, { method: "DELETE" });
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to remove image");
         throw new Error(msg);
