@@ -82,6 +82,13 @@
 - **Toolbar above the table border, not inside it**: shadcn data table pattern renders filter bar as a sibling div above the `rounded-md border` container, not as a sticky child inside it.
 - **Missing CSS classes render elements invisible**: If a function returns a CSS class name that doesn't exist in globals.css (e.g., `cal-booking-neutral`, `week-event-neutral`), the element gets no background/color and becomes invisible against the page. Always verify every class string maps to a real CSS rule — or use Tailwind where there's no disconnect.
 - **Pass filtered data to all views, not just some**: When a page has multiple view modes (list, week, calendar), every view must receive the same filtered data. CalendarView received `entries` (unfiltered) while siblings got `filteredEntries` — filters silently had no effect in one view.
+- **Migrate consumers before deleting CSS**: Always grep for all consumers of a CSS class first. Delete the CSS block only after every consumer is migrated. Reverse order leaves elements unstyled.
+- **`[&+&]:border-t` for adjacent sibling separators**: Tailwind equivalent of `.A + .A { border-top }`. Applies only when the same element immediately follows itself — no wrapper div needed.
+- **`group` + `group-hover:` for parent-triggered child reveal**: For `.parent:hover .child { opacity: 1 }`, add `group` to the parent and `group-hover:opacity-100 focus-visible:opacity-100` to the child. No global CSS needed.
+- **`[&_th]:` / `[&_td]:` for table base styles without a wrapper class**: Apply shared cell styles at the `<table>` level using child-combinator modifiers. Per-cell `className` overrides still work alongside them.
+- **`data-[state=on]:` for Radix active-state styling**: ToggleGroupItem and similar Radix primitives expose their state as data attributes — drive visual state inline without CSS class overrides in globals.css.
+- **Unused badge variants accumulate over time**: Audit `badgeVariants` periodically. Variants that share the same visual output (e.g. `mixed = purple`, `yellow = orange`) should be collapsed. Dead variants add TS union complexity with no UI benefit.
+- **`--accent` means primary here, not accent**: In this codebase `--accent` maps to the brand/primary color. Prefer `var(--primary)` or the Tailwind `primary` utility so intent is explicit.
 
 ## Input Validation
 
