@@ -150,7 +150,7 @@ export default function EventDetailPage() {
         {event.location ? (
           <Badge variant="blue">{event.location.name}</Badge>
         ) : (
-          <Badge variant="orange">needs location mapping</Badge>
+          <Badge variant="gray">No venue</Badge>
         )}
       </div>
 

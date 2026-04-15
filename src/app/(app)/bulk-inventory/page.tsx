@@ -338,7 +338,11 @@ export default function BulkInventoryPage() {
         ) : loading ? (
           <SkeletonTable rows={6} cols={6} />
         ) : filteredItems.length === 0 ? (
-          <EmptyState icon="box" title="No bulk SKUs found" description={search ? "Try adjusting your search." : "Add your first bulk SKU above."} />
+          <EmptyState
+            icon="box"
+            title={search ? `No results for "${search}"` : "No bulk SKUs yet"}
+            description={search ? "Try a different search term or clear to see all SKUs." : "Add your first bulk SKU using the form above."}
+          />
         ) : (
           <>
             <Table>

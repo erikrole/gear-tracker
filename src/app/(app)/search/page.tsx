@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
-import { SearchIcon, WifiOff, XIcon } from "lucide-react";
+import { AlertCircleIcon, SearchIcon, WifiOff, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
@@ -35,7 +35,7 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [searchError, setSearchError] = useState(false);
+  const [searchError, setSearchError] = useState<"network" | "server" | false>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -72,7 +72,7 @@ export default function SearchPage() {
 
     setLoading(true);
     setSearched(true);
-    setSearchError(false);
+    setSearchError(false as const);
 
     const encoded = encodeURIComponent(trimmed);
 
@@ -142,13 +142,20 @@ export default function SearchPage() {
       }
 
       if (!controller.signal.aborted) {
-        setResults(merged);
+        // If every source failed (server-side error), surface an error rather
+        // than silently showing an empty "No results" state.
+        const allFailed = !itemsRes.ok && !checkoutsRes.ok && !reservationsRes.ok && !usersRes.ok;
+        if (allFailed) {
+          setSearchError("server");
+        } else {
+          setResults(merged);
+        }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (!controller.signal.aborted) {
         setResults([]);
-        setSearchError(true);
+        setSearchError("network");
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -238,8 +245,14 @@ export default function SearchPage() {
 
       {!loading && searchError && query.trim() && (
         <div className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
-          <WifiOff className="size-8 opacity-40" />
-          <p className="text-sm">Search failed. Check your connection and try again.</p>
+          {searchError === "network"
+            ? <WifiOff className="size-8 opacity-40" />
+            : <AlertCircleIcon className="size-8 opacity-40" />}
+          <p className="text-sm">
+            {searchError === "network"
+              ? "Can\u2019t connect \u2014 check your connection and try again."
+              : "Search failed \u2014 something went wrong on our end. Try again."}
+          </p>
         </div>
       )}
 
