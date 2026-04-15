@@ -76,6 +76,7 @@ export type OverdueItem = {
   bookingTitle: string;
   requesterName: string;
   requesterInitials: string;
+  requesterAvatarUrl: string | null;
   assetTags: string[];
   endsAt: string;
   items: ItemThumb[];

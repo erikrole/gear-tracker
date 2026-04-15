@@ -200,12 +200,13 @@ export const GET = withAuth(async (_req, { user }) => {
         },
       },
     }),
-    // Top overdue for banner
+    // Top overdue for banner — students see only their own
     db.booking.findMany({
       where: {
         kind: "CHECKOUT",
         status: "OPEN",
         endsAt: { lt: now },
+        ...(user.role === "STUDENT" && { requesterUserId: user.id }),
       },
       orderBy: { endsAt: "asc" },
       take: 5,
@@ -374,6 +375,7 @@ export const GET = withAuth(async (_req, { user }) => {
     bookingTitle: b.title,
     requesterName: b.requester.name,
     requesterInitials: getInitials(b.requester.name),
+    requesterAvatarUrl: b.requester.avatarUrl ?? null,
     assetTags: b.serializedItems.map((si) => si.asset.assetTag),
     endsAt: b.endsAt.toISOString(),
     items: b.serializedItems.map((si) => ({
@@ -492,7 +494,7 @@ export const GET = withAuth(async (_req, { user }) => {
           })),
         };
       }),
-      overdueCount: totalOverdue,
+      overdueCount: user.role === "STUDENT" ? myOverdueCount : totalOverdue,
       overdueItems,
       drafts: myDrafts.map((d) => ({
         id: d.id,

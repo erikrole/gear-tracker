@@ -285,6 +285,7 @@ export default function DashboardPage() {
           overdueItems={data?.overdueItems ?? []}
           now={now}
           onSelectBooking={setSelectedBookingId}
+          canAction={!isStudent}
         />
       )}
 

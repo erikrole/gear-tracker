@@ -21,9 +21,10 @@ type Props = {
   overdueItems: OverdueItem[];
   now: Date;
   onSelectBooking: (id: string) => void;
+  canAction?: boolean;
 };
 
-export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking }: Props) {
+export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking, canAction = true }: Props) {
   const [nudgedIds, setNudgedIds] = useState<Set<string>>(new Set());
   const [nudgingId, setNudgingId] = useState<string | null>(null);
 
@@ -58,9 +59,9 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
           <span className="size-2 rounded-full bg-background shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none" />
           <strong>{overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}</strong>
         </div>
-        <a href="/checkouts?filter=overdue" className="text-white/85 text-sm font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">
+        <Link href="/checkouts?filter=overdue" className="text-white/85 text-sm font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">
           {overdueCount === 1 ? "Resolve overdue" : "Resolve all overdue"} &rarr;
-        </a>
+        </Link>
       </div>
       <div className="flex flex-col gap-1.5">
         {overdueItems.map((item) => (
@@ -72,54 +73,56 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
               <span className="text-sm font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
               <span className="flex items-center gap-1 text-xs opacity-75 [&_[data-slot=avatar-fallback]]:bg-white/20 [&_[data-slot=avatar-fallback]]:text-white">
-                <UserAvatar name={item.requesterName} />
+                <UserAvatar name={item.requesterName} avatarUrl={item.requesterAvatarUrl} />
                 {item.requesterName}
                 {item.items.length > 0 && <> &middot; <GearAvatarStack items={item.items} totalCount={item.assetTags.length} /></>}
                 {item.items.length === 0 && item.assetTags.length > 0 && <> &middot; {item.assetTags.join(", ")}</>}
                  &middot; <span className="text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full whitespace-nowrap">{formatOverdueElapsed(item.endsAt, now)}</span>
               </span>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
-                    asChild
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Link href={`/scan?checkout=${item.bookingId}&phase=CHECKIN`} aria-label={`Check in ${item.bookingTitle}`}>
-                      <ClipboardCheckIcon className="size-4" />
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Check in</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
-                    disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
-                    onClick={(e) => handleNudge(e, item.bookingId)}
-                    aria-label={`Nudge ${item.requesterName}`}
-                  >
-                    {nudgingId === item.bookingId ? (
-                      <Spinner />
-                    ) : nudgedIds.has(item.bookingId) ? (
-                      <CheckIcon className="size-4 text-green-500" />
-                    ) : (
-                      <BellRingIcon className="size-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {nudgedIds.has(item.bookingId) ? "Nudge sent" : `Nudge ${item.requesterName}`}
-                </TooltipContent>
-              </Tooltip>
-            </div>
+            {canAction && (
+              <div className="flex items-center gap-1 shrink-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Link href={`/scan?checkout=${item.bookingId}&phase=CHECKIN`} aria-label={`Check in ${item.bookingTitle}`}>
+                        <ClipboardCheckIcon className="size-4" />
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Check in</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
+                      disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
+                      onClick={(e) => handleNudge(e, item.bookingId)}
+                      aria-label={`Nudge ${item.requesterName}`}
+                    >
+                      {nudgingId === item.bookingId ? (
+                        <Spinner />
+                      ) : nudgedIds.has(item.bookingId) ? (
+                        <CheckIcon className="size-4 text-green-500" />
+                      ) : (
+                        <BellRingIcon className="size-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {nudgedIds.has(item.bookingId) ? "Nudge sent" : `Nudge ${item.requesterName}`}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
           </button>
         ))}
       </div>
