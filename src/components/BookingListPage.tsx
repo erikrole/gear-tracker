@@ -278,7 +278,15 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             onAction={reload}
           />
         ) : items.length === 0 ? (
-          <EmptyState icon="clipboard" title={`No ${config.labelPlural.toLowerCase()} found`} description="Try adjusting your search or filters." />
+          <EmptyState
+            icon="clipboard"
+            title={search || statusFilter || sportFilter || locationFilter || userFilter || specialFilter
+              ? `No ${config.labelPlural.toLowerCase()} match your filters`
+              : `No ${config.labelPlural.toLowerCase()} yet`}
+            description={search || statusFilter || sportFilter || locationFilter || userFilter || specialFilter
+              ? "Try a different search term or clear filters to see all results."
+              : `${config.label.charAt(0).toUpperCase() + config.label.slice(1)}s you create will appear here.`}
+          />
         ) : (
           <>
             {viewMode === "cards" ? (
@@ -307,10 +315,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                     <TableHeader>
                       <TableRow>
                         <SortHeader label="Name" sortKey="title" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
-                        <SortHeader label="From" sortKey="startsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
-                        <SortHeader label="To" sortKey="endsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                        <SortHeader label={config.startLabel} sortKey="startsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
+                        <SortHeader label={config.endLabel} sortKey="endsAt" currentSort={sort} onSort={(s) => { setSort(s); setPage(0); }} />
                         <TableHead className="hidden md:table-cell">Duration</TableHead>
-                        <TableHead className="hidden md:table-cell">User</TableHead>
+                        <TableHead className="hidden md:table-cell">{config.requesterLabel}</TableHead>
                         <TableHead className="hidden md:table-cell">Items</TableHead>
                         <TableHead className="w-11" />
                       </TableRow>

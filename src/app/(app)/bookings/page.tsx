@@ -208,7 +208,7 @@ export default function BookingsPage() {
           if (!r) return;
           const ok = await confirm({
             title: "Cancel reservation",
-            message: `Cancel "${r.title}"? This action cannot be undone.`,
+            message: `Cancel "${r.title}"? All held equipment will be released back to inventory.`,
             confirmLabel: "Cancel reservation",
             variant: "danger",
           });

@@ -354,14 +354,18 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             unavailableAssets?: Array<{ assetId: string; status: string }>;
             shortages?: Array<{ bulkSkuId: string; requested: number; available: number }>;
           };
+          // Auto-remove conflicting/unavailable assets so user doesn't have to find them manually
+          const conflictingAssetIds = new Set<string>();
           if (d.conflicts?.length) {
             for (const c of d.conflicts) {
+              conflictingAssetIds.add(c.assetId);
               const tag = selectedAssetDetails.find((a) => a.id === c.assetId)?.assetTag || c.assetId;
               msgs.push(`${tag} conflicts with \u201c${c.conflictingBookingTitle || "another booking"}\u201d`);
             }
           }
           if (d.unavailableAssets?.length) {
             for (const u of d.unavailableAssets) {
+              conflictingAssetIds.add(u.assetId);
               const tag = selectedAssetDetails.find((a) => a.id === u.assetId)?.assetTag || u.assetId;
               msgs.push(`${tag} is ${u.status === "MAINTENANCE" ? "in maintenance" : u.status.toLowerCase()}`);
             }
@@ -372,7 +376,12 @@ export function BookingWizard({ kind }: BookingWizardProps) {
               msgs.push(`${name}: only ${s.available} available (requested ${s.requested})`);
             }
           }
-          setCreateError(msgs.length > 0 ? msgs.join(". ") : json.error || "Availability conflict");
+          if (conflictingAssetIds.size > 0) {
+            setSelectedAssetIds((prev) => prev.filter((id) => !conflictingAssetIds.has(id)));
+          }
+          const removedCount = conflictingAssetIds.size;
+          const removedSuffix = removedCount > 0 ? ` \u2014 ${removedCount} item${removedCount !== 1 ? "s" : ""} removed from your selection` : "";
+          setCreateError((msgs.length > 0 ? msgs.join(". ") : json.error || "Availability conflict") + removedSuffix);
           setStep(2);
         } else {
           setCreateError(json.error || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
@@ -383,7 +392,8 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       }
 
       await deleteDraft();
-      toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)} created`);
+      const refNumber: string | undefined = json.data?.refNumber;
+      toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)} created${refNumber ? ` \u2014 ${refNumber}` : ""}`);
 
       const bookingId = json.data.id;
       if (kind === "CHECKOUT") {
