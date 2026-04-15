@@ -4,6 +4,7 @@ import { withHandler } from "@/lib/api";
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
+import { expireOpenTrades } from "@/lib/services/shift-trades";
 
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -94,11 +95,15 @@ export const GET = withHandler(async (req) => {
     archived = result.count;
   }
 
+  // ── 3. Expire stale open/claimed trades ──────────────────────────────
+  const { expired: tradesExpired } = await expireOpenTrades();
+
   return NextResponse.json({
     ok: true,
     runAt: now.toISOString(),
     sourcesProcessed: sources.length,
     syncResults,
     archived,
+    tradesExpired,
   });
 });
