@@ -23,6 +23,7 @@ import { formatDateTime, formatDate } from "./_utils";
 import { formatRelativeTime } from "@/lib/format";
 import { EventSkeleton } from "./_components/EventSkeleton";
 import { ShiftCoverageCard } from "./_components/ShiftCoverageCard";
+import { EventTravelCard } from "./_components/EventTravelCard";
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -229,6 +230,15 @@ export default function EventDetailPage() {
               setActing(null);
             }
           }}
+        />
+      )}
+
+      {/* Away travel roster */}
+      {event.isHome === false && event.sportCode && (
+        <EventTravelCard
+          eventId={id}
+          sportCode={event.sportCode}
+          isStaff={isStaffOrAdmin}
         />
       )}
 

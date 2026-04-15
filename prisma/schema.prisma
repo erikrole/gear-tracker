@@ -109,6 +109,7 @@ model User {
   allowedEmailsClaimed AllowedEmail[]    @relation("AllowedEmailClaimer")
   guides               Guide[]
   availabilityBlocks   StudentAvailabilityBlock[]
+  travelMemberships    EventTravelMember[]        @relation("TravelMembers")
 
   @@map("users")
 }
@@ -597,6 +598,7 @@ model CalendarEvent {
   location          Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
   bookings          Booking[]
   shiftGroup        ShiftGroup?
+  travelMembers     EventTravelMember[]
 
   @@unique([sourceId, externalId])
   @@index([startsAt, endsAt])
@@ -813,11 +815,12 @@ model ShiftAssignment {
 }
 
 model StudentSportAssignment {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  sportCode String   @map("sport_code")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  sportCode       String   @map("sport_code")
+  defaultTraveler Boolean  @default(false) @map("default_traveler")
+  createdAt       DateTime @default(now()) @map("created_at")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sportCode])
   @@index([sportCode])
@@ -947,4 +950,20 @@ model Guide {
   @@index([category])
   @@index([published])
   @@map("guides")
+}
+
+// ── Away Travel Roster ────────────────────────────────────
+
+model EventTravelMember {
+  id        String        @id @default(cuid())
+  eventId   String        @map("event_id")
+  userId    String        @map("user_id")
+  notes     String?
+  createdAt DateTime      @default(now()) @map("created_at")
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User          @relation("TravelMembers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@map("event_travel_members")
 }

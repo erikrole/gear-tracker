@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
+import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { sportRosterSchema, sportRosterBulkSchema } from "@/lib/validation";
@@ -67,6 +68,32 @@ export const POST = withAuth<{ sportCode: string }>(async (req, { user, params }
   });
 
   return ok({ data: assignment }, 201);
+});
+
+export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params }) => {
+  requirePermission(user.role, "student_sport", "manage");
+  const { sportCode } = params;
+
+  const { assignmentId, defaultTraveler } = z.object({
+    assignmentId: z.string().cuid(),
+    defaultTraveler: z.boolean(),
+  }).parse(await req.json());
+
+  const assignment = await db.studentSportAssignment.findUnique({
+    where: { id: assignmentId },
+    select: { sportCode: true },
+  });
+  if (!assignment || assignment.sportCode !== sportCode) {
+    throw new HttpError(404, "Assignment not found");
+  }
+
+  const updated = await db.studentSportAssignment.update({
+    where: { id: assignmentId },
+    data: { defaultTraveler },
+    include: { user: { select: { id: true, name: true, role: true, primaryArea: true } } },
+  });
+
+  return ok({ data: updated });
 });
 
 export const DELETE = withAuth<{ sportCode: string }>(async (req, { user, params }) => {

@@ -26,7 +26,7 @@ import { db } from "@/lib/db";
  * Resolve local day-of-week + HH:mm time for a UTC Date using the
  * institution's timezone (America/New_York by default, or env override).
  */
-const TZ = process.env.INSTITUTION_TZ ?? "America/New_York";
+const TZ = process.env.INSTITUTION_TZ ?? "America/Chicago";
 
 function toLocalComponents(dt: Date): { day: number; hhmm: string } {
   const parts = new Intl.DateTimeFormat("en-US", {
