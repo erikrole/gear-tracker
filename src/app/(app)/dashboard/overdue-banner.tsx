@@ -52,32 +52,59 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
   if (overdueCount === 0) return null;
 
   return (
-    <div className="bg-[var(--wi-red)] rounded-lg p-4 mb-4 text-white border-l-4 border-l-[var(--wi-red-hover)] animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
-      <div className="flex items-center justify-between gap-3 mb-2.5 max-md:flex-wrap">
-        <div className="flex items-center gap-2 text-[15px] font-semibold">
-          <AlertTriangleIcon className="shrink-0 size-[18px]" />
-          <span className="size-2 rounded-full bg-background shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none" />
-          <strong>{overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}</strong>
+    <div className="relative border border-[var(--wi-red)]/25 bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.10] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+      {/* Left accent bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--wi-red)]" aria-hidden="true" />
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--wi-red)]/15">
+        <div className="flex items-center gap-2">
+          <AlertTriangleIcon className="size-3.5 text-[var(--wi-red)] shrink-0" />
+          <span
+            className="size-1.5 rounded-full bg-[var(--wi-red)] shrink-0 animate-[pulse-dot-anim_2s_ease-in-out_infinite] motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+          <span
+            className="text-[11px] uppercase tracking-[0.14em] text-[var(--wi-red)] font-semibold"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
+            {overdueCount} overdue checkout{overdueCount !== 1 ? "s" : ""}
+          </span>
         </div>
-        <Link href="/checkouts?filter=overdue" className="text-white/85 text-sm font-medium no-underline whitespace-nowrap shrink-0 hover:text-white hover:underline">
-          {overdueCount === 1 ? "Resolve overdue" : "Resolve all overdue"} &rarr;
+        <Link
+          href="/checkouts?filter=overdue"
+          className="text-[10.5px] text-muted-foreground/60 hover:text-muted-foreground no-underline transition-colors whitespace-nowrap shrink-0"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
+          {overdueCount === 1 ? "Resolve →" : "Resolve all →"}
         </Link>
       </div>
-      <div className="flex flex-col gap-1.5">
+
+      {/* Item rows */}
+      <div className="flex flex-col">
         {overdueItems.map((item) => (
           <button
             key={item.bookingId}
-            className="flex items-center gap-2 bg-white/10 rounded-md px-3 py-2 cursor-pointer text-white w-full text-left transition-colors hover:bg-white/[0.18] focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-[-2px]"
+            className="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer text-inherit w-full text-left transition-colors hover:bg-[var(--wi-red)]/[0.07] border-b border-[var(--wi-red)]/10 last:border-b-0 focus-visible:outline-2 focus-visible:outline-[var(--wi-red)]/50 focus-visible:outline-offset-[-2px]"
             onClick={() => onSelectBooking(item.bookingId)}
           >
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-sm font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
-              <span className="flex items-center gap-1 text-xs opacity-75 [&_[data-slot=avatar-fallback]]:bg-white/20 [&_[data-slot=avatar-fallback]]:text-white">
+              <span className="text-sm font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                {item.bookingTitle}
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <UserAvatar name={item.requesterName} avatarUrl={item.requesterAvatarUrl} />
                 {item.requesterName}
-                {item.items.length > 0 && <> &middot; <GearAvatarStack items={item.items} totalCount={item.assetTags.length} /></>}
-                {item.items.length === 0 && item.assetTags.length > 0 && <> &middot; {item.assetTags.join(", ")}</>}
-                 &middot; <span className="text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full whitespace-nowrap">{formatOverdueElapsed(item.endsAt, now)}</span>
+                {item.items.length > 0 && (
+                  <> &middot; <GearAvatarStack items={item.items} totalCount={item.assetTags.length} /></>
+                )}
+                {item.items.length === 0 && item.assetTags.length > 0 && (
+                  <> &middot; {item.assetTags.join(", ")}</>
+                )}
+                &middot;{" "}
+                <span className="text-[11px] font-bold bg-[var(--wi-red)]/15 text-[var(--wi-red)] px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {formatOverdueElapsed(item.endsAt, now)}
+                </span>
               </span>
             </div>
             {canAction && (
@@ -87,11 +114,14 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
+                      className="shrink-0 size-8 text-[var(--wi-red)]/60 hover:text-[var(--wi-red)] hover:bg-[var(--wi-red)]/10"
                       asChild
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Link href={`/scan?checkout=${item.bookingId}&phase=CHECKIN`} aria-label={`Check in ${item.bookingTitle}`}>
+                      <Link
+                        href={`/scan?checkout=${item.bookingId}&phase=CHECKIN`}
+                        aria-label={`Check in ${item.bookingTitle}`}
+                      >
                         <ClipboardCheckIcon className="size-4" />
                       </Link>
                     </Button>
@@ -103,7 +133,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="shrink-0 size-8 text-white/70 hover:text-white hover:bg-white/10"
+                      className="shrink-0 size-8 text-[var(--wi-red)]/60 hover:text-[var(--wi-red)] hover:bg-[var(--wi-red)]/10"
                       disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
                       onClick={(e) => handleNudge(e, item.bookingId)}
                       aria-label={`Nudge ${item.requesterName}`}

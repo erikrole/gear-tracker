@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangleIcon, WrenchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { FlaggedItem } from "../dashboard-types";
@@ -27,7 +28,10 @@ export function FlaggedItemsBanner({ items }: Props) {
   if (maintenance > 0) parts.push(`${maintenance} maintenance`);
 
   return (
-    <div className="border border-amber-500/20 bg-amber-500/[0.04] dark:bg-amber-500/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="relative border border-amber-500/20 bg-amber-500/[0.04] dark:bg-amber-500/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+      {/* Left accent bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500" aria-hidden="true" />
+
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-amber-500/15">
         <div className="flex items-center gap-2">
@@ -39,13 +43,13 @@ export function FlaggedItemsBanner({ items }: Props) {
             {parts.join(" · ")}
           </span>
         </div>
-        <a
+        <Link
           href="/items?status=flagged"
           className="text-[10.5px] text-muted-foreground/60 hover:text-muted-foreground no-underline transition-colors whitespace-nowrap"
           style={{ fontFamily: "var(--font-mono)" }}
         >
           {items.length > 5 ? `+${items.length - 5} more →` : "View all →"}
-        </a>
+        </Link>
       </div>
 
       {/* Item rows */}
@@ -53,7 +57,7 @@ export function FlaggedItemsBanner({ items }: Props) {
         {items.slice(0, 5).map((item) => {
           const cfg = TYPE_CONFIG[item.type];
           return (
-            <a
+            <Link
               key={item.id}
               href={`/items/${item.assetId}`}
               className="flex items-center gap-2.5 px-4 py-2.5 no-underline text-inherit transition-colors hover:bg-amber-500/[0.07] border-b border-amber-500/10 last:border-b-0"
@@ -85,7 +89,7 @@ export function FlaggedItemsBanner({ items }: Props) {
                   {item.bookingTitle}
                 </span>
               )}
-            </a>
+            </Link>
           );
         })}
       </div>
