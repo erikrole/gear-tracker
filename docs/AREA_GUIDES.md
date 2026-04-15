@@ -52,6 +52,7 @@ All mutations use `createAuditEntry` per D-007.
 | GET | `/api/guides/[id]` | All | Single guide by ID or slug |
 | PATCH | `/api/guides/[id]` | STAFF/ADMIN | Update guide |
 | DELETE | `/api/guides/[id]` | ADMIN | Delete guide |
+| POST | `/api/guides/upload-image` | STAFF/ADMIN | Upload image to Vercel Blob; returns `{ url }`. Max 10MB per image. Used by BlockNote `uploadFile` handler to avoid base64 inlining. |
 
 ## Acceptance Criteria Status
 
@@ -61,7 +62,7 @@ All mutations use `createAuditEntry` per D-007.
 | AC-2 | Students can read published guides; drafts are invisible to them | ✅ Complete |
 | AC-3 | Category filter chips reduce the list correctly | ✅ Complete |
 | AC-4 | BlockNote editor supports headings, lists, code blocks, callouts | ✅ Complete |
-| AC-5 | Guide reader renders cleanly on mobile | ✅ Complete (max-w-3xl, responsive) |
+| AC-5 | Guide reader renders cleanly on mobile | ✅ Complete (max-w-5xl, responsive) |
 | AC-6 | Every mutation is audit-logged | ✅ Complete |
 | AC-7 | `npm run build` passes | ✅ Complete |
 
@@ -69,3 +70,4 @@ All mutations use `createAuditEntry` per D-007.
 | Date | Change |
 |------|--------|
 | 2026-04-14 | Feature shipped: schema (Guide model + migration 0032), service, API routes, list page, reader, create/edit pages, sidebar nav entry. All ACs met. |
+| 2026-04-15 | Image upload to Vercel Blob: added `/api/guides/upload-image` route; wired BlockNote `uploadFile` on create/edit pages. Prevents 413 errors from base64-inlined images. Editor canvas widened to `max-w-5xl` / `min-h-600px`; reader matched. |
