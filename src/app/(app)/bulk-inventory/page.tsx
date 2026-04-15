@@ -1,6 +1,7 @@
 "use client";
 
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 import { useFetch } from "@/hooks/use-fetch";
 import { useUrlState } from "@/hooks/use-url-state";
@@ -77,11 +78,14 @@ const UNIT_STATUS_CLASSES: Record<string, { card: string; dot: string; label: st
 
 export default function BulkInventoryPage() {
   const confirm = useConfirm();
+  const searchParams = useSearchParams();
+  const focusedSkuId = searchParams.get("sku");
   const [page, setPage] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const createFormRef = useRef<HTMLFormElement>(null);
   const [expandedSku, setExpandedSku] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const [trackByNumber, setTrackByNumber] = useState(false);
   const [addingUnits, setAddingUnits] = useState<string | null>(null);
   const [addCount, setAddCount] = useState(10);
@@ -99,6 +103,15 @@ export default function BulkInventoryPage() {
   });
   const items = skuData?.data ?? [];
   const total = skuData?.total ?? 0;
+
+  // When navigated from the items list with ?sku=, scroll to and highlight that row
+  useEffect(() => {
+    if (!focusedSkuId || loading) return;
+    const el = rowRefs.current[focusedSkuId];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [focusedSkuId, loading]);
 
   const { data: formOpts } = useFetch<{ locations: Location[] }>({
     url: "/api/form-options",
@@ -364,11 +377,16 @@ export default function BulkInventoryPage() {
                   const isLow = available <= sku.minThreshold && sku.minThreshold > 0;
                   const isExpanded = expandedSku === sku.id;
                   const units = sku.units ?? [];
+                  const isFocused = focusedSkuId === sku.id;
 
                   return (
                     <TableRow
                       key={sku.id}
-                      className={sku.trackByNumber ? "cursor-pointer" : undefined}
+                      ref={(el) => { rowRefs.current[sku.id] = el; }}
+                      className={[
+                        sku.trackByNumber ? "cursor-pointer" : undefined,
+                        isFocused ? "ring-2 ring-inset ring-primary/40 bg-primary/5 transition-colors" : undefined,
+                      ].filter(Boolean).join(" ")}
                       onClick={() => sku.trackByNumber && setExpandedSku(isExpanded ? null : sku.id)}
                     >
                       <TableCell className="font-medium">

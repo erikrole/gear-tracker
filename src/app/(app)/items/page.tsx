@@ -191,7 +191,7 @@ export default function ItemsPage() {
     if (busyRef.current) return;
     switch (action) {
       case "open":
-        router.push(asset.id.startsWith("bulk-") ? "/bulk-inventory" : `/items/${asset.id}`);
+        router.push(asset.id.startsWith("bulk-") ? `/bulk-inventory?sku=${asset.id.slice(5)}` : `/items/${asset.id}`);
         break;
       case "duplicate":
         busyRef.current = true;
