@@ -25,7 +25,16 @@ export default function NewGuidePage() {
   const [category, setCategory] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const editor = useCreateBlockNote();
+  async function uploadFile(file: File): Promise<string> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/guides/upload-image", { method: "POST", body: fd });
+    if (!res.ok) throw new Error("Image upload failed");
+    const json = (await res.json()) as { url: string };
+    return json.url;
+  }
+
+  const editor = useCreateBlockNote({ uploadFile });
 
   const { data: meData } = useFetch<MeResponse>({
     url: "/api/me",
@@ -90,7 +99,7 @@ export default function NewGuidePage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto">
+    <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
       <div>
         <Link
           href="/guides"
@@ -135,7 +144,7 @@ export default function NewGuidePage() {
         </div>
       </div>
 
-      <div className="rounded-lg border min-h-[300px]">
+      <div className="rounded-lg border min-h-[600px]">
         <BlockNoteView editor={editor} editable={!submitting} />
       </div>
 

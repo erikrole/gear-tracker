@@ -34,7 +34,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   });
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto">
+    <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
       {/* Back link */}
       <div>
         <Link

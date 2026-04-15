@@ -55,7 +55,16 @@ export default function EditGuidePage({ params }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  const editor = useCreateBlockNote();
+  async function uploadFile(file: File): Promise<string> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/guides/upload-image", { method: "POST", body: fd });
+    if (!res.ok) throw new Error("Image upload failed");
+    const json = (await res.json()) as { url: string };
+    return json.url;
+  }
+
+  const editor = useCreateBlockNote({ uploadFile });
 
   const { data: meData } = useFetch<MeResponse>({
     url: "/api/me",
@@ -155,7 +164,7 @@ export default function EditGuidePage({ params }: Props) {
 
   if (loading || !ready) {
     return (
-      <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto">
+      <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
         <Skeleton className="h-5 w-20" />
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-10 w-full" />
@@ -166,7 +175,7 @@ export default function EditGuidePage({ params }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-3xl mx-auto">
+    <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
       <div>
         <Link
           href={`/guides/${slug}`}
@@ -213,7 +222,7 @@ export default function EditGuidePage({ params }: Props) {
         </div>
       </div>
 
-      <div className="rounded-lg border min-h-[300px]">
+      <div className="rounded-lg border min-h-[600px]">
         <BlockNoteView
           editor={editor}
           editable={!submitting}
