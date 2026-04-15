@@ -43,7 +43,7 @@ export function MyGearColumn({
 }: Props) {
   return (
     <div className="flex flex-col gap-4">
-      <span className="text-xs font-semibold text-muted-foreground pl-0.5">My Gear</span>
+      <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 pl-0.5" style={{ fontFamily: "var(--font-mono)" }}>My Gear</span>
 
       {/* My Checkouts */}
       <ScaleIn delay={0}>
@@ -66,9 +66,9 @@ export function MyGearColumn({
                     ownedAccent
                       ? "border-l-primary hover:bg-muted/50"
                       : c.isOverdue
-                      ? "border-l-red-600 bg-red-600/[0.06] hover:bg-red-600/10"
+                      ? "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] hover:bg-[var(--wi-red)]/10"
                       : isDueToday(c.endsAt, now)
-                      ? "border-l-amber-600 bg-amber-600/[0.04] hover:bg-amber-600/[0.08]"
+                      ? "border-l-amber-500 bg-amber-500/[0.04] hover:bg-amber-500/[0.08]"
                       : "border-l-blue-500 hover:bg-muted/50"
                   )}
                   onClick={() => onSelectBooking(c.id)}
