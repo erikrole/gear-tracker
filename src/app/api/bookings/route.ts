@@ -1,10 +1,19 @@
-import { Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok, parsePagination } from "@/lib/http";
+import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { BOOKING_SORT_MAP } from "@/lib/services/bookings-queries";
 
 /* ── Combined bookings list (both CHECKOUT and RESERVATION) ── */
+
+function parseStatusParam(value: string | null): BookingStatus | undefined {
+  if (!value) return undefined;
+  if (!Object.values(BookingStatus).includes(value as BookingStatus)) {
+    throw new HttpError(400, `Invalid booking status: ${value}`);
+  }
+  return value as BookingStatus;
+}
 
 const bookingListInclude = {
   location: { select: { id: true, name: true } },
@@ -24,27 +33,20 @@ const bookingListInclude = {
   event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
 } satisfies Prisma.BookingInclude;
 
-const SORT_MAP: Record<string, Prisma.BookingOrderByWithRelationInput[]> = {
-  oldest: [{ startsAt: "asc" }, { id: "asc" }],
-  title: [{ title: "asc" }, { id: "asc" }],
-  title_desc: [{ title: "desc" }, { id: "asc" }],
-  endsAt: [{ endsAt: "asc" }, { id: "asc" }],
-  endsAt_desc: [{ endsAt: "desc" }, { id: "asc" }],
-};
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "view");
   const { searchParams } = new URL(req.url);
 
   const q = searchParams.get("q")?.trim();
-  const statusParam = searchParams.get("status");
+  const status = parseStatusParam(searchParams.get("status"));
   const locationId = searchParams.get("location_id");
   const sportCode = searchParams.get("sport_code");
   const requesterId = searchParams.get("requester_id");
 
   const where: Prisma.BookingWhereInput = {
     // No `kind` filter — returns both CHECKOUT and RESERVATION
-    ...(statusParam ? { status: statusParam as never } : {}),
+    ...(status ? { status } : {}),
     ...(locationId ? { locationId } : {}),
     ...(sportCode ? { sportCode } : {}),
     ...(requesterId ? { requesterUserId: requesterId } : {}),
@@ -60,7 +62,7 @@ export const GET = withAuth(async (req, { user }) => {
   };
 
   const sortParam = searchParams.get("sort");
-  const orderBy = (sortParam && SORT_MAP[sortParam]) || [{ startsAt: "desc" }, { id: "asc" }];
+  const orderBy = (sortParam && BOOKING_SORT_MAP[sortParam]) || [{ startsAt: "desc" }, { id: "asc" }];
   const { limit, offset } = parsePagination(searchParams);
 
   const [data, total] = await Promise.all([

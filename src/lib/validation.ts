@@ -137,15 +137,15 @@ export const updateBookingSchema = z.object({
   title: z.string().trim().min(1).max(500).optional(),
   requesterUserId: z.string().cuid().optional(),
   locationId: z.string().cuid().optional(),
-  startsAt: z.string().optional(),
-  endsAt: z.string().optional(),
+  startsAt: z.string().datetime({ offset: true }).optional(),
+  endsAt: z.string().datetime({ offset: true }).optional(),
   serializedAssetIds: z.array(z.string().cuid()).optional(),
   bulkItems: z.array(bulkItemSchema).optional(),
   notes: z.string().max(10000).optional()
 });
 
 export const extendBookingSchema = z.object({
-  endsAt: z.string()
+  endsAt: z.string().datetime({ offset: true })
 });
 
 export const sportShiftConfigSchema = z.object({

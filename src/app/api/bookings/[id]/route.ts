@@ -26,7 +26,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   // Fetch current state for before-snapshot and kind detection
   const detail = await getBookingDetail(id);
 
-  // Optimistic locking: reject if client's snapshot is stale
+  // Optimistic locking: reject if client's snapshot is stale.
+  // Header is opt-in — UIs that track updatedAt should always send it.
+  // Clients that omit the header bypass conflict detection (last-write-wins).
   const ifUnmodified = req.headers.get("if-unmodified-since");
   if (ifUnmodified && detail.updatedAt) {
     const clientTs = new Date(ifUnmodified).getTime();

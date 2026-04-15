@@ -25,13 +25,28 @@ const bookingListInclude = {
   event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
 } satisfies Prisma.BookingInclude;
 
-const BOOKING_SORT_MAP: Record<string, Prisma.BookingOrderByWithRelationInput[]> = {
+export const BOOKING_SORT_MAP: Record<string, Prisma.BookingOrderByWithRelationInput[]> = {
   oldest: [{ startsAt: "asc" }, { id: "asc" }],
   title: [{ title: "asc" }, { id: "asc" }],
   title_desc: [{ title: "desc" }, { id: "asc" }],
   endsAt: [{ endsAt: "asc" }, { id: "asc" }],
   endsAt_desc: [{ endsAt: "desc" }, { id: "asc" }],
 };
+
+function parseSearchDate(value: string | null, paramName: string): Date | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) throw new HttpError(400, `Invalid date for ${paramName}: ${value}`);
+  return d;
+}
+
+function parseStatusParam(value: string | null): BookingStatus | undefined {
+  if (!value) return undefined;
+  if (!Object.values(BookingStatus).includes(value as BookingStatus)) {
+    throw new HttpError(400, `Invalid booking status: ${value}`);
+  }
+  return value as BookingStatus;
+}
 
 export async function listBookings(
   kind: BookingKind,
@@ -41,18 +56,23 @@ export async function listBookings(
   const q = searchParams.get("q")?.trim();
   const sortParam = searchParams.get("sort");
 
+  const statusParam = parseStatusParam(searchParams.get("status"));
+  const fromDate = parseSearchDate(searchParams.get("from"), "from");
+  const toDate = parseSearchDate(searchParams.get("to"), "to");
+
   const where: Prisma.BookingWhereInput = {
     kind,
     ...extraWhere,
-    ...(!extraWhere && searchParams.get("status") ? { status: searchParams.get("status") as never } : {}),
+    // Apply status from query param only when extraWhere doesn't already set it
+    ...(extraWhere?.status === undefined && statusParam ? { status: statusParam } : {}),
     ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
     ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
     ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),
-    ...(searchParams.get("from") || searchParams.get("to")
+    ...(fromDate || toDate
       ? {
           startsAt: {
-            ...(searchParams.get("from") ? { gte: new Date(searchParams.get("from")!) } : {}),
-            ...(searchParams.get("to") ? { lte: new Date(searchParams.get("to")!) } : {})
+            ...(fromDate ? { gte: fromDate } : {}),
+            ...(toDate ? { lte: toDate } : {})
           }
         }
       : {}),
