@@ -106,6 +106,7 @@ model User {
   checkinReports      CheckinItemReport[] @relation("CheckinReports")
   allowedEmailsCreated AllowedEmail[]    @relation("AllowedEmailCreator")
   allowedEmailsClaimed AllowedEmail[]    @relation("AllowedEmailClaimer")
+  guides               Guide[]
 
   @@map("users")
 }
@@ -906,4 +907,25 @@ model KioskDevice {
 
   @@index([locationId])
   @@map("kiosk_devices")
+}
+
+// ── Guides ────────────────────────────────────────────────
+
+model Guide {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  category  String
+  content   Json
+  published Boolean  @default(false)
+  order     Int      @default(0)
+  authorId  String   @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([category])
+  @@index([published])
+  @@map("guides")
 }

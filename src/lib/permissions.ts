@@ -126,6 +126,12 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     edit: ["ADMIN"],
     delete: ["ADMIN"],
   },
+  guide: {
+    view: ["ADMIN", "STAFF", "STUDENT"],
+    create: ["ADMIN", "STAFF"],
+    edit: ["ADMIN", "STAFF"],
+    delete: ["ADMIN"],
+  },
 };
 
 /**

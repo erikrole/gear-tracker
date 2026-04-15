@@ -241,3 +241,18 @@ export const createAllowedEmailBulkSchema = z.object({
     role: z.enum(["STAFF", "STUDENT"]).default("STUDENT"),
   })).min(1).max(50),
 });
+
+export const createGuideSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200),
+  category: z.string().min(1, "Category is required").max(100),
+  content: z.unknown(),
+  published: z.boolean().optional().default(false),
+});
+
+export const updateGuideSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  category: z.string().min(1).max(100).optional(),
+  content: z.unknown().optional(),
+  published: z.boolean().optional(),
+  order: z.number().int().min(0).optional(),
+});
