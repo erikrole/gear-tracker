@@ -19,6 +19,9 @@
     "release": "bash scripts/release.sh"
   },
   "dependencies": {
+    "@blocknote/core": "^0.47.3",
+    "@blocknote/react": "^0.47.3",
+    "@blocknote/shadcn": "^0.47.3",
     "@fontsource/barlow": "^5.2.8",
     "@prisma/adapter-neon": "^6.19.3",
     "@prisma/client": "^6.19.3",
