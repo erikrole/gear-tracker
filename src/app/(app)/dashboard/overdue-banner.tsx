@@ -64,13 +64,10 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
       </div>
       <div className="flex flex-col gap-1.5">
         {overdueItems.map((item) => (
-          <div
+          <button
             key={item.bookingId}
-            className="flex items-center gap-2 bg-white/10 rounded-md px-3 py-2 cursor-pointer text-white w-full transition-colors hover:bg-white/[0.18] focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-[-2px]"
-            role="button"
-            tabIndex={0}
+            className="flex items-center gap-2 bg-white/10 rounded-md px-3 py-2 cursor-pointer text-white w-full text-left transition-colors hover:bg-white/[0.18] focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-[-2px]"
             onClick={() => onSelectBooking(item.bookingId)}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectBooking(item.bookingId); } }}
           >
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
               <span className="text-sm font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{item.bookingTitle}</span>
@@ -123,7 +120,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                 </TooltipContent>
               </Tooltip>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

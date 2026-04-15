@@ -43,7 +43,7 @@ export type UseDashboardDataResult = {
   fetchError: false | "auth" | "network" | "server";
   refreshing: boolean;
   lastRefreshed: Date | null;
-  loadData: (isRefresh?: boolean) => void;
+  loadData: () => void;
   setData: React.Dispatch<React.SetStateAction<DashboardData | null>>;
 };
 

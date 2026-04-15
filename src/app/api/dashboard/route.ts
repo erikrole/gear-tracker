@@ -76,6 +76,7 @@ export const GET = withAuth(async (_req, { user }) => {
     location: { select: { id: true, name: true } },
     _count: { select: { serializedItems: true, bulkItems: true } },
     serializedItems: {
+      take: 3,
       include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
     },
   } as const;
@@ -194,6 +195,7 @@ export const GET = withAuth(async (_req, { user }) => {
         location: { select: { id: true, name: true } },
         _count: { select: { serializedItems: true, bulkItems: true } },
         serializedItems: {
+          take: 3,
           include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
         },
       },
@@ -394,6 +396,7 @@ export const GET = withAuth(async (_req, { user }) => {
           eventId: true,
           status: true,
           serializedItems: {
+            take: 3,
             include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
           },
           _count: { select: { serializedItems: true, bulkItems: true } },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,7 +45,6 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
     return events.filter((e) => {
       if (homeAwayFilter === "home") return e.isHome === true;
       if (homeAwayFilter === "away") return e.isHome === false;
-      if (homeAwayFilter === "neutral") return e.isHome === null && e.opponent;
       return true;
     });
   }, [filtered?.upcomingEvents, data.upcomingEvents, homeAwayFilter]);
@@ -58,10 +58,10 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <a href="/bookings?tab=checkouts" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+        <Link href="/bookings?tab=checkouts" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
           <h2 className="text-sm font-semibold text-foreground m-0">Checked out</h2>
           <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
-        </a>
+        </Link>
         {(filtered?.teamCheckouts ?? data.teamCheckouts.items).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
         ) : (
@@ -120,7 +120,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               );
             })}
             {!activeSport && data.teamCheckouts.total > data.teamCheckouts.items.length && (
-              <a href="/bookings?tab=checkouts" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamCheckouts.total} &rarr;</a>
+              <Link href="/bookings?tab=checkouts" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamCheckouts.total} &rarr;</Link>
             )}
           </CardContent>
         )}
@@ -130,10 +130,10 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <a href="/bookings?tab=reservations" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+        <Link href="/bookings?tab=reservations" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
           <h2 className="text-sm font-semibold text-foreground m-0">Reserved</h2>
           <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
-        </a>
+        </Link>
         {(filtered?.teamReservations ?? data.teamReservations.items).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
         ) : (
@@ -157,7 +157,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               </button>
             ))}
             {!activeSport && data.teamReservations.total > data.teamReservations.items.length && (
-              <a href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamReservations.total} &rarr;</a>
+              <Link href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamReservations.total} &rarr;</Link>
             )}
           </CardContent>
         )}
@@ -168,9 +168,9 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       <ScaleIn delay={0.1}>
       <Card>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-          <a href="/schedule" className="no-underline text-inherit hover:no-underline">
+          <Link href="/schedule" className="no-underline text-inherit hover:no-underline">
             <h2 className="text-sm font-semibold text-foreground m-0">Upcoming events</h2>
-          </a>
+          </Link>
           <ToggleGroup
             type="single"
             value={homeAwayFilter}
@@ -193,7 +193,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           <CardContent className="p-0 py-1">
             {cappedEvents.map((e) => (
               <div key={e.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit">
-                <a href={`/events/${e.id}`} className="flex flex-col gap-0.5 min-w-0 no-underline">
+                <Link href={`/events/${e.id}`} className="flex flex-col gap-0.5 min-w-0 no-underline">
                   <span className="text-sm font-bold text-foreground truncate tracking-tight">
                     {e.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(e.sportCode)}</span>}
                     {e.opponent ? <span className="text-muted-foreground font-normal">vs {e.opponent}</span> : (!e.sportCode ? e.title : "")}
@@ -202,7 +202,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                     {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
                     {e.location && ` \u00B7 ${e.location}`}
                   </span>
-                </a>
+                </Link>
                 <div className="flex items-center gap-2 shrink-0">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} filledSlots={e.filledShiftSlots} />
                   {e.isHome === true && <Badge variant="green">Home</Badge>}
@@ -250,7 +250,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               </div>
             ))}
             {filteredEvents.length > 10 && (
-              <a href="/schedule" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">Show all {filteredEvents.length} events &rarr;</a>
+              <Link href="/schedule" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">Show all {filteredEvents.length} events &rarr;</Link>
             )}
           </CardContent>
         )}

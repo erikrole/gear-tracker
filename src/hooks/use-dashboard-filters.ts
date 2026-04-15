@@ -53,9 +53,8 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
   const setActiveSport = useCallback((sport: string | null) => setFilterParam("sport", sport), [setFilterParam]);
   const setActiveLocation = useCallback((loc: string | null) => setFilterParam("location", loc), [setFilterParam]);
   const clearFilters = useCallback(() => {
-    setActiveSport(null);
-    setActiveLocation(null);
-  }, [setActiveSport, setActiveLocation]);
+    router.replace("/", { scroll: false });
+  }, [router]);
 
   // Collect distinct sport codes from all dashboard data
   const availableSports = useMemo(() => {

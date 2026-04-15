@@ -86,11 +86,6 @@ export function FilterChips({
   }, []);
 
   const handleApplyPreset = useCallback((preset: FilterPreset) => {
-    const params = new URLSearchParams();
-    if (preset.sport) params.set("sport", preset.sport);
-    if (preset.location) params.set("location", preset.location);
-    const qs = params.toString();
-    window.history.replaceState(null, "", qs ? `/?${qs}` : "/");
     setActiveSport(preset.sport);
     setActiveLocation(preset.location);
   }, [setActiveSport, setActiveLocation]);

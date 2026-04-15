@@ -19,7 +19,7 @@ export function LostBulkUnitsCard({ items }: Props) {
       <div className="flex items-center gap-2 mb-2">
         <AlertTriangleIcon className="size-4 text-red-600 dark:text-red-400 shrink-0" />
         <span className="text-sm font-semibold text-foreground">
-          {totalLost} battery unit{totalLost !== 1 ? "s" : ""} currently lost
+          {totalLost} bulk unit{totalLost !== 1 ? "s" : ""} currently lost
         </span>
       </div>
       <div className="flex flex-col gap-1">

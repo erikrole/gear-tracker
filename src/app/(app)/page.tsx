@@ -117,7 +117,7 @@ export default function DashboardPage() {
       if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
         toast.success("Extended by 1 day");
-        loadData(true);
+        loadData();
       } else {
         const msg = await parseErrorMessage(res, "Extend failed");
         toast.error(msg);
@@ -140,7 +140,7 @@ export default function DashboardPage() {
       if (handleAuthRedirect(res, "/")) return;
       if (res.ok) {
         toast.success("Converted to checkout");
-        loadData(true);
+        loadData();
       } else {
         const msg = await parseErrorMessage(res, "Convert failed");
         toast.error(msg);
@@ -170,6 +170,12 @@ export default function DashboardPage() {
   if (!data) return <DashboardSkeleton />;
 
   const isStudent = data.role === "STUDENT";
+  const isFirstRun =
+    data.stats.checkedOut === 0 && data.stats.overdue === 0 &&
+    data.stats.reserved === 0 && data.stats.dueToday === 0 &&
+    data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 &&
+    data.upcomingEvents.length === 0 && data.myReservations.length === 0 &&
+    data.drafts.length === 0 && data.myShifts.length === 0;
 
   return (
     <PageTransition>
@@ -180,7 +186,7 @@ export default function DashboardPage() {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => loadData(true)}
+              onClick={() => loadData()}
               disabled={refreshing}
               className="text-muted-foreground"
             >
@@ -208,9 +214,7 @@ export default function DashboardPage() {
       </StaggerList>}
 
       {/* ══════ Welcome Banner (first-run) ══════ */}
-      {data.stats.checkedOut === 0 && data.stats.overdue === 0 && data.stats.reserved === 0 && data.stats.dueToday === 0
-        && data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 && data.upcomingEvents.length === 0
-        && data.myReservations.length === 0 && data.drafts.length === 0 && data.myShifts.length === 0 && (
+      {isFirstRun && (
         <div className="relative bg-card border border-border rounded-xl mb-4 overflow-hidden animate-[empty-fade-in_0.4s_ease-out]">
           {/* Red accent stripe */}
           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--wi-red)]" aria-hidden="true" />
@@ -309,7 +313,7 @@ export default function DashboardPage() {
       <BookingDetailsSheet
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
-        onUpdated={() => loadData(true)}
+        onUpdated={() => loadData()}
       />
 
       {/* Create flow is now at /checkouts/new and /reservations/new */}

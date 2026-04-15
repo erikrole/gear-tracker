@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -47,10 +48,10 @@ export function MyGearColumn({
       {/* My Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <a href="/checkouts?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+        <Link href="/checkouts?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
           <h2 className="text-sm font-semibold text-foreground m-0">My checkouts</h2>
           <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
-        </a>
+        </Link>
         {(filtered?.myCheckouts ?? data.myCheckouts.items).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
         ) : (
@@ -111,7 +112,7 @@ export function MyGearColumn({
               );
             })}
             {!activeSport && data.myCheckouts.total > data.myCheckouts.items.length && (
-              <a href="/checkouts?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.myCheckouts.total} &rarr;</a>
+              <Link href="/checkouts?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.myCheckouts.total} &rarr;</Link>
             )}
           </CardContent>
         )}
@@ -121,10 +122,10 @@ export function MyGearColumn({
       {/* My Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <a href="/reservations?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+        <Link href="/reservations?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
           <h2 className="text-sm font-semibold text-foreground m-0">My reservations</h2>
           <Badge variant="gray" size="sm">{data.myReservations.length}</Badge>
-        </a>
+        </Link>
         {(filtered?.myReservations ?? data.myReservations).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
         ) : (
@@ -168,7 +169,7 @@ export function MyGearColumn({
               </button>
             ))}
             {!activeSport && data.myReservations.length >= 5 && (
-              <a href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</a>
+              <Link href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</Link>
             )}
           </CardContent>
         )}
@@ -179,10 +180,10 @@ export function MyGearColumn({
       {(filtered?.myShifts ?? data.myShifts).length > 0 && (
         <ScaleIn delay={0.1}>
         <Card>
-          <a href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
+          <Link href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
             <h2 className="text-sm font-semibold text-foreground m-0">My shifts</h2>
             <Badge variant="gray" size="sm">{data.myShifts.length}</Badge>
-          </a>
+          </Link>
           <CardContent className="p-0 py-1">
             {(filtered?.myShifts ?? data.myShifts).map((s) => {
               const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
@@ -258,9 +259,9 @@ export function MyGearColumn({
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <Button variant="outline" size="sm" asChild>
-                    <a href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
+                    <Link href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
                       Continue
-                    </a>
+                    </Link>
                   </Button>
                   <Button
                     variant="ghost"
