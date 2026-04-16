@@ -114,17 +114,17 @@ export default function ItemsPage() {
           id: `bulk-${b.id}`,
           assetTag: b.name,
           name: null,
-          type: "Bulk",
+          type: b.category,
           brand: "",
           model: "",
           serialNumber: "",
           status: "AVAILABLE",
-          computedStatus: `${b.onHandQuantity} ${b.unit}`,
+          computedStatus: `${b.availableQuantity} Available`,
           createdAt: "",
           location: { id: b.locationId, name: b.locationName },
           category: b.categoryId ? { id: b.categoryId, name: b.category } : null,
           department: null,
-          imageUrl: null,
+          imageUrl: b.imageUrl,
           activeBooking: null,
           isFavorited: false,
         }))
@@ -132,7 +132,9 @@ export default function ItemsPage() {
 
     const serializedItems = filters.itemType !== "bulk" ? query.items : [];
 
-    return [...serializedItems, ...bulkAssets];
+    return [...serializedItems, ...bulkAssets].sort((a, b) =>
+      a.assetTag.localeCompare(b.assetTag)
+    );
   }, [query.items, query.bulkItems, filters.itemType]);
 
   // Optimistic favorite toggle

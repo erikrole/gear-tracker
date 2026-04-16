@@ -109,12 +109,14 @@ export function statusBadge(asset: Asset) {
         </Badge>
       );
     default:
-      // Bulk items show quantity as status (e.g. "50 units")
-      if (/^\d+\s/.test(computedStatus)) {
+      // Bulk items: "N Available"
+      if (/^\d+ Available$/.test(computedStatus)) {
+        const qty = parseInt(computedStatus, 10);
+        const color = qty === 0 ? "red" : "green";
         return (
-          <Badge className={STATUS_STYLES.green.badge}>
-            <StatusDot color="green" />
-            {computedStatus}
+          <Badge className={STATUS_STYLES[color].badge}>
+            <StatusDot color={color} />
+            {qty === 0 ? "None available" : computedStatus}
           </Badge>
         );
       }

@@ -18,12 +18,16 @@ export type BulkSkuDetail = {
   binQrCodeValue: string;
   minThreshold: number;
   trackByNumber: boolean;
+  purchasePrice: string | null;
+  purchaseLink: string | null;
+  notes: string | null;
   imageUrl: string | null;
   active: boolean;
   onHand: number;
   availableQuantity: number;
   location: { id: string; name: string };
   categoryRel: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
   balances: Array<{ onHandQuantity: number }>;
   units: BulkUnit[];
 };

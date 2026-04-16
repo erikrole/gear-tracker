@@ -11,6 +11,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
     include: {
       location: { select: { id: true, name: true } },
       categoryRel: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true } },
       balances: true,
       units: {
         orderBy: { unitNumber: "asc" },

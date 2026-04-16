@@ -85,10 +85,14 @@ export const updateBulkSkuSchema = z.object({
   name: z.string().min(1).max(500).optional(),
   category: z.string().optional(),
   categoryId: z.string().cuid().nullable().optional(),
+  departmentId: z.string().cuid().nullable().optional(),
   unit: z.string().min(1).max(100).optional(),
   locationId: z.string().cuid().optional(),
   binQrCodeValue: z.string().min(1).max(500).optional(),
   minThreshold: z.number().int().min(0).optional(),
+  purchasePrice: z.number().nonnegative().nullable().optional(),
+  purchaseLink: z.string().url().max(2000).nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
   active: z.boolean().optional(),
 }).strict();
 

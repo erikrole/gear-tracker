@@ -161,12 +161,13 @@ model Location {
 }
 
 model Department {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String    @id @default(cuid())
+  name      String    @unique
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   assets    Asset[]
+  bulkSkus  BulkSku[]
 
   @@map("departments")
 }
@@ -347,15 +348,20 @@ model BulkSku {
   unit              String
   locationId        String             @map("location_id")
   categoryId        String?            @map("category_id")
+  departmentId      String?            @map("department_id")
   binQrCodeValue    String             @map("bin_qr_code_value")
   minThreshold      Int                @default(0) @map("min_threshold")
   trackByNumber     Boolean            @default(false) @map("track_by_number")
+  purchasePrice     Decimal?           @db.Decimal(10, 2) @map("purchase_price")
+  purchaseLink      String?            @map("purchase_link")
+  notes             String?
   imageUrl          String?            @map("image_url")
   active            Boolean            @default(true)
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
   location          Location           @relation(fields: [locationId], references: [id], onDelete: Restrict)
   categoryRel       Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  department        Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   balances          BulkStockBalance[]
   movements         BulkStockMovement[]
   bookingItems      BookingBulkItem[]
@@ -366,6 +372,7 @@ model BulkSku {
   @@unique([locationId, binQrCodeValue])
   @@index([locationId, active])
   @@index([categoryId])
+  @@index([departmentId])
   @@map("bulk_skus")
 }
 

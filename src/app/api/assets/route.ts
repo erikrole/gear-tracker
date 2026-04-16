@@ -181,6 +181,8 @@ export const GET = withAuth(async (req, { user }) => {
     category: string;
     unit: string;
     onHandQuantity: number;
+    availableQuantity: number;
+    imageUrl: string | null;
     locationName: string;
     locationId: string;
     categoryId: string | null;
@@ -207,22 +209,32 @@ export const GET = withAuth(async (req, { user }) => {
       include: {
         location: { select: { name: true } },
         balances: { select: { onHandQuantity: true } },
+        bookingItems: {
+          where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
+          select: { checkedOutQuantity: true },
+        },
       },
       orderBy: { name: "asc" },
     });
 
-    bulkItems = bulkSkus.map((sku) => ({
-      id: sku.id,
-      kind: "bulk" as const,
-      name: sku.name,
-      category: sku.category,
-      unit: sku.unit,
-      onHandQuantity: sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0),
-      locationName: sku.location.name,
-      locationId: sku.locationId,
-      categoryId: sku.categoryId,
-      binQrCodeValue: sku.binQrCodeValue,
-    }));
+    bulkItems = bulkSkus.map((sku) => {
+      const onHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+      const checkedOut = sku.bookingItems.reduce((sum, b) => sum + (b.checkedOutQuantity ?? 0), 0);
+      return {
+        id: sku.id,
+        kind: "bulk" as const,
+        name: sku.name,
+        category: sku.category,
+        unit: sku.unit,
+        onHandQuantity: onHand,
+        availableQuantity: Math.max(0, onHand - checkedOut),
+        imageUrl: sku.imageUrl,
+        locationName: sku.location.name,
+        locationId: sku.locationId,
+        categoryId: sku.categoryId,
+        binQrCodeValue: sku.binQrCodeValue,
+      };
+    });
   }
 
   return ok({

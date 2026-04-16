@@ -35,6 +35,8 @@ export type BulkItem = {
   category: string;
   unit: string;
   onHandQuantity: number;
+  availableQuantity: number;
+  imageUrl: string | null;
   locationName: string;
   locationId: string;
   categoryId: string | null;
