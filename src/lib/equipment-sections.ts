@@ -1,12 +1,14 @@
 /**
  * Equipment section definitions for guided checkout picker.
  *
- * 5 tabs with DB-category batching:
+ * 7 tabs with DB-category batching:
  *   Cameras  ← "Cameras" category
  *   Lenses   ← "Lenses" category
  *   Batteries ← "Batteries" category
- *   Accessories ← "Monitors", "Audio", "Tripods" categories
- *   Others   ← "Lighting", "Media Storage", "Office" categories
+ *   Audio    ← "Audio", "Microphones", "Recorders" categories
+ *   Tripods  ← "Tripods", "Support" categories
+ *   Lighting ← "Lighting", "Lights" categories
+ *   Other    ← everything else (monitors, media storage, office, etc.)
  *
  * Classification priority:
  *   1. Asset's DB category name (via categoryId → Category.name)
@@ -17,8 +19,10 @@ export type EquipmentSectionKey =
   | "cameras"
   | "lenses"
   | "batteries"
-  | "accessories"
-  | "others";
+  | "audio"
+  | "tripods"
+  | "lighting"
+  | "other";
 
 export type EquipmentSection = {
   key: EquipmentSectionKey;
@@ -30,8 +34,10 @@ export const EQUIPMENT_SECTIONS: EquipmentSection[] = [
   { key: "cameras", label: "Cameras", description: "Camera bodies and camcorders" },
   { key: "lenses", label: "Lenses", description: "Camera lenses" },
   { key: "batteries", label: "Batteries", description: "Batteries, chargers, and power" },
-  { key: "accessories", label: "Accessories", description: "Monitors, audio, and tripods" },
-  { key: "others", label: "Others", description: "Lighting, media storage, and office" },
+  { key: "audio", label: "Audio", description: "Microphones, recorders, and wireless" },
+  { key: "tripods", label: "Tripods", description: "Tripods, monopods, and support" },
+  { key: "lighting", label: "Lighting", description: "Lights and lighting equipment" },
+  { key: "other", label: "Other", description: "Monitors, media storage, and accessories" },
 ];
 
 /**
@@ -50,22 +56,28 @@ const CATEGORY_MAP: Record<string, EquipmentSectionKey> = {
   // Batteries tab
   batteries: "batteries",
   battery: "batteries",
-  // Accessories tab (Monitors, Audio, Tripods)
-  monitors: "accessories",
-  monitor: "accessories",
-  recorders: "accessories",
-  audio: "accessories",
-  microphones: "accessories",
-  tripods: "accessories",
-  tripod: "accessories",
-  support: "accessories",
-  // Others tab (Lighting, Media Storage, Office)
-  lighting: "others",
-  lights: "others",
-  "media storage": "others",
-  "media cards": "others",
-  storage: "others",
-  office: "others",
+  // Audio tab
+  audio: "audio",
+  microphones: "audio",
+  microphone: "audio",
+  recorders: "audio",
+  recorder: "audio",
+  wireless: "audio",
+  // Tripods tab
+  tripods: "tripods",
+  tripod: "tripods",
+  support: "tripods",
+  // Lighting tab
+  lighting: "lighting",
+  lights: "lighting",
+  light: "lighting",
+  // Other tab (monitors, media storage, office, etc.)
+  monitors: "other",
+  monitor: "other",
+  "media storage": "other",
+  "media cards": "other",
+  storage: "other",
+  office: "other",
 };
 
 /**
@@ -81,15 +93,13 @@ const BUCKET_KEYWORDS: Record<EquipmentSectionKey, string[]> = {
     "battery", "batteries", "charger", "power supply", "power",
     "v-mount", "vmount", "gold mount",
   ],
-  accessories: [
-    "monitor", "recorder", "rig", "cage", "gimbal", "stabilizer",
-    "follow focus", "matte box", "accessory", "accessories",
-    "transmitter", "receiver", "wireless",
+  audio: [
     "microphone", "mic", "audio", "mixer", "headphone",
-    "lavalier", "shotgun mic",
-    "tripod", "monopod", "slider",
+    "lavalier", "shotgun mic", "recorder", "transmitter", "receiver", "wireless",
   ],
-  others: [], // catch-all — never matched by keywords
+  tripods: ["tripod", "monopod", "slider"],
+  lighting: ["lighting", "light", "led panel", "fresnel", "strobe"],
+  other: [], // catch-all — never matched by keywords
 };
 
 /**
@@ -105,7 +115,7 @@ export function classifyAssetType(type: string, categoryName?: string | null): E
 
   // 2. Fallback to keyword matching on type
   const normalized = type.toLowerCase().trim();
-  const orderedKeys: EquipmentSectionKey[] = ["cameras", "lenses", "batteries", "accessories"];
+  const orderedKeys: EquipmentSectionKey[] = ["cameras", "lenses", "batteries", "audio", "tripods", "lighting"];
   for (const key of orderedKeys) {
     for (const keyword of BUCKET_KEYWORDS[key]) {
       if (normalized.includes(keyword)) {
@@ -114,7 +124,7 @@ export function classifyAssetType(type: string, categoryName?: string | null): E
     }
   }
 
-  return "others";
+  return "other";
 }
 
 /**
@@ -122,6 +132,32 @@ export function classifyAssetType(type: string, categoryName?: string | null): E
  */
 export function classifyBulkCategory(category: string, categoryName?: string | null): EquipmentSectionKey {
   return classifyAssetType(category, categoryName);
+}
+
+type AssetLike = { id: string; type: string; [k: string]: unknown };
+
+/**
+ * Group individual assets by equipment section.
+ */
+export function groupAssetsBySection<T extends AssetLike>(
+  assets: T[]
+): Record<EquipmentSectionKey, T[]> {
+  const groups: Record<EquipmentSectionKey, T[]> = {
+    cameras: [],
+    lenses: [],
+    batteries: [],
+    audio: [],
+    tripods: [],
+    lighting: [],
+    other: [],
+  };
+
+  for (const asset of assets) {
+    const section = classifyAssetType(asset.type);
+    groups[section].push(asset);
+  }
+
+  return groups;
 }
 
 type BulkSkuLike = { id: string; category: string; categoryName?: string | null; [k: string]: unknown };
@@ -136,8 +172,10 @@ export function groupBulkBySection<T extends BulkSkuLike>(
     cameras: [],
     lenses: [],
     batteries: [],
-    accessories: [],
-    others: [],
+    audio: [],
+    tripods: [],
+    lighting: [],
+    other: [],
   };
 
   for (const sku of skus) {
@@ -146,4 +184,14 @@ export function groupBulkBySection<T extends BulkSkuLike>(
   }
 
   return groups;
+}
+
+/** Return the 0-based index of a section in EQUIPMENT_SECTIONS. */
+export function sectionIndex(key: EquipmentSectionKey): number {
+  return EQUIPMENT_SECTIONS.findIndex((s) => s.key === key);
+}
+
+/** All sections are always reachable (tabs are never gated). */
+export function isSectionReachable(_key: EquipmentSectionKey, _from: EquipmentSectionKey): boolean {
+  return true;
 }

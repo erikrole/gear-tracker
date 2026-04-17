@@ -144,7 +144,7 @@ export default function EquipmentPicker({
 
   // ── Selected count per section (for tab badges) ──
   const selectedBySection = useMemo(() => {
-    const c: Record<EquipmentSectionKey, number> = { cameras: 0, lenses: 0, batteries: 0, accessories: 0, others: 0 };
+    const c: Record<EquipmentSectionKey, number> = { cameras: 0, lenses: 0, batteries: 0, audio: 0, tripods: 0, lighting: 0, other: 0 };
     for (const id of selectedAssetIds) {
       const a = selectedAssetsCache.get(id) ?? assetById.get(id);
       if (a) c[classifyAssetType(a.type, a.categoryName)]++;

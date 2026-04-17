@@ -521,7 +521,7 @@ export default function ItemsPage() {
               />
             }
             bulkBar={
-              options.canEdit && selectedCount > 0 ? (
+              selectedCount > 0 ? (
                 <BulkActionBar
                   count={selectedCount}
                   locations={options.locations}

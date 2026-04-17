@@ -401,11 +401,32 @@ export function ListView({
                             <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
                           )
                         )}
+                        {!entry.allDay && (
+                          <span
+                            className="text-[10px] text-muted-foreground/60 tabular-nums font-normal shrink-0"
+                            style={{ fontFamily: "var(--font-mono)" }}
+                          >
+                            {formatTimeShort(entry.startsAt)}
+                          </span>
+                        )}
                         {entry.opponent
                           ? `${entry.isHome === false ? "at " : "vs "}${entry.opponent}`
                           : entry.summary}
                       </span>
                       <div className="flex items-center gap-1 flex-shrink-0">
+                        {(() => {
+                          const mobileCallTime = entry.shifts.length > 0
+                            ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0].startsAt))
+                            : null;
+                          return mobileCallTime ? (
+                            <span
+                              className="text-[10px] text-muted-foreground/50 tabular-nums"
+                              style={{ fontFamily: "var(--font-mono)" }}
+                            >
+                              Call {mobileCallTime}
+                            </span>
+                          ) : null;
+                        })()}
                         {shiftStatus && (
                           <Badge
                             variant={shiftStatus === "Confirmed" ? "green" : "orange"}
@@ -426,8 +447,8 @@ export function ListView({
                     </div>
                     <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
                       <span>
-                        {formatDateShort(entry.startsAt)}{" "}
-                        {entry.allDay ? "All day" : formatTimeShort(entry.startsAt)}
+                        {formatDateShort(entry.startsAt)}
+                        {entry.allDay && " All day"}
                       </span>
                       {entry.sportCode && (
                         <span>{sportLabel(entry.sportCode)}</span>
@@ -550,6 +571,10 @@ function EventRows({
     ? "All day"
     : `${formatTime(entry.startsAt)} – ${formatTime(entry.endsAt)}`;
 
+  const callTime = entry.shifts.length > 0
+    ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0].startsAt))
+    : null;
+
   const borderBar =
     entry.isHome === true
       ? "border-l-emerald-500"
@@ -591,6 +616,14 @@ function EventRows({
         </td>
         <td className="px-4 py-3 border-b border-border/20">
           <div className="flex items-center gap-2 flex-wrap">
+            {!entry.allDay && (
+              <span
+                className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                {formatTime(entry.startsAt)}
+              </span>
+            )}
             <Link
               href={`/events/${entry.id}`}
               className="font-semibold text-sm hover:underline"
@@ -644,8 +677,22 @@ function EventRows({
             )}
           </div>
         </td>
-        <td className="px-4 py-3 border-b border-border/20 text-sm text-muted-foreground whitespace-nowrap">
-          {timeStr}
+        <td className="px-4 py-3 border-b border-border/20 whitespace-nowrap">
+          {callTime ? (
+            <div className="flex flex-col gap-0.5">
+              <span
+                className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground/50"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                Call
+              </span>
+              <span className="text-sm text-muted-foreground tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
+                {callTime}
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground">{timeStr}</span>
+          )}
         </td>
       </tr>
 

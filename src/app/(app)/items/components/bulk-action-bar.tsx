@@ -32,6 +32,8 @@ import {
   Trash2,
   ChevronDown,
   Download,
+  Star,
+  StarOff,
 } from "lucide-react";
 
 type Location = { id: string; name: string };
@@ -83,7 +85,17 @@ export function BulkActionBar({
       </Button>
       <div className="flex-1" />
 
-      <DropdownMenu>
+      {/* Favorites — available to all roles */}
+      <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction("favorite")} className="gap-1.5">
+        <Star className="size-3.5" />
+        Star
+      </Button>
+      <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction("unfavorite")} className="gap-1.5">
+        <StarOff className="size-3.5" />
+        Unstar
+      </Button>
+
+      {userRole !== "STUDENT" && <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" disabled={busy}>
             Actions
@@ -192,7 +204,7 @@ export function BulkActionBar({
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu>}
 
       {/* Retire confirmation */}
       <AlertDialog open={retireOpen} onOpenChange={setRetireOpen}>

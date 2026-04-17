@@ -657,8 +657,10 @@ function groupMembersBySection(members: KitMember[]): Record<EquipmentSectionKey
     cameras: [],
     lenses: [],
     batteries: [],
-    accessories: [],
-    others: [],
+    audio: [],
+    tripods: [],
+    lighting: [],
+    other: [],
   };
   for (const member of members) {
     const section = classifyAssetType(

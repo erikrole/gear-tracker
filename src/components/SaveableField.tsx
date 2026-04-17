@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -87,12 +88,18 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
 export function SaveableField({
   label,
   status = "idle",
+  isDirty,
+  onCommit,
+  onCancel,
   className,
   htmlFor,
   children,
 }: {
   label: string;
   status?: SaveStatus;
+  isDirty?: boolean;
+  onCommit?: () => void;
+  onCancel?: () => void;
   className?: string;
   htmlFor?: string;
   children: React.ReactNode;
@@ -112,7 +119,30 @@ export function SaveableField({
       </Label>
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <div className="flex-1 min-w-0">{children}</div>
-        <SaveStatusIndicator status={status} />
+        {isDirty && onCommit && onCancel ? (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+              onClick={onCommit}
+              aria-label="Save"
+            >
+              <Check className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 text-muted-foreground hover:text-foreground"
+              onClick={onCancel}
+              aria-label="Cancel"
+            >
+              <X className="size-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <SaveStatusIndicator status={status} />
+        )}
       </div>
     </div>
   );

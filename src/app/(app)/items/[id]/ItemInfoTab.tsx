@@ -81,6 +81,8 @@ function TextInputField({
     } catch { /* ignore */ }
   }
 
+  const isDirty = draft.trim() !== value;
+
   async function commit() {
     const trimmed = draft.trim();
     if (trimmed === value) return;
@@ -88,23 +90,29 @@ function TextInputField({
     await saveField.save(trimmed);
   }
 
+  function cancel() {
+    setDraft(value);
+    saveField.reset();
+    setDupWarning("");
+  }
+
   return (
-    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
+    <SaveableField
+      label={label}
+      status={saveField.status}
+      isDirty={canEdit && !readOnly && isDirty}
+      onCommit={commit}
+      onCancel={cancel}
+      htmlFor={fieldId}
+    >
       <div className="flex-1 min-w-0">
         <Input
           id={fieldId}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            }
-            if (e.key === "Escape") {
-              setDraft(value);
-              saveField.reset();
-              setDupWarning("");
-            }
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") cancel();
           }}
           placeholder={placeholder}
           disabled={!canEdit || readOnly}
@@ -147,10 +155,17 @@ function LinkField({
     setDraft(value);
   }, [value]);
 
+  const isDirty = draft.trim() !== value;
+
   async function commit() {
     const trimmed = draft.trim();
     if (trimmed === value) return;
     await saveField.save(trimmed);
+  }
+
+  function cancel() {
+    setDraft(value);
+    saveField.reset();
   }
 
   async function copyUrl() {
@@ -161,19 +176,22 @@ function LinkField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
+    <SaveableField
+      label={label}
+      status={saveField.status}
+      isDirty={canEdit && isDirty}
+      onCommit={commit}
+      onCancel={cancel}
+      htmlFor={fieldId}
+    >
       <div className="flex items-center gap-1">
         <Input
           id={fieldId}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
           onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") {
-              setDraft(value);
-              saveField.reset();
-            }
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") cancel();
           }}
           placeholder={placeholder}
           disabled={!canEdit}
@@ -828,19 +846,34 @@ function NotesField({
     setDraft(value);
   }, [value]);
 
+  const isDirty = draft.trim() !== (value || "");
+
   async function commit() {
     const trimmed = draft.trim();
     if (trimmed === (value || "")) return;
     await saveField.save(trimmed);
   }
 
+  function cancel() {
+    setDraft(value);
+    saveField.reset();
+  }
+
   return (
-    <SaveableField label="Notes" status={saveField.status}>
+    <SaveableField
+      label="Notes"
+      status={saveField.status}
+      isDirty={canEdit && isDirty}
+      onCommit={commit}
+      onCancel={cancel}
+    >
       {canEdit ? (
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") cancel();
+          }}
           placeholder="Add notes..."
           rows={3}
           className="text-sm border-transparent bg-transparent shadow-none resize-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"

@@ -35,23 +35,23 @@ const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
   },
   {
     id: "audio-with-video",
-    section: "accessories",
+    section: "audio",
     message: "Don\u2019t forget audio gear \u2014 recorder, microphone, or wireless kit.",
     level: "info",
     condition: (ctx) =>
       ctx.selectedSectionKeys.includes("cameras") &&
-      !ctx.selectedSectionKeys.includes("accessories"),
+      !ctx.selectedSectionKeys.includes("audio"),
   },
 
   // ── Support gear ────────────────────────────────────────
   {
     id: "cameras-need-support",
-    section: "accessories",
+    section: "tripods",
     message: "Add a tripod or monopod for sideline and press-box coverage.",
     level: "info",
     condition: (ctx) =>
       ctx.selectedSectionKeys.includes("cameras") &&
-      !ctx.selectedSectionKeys.includes("accessories"),
+      !ctx.selectedSectionKeys.includes("tripods"),
   },
   {
     id: "monitors-need-power",
@@ -59,31 +59,30 @@ const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
     message: "Field monitors drain batteries fast \u2014 pack extras or a V-mount.",
     level: "warning",
     condition: (ctx) =>
-      ctx.selectedSectionKeys.includes("accessories") &&
+      ctx.selectedSectionKeys.includes("other") &&
       !ctx.selectedSectionKeys.includes("batteries"),
   },
 
   // ── Media & storage ─────────────────────────────────────
   {
     id: "cameras-need-media",
-    section: "others",
-    message: "SD cards and hard drives are in the Others tab \u2014 pack enough for the shoot.",
+    section: "other",
+    message: "SD cards and hard drives are in the Other tab \u2014 pack enough for the shoot.",
     level: "info",
     condition: (ctx) =>
       ctx.selectedSectionKeys.includes("cameras") &&
-      !ctx.selectedSectionKeys.includes("others"),
+      !ctx.selectedSectionKeys.includes("other"),
   },
 
   // ── Transport ───────────────────────────────────────────
   {
     id: "large-kit-needs-bags",
-    section: "others",
+    section: "other",
     message: "Large checkout \u2014 make sure you have backpacks or cases for transport.",
     level: "info",
     condition: (ctx) => {
       const selected = ctx.selectedSectionKeys;
-      // Trigger when 3+ sections have gear (big checkout)
-      return selected.length >= 3 && !selected.includes("others");
+      return selected.length >= 3 && !selected.includes("other");
     },
   },
 
@@ -101,10 +100,10 @@ const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
   {
     id: "accessories-without-cameras",
     section: "cameras",
-    message: "You have accessories (audio/monitors/tripods) but no camera body.",
+    message: "You have accessories (audio/tripods) but no camera body.",
     level: "info",
     condition: (ctx) =>
-      ctx.selectedSectionKeys.includes("accessories") &&
+      (ctx.selectedSectionKeys.includes("audio") || ctx.selectedSectionKeys.includes("tripods")) &&
       !ctx.selectedSectionKeys.includes("cameras") &&
       !ctx.selectedSectionKeys.includes("lenses"),
   },

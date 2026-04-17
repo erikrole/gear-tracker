@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { PartialBlock } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -9,6 +9,7 @@ import "@blocknote/react/style.css";
 import { ArrowLeftIcon, PencilIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type Guide = {
   id: string;
@@ -27,6 +28,70 @@ type Props = {
   slug: string;
 };
 
+type TocItem = { level: number; text: string };
+
+function extractHeadings(content: unknown): TocItem[] {
+  if (!Array.isArray(content)) return [];
+  const items: TocItem[] = [];
+  for (const block of content) {
+    if (block?.type === "heading" && Array.isArray(block.content)) {
+      const level = block.props?.level ?? 1;
+      const text = block.content
+        .filter((c: { type: string }) => c.type === "text")
+        .map((c: { text: string }) => c.text)
+        .join("")
+        .trim();
+      if (text) items.push({ level, text });
+    }
+  }
+  return items;
+}
+
+function TableOfContents({ items, activeText }: { items: TocItem[]; activeText: string | null }) {
+  const scrollToHeading = useCallback((text: string) => {
+    // Find heading element in BlockNote's rendered output by text match
+    const allNodes = document.querySelectorAll<HTMLElement>(".bn-block-content");
+    for (const node of allNodes) {
+      if (node.textContent?.trim() === text) {
+        node.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+    }
+  }, []);
+
+  if (items.length === 0) return null;
+
+  return (
+    <nav aria-label="Table of contents" className="hidden lg:block">
+      <div className="sticky top-4 space-y-1">
+        <p
+          className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/50 mb-2 font-semibold"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
+          On this page
+        </p>
+        {items.map((item, i) => (
+          <button
+            key={i}
+            onClick={() => scrollToHeading(item.text)}
+            className={cn(
+              "block w-full text-left text-xs leading-relaxed transition-colors py-0.5 hover:text-foreground",
+              item.level === 1 && "font-medium",
+              item.level === 2 && "pl-3",
+              item.level === 3 && "pl-6",
+              activeText === item.text
+                ? "text-foreground font-medium"
+                : "text-muted-foreground/70",
+            )}
+          >
+            {item.text}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
 export function GuideReader({ guide, canEdit, slug }: Props) {
   const editor = useCreateBlockNote({
     initialContent: Array.isArray(guide.content)
@@ -35,6 +100,9 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   });
 
   const [isDark, setIsDark] = useState(false);
+  const [activeHeading, setActiveHeading] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
     check();
@@ -42,6 +110,43 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => obs.disconnect();
   }, []);
+
+  const headings = extractHeadings(guide.content);
+
+  // Track active heading via IntersectionObserver
+  useEffect(() => {
+    if (headings.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveHeading(entry.target.textContent?.trim() ?? null);
+            break;
+          }
+        }
+      },
+      { rootMargin: "-80px 0px -70% 0px", threshold: 0 },
+    );
+
+    // Observe after a short delay to let BlockNote render
+    const timer = setTimeout(() => {
+      const nodes = document.querySelectorAll<HTMLElement>(".bn-block-content");
+      for (const node of nodes) {
+        const text = node.textContent?.trim();
+        if (text && headings.some((h) => h.text === text)) {
+          observer.observe(node);
+        }
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guide.id]);
+
+  const hasToC = headings.length >= 2;
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
@@ -85,9 +190,16 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
         )}
       </div>
 
-      {/* BlockNote reader */}
-      <div className="prose-blocknote">
-        <BlockNoteView editor={editor} editable={false} theme={isDark ? "dark" : "light"} />
+      {/* Content + optional ToC sidebar */}
+      <div className={cn(hasToC && "lg:grid lg:grid-cols-[1fr_160px] lg:gap-8")}>
+        {/* BlockNote reader */}
+        <div ref={contentRef} className="prose-blocknote min-w-0">
+          <BlockNoteView editor={editor} editable={false} theme={isDark ? "dark" : "light"} />
+        </div>
+
+        {hasToC && (
+          <TableOfContents items={headings} activeText={activeHeading} />
+        )}
       </div>
     </div>
   );

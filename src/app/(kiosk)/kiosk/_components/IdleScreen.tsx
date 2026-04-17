@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AvatarGrid } from "./AvatarGrid";
+import { formatOverdueElapsed } from "@/lib/format";
 
 type KioskUser = { id: string; name: string; avatarUrl: string | null };
 
@@ -386,15 +387,14 @@ export function IdleScreen({ kioskInfo, onSelectUser }: Props) {
                       {checkout.isOverdue ? (
                         <span
                           style={{
-                            ...HDG,
-                            fontWeight: 800,
-                            fontSize: "0.6rem",
-                            letterSpacing: "0.12em",
+                            fontFamily: "var(--font-mono)",
+                            fontWeight: 700,
+                            fontSize: "0.65rem",
                             color: "#c5050c",
                           }}
-                          className="uppercase"
+                          className="tabular-nums uppercase"
                         >
-                          Overdue
+                          {formatOverdueElapsed(checkout.endsAt, new Date())}
                         </span>
                       ) : (
                         <span

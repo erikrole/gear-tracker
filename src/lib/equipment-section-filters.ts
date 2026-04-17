@@ -12,12 +12,11 @@ const SECTION_CATEGORIES: Record<EquipmentSectionKey, string[]> = {
   cameras: ["cameras", "camera", "camera bodies", "bodies"],
   lenses: ["lenses", "lens"],
   batteries: ["batteries", "battery"],
-  accessories: [
-    "monitors", "monitor", "recorders", "audio", "microphones",
-    "tripods", "tripod", "support",
-  ],
-  others: [
-    "lighting", "lights", "media storage", "media cards", "storage", "office",
+  audio: ["audio", "microphones", "microphone", "recorders", "recorder", "wireless"],
+  tripods: ["tripods", "tripod", "support"],
+  lighting: ["lighting", "lights", "light"],
+  other: [
+    "monitors", "monitor", "media storage", "media cards", "storage", "office",
   ],
 };
 
@@ -32,26 +31,24 @@ const SECTION_TYPE_KEYWORDS: Record<EquipmentSectionKey, string[]> = {
     "battery", "batteries", "charger", "power supply", "power",
     "v-mount", "vmount", "gold mount",
   ],
-  accessories: [
-    "monitor", "recorder", "rig", "cage", "gimbal", "stabilizer",
-    "follow focus", "matte box", "accessory", "accessories",
-    "transmitter", "receiver", "wireless",
+  audio: [
     "microphone", "mic", "audio", "mixer", "headphone",
-    "lavalier", "shotgun mic",
-    "tripod", "monopod", "slider",
+    "lavalier", "shotgun mic", "recorder", "transmitter", "receiver", "wireless",
   ],
-  others: [], // catch-all
+  tripods: ["tripod", "monopod", "slider"],
+  lighting: ["lighting", "light", "led panel", "fresnel", "strobe"],
+  other: [], // catch-all
 };
 
 /**
  * Build a Prisma WHERE clause that matches assets belonging to a section.
  *
- * For "others" (catch-all): matches assets NOT in any other section.
+ * For "other" (catch-all): matches assets NOT in any other section.
  */
 export function sectionWhere(section: EquipmentSectionKey): Prisma.AssetWhereInput {
-  if (section === "others") {
-    // "Others" is the catch-all — assets not matching any specific section
-    const excludeSections: EquipmentSectionKey[] = ["cameras", "lenses", "batteries", "accessories"];
+  if (section === "other") {
+    // "Other" is the catch-all — assets not matching any specific section
+    const excludeSections: EquipmentSectionKey[] = ["cameras", "lenses", "batteries", "audio", "tripods", "lighting"];
     const excludeClauses = excludeSections.map((s) => sectionMatchClause(s));
     return { NOT: { OR: excludeClauses } };
   }
@@ -85,5 +82,5 @@ function sectionMatchClause(section: EquipmentSectionKey): Prisma.AssetWhereInpu
 
 /** All section keys for iteration. */
 export const ALL_SECTION_KEYS: EquipmentSectionKey[] = [
-  "cameras", "lenses", "batteries", "accessories", "others",
+  "cameras", "lenses", "batteries", "audio", "tripods", "lighting", "other",
 ];

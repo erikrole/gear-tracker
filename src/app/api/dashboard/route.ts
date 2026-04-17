@@ -200,13 +200,12 @@ export const GET = withAuth(async (_req, { user }) => {
         },
       },
     }),
-    // Top overdue for banner — students see only their own
+    // Top overdue for banner — all roles see all overdue
     db.booking.findMany({
       where: {
         kind: "CHECKOUT",
         status: "OPEN",
         endsAt: { lt: now },
-        ...(user.role === "STUDENT" && { requesterUserId: user.id }),
       },
       orderBy: { endsAt: "asc" },
       take: 5,
@@ -494,7 +493,7 @@ export const GET = withAuth(async (_req, { user }) => {
           })),
         };
       }),
-      overdueCount: user.role === "STUDENT" ? myOverdueCount : totalOverdue,
+      overdueCount: totalOverdue,
       overdueItems,
       drafts: myDrafts.map((d) => ({
         id: d.id,
