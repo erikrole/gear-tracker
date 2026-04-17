@@ -5,6 +5,7 @@ import { IdleScreen } from "./IdleScreen";
 import { StudentHub } from "./StudentHub";
 import { CheckoutFlow } from "./CheckoutFlow";
 import { ReturnFlow } from "./ReturnFlow";
+import { PickupFlow } from "./PickupFlow";
 import { ScanLookup } from "./ScanLookup";
 import { SuccessScreen } from "./SuccessScreen";
 
@@ -24,6 +25,7 @@ type Screen =
   | { type: "idle" }
   | { type: "hub"; user: KioskUser }
   | { type: "checkout"; user: KioskUser }
+  | { type: "pickup"; user: KioskUser; bookingId: string }
   | { type: "return"; user: KioskUser; bookingId: string }
   | { type: "scan-lookup"; user: KioskUser }
   | { type: "success"; message: string; detail?: string };
@@ -131,6 +133,9 @@ export function KioskShell({ kioskInfo }: Props) {
           countdown={formatCountdown(countdown)}
           onBack={goIdle}
           onCheckout={() => setScreen({ type: "checkout", user: screen.user })}
+          onPickup={(bookingId) =>
+            setScreen({ type: "pickup", user: screen.user, bookingId })
+          }
           onReturn={(bookingId) =>
             setScreen({ type: "return", user: screen.user, bookingId })
           }
@@ -151,6 +156,23 @@ export function KioskShell({ kioskInfo }: Props) {
             setScreen({
               type: "success",
               message: `Checked out ${itemCount} item${itemCount !== 1 ? "s" : ""}`,
+            })
+          }
+        />
+      );
+
+    case "pickup":
+      return (
+        <PickupFlow
+          kioskInfo={kioskInfo}
+          user={screen.user}
+          bookingId={screen.bookingId}
+          countdown={formatCountdown(countdown)}
+          onBack={() => setScreen({ type: "hub", user: screen.user })}
+          onComplete={(itemCount) =>
+            setScreen({
+              type: "success",
+              message: `Picked up ${itemCount} item${itemCount !== 1 ? "s" : ""}`,
             })
           }
         />

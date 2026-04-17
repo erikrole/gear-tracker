@@ -9,13 +9,14 @@ import type { AuthUser } from "@/lib/auth";
  * Source of truth: AREA_CHECKOUTS.md, AREA_RESERVATIONS.md, AREA_USERS.md
  *
  * Checkout state × action matrix:
- * | Action   | DRAFT        | BOOKED       | OPEN          | COMPLETED | CANCELLED |
- * |----------|-------------|-------------|---------------|-----------|-----------|
- * | edit     | staff+/owner | staff+/owner | staff+/owner  | ✗         | ✗         |
- * | extend   | ✗            | staff+/owner | staff+/owner  | ✗         | ✗         |
- * | cancel   | staff+/owner | staff+/owner | staff+ only   | ✗         | ✗         |
- * | checkin  | ✗            | ✗            | staff+/owner  | ✗         | ✗         |
- * | open     | ✗            | staff+/owner | ✗             | ✗         | ✗         |
+ * | Action   | DRAFT        | BOOKED       | PENDING_PICKUP | OPEN          | COMPLETED | CANCELLED |
+ * |----------|-------------|-------------|----------------|---------------|-----------|-----------|
+ * | edit     | staff+/owner | staff+/owner | staff+/owner   | staff+/owner  | ✗         | ✗         |
+ * | extend   | ✗            | staff+/owner | ✗              | staff+/owner  | ✗         | ✗         |
+ * | cancel   | staff+/owner | staff+/owner | staff+/owner   | staff+ only   | ✗         | ✗         |
+ * | checkin  | ✗            | ✗            | ✗              | staff+/owner  | ✗         | ✗         |
+ * | open     | ✗            | staff+/owner | ✗              | ✗             | ✗         | ✗         |
+ * | pickup   | ✗            | ✗            | kiosk only     | ✗             | ✗         | ✗         |
  *
  * Reservation state × action matrix:
  * | Action   | DRAFT        | BOOKED       | COMPLETED | CANCELLED |
@@ -69,6 +70,7 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   [BookingKind.CHECKOUT]: {
     [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
     [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "open"]),
+    [BookingStatus.PENDING_PICKUP]: new Set(["edit", "cancel"]),
     [BookingStatus.OPEN]: new Set(["edit", "extend", "cancel", "checkin", "force-complete", "nudge"]),
     [BookingStatus.COMPLETED]: new Set(),
     [BookingStatus.CANCELLED]: new Set(),
@@ -76,6 +78,7 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
   [BookingKind.RESERVATION]: {
     [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
     [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "convert", "duplicate"]),
+    [BookingStatus.PENDING_PICKUP]: new Set(),
     [BookingStatus.OPEN]: new Set(),
     [BookingStatus.COMPLETED]: new Set(),
     [BookingStatus.CANCELLED]: new Set(),

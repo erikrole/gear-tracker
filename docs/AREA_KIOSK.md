@@ -31,6 +31,8 @@ Self-serve iPad kiosk for gear checkout/return at equipment counter. Students ta
 | AC-9 | 5-min inactivity timeout | ✅ Complete |
 | AC-10 | Audit trail with source=KIOSK | ✅ Complete |
 | AC-11 | Kiosk API rejects non-kiosk requests | ✅ Complete |
+| AC-12 | PENDING_PICKUP pickup flow | ✅ Complete |
+| AC-13 | Desktop scan routes gated (403) | ✅ Complete |
 
 ## Implemented Features
 
@@ -50,9 +52,11 @@ Self-serve iPad kiosk for gear checkout/return at equipment counter. Students ta
   - `POST /checkin/[id]/scan` — marks individual items as returned, deactivates allocation
   - `POST /checkin/[id]/complete` — completes the check-in, logs `source: "KIOSK"`
   - `POST /scan-lookup` — returns item status by QR/tag (no state change)
+  - `POST /pickup/[id]/scan` — validates a scanned item against a PENDING_PICKUP booking
+  - `POST /pickup/[id]/confirm` — transitions PENDING_PICKUP → OPEN, logs `source: "KIOSK"`
 - **Visual layer** in `src/app/(kiosk)/kiosk/_components/`:
-  - `KioskShell` — state machine (idle → hub → checkout/return/scan-lookup → success); 5-min inactivity timer; 5s auto-return from success
-  - `ActivationForm`, `IdleScreen`, `AvatarGrid`, `StudentHub`, `CheckoutFlow`, `ReturnFlow`, `ScanInput`, `ScanLookup`, `SuccessScreen`
+  - `KioskShell` — state machine (idle → hub → checkout/pickup/return/scan-lookup → success); 5-min inactivity timer; 5s auto-return from success
+  - `ActivationForm`, `IdleScreen`, `AvatarGrid`, `StudentHub`, `CheckoutFlow`, `PickupFlow`, `ReturnFlow`, `ScanInput`, `ScanLookup`, `SuccessScreen`
 
 **AC-1: Admin CRUD for kiosk devices** (2026-04-07 → 2026-04-09)
 - **Route:** `src/app/(app)/settings/kiosk-devices/page.tsx`

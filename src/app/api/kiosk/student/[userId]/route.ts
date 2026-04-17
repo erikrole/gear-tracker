@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 
-/** Get a student's active checkouts and upcoming reservations */
+/** Get a student's active checkouts, pending pickups, and upcoming reservations */
 export const GET = withKiosk<{ userId: string }>(async (_req, { params }) => {
   const user = await db.user.findUnique({
     where: { id: params.userId },
@@ -15,8 +15,8 @@ export const GET = withKiosk<{ userId: string }>(async (_req, { params }) => {
 
   const now = new Date();
 
-  const [checkouts, reservations] = await Promise.all([
-    // Active checkouts
+  const [checkouts, pendingPickups, reservations] = await Promise.all([
+    // Active checkouts (OPEN)
     db.booking.findMany({
       where: {
         requesterUserId: params.userId,
@@ -35,6 +35,35 @@ export const GET = withKiosk<{ userId: string }>(async (_req, { params }) => {
             asset: {
               select: { assetTag: true, name: true },
             },
+          },
+        },
+      },
+    }),
+
+    // Pending pickups (PENDING_PICKUP)
+    db.booking.findMany({
+      where: {
+        requesterUserId: params.userId,
+        kind: "CHECKOUT",
+        status: "PENDING_PICKUP",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        refNumber: true,
+        startsAt: true,
+        serializedItems: {
+          select: {
+            asset: {
+              select: { id: true, assetTag: true, name: true },
+            },
+          },
+        },
+        bulkItems: {
+          select: {
+            plannedQuantity: true,
+            bulkSku: { select: { name: true } },
           },
         },
       },
@@ -72,6 +101,21 @@ export const GET = withKiosk<{ userId: string }>(async (_req, { params }) => {
       })),
       endsAt: c.endsAt,
       isOverdue: c.endsAt < now,
+    })),
+    pendingPickups: pendingPickups.map((p) => ({
+      id: p.id,
+      title: p.title,
+      refNumber: p.refNumber,
+      startsAt: p.startsAt,
+      serializedItems: p.serializedItems.map((si) => ({
+        id: si.asset.id,
+        tagName: si.asset.assetTag,
+        name: si.asset.name || si.asset.assetTag,
+      })),
+      bulkItems: p.bulkItems.map((bi) => ({
+        name: bi.bulkSku.name,
+        quantity: bi.plannedQuantity,
+      })),
     })),
     reservations: reservations.map((r) => ({
       id: r.id,

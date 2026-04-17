@@ -413,7 +413,10 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
       const bookingId = created.id;
       if (kind === "CHECKOUT") {
-        router.push(`/scan?checkout=${bookingId}&phase=CHECKOUT`);
+        const params = new URLSearchParams();
+        params.set("tab", "checkouts");
+        params.set("highlight", bookingId);
+        router.push(`/bookings?${params.toString()}`);
       } else {
         const params = new URLSearchParams();
         params.set("tab", "reservations");

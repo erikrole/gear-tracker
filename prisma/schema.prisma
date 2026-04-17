@@ -28,6 +28,7 @@ enum BookingKind {
 enum BookingStatus {
   DRAFT
   BOOKED
+  PENDING_PICKUP
   OPEN
   COMPLETED
   CANCELLED

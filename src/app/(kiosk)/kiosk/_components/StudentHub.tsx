@@ -18,6 +18,14 @@ type Checkout = {
   isOverdue: boolean;
 };
 
+type PendingPickup = {
+  id: string;
+  title: string;
+  refNumber: string;
+  serializedItems: Array<{ id: string; tagName: string; name: string }>;
+  bulkItems: Array<{ name: string; quantity: number }>;
+};
+
 type Reservation = {
   id: string;
   title: string;
@@ -30,6 +38,7 @@ type Props = {
   countdown: string;
   onBack: () => void;
   onCheckout: () => void;
+  onPickup: (bookingId: string) => void;
   onReturn: (bookingId: string) => void;
   onScanLookup: () => void;
 };
@@ -71,10 +80,12 @@ export function StudentHub({
   countdown,
   onBack,
   onCheckout,
+  onPickup,
   onReturn,
   onScanLookup,
 }: Props) {
   const [checkouts, setCheckouts] = useState<Checkout[]>([]);
+  const [pendingPickups, setPendingPickups] = useState<PendingPickup[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +99,7 @@ export function StudentHub({
       if (!res.ok) throw new Error("Failed to load data");
       const data = await res.json();
       setCheckouts(data.checkouts ?? []);
+      setPendingPickups(data.pendingPickups ?? []);
       setReservations(data.reservations ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -246,6 +258,52 @@ export function StudentHub({
                   )}
                 </div>
               </div>
+
+              {/* Pending Pickups */}
+              {pendingPickups.length > 0 && (
+                <div>
+                  <SectionHeader>Pending Pickup</SectionHeader>
+                  <div className="space-y-1.5">
+                    {pendingPickups.map((pickup) => {
+                      const itemCount = pickup.serializedItems.length + pickup.bulkItems.reduce((s, b) => s + b.quantity, 0);
+                      return (
+                        <button
+                          key={pickup.id}
+                          type="button"
+                          className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition-all"
+                          style={{
+                            background: "rgba(197,5,12,0.08)",
+                            border: "1px solid rgba(197,5,12,0.30)",
+                          }}
+                          onClick={() => onPickup(pickup.id)}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background = "rgba(197,5,12,0.14)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background = "rgba(197,5,12,0.08)";
+                          }}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-white/90">{pickup.title}</p>
+                            <p className="truncate text-xs text-white/40">
+                              {itemCount} item{itemCount !== 1 ? "s" : ""} — tap to pick up
+                            </p>
+                          </div>
+                          <div className="ml-3 flex shrink-0 items-center gap-2">
+                            <span
+                              style={{ ...HDG, fontWeight: 800, fontSize: "0.6rem", letterSpacing: "0.12em", color: "#c5050c" }}
+                              className="uppercase"
+                            >
+                              Pick Up
+                            </span>
+                            <ChevronRight className="size-3.5 text-white/20" />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Upcoming Reservations */}
               {reservations.length > 0 && (

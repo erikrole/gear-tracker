@@ -43,7 +43,7 @@ const bottomNavItems = [
   { label: "Items", href: "/items", icon: <LayersIcon className="size-[22px]" /> },
   { label: "Reservations", href: "/reservations", icon: <CalendarPlusIcon className="size-[22px]" /> },
   { label: "Checkouts", href: "/checkouts", icon: <ClipboardCheckIcon className="size-[22px]" /> },
-  { label: "Scan", href: "/scan", icon: <ScanIcon className="size-[22px]" /> },
+  { label: "Lookup", href: "/scan", icon: <ScanIcon className="size-[22px]" /> },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

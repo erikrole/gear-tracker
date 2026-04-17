@@ -11,7 +11,7 @@
 Optimize handoff and return execution so daily operators can move fast without data integrity regressions.
 
 ## Core Rules
-1. Checkout records use the unified Booking model and states: `BOOKED`, `OPEN`, `COMPLETED`, `CANCELLED`.
+1. Checkout records use the unified Booking model and states: `PENDING_PICKUP`, `OPEN`, `COMPLETED`, `CANCELLED`.
 2. Event tie-in defaults ON at creation.
 3. Event link is optional for ad hoc checkouts.
 4. Status and availability logic remain derived from allocations, never authoritative stored status.
@@ -34,9 +34,9 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 3. On mobile checkout: scan-first UI (camera open by default).
 
 **Step 3 — Confirmation:**
-1. Full summary with thumbnails, equipment list, checkout scan notice.
+1. Full summary with thumbnails, equipment list, kiosk pickup notice.
 2. Submit → POST `/api/checkouts`. 409 conflicts shown inline (returns to Step 2).
-3. Items will be scanned at pickup (hard gate for checkout fulfillment).
+3. Checkout is created with status `PENDING_PICKUP`. Gear must be picked up at a kiosk — no desktop/phone scanning allowed.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?draftId`.
 
@@ -139,12 +139,14 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
   - Edit (resume)
   - Cancel (discard)
 
-### `BOOKED`
+### `PENDING_PICKUP`
+- Created on desktop wizard submit
+- Allocations and bulk stock held immediately
 - Allowed actions:
   - View
-  - Edit
-  - Cancel
-  - Convert to `OPEN`
+  - Edit (staff+/owner)
+  - Cancel (staff+/owner)
+  - Pickup at kiosk → transitions to `OPEN`
 
 ### `OPEN`
 - Allowed actions:

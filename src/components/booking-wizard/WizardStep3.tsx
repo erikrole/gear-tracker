@@ -225,7 +225,7 @@ export function WizardStep3({
         )}
       </div>
 
-      {/* ── Scan requirement notice (CHECKOUT only) ── */}
+      {/* ── Kiosk pickup notice (CHECKOUT only) ── */}
       {config.kind === "CHECKOUT" && (
         <div
           className="flex items-start gap-3 rounded-sm px-4 py-3.5 border"
@@ -239,8 +239,8 @@ export function WizardStep3({
             style={{ color: "var(--wi-red)" }}
           />
           <p className="text-sm text-foreground">
-            You&apos;ll be taken to the scan screen next. Each item must be scanned before pickup
-            is complete. Use a kiosk device or your phone for the best experience.
+            Gear pickup must happen at a kiosk. After submitting, the requester should go to the
+            equipment kiosk and scan each item to complete the checkout.
           </p>
         </div>
       )}

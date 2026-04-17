@@ -97,7 +97,7 @@ export async function createBooking(input: CreateBookingInput) {
         throw new HttpError(409, "Availability conflict", availability);
       }
 
-      const status = input.kind === BookingKind.RESERVATION ? BookingStatus.BOOKED : BookingStatus.OPEN;
+      const status = input.kind === BookingKind.RESERVATION ? BookingStatus.BOOKED : BookingStatus.PENDING_PICKUP;
 
       const seqResult = await tx.$queryRaw<[{ nextval: bigint }]>`SELECT nextval('booking_ref_seq')`;
       const seq = Number(seqResult[0].nextval);
