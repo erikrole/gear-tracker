@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { PartialBlock } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -32,6 +33,15 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       ? (guide.content as PartialBlock[])
       : undefined,
   });
+
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
@@ -77,7 +87,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
 
       {/* BlockNote reader */}
       <div className="prose-blocknote">
-        <BlockNoteView editor={editor} editable={false} />
+        <BlockNoteView editor={editor} editable={false} theme={isDark ? "dark" : "light"} />
       </div>
     </div>
   );

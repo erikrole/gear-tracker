@@ -66,9 +66,21 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     include: {
       location: { select: { id: true, name: true } },
       categoryRel: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true } },
       balances: true,
+      units: { where: { status: "AVAILABLE" }, select: { id: true } },
+      bookingItems: {
+        where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
+        select: { checkedOutQuantity: true },
+      },
     },
   });
+
+  const onHand = sku.balances.reduce((s, b) => s + b.onHandQuantity, 0);
+  const availableQuantity = sku.trackByNumber
+    ? sku.units.length
+    : Math.max(0, onHand - sku.bookingItems.reduce((s, b) => s + (b.checkedOutQuantity ?? 0), 0));
+  const { units: _u, bookingItems: _b, ...skuRest } = sku;
 
   const changedKeys = Object.keys(body);
   const beforeDiff: Record<string, unknown> = {};
@@ -88,7 +100,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     after: afterDiff,
   });
 
-  return ok({ data: sku });
+  return ok({ data: { ...skuRest, onHand, availableQuantity } });
 });
 
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
