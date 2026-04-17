@@ -261,7 +261,7 @@ export default function ItemDetailsPage() {
               onCategoriesChanged={loadCategories}
               onDepartmentsChanged={loadDepartments}
             />
-            <OperationalOverview asset={asset} now={now} canEdit={canEdit} onSelectBooking={setSelectedBookingId} onRefresh={loadAsset} />
+            <OperationalOverview asset={asset} now={now} canEdit={canEdit} onSelectBooking={setSelectedBookingId} onRefresh={loadAsset} currentUserRole={currentUserRole} />
           </div>
         </>
       )}

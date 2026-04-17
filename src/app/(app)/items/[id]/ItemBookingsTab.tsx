@@ -120,13 +120,15 @@ export function ActiveBookingCard({
 
 /* ── Tracking Codes Card (sidebar) ─────────────────────── */
 
-function TrackingCodesCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+function TrackingCodesCard({ asset, canEdit, onRefresh, currentUserRole }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void; currentUserRole: string }) {
   const [showModal, setShowModal] = useState(false);
   const rawParts = asset.assetTag.split(/[\s]+/).filter(Boolean);
   // Always 3 lines — pad with blank lines at the top if fewer than 3 parts
   const tagLines = rawParts.length >= 3
     ? rawParts.slice(0, 3)
     : [...Array(3 - rawParts.length).fill(""), ...rawParts];
+
+  if (currentUserRole !== "ADMIN") return null;
 
   return (
     <>
@@ -263,7 +265,7 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
 
 /* ── Operational Overview (Info tab dashboard cards) ─────── */
 
-export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRefresh }: { asset: AssetDetail; now: Date; canEdit: boolean; onSelectBooking: (id: string) => void; onRefresh: () => void }) {
+export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRefresh, currentUserRole = "" }: { asset: AssetDetail; now: Date; canEdit: boolean; onSelectBooking: (id: string) => void; onRefresh: () => void; currentUserRole?: string }) {
   const b = asset.activeBooking;
   const reservations = asset.upcomingReservations;
 
@@ -300,8 +302,8 @@ export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRe
         )}
       </Card>
 
-      {/* Tracking Codes */}
-      <TrackingCodesCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
+      {/* Tracking Codes — admin only */}
+      <TrackingCodesCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} currentUserRole={currentUserRole} />
 
     </div>
   );

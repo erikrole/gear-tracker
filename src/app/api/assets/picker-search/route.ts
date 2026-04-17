@@ -37,7 +37,7 @@ export const GET = withAuth(async (req, { user }) => {
   const q = searchParams.get("q")?.trim() || undefined;
   const qr = searchParams.get("qr")?.trim() || undefined;
   const sectionParam = searchParams.get("section")?.trim();
-  const onlyAvailable = searchParams.get("only_available") !== "false";
+  const onlyAvailable = searchParams.get("only_available") === "true";
   const idsParam = searchParams.get("ids")?.trim();
 
   const section = sectionParam && VALID_SECTIONS.has(sectionParam)
@@ -148,7 +148,7 @@ export const GET = withAuth(async (req, { user }) => {
     .filter((a) => a.computedStatus !== "AVAILABLE")
     .map((a) => a.id);
 
-  const holderMap = new Map<string, { bookingId: string; bookingTitle: string; holderName: string }>();
+  const holderMap = new Map<string, { bookingId: string; bookingTitle: string; holderName: string; endsAt: string }>();
   if (unavailableIds.length > 0) {
     const activeAllocs = await db.assetAllocation.findMany({
       where: {
@@ -162,6 +162,7 @@ export const GET = withAuth(async (req, { user }) => {
           select: {
             id: true,
             title: true,
+            endsAt: true,
             requester: { select: { name: true } },
           },
         },
@@ -174,6 +175,7 @@ export const GET = withAuth(async (req, { user }) => {
           bookingId: alloc.booking.id,
           bookingTitle: alloc.booking.title,
           holderName: alloc.booking.requester.name,
+          endsAt: alloc.booking.endsAt.toISOString(),
         });
       }
     }

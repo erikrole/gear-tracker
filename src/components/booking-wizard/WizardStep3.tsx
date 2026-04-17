@@ -181,7 +181,7 @@ export function WizardStep3({
             No equipment selected \u2014 go back to add items.
           </div>
         ) : (
-          <div className="border border-border rounded-sm overflow-hidden">
+          <div className="border border-border rounded-sm max-h-[280px] overflow-y-auto">
             {selectedAssetDetails.map((asset, i) => (
               <div key={asset.id}>
                 {i > 0 && <Separator className="opacity-40" />}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -56,6 +57,7 @@ export default function BookingOverview({
   canEdit = false,
   onSaveDate,
 }: Props) {
+  const confirm = useConfirm();
   const [presets, setPresets] = useState<ExtendPreset[]>([]);
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState("");
@@ -70,19 +72,26 @@ export default function BookingOverview({
       .catch(() => {});
   }, []);
 
-  function handlePreset(minutes: number) {
+  async function handlePreset(minutes: number) {
     const current = new Date(booking.endsAt);
     const extended = new Date(current.getTime() + minutes * 60 * 1000);
+    const label = extended.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const ok = await confirm({ title: "Extend booking", message: `Extend due date to ${label}?`, confirmLabel: "Extend" });
+    if (!ok) return;
     onExtendTo(extended.toISOString());
   }
 
-  function handleCustomExtend() {
-    if (!customValue) return;
-    const target = new Date(customValue);
+  const handleCustomExtend = useCallback(async (value?: string) => {
+    const v = value ?? customValue;
+    if (!v) return;
+    const target = new Date(v);
     if (isNaN(target.getTime())) return;
+    const label = target.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const ok = await confirm({ title: "Extend booking", message: `Extend due date to ${label}?`, confirmLabel: "Extend" });
+    if (!ok) return;
     onExtendTo(target.toISOString());
     setCustomOpen(false);
-  }
+  }, [customValue, confirm, onExtendTo]);
 
   // Default custom value: current due date + 1 day
   function openCustom() {
@@ -208,7 +217,17 @@ export default function BookingOverview({
                 {extending ? "..." : p.label}
               </Button>
             ))}
-            <Popover open={customOpen} onOpenChange={setCustomOpen}>
+            <Popover
+              open={customOpen}
+              onOpenChange={(open) => {
+                if (!open && customValue) {
+                  // Clicking outside or pressing Escape saves the selection
+                  handleCustomExtend(customValue);
+                } else {
+                  setCustomOpen(open);
+                }
+              }}
+            >
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" onClick={openCustom} disabled={extending}>
                   Custom
@@ -227,7 +246,7 @@ export default function BookingOverview({
                   <Button
                     size="sm"
                     className="w-full"
-                    onClick={handleCustomExtend}
+                    onClick={() => handleCustomExtend()}
                     disabled={extending || !customValue}
                   >
                     {extending ? "Extending..." : "Extend"}

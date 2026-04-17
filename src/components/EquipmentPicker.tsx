@@ -9,7 +9,7 @@ import {
   groupBulkBySection,
   type EquipmentSectionKey,
 } from "@/lib/equipment-sections";
-import { CheckCircle2Icon, CircleIcon, SearchIcon, XIcon, ExternalLinkIcon } from "lucide-react";
+import { CheckCircle2Icon, CircleIcon, SearchIcon, XIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 // Native overflow-y-auto used instead of Radix ScrollArea (max-height incompatibility)
@@ -31,7 +31,7 @@ export type PickerAsset = {
   categoryName?: string | null;
   imageUrl?: string | null;
   location: { id: string; name: string } | null;
-  currentHolder?: { bookingId: string; bookingTitle: string; holderName: string } | null;
+  currentHolder?: { bookingId: string; bookingTitle: string; holderName: string; endsAt?: string | null } | null;
 };
 
 export type PickerBulkSku = {
@@ -282,7 +282,7 @@ export default function EquipmentPicker({
                 const isSelected = selectedIdSet.has(asset.id);
                 const conflict = conflicts.get(asset.id);
                 const isAvailable = asset.computedStatus === "AVAILABLE";
-                const isUnavailable = !isAvailable && !isSelected;
+                const isUnavailable = (!isAvailable || !!conflict) && !isSelected;
                 const holder = asset.currentHolder;
 
                 return (
@@ -290,7 +290,8 @@ export default function EquipmentPicker({
                     key={asset.id}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-border/50 last:border-b-0 min-h-[52px]",
-                      isUnavailable && "opacity-50"
+                      isUnavailable && "opacity-50",
+                      isSelected && "bg-green-500/[0.06]"
                     )}
                   >
                     {/* Clickable area for available/selected items */}
@@ -314,19 +315,16 @@ export default function EquipmentPicker({
                         </div>
                       </div>
                     </button>
-                    {/* Right side: holder badge or selection indicator */}
+                    {/* Right side: holder info or selection indicator */}
                     {isUnavailable && holder ? (
-                      <a
-                        href={`/bookings?highlight=${holder.bookingId}`}
-                        className="shrink-0 flex items-center gap-1 max-w-[140px]"
-                        title={`${holder.bookingTitle} — ${holder.holderName}`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Badge variant="secondary" size="sm" className="truncate gap-1">
-                          {holder.holderName}
-                          <ExternalLinkIcon className="size-2.5 shrink-0 opacity-60" />
-                        </Badge>
-                      </a>
+                      <div className="shrink-0 flex flex-col items-end gap-0.5 max-w-[150px]">
+                        <span className="text-xs font-medium truncate">{holder.holderName}</span>
+                        {holder.endsAt && (
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            Returns {new Date(holder.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        )}
+                      </div>
                     ) : isUnavailable ? (
                       <Badge variant="secondary" size="sm" className="shrink-0">
                         {asset.computedStatus.replace(/_/g, " ").toLowerCase()}
@@ -337,7 +335,7 @@ export default function EquipmentPicker({
                           <Badge variant="orange" size="sm" className="shrink-0">Conflict</Badge>
                         )}
                         {isSelected ? (
-                          <CheckCircle2Icon className="size-5 text-primary shrink-0" />
+                          <CheckCircle2Icon className="size-5 text-green-500 shrink-0" />
                         ) : (
                           <CircleIcon className="size-5 text-border shrink-0" />
                         )}

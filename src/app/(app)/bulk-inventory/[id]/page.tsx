@@ -26,7 +26,7 @@ export default function BulkSkuDetailPage() {
   const initialTab = (searchParams.get("tab") as TabKey) || "info";
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
-  const { sku, setSku, fetchError, refreshing, canEdit, loadSku } = useBulkSkuData(id);
+  const { sku, setSku, fetchError, refreshing, canEdit, currentUserRole, loadSku } = useBulkSkuData(id);
 
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
@@ -66,7 +66,7 @@ export default function BulkSkuDetailPage() {
   const tabDefs: Array<{ key: TabKey; label: string; hidden?: boolean }> = [
     { key: "info", label: "Info" },
     { key: "units", label: "Units", hidden: !sku.trackByNumber },
-    { key: "qr", label: "QR Codes" },
+    { key: "qr", label: "QR Codes", hidden: currentUserRole !== "ADMIN" },
     { key: "history", label: "History" },
     { key: "settings", label: "Settings", hidden: !canEdit },
   ];

@@ -811,9 +811,9 @@ export default function BookingDetailsSheet({
                   {converting ? "Converting..." : "Start checkout"}
                 </Button>
               )}
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="outline" size="sm" asChild>
                 <Link href={detailHref}>
-                  Full page <ExternalLinkIcon className="size-3.5 ml-1" />
+                  Full Details <ExternalLinkIcon className="size-3.5 ml-1" />
                 </Link>
               </Button>
             </div>

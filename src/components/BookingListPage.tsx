@@ -164,6 +164,18 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     urlParams.get("highlight") || null
   );
   const [initialSheetTab, setInitialSheetTab] = useState<string | null>(urlParams.get("sheetTab") || null);
+
+  // Clear highlight/sheetTab from URL after consuming them so re-mounting tabs don't re-open the sheet
+  useEffect(() => {
+    if (urlParams.get("highlight") || urlParams.get("sheetTab")) {
+      const next = new URLSearchParams(urlParams.toString());
+      next.delete("highlight");
+      next.delete("sheetTab");
+      const qs = next.toString();
+      router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const extendingRef = useRef(false);
 

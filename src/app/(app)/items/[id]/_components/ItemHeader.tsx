@@ -225,7 +225,7 @@ export function ItemHeader({
             >
               <InlineTitle
                 value={asset.assetTag}
-                canEdit={canEdit}
+                canEdit={false}
                 onSave={(v) => onSaveHeaderField("assetTag", v)}
                 className="text-[28px] sm:text-[32px] font-black leading-none tracking-tight"
               />
@@ -243,7 +243,7 @@ export function ItemHeader({
             <div style={{ fontFamily: "var(--font-heading)" }}>
               <InlineTitle
                 value={asset.name || ""}
-                canEdit={canEdit}
+                canEdit={false}
                 onSave={(v) => onSaveHeaderField("name", v)}
                 className="text-[14px] font-medium text-muted-foreground leading-tight"
                 placeholder="Add item name"
