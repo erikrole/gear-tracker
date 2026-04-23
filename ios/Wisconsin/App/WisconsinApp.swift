@@ -4,12 +4,14 @@ import SwiftUI
 struct WisconsinApp: App {
     @State private var session = SessionStore()
     @State private var appState = AppState()
+    @State private var network = NetworkMonitor()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(session)
                 .environment(appState)
+                .environment(network)
         }
     }
 }

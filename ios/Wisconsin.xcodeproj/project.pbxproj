@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -16,6 +16,7 @@
 		390F43409B451AAB78D2D0C9 /* WisconsinApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BDE438C8F05EAA14B299BB /* WisconsinApp.swift */; };
 		3A34548DD720E71C6B54BB31 /* ItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12684601FE641B454D0219B /* ItemsView.swift */; };
 		470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6148A160C162A021FF9DE4C0 /* FormModels.swift */; };
+		4F0A1067946B104FF1220865 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2536547429CB16E12CB069C0 /* NetworkMonitor.swift */; };
 		5BFCE075814954BB59669481 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468E248680EC5A61BEC1EE38 /* Skeleton.swift */; };
 		69DD68092CDC35D6924052DF /* BookingDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA04562F7C424114F304B494 /* BookingDetailView.swift */; };
 		713FB9080DFAA1073EE5FA8C /* EventDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FB4AEDFE7F83CC6E155C12D /* EventDetailSheet.swift */; };
@@ -34,7 +35,8 @@
 /* Begin PBXFileReference section */
 		0189482D68508F45B086F46F /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingsView.swift; sourceTree = "<group>"; };
-		294553EF02A8AC64D71ED849 /* Wisconsin.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Wisconsin.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2536547429CB16E12CB069C0 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		294553EF02A8AC64D71ED849 /* Wisconsin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wisconsin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtendBookingSheet.swift; sourceTree = "<group>"; };
 		37FF31264347D4D6932C4DBB /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
 		38065600FA5A1C1AC4C8CC2F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -120,6 +122,7 @@
 			children = (
 				6ED3D57FAA3E94281C3FF27C /* APIClient.swift */,
 				38065600FA5A1C1AC4C8CC2F /* AppState.swift */,
+				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
 				0189482D68508F45B086F46F /* SessionStore.swift */,
 			);
 			path = Core;
@@ -164,11 +167,7 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			name = Wisconsin;
-			packageProductDependencies = (
-			);
 			productName = Wisconsin;
 			productReference = 294553EF02A8AC64D71ED849 /* Wisconsin.app */;
 			productType = "com.apple.product-type.application";
@@ -196,7 +195,7 @@
 			);
 			mainGroup = 649EB01281625219848D23B2;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
+			preferredProjectObjectVersion = 100;
 			productRefGroup = FAC33595C52A409299C15513 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -209,7 +208,6 @@
 /* Begin PBXSourcesBuildPhase section */
 		ABB8BC4733CB796A48A557D1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				1AC641AD94A229A52FE17AE0 /* APIClient.swift in Sources */,
 				96DAC20EB887DA3916DEE474 /* AppState.swift in Sources */,
@@ -227,6 +225,7 @@
 				3A34548DD720E71C6B54BB31 /* ItemsView.swift in Sources */,
 				DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */,
 				0FC9DC340824D39EB558E913 /* Models.swift in Sources */,
+				4F0A1067946B104FF1220865 /* NetworkMonitor.swift in Sources */,
 				23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */,
 				2CED1D2B5A4282EB13E29796 /* ScheduleModels.swift in Sources */,
 				2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */,
@@ -234,12 +233,11 @@
 				5BFCE075814954BB59669481 /* Skeleton.swift in Sources */,
 				390F43409B451AAB78D2D0C9 /* WisconsinApp.swift in Sources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		4DDDE64217BAA8B5B397181C /* Debug */ = {
+		4DDDE64217BAA8B5B397181C /* Debug configuration for PBXNativeTarget "Wisconsin" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -247,7 +245,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -261,7 +260,7 @@
 			};
 			name = Debug;
 		};
-		56F244381FE75A5ABD0B08E6 /* Release */ = {
+		56F244381FE75A5ABD0B08E6 /* Release configuration for PBXNativeTarget "Wisconsin" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -269,7 +268,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -282,7 +282,7 @@
 			};
 			name = Release;
 		};
-		5E0F40E0C9EC2950B8E717E2 /* Release */ = {
+		5E0F40E0C9EC2950B8E717E2 /* Release configuration for PBXProject "Wisconsin" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -339,7 +339,7 @@
 			};
 			name = Release;
 		};
-		B5B7628012912EFED4466270 /* Debug */ = {
+		B5B7628012912EFED4466270 /* Debug configuration for PBXProject "Wisconsin" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -409,19 +409,17 @@
 		5728D6AA97025032A6EE9DAD /* Build configuration list for PBXProject "Wisconsin" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B5B7628012912EFED4466270 /* Debug */,
-				5E0F40E0C9EC2950B8E717E2 /* Release */,
+				B5B7628012912EFED4466270 /* Debug configuration for PBXProject "Wisconsin" */,
+				5E0F40E0C9EC2950B8E717E2 /* Release configuration for PBXProject "Wisconsin" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
 		7B03CFBF7061C8A8E1F40718 /* Build configuration list for PBXNativeTarget "Wisconsin" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				4DDDE64217BAA8B5B397181C /* Debug */,
-				56F244381FE75A5ABD0B08E6 /* Release */,
+				4DDDE64217BAA8B5B397181C /* Debug configuration for PBXNativeTarget "Wisconsin" */,
+				56F244381FE75A5ABD0B08E6 /* Release configuration for PBXNativeTarget "Wisconsin" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */

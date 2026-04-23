@@ -9,6 +9,7 @@ final class ScheduleViewModel {
     var myShifts: [MyShift] = []
     var isLoading = false
     var error: String?
+    private var hasLoaded = false
 
     // Keyed by event ID for O(1) lookup
     var shiftsByEventId: [String: MyShift] = [:]
@@ -26,8 +27,9 @@ final class ScheduleViewModel {
             .map { (date: $0.key, events: $0.value) }
     }
 
-    func load() async {
+    func load(forceRefresh: Bool = false) async {
         guard !isLoading else { return }
+        guard !hasLoaded || forceRefresh else { return }
         isLoading = true
         error = nil
         do {
@@ -37,6 +39,7 @@ final class ScheduleViewModel {
             events = fetchedEvents
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
+            hasLoaded = true
         } catch APIError.unauthorized {
             error = "Session expired — please sign in again."
         } catch {
@@ -106,7 +109,7 @@ struct ScheduleView: View {
                 }
             }
             .task { await vm.load() }
-            .refreshable { await vm.load() }
+            .refreshable { await vm.load(forceRefresh: true) }
             .sheet(item: $selectedEvent) { event in
                 EventDetailSheet(
                     event: event,

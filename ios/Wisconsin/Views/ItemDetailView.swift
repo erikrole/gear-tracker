@@ -6,6 +6,7 @@ struct ItemDetailView: View {
     @State private var asset: AssetDetail?
     @State private var isLoading = true
     @State private var error: String?
+    @State private var showEdit = false
 
     var body: some View {
         Group {
@@ -34,6 +35,10 @@ struct ItemDetailView: View {
                             Divider()
                             UpcomingReservationsSection(reservations: asset.upcomingReservations)
                         }
+                        if let notes = asset.notes, !notes.isEmpty {
+                            Divider()
+                            NotesSection(notes: notes)
+                        }
                     }
                     .padding()
                 }
@@ -41,8 +46,24 @@ struct ItemDetailView: View {
         }
         .navigationTitle(asset?.displayName ?? "Item")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if asset != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showEdit = true } label: {
+                        Image(systemName: "pencil")
+                    }
+                }
+            }
+        }
         .task { await loadAsset() }
         .refreshable { await loadAsset() }
+        .sheet(isPresented: $showEdit) {
+            if let asset {
+                EditAssetSheet(asset: asset) {
+                    Task { await loadAsset() }
+                }
+            }
+        }
     }
 
     private func loadAsset() async {
@@ -56,6 +77,98 @@ struct ItemDetailView: View {
         isLoading = false
     }
 }
+
+// MARK: - Edit Sheet
+
+struct EditAssetSheet: View {
+    let asset: AssetDetail
+    let onSaved: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var serialNumber: String
+    @State private var notes: String
+    @State private var isSaving = false
+    @State private var error: String?
+
+    init(asset: AssetDetail, onSaved: @escaping () -> Void) {
+        self.asset = asset
+        self.onSaved = onSaved
+        _name = State(wrappedValue: asset.name ?? "")
+        _serialNumber = State(wrappedValue: asset.serialNumber ?? "")
+        _notes = State(wrappedValue: asset.notes ?? "")
+    }
+
+    private var hasChanges: Bool {
+        name != (asset.name ?? "")
+            || serialNumber != (asset.serialNumber ?? "")
+            || notes != (asset.notes ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Custom name (optional)", text: $name)
+                } header: {
+                    Text("Name")
+                } footer: {
+                    Text("Overrides the default \(asset.displayName) label.")
+                        .font(.caption)
+                }
+
+                Section("Serial Number") {
+                    TextField("Serial number", text: $serialNumber)
+                        .fontDesign(.monospaced)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+
+                Section("Notes") {
+                    TextField("Notes…", text: $notes, axis: .vertical)
+                        .lineLimit(3...8)
+                }
+
+                if let error {
+                    Section {
+                        Text(error).foregroundStyle(.red).font(.footnote)
+                    }
+                }
+            }
+            .navigationTitle("Edit Item")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await save() } }
+                        .disabled(!hasChanges || isSaving)
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        isSaving = true
+        do {
+            try await APIClient.shared.updateAsset(
+                id: asset.id,
+                name: name != (asset.name ?? "") ? (name.isEmpty ? nil : name) : nil,
+                serialNumber: serialNumber != (asset.serialNumber ?? "") ? (serialNumber.isEmpty ? nil : serialNumber) : nil,
+                notes: notes != (asset.notes ?? "") ? (notes.isEmpty ? nil : notes) : nil
+            )
+            onSaved()
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isSaving = false
+    }
+}
+
+// MARK: - Sub-sections
 
 private struct ItemHeroSection: View {
     let asset: AssetDetail
@@ -98,11 +211,28 @@ private struct ItemMetaSection: View {
                 LabeledContent("Department", value: dept.name)
             }
             if let serial = asset.serialNumber {
-                LabeledContent("Serial", value: serial)
+                LabeledContent("Serial") {
+                    Text(serial).fontDesign(.monospaced).font(.subheadline)
+                }
             }
             if let price = asset.purchasePrice.flatMap(Double.init) {
                 LabeledContent("Purchase Price", value: price, format: .currency(code: "USD"))
             }
+        }
+    }
+}
+
+private struct NotesSection: View {
+    let notes: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Notes")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+            Text(notes)
+                .font(.subheadline)
         }
     }
 }

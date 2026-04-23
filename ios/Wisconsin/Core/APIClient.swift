@@ -103,6 +103,58 @@ final class APIClient {
         }
     }
 
+    func updateAsset(id: String, name: String? = nil, serialNumber: String? = nil, notes: String? = nil) async throws {
+        struct Body: Encodable {
+            let name: String?
+            let serialNumber: String?
+            let notes: String?
+        }
+        var req = request(path: "/api/assets/\(id)", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(Body(name: name, serialNumber: serialNumber, notes: notes))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    func updateBooking(id: String, title: String? = nil, notes: String? = nil, startsAt: Date? = nil, endsAt: Date? = nil) async throws {
+        struct Body: Encodable {
+            let title: String?
+            let notes: String?
+            let startsAt: String?
+            let endsAt: String?
+        }
+        var req = request(path: "/api/bookings/\(id)", method: "PATCH")
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        req.httpBody = try JSONEncoder().encode(Body(
+            title: title,
+            notes: notes,
+            startsAt: startsAt.map { iso.string(from: $0) },
+            endsAt: endsAt.map { iso.string(from: $0) }
+        ))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    func checkinItems(bookingId: String, assetIds: [String]) async throws {
+        struct Body: Encodable { let assetIds: [String] }
+        var req = request(path: "/api/checkouts/\(bookingId)/checkin-items", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(assetIds: assetIds))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Check-in failed"
+            throw APIError.serverError(msg)
+        }
+    }
+
     func extendBooking(id: String, endsAt: Date) async throws {
         struct Body: Encodable { let endsAt: String }
         var req = request(path: "/api/bookings/\(id)/extend", method: "POST")
@@ -125,7 +177,8 @@ final class APIClient {
         endsAt: Date,
         notes: String?,
         eventId: String? = nil,
-        shiftAssignmentId: String? = nil
+        shiftAssignmentId: String? = nil,
+        serializedAssetIds: [String] = []
     ) async throws -> String {
         struct Body: Encodable {
             let title: String
@@ -149,7 +202,7 @@ final class APIClient {
             startsAt: iso.string(from: startsAt),
             endsAt: iso.string(from: endsAt),
             notes: notes?.isEmpty == true ? nil : notes,
-            serializedAssetIds: [],
+            serializedAssetIds: serializedAssetIds,
             bulkItems: [],
             eventId: eventId,
             shiftAssignmentId: shiftAssignmentId
