@@ -117,6 +117,7 @@ struct CreateBookingSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var vm: CreateBookingViewModel
     @State private var step = 1
+    @State private var submitError: String?
     @Environment(SessionStore.self) private var session
 
     init(onCreated: @escaping (String) -> Void) {
@@ -141,6 +142,14 @@ struct CreateBookingSheet: View {
             .navigationTitle(step == 1 ? "New Reservation" : "Add Equipment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
+            .alert("Couldn't Create Booking", isPresented: Binding(
+                get: { submitError != nil },
+                set: { if !$0 { submitError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(submitError ?? "")
+            }
             .task { await vm.loadOptions() }
             .onChange(of: vm.options) {
                 if vm.selectedUserId.isEmpty, let current = session.currentUser {
@@ -312,11 +321,6 @@ struct CreateBookingSheet: View {
                 }
             }
 
-            if let error = vm.error {
-                Section {
-                    Text(error).foregroundStyle(.red).font(.footnote)
-                }
-            }
         }
     }
 
@@ -326,7 +330,7 @@ struct CreateBookingSheet: View {
             onCreated(id)
             dismiss()
         } catch {
-            vm.error = error.localizedDescription
+            submitError = error.localizedDescription
         }
     }
 }
