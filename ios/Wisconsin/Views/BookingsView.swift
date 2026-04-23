@@ -19,7 +19,7 @@ final class BookingsViewModel {
         if reset {
             offset = 0
             hasMore = true
-            bookings = []
+            // Don't clear bookings — swap in place after fetch to avoid skeleton flash on tab return
         }
         isLoading = true
         error = nil
@@ -61,7 +61,16 @@ struct BookingsView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if vm.bookings.isEmpty && vm.isLoading {
+                if let error = vm.error, vm.bookings.isEmpty {
+                    ContentUnavailableView {
+                        Label("Error", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await vm.load(reset: true) } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                } else if vm.bookings.isEmpty && vm.isLoading {
                     List {
                         ForEach(0..<8, id: \.self) { _ in
                             BookingRowSkeleton().listRowSeparator(.hidden)

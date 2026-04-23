@@ -101,3 +101,79 @@ struct ShiftRowSkeleton: View {
         .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
     }
 }
+
+// MARK: - Item detail page skeleton
+
+struct ItemDetailSkeleton: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(alignment: .top, spacing: 12) {
+                    Skeleton(cornerRadius: 8).frame(width: 72, height: 72)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Skeleton().frame(width: 180, height: 18)
+                        Skeleton().frame(width: 80, height: 12)
+                        Skeleton(cornerRadius: 10).frame(width: 72, height: 20)
+                    }
+                    Spacer()
+                }
+                Divider()
+                VStack(alignment: .leading, spacing: 10) {
+                    Skeleton().frame(width: 56, height: 10)
+                    ForEach(0..<4, id: \.self) { _ in
+                        HStack {
+                            Skeleton().frame(width: 80, height: 12)
+                            Spacer()
+                            Skeleton().frame(width: 120, height: 12)
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Booking detail page skeleton
+
+struct BookingDetailSkeleton: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Skeleton(cornerRadius: 10).frame(width: 88, height: 22)
+                        Spacer()
+                        Skeleton().frame(width: 60, height: 12)
+                    }
+                    Skeleton().frame(width: 200, height: 14)
+                    Skeleton().frame(width: 160, height: 14)
+                    Skeleton().frame(width: 220, height: 28)
+                }
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    Skeleton().frame(width: 72, height: 10)
+                    Skeleton().frame(width: 140, height: 14)
+                    Skeleton().frame(width: 180, height: 12)
+                }
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Skeleton().frame(width: 80, height: 10)
+                    ForEach(0..<3, id: \.self) { _ in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Skeleton().frame(width: 150, height: 13)
+                                Skeleton().frame(width: 80, height: 10)
+                            }
+                            Spacer()
+                            Skeleton(cornerRadius: 8).frame(width: 60, height: 18)
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+        .allowsHitTesting(false)
+    }
+}

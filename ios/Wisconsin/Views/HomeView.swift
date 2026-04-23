@@ -6,8 +6,11 @@ final class HomeViewModel {
     var dashboard: DashboardData?
     var isLoading = false
     var error: String?
+    private var hasLoaded = false
 
-    func load(appState: AppState? = nil) async {
+    func load(appState: AppState? = nil, forceRefresh: Bool = false) async {
+        guard !isLoading else { return }
+        guard !hasLoaded || forceRefresh else { return }
         isLoading = true
         error = nil
         do {
@@ -16,6 +19,7 @@ final class HomeViewModel {
                 appState.overdueCount = dashboard?.overdueCount ?? 0
                 appState.myShiftCount = dashboard?.myShifts.count ?? 0
             }
+            hasLoaded = true
         } catch {
             self.error = error.localizedDescription
         }
@@ -47,7 +51,14 @@ struct HomeView: View {
                     }
                     .allowsHitTesting(false)
                 } else if let error = vm.error, vm.dashboard == nil {
-                    ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(error))
+                    ContentUnavailableView {
+                        Label("Error", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await vm.load(appState: appState, forceRefresh: true) } }
+                            .buttonStyle(.borderedProminent)
+                    }
                 } else if let dash = vm.dashboard {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 24) {
@@ -90,8 +101,11 @@ struct HomeView: View {
                 }
             }
             .navigationTitle("Dashboard")
-            .refreshable { await vm.load(appState: appState) }
+            .refreshable { await vm.load(appState: appState, forceRefresh: true) }
             .task { await vm.load(appState: appState) }
+            .navigationDestination(for: BookingSummary.self) { summary in
+                BookingDetailView(bookingId: summary.id)
+            }
         }
     }
 }
@@ -264,7 +278,7 @@ struct BookingSummarySection: View {
             }
 
             ForEach(items) { summary in
-                NavigationLink(destination: BookingDetailView(bookingId: summary.id)) {
+                NavigationLink(value: summary) {
                     BookingSummaryRow(summary: summary)
                 }
                 .buttonStyle(.plain)

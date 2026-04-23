@@ -19,7 +19,7 @@ final class ItemsViewModel {
         if reset {
             offset = 0
             hasMore = true
-            assets = []
+            // Don't clear assets — swap in place after fetch to avoid skeleton flash on tab return
         }
         isLoading = true
         error = nil
@@ -56,7 +56,14 @@ struct ItemsView: View {
         NavigationStack {
             Group {
                 if let error = vm.error, vm.assets.isEmpty {
-                    ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(error))
+                    ContentUnavailableView {
+                        Label("Error", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
+                        Button("Retry") { Task { await vm.load(reset: true) } }
+                            .buttonStyle(.borderedProminent)
+                    }
                 } else if vm.assets.isEmpty && vm.isLoading {
                     List {
                         ForEach(0..<10, id: \.self) { _ in

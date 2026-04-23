@@ -12,11 +12,17 @@ struct BookingDetailView: View {
 
     var body: some View {
         Group {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error {
-                ContentUnavailableView("Error", systemImage: "exclamationmark.triangle", description: Text(error))
+            if isLoading && booking == nil {
+                BookingDetailSkeleton()
+            } else if let error, booking == nil {
+                ContentUnavailableView {
+                    Label("Error", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Retry") { Task { await loadBooking() } }
+                        .buttonStyle(.borderedProminent)
+                }
             } else if let booking {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
