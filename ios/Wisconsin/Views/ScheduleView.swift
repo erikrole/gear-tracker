@@ -282,9 +282,11 @@ struct ScheduleCalendarView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .background(.quaternary, in: Circle())
+                    .contentShape(Circle())
             }
+            .buttonStyle(ScalePressStyle())
 
             Spacer()
 
@@ -300,9 +302,11 @@ struct ScheduleCalendarView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .background(.quaternary, in: Circle())
+                    .contentShape(Circle())
             }
+            .buttonStyle(ScalePressStyle())
         }
     }
 

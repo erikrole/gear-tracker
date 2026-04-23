@@ -310,6 +310,8 @@ private struct ItemsSection: View {
                             .font(.title3)
                             .foregroundStyle(selectedIds.contains(item.assetId) ? .blue : Color(.systemGray4))
                             .animation(.easeInOut(duration: 0.15), value: selectedIds.contains(item.assetId))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                             .onTapGesture {
                                 if selectedIds.contains(item.assetId) {
                                     selectedIds.remove(item.assetId)
@@ -370,6 +372,7 @@ private struct CheckinButton: View {
             .background(Color.green, in: RoundedRectangle(cornerRadius: 12))
             .foregroundStyle(.white)
         }
+        .buttonStyle(ScalePressStyle())
         .disabled(isLoading)
     }
 }
@@ -427,6 +430,7 @@ private struct ActionsSection: View {
                     .background(Color.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     .foregroundStyle(.blue)
             }
+            .buttonStyle(ScalePressStyle())
             .disabled(isActioning)
 
             if status != .open {
@@ -446,6 +450,7 @@ private struct ActionsSection: View {
                     .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
                     .foregroundStyle(.red)
                 }
+                .buttonStyle(ScalePressStyle())
                 .disabled(isActioning)
             }
         }
@@ -467,5 +472,15 @@ private struct SectionHeader: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
+    }
+}
+
+// MARK: - Shared
+
+struct ScalePressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }

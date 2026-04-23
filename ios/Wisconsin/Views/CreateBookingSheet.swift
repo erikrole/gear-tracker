@@ -312,6 +312,7 @@ struct AssetPickerRow: View {
                         }
                         .frame(width: 44, height: 44)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.black.opacity(0.08), lineWidth: 1))
                     } else {
                         assetPlaceholder
                             .frame(width: 44, height: 44)
@@ -345,7 +346,7 @@ struct AssetPickerRow: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ScalePressStyle())
     }
 
     private var assetPlaceholder: some View {
