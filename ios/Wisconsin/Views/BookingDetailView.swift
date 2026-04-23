@@ -11,14 +11,6 @@ struct BookingDetailView: View {
     @State private var showEdit = false
     @State private var isActioning = false
 
-    // Per-item check-in state (checkouts only)
-    @State private var selectedCheckinIds: Set<String> = []
-    @State private var isCheckingIn = false
-
-    var canCheckin: Bool {
-        booking?.kind == .checkout && booking?.status == .open
-    }
-
     var body: some View {
         Group {
             if isLoading && booking == nil {
@@ -40,20 +32,7 @@ struct BookingDetailView: View {
                         RequesterSection(booking: booking)
                         if !booking.serializedItems.isEmpty {
                             Divider()
-                            ItemsSection(
-                                items: booking.serializedItems,
-                                canCheckin: canCheckin,
-                                selectedIds: $selectedCheckinIds
-                            )
-                            if canCheckin && !selectedCheckinIds.isEmpty {
-                                CheckinButton(
-                                    count: selectedCheckinIds.count,
-                                    isLoading: isCheckingIn
-                                ) {
-                                    Task { await checkinSelected(booking: booking) }
-                                }
-                                .padding(.horizontal)
-                            }
+                            ItemsSection(items: booking.serializedItems)
                         }
                         if !booking.bulkItems.isEmpty {
                             Divider()
@@ -125,7 +104,6 @@ struct BookingDetailView: View {
         error = nil
         do {
             booking = try await APIClient.shared.booking(id: bookingId)
-            selectedCheckinIds = []
         } catch {
             self.error = error.localizedDescription
         }
@@ -143,16 +121,6 @@ struct BookingDetailView: View {
         isActioning = false
     }
 
-    private func checkinSelected(booking: Booking) async {
-        isCheckingIn = true
-        do {
-            try await APIClient.shared.checkinItems(bookingId: booking.id, assetIds: Array(selectedCheckinIds))
-            await loadBooking()
-        } catch {
-            self.error = error.localizedDescription
-        }
-        isCheckingIn = false
-    }
 }
 
 // MARK: - Edit Sheet
@@ -303,29 +271,12 @@ private struct RequesterSection: View {
 
 private struct ItemsSection: View {
     let items: [BookingSerializedItem]
-    let canCheckin: Bool
-    @Binding var selectedIds: Set<String>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Equipment", count: items.count)
             ForEach(items) { item in
                 HStack {
-                    if canCheckin {
-                        Image(systemName: selectedIds.contains(item.assetId) ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(selectedIds.contains(item.assetId) ? .blue : Color(.systemGray4))
-                            .animation(.easeInOut(duration: 0.15), value: selectedIds.contains(item.assetId))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if selectedIds.contains(item.assetId) {
-                                    selectedIds.remove(item.assetId)
-                                } else {
-                                    selectedIds.insert(item.assetId)
-                                }
-                            }
-                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text([item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " "))
                             .font(.subheadline)
@@ -344,42 +295,8 @@ private struct ItemsSection: View {
                             .background(.quaternary, in: Capsule())
                     }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard canCheckin else { return }
-                    if selectedIds.contains(item.assetId) {
-                        selectedIds.remove(item.assetId)
-                    } else {
-                        selectedIds.insert(item.assetId)
-                    }
-                }
             }
         }
-    }
-}
-
-private struct CheckinButton: View {
-    let count: Int
-    let isLoading: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Group {
-                if isLoading {
-                    ProgressView().tint(.white)
-                } else {
-                    Label("Check In \(count) Item\(count == 1 ? "" : "s")", systemImage: "arrow.down.circle.fill")
-                        .fontWeight(.semibold)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.green, in: RoundedRectangle(cornerRadius: 12))
-            .foregroundStyle(.white)
-        }
-        .buttonStyle(ScalePressStyle())
-        .disabled(isLoading)
     }
 }
 
@@ -439,7 +356,13 @@ private struct ActionsSection: View {
             .buttonStyle(ScalePressStyle())
             .disabled(isActioning)
 
-            if status != .open {
+            if status == .open {
+                Label("Return gear at a kiosk", systemImage: "barcode.viewfinder")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 2)
+            } else {
                 Button(role: .destructive) {
                     onCancel()
                 } label: {
