@@ -315,6 +315,7 @@ final class APIClient {
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
         return req
     }
 
