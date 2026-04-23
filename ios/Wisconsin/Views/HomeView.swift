@@ -72,7 +72,7 @@ struct HomeView: View {
                             if !dash.myShifts.isEmpty {
                                 DashboardCard(title: "My Upcoming Shifts") {
                                     ForEach(dash.myShifts) { shift in
-                                        ShiftRow(shift: shift)
+                                        DashboardShiftRow(shift: shift)
                                     }
                                 }
                             }
@@ -312,14 +312,14 @@ struct BookingSummaryRow: View {
                 .frame(width: 36, height: 36)
             Text(summary.requesterInitials)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(summary.isOverdue ? .red : .tint)
+                .foregroundStyle(summary.isOverdue ? Color.red : Color.accentColor)
         }
     }
 }
 
 // MARK: - Shift Row
 
-private struct ShiftRow: View {
+private struct DashboardShiftRow: View {
     let shift: DashboardShift
 
     var body: some View {
