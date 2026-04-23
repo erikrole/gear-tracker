@@ -276,7 +276,8 @@ private struct ItemsSection: View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Equipment", count: items.count)
             ForEach(items) { item in
-                HStack {
+                HStack(spacing: 10) {
+                    AssetThumbnail(imageUrl: item.asset.imageUrl, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
                         Text([item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " "))
                             .font(.subheadline)
@@ -356,7 +357,13 @@ private struct ActionsSection: View {
             .buttonStyle(ScalePressStyle())
             .disabled(isActioning)
 
-            if status == .open {
+            if status == .pendingPickup {
+                Label("Pick up gear at a kiosk", systemImage: "barcode.viewfinder")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 2)
+            } else if status == .open {
                 Label("Return gear at a kiosk", systemImage: "barcode.viewfinder")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

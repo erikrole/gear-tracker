@@ -6,8 +6,8 @@ final class CreateBookingViewModel {
     var title = ""
     var selectedUserId: String = ""
     var selectedLocationId: String = ""
-    var startsAt = Date().addingTimeInterval(3600)
-    var endsAt = Date().addingTimeInterval(7200)
+    var startsAt = Self.nextHour(offset: 1)
+    var endsAt = Self.nextHour(offset: 2)
     var notes = ""
 
     var prefillEventId: String?
@@ -36,6 +36,12 @@ final class CreateBookingViewModel {
             && !selectedUserId.isEmpty
             && !selectedLocationId.isEmpty
             && endsAt > startsAt
+    }
+
+    private static func nextHour(offset: Int) -> Date {
+        let cal = Calendar.current
+        let next = cal.nextDate(after: .now, matching: DateComponents(minute: 0, second: 0), matchingPolicy: .nextTime) ?? .now
+        return cal.date(byAdding: .hour, value: offset - 1, to: next) ?? .now
     }
 
     func prefill(title: String, startsAt: Date, endsAt: Date, userId: String, eventId: String?, shiftAssignmentId: String?) {

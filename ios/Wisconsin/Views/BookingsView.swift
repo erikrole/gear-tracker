@@ -56,10 +56,16 @@ final class BookingsViewModel {
 struct BookingsView: View {
     @State private var vm = BookingsViewModel()
     @State private var showCreate = false
-    @State private var createdBookingId = ""
+    @State private var navigationPath = NavigationPath()
+
+    private var emptyTitle: String {
+        guard vm.searchText.isEmpty else { return "No Results" }
+        if let status = vm.selectedStatus { return "No \(status.label) Bookings" }
+        return "No Bookings"
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if let error = vm.error, vm.bookings.isEmpty {
                     ContentUnavailableView {
@@ -80,9 +86,9 @@ struct BookingsView: View {
                     .allowsHitTesting(false)
                 } else if vm.bookings.isEmpty {
                     ContentUnavailableView(
-                        "No Bookings",
+                        emptyTitle,
                         systemImage: "tray",
-                        description: Text(vm.searchText.isEmpty ? "No bookings found." : "No results for \"\(vm.searchText)\".")
+                        description: Text(vm.searchText.isEmpty ? "Try a different filter." : "No results for \"\(vm.searchText)\".")
                     )
                 } else {
                     List {
@@ -102,7 +108,7 @@ struct BookingsView: View {
                     .listStyle(.plain)
                 }
             }
-            .sensoryFeedback(.success, trigger: createdBookingId)
+            .sensoryFeedback(.success, trigger: navigationPath)
             .navigationTitle("Bookings")
             .searchable(text: $vm.searchText, prompt: "Search bookings…")
             .onChange(of: vm.searchText) { vm.onSearchChange() }
@@ -120,14 +126,19 @@ struct BookingsView: View {
             }
             .sheet(isPresented: $showCreate) {
                 CreateBookingSheet { newId in
-                    createdBookingId = newId
-                    Task { await vm.load(reset: true) }
+                    Task {
+                        await vm.load(reset: true)
+                        navigationPath.append(newId)
+                    }
                 }
             }
             .refreshable { await vm.load(reset: true) }
             .task { await vm.load(reset: true) }
             .navigationDestination(for: Booking.self) { booking in
                 BookingDetailView(bookingId: booking.id)
+            }
+            .navigationDestination(for: String.self) { id in
+                BookingDetailView(bookingId: id)
             }
         }
     }
