@@ -1,0 +1,49 @@
+name: Wisconsin
+options:
+  bundleIdPrefix: com.erikrole
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  xcodeVersion: "16"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    ENABLE_PREVIEWS: "NO"
+
+targets:
+  Wisconsin:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    bundleId: com.erikrole.creative
+    sources:
+      - path: Wisconsin
+    info:
+      path: Wisconsin/Supporting/Info.plist
+      properties:
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortraitUpsideDown
+        NSCameraUsageDescription: "Scan gear barcodes and QR codes"
+        NSLocationWhenInUseUsageDescription: "Show nearby gear locations"
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+    settings:
+      base:
+        PRODUCT_NAME: Wisconsin
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        DEVELOPMENT_TEAM: ""
+      configs:
+        Debug:
+          OTHER_SWIFT_FLAGS: "-DDEBUG"

@@ -1,0 +1,316 @@
+import Foundation
+
+enum APIError: LocalizedError {
+    case unauthorized
+    case notFound
+    case serverError(String)
+    case decodingError(Error)
+    case networkError(Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .unauthorized: "Your session has expired. Please sign in again."
+        case .notFound: "The requested item could not be found."
+        case .serverError(let msg): msg
+        case .decodingError: "Unexpected response from server."
+        case .networkError(let err): err.localizedDescription
+        }
+    }
+}
+
+@MainActor
+final class APIClient {
+    static let shared = APIClient()
+
+    private let baseURL = URL(string: "https://gear.erikrole.com")!
+
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.httpCookieStorage = HTTPCookieStorage.shared
+        config.httpShouldSetCookies = true
+        config.httpCookieAcceptPolicy = .always
+        return URLSession(configuration: config)
+    }()
+
+    private let decoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.keyDecodingStrategy = .convertFromSnakeCase
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }()
+
+    // MARK: - Auth
+
+    func login(email: String, password: String) async throws -> CurrentUser {
+        struct Body: Encodable {
+            let email: String
+            let password: String
+            let rememberMe: Bool
+        }
+        var req = request(path: "/api/auth/login", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(email: email, password: password, rememberMe: true))
+        let resp: LoginResponse = try await perform(req)
+        return resp.user
+    }
+
+    func logout() async throws {
+        let req = request(path: "/api/auth/logout", method: "POST")
+        _ = try? await session.data(for: req)
+        HTTPCookieStorage.shared.removeCookies(since: .distantPast)
+    }
+
+    func me() async throws -> CurrentUser {
+        let req = request(path: "/api/me")
+        let resp: MeResponse = try await perform(req)
+        return resp.user
+    }
+
+    // MARK: - Bookings
+
+    func bookings(
+        status: BookingStatus? = nil,
+        search: String? = nil,
+        limit: Int = 30,
+        offset: Int = 0
+    ) async throws -> PaginatedResponse<Booking> {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/bookings"), resolvingAgainstBaseURL: false)!
+        var items: [URLQueryItem] = [
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "\(offset)"),
+        ]
+        if let status { items.append(.init(name: "status", value: status.rawValue)) }
+        if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
+        components.queryItems = items
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        return try await perform(req)
+    }
+
+    func booking(id: String) async throws -> Booking {
+        let req = request(path: "/api/bookings/\(id)")
+        let resp: DataWrapper<Booking> = try await perform(req)
+        return resp.data
+    }
+
+    func cancelBooking(id: String) async throws {
+        let req = request(path: "/api/bookings/\(id)/cancel", method: "POST")
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Cancel failed"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    func extendBooking(id: String, endsAt: Date) async throws {
+        struct Body: Encodable { let endsAt: String }
+        var req = request(path: "/api/bookings/\(id)/extend", method: "POST")
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        req.httpBody = try JSONEncoder().encode(Body(endsAt: iso.string(from: endsAt)))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Extend failed"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    func createReservation(
+        title: String,
+        requesterUserId: String,
+        locationId: String,
+        startsAt: Date,
+        endsAt: Date,
+        notes: String?,
+        eventId: String? = nil,
+        shiftAssignmentId: String? = nil
+    ) async throws -> String {
+        struct Body: Encodable {
+            let title: String
+            let requesterUserId: String
+            let locationId: String
+            let startsAt: String
+            let endsAt: String
+            let notes: String?
+            let serializedAssetIds: [String]
+            let bulkItems: [String]
+            let eventId: String?
+            let shiftAssignmentId: String?
+        }
+        var req = request(path: "/api/reservations", method: "POST")
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        req.httpBody = try JSONEncoder().encode(Body(
+            title: title,
+            requesterUserId: requesterUserId,
+            locationId: locationId,
+            startsAt: iso.string(from: startsAt),
+            endsAt: iso.string(from: endsAt),
+            notes: notes?.isEmpty == true ? nil : notes,
+            serializedAssetIds: [],
+            bulkItems: [],
+            eventId: eventId,
+            shiftAssignmentId: shiftAssignmentId
+        ))
+        let resp: DataWrapper<BookingStub> = try await perform(req)
+        return resp.data.id
+    }
+
+    func formOptions() async throws -> FormOptions {
+        let req = request(path: "/api/form-options")
+        let resp: DataWrapper<FormOptions> = try await perform(req)
+        return resp.data
+    }
+
+    // MARK: - Dashboard
+
+    func dashboard() async throws -> DashboardData {
+        let req = request(path: "/api/dashboard")
+        let resp: DataWrapper<DashboardData> = try await perform(req)
+        return resp.data
+    }
+
+    // MARK: - Assets
+
+    func assets(
+        search: String? = nil,
+        status: AssetComputedStatus? = nil,
+        categoryId: String? = nil,
+        limit: Int = 30,
+        offset: Int = 0
+    ) async throws -> AssetsResponse {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/assets"), resolvingAgainstBaseURL: false)!
+        var items: [URLQueryItem] = [
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "\(offset)"),
+        ]
+        if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
+        if let status { items.append(.init(name: "status", value: status.rawValue)) }
+        if let categoryId { items.append(.init(name: "category_id", value: categoryId)) }
+        components.queryItems = items
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        return try await perform(req)
+    }
+
+    func asset(id: String) async throws -> AssetDetail {
+        let req = request(path: "/api/assets/\(id)")
+        let resp: DataWrapper<AssetDetail> = try await perform(req)
+        return resp.data
+    }
+
+    func assetByQR(qrValue: String) async throws -> Asset? {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/assets"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [.init(name: "qr", value: qrValue), .init(name: "limit", value: "1")]
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        let resp: AssetsResponse = try await perform(req)
+        return resp.data.first
+    }
+
+    // MARK: - Schedule
+
+    func calendarEvents(
+        includePast: Bool = false,
+        limit: Int = 60
+    ) async throws -> [ScheduleEvent] {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/calendar-events"), resolvingAgainstBaseURL: false)!
+        var items: [URLQueryItem] = [
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "0"),
+        ]
+        if includePast { items.append(.init(name: "includePast", value: "true")) }
+        components.queryItems = items
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        let resp: ScheduleEventsResponse = try await perform(req)
+        return resp.data
+    }
+
+    func shiftGroup(eventId: String) async throws -> EventShiftGroup? {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/shift-groups"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            .init(name: "eventId", value: eventId),
+            .init(name: "limit", value: "1"),
+        ]
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        let resp: ShiftGroupsResponse = try await perform(req)
+        return resp.data.first
+    }
+
+    func myShifts(limit: Int = 20) async throws -> [MyShift] {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/my-shifts"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [.init(name: "limit", value: "\(limit)")]
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        let resp: MyShiftsResponse = try await perform(req)
+        return resp.data
+    }
+
+    // MARK: - Internals
+
+    private func request(path: String, method: String = "GET") -> URLRequest {
+        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        req.httpMethod = method
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        return req
+    }
+
+    private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw APIError.networkError(error)
+        }
+
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.serverError("Invalid response")
+        }
+
+        switch http.statusCode {
+        case 200...299:
+            do {
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                throw APIError.decodingError(error)
+            }
+        case 401:
+            throw APIError.unauthorized
+        case 404:
+            throw APIError.notFound
+        default:
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error
+                ?? "Server error (\(http.statusCode))"
+            throw APIError.serverError(msg)
+        }
+    }
+}
+
+// MARK: - Private response shapes
+
+private struct DataWrapper<T: Decodable>: Decodable {
+    let data: T
+}
+
+private struct LoginResponse: Decodable {
+    let user: CurrentUser
+}
+
+private struct MeResponse: Decodable {
+    let user: CurrentUser
+}
+
+private struct ServerErrorBody: Decodable {
+    let error: String
+}
