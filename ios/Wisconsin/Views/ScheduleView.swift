@@ -209,7 +209,14 @@ struct ScheduleCalendarView: View {
     let shiftsByEventId: [String: MyShift]
     let onSelectEvent: (ScheduleEvent) -> Void
 
+    @State private var displayedMonth: Date = {
+        let c = Calendar.current
+        return c.date(from: c.dateComponents([.year, .month], from: .now)) ?? .now
+    }()
+
     private let calendar = Calendar.current
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
+    private let weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"]
 
     private var selectedDayEvents: [ScheduleEvent] {
         let day = calendar.startOfDay(for: selectedDate)
@@ -220,16 +227,86 @@ struct ScheduleCalendarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                .datePickerStyle(.graphical)
+            monthHeader
                 .padding(.horizontal)
-                .padding(.bottom, 4)
+                .padding(.vertical, 10)
+
+            HStack(spacing: 0) {
+                ForEach(weekdayLabels, id: \.self) { label in
+                    Text(label)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 4)
+
+            LazyVGrid(columns: columns, spacing: 2) {
+                ForEach(Array(daysInMonth().enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        let dots = dotInfo(for: day)
+                        DayCell(
+                            date: day,
+                            isToday: calendar.isDateInToday(day),
+                            isSelected: calendar.isDate(day, inSameDayAs: selectedDate),
+                            dots: dots
+                        )
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedDate = day
+                            }
+                        }
+                    } else {
+                        Color.clear.frame(height: 48)
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 8)
 
             Divider()
 
             dayEventList
         }
     }
+
+    // MARK: Month header
+
+    private var monthHeader: some View {
+        HStack {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 36, height: 36)
+                    .background(.quaternary, in: Circle())
+            }
+
+            Spacer()
+
+            Text(displayedMonth.formatted(.dateTime.month(.wide).year()))
+                .font(.headline)
+
+            Spacer()
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
+                }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 36, height: 36)
+                    .background(.quaternary, in: Circle())
+            }
+        }
+    }
+
+    // MARK: Day event list
 
     @ViewBuilder
     private var dayEventList: some View {
@@ -245,9 +322,7 @@ struct ScheduleCalendarView: View {
         } else {
             List {
                 ForEach(selectedDayEvents) { event in
-                    Button {
-                        onSelectEvent(event)
-                    } label: {
+                    Button { onSelectEvent(event) } label: {
                         EventRow(event: event, myShift: shiftsByEventId[event.id])
                     }
                     .buttonStyle(.plain)
@@ -256,6 +331,91 @@ struct ScheduleCalendarView: View {
             }
             .listStyle(.plain)
         }
+    }
+
+    // MARK: Helpers
+
+    private func daysInMonth() -> [Date?] {
+        guard let range = calendar.range(of: .day, in: .month, for: displayedMonth),
+              let firstDay = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth))
+        else { return [] }
+        let offset = calendar.component(.weekday, from: firstDay) - 1
+        let empties: [Date?] = Array(repeating: nil, count: offset)
+        let days: [Date?] = range.compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: firstDay) }
+        return empties + days
+    }
+
+    // Returns up to 3 dot descriptors for a given day.
+    // Dot color encodes home (green) / away (orange) / neutral (secondary).
+    // My-shift events get an accent-colored dot regardless of home/away.
+    private func dotInfo(for date: Date) -> [DotInfo] {
+        let events = eventsByDay[date] ?? []
+        let visible = myShiftsOnly ? events.filter { shiftsByEventId[$0.id] != nil } : events
+        return visible.prefix(3).map { event in
+            let isShift = shiftsByEventId[event.id] != nil
+            let color: Color
+            if isShift {
+                color = .accentColor
+            } else {
+                switch event.isHome {
+                case true:  color = .green
+                case false: color = .orange
+                default:    color = Color(.systemGray3)
+                }
+            }
+            return DotInfo(color: color, isShift: isShift)
+        }
+    }
+}
+
+struct DotInfo {
+    let color: Color
+    let isShift: Bool
+}
+
+// MARK: - Day Cell
+
+private struct DayCell: View {
+    let date: Date
+    let isToday: Bool
+    let isSelected: Bool
+    let dots: [DotInfo]
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                if isSelected {
+                    Circle()
+                        .fill(isToday ? Color.accentColor : Color.accentColor.opacity(0.18))
+                        .frame(width: 34, height: 34)
+                } else if isToday {
+                    Circle()
+                        .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                        .frame(width: 34, height: 34)
+                }
+                Text(date.formatted(.dateTime.day()))
+                    .font(.subheadline)
+                    .fontWeight(isToday ? .semibold : .regular)
+                    .foregroundStyle(
+                        isSelected && isToday ? .white :
+                        isSelected ? Color.accentColor :
+                        isToday ? Color.accentColor : .primary
+                    )
+            }
+            .frame(width: 34, height: 34)
+
+            // Dots row — always reserve space so grid rows stay even
+            HStack(spacing: 3) {
+                ForEach(dots.indices, id: \.self) { i in
+                    Circle()
+                        .fill(dots[i].color)
+                        .frame(width: 5, height: 5)
+                }
+            }
+            .frame(height: 5)
+        }
+        .frame(height: 52)
+        .contentShape(Rectangle())
     }
 }
 
