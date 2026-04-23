@@ -184,47 +184,83 @@ struct CreateBookingSheet: View {
 
     @ViewBuilder
     private var detailsForm: some View {
-        Form {
-            Section("Details") {
-                TextField("Title", text: $vm.title)
+        ScrollView {
+            VStack(spacing: 12) {
+                // Title
+                FormCard {
+                    TextField("Booking title", text: $vm.title)
+                        .font(.body)
+                }
 
-                if vm.isLoadingOptions {
-                    ProgressView("Loading…")
-                } else {
-                    Picker("Requester", selection: $vm.selectedUserId) {
-                        Text("Select requester").tag("")
-                        ForEach(vm.options?.users ?? []) { user in
-                            Text(user.name).tag(user.id)
+                // Who & Where
+                FormCard {
+                    if vm.isLoadingOptions {
+                        HStack {
+                            ProgressView()
+                            Text("Loading…").font(.subheadline).foregroundStyle(.secondary)
                         }
-                    }
-                    .pickerStyle(.navigationLink)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 4)
+                    } else {
+                        NavigationLink {
+                            OptionPickerView(
+                                title: "Requester",
+                                options: vm.options?.users.map { ($0.id, $0.name) } ?? [],
+                                selection: $vm.selectedUserId
+                            )
+                        } label: {
+                            FormPickerRow(
+                                label: "For",
+                                value: vm.selectedUser?.name ?? "Select person"
+                            )
+                        }
+                        .buttonStyle(.plain)
 
-                    Picker("Location", selection: $vm.selectedLocationId) {
-                        Text("Select location").tag("")
-                        ForEach(vm.options?.locations ?? []) { loc in
-                            Text(loc.name).tag(loc.id)
+                        Divider().padding(.leading, 4)
+
+                        NavigationLink {
+                            OptionPickerView(
+                                title: "Location",
+                                options: vm.options?.locations.map { ($0.id, $0.name) } ?? [],
+                                selection: $vm.selectedLocationId
+                            )
+                        } label: {
+                            FormPickerRow(
+                                label: "At",
+                                value: vm.selectedLocation?.name ?? "Select location"
+                            )
                         }
+                        .buttonStyle(.plain)
                     }
-                    .pickerStyle(.navigationLink)
+                }
+
+                // Dates
+                FormCard {
+                    DatePicker("From", selection: $vm.startsAt, displayedComponents: [.date, .hourAndMinute])
+                        .tint(.accentColor)
+                    Divider().padding(.leading, 4)
+                    DatePicker("To", selection: $vm.endsAt, in: vm.startsAt..., displayedComponents: [.date, .hourAndMinute])
+                        .tint(.accentColor)
+                }
+
+                // Notes
+                FormCard {
+                    TextField("Notes (optional)", text: $vm.notes, axis: .vertical)
+                        .lineLimit(3...6)
+                        .font(.body)
+                }
+
+                if let error = vm.error {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
                 }
             }
-
-            Section("Dates") {
-                DatePicker("Starts", selection: $vm.startsAt, displayedComponents: [.date, .hourAndMinute])
-                DatePicker("Ends", selection: $vm.endsAt, in: vm.startsAt..., displayedComponents: [.date, .hourAndMinute])
-            }
-
-            Section("Notes") {
-                TextField("Optional notes…", text: $vm.notes, axis: .vertical)
-                    .lineLimit(3...6)
-            }
-
-            if let error = vm.error {
-                Section {
-                    Text(error).foregroundStyle(.red).font(.footnote)
-                }
-            }
+            .padding(20)
         }
+        .background(Color(.systemGroupedBackground))
     }
 
     @ViewBuilder
@@ -356,5 +392,86 @@ struct AssetPickerRow: View {
                 Image(systemName: "bag")
                     .foregroundStyle(Color(.systemGray2))
             )
+    }
+}
+
+// MARK: - Form Card Components
+
+struct FormCard<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+    }
+}
+
+struct FormPickerRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .leading)
+            Text(value)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .frame(minHeight: 36)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Option Picker
+
+struct OptionPickerView: View {
+    let title: String
+    let options: [(id: String, name: String)]
+    @Binding var selection: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var search = ""
+
+    private var filtered: [(id: String, name: String)] {
+        guard !search.isEmpty else { return options }
+        return options.filter { $0.name.localizedCaseInsensitiveContains(search) }
+    }
+
+    var body: some View {
+        List {
+            ForEach(filtered, id: \.id) { option in
+                Button {
+                    selection = option.id
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(option.name)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if selection == option.id {
+                            Image(systemName: "checkmark")
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .searchable(text: $search, prompt: "Search \(title.lowercased())")
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
