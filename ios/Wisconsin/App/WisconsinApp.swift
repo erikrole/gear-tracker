@@ -12,6 +12,7 @@ struct WisconsinApp: App {
                 .environment(session)
                 .environment(appState)
                 .environment(network)
+                .tint(Color(red: 0.627, green: 0, blue: 0)) // Wisconsin #A00000
         }
     }
 }

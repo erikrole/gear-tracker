@@ -187,24 +187,30 @@ struct EditBookingSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Details") {
-                    TextField("Title", text: $title)
-                }
-                Section("Dates") {
-                    DatePicker("Starts", selection: $startsAt, displayedComponents: [.date, .hourAndMinute])
-                    DatePicker("Ends", selection: $endsAt, in: startsAt..., displayedComponents: [.date, .hourAndMinute])
-                }
-                Section("Notes") {
-                    TextField("Notes…", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
-                }
-                if let error {
-                    Section {
+            ScrollView {
+                VStack(spacing: 12) {
+                    FormCard {
+                        TextField("Title", text: $title)
+                            .font(.body)
+                    }
+                    FormCard {
+                        DatePicker("From", selection: $startsAt, displayedComponents: [.date, .hourAndMinute])
+                        Divider().padding(.leading, 4)
+                        DatePicker("To", selection: $endsAt, in: startsAt..., displayedComponents: [.date, .hourAndMinute])
+                    }
+                    FormCard {
+                        TextField("Notes…", text: $notes, axis: .vertical)
+                            .lineLimit(3...6)
+                    }
+                    if let error {
                         Text(error).foregroundStyle(.red).font(.footnote)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
                     }
                 }
+                .padding(20)
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Edit Booking")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

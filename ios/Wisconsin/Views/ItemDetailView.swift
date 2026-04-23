@@ -107,34 +107,54 @@ struct EditAssetSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Custom name (optional)", text: $name)
-                } header: {
-                    Text("Name")
-                } footer: {
-                    Text("Overrides the default \(asset.displayName) label.")
-                        .font(.caption)
-                }
-
-                Section("Serial Number") {
-                    TextField("Serial number", text: $serialNumber)
-                        .fontDesign(.monospaced)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                }
-
-                Section("Notes") {
-                    TextField("Notes…", text: $notes, axis: .vertical)
-                        .lineLimit(3...8)
-                }
-
-                if let error {
-                    Section {
-                        Text(error).foregroundStyle(.red).font(.footnote)
+            ScrollView {
+                VStack(spacing: 12) {
+                    FormCard {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Name")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            TextField("Custom name (optional)", text: $name)
+                                .font(.body)
+                            Text("Overrides the default \(asset.displayName) label.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    FormCard {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Serial Number")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            TextField("Serial number", text: $serialNumber)
+                                .fontDesign(.monospaced)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                    }
+                    FormCard {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Notes")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            TextField("Notes…", text: $notes, axis: .vertical)
+                                .lineLimit(3...8)
+                        }
+                    }
+                    if let error {
+                        Text(error)
+                            .foregroundStyle(.red)
+                            .font(.footnote)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
                     }
                 }
+                .padding(20)
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Edit Item")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

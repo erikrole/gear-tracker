@@ -406,8 +406,9 @@ struct FormCard<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
     }
 }
 
