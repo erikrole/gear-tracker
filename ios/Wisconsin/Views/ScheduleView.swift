@@ -1,5 +1,12 @@
 import SwiftUI
 
+// MARK: - View Mode
+
+enum ScheduleViewMode: String, CaseIterable {
+    case list = "List"
+    case calendar = "Calendar"
+}
+
 // MARK: - View Model
 
 @MainActor
@@ -11,10 +18,8 @@ final class ScheduleViewModel {
     var error: String?
     private var hasLoaded = false
 
-    // Keyed by event ID for O(1) lookup
     var shiftsByEventId: [String: MyShift] = [:]
 
-    // Events grouped by calendar day
     var groupedEvents: [(date: Date, events: [ScheduleEvent])] {
         let calendar = Calendar.current
         var byDay: [Date: [ScheduleEvent]] = [:]
@@ -25,6 +30,16 @@ final class ScheduleViewModel {
         return byDay
             .sorted { $0.key < $1.key }
             .map { (date: $0.key, events: $0.value) }
+    }
+
+    var eventsByDay: [Date: [ScheduleEvent]] {
+        let calendar = Calendar.current
+        var dict: [Date: [ScheduleEvent]] = [:]
+        for event in events {
+            let day = calendar.startOfDay(for: event.startsAt)
+            dict[day, default: []].append(event)
+        }
+        return dict
     }
 
     func load(forceRefresh: Bool = false) async {
@@ -55,6 +70,8 @@ struct ScheduleView: View {
     @State private var vm = ScheduleViewModel()
     @State private var selectedEvent: ScheduleEvent?
     @State private var myShiftsOnly = false
+    @State private var viewMode: ScheduleViewMode = .list
+    @State private var calendarSelectedDate: Date = .now
 
     private var displayedGroups: [(date: Date, events: [ScheduleEvent])] {
         guard myShiftsOnly else { return vm.groupedEvents }
@@ -92,11 +109,31 @@ struct ScheduleView: View {
                         description: Text("Check back later for new events.")
                     )
                 } else {
-                    eventList
+                    switch viewMode {
+                    case .list:
+                        eventList
+                    case .calendar:
+                        ScheduleCalendarView(
+                            selectedDate: $calendarSelectedDate,
+                            eventsByDay: vm.eventsByDay,
+                            myShiftsOnly: myShiftsOnly,
+                            shiftsByEventId: vm.shiftsByEventId,
+                            onSelectEvent: { selectedEvent = $0 }
+                        )
+                    }
                 }
             }
             .navigationTitle("Schedule")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Picker("View", selection: $viewMode) {
+                        ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 150)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Toggle(isOn: $myShiftsOnly) {
                         Label("My Shifts", systemImage: "person.fill")
@@ -163,6 +200,65 @@ struct ScheduleView: View {
     }
 }
 
+// MARK: - Calendar View
+
+struct ScheduleCalendarView: View {
+    @Binding var selectedDate: Date
+    let eventsByDay: [Date: [ScheduleEvent]]
+    let myShiftsOnly: Bool
+    let shiftsByEventId: [String: MyShift]
+    let onSelectEvent: (ScheduleEvent) -> Void
+
+    private let calendar = Calendar.current
+
+    private var selectedDayEvents: [ScheduleEvent] {
+        let day = calendar.startOfDay(for: selectedDate)
+        let all = eventsByDay[day] ?? []
+        if myShiftsOnly { return all.filter { shiftsByEventId[$0.id] != nil } }
+        return all
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DatePicker("", selection: $selectedDate, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .padding(.horizontal)
+                .padding(.bottom, 4)
+
+            Divider()
+
+            dayEventList
+        }
+    }
+
+    @ViewBuilder
+    private var dayEventList: some View {
+        if selectedDayEvents.isEmpty {
+            VStack {
+                Spacer()
+                Text("No events on \(selectedDate.formatted(.dateTime.month(.abbreviated).day()))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+        } else {
+            List {
+                ForEach(selectedDayEvents) { event in
+                    Button {
+                        onSelectEvent(event)
+                    } label: {
+                        EventRow(event: event, myShift: shiftsByEventId[event.id])
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                }
+            }
+            .listStyle(.plain)
+        }
+    }
+}
+
 // MARK: - Event Row
 
 struct EventRow: View {
@@ -171,7 +267,6 @@ struct EventRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Title + home/away indicator
             HStack(spacing: 6) {
                 if let isHome = event.isHome {
                     Image(systemName: isHome ? "house" : "airplane.departure")
@@ -183,7 +278,6 @@ struct EventRow: View {
                     .lineLimit(2)
             }
 
-            // Time row
             HStack(spacing: 10) {
                 Label(timeLabel, systemImage: "clock")
                     .font(.caption)
@@ -197,7 +291,6 @@ struct EventRow: View {
                 }
             }
 
-            // Badges row
             HStack(spacing: 6) {
                 if let sport = sportLabel(event.sportCode) {
                     SportBadge(label: sport)
