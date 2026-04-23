@@ -26,24 +26,19 @@ struct BookingDetailView: View {
                 }
             } else if let booking {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        HeaderSection(booking: booking)
-                        Divider()
-                        RequesterSection(booking: booking)
+                    VStack(spacing: 16) {
+                        FormCard { HeaderSection(booking: booking) }
+                        FormCard { RequesterSection(booking: booking) }
                         if !booking.serializedItems.isEmpty {
-                            Divider()
-                            ItemsSection(items: booking.serializedItems)
+                            FormCard { ItemsSection(items: booking.serializedItems) }
                         }
                         if !booking.bulkItems.isEmpty {
-                            Divider()
-                            BulkSection(items: booking.bulkItems)
+                            FormCard { BulkSection(items: booking.bulkItems) }
                         }
                         if let notes = booking.notes, !notes.isEmpty {
-                            Divider()
-                            NotesSection(notes: notes)
+                            FormCard { NotesSection(notes: notes) }
                         }
                         if booking.status == .booked || booking.status == .pendingPickup || booking.status == .open {
-                            Divider()
                             ActionsSection(
                                 status: booking.status,
                                 isActioning: isActioning,
@@ -55,11 +50,12 @@ struct BookingDetailView: View {
                             Text(errorMsg)
                                 .font(.footnote)
                                 .foregroundStyle(.red)
-                                .padding(.horizontal)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                     .padding()
                 }
+                .background(Color(.systemGroupedBackground))
             }
         }
         .navigationTitle(booking?.title ?? "Booking")

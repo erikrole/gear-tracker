@@ -148,10 +148,10 @@ struct BookingRow: View {
     let booking: Booking
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(booking.title)
-                    .font(.headline)
+                    .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                 Spacer()
                 StatusBadge(status: booking.status)
@@ -161,14 +161,31 @@ struct BookingRow: View {
                 Text("·")
                 Text(booking.location.name)
             }
-            .font(.subheadline)
+            .font(.caption)
             .foregroundStyle(.secondary)
             .lineLimit(1)
-            Text("\(booking.startsAt.formatted(date: .abbreviated, time: .shortened)) – \(booking.endsAt.formatted(date: .omitted, time: .shortened))")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack(spacing: 6) {
+                KindChip(kind: booking.kind)
+                Text(booking.startsAt.formatted(date: .abbreviated, time: .omitted))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct KindChip: View {
+    let kind: BookingKind
+
+    var body: some View {
+        Text(kind == .checkout ? "Checkout" : "Reservation")
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(kind == .checkout ? Color.blue.opacity(0.1) : Color.purple.opacity(0.1))
+            .foregroundStyle(kind == .checkout ? Color.blue : Color.purple)
+            .clipShape(Capsule())
     }
 }
 

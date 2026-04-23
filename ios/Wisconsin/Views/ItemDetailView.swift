@@ -23,25 +23,22 @@ struct ItemDetailView: View {
                 }
             } else if let asset {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        ItemHeroSection(asset: asset)
-                        Divider()
-                        ItemMetaSection(asset: asset)
+                    VStack(spacing: 16) {
+                        FormCard { ItemHeroSection(asset: asset) }
+                        FormCard { ItemMetaSection(asset: asset) }
                         if let booking = asset.activeBooking {
-                            Divider()
-                            ActiveBookingSection(booking: booking)
+                            FormCard { ActiveBookingSection(booking: booking) }
                         }
                         if !asset.upcomingReservations.isEmpty {
-                            Divider()
-                            UpcomingReservationsSection(reservations: asset.upcomingReservations)
+                            FormCard { UpcomingReservationsSection(reservations: asset.upcomingReservations) }
                         }
                         if let notes = asset.notes, !notes.isEmpty {
-                            Divider()
-                            NotesSection(notes: notes)
+                            FormCard { NotesSection(notes: notes) }
                         }
                     }
                     .padding()
                 }
+                .background(Color(.systemGroupedBackground))
             }
         }
         .navigationTitle(asset?.displayName ?? "Item")

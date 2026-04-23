@@ -161,18 +161,28 @@ struct AssetThumbnail: View {
                     case .success(let image):
                         image.resizable().scaledToFill()
                     default:
-                        Image(systemName: "camera")
-                            .foregroundStyle(.tertiary)
+                        placeholder
                     }
                 }
             } else {
-                Image(systemName: "camera")
-                    .foregroundStyle(.tertiary)
+                placeholder
             }
         }
         .frame(width: size, height: size)
-        .background(.quaternary)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private var cornerRadius: CGFloat { max(6, size * 0.18) }
+
+    private var placeholder: some View {
+        Image(systemName: "bag")
+            .font(.system(size: size * 0.36))
+            .foregroundStyle(Color(.systemGray3))
     }
 }
 
