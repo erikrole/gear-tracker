@@ -36,14 +36,14 @@ struct HomeView: View {
             Group {
                 if vm.dashboard == nil && vm.error == nil {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 24) {
-                            StatCardSkeleton()
+                        VStack(alignment: .leading, spacing: 20) {
+                            StatStripSkeleton()
                             VStack(alignment: .leading, spacing: 12) {
-                                Skeleton().frame(width: 140, height: 16)
-                                ForEach(0..<3, id: \.self) { _ in ShiftRowSkeleton() }
+                                Skeleton().frame(width: 140, height: 14)
+                                ForEach(0..<3, id: \.self) { _ in BookingRowSkeleton() }
                             }
                             VStack(alignment: .leading, spacing: 12) {
-                                Skeleton().frame(width: 140, height: 16)
+                                Skeleton().frame(width: 140, height: 14)
                                 ForEach(0..<4, id: \.self) { _ in BookingRowSkeleton() }
                             }
                         }
@@ -61,39 +61,61 @@ struct HomeView: View {
                     }
                 } else if let dash = vm.dashboard {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 24) {
-                            StatsGrid(stats: dash.stats)
+                        VStack(alignment: .leading, spacing: 20) {
+                            StatStrip(stats: dash.stats)
 
-                            if !dash.myShifts.isEmpty {
-                                MyShiftsSection(shifts: dash.myShifts)
+                            let overdue = (dash.myCheckouts.items + dash.teamCheckouts.items).filter(\.isOverdue)
+                            if !overdue.isEmpty {
+                                OverdueBanner(items: overdue)
                             }
 
-                            if !dash.upcomingEvents.isEmpty {
-                                UpcomingEventsSection(events: dash.upcomingEvents)
+                            if !dash.myShifts.isEmpty {
+                                DashboardCard(title: "My Upcoming Shifts") {
+                                    ForEach(dash.myShifts) { shift in
+                                        ShiftRow(shift: shift)
+                                    }
+                                }
                             }
 
                             if !dash.myCheckouts.items.isEmpty {
-                                BookingSummarySection(
-                                    title: "My Active Checkouts",
-                                    items: dash.myCheckouts.items,
-                                    overdue: dash.myCheckouts.overdue
-                                )
+                                DashboardCard(title: "My Checkouts") {
+                                    ForEach(dash.myCheckouts.items) { summary in
+                                        NavigationLink(value: summary) {
+                                            BookingSummaryRow(summary: summary)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
                             }
 
                             if !dash.teamCheckouts.items.isEmpty {
-                                BookingSummarySection(
-                                    title: "Team Checkouts",
-                                    items: dash.teamCheckouts.items,
-                                    overdue: dash.teamCheckouts.overdue
-                                )
+                                DashboardCard(title: "Team Checkouts") {
+                                    ForEach(dash.teamCheckouts.items) { summary in
+                                        NavigationLink(value: summary) {
+                                            BookingSummaryRow(summary: summary)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
                             }
 
                             if !dash.teamReservations.items.isEmpty {
-                                BookingSummarySection(
-                                    title: "Upcoming Reservations",
-                                    items: dash.teamReservations.items,
-                                    overdue: 0
-                                )
+                                DashboardCard(title: "Upcoming Reservations") {
+                                    ForEach(dash.teamReservations.items) { summary in
+                                        NavigationLink(value: summary) {
+                                            BookingSummaryRow(summary: summary)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+
+                            if !dash.upcomingEvents.isEmpty {
+                                DashboardCard(title: "Upcoming Events") {
+                                    ForEach(dash.upcomingEvents.prefix(6)) { event in
+                                        EventSummaryRow(event: event)
+                                    }
+                                }
                             }
                         }
                         .padding()
@@ -110,196 +132,139 @@ struct HomeView: View {
     }
 }
 
-// MARK: - My Shifts Section
+// MARK: - Stat Strip
 
-struct MyShiftsSection: View {
-    let shifts: [DashboardShift]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("My Upcoming Shifts")
-                .font(.headline)
-
-            ForEach(shifts) { shift in
-                HStack(spacing: 12) {
-                    // Call time
-                    VStack(alignment: .center, spacing: 2) {
-                        Text(shift.startsAt.formatted(.dateTime.month(.abbreviated).day()))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(shift.startsAt.formatted(.dateTime.hour().minute()))
-                            .font(.caption.monospacedDigit().weight(.medium))
-                    }
-                    .frame(width: 48)
-                    .padding(.vertical, 8)
-                    .background(.quaternary.opacity(0.6))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(shift.event.summary)
-                            .font(.subheadline.weight(.medium))
-                            .lineLimit(1)
-                        HStack(spacing: 6) {
-                            Text(shift.area)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if let loc = shift.event.locationName {
-                                Text("·")
-                                    .foregroundStyle(.tertiary)
-                                Text(loc)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        if shift.hasGear {
-                            Label(shift.gearLabel, systemImage: "checkmark.circle.fill")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.green)
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(10)
-                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
-            }
-        }
-    }
-}
-
-// MARK: - Upcoming Events Section
-
-struct UpcomingEventsSection: View {
-    let events: [DashboardUpcomingEvent]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Upcoming Events")
-                .font(.headline)
-
-            ForEach(events.prefix(5)) { event in
-                HStack(spacing: 12) {
-                    // Date column
-                    VStack(alignment: .center, spacing: 1) {
-                        Text(event.startsAt.formatted(.dateTime.month(.abbreviated)))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(event.startsAt.formatted(.dateTime.day()))
-                            .font(.title3.weight(.bold))
-                    }
-                    .frame(width: 36)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(event.title)
-                            .font(.subheadline.weight(.medium))
-                            .lineLimit(1)
-                        HStack(spacing: 6) {
-                            if let sport = sportLabel(event.sportCode) {
-                                Text(sport)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            if event.totalShiftSlots > 0 {
-                                Text("·")
-                                    .foregroundStyle(.tertiary)
-                                Text("\(event.filledShiftSlots)/\(event.totalShiftSlots) crew")
-                                    .font(.caption)
-                                    .foregroundStyle(event.coveragePct >= 100 ? .green : event.coveragePct > 0 ? .orange : .red)
-                            }
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-}
-
-// MARK: - Stats Grid
-
-struct StatsGrid: View {
+private struct StatStrip: View {
     let stats: DashboardStats
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            StatCard(value: stats.checkedOut, label: "Checked Out", icon: "arrow.up.circle", color: .blue)
-            StatCard(value: stats.overdue, label: "Overdue", icon: "exclamationmark.circle", color: stats.overdue > 0 ? .red : .secondary)
-            StatCard(value: stats.dueToday, label: "Due Today", icon: "clock", color: stats.dueToday > 0 ? .orange : .secondary)
-            StatCard(value: stats.reserved, label: "Reserved", icon: "calendar.badge.clock", color: .purple)
+        HStack(spacing: 8) {
+            StatCell(value: stats.overdue, label: "Overdue", isAlert: stats.overdue > 0)
+            StatCell(value: stats.dueToday, label: "Due Today", isAlert: stats.dueToday > 0)
+            StatCell(value: stats.checkedOut, label: "Checked Out", isAlert: false)
+            StatCell(value: stats.reserved, label: "Reserved", isAlert: false)
         }
     }
 }
 
-struct StatCard: View {
+private struct StatCell: View {
     let value: Int
     let label: String
-    let icon: String
-    let color: Color
+    let isAlert: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                Spacer()
-            }
+        VStack(alignment: .leading, spacing: 4) {
             Text("\(value)")
-                .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundStyle(value > 0 ? color : .primary)
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(isAlert ? Color.red : Color.primary)
+                .contentTransition(.numericText())
             Text(label)
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
-        .padding()
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
     }
 }
 
-// MARK: - Booking Summary Section
+private struct StatStripSkeleton: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<4, id: \.self) { _ in
+                VStack(alignment: .leading, spacing: 6) {
+                    Skeleton().frame(width: 32, height: 24)
+                    Skeleton().frame(width: 50, height: 10)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+}
 
-struct BookingSummarySection: View {
-    let title: String
+// MARK: - Overdue Banner
+
+private struct OverdueBanner: View {
     let items: [BookingSummary]
-    let overdue: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(title)
-                    .font(.headline)
-                Spacer()
-                if overdue > 0 {
-                    Label("\(overdue) overdue", systemImage: "exclamationmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.red)
-                }
-            }
+            Label("\(items.count) Overdue Checkout\(items.count == 1 ? "" : "s")",
+                  systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.red)
 
             ForEach(items) { summary in
                 NavigationLink(value: summary) {
-                    BookingSummaryRow(summary: summary)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(summary.title)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            Text(summary.requesterName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(summary.endsAt.overdueLabel)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.red)
+                    }
                 }
                 .buttonStyle(.plain)
+
+                if summary.id != items.last?.id {
+                    Divider()
+                }
             }
         }
+        .padding(14)
+        .background(Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.red.opacity(0.18), lineWidth: 1)
+        )
     }
 }
+
+// MARK: - Dashboard Card
+
+private struct DashboardCard<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.3)
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+    }
+}
+
+// MARK: - Booking Summary Row
 
 struct BookingSummaryRow: View {
     let summary: BookingSummary
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(summary.isOverdue ? Color.red.opacity(0.15) : Color.blue.opacity(0.12))
-                    .frame(width: 40, height: 40)
-                Text(summary.requesterInitials)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(summary.isOverdue ? .red : .blue)
-            }
+            initialsCircle
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(summary.title)
@@ -316,7 +281,7 @@ struct BookingSummaryRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 if summary.isOverdue {
-                    Label("Overdue · due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))", systemImage: "exclamationmark.circle")
+                    Text(summary.endsAt.overdueLabel)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.red)
                 } else {
@@ -337,7 +302,125 @@ struct BookingSummaryRow: View {
                     .background(.quaternary, in: Capsule())
             }
         }
-        .padding(12)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+        .padding(.vertical, 4)
+    }
+
+    private var initialsCircle: some View {
+        ZStack {
+            Circle()
+                .fill(summary.isOverdue ? Color.red.opacity(0.12) : Color.accentColor.opacity(0.1))
+                .frame(width: 36, height: 36)
+            Text(summary.requesterInitials)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(summary.isOverdue ? .red : .tint)
+        }
+    }
+}
+
+// MARK: - Shift Row
+
+private struct ShiftRow: View {
+    let shift: DashboardShift
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .center, spacing: 1) {
+                Text(shift.startsAt.formatted(.dateTime.month(.abbreviated).day()))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(shift.startsAt.formatted(.dateTime.hour().minute()))
+                    .font(.caption.monospacedDigit().weight(.medium))
+            }
+            .frame(width: 46)
+            .padding(.vertical, 6)
+            .background(.quaternary.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(shift.event.summary)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(shift.area)
+                    if let loc = shift.event.locationName {
+                        Text("·")
+                        Text(loc)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                if shift.hasGear {
+                    Label(shift.gearLabel, systemImage: "checkmark.circle.fill")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.green)
+                }
+            }
+            Spacer()
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+// MARK: - Event Summary Row
+
+private struct EventSummaryRow: View {
+    let event: DashboardUpcomingEvent
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .center, spacing: 0) {
+                Text(event.startsAt.formatted(.dateTime.month(.abbreviated)))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(event.startsAt.formatted(.dateTime.day()))
+                    .font(.title3.weight(.bold))
+            }
+            .frame(width: 34)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if let sport = sportLabel(event.sportCode) {
+                        Text(sport)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if event.totalShiftSlots > 0 {
+                        Text("·")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Text("\(event.filledShiftSlots)/\(event.totalShiftSlots) crew")
+                            .font(.caption)
+                            .foregroundStyle(
+                                event.coveragePct >= 100 ? .green :
+                                event.coveragePct > 0 ? .orange : .red
+                            )
+                    }
+                }
+            }
+
+            Spacer()
+
+            if let isHome = event.isHome {
+                Text(isHome ? "Home" : "Away")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(isHome ? .green : .orange)
+            }
+        }
+        .padding(.vertical, 3)
+    }
+}
+
+// MARK: - Helpers
+
+private extension Date {
+    var overdueLabel: String {
+        let hours = Int(-self.timeIntervalSinceNow / 3600)
+        if hours < 24 { return "\(hours)h overdue" }
+        let days = hours / 24
+        return "\(days)d overdue"
     }
 }
