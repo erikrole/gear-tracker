@@ -229,15 +229,32 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                         </p>
                       </div>
                       {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                          onClick={() => handleReleaseClaim(claim.id)}
-                          disabled={!!releasing}
-                        >
-                          {releasing === claim.id ? "…" : "Release"}
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                              disabled={!!releasing}
+                            >
+                              {releasing === claim.id ? "…" : "Release"}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Release {name}'s slot?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                The slot returns to the pool immediately. {name} will need to claim it again.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleReleaseClaim(claim.id)}>
+                                Release
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                   );
@@ -245,15 +262,32 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
               </div>
             )}
             {isAdmin && activeClaims.length > 1 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => handleReleaseClaim()}
-                disabled={!!releasing}
-              >
-                {releasing === "all" ? "Releasing all…" : "Release all slots"}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    disabled={!!releasing}
+                  >
+                    {releasing === "all" ? "Releasing all…" : "Release all slots"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Release all slots?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Both holders will be removed from this license. They will need to claim it again.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleReleaseClaim()}>
+                      Release all
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </section>
 
@@ -263,15 +297,19 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
               <Separator />
               <section className="space-y-4">
                 <h3 className="text-sm font-medium">Mark slot occupied</h3>
-                <form onSubmit={handleAddOccupant} className="flex gap-2">
-                  <Input
-                    value={occupantLabel}
-                    onChange={(e) => setOccupantLabel(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button type="submit" size="sm" disabled={addingOccupant || !occupantLabel.trim()}>
-                    {addingOccupant ? "…" : "Add"}
-                  </Button>
+                <form onSubmit={handleAddOccupant} className="flex flex-col gap-2">
+                  <Label htmlFor="occupant-name" className="text-xs">Occupant name</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="occupant-name"
+                      value={occupantLabel}
+                      onChange={(e) => setOccupantLabel(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button type="submit" size="sm" disabled={addingOccupant || !occupantLabel.trim()}>
+                      {addingOccupant ? "…" : "Add"}
+                    </Button>
+                  </div>
                 </form>
               </section>
             </>

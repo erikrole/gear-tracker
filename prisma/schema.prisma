@@ -791,7 +791,7 @@ model LicenseCodeClaim {
   releasedById   String?     @map("released_by_id")
   notes          String?
   licenseCode    LicenseCode @relation(fields: [licenseCodeId], references: [id], onDelete: Cascade)
-  user           User?       @relation(fields: [userId], references: [id])
+  user           User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, releasedAt])
   @@index([licenseCodeId])

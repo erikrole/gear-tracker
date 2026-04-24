@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Props = {
@@ -22,6 +23,8 @@ type Props = {
 
 export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
   const [codes, setCodes] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -32,7 +35,11 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
       const res = await fetch("/api/licenses/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codes }),
+        body: JSON.stringify({
+          codes,
+          accountEmail: accountEmail.trim() || undefined,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to bulk add licenses");
@@ -41,6 +48,8 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
         description: skipped > 0 ? `${skipped} duplicate${skipped !== 1 ? "s" : ""} skipped` : undefined,
       });
       setCodes("");
+      setAccountEmail("");
+      setExpiresAt("");
       onCreated();
       onOpenChange(false);
     } catch (err) {
@@ -67,6 +76,29 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               placeholder={"PM6-XXXX-XXXX-0001\nPM6-XXXX-XXXX-0002\nPM6-XXXX-XXXX-0003"}
               className="font-mono text-sm min-h-[200px]"
               required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bulk-account">
+              Shared account email <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="bulk-account"
+              type="email"
+              value={accountEmail}
+              onChange={(e) => setAccountEmail(e.target.value)}
+              placeholder="kms@athletics.wisc.edu"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bulk-expiry">
+              Shared expiry <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="bulk-expiry"
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
             />
           </div>
           <SheetFooter>

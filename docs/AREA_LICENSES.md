@@ -44,7 +44,7 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 | GET | `/api/licenses` | `license:view` | List codes with active claims (admin sees retired too) |
 | POST | `/api/licenses` | `license:manage` | Create one code (with optional accountEmail/expiresAt) |
 | POST | `/api/licenses/bulk` | `license:manage` | Bulk-create from newline-separated codes |
-| GET | `/api/licenses/export` | admin only | Download CSV of all codes |
+| GET | `/api/licenses/export` | `license:manage` | Download CSV of all codes |
 | GET | `/api/licenses/my` | `license:view` | Current user's active claim (if any) |
 | PATCH | `/api/licenses/[id]` | `license:manage` | Update label / accountEmail / expiresAt / retire |
 | DELETE | `/api/licenses/[id]` | `license:manage` | Permanent delete (must have 0 active claims) |
@@ -111,10 +111,10 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 
 ## Known Gaps / Deferred
 - No bulk renewal (admin must update `expiresAt` per code)
-- BulkAddSheet does not accept accountEmail/expiresAt — those must be set per-code after import
 - No history pagination (loads all claims for a code in one fetch — fine for current volume <50/code)
 - No per-user "license usage" report (only the in-sheet history per code)
 
 ## Change Log
+- **2026-04-24 (MVP polish)** — Per-user rate limits on claim/release/bulk/occupy/export; serializable-isolation transactions on `claimCode`/`addUnknownOccupant` to close concurrent-claim race; `LicenseCodeClaim.user` FK now `SET NULL` (migration 0044) so deleting users with claim history is safe; admin per-claim and "release all" now confirm via AlertDialog; list-fetch error surfaces a Retry empty-state instead of looking like an empty pool; BulkAddSheet now accepts shared `accountEmail` + `expiresAt`; "Mark slot occupied" input has a proper Label; footer hint hidden when user already holds a slot.
 - **2026-04-24 (V2)** — Two-slot model, expiry, unknown occupants, CSV export, expiry push notifications, full UI polish + danger-zone confirmations
 - **2026-04-23 (V1)** — Original single-slot pool with claim/release, 2-day nag push, claim history

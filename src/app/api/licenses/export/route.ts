@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api";
 import { HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { listAllCodes } from "@/lib/services/licenses";
+
+const EXPORT_LIMIT = { max: 5, windowMs: 60_000 };
 
 function csvField(value: string | null | undefined): string {
   if (value == null) return "";
@@ -13,9 +16,8 @@ function csvField(value: string | null | undefined): string {
 
 export const GET = withAuth(async (_req, { user }) => {
   requirePermission(user.role, "license", "manage");
-  if (user.role !== "ADMIN" && user.role !== "STAFF") {
-    throw new HttpError(403, "Admin access required.");
-  }
+  const { allowed } = checkRateLimit(`license:export:${user.id}`, EXPORT_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
   const codes = await listAllCodes();
 

@@ -1,9 +1,26 @@
-import { LicenseCodeStatus } from "@prisma/client";
+import { LicenseCodeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sendPush } from "@/lib/push/apns";
 
 const MAX_SLOTS = 2;
+
+// Postgres serialization-failure SQLSTATE. Retry once on conflict —
+// covers the rare two-students-tap-the-last-slot race.
+const SERIALIZATION_FAILURE = "40001";
+
+async function withSerializableRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    const meta = (err as { meta?: { code?: string } })?.meta?.code;
+    if (code === SERIALIZATION_FAILURE || meta === SERIALIZATION_FAILURE || code === "P2034") {
+      return await fn();
+    }
+    throw err;
+  }
+}
 
 const activeClaimsInclude = {
   where: { releasedAt: null as null },
@@ -42,39 +59,44 @@ export async function getActiveClaimForUser(userId: string) {
 }
 
 export async function claimCode(codeId: string, userId: string) {
-  const existing = await db.licenseCodeClaim.findFirst({
-    where: { userId, releasedAt: null },
-    select: { id: true },
-  });
-  if (existing) {
-    throw new HttpError(409, "You already have an active Photo Mechanic license. Return it before claiming another.");
-  }
+  return withSerializableRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const existing = await tx.licenseCodeClaim.findFirst({
+          where: { userId, releasedAt: null },
+          select: { id: true },
+        });
+        if (existing) {
+          throw new HttpError(409, "You already have an active Photo Mechanic license. Return it before claiming another.");
+        }
 
-  return db.$transaction(async (tx) => {
-    const code = await tx.licenseCode.findUnique({
-      where: { id: codeId },
-      include: { claims: { where: { releasedAt: null } } },
-    });
-    if (!code) throw new HttpError(404, "License code not found.");
-    if (code.status === LicenseCodeStatus.RETIRED) throw new HttpError(409, "This license code is retired.");
+        const code = await tx.licenseCode.findUnique({
+          where: { id: codeId },
+          include: { claims: { where: { releasedAt: null } } },
+        });
+        if (!code) throw new HttpError(404, "License code not found.");
+        if (code.status === LicenseCodeStatus.RETIRED) throw new HttpError(409, "This license code is retired.");
 
-    const activeCount = code.claims.length;
-    if (activeCount >= MAX_SLOTS) throw new HttpError(409, "This license code is fully claimed.");
+        const activeCount = code.claims.length;
+        if (activeCount >= MAX_SLOTS) throw new HttpError(409, "This license code is fully claimed.");
 
-    const now = new Date();
-    await tx.licenseCodeClaim.create({
-      data: { licenseCodeId: codeId, userId, claimedAt: now },
-    });
+        const now = new Date();
+        await tx.licenseCodeClaim.create({
+          data: { licenseCodeId: codeId, userId, claimedAt: now },
+        });
 
-    const newStatus = activeCount + 1 >= MAX_SLOTS ? LicenseCodeStatus.CLAIMED : LicenseCodeStatus.PARTIAL;
-    return tx.licenseCode.update({
-      where: { id: codeId },
-      data: {
-        status: newStatus,
-        ...(activeCount === 0 ? { claimedById: userId, claimedAt: now } : {}),
+        const newStatus = activeCount + 1 >= MAX_SLOTS ? LicenseCodeStatus.CLAIMED : LicenseCodeStatus.PARTIAL;
+        return tx.licenseCode.update({
+          where: { id: codeId },
+          data: {
+            status: newStatus,
+            ...(activeCount === 0 ? { claimedById: userId, claimedAt: now } : {}),
+          },
+        });
       },
-    });
-  });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
+  );
 }
 
 export async function releaseCode(
@@ -150,28 +172,33 @@ export async function releaseCode(
   });
 }
 
-export async function addUnknownOccupant(codeId: string, label: string, adminId: string) {
-  return db.$transaction(async (tx) => {
-    const code = await tx.licenseCode.findUnique({
-      where: { id: codeId },
-      include: { claims: { where: { releasedAt: null } } },
-    });
-    if (!code) throw new HttpError(404, "License code not found.");
-    if (code.status === LicenseCodeStatus.RETIRED) throw new HttpError(409, "This license code is retired.");
-    if (code.claims.length >= MAX_SLOTS) throw new HttpError(409, "This license code is fully claimed.");
+export async function addUnknownOccupant(codeId: string, label: string, _adminId: string) {
+  return withSerializableRetry(() =>
+    db.$transaction(
+      async (tx) => {
+        const code = await tx.licenseCode.findUnique({
+          where: { id: codeId },
+          include: { claims: { where: { releasedAt: null } } },
+        });
+        if (!code) throw new HttpError(404, "License code not found.");
+        if (code.status === LicenseCodeStatus.RETIRED) throw new HttpError(409, "This license code is retired.");
+        if (code.claims.length >= MAX_SLOTS) throw new HttpError(409, "This license code is fully claimed.");
 
-    const now = new Date();
-    await tx.licenseCodeClaim.create({
-      data: { licenseCodeId: codeId, userId: null, occupantLabel: label.trim(), claimedAt: now },
-    });
+        const now = new Date();
+        await tx.licenseCodeClaim.create({
+          data: { licenseCodeId: codeId, userId: null, occupantLabel: label.trim(), claimedAt: now },
+        });
 
-    const activeCount = code.claims.length + 1;
-    const newStatus = activeCount >= MAX_SLOTS ? LicenseCodeStatus.CLAIMED : LicenseCodeStatus.PARTIAL;
-    return tx.licenseCode.update({
-      where: { id: codeId },
-      data: { status: newStatus },
-    });
-  });
+        const activeCount = code.claims.length + 1;
+        const newStatus = activeCount >= MAX_SLOTS ? LicenseCodeStatus.CLAIMED : LicenseCodeStatus.PARTIAL;
+        return tx.licenseCode.update({
+          where: { id: codeId },
+          data: { status: newStatus },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    )
+  );
 }
 
 export async function createCode(
@@ -188,7 +215,8 @@ export async function createCode(
 
 export async function bulkCreateCodes(
   rawLines: string,
-  createdById: string
+  createdById: string,
+  shared: { accountEmail?: string; expiresAt?: Date } = {}
 ): Promise<{ created: number; skipped: number }> {
   const codes = rawLines
     .split("\n")
@@ -207,7 +235,12 @@ export async function bulkCreateCodes(
   if (newCodes.length === 0) return { created: 0, skipped: codes.length };
 
   await db.licenseCode.createMany({
-    data: newCodes.map((code) => ({ code, createdById })),
+    data: newCodes.map((code) => ({
+      code,
+      createdById,
+      accountEmail: shared.accountEmail,
+      expiresAt: shared.expiresAt,
+    })),
   });
 
   return { created: newCodes.length, skipped: codes.length - newCodes.length };

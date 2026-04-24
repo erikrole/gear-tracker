@@ -37,6 +37,7 @@ export default function LicensesPage() {
   const {
     data: codesData,
     loading: codesLoading,
+    error: codesError,
     lastRefreshed,
     reload: reloadCodes,
   } = useFetch<LicenseCode[]>({
@@ -160,7 +161,15 @@ export default function LicensesPage() {
       )}
 
       {/* Main table */}
-      {!codesLoading && allCodes.length === 0 ? (
+      {!codesLoading && codesError && allCodes.length === 0 ? (
+        <EmptyState
+          icon="wifi-off"
+          title="Couldn't load licenses"
+          description="Check your connection and try again."
+          actionLabel="Retry"
+          onAction={reloadAll}
+        />
+      ) : !codesLoading && allCodes.length === 0 ? (
         <EmptyState
           icon="box"
           title="No licenses in pool"
@@ -202,7 +211,7 @@ export default function LicensesPage() {
       <BulkAddSheet open={showBulk} onOpenChange={setShowBulk} onCreated={reloadAll} />
 
       {/* Footer hint */}
-      {!codesLoading && allCodes.length > 0 && (
+      {!codesLoading && allCodes.length > 0 && !myLicense && (
         <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
           <KeyRound className="size-3" />
           Click an available row to claim. Codes are copied to your clipboard automatically.
