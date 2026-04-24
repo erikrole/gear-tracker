@@ -367,7 +367,7 @@ private struct ActionsSection: View {
             Button {
                 onExtend()
             } label: {
-                Label("Extend Return Date", systemImage: "clock.badge.plus")
+                Label("Extend Return Date", systemImage: "clock.arrow.circlepath")
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
                     .padding()

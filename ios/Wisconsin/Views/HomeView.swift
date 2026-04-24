@@ -36,99 +36,90 @@ struct HomeView: View {
     @State private var pendingBookingId: String?
     @State private var pendingShowTrades = false
     @Environment(AppState.self) private var appState
+    @Environment(SessionStore.self) private var session
 
-    var body: some View {
-        NavigationStack(path: $navigationPath) {
-            Group {
-                if vm.dashboard == nil && vm.error == nil {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 20) {
-                            StatStripSkeleton()
-                            VStack(alignment: .leading, spacing: 12) {
-                                Skeleton().frame(width: 140, height: 14)
-                                ForEach(0..<3, id: \.self) { _ in BookingRowSkeleton() }
-                            }
-                            VStack(alignment: .leading, spacing: 12) {
-                                Skeleton().frame(width: 140, height: 14)
-                                ForEach(0..<4, id: \.self) { _ in BookingRowSkeleton() }
-                            }
-                        }
-                        .padding()
+    @ViewBuilder private var mainContent: some View {
+        if vm.dashboard == nil && vm.error == nil {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    StatStripSkeleton()
+                    VStack(alignment: .leading, spacing: 12) {
+                        Skeleton().frame(width: 140, height: 14)
+                        ForEach(0..<3, id: \.self) { _ in BookingRowSkeleton() }
                     }
-                    .allowsHitTesting(false)
-                } else if let error = vm.error, vm.dashboard == nil {
-                    ContentUnavailableView {
-                        Label("Error", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button("Retry") { Task { await vm.load(appState: appState, forceRefresh: true) } }
-                            .buttonStyle(.borderedProminent)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Skeleton().frame(width: 140, height: 14)
+                        ForEach(0..<4, id: \.self) { _ in BookingRowSkeleton() }
                     }
-                } else if let dash = vm.dashboard {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 20) {
-                            StatStrip(stats: dash.stats)
+                }
+                .padding()
+            }
+            .allowsHitTesting(false)
+        } else if let error = vm.error, vm.dashboard == nil {
+            ContentUnavailableView {
+                Label("Error", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Retry") { Task { await vm.load(appState: appState, forceRefresh: true) } }
+                    .buttonStyle(.borderedProminent)
+            }
+        } else if let dash = vm.dashboard {
+            dashboardScrollView(dash)
+        }
+    }
 
-                            let overdue = (dash.myCheckouts.items + dash.teamCheckouts.items).filter(\.isOverdue)
-                            if !overdue.isEmpty {
-                                OverdueBanner(items: overdue)
-                            }
-
-                            if !dash.myShifts.isEmpty {
-                                DashboardCard(title: "My Upcoming Shifts") {
-                                    ForEach(dash.myShifts) { shift in
-                                        DashboardShiftRow(shift: shift)
-                                    }
-                                }
-                            }
-
-                            if !dash.myCheckouts.items.isEmpty {
-                                DashboardCard(title: "My Checkouts") {
-                                    ForEach(dash.myCheckouts.items) { summary in
-                                        NavigationLink(value: summary) {
-                                            BookingSummaryRow(summary: summary)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
-
-                            if !dash.teamCheckouts.items.isEmpty {
-                                DashboardCard(title: "Team Checkouts") {
-                                    ForEach(dash.teamCheckouts.items) { summary in
-                                        NavigationLink(value: summary) {
-                                            BookingSummaryRow(summary: summary)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
-
-                            if !dash.teamReservations.items.isEmpty {
-                                DashboardCard(title: "Upcoming Reservations") {
-                                    ForEach(dash.teamReservations.items) { summary in
-                                        NavigationLink(value: summary) {
-                                            BookingSummaryRow(summary: summary)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
-
-                            if !dash.upcomingEvents.isEmpty {
-                                DashboardCard(title: "Upcoming Events") {
-                                    ForEach(dash.upcomingEvents.prefix(6)) { event in
-                                        EventSummaryRow(event: event)
-                                    }
-                                }
-                            }
+    @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
+        let overdue = (dash.myCheckouts.items + dash.teamCheckouts.items).filter(\.isOverdue)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                StatStrip(stats: dash.stats)
+                if !overdue.isEmpty {
+                    OverdueBanner(items: overdue)
+                }
+                if !dash.myShifts.isEmpty {
+                    DashboardCard(title: "My Upcoming Shifts") {
+                        ForEach(dash.myShifts) { shift in DashboardShiftRow(shift: shift) }
+                    }
+                }
+                if !dash.myCheckouts.items.isEmpty {
+                    DashboardCard(title: "My Checkouts") {
+                        ForEach(dash.myCheckouts.items) { summary in
+                            NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
+                                .buttonStyle(.plain)
                         }
-                        .padding()
+                    }
+                }
+                if !dash.teamCheckouts.items.isEmpty {
+                    DashboardCard(title: "Team Checkouts") {
+                        ForEach(dash.teamCheckouts.items) { summary in
+                            NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
+                                .buttonStyle(.plain)
+                        }
+                    }
+                }
+                if !dash.teamReservations.items.isEmpty {
+                    DashboardCard(title: "Upcoming Reservations") {
+                        ForEach(dash.teamReservations.items) { summary in
+                            NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
+                                .buttonStyle(.plain)
+                        }
+                    }
+                }
+                if !dash.upcomingEvents.isEmpty {
+                    DashboardCard(title: "Upcoming Events") {
+                        ForEach(dash.upcomingEvents.prefix(6)) { event in EventSummaryRow(event: event) }
                     }
                 }
             }
-            .navigationTitle("Dashboard")
+            .padding()
+        }
+    }
+
+    var body: some View {
+        NavigationStack(path: $navigationPath) {
+            mainContent
+                .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -185,7 +176,7 @@ struct HomeView: View {
                 )
             }
             .sheet(isPresented: $showTrades) {
-                TradeBoardSheet()
+                TradeBoardSheet(myShifts: [], currentUserId: session.currentUser?.id ?? "")
             }
         }
     }

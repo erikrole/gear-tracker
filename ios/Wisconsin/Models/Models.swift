@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Auth
 
-struct CurrentUser: Codable, Identifiable {
+struct CurrentUser: Codable, Identifiable, Equatable {
     let id: String
     let name: String
     let email: String

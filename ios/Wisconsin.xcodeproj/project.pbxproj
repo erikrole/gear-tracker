@@ -30,6 +30,7 @@
 		889D5483CAC2EA6C8E25DDFD /* ShiftTradeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC21A466188CE0D3011728F2 /* ShiftTradeModels.swift */; };
 		904A4A8C645FFEB4CD2AA971 /* ExtendBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */; };
 		96DAC20EB887DA3916DEE474 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38065600FA5A1C1AC4C8CC2F /* AppState.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E1D0C9B8A7F6E5D4C3B2A1 /* AppDelegate.swift */; };
 		A2F31705FBCCCE502A3B6C1A /* SearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74EFD042F26EA7BE52FA67E3 /* SearchService.swift */; };
 		A9264F994D67157C3DD7FCD3 /* TradeBoardSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52833BE41AB34A8FFA43FE2 /* TradeBoardSheet.swift */; };
 		AF66ADDE1D3CF5B16155A3BA /* GlobalSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5EC344925B5666C2CA8F773 /* GlobalSearchSheet.swift */; };
@@ -81,6 +82,7 @@
 		EC21A466188CE0D3011728F2 /* ShiftTradeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftTradeModels.swift; sourceTree = "<group>"; };
 		F12684601FE641B454D0219B /* ItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemsView.swift; sourceTree = "<group>"; };
 		F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBookingSheet.swift; sourceTree = "<group>"; };
+		F2E1D0C9B8A7F6E5D4C3B2A1 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F2E89852F4DC85939BA9A8AA /* FloatingSearchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingSearchButton.swift; sourceTree = "<group>"; };
 		F52833BE41AB34A8FFA43FE2 /* TradeBoardSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeBoardSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -119,6 +121,7 @@
 		597D878F5B57CA4F5E2F5F05 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				F2E1D0C9B8A7F6E5D4C3B2A1 /* AppDelegate.swift */,
 				D3BDE438C8F05EAA14B299BB /* WisconsinApp.swift */,
 			);
 			path = App;
@@ -239,11 +242,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-					5731E598F30EDA43B52B4002 = {
-						DevelopmentTeam = "";
-					};
-				};
 			};
 			buildConfigurationList = 5728D6AA97025032A6EE9DAD /* Build configuration list for PBXProject "Wisconsin" */;
 			developmentRegion = en;
@@ -281,6 +279,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1AC641AD94A229A52FE17AE0 /* APIClient.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* AppDelegate.swift in Sources */,
 				96DAC20EB887DA3916DEE474 /* AppState.swift in Sources */,
 				E74AB0C45B70B59CEBC79AC4 /* AppTabView.swift in Sources */,
 				C3C5D175C583096B0D645F24 /* AssetModels.swift in Sources */,
@@ -327,7 +326,7 @@
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -350,7 +349,7 @@
 				CODE_SIGN_ENTITLEMENTS = Wisconsin/Wisconsin.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				INFOPLIST_FILE = Wisconsin/Supporting/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
