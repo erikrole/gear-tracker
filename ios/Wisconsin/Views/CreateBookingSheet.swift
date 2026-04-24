@@ -148,7 +148,7 @@ struct CreateBookingSheet: View {
             .navigationTitle(step == 1 ? "New Reservation" : "Add Equipment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
-            .alert("Couldn't Create Booking", isPresented: Binding(
+            .alert("Unable to Create Reservation", isPresented: Binding(
                 get: { submitError != nil },
                 set: { if !$0 { submitError = nil } }
             )) {

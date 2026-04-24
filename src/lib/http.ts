@@ -43,7 +43,7 @@ export function fail(error: unknown) {
     error.code === "P2034"
   ) {
     return NextResponse.json(
-      { error: "Concurrent modification detected — please retry" },
+      { error: "Someone else submitted at the same time — please try again." },
       { status: 409 }
     );
   }

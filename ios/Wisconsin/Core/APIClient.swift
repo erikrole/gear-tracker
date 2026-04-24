@@ -507,6 +507,31 @@ final class APIClient {
             throw APIError.unauthorized
         case 404:
             throw APIError.notFound
+        case 409:
+            if let body = try? decoder.decode(ConflictResponseBody.self, from: data),
+               let d = body.data {
+                var parts: [String] = []
+                for c in d.conflicts ?? [] {
+                    if let title = c.conflictingBookingTitle {
+                        parts.append("conflicts with \"\(title)\"")
+                    } else {
+                        parts.append("scheduling conflict")
+                    }
+                }
+                for u in d.unavailableAssets ?? [] {
+                    let readable = u.status.lowercased().replacingOccurrences(of: "_", with: " ")
+                    parts.append("unavailable (\(readable))")
+                }
+                for s in d.shortages ?? [] {
+                    parts.append("only \(s.available) of \(s.requested) available")
+                }
+                if !parts.isEmpty {
+                    throw APIError.serverError("Some equipment is no longer available: \(parts.joined(separator: "; ")). Remove it and try again.")
+                }
+            }
+            let msg409 = (try? decoder.decode(ServerErrorBody.self, from: data))?.error
+                ?? "This equipment is no longer available — please try again."
+            throw APIError.serverError(msg409)
         default:
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error
                 ?? "Server error (\(http.statusCode))"
@@ -531,4 +556,29 @@ private struct MeResponse: Decodable {
 
 private struct ServerErrorBody: Decodable {
     let error: String
+}
+
+private struct ConflictResponseBody: Decodable {
+    let error: String?
+    let data: ConflictData?
+
+    struct ConflictData: Decodable {
+        let conflicts: [ConflictItem]?
+        let unavailableAssets: [UnavailableItem]?
+        let shortages: [Shortage]?
+
+        struct ConflictItem: Decodable {
+            let assetId: String
+            let conflictingBookingTitle: String?
+        }
+        struct UnavailableItem: Decodable {
+            let assetId: String
+            let status: String
+        }
+        struct Shortage: Decodable {
+            let bulkSkuId: String
+            let requested: Int
+            let available: Int
+        }
+    }
 }
