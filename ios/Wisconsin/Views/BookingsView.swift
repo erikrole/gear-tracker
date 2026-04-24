@@ -154,6 +154,10 @@ struct BookingsView: View {
 struct BookingRow: View {
     let booking: Booking
 
+    private var isOverdue: Bool {
+        booking.status == .open && booking.endsAt < .now
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
@@ -171,28 +175,22 @@ struct BookingRow: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .lineLimit(1)
-            HStack(spacing: 6) {
-                KindChip(kind: booking.kind)
-                Text(booking.startsAt.formatted(date: .abbreviated, time: .omitted))
+            if booking.kind == .checkout {
+                Label {
+                    Text(booking.endsAt.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption2)
+                } icon: {
+                    Image(systemName: isOverdue ? "exclamationmark.circle.fill" : "clock")
+                        .font(.caption2)
+                }
+                .foregroundStyle(isOverdue ? Color.red : Color.tertiary)
+            } else {
+                Text("From \(booking.startsAt.formatted(date: .abbreviated, time: .omitted))")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-private struct KindChip: View {
-    let kind: BookingKind
-
-    var body: some View {
-        Text(kind == .checkout ? "Checkout" : "Reservation")
-            .font(.caption2.weight(.medium))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(kind == .checkout ? Color.blue.opacity(0.1) : Color.purple.opacity(0.1))
-            .foregroundStyle(kind == .checkout ? Color.blue : Color.purple)
-            .clipShape(Capsule())
     }
 }
 
