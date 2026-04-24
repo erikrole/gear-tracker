@@ -313,8 +313,7 @@ export default function EquipmentPicker({
                       onClick={() => toggleAsset(asset.id, asset)}
                       className={cn(
                         "flex items-center gap-3 flex-1 min-w-0 text-left",
-                        !isUnavailable && (isSelected ? "cursor-pointer" : "cursor-pointer"),
-                        isUnavailable && "cursor-default"
+                        isUnavailable ? "cursor-default" : "cursor-pointer"
                       )}
                     >
                       <AssetImage src={asset.imageUrl} alt={asset.assetTag} size={40} />
@@ -323,23 +322,20 @@ export default function EquipmentPicker({
                         <div className="text-xs text-muted-foreground truncate">
                           {asset.brand} {asset.model}
                         </div>
-                      </div>
-                    </button>
-                    {/* Right side: holder info or selection indicator */}
-                    {isUnavailable && holder ? (
-                      <div className="shrink-0 flex flex-col items-end gap-0.5 max-w-[150px]">
-                        <span className="text-xs font-medium truncate">{holder.holderName}</span>
-                        {holder.endsAt && (
-                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                            Returns {new Date(holder.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </span>
+                        {isUnavailable && holder && (
+                          <div className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
+                            Held by {holder.holderName}
+                            {holder.endsAt && ` · Returns ${new Date(holder.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                          </div>
                         )}
                       </div>
-                    ) : isUnavailable ? (
+                    </button>
+                    {/* Right side: status badge or selection indicator */}
+                    {isUnavailable && !holder ? (
                       <Badge variant="secondary" size="sm" className="shrink-0">
                         {asset.computedStatus.replace(/_/g, " ").toLowerCase()}
                       </Badge>
-                    ) : (
+                    ) : !isUnavailable ? (
                       <>
                         {conflict && !isSelected && (
                           <Badge variant="orange" size="sm" className="shrink-0">Conflict</Badge>
@@ -350,7 +346,7 @@ export default function EquipmentPicker({
                           <CircleIcon className="size-5 text-border shrink-0" />
                         )}
                       </>
-                    )}
+                    ) : null}
                   </div>
                 );
               })}
