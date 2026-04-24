@@ -8,6 +8,7 @@ final class ItemsViewModel {
     var error: String?
     var searchText = ""
     var selectedStatus: AssetComputedStatus?
+    var favoritesOnly = false
     var hasMore = true
 
     private var offset = 0
@@ -27,6 +28,7 @@ final class ItemsViewModel {
             let result = try await APIClient.shared.assets(
                 search: searchText.isEmpty ? nil : searchText,
                 status: selectedStatus,
+                favoritesOnly: favoritesOnly,
                 limit: limit,
                 offset: offset
             )
@@ -47,10 +49,58 @@ final class ItemsViewModel {
             await load(reset: true)
         }
     }
+
+    func toggleFavorite(_ asset: Asset) async {
+        // Optimistic update
+        assets = assets.map { a in
+            guard a.id == asset.id else { return a }
+            return Asset(
+                id: a.id, assetTag: a.assetTag, name: a.name, brand: a.brand, model: a.model,
+                serialNumber: a.serialNumber, imageUrl: a.imageUrl, computedStatus: a.computedStatus,
+                location: a.location, category: a.category, department: a.department,
+                activeBooking: a.activeBooking, purchaseDate: a.purchaseDate,
+                purchasePrice: a.purchasePrice, residualValue: a.residualValue,
+                isFavorited: !a.isFavorited
+            )
+        }
+        do {
+            let newState = try await APIClient.shared.toggleFavorite(assetId: asset.id)
+            // Reconcile with server truth in case of race
+            assets = assets.map { a in
+                guard a.id == asset.id else { return a }
+                return Asset(
+                    id: a.id, assetTag: a.assetTag, name: a.name, brand: a.brand, model: a.model,
+                    serialNumber: a.serialNumber, imageUrl: a.imageUrl, computedStatus: a.computedStatus,
+                    location: a.location, category: a.category, department: a.department,
+                    activeBooking: a.activeBooking, purchaseDate: a.purchaseDate,
+                    purchasePrice: a.purchasePrice, residualValue: a.residualValue,
+                    isFavorited: newState
+                )
+            }
+            // If filtering by favorites, remove items that were just unfavorited
+            if favoritesOnly && !newState {
+                assets.removeAll { $0.id == asset.id }
+            }
+        } catch {
+            // Revert on failure
+            assets = assets.map { a in
+                guard a.id == asset.id else { return a }
+                return Asset(
+                    id: a.id, assetTag: a.assetTag, name: a.name, brand: a.brand, model: a.model,
+                    serialNumber: a.serialNumber, imageUrl: a.imageUrl, computedStatus: a.computedStatus,
+                    location: a.location, category: a.category, department: a.department,
+                    activeBooking: a.activeBooking, purchaseDate: a.purchaseDate,
+                    purchasePrice: a.purchasePrice, residualValue: a.residualValue,
+                    isFavorited: asset.isFavorited
+                )
+            }
+        }
+    }
 }
 
 struct ItemsView: View {
     @State private var vm = ItemsViewModel()
+    @State private var reserveAsset: Asset?
 
     var body: some View {
         NavigationStack {
@@ -74,15 +124,41 @@ struct ItemsView: View {
                     .allowsHitTesting(false)
                 } else if vm.assets.isEmpty {
                     ContentUnavailableView(
-                        "No Items",
-                        systemImage: "archivebox",
-                        description: Text(vm.searchText.isEmpty ? "No gear found." : "No results for \"\(vm.searchText)\".")
+                        vm.favoritesOnly ? "No Favorites" : "No Items",
+                        systemImage: vm.favoritesOnly ? "star" : "archivebox",
+                        description: Text(vm.searchText.isEmpty
+                            ? (vm.favoritesOnly ? "Star items to add them here." : "No gear found.")
+                            : "No results for \"\(vm.searchText)\".")
                     )
                 } else {
                     List {
                         ForEach(vm.assets) { asset in
                             NavigationLink(value: asset) {
                                 AssetRow(asset: asset)
+                            }
+                            .contextMenu {
+                                Button {
+                                    Task { await vm.toggleFavorite(asset) }
+                                } label: {
+                                    Label(
+                                        asset.isFavorited ? "Unfavorite" : "Favorite",
+                                        systemImage: asset.isFavorited ? "star.slash" : "star"
+                                    )
+                                }
+
+                                Button {
+                                    reserveAsset = asset
+                                } label: {
+                                    Label("Reserve", systemImage: "plus.circle")
+                                }
+
+                                if let tag = asset.assetTag {
+                                    Button {
+                                        UIPasteboard.general.string = tag
+                                    } label: {
+                                        Label("Copy Asset Tag", systemImage: "doc.on.doc")
+                                    }
+                                }
                             }
                         }
                         if vm.hasMore {
@@ -99,8 +175,19 @@ struct ItemsView: View {
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    AssetStatusFilterMenu(selected: $vm.selectedStatus) {
-                        Task { await vm.load(reset: true) }
+                    HStack(spacing: 4) {
+                        Button {
+                            vm.favoritesOnly.toggle()
+                            Task { await vm.load(reset: true) }
+                        } label: {
+                            Image(systemName: vm.favoritesOnly ? "star.fill" : "star")
+                                .foregroundStyle(vm.favoritesOnly ? .yellow : .primary)
+                        }
+                        .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
+
+                        AssetStatusFilterMenu(selected: $vm.selectedStatus) {
+                            Task { await vm.load(reset: true) }
+                        }
                     }
                 }
             }
@@ -109,9 +196,13 @@ struct ItemsView: View {
             .navigationDestination(for: Asset.self) { asset in
                 ItemDetailView(assetId: asset.id)
             }
+            .sheet(item: $reserveAsset) { _ in
+                CreateBookingSheet { _ in reserveAsset = nil }
+            }
         }
     }
 }
+
 
 struct AssetRow: View {
     let asset: Asset

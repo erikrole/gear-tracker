@@ -7,6 +7,7 @@ struct ItemDetailView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var showEdit = false
+    @State private var isFavorited = false
 
     var body: some View {
         Group {
@@ -46,6 +47,16 @@ struct ItemDetailView: View {
         .toolbar {
             if asset != nil {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isFavorited.toggle()
+                        Task { isFavorited = (try? await APIClient.shared.toggleFavorite(assetId: assetId)) ?? isFavorited }
+                    } label: {
+                        Image(systemName: isFavorited ? "star.fill" : "star")
+                            .foregroundStyle(isFavorited ? .yellow : .primary)
+                    }
+                    .sensoryFeedback(.selection, trigger: isFavorited)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showEdit = true } label: {
                         Image(systemName: "pencil")
                     }
@@ -68,6 +79,7 @@ struct ItemDetailView: View {
         error = nil
         do {
             asset = try await APIClient.shared.asset(id: assetId)
+            isFavorited = asset?.isFavorited ?? false
         } catch {
             self.error = error.localizedDescription
         }

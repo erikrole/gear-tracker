@@ -249,6 +249,7 @@ final class APIClient {
         search: String? = nil,
         status: AssetComputedStatus? = nil,
         categoryId: String? = nil,
+        favoritesOnly: Bool = false,
         limit: Int = 30,
         offset: Int = 0
     ) async throws -> AssetsResponse {
@@ -260,6 +261,7 @@ final class APIClient {
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
         if let status { items.append(.init(name: "status", value: status.rawValue)) }
         if let categoryId { items.append(.init(name: "category_id", value: categoryId)) }
+        if favoritesOnly { items.append(.init(name: "favorites_only", value: "true")) }
         components.queryItems = items
         var req = URLRequest(url: components.url!)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -405,6 +407,16 @@ final class APIClient {
         req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
         let resp: MyShiftsResponse = try await perform(req)
         return resp.data
+    }
+
+    // MARK: - Favorites
+
+    @discardableResult
+    func toggleFavorite(assetId: String) async throws -> Bool {
+        struct Response: Decodable { let favorited: Bool }
+        let req = request(path: "/api/assets/\(assetId)/favorite", method: "POST")
+        let resp: Response = try await perform(req)
+        return resp.favorited
     }
 
     // MARK: - Notifications

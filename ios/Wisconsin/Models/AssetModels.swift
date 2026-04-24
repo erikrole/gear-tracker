@@ -65,6 +65,7 @@ struct Asset: Codable, Identifiable, Hashable {
     let purchaseDate: String?
     let purchasePrice: String?   // Prisma Decimal serializes as string
     let residualValue: String?
+    let isFavorited: Bool
 
     var purchasePriceDecimal: Double? { purchasePrice.flatMap(Double.init) }
 
