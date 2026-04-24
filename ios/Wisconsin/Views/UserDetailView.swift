@@ -92,7 +92,7 @@ struct UserDetailView: View {
                     Circle()
                         .fill(Color.purple.opacity(0.12))
                         .frame(width: 56, height: 56)
-                    Text(detail.name.initials)
+                    Text(detail.name.searchInitials)
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(.purple)
                 }
@@ -139,12 +139,3 @@ struct UserDetailView: View {
     }
 }
 
-private extension String {
-    var initials: String {
-        let parts = self.split(separator: " ")
-        if parts.count >= 2 {
-            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
-        }
-        return String(self.prefix(2)).uppercased()
-    }
-}

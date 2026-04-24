@@ -34,7 +34,7 @@ struct AssetResultRow: View {
                 }
             }
             Spacer()
-            StatusBadge(label: asset.computedStatus.label, color: asset.computedStatus.badgeColor)
+            AssetStatusBadge(status: asset.computedStatus)
         }
         .padding(.vertical, 4)
     }
@@ -65,7 +65,7 @@ struct BookingResultRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            StatusBadge(label: booking.status.label, color: booking.status.badgeColor)
+            StatusBadge(status: booking.status)
         }
         .padding(.vertical, 4)
     }
@@ -82,7 +82,7 @@ struct UserResultRow: View {
                 Circle()
                     .fill(Color.purple.opacity(0.1))
                     .frame(width: 40, height: 40)
-                Text(user.name.initials)
+                Text(user.name.searchInitials)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.purple)
             }
@@ -107,53 +107,10 @@ struct UserResultRow: View {
     }
 }
 
-// MARK: - Shared badge
+// MARK: - String helper (scoped to avoid conflicts)
 
-private struct StatusBadge: View {
-    let label: String
-    let color: Color
-
-    var body: some View {
-        Text(label)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.12), in: Capsule())
-    }
-}
-
-// MARK: - Extensions
-
-private extension AssetComputedStatus {
-    var badgeColor: Color {
-        switch self {
-        case .available: .green
-        case .checkedOut: .orange
-        case .reserved: .blue
-        case .maintenance: .yellow
-        case .retired: .gray
-        case .unknown: .gray
-        }
-    }
-}
-
-private extension BookingStatus {
-    var badgeColor: Color {
-        switch self {
-        case .open: .green
-        case .booked: .blue
-        case .pendingPickup: .orange
-        case .draft: .gray
-        case .completed: .secondary
-        case .cancelled: .red
-        case .unknown: .gray
-        }
-    }
-}
-
-private extension String {
-    var initials: String {
+extension String {
+    var searchInitials: String {
         let parts = self.split(separator: " ")
         if parts.count >= 2 {
             return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()

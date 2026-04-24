@@ -172,7 +172,7 @@ struct GlobalSearchSheet: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
                 .foregroundStyle(.quaternary)
-            Text("No results for "\(query)"")
+            Text("No results for \"\(query)\"")
                 .foregroundStyle(.secondary)
                 .font(.subheadline)
         }
