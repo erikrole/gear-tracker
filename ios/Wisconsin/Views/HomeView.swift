@@ -30,6 +30,7 @@ final class HomeViewModel {
 struct HomeView: View {
     @State private var vm = HomeViewModel()
     @State private var showSearch = false
+    @State private var showNotifications = false
     @Environment(AppState.self) private var appState
 
     var body: some View {
@@ -124,6 +125,17 @@ struct HomeView: View {
                 }
             }
             .navigationTitle("Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showNotifications = true
+                    } label: {
+                        Image(systemName: appState.unreadNotifCount > 0 ? "bell.badge.fill" : "bell")
+                            .symbolRenderingMode(.multicolor)
+                    }
+                    .accessibilityLabel(appState.unreadNotifCount > 0 ? "\(appState.unreadNotifCount) unread notifications" : "Notifications")
+                }
+            }
             .refreshable { await vm.load(appState: appState, forceRefresh: true) }
             .task { await vm.load(appState: appState) }
             .navigationDestination(for: BookingSummary.self) { summary in
@@ -136,6 +148,11 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showSearch) {
                 GlobalSearchSheet()
+            }
+            .sheet(isPresented: $showNotifications, onDismiss: {
+                Task { await appState.refresh() }
+            }) {
+                NotificationsSheet()
             }
         }
     }

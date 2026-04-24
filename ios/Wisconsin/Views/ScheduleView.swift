@@ -72,6 +72,9 @@ struct ScheduleView: View {
     @State private var myShiftsOnly = false
     @State private var viewMode: ScheduleViewMode = .list
     @State private var calendarSelectedDate: Date = .now
+    @State private var showTradeBoard = false
+    @Environment(SessionStore.self) private var session
+    @Environment(AppState.self) private var appState
 
     private var displayedGroups: [(date: Date, events: [ScheduleEvent])] {
         guard myShiftsOnly else { return vm.groupedEvents }
@@ -86,13 +89,15 @@ struct ScheduleView: View {
             Group {
                 if vm.isLoading && vm.events.isEmpty {
                     List {
-                        Section {
-                            ForEach(0..<6, id: \.self) { _ in
-                                EventRowSkeleton().listRowSeparator(.hidden)
-                            }
+                        ForEach(0..<6, id: \.self) { _ in
+                            EventRowSkeleton()
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                         }
                     }
-                    .listStyle(.insetGrouped)
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(.systemGroupedBackground))
                     .allowsHitTesting(false)
                 } else if let err = vm.error {
                     ContentUnavailableView {
@@ -144,6 +149,24 @@ struct ScheduleView: View {
                     .controlSize(.small)
                     .sensoryFeedback(.selection, trigger: myShiftsOnly)
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showTradeBoard = true
+                    } label: {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            if appState.openTradeCount > 0 {
+                                Text("\(min(appState.openTradeCount, 9))")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 14, height: 14)
+                                    .background(Color.accentColor, in: Circle())
+                                    .offset(x: 8, y: -8)
+                            }
+                        }
+                    }
+                    .accessibilityLabel("Trade Board")
+                }
             }
             .task { await vm.load() }
             .refreshable { await vm.load(forceRefresh: true) }
@@ -155,13 +178,21 @@ struct ScheduleView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showTradeBoard, onDismiss: {
+                Task { await appState.refresh() }
+            }) {
+                TradeBoardSheet(
+                    myShifts: vm.myShifts,
+                    currentUserId: session.currentUser?.id ?? ""
+                )
+            }
         }
     }
 
     private var eventList: some View {
         List {
             ForEach(displayedGroups, id: \.date) { group in
-                Section(header: sectionHeader(for: group.date)) {
+                Section {
                     ForEach(group.events) { event in
                         Button {
                             selectedEvent = event
@@ -172,31 +203,19 @@ struct ScheduleView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                        .listRowSeparator(.hidden)
                     }
+                } header: {
+                    ScheduleDateHeader(date: group.date)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
+                .listSectionSeparator(.hidden)
             }
         }
-        .listStyle(.insetGrouped)
-    }
-
-    private func sectionHeader(for date: Date) -> some View {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: .now)
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
-
-        let label: String
-        if calendar.isDate(date, inSameDayAs: today) {
-            label = "Today"
-        } else if calendar.isDate(date, inSameDayAs: tomorrow) {
-            label = "Tomorrow"
-        } else {
-            label = date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
-        }
-
-        return Text(label)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color(.systemGroupedBackground))
     }
 }
 
@@ -330,10 +349,13 @@ struct ScheduleCalendarView: View {
                         EventRow(event: event, myShift: shiftsByEventId[event.id])
                     }
                     .buttonStyle(.plain)
-                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                    .listRowSeparator(.hidden)
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
         }
     }
 
@@ -423,6 +445,49 @@ private struct DayCell: View {
     }
 }
 
+// MARK: - Date Header
+
+private struct ScheduleDateHeader: View {
+    let date: Date
+
+    private var cal: Calendar { .current }
+    private var isToday: Bool { cal.isDateInToday(date) }
+    private var isTomorrow: Bool { cal.isDateInTomorrow(date) }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .center, spacing: 0) {
+                Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                    .font(.system(size: 9, weight: .bold))
+                    .kerning(0.5)
+                    .foregroundStyle(isToday ? Color.accentColor : .secondary)
+                Text(date.formatted(.dateTime.day()))
+                    .font(.system(size: 24, weight: .black))
+                    .monospacedDigit()
+                    .fixedSize()
+                    .foregroundStyle(isToday ? Color.accentColor : .primary)
+            }
+            .frame(width: 36)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(
+                    isToday ? "Today" :
+                    isTomorrow ? "Tomorrow" :
+                    date.formatted(.dateTime.month(.wide).year())
+                )
+                .font(.caption.weight(.medium))
+                .foregroundStyle(isToday ? Color.accentColor.opacity(0.8) : .secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 4)
+        .background(Color(.systemGroupedBackground))
+    }
+}
+
 // MARK: - Event Row
 
 struct EventRow: View {
@@ -430,43 +495,80 @@ struct EventRow: View {
     let myShift: MyShift?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                if let isHome = event.isHome {
-                    Image(systemName: isHome ? "house" : "airplane.departure")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Text(event.summary)
-                    .font(.body.weight(.medium))
-                    .lineLimit(2)
-            }
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(barColor)
+                .frame(width: 3)
 
-            HStack(spacing: 10) {
-                Label(timeLabel, systemImage: "clock")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 5) {
+                // Title row
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(event.summary)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    if myShift != nil {
+                        Text("My Shift")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .kerning(0.3)
+                    }
+                }
+
+                // Time row
+                HStack(spacing: 8) {
+                    if let isHome = event.isHome {
+                        Text(isHome ? "Home" : "Away")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(isHome ? Color.green : Color.orange)
+                    }
+
+                    if let shift = myShift {
+                        HStack(spacing: 10) {
+                            TimeBlock(label: "CALL", time: shift.startsAt)
+                            TimeBlock(label: "EVENT", time: event.startsAt)
+                            TimeBlock(label: "END", time: shift.endsAt)
+                        }
+                    } else if !event.allDay {
+                        Text(eventTimeLabel)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    } else if event.allDay {
+                        Text("All day")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 if let location = event.location {
                     Label(location.name, systemImage: "mappin")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
             }
+            .padding(.leading, 12)
+            .padding(.vertical, 10)
+            .padding(.trailing, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(.background)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.04), radius: 1, y: 1)
+        .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
+    }
 
-            HStack(spacing: 6) {
-                if let sport = sportLabel(event.sportCode) {
-                    SportBadge(label: sport)
-                }
-                if let shift = myShift {
-                    MyShiftBadge(shift: shift)
-                }
-            }
+    private var barColor: Color {
+        if myShift != nil { return .accentColor }
+        switch event.isHome {
+        case true:  return .green
+        case false: return .orange
+        default:    return Color(.systemGray4)
         }
     }
 
-    private var timeLabel: String {
+    private var eventTimeLabel: String {
         if event.allDay { return "All day" }
         let start = event.startsAt.formatted(.dateTime.hour().minute())
         let end = event.endsAt.formatted(.dateTime.hour().minute())
@@ -474,60 +576,23 @@ struct EventRow: View {
     }
 }
 
-// MARK: - Badges
-
-struct SportBadge: View {
+private struct TimeBlock: View {
     let label: String
+    let time: Date
 
     var body: some View {
-        Text(label)
-            .font(.caption2.weight(.medium))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(.tint.opacity(0.12))
-            .foregroundStyle(.tint)
-            .clipShape(Capsule())
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .kerning(0.4)
+            Text(time.formatted(.dateTime.hour().minute()))
+                .font(.caption.weight(.medium).monospacedDigit())
+                .foregroundStyle(.primary)
+        }
     }
 }
 
-struct MyShiftBadge: View {
-    let shift: MyShift
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "person.fill")
-                .font(.system(size: 9))
-            Text(shift.area)
-                .font(.caption2.weight(.medium))
-            if shift.gear.hasGear {
-                Image(systemName: gearIcon)
-                    .font(.system(size: 9))
-                    .foregroundStyle(gearColor)
-            }
-        }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(Color.green.opacity(0.12))
-        .foregroundStyle(Color.green)
-        .clipShape(Capsule())
-    }
-
-    private var gearIcon: String {
-        switch shift.gear.status {
-        case "checked_out": return "tray.and.arrow.up.fill"
-        case "reserved":    return "checkmark.circle.fill"
-        default:            return "doc.fill"
-        }
-    }
-
-    private var gearColor: Color {
-        switch shift.gear.status {
-        case "checked_out": return .blue
-        case "reserved":    return .green
-        default:            return .secondary
-        }
-    }
-}
 
 #Preview {
     ScheduleView()

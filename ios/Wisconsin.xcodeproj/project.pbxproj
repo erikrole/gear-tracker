@@ -9,6 +9,11 @@
 /* Begin PBXBuildFile section */
 		0FC9DC340824D39EB558E913 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B540C9027D1885BCBEA2E4D /* Models.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* SearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A2 /* SearchService.swift */; };
+		F3A4B5C6D7E8F9A0B1C2D3E4 /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F9A0B1C2D3E4F5 /* NotificationModels.swift */; };
+		B5C6D7E8F9A0B1C2D3E4F5A6 /* ShiftTradeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D7E8F9A0B1C2D3E4F5A6B7 /* ShiftTradeModels.swift */; };
+		D7E8F9A0B1C2D3E4F5A6B7C8 /* NotificationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F9A0B1C2D3E4F5A6B7C8D9 /* NotificationsSheet.swift */; };
+		F9A0B1C2D3E4F5A6B7C8D9E0 /* TradeBoardSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B1C2D3E4F5A6B7C8D9E0F1 /* TradeBoardSheet.swift */; };
+		B1C2D3E4F5A6B7C8D9E0F1A3 /* PostTradeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F4A5B6C7D8E9F0A1B2C3D4 /* PostTradeSheet.swift */; };
 		C1D2E3F4A5B6C7D8E9F0A1B2 /* FloatingSearchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9A0B1C2 /* FloatingSearchButton.swift */; };
 		E1F2A3B4C5D6E7F8A9B0C1D2 /* GlobalSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E2 /* GlobalSearchSheet.swift */; };
 		A2B3C4D5E6F7A8B9C0D1E2F3 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9D0E1F2A3 /* SearchResultRow.swift */; };
@@ -41,6 +46,11 @@
 /* Begin PBXFileReference section */
 		0189482D68508F45B086F46F /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6B7C8D9E0F1A2 /* SearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchService.swift; sourceTree = "<group>"; };
+		A4B5C6D7E8F9A0B1C2D3E4F5 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
+		C6D7E8F9A0B1C2D3E4F5A6B7 /* ShiftTradeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftTradeModels.swift; sourceTree = "<group>"; };
+		E8F9A0B1C2D3E4F5A6B7C8D9 /* NotificationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsSheet.swift; sourceTree = "<group>"; };
+		A0B1C2D3E4F5A6B7C8D9E0F1 /* TradeBoardSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeBoardSheet.swift; sourceTree = "<group>"; };
+		E3F4A5B6C7D8E9F0A1B2C3D4 /* PostTradeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTradeSheet.swift; sourceTree = "<group>"; };
 		D1E2F3A4B5C6D7E8F9A0B1C2 /* FloatingSearchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingSearchButton.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E2 /* GlobalSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSearchSheet.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* SearchResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRow.swift; sourceTree = "<group>"; };
@@ -124,7 +134,9 @@
 				BB8C14E1F7005B408A6A4CCD /* DashboardModels.swift */,
 				6148A160C162A021FF9DE4C0 /* FormModels.swift */,
 				5B540C9027D1885BCBEA2E4D /* Models.swift */,
+				A4B5C6D7E8F9A0B1C2D3E4F5 /* NotificationModels.swift */,
 				D50B2D1EA31765C957FED322 /* ScheduleModels.swift */,
+				C6D7E8F9A0B1C2D3E4F5A6B7 /* ShiftTradeModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -152,6 +164,15 @@
 			path = Search;
 			sourceTree = "<group>";
 		};
+		A5B6C7D8E9F0A1B2C3D4E5F6 /* Schedule */ = {
+			isa = PBXGroup;
+			children = (
+				A0B1C2D3E4F5A6B7C8D9E0F1 /* TradeBoardSheet.swift */,
+				E3F4A5B6C7D8E9F0A1B2C3D4 /* PostTradeSheet.swift */,
+			);
+			path = Schedule;
+			sourceTree = "<group>";
+		};
 		E5EFEF895EF2453C237A9A5C /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -166,10 +187,12 @@
 				F12684601FE641B454D0219B /* ItemsView.swift */,
 				6D6258D04F2CBF34C14EBB69 /* LoginView.swift */,
 				37FF31264347D4D6932C4DBB /* ScanView.swift */,
+				E8F9A0B1C2D3E4F5A6B7C8D9 /* NotificationsSheet.swift */,
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
 				F2A3B4C5D6E7F8A9B0C1D2E3 /* UserDetailView.swift */,
 				4E310D05AC0591B9C424B405 /* Components */,
 				A3B4C5D6E7F8A9B0C1D2E3F4 /* Search */,
+				A5B6C7D8E9F0A1B2C3D4E5F6 /* Schedule */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -264,6 +287,11 @@
 				A2B3C4D5E6F7A8B9C0D1E2F3 /* SearchResultRow.swift in Sources */,
 				C2D3E4F5A6B7C8D9E0F1A2B3 /* QRScannerSheet.swift in Sources */,
 				E2F3A4B5C6D7E8F9A0B1C2D3 /* UserDetailView.swift in Sources */,
+				F3A4B5C6D7E8F9A0B1C2D3E4 /* NotificationModels.swift in Sources */,
+				B5C6D7E8F9A0B1C2D3E4F5A6 /* ShiftTradeModels.swift in Sources */,
+				D7E8F9A0B1C2D3E4F5A6B7C8 /* NotificationsSheet.swift in Sources */,
+				F9A0B1C2D3E4F5A6B7C8D9E0 /* TradeBoardSheet.swift in Sources */,
+				B1C2D3E4F5A6B7C8D9E0F1A3 /* PostTradeSheet.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */

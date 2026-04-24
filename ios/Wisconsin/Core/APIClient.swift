@@ -377,6 +377,71 @@ final class APIClient {
         return resp.data
     }
 
+    // MARK: - Notifications
+
+    func notifications(unreadOnly: Bool = false, limit: Int = 20, offset: Int = 0) async throws -> NotificationsResponse {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/notifications"), resolvingAgainstBaseURL: false)!
+        var items: [URLQueryItem] = [
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "\(offset)"),
+        ]
+        if unreadOnly { items.append(.init(name: "unread", value: "true")) }
+        components.queryItems = items
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        return try await perform(req)
+    }
+
+    func markNotificationRead(id: String) async throws {
+        struct Body: Encodable { let action: String; let id: String }
+        var req = request(path: "/api/notifications", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(Body(action: "mark_read", id: id))
+        let (_, _) = try await session.data(for: req)
+    }
+
+    func markAllNotificationsRead() async throws {
+        struct Body: Encodable { let action: String }
+        var req = request(path: "/api/notifications", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(Body(action: "mark_all_read"))
+        let (_, _) = try await session.data(for: req)
+    }
+
+    // MARK: - Shift Trades
+
+    func shiftTrades(status: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> ShiftTradesResponse {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/shift-trades"), resolvingAgainstBaseURL: false)!
+        var items: [URLQueryItem] = [
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "\(offset)"),
+        ]
+        if let status { items.append(.init(name: "status", value: status)) }
+        components.queryItems = items
+        var req = URLRequest(url: components.url!)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        return try await perform(req)
+    }
+
+    func postShiftTrade(assignmentId: String, notes: String?) async throws -> ShiftTrade {
+        struct Body: Encodable { let shiftAssignmentId: String; let notes: String? }
+        var req = request(path: "/api/shift-trades", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(shiftAssignmentId: assignmentId, notes: notes))
+        let resp: DataWrapper<ShiftTrade> = try await perform(req)
+        return resp.data
+    }
+
+    func claimShiftTrade(id: String) async throws -> ShiftTrade {
+        let req = request(path: "/api/shift-trades/\(id)/claim", method: "POST")
+        let resp: DataWrapper<ShiftTrade> = try await perform(req)
+        return resp.data
+    }
+
+    func cancelShiftTrade(id: String) async throws {
+        let req = request(path: "/api/shift-trades/\(id)/cancel", method: "POST")
+        let (_, _) = try await session.data(for: req)
+    }
+
     // MARK: - Internals
 
     private func request(path: String, method: String = "GET") -> URLRequest {
