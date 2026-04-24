@@ -17,6 +17,10 @@ struct NotificationPayload: Codable {
     let checkoutId: String?
     let assignmentId: String?
     let assetId: String?
+    let tradeId: String?
+    let shiftId: String?
+
+    var effectiveBookingId: String? { bookingId ?? checkoutId }
 }
 
 struct NotificationsResponse: Codable {

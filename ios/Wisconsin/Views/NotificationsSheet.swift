@@ -58,9 +58,11 @@ private extension AppNotification {
 }
 
 struct NotificationsSheet: View {
+    var onSelectBooking: ((String) -> Void)?
+    var onSelectTrades: (() -> Void)?
+
     @State private var vm = NotificationsViewModel()
     @Environment(\.dismiss) private var dismiss
-
     @State private var markAllHaptic = false
 
     var body: some View {
@@ -114,17 +116,32 @@ struct NotificationsSheet: View {
             ForEach(groupedSections, id: \.0) { section, items in
                 Section(section) {
                     ForEach(items) { notif in
-                        NotificationRow(notification: notif)
-                            .swipeActions(edge: .leading) {
-                                if notif.isUnread {
-                                    Button {
-                                        Task { await vm.markRead(id: notif.id) }
-                                    } label: {
-                                        Label("Mark Read", systemImage: "checkmark")
-                                    }
-                                    .tint(.accentColor)
+                        Button {
+                            handleTap(notif)
+                        } label: {
+                            NotificationRow(notification: notif)
+                        }
+                        .buttonStyle(.plain)
+                        .swipeActions(edge: .leading) {
+                            if notif.isUnread {
+                                Button {
+                                    Task { await vm.markRead(id: notif.id) }
+                                } label: {
+                                    Label("Mark Read", systemImage: "checkmark")
                                 }
+                                .tint(.accentColor)
                             }
+                        }
+                        .swipeActions(edge: .trailing) {
+                            if notif.isUnread {
+                                Button {
+                                    Task { await vm.markRead(id: notif.id) }
+                                } label: {
+                                    Label("Mark Read", systemImage: "checkmark")
+                                }
+                                .tint(.accentColor)
+                            }
+                        }
                     }
                 }
             }
@@ -140,6 +157,18 @@ struct NotificationsSheet: View {
         }
         .listStyle(.insetGrouped)
         .refreshable { await vm.load() }
+    }
+
+    private func handleTap(_ notif: AppNotification) {
+        Task { await vm.markRead(id: notif.id) }
+        if let bookingId = notif.payload?.effectiveBookingId {
+            onSelectBooking?(bookingId)
+            dismiss()
+        } else if notif.type.hasPrefix("trade_") {
+            onSelectTrades?()
+            dismiss()
+        }
+        // shift_gear_up, low_stock: mark-read only, no navigation target yet
     }
 
     private var groupedSections: [(String, [AppNotification])] {
@@ -233,6 +262,9 @@ private extension String {
         if hasPrefix("trade_") { return "arrow.triangle.2.circlepath" }
         if hasPrefix("shift_gear_up") { return "bag.badge.plus" }
         if hasPrefix("low_stock") { return "cube.box" }
+        if hasPrefix("reservation_booked") { return "calendar.badge.plus" }
+        if hasPrefix("reservation_pickup_ready") { return "bag.badge.questionmark" }
+        if hasPrefix("reservation_cancelled") { return "calendar.badge.minus" }
         return "bell"
     }
 }

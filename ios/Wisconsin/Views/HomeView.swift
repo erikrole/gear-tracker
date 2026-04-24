@@ -31,10 +31,14 @@ struct HomeView: View {
     @State private var vm = HomeViewModel()
     @State private var showSearch = false
     @State private var showNotifications = false
+    @State private var showTrades = false
+    @State private var navigationPath = NavigationPath()
+    @State private var pendingBookingId: String?
+    @State private var pendingShowTrades = false
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if vm.dashboard == nil && vm.error == nil {
                     ScrollView {
@@ -141,6 +145,9 @@ struct HomeView: View {
             .navigationDestination(for: BookingSummary.self) { summary in
                 BookingDetailView(bookingId: summary.id)
             }
+            .navigationDestination(for: String.self) { id in
+                BookingDetailView(bookingId: id)
+            }
             .overlay(alignment: .bottomTrailing) {
                 FloatingSearchButton(isPresented: $showSearch)
                     .padding(.trailing, 20)
@@ -151,8 +158,22 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showNotifications, onDismiss: {
                 Task { await appState.refresh() }
+                if let id = pendingBookingId {
+                    navigationPath.append(id)
+                    pendingBookingId = nil
+                }
+                if pendingShowTrades {
+                    pendingShowTrades = false
+                    showTrades = true
+                }
             }) {
-                NotificationsSheet()
+                NotificationsSheet(
+                    onSelectBooking: { id in pendingBookingId = id },
+                    onSelectTrades: { pendingShowTrades = true }
+                )
+            }
+            .sheet(isPresented: $showTrades) {
+                TradeBoardSheet()
             }
         }
     }

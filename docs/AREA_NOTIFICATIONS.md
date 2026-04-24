@@ -3,9 +3,9 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-25
-- Status: Active — escalation schedule implemented; Vercel Cron + Resend email channel wired
-- Version: V1
+- Last Updated: 2026-04-23
+- Status: Active — escalation schedule + iOS tap-through navigation shipped
+- Version: V1.1
 
 ## Direction
 Surface custody urgency and overdue situations to the right people at the right time, with zero duplicate noise and a clear escalation path.
@@ -51,12 +51,14 @@ Implementation: `src/lib/services/notifications.ts`
 - Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates in-app notifications + sends email for matching windows
 - Job is fully idempotent — safe to call multiple times per hour due to dedup logic
 
-## Notification Center (V1)
+## Notification Center (V1.1)
 - Route: `/notifications`
 - Content: all in-app notifications for current user, ordered by `createdAt` descending
-- Mark-as-read: optional in V1; `read` boolean field exists on `Notification` model
-- Empty state: `No notifications`
-- Deep links: each notification should link to the relevant booking detail
+- Mark-as-read: leading + trailing swipe; tap also marks read
+- Empty state: "All caught up" with `bell.slash` icon
+- Deep links: tapping a notification navigates to the related booking or trade board (2026-04-23)
+- Unread badge: `GET /api/notifications/count` returns `{ unreadCount }` — lightweight, no data fetch
+- Foreground refresh: iOS app re-fetches unread count on every foreground return (scenePhase hook)
 
 ## Dashboard Integration
 - Overdue banner count: driven by direct booking query (not notification records) for accuracy

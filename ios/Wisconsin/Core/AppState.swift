@@ -15,15 +15,21 @@ final class AppState {
         defer { isRefreshing = false }
         do {
             async let dashTask = APIClient.shared.dashboard()
-            async let notifTask = APIClient.shared.notifications(limit: 1)
+            async let countTask = APIClient.shared.notificationUnreadCount()
             async let tradesTask = APIClient.shared.shiftTrades(status: "OPEN", limit: 1)
-            let (dash, notif, trades) = try await (dashTask, notifTask, tradesTask)
+            let (dash, count, trades) = try await (dashTask, countTask, tradesTask)
             overdueCount = dash.overdueCount
             myShiftCount = dash.myShifts.count
-            unreadNotifCount = notif.unreadCount
+            unreadNotifCount = count
             openTradeCount = min(trades.total, 9)
         } catch {
             // Non-critical
         }
+    }
+
+    func refreshUnread() async {
+        do {
+            unreadNotifCount = try await APIClient.shared.notificationUnreadCount()
+        } catch {}
     }
 }

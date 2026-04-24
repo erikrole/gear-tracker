@@ -5,6 +5,7 @@ struct WisconsinApp: App {
     @State private var session = SessionStore()
     @State private var appState = AppState()
     @State private var network = NetworkMonitor()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -12,6 +13,11 @@ struct WisconsinApp: App {
                 .environment(session)
                 .environment(appState)
                 .environment(network)
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active && session.currentUser != nil {
+                        Task { await appState.refreshUnread() }
+                    }
+                }
                 .tint(Color(UIColor(dynamicProvider: { trait in
                     // Light: #A00000 (dark maroon — readable on white)
                     // Dark: #FF3B30 (system-red luminance — meets 4.5:1 on dark bg per Apple HIG)

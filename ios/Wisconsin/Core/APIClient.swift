@@ -407,6 +407,13 @@ final class APIClient {
         let (_, _) = try await session.data(for: req)
     }
 
+    func notificationUnreadCount() async throws -> Int {
+        struct Response: Decodable { let unreadCount: Int }
+        let req = request(path: "/api/notifications/count")
+        let resp: Response = try await perform(req)
+        return resp.unreadCount
+    }
+
     // MARK: - Shift Trades
 
     func shiftTrades(status: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> ShiftTradesResponse {
