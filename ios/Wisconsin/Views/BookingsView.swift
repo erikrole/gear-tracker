@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum BookingTab: String, CaseIterable {
+    case reservations = "Reservations"
+    case checkouts = "Checkouts"
+}
+
 @MainActor
 @Observable
 final class BookingsViewModel {
@@ -7,7 +12,7 @@ final class BookingsViewModel {
     var isLoading = false
     var error: String?
     var searchText = ""
-    var selectedStatus: BookingStatus?
+    var tab: BookingTab = .reservations
     var hasMore = true
 
     private var offset = 0
@@ -19,22 +24,18 @@ final class BookingsViewModel {
         if reset {
             offset = 0
             hasMore = true
-            // Don't clear bookings — swap in place after fetch to avoid skeleton flash on tab return
         }
         isLoading = true
         error = nil
         do {
-            let result = try await APIClient.shared.bookings(
-                status: selectedStatus,
-                search: searchText.isEmpty ? nil : searchText,
-                limit: limit,
-                offset: offset
-            )
-            if reset {
-                bookings = result.data
-            } else {
-                bookings += result.data
+            let search = searchText.isEmpty ? nil : searchText
+            let result: PaginatedResponse<Booking> = switch tab {
+            case .reservations:
+                try await APIClient.shared.reservations(activeOnly: true, search: search, limit: limit, offset: offset)
+            case .checkouts:
+                try await APIClient.shared.checkouts(activeOnly: true, search: search, limit: limit, offset: offset)
             }
+            if reset { bookings = result.data } else { bookings += result.data }
             offset += result.data.count
             hasMore = offset < result.total
         } catch {
@@ -60,8 +61,7 @@ struct BookingsView: View {
 
     private var emptyTitle: String {
         guard vm.searchText.isEmpty else { return "No Results" }
-        if let status = vm.selectedStatus { return "No \(status.label) Bookings" }
-        return "No Bookings"
+        return vm.tab == .reservations ? "No Active Reservations" : "No Active Checkouts"
     }
 
     var body: some View {
@@ -88,7 +88,7 @@ struct BookingsView: View {
                     ContentUnavailableView(
                         emptyTitle,
                         systemImage: "tray",
-                        description: Text(vm.searchText.isEmpty ? "Try a different filter." : "No results for \"\(vm.searchText)\".")
+                        description: Text(vm.searchText.isEmpty ? "No active bookings here." : "No results for \"\(vm.searchText)\".")
                     )
                 } else {
                     List {
@@ -112,16 +112,21 @@ struct BookingsView: View {
             .navigationTitle("Bookings")
             .searchable(text: $vm.searchText, prompt: "Search bookings…")
             .onChange(of: vm.searchText) { vm.onSearchChange() }
+            .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showCreate = true } label: {
                         Image(systemName: "plus")
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    StatusFilterMenu(selected: $vm.selectedStatus) {
-                        Task { await vm.load(reset: true) }
+                ToolbarItem(placement: .principal) {
+                    Picker("Tab", selection: $vm.tab) {
+                        ForEach(BookingTab.allCases, id: \.self) { tab in
+                            Text(tab.rawValue).tag(tab)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
                 }
             }
             .sheet(isPresented: $showCreate) {
@@ -189,30 +194,6 @@ private struct KindChip: View {
     }
 }
 
-struct StatusFilterMenu: View {
-    @Binding var selected: BookingStatus?
-    let onSelect: () -> Void
-
-    private let statuses: [BookingStatus?] = [nil, .booked, .pendingPickup, .open, .completed, .cancelled]
-
-    var body: some View {
-        Menu {
-            ForEach(statuses, id: \.self) { status in
-                Button {
-                    selected = status
-                    onSelect()
-                } label: {
-                    HStack {
-                        Text(status?.label ?? "All")
-                        if selected == status { Image(systemName: "checkmark") }
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease.circle\(selected != nil ? ".fill" : "")")
-        }
-    }
-}
 
 struct StatusBadge: View {
     let status: BookingStatus

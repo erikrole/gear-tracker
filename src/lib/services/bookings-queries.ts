@@ -60,11 +60,17 @@ export async function listBookings(
   const fromDate = parseSearchDate(searchParams.get("from"), "from");
   const toDate = parseSearchDate(searchParams.get("to"), "to");
 
+  const activeOnly = searchParams.get("active") === "true";
+
   const where: Prisma.BookingWhereInput = {
     kind,
     ...extraWhere,
     // Apply status from query param only when extraWhere doesn't already set it
-    ...(extraWhere?.status === undefined && statusParam ? { status: statusParam } : {}),
+    ...(extraWhere?.status === undefined && statusParam
+      ? { status: statusParam }
+      : extraWhere?.status === undefined && activeOnly
+        ? { status: { notIn: [BookingStatus.COMPLETED, BookingStatus.CANCELLED] } }
+        : {}),
     ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
     ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
     ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),

@@ -181,7 +181,7 @@ private struct StatCell: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("\(value)")
-                .font(.system(size: 26, weight: .bold))
+                .font(.title.weight(.bold))
                 .foregroundStyle(isAlert ? Color.red : Color.primary)
                 .contentTransition(.numericText())
             Text(label)

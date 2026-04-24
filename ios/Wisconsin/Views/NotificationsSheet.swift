@@ -61,6 +61,8 @@ struct NotificationsSheet: View {
     @State private var vm = NotificationsViewModel()
     @Environment(\.dismiss) private var dismiss
 
+    @State private var markAllHaptic = false
+
     var body: some View {
         NavigationStack {
             Group {
@@ -95,9 +97,11 @@ struct NotificationsSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     if vm.unreadCount > 0 {
                         Button("Mark All Read") {
+                            markAllHaptic.toggle()
                             Task { await vm.markAllRead() }
                         }
                         .font(.subheadline)
+                        .sensoryFeedback(.success, trigger: markAllHaptic)
                     }
                 }
             }
@@ -180,6 +184,7 @@ private struct NotificationRow: View {
                     .font(.system(size: 15))
                     .foregroundStyle(notification.isUnread ? Color.accentColor : .secondary)
             }
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(notification.title)
@@ -203,9 +208,20 @@ private struct NotificationRow: View {
                     .fill(Color.accentColor)
                     .frame(width: 8, height: 8)
                     .padding(.top, 6)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [notification.title]
+        if let body = notification.body { parts.append(body) }
+        parts.append(notification.createdAt.relativeLabel)
+        if notification.isUnread { parts.append("Unread") }
+        return parts.joined(separator: ", ")
     }
 }
 
