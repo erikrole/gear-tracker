@@ -1,7 +1,7 @@
 # Sprint Plan — April 2026
 
 **Created:** 2026-04-17  
-**Status:** Tiers 1–3 Complete · Tier 4 In Queue
+**Status:** Tiers 1–3 Complete · Tier 4: Features 1–3 Complete · Features 4–5 In Queue
 
 ---
 
@@ -46,9 +46,9 @@
 
 > Each of these needs a `BRIEF_` doc before implementation (per Rule 7).
 
-### Multi-Event Booking
-- [ ] **Wizard step 1: multi-event selector** — Allow selecting multiple calendar events when creating a booking. The booking's `endsAt` becomes the last selected event's end time.
-- [ ] **API: accept multiple event IDs** — Booking creation payload supports `eventIds: string[]`. Store associations. Display selected events on booking detail.
+### Multi-Event Booking ✅ Shipped 2026-04-24 (BRIEF_MULTI_EVENT_BOOKING_V1, D-031)
+- [x] **Wizard step 1: multi-event selector** — Checkbox-style multi-select with chip strip. `startsAt`/`endsAt` derive from min-to-max across selected events plus the travel buffer. Cap 3.
+- [x] **API: accept multiple event IDs** — `POST /api/checkouts` and `/api/reservations` accept optional `eventIds[]` (mutually exclusive with legacy `eventId`). `GET /api/bookings/[id]` response includes a sorted `events[]` array. `Booking.eventId` preserved as primary (ordinal 0). Reverse lookup on event detail queries via `OR(eventId, events.some)`.
 
 ### Gate Scanning to Kiosk Only ✅ Already Shipped (AREA_KIOSK AC-11, AC-13)
 - [x] **API enforcement** — `/api/checkouts/[id]/scan` and `/checkin-scan` throw 403 "Checkout scanning must be done at a kiosk". Kiosk routes use `withKiosk()` auth.

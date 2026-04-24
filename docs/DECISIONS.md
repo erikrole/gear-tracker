@@ -36,6 +36,7 @@
 - D-028: Photo requirement on checkout/checkin — camera-only, scan-only checkin
 - D-029: Registration gated by admin-managed email allowlist
 - D-030: Kiosk auth uses device-level token, not user sessions
+- D-031: Multi-event booking via junction table with preserved primary FK
 
 ---
 
@@ -541,6 +542,30 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Admin user creation via `/api/users` (POST) is unaffected — bypasses allowlist
 - Existing users unaffected (allowlist only gates new registrations)
 
+## D-031: Multi-Event Booking via Junction Table with Preserved Primary FK
+- Date: 2026-04-24
+- Status: Accepted
+- Context:
+  - A single booking can cover multiple back-to-back events (game weekends, coverage days).
+  - Creating one booking per event duplicates equipment picking and makes conflicts hard to reason about.
+  - `Booking.eventId` is a single FK read in 36+ places across the codebase (dashboard, my-shifts, reports, shift groups, search, drafts).
+- Decision:
+  - Add `BookingEvent` junction table `(booking_id, event_id, ordinal)` with composite unique on `(booking_id, event_id)` and cascade delete on both FKs.
+  - Preserve `Booking.eventId` as the **primary** event (ordinal 0, chronologically first). All existing readers keep working unchanged.
+  - Cap at 3 linked events per booking (V1 — can grow later).
+  - API accepts either `eventId` (legacy single) or `eventIds[]` (multi); mixing both returns 400.
+  - `startsAt`/`endsAt` auto-derive from min-to-max of linked events plus the existing travel buffer, unless caller overrides.
+  - Migration `0042_booking_events` backfills a junction row for every existing booking with `event_id`, ensuring reverse lookup works uniformly against new and legacy data.
+  - Reverse lookup queries (event detail → bookings) use `OR(eventId, events.some)` to be robust against any code path that sets the primary FK without the service layer.
+- Consequences:
+  - Zero-rewrite migration — no existing reader needs changes.
+  - `Booking.eventId` becomes slightly denormalized (redundant with the ordinal-0 junction row). Acceptable trade-off for read-path stability.
+  - If the primary event is deleted, the FK nulls (`onDelete: SetNull`) but the remaining junction rows persist. A V2 trigger or service-layer rebuild can promote the next ordinal. V1 accepts brief "booking with no primary event" state.
+  - Dashboard/my-shifts group-by-event still keys on primary only. Grouping by all linked events is a V2 enhancement.
+  - Junction-table approach is symmetric to existing patterns (`BookingSerializedItem`, `BookingBulkItem`, kit memberships) so there's no new idiom.
+
+---
+
 ## D-030: Kiosk Auth Uses Device-Level Token
 - Date: 2026-04-07
 - Status: Accepted
@@ -585,3 +610,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-30: Added D-028 (photo requirement on checkout/checkin — camera-only capture, scan-only checkin, BookingPhoto model).
 - 2026-04-03: Added D-029 (registration gated by admin-managed email allowlist — AllowedEmail table, role pre-assignment, Settings UI).
 - 2026-04-07: Added D-030 (kiosk auth — device-level token, not user sessions. KioskDevice model with activation code pairing).
+- 2026-04-24: Added D-031 (multi-event booking — BookingEvent junction table with preserved Booking.eventId as primary; cap 3 events per booking).
