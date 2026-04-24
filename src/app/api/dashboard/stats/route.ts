@@ -1,12 +1,18 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { Prisma } from "@prisma/client";
+
+const STATS_LIMIT = { max: 90, windowMs: 60_000 };
 
 // Lightweight stats-only endpoint — runs the single aggregated SQL query and
 // returns nothing else. Used by the dashboard to keep stat cards and the overdue
 // count fresh (60s TTL) without re-running the expensive full-payload queries.
 export const GET = withAuth(async (_req, { user }) => {
+  const { allowed } = checkRateLimit(`dashboard:stats:${user.id}`, STATS_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
+
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -45,6 +51,7 @@ export const GET = withAuth(async (_req, { user }) => {
 
   return ok({
     data: {
+      role: user.role,
       stats: {
         checkedOut: Number(counts.total_checked_out),
         overdue: Number(counts.total_overdue),

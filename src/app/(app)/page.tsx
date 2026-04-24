@@ -42,6 +42,9 @@ export default function DashboardPage() {
   });
   const stats = data?.stats ?? liveStats?.stats ?? null;
   const overdueCount = data?.overdueCount ?? liveStats?.overdueCount ?? null;
+  // Role from full payload, falling back to cached stats payload so the early
+  // render doesn't briefly show staff-only buttons to a returning student.
+  const role = data?.role ?? liveStats?.role ?? null;
 
   const filters = useDashboardFilters(data);
   const [now, setNow] = useState(() => new Date());
@@ -185,7 +188,10 @@ export default function DashboardPage() {
   // immediately and skeleton only the columns.
   if (!data && !stats) return <DashboardSkeleton />;
 
-  const isStudent = data?.role === "STUDENT";
+  // Use early-resolved role: prefer full payload, fall back to cached stats.
+  // While role is still null we do not render role-gated buttons (avoids flicker).
+  const isStudent = role === "STUDENT";
+  const roleKnown = role !== null;
   const isFirstRun = stats
     ? stats.checkedOut === 0 && stats.overdue === 0 &&
       stats.reserved === 0 && stats.dueToday === 0 &&
@@ -213,7 +219,7 @@ export default function DashboardPage() {
           <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
         </Tooltip>
         <FilterChips {...filters} />
-        {!isStudent && (
+        {roleKnown && !isStudent && (
           <div className="flex gap-2">
             <Button onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>New checkout</Button>
             <Button onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>New reservation</Button>
@@ -285,7 +291,7 @@ export default function DashboardPage() {
           overdueItems={data?.overdueItems ?? []}
           now={now}
           onSelectBooking={setSelectedBookingId}
-          canAction={!isStudent}
+          canAction={roleKnown && !isStudent}
         />
       )}
 

@@ -2,6 +2,7 @@
 
 /** Shape returned by /api/dashboard/stats — lightweight, 60s TTL */
 export type DashboardStats = {
+  role: "ADMIN" | "STAFF" | "STUDENT";
   stats: {
     checkedOut: number;
     overdue: number;

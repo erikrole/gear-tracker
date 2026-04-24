@@ -3,8 +3,14 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireBookingAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const NUDGE_LIMIT = { max: 30, windowMs: 60_000 };
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
+  const { allowed } = checkRateLimit(`nudge:${user.id}`, NUDGE_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many nudges. Please wait a moment.");
+
   // requireBookingAction checks: staff+ role, OPEN status, CHECKOUT kind
   const booking = await requireBookingAction(params.id, user, "nudge");
 

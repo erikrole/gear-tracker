@@ -1,8 +1,11 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { getInitials } from "@/lib/avatar";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { Prisma } from "@prisma/client";
+
+const DASHBOARD_LIMIT = { max: 30, windowMs: 60_000 };
 
 // Sort comparator: overdue first, then nearest due date
 const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOverdue: boolean; endsAt: string }) => {
@@ -62,6 +65,9 @@ function toBookingSummary(c: {
 }
 
 export const GET = withAuth(async (_req, { user }) => {
+  const { allowed } = checkRateLimit(`dashboard:full:${user.id}`, DASHBOARD_LIMIT);
+  if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
+
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
