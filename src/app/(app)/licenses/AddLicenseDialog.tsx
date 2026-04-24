@@ -23,6 +23,8 @@ type Props = {
 export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
   const [code, setCode] = useState("");
   const [label, setLabel] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -33,13 +35,20 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
       const res = await fetch("/api/licenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.trim(), label: label.trim() || undefined }),
+        body: JSON.stringify({
+          code: code.trim(),
+          label: label.trim() || undefined,
+          accountEmail: accountEmail.trim() || undefined,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to add license");
       toast.success("License added");
       setCode("");
       setLabel("");
+      setAccountEmail("");
+      setExpiresAt("");
       onCreated();
       onOpenChange(false);
     } catch (err) {
@@ -69,12 +78,37 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="label">Label <span className="text-muted-foreground">(optional)</span></Label>
+            <Label htmlFor="label">
+              Label <span className="text-muted-foreground">(optional)</span>
+            </Label>
             <Input
               id="label"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="e.g. Seat 3, renewed 2026"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="accountEmail">
+              Account email <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="accountEmail"
+              type="email"
+              value={accountEmail}
+              onChange={(e) => setAccountEmail(e.target.value)}
+              placeholder="kms@athletics.wisc.edu"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="expiresAt">
+              Annual expiry <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="expiresAt"
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
             />
           </div>
           <DialogFooter>

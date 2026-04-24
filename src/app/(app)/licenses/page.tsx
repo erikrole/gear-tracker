@@ -17,6 +17,8 @@ import { AddLicenseDialog } from "./AddLicenseDialog";
 import { BulkAddSheet } from "./BulkAddSheet";
 import type { LicenseCode, MyLicense } from "./types";
 
+const MAX_SLOTS = 2;
+
 export default function LicensesPage() {
   const [claimTarget, setClaimTarget] = useState<LicenseCode | null>(null);
   const [adminTarget, setAdminTarget] = useState<LicenseCode | null>(null);
@@ -58,21 +60,19 @@ export default function LicensesPage() {
   const allCodes = codesData ?? [];
   const visibleCodes = showRetired ? allCodes : allCodes.filter((c) => c.status !== "RETIRED");
 
-  const availableCount = allCodes.filter((c) => c.status === "AVAILABLE").length;
+  const activeCodes = allCodes.filter((c) => c.status !== "RETIRED");
+  const totalSlots = activeCodes.length * MAX_SLOTS;
+  const usedSlots = activeCodes.reduce((sum, c) => sum + c.claims.length, 0);
   const hasRetired = allCodes.some((c) => c.status === "RETIRED");
+  const hasExpiry = allCodes.some((c) => c.expiresAt);
 
   function handleClickAvailable(code: LicenseCode) {
-    if (myLicense) return; // already have one — no-op, table handles visual cue
+    if (myLicense) return;
     setClaimTarget(code);
   }
 
   function handleClickClaimed(code: LicenseCode) {
-    if (isAdmin) {
-      setAdminTarget(code);
-    } else {
-      // Student clicking their own row — handled by MyLicensePanel, but sheet works too
-      setAdminTarget(code);
-    }
+    setAdminTarget(code);
   }
 
   return (
@@ -131,11 +131,11 @@ export default function LicensesPage() {
         <MyLicensePanel license={myLicense} onReleased={reloadAll} />
       )}
 
-      {/* Availability summary */}
+      {/* Slot utilization summary */}
       {!codesLoading && allCodes.length > 0 && (
         <p className="text-sm text-muted-foreground mb-4">
-          {availableCount} of {allCodes.filter((c) => c.status !== "RETIRED").length} licenses available
-          {myLicense && " · You already hold one"}
+          {usedSlots} of {totalSlots} slots in use
+          {myLicense && " · You hold one slot"}
         </p>
       )}
 
@@ -154,9 +154,10 @@ export default function LicensesPage() {
           loading={codesLoading}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
-          myLicenseId={myLicense?.id ?? null}
+          myClaimId={myLicense?.claimId ?? null}
           onClickAvailable={handleClickAvailable}
           onClickClaimed={handleClickClaimed}
+          showExpiry={hasExpiry}
         />
       )}
 
@@ -167,9 +168,10 @@ export default function LicensesPage() {
         onClaimed={reloadAll}
       />
 
-      {/* Admin / student-own sheet */}
+      {/* Admin / detail sheet */}
       <AdminClaimSheet
         license={adminTarget}
+        isAdmin={isAdmin}
         onOpenChange={(open) => { if (!open) setAdminTarget(null); }}
         onAction={reloadAll}
       />
@@ -178,7 +180,7 @@ export default function LicensesPage() {
       <AddLicenseDialog open={showAdd} onOpenChange={setShowAdd} onCreated={reloadAll} />
       <BulkAddSheet open={showBulk} onOpenChange={setShowBulk} onCreated={reloadAll} />
 
-      {/* Footer info */}
+      {/* Footer hint */}
       {!codesLoading && allCodes.length > 0 && (
         <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
           <KeyRound className="size-3" />

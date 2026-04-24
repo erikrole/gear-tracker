@@ -8,6 +8,8 @@ import { listAllCodes, listCodes, createCode } from "@/lib/services/licenses";
 const createSchema = z.object({
   code: z.string().min(4, "Code must be at least 4 characters"),
   label: z.string().optional(),
+  accountEmail: z.string().email().optional(),
+  expiresAt: z.string().datetime().optional(),
 });
 
 export const GET = withAuth(async (_req, { user }) => {
@@ -20,7 +22,13 @@ export const GET = withAuth(async (_req, { user }) => {
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "license", "manage");
   const body = createSchema.parse(await req.json());
-  const code = await createCode(body.code, body.label, user.id);
+  const code = await createCode(
+    body.code,
+    body.label,
+    user.id,
+    body.accountEmail,
+    body.expiresAt ? new Date(body.expiresAt) : undefined
+  );
 
   await createAuditEntry({
     actorId: user.id,

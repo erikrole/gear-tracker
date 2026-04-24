@@ -3,36 +3,47 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sendPush } from "@/lib/push/apns";
 
+const MAX_SLOTS = 2;
+
+const activeClaimsInclude = {
+  where: { releasedAt: null as null },
+  include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+  orderBy: { claimedAt: "asc" as const },
+};
+
 export async function listCodes() {
   return db.licenseCode.findMany({
     where: { status: { not: LicenseCodeStatus.RETIRED } },
-    include: {
-      claimedBy: { select: { id: true, name: true, avatarUrl: true } },
-    },
+    include: { claims: activeClaimsInclude },
     orderBy: [{ status: "asc" }, { createdAt: "asc" }],
   });
 }
 
 export async function listAllCodes() {
   return db.licenseCode.findMany({
-    include: {
-      claimedBy: { select: { id: true, name: true, avatarUrl: true } },
-    },
+    include: { claims: activeClaimsInclude },
     orderBy: [{ status: "asc" }, { createdAt: "asc" }],
   });
 }
 
 export async function getActiveClaimForUser(userId: string) {
-  return db.licenseCode.findFirst({
-    where: { status: LicenseCodeStatus.CLAIMED, claimedById: userId },
-    select: { id: true, code: true, label: true, claimedAt: true },
+  const claim = await db.licenseCodeClaim.findFirst({
+    where: { userId, releasedAt: null },
+    include: { licenseCode: { select: { id: true, code: true, label: true } } },
   });
+  if (!claim) return null;
+  return {
+    id: claim.licenseCode.id,
+    code: claim.licenseCode.code,
+    label: claim.licenseCode.label,
+    claimedAt: claim.claimedAt,
+    claimId: claim.id,
+  };
 }
 
 export async function claimCode(codeId: string, userId: string) {
-  // Block if user already holds a code
-  const existing = await db.licenseCode.findFirst({
-    where: { status: LicenseCodeStatus.CLAIMED, claimedById: userId },
+  const existing = await db.licenseCodeClaim.findFirst({
+    where: { userId, releasedAt: null },
     select: { id: true },
   });
   if (existing) {
@@ -40,69 +51,138 @@ export async function claimCode(codeId: string, userId: string) {
   }
 
   return db.$transaction(async (tx) => {
-    const code = await tx.licenseCode.findUnique({ where: { id: codeId } });
+    const code = await tx.licenseCode.findUnique({
+      where: { id: codeId },
+      include: { claims: { where: { releasedAt: null } } },
+    });
     if (!code) throw new HttpError(404, "License code not found.");
-    if (code.status !== LicenseCodeStatus.AVAILABLE) {
-      throw new HttpError(409, "This license code is no longer available.");
-    }
+    if (code.status === LicenseCodeStatus.RETIRED) throw new HttpError(409, "This license code is retired.");
+
+    const activeCount = code.claims.length;
+    if (activeCount >= MAX_SLOTS) throw new HttpError(409, "This license code is fully claimed.");
 
     const now = new Date();
-    const updated = await tx.licenseCode.update({
+    await tx.licenseCodeClaim.create({
+      data: { licenseCodeId: codeId, userId, claimedAt: now },
+    });
+
+    const newStatus = activeCount + 1 >= MAX_SLOTS ? LicenseCodeStatus.CLAIMED : LicenseCodeStatus.PARTIAL;
+    return tx.licenseCode.update({
       where: { id: codeId },
       data: {
-        status: LicenseCodeStatus.CLAIMED,
-        claimedById: userId,
-        claimedAt: now,
+        status: newStatus,
+        ...(activeCount === 0 ? { claimedById: userId, claimedAt: now } : {}),
       },
     });
-
-    await tx.licenseCodeClaim.create({
-      data: {
-        licenseCodeId: codeId,
-        userId,
-        claimedAt: now,
-      },
-    });
-
-    return updated;
   });
 }
 
-export async function releaseCode(codeId: string, requesterId: string, isAdmin: boolean) {
-  const code = await db.licenseCode.findUnique({ where: { id: codeId } });
-  if (!code) throw new HttpError(404, "License code not found.");
-  if (code.status !== LicenseCodeStatus.CLAIMED) {
-    throw new HttpError(409, "This license code is not currently claimed.");
-  }
-  if (!isAdmin && code.claimedById !== requesterId) {
-    throw new HttpError(403, "You can only release your own license.");
-  }
-
+export async function releaseCode(
+  codeId: string,
+  requesterId: string,
+  isAdmin: boolean,
+  claimId?: string
+) {
   return db.$transaction(async (tx) => {
+    let claim;
+    if (claimId) {
+      if (!isAdmin) throw new HttpError(403, "Only admins can release by claim ID.");
+      claim = await tx.licenseCodeClaim.findUnique({ where: { id: claimId } });
+      if (!claim || claim.licenseCodeId !== codeId || claim.releasedAt) {
+        throw new HttpError(404, "Active claim not found.");
+      }
+    } else {
+      claim = await tx.licenseCodeClaim.findFirst({
+        where: { licenseCodeId: codeId, userId: requesterId, releasedAt: null },
+      });
+      if (!claim) {
+        if (isAdmin) {
+          // Admin releasing without specifying a claim — release all
+          const allActive = await tx.licenseCodeClaim.findMany({
+            where: { licenseCodeId: codeId, releasedAt: null },
+          });
+          if (allActive.length === 0) throw new HttpError(409, "No active claims to release.");
+          const now = new Date();
+          await tx.licenseCodeClaim.updateMany({
+            where: { licenseCodeId: codeId, releasedAt: null },
+            data: { releasedAt: now, releasedById: requesterId },
+          });
+          return tx.licenseCode.update({
+            where: { id: codeId },
+            data: { status: LicenseCodeStatus.AVAILABLE, claimedById: null, claimedAt: null, nagSentAt: null },
+          });
+        }
+        throw new HttpError(404, "No active claim found for your account.");
+      }
+      if (!isAdmin && claim.userId !== requesterId) {
+        throw new HttpError(403, "You can only release your own license.");
+      }
+    }
+
     const now = new Date();
-    await tx.licenseCodeClaim.updateMany({
-      where: { licenseCodeId: codeId, releasedAt: null },
+    await tx.licenseCodeClaim.update({
+      where: { id: claim.id },
       data: {
         releasedAt: now,
-        releasedById: isAdmin && code.claimedById !== requesterId ? requesterId : null,
+        releasedById: claim.userId !== requesterId ? requesterId : null,
       },
     });
+
+    const remaining = await tx.licenseCodeClaim.findMany({
+      where: { licenseCodeId: codeId, releasedAt: null },
+      orderBy: { claimedAt: "asc" },
+    });
+
+    const newStatus =
+      remaining.length === 0 ? LicenseCodeStatus.AVAILABLE
+      : remaining.length < MAX_SLOTS ? LicenseCodeStatus.PARTIAL
+      : LicenseCodeStatus.CLAIMED;
 
     return tx.licenseCode.update({
       where: { id: codeId },
       data: {
-        status: LicenseCodeStatus.AVAILABLE,
-        claimedById: null,
-        claimedAt: null,
+        status: newStatus,
+        claimedById: remaining[0]?.userId ?? null,
+        claimedAt: remaining[0]?.claimedAt ?? null,
         nagSentAt: null,
       },
     });
   });
 }
 
-export async function createCode(code: string, label: string | undefined, createdById: string) {
+export async function addUnknownOccupant(codeId: string, label: string, adminId: string) {
+  return db.$transaction(async (tx) => {
+    const code = await tx.licenseCode.findUnique({
+      where: { id: codeId },
+      include: { claims: { where: { releasedAt: null } } },
+    });
+    if (!code) throw new HttpError(404, "License code not found.");
+    if (code.status === LicenseCodeStatus.RETIRED) throw new HttpError(409, "This license code is retired.");
+    if (code.claims.length >= MAX_SLOTS) throw new HttpError(409, "This license code is fully claimed.");
+
+    const now = new Date();
+    await tx.licenseCodeClaim.create({
+      data: { licenseCodeId: codeId, userId: null, occupantLabel: label.trim(), claimedAt: now },
+    });
+
+    const activeCount = code.claims.length + 1;
+    const newStatus = activeCount >= MAX_SLOTS ? LicenseCodeStatus.CLAIMED : LicenseCodeStatus.PARTIAL;
+    return tx.licenseCode.update({
+      where: { id: codeId },
+      data: { status: newStatus },
+    });
+  });
+}
+
+export async function createCode(
+  code: string,
+  label: string | undefined,
+  createdById: string,
+  accountEmail?: string,
+  expiresAt?: Date
+) {
   return db.licenseCode.create({
-    data: { code: code.trim(), label, createdById },
+    data: { code: code.trim(), label, createdById, accountEmail, expiresAt },
   });
 }
 
@@ -134,10 +214,13 @@ export async function bulkCreateCodes(
 }
 
 export async function retireCode(codeId: string) {
-  const code = await db.licenseCode.findUnique({ where: { id: codeId } });
+  const code = await db.licenseCode.findUnique({
+    where: { id: codeId },
+    include: { claims: { where: { releasedAt: null } } },
+  });
   if (!code) throw new HttpError(404, "License code not found.");
-  if (code.status === LicenseCodeStatus.CLAIMED) {
-    throw new HttpError(409, "Cannot retire a claimed license. Release it first.");
+  if (code.claims.length > 0) {
+    throw new HttpError(409, "Cannot retire a license with active claims. Release all slots first.");
   }
   return db.licenseCode.update({
     where: { id: codeId },
@@ -146,19 +229,22 @@ export async function retireCode(codeId: string) {
 }
 
 export async function deleteCode(codeId: string) {
-  const code = await db.licenseCode.findUnique({ where: { id: codeId } });
+  const code = await db.licenseCode.findUnique({
+    where: { id: codeId },
+    include: { claims: { where: { releasedAt: null } } },
+  });
   if (!code) throw new HttpError(404, "License code not found.");
-  if (code.status === LicenseCodeStatus.CLAIMED) {
-    throw new HttpError(409, "Cannot delete a claimed license. Release it first.");
+  if (code.claims.length > 0) {
+    throw new HttpError(409, "Cannot delete a license with active claims. Release all slots first.");
   }
   return db.licenseCode.delete({ where: { id: codeId } });
 }
 
-export async function updateCodeLabel(codeId: string, label: string | undefined) {
-  return db.licenseCode.update({
-    where: { id: codeId },
-    data: { label },
-  });
+export async function updateCodeDetails(
+  codeId: string,
+  data: { label?: string; accountEmail?: string | null; expiresAt?: Date | null }
+) {
+  return db.licenseCode.update({ where: { id: codeId }, data });
 }
 
 export async function getClaimHistory(codeId: string) {
@@ -195,27 +281,31 @@ async function sendPushToUser(
 export async function processLicenseNags() {
   const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 
-  const overdue = await db.licenseCode.findMany({
+  const overdueClaims = await db.licenseCodeClaim.findMany({
     where: {
-      status: LicenseCodeStatus.CLAIMED,
-      nagSentAt: null,
+      releasedAt: null,
+      userId: { not: null },
       claimedAt: { lt: twoDaysAgo },
-      claimedById: { not: null },
+      licenseCode: { nagSentAt: null },
     },
-    select: { id: true, claimedById: true, claimedAt: true },
+    select: { id: true, userId: true, claimedAt: true, licenseCodeId: true },
   });
 
-  for (const code of overdue) {
-    if (!code.claimedById) continue;
+  const nagged = new Set<string>();
+
+  for (const claim of overdueClaims) {
+    if (!claim.userId || nagged.has(claim.licenseCodeId)) continue;
+    nagged.add(claim.licenseCodeId);
+
     const title = "Still using Photo Mechanic?";
     const body = "You've had a license for 2+ days. Return it from the app if you're done so someone else can use it.";
-    const dedupeKey = `license-nag-${code.id}-${code.claimedAt?.toISOString()}`;
+    const dedupeKey = `license-nag-${claim.licenseCodeId}-${claim.claimedAt?.toISOString()}`;
 
     try {
       await db.notification.upsert({
         where: { dedupeKey },
         create: {
-          userId: code.claimedById,
+          userId: claim.userId,
           type: "license_held_2d",
           title,
           body,
@@ -225,20 +315,20 @@ export async function processLicenseNags() {
         update: {},
       });
 
-      await sendPushToUser(code.claimedById, {
+      await sendPushToUser(claim.userId, {
         title,
         body,
-        payload: { type: "license_nag", licenseCodeId: code.id },
+        payload: { type: "license_nag", licenseCodeId: claim.licenseCodeId },
       });
 
       await db.licenseCode.update({
-        where: { id: code.id },
+        where: { id: claim.licenseCodeId },
         data: { nagSentAt: new Date() },
       });
     } catch (err) {
-      console.error(`[LICENSE_NAGS] Failed for code ${code.id}:`, err);
+      console.error(`[LICENSE_NAGS] Failed for code ${claim.licenseCodeId}:`, err);
     }
   }
 
-  return { nagged: overdue.length };
+  return { nagged: nagged.size };
 }

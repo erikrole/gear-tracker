@@ -3,10 +3,12 @@ import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
-import { deleteCode, retireCode, updateCodeLabel } from "@/lib/services/licenses";
+import { deleteCode, retireCode, updateCodeDetails } from "@/lib/services/licenses";
 
 const patchSchema = z.object({
   label: z.string().optional(),
+  accountEmail: z.string().email().nullable().optional(),
+  expiresAt: z.string().datetime().nullable().optional(),
   retire: z.boolean().optional(),
 });
 
@@ -27,14 +29,18 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     return ok({ data: code });
   }
 
-  const code = await updateCodeLabel(params.id, body.label);
+  const code = await updateCodeDetails(params.id, {
+    label: body.label,
+    accountEmail: body.accountEmail,
+    expiresAt: body.expiresAt != null ? new Date(body.expiresAt) : body.expiresAt,
+  });
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
     entityType: "license_code",
     entityId: params.id,
     action: "update",
-    after: { label: code.label },
+    after: { label: code.label, accountEmail: code.accountEmail, expiresAt: code.expiresAt },
   });
   return ok({ data: code });
 });
