@@ -50,15 +50,15 @@
 - [ ] **Wizard step 1: multi-event selector** — Allow selecting multiple calendar events when creating a booking. The booking's `endsAt` becomes the last selected event's end time.
 - [ ] **API: accept multiple event IDs** — Booking creation payload supports `eventIds: string[]`. Store associations. Display selected events on booking detail.
 
-### Gate Scanning to Kiosk Only
-- [ ] **API enforcement** — Scan endpoints (`/api/checkouts/[id]/scan`, `/checkin-scan`, `/checkin-bulk`, complete variants) must reject requests that are not from a kiosk session (`withKiosk` auth). Return 403 with a "Use a kiosk to check in or out" message.
-- [ ] **Remove scan UI from non-kiosk contexts** — Hide or disable scan/checkin/checkout buttons on mobile and desktop when user is not at a kiosk. Non-kiosk users can view but not physically check in/out.
+### Gate Scanning to Kiosk Only ✅ Already Shipped (AREA_KIOSK AC-11, AC-13)
+- [x] **API enforcement** — `/api/checkouts/[id]/scan` and `/checkin-scan` throw 403 "Checkout scanning must be done at a kiosk". Kiosk routes use `withKiosk()` auth.
+- [x] **Remove scan UI from non-kiosk contexts** — Desktop check-in/return flows go through kiosk; BookingDetailsSheet "scan-to-return" is the only scan path outside kiosk and is local-only (no mutation API call).
 
-### Desktop → Kiosk Transfer (Pending Pickup)
-- [ ] **New booking status: `PENDING_PICKUP`** — Add to `BookingStatus` enum. Migration required.
-- [ ] **"Send to Kiosk" action** — After creating a checkout on desktop/mobile, user can mark it as `PENDING_PICKUP`. This finalizes equipment selection but defers physical check-out to the kiosk.
-- [ ] **Kiosk pending pickups screen** — Kiosk shows all `PENDING_PICKUP` bookings for its location. User finds their booking, confirms, and completes checkout via normal kiosk scan flow.
-- [ ] **Transition guard** — `PENDING_PICKUP` → `OPEN` only via kiosk. Cannot be moved back to draft.
+### Desktop → Kiosk Transfer (Pending Pickup) ✅ Already Shipped (AREA_KIOSK AC-12)
+- [x] **New booking status: `PENDING_PICKUP`** — Present in `BookingStatus` enum (`prisma/schema.prisma:31`).
+- [x] **"Send to Kiosk" default** — Checkouts are created as `PENDING_PICKUP` by default (`bookings-lifecycle.ts:100`); wizard Step 3 confirms "Gear must be picked up at a kiosk".
+- [x] **Kiosk pending pickups screen** — `GET /api/kiosk/student/[userId]` returns pending pickups; `PickupFlow` component handles selection.
+- [x] **Transition guard** — `POST /api/kiosk/pickup/[id]/confirm` is the only path to `PENDING_PICKUP → OPEN` (asserts `status === "PENDING_PICKUP"` and uses `withKiosk`).
 
 ### Slack — 24h Shift Reminder
 - [ ] **New Slack event: `shift_reminder`** — Add to existing Slack service (research already complete in `slack-integration-research.md`). Fires 24h before shift start time.
