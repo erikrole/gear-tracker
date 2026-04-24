@@ -1,19 +1,190 @@
 "use client";
 
-import { KeyIcon } from "lucide-react";
+import { useState } from "react";
+import { KeyRound, Plus, RefreshCw, List } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
-import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFetch } from "@/hooks/use-fetch";
+import { formatRelativeTime } from "@/lib/format";
+import { LicenseTable } from "./LicenseTable";
+import { MyLicensePanel } from "./MyLicensePanel";
+import { ConfirmClaimDialog } from "./ConfirmClaimDialog";
+import { AdminClaimSheet } from "./AdminClaimSheet";
+import { AddLicenseDialog } from "./AddLicenseDialog";
+import { BulkAddSheet } from "./BulkAddSheet";
+import type { LicenseCode, MyLicense } from "./types";
 
 export default function LicensesPage() {
+  const [claimTarget, setClaimTarget] = useState<LicenseCode | null>(null);
+  const [adminTarget, setAdminTarget] = useState<LicenseCode | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
+  const [showRetired, setShowRetired] = useState(false);
+
+  const { data: meData } = useFetch<{ id: string; role: string }>({
+    url: "/api/me",
+    transform: (json) => (json as Record<string, unknown>).user as { id: string; role: string },
+    refetchOnFocus: false,
+  });
+  const currentUserId = meData?.id ?? null;
+  const isAdmin = meData?.role === "ADMIN" || meData?.role === "STAFF";
+
+  const {
+    data: codesData,
+    loading: codesLoading,
+    lastRefreshed,
+    reload: reloadCodes,
+  } = useFetch<LicenseCode[]>({
+    url: "/api/licenses",
+    transform: (json) => (json as Record<string, unknown>).data as LicenseCode[],
+  });
+
+  const {
+    data: myLicense,
+    reload: reloadMy,
+  } = useFetch<MyLicense | null>({
+    url: "/api/licenses/my",
+    transform: (json) => ((json as Record<string, unknown>).data as MyLicense) ?? null,
+  });
+
+  function reloadAll() {
+    reloadCodes();
+    reloadMy();
+  }
+
+  const allCodes = codesData ?? [];
+  const visibleCodes = showRetired ? allCodes : allCodes.filter((c) => c.status !== "RETIRED");
+
+  const availableCount = allCodes.filter((c) => c.status === "AVAILABLE").length;
+  const hasRetired = allCodes.some((c) => c.status === "RETIRED");
+
+  function handleClickAvailable(code: LicenseCode) {
+    if (myLicense) return; // already have one — no-op, table handles visual cue
+    setClaimTarget(code);
+  }
+
+  function handleClickClaimed(code: LicenseCode) {
+    if (isAdmin) {
+      setAdminTarget(code);
+    } else {
+      // Student clicking their own row — handled by MyLicensePanel, but sheet works too
+      setAdminTarget(code);
+    }
+  }
+
   return (
     <FadeUp>
-      <PageHeader title="Licenses" />
-      <EmptyState
-        icon="box"
-        title="License tracking coming soon"
-        description="Software license management for Photo Mechanic and other tools will appear here."
+      <PageHeader title="Photo Mechanic Licenses">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={reloadAll}
+              disabled={codesLoading}
+              aria-label="Refresh"
+            >
+              <RefreshCw className={`size-3.5 ${codesLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {lastRefreshed
+              ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), new Date())}`
+              : "Refresh"}
+          </TooltipContent>
+        </Tooltip>
+        {isAdmin && (
+          <>
+            {hasRetired && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showRetired ? "secondary" : "ghost"}
+                    size="icon"
+                    className="size-7"
+                    onClick={() => setShowRetired((v) => !v)}
+                    aria-label="Toggle retired codes"
+                  >
+                    <List className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{showRetired ? "Hide retired" : "Show retired"}</TooltipContent>
+              </Tooltip>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowBulk(true)}>
+              Bulk add
+            </Button>
+            <Button size="sm" onClick={() => setShowAdd(true)}>
+              <Plus className="size-3.5 mr-1" />
+              Add code
+            </Button>
+          </>
+        )}
+      </PageHeader>
+
+      {/* Student: my active license banner */}
+      {myLicense && (
+        <MyLicensePanel license={myLicense} onReleased={reloadAll} />
+      )}
+
+      {/* Availability summary */}
+      {!codesLoading && allCodes.length > 0 && (
+        <p className="text-sm text-muted-foreground mb-4">
+          {availableCount} of {allCodes.filter((c) => c.status !== "RETIRED").length} licenses available
+          {myLicense && " · You already hold one"}
+        </p>
+      )}
+
+      {/* Main table */}
+      {!codesLoading && allCodes.length === 0 ? (
+        <EmptyState
+          icon="box"
+          title="No licenses in pool"
+          description={isAdmin ? "Add Photo Mechanic license codes to get started." : "No licenses have been added yet."}
+          actionLabel={isAdmin ? "Add code" : undefined}
+          onAction={isAdmin ? () => setShowAdd(true) : undefined}
+        />
+      ) : (
+        <LicenseTable
+          codes={visibleCodes}
+          loading={codesLoading}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+          myLicenseId={myLicense?.id ?? null}
+          onClickAvailable={handleClickAvailable}
+          onClickClaimed={handleClickClaimed}
+        />
+      )}
+
+      {/* Claim dialog (student) */}
+      <ConfirmClaimDialog
+        license={claimTarget}
+        onOpenChange={(open) => { if (!open) setClaimTarget(null); }}
+        onClaimed={reloadAll}
       />
+
+      {/* Admin / student-own sheet */}
+      <AdminClaimSheet
+        license={adminTarget}
+        onOpenChange={(open) => { if (!open) setAdminTarget(null); }}
+        onAction={reloadAll}
+      />
+
+      {/* Admin: add dialogs */}
+      <AddLicenseDialog open={showAdd} onOpenChange={setShowAdd} onCreated={reloadAll} />
+      <BulkAddSheet open={showBulk} onOpenChange={setShowBulk} onCreated={reloadAll} />
+
+      {/* Footer info */}
+      {!codesLoading && allCodes.length > 0 && (
+        <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <KeyRound className="size-3" />
+          Click an available row to claim. Codes are copied to your clipboard automatically.
+        </div>
+      )}
     </FadeUp>
   );
 }

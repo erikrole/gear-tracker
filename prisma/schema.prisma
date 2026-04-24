@@ -109,6 +109,9 @@ model User {
   checkinReports      CheckinItemReport[] @relation("CheckinReports")
   allowedEmailsCreated AllowedEmail[]    @relation("AllowedEmailCreator")
   allowedEmailsClaimed AllowedEmail[]    @relation("AllowedEmailClaimer")
+  licenseCodesHeld     LicenseCode[]     @relation("LicenseClaimedBy")
+  licenseCodesCreated  LicenseCode[]     @relation("LicenseCreatedBy")
+  licenseClaims        LicenseCodeClaim[]
   guides               Guide[]
   availabilityBlocks   StudentAvailabilityBlock[]
   travelMemberships    EventTravelMember[]        @relation("TravelMembers")
@@ -744,6 +747,50 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_config")
+}
+
+// ── Photo Mechanic License Codes ─────────────────────────
+
+enum LicenseCodeStatus {
+  AVAILABLE
+  CLAIMED
+  RETIRED
+}
+
+model LicenseCode {
+  id          String            @id @default(cuid())
+  code        String            @unique
+  label       String?
+  status      LicenseCodeStatus @default(AVAILABLE)
+  claimedById String?           @map("claimed_by_id")
+  claimedAt   DateTime?         @map("claimed_at")
+  nagSentAt   DateTime?         @map("nag_sent_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  createdById String?           @map("created_by_id")
+  claimedBy   User?             @relation("LicenseClaimedBy", fields: [claimedById], references: [id], onDelete: SetNull)
+  createdBy   User?             @relation("LicenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  claims      LicenseCodeClaim[]
+
+  @@index([status])
+  @@index([claimedById])
+  @@map("license_codes")
+}
+
+model LicenseCodeClaim {
+  id            String      @id @default(cuid())
+  licenseCodeId String      @map("license_code_id")
+  userId        String      @map("user_id")
+  claimedAt     DateTime    @default(now()) @map("claimed_at")
+  releasedAt    DateTime?   @map("released_at")
+  releasedById  String?     @map("released_by_id")
+  notes         String?
+  licenseCode   LicenseCode @relation(fields: [licenseCodeId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id])
+
+  @@index([userId, releasedAt])
+  @@index([licenseCodeId])
+  @@map("license_code_claims")
 }
 
 // ── Shift Calendar & Scheduling ─────────────────────────

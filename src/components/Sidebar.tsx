@@ -21,7 +21,6 @@ import {
   LogOutIcon,
   BellIcon,
   PlusIcon,
-  CameraIcon,
   KeyIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -60,7 +59,7 @@ const navGroups: NavGroup[] = [
       { label: "Items", href: "/items", icon: LayersIcon },
       { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
       { label: "Guides", href: "/guides", icon: ScrollTextIcon },
-      { label: "Photo Mechanic", href: "/photo-mechanic", icon: CameraIcon },
+      { label: "Licenses", href: "/licenses", icon: KeyIcon },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
     ],
   },
@@ -71,7 +70,6 @@ const navGroups: NavGroup[] = [
       { label: "Kits", href: "/kits", icon: BoxIcon },
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
-      { label: "Licenses", href: "/licenses", icon: KeyIcon },
       { label: "Settings", href: "/settings", icon: SettingsIcon },
     ],
   },

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { withHandler } from "@/lib/api";
 import { processOverdueNotifications } from "@/lib/services/notifications";
+import { processLicenseNags } from "@/lib/services/licenses";
 
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -28,6 +29,9 @@ export const GET = withHandler(async (req) => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await processOverdueNotifications();
-  return NextResponse.json({ ok: true, ...result });
+  const [overdueResult, licenseNagResult] = await Promise.all([
+    processOverdueNotifications(),
+    processLicenseNags(),
+  ]);
+  return NextResponse.json({ ok: true, ...overdueResult, licenseNags: licenseNagResult });
 });
