@@ -82,8 +82,9 @@ export const GET = withAuth(async (req, { user }) => {
   const orderBy = SORT_MAP[sortKey] ?? SORT_MAP["assetTag"];
 
   // Build base where clause (non-status filters)
+  // QR scan lookup (?qr=) must find accessories too, so skip the parentAssetId filter
   const baseWhere: Prisma.AssetWhereInput = {
-    ...(showAccessories ? { parentAssetId: { not: null } } : { parentAssetId: null }),
+    ...(qr ? {} : showAccessories ? { parentAssetId: { not: null } } : { parentAssetId: null }),
     ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
