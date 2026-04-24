@@ -29,12 +29,12 @@ async function sendPushToUser(
  * Fallback escalation schedule used when no DB rules exist.
  */
 const DEFAULT_SCHEDULE = [
-  { hoursFromDue: -4, type: "checkout_due_reminder", title: "Checkout due in 4 hours", notifyRequester: true, notifyAdmins: false },
-  { hoursFromDue: 0, type: "checkout_due_now", title: "Checkout is due now", notifyRequester: true, notifyAdmins: false },
-  { hoursFromDue: 2, type: "checkout_overdue_2h", title: "Checkout is 2 hours overdue", notifyRequester: true, notifyAdmins: false },
-  { hoursFromDue: 6, type: "checkout_overdue_6h", title: "Checkout is 6 hours overdue", notifyRequester: true, notifyAdmins: false },
-  { hoursFromDue: 12, type: "checkout_overdue_12h", title: "Checkout is 12 hours overdue", notifyRequester: true, notifyAdmins: true },
-  { hoursFromDue: 24, type: "checkout_overdue_24h", title: "Checkout is 24 hours overdue", notifyRequester: true, notifyAdmins: true },
+  { hoursFromDue: -1, type: "checkout_due_1h",     title: "Due back in 1 hour",  notifyRequester: true,  notifyAdmins: false },
+  { hoursFromDue:  0, type: "checkout_due_now",     title: "Due back now",         notifyRequester: true,  notifyAdmins: false },
+  { hoursFromDue:  1, type: "checkout_overdue_1h",  title: "1 hour overdue",       notifyRequester: true,  notifyAdmins: false },
+  { hoursFromDue:  3, type: "checkout_overdue_3h",  title: "3 hours overdue",      notifyRequester: true,  notifyAdmins: false },
+  { hoursFromDue:  8, type: "checkout_overdue_8h",  title: "8 hours overdue",      notifyRequester: true,  notifyAdmins: true  },
+  { hoursFromDue: 24, type: "checkout_overdue_24h", title: "1 day overdue",        notifyRequester: true,  notifyAdmins: true  },
 ];
 
 async function getEscalationRules() {
@@ -129,7 +129,10 @@ export async function processOverdueNotifications(): Promise<{
       if (rule.notifyRequester) {
         const dedupeKey = `${checkout.id}:${rule.type}`;
         if (!existingNotifications.has(dedupeKey)) {
-          const body = `"${checkout.title}" was due ${formatRelative(dueAt, now)}. Please return items.`;
+          const isFuture = dueAt > now;
+          const body = isFuture
+            ? `"${checkout.title}" is due ${formatRelative(dueAt, now)}. Wrap up and return items.`
+            : `"${checkout.title}" was due ${formatRelative(dueAt, now)}. Please return items.`;
           try {
             await db.notification.create({
               data: {
@@ -149,6 +152,12 @@ export async function processOverdueNotifications(): Promise<{
             });
             existingNotifications.add(dedupeKey);
             localCreated += 1;
+
+            void sendPushToUser(checkout.requesterUserId, {
+              title: rule.title,
+              body,
+              payload: { bookingId: checkout.id },
+            });
 
             if (checkout.requester.email) {
               await sendEmail({
@@ -176,7 +185,7 @@ export async function processOverdueNotifications(): Promise<{
           const adminDedupeKey = `${checkout.id}:${rule.type}:admin:${admin.id}`;
           if (existingNotifications.has(adminDedupeKey)) continue;
 
-          const adminBody = `${checkout.requester.name}'s checkout "${checkout.title}" is over ${rule.hoursFromDue} hours overdue.`;
+          const adminBody = `${checkout.requester.name}'s checkout "${checkout.title}" is ${rule.hoursFromDue} hours overdue.`;
           try {
             await db.notification.create({
               data: {
@@ -197,6 +206,12 @@ export async function processOverdueNotifications(): Promise<{
             });
             existingNotifications.add(adminDedupeKey);
             localCreated += 1;
+
+            void sendPushToUser(admin.id, {
+              title: `Overdue: ${checkout.title}`,
+              body: adminBody,
+              payload: { bookingId: checkout.id },
+            });
 
             if (admin.email) {
               await sendEmail({
