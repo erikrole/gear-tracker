@@ -104,6 +104,7 @@ model User {
   favorites           FavoriteItem[]
   passwordResetTokens PasswordResetToken[]
   notifications       Notification[]
+  deviceTokens        DeviceToken[]
   bookingPhotos       BookingPhoto[]     @relation("BookingPhotoActor")
   checkinReports      CheckinItemReport[] @relation("CheckinReports")
   allowedEmailsCreated AllowedEmail[]    @relation("AllowedEmailCreator")
@@ -631,6 +632,28 @@ model LocationMapping {
 enum NotificationChannel {
   IN_APP
   EMAIL
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+
+  @@map("device_platform")
+}
+
+model DeviceToken {
+  id          String         @id @default(cuid())
+  userId      String         @map("user_id")
+  token       String         @unique
+  platform    DevicePlatform @default(IOS)
+  appVersion  String?        @map("app_version")
+  lastSeenAt  DateTime       @default(now()) @map("last_seen_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  revokedAt   DateTime?      @map("revoked_at")
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("device_tokens")
 }
 
 model Notification {

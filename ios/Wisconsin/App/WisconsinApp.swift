@@ -1,7 +1,9 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct WisconsinApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var session = SessionStore()
     @State private var appState = AppState()
     @State private var network = NetworkMonitor()
@@ -13,6 +15,10 @@ struct WisconsinApp: App {
                 .environment(session)
                 .environment(appState)
                 .environment(network)
+                .onAppear { sharedAppState = appState }
+                .onChange(of: session.currentUser) { _, user in
+                    if user != nil { requestPushPermissions() }
+                }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && session.currentUser != nil {
                         Task { await appState.refreshUnread() }
@@ -25,6 +31,24 @@ struct WisconsinApp: App {
                         ? UIColor(red: 1.0, green: 0.231, blue: 0.188, alpha: 1)
                         : UIColor(red: 0.627, green: 0, blue: 0, alpha: 1)
                 })))
+        }
+    }
+
+    private func requestPushPermissions() {
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            guard settings.authorizationStatus == .notDetermined else {
+                // Already decided — still register so token stays fresh
+                if settings.authorizationStatus == .authorized {
+                    await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
+                }
+                return
+            }
+            let granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+            if granted {
+                await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
+            }
         }
     }
 }

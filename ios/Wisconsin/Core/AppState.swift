@@ -1,5 +1,8 @@
 import Foundation
 
+// Used by AppDelegate to post push destinations without importing SwiftUI
+nonisolated(unsafe) var sharedAppState: AppState?
+
 @MainActor
 @Observable
 final class AppState {
@@ -7,6 +10,7 @@ final class AppState {
     var myShiftCount = 0
     var unreadNotifCount = 0
     var openTradeCount = 0
+    var pendingPushBookingId: String?
     private var isRefreshing = false
 
     func refresh() async {

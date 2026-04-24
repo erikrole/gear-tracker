@@ -59,6 +59,19 @@ final class APIClient {
         HTTPCookieStorage.shared.removeCookies(since: .distantPast)
     }
 
+    func registerDeviceToken(_ hexToken: String) async throws {
+        struct Body: Encodable { let token: String; let platform: String; let appVersion: String? }
+        var req = request(path: "/api/devices", method: "POST")
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        req.httpBody = try JSONEncoder().encode(Body(token: hexToken, platform: "IOS", appVersion: version))
+        _ = try await session.data(for: req)
+    }
+
+    func revokeAllDeviceTokens() async throws {
+        let req = request(path: "/api/devices", method: "DELETE")
+        _ = try await session.data(for: req)
+    }
+
     func me() async throws -> CurrentUser {
         let req = request(path: "/api/me")
         let resp: MeResponse = try await perform(req)

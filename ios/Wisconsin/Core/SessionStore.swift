@@ -24,6 +24,7 @@ final class SessionStore {
     }
 
     func logout() async {
+        try? await APIClient.shared.revokeAllDeviceTokens()
         try? await APIClient.shared.logout()
         currentUser = nil
     }

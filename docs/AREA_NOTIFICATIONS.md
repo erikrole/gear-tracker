@@ -4,8 +4,8 @@
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
 - Last Updated: 2026-04-23
-- Status: Active — escalation schedule + iOS tap-through navigation shipped
-- Version: V1.1
+- Status: Active — escalation schedule + iOS tap-through + APNs native push shipped
+- Version: V1.2
 
 ## Direction
 Surface custody urgency and overdue situations to the right people at the right time, with zero duplicate noise and a clear escalation path.
@@ -49,6 +49,19 @@ Implementation: `src/lib/services/notifications.ts`
 - A notification record is created once per booking per trigger type
 - Job skips re-creation if `dedupeKey` already exists
 - Result: job is idempotent and safe to run on any cadence
+
+## Native Push (V1.2 — 2026-04-23)
+- Transport: APNs via Node.js built-in `http2` + `crypto` (zero new deps)
+- Auth: JWT token (ES256) from .p8 key — re-generated per request, valid 1h
+- Schema: `DeviceToken` model (`prisma/migrations/0040_add_device_tokens`) — `token` unique, indexed on `(userId, revokedAt)`
+- Registration: `POST /api/devices` upserts token on every app foreground after login; `DELETE /api/devices` bulk-revokes on logout
+- iOS: `AppDelegate.didRegisterForRemoteNotificationsWithDeviceToken` → POST hex token. Permission requested once after login (`.notDetermined` guard; existing `.authorized` silently re-registers).
+- Push fires for: `shift_gear_up`, `reservation_booked`, `reservation_pickup_ready`, `reservation_cancelled`
+- Batch escalation (overdue cron) does NOT send push — in-app only, deferred to future slice
+- Tap handling: `UNUserNotificationCenterDelegate.didReceive` sets `AppState.pendingPushBookingId`; `HomeView` navigates via `navigationPath.append(bookingId)` on change or appear
+- Revoked/BadDeviceToken responses auto-revoke the token in DB on next push attempt
+- Required env vars: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_P8_KEY` (base64-encoded full PEM including headers). Missing = push silently skipped.
+- Source: `src/lib/push/apns.ts` (sendPush), `src/lib/services/notifications.ts` (sendPushToUser), `src/app/api/devices/route.ts`
 
 ## Channels (V1 + Email)
 - **In-app**: `Notification` record created for the checkout requester; visible in notification center

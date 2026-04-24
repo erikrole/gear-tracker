@@ -1,5 +1,29 @@
 import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
+import { sendPush } from "@/lib/push/apns";
+
+async function sendPushToUser(
+  userId: string,
+  opts: { title: string; body?: string | null; payload?: Record<string, unknown> }
+): Promise<void> {
+  const tokens = await db.deviceToken.findMany({
+    where: { userId, revokedAt: null },
+    select: { token: true },
+  });
+  if (tokens.length === 0) return;
+
+  const { revoked } = await sendPush(
+    tokens.map((t) => t.token),
+    { title: opts.title, body: opts.body ?? "", payload: opts.payload }
+  );
+
+  if (revoked.length > 0) {
+    await db.deviceToken.updateMany({
+      where: { token: { in: revoked } },
+      data: { revokedAt: new Date() },
+    });
+  }
+}
 
 /**
  * Fallback escalation schedule used when no DB rules exist.
@@ -278,6 +302,8 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
       },
     });
 
+    void sendPushToUser(assignment.userId, { title, body });
+
     // Also send email notification
     if (assignment.user.email) {
       await sendEmail({
@@ -352,6 +378,8 @@ export async function createReservationLifecycleNotification(args: {
         dedupeKey,
       },
     });
+
+    void sendPushToUser(requesterUserId, { title, body, payload: { bookingId } });
   } catch (err) {
     console.error(`[NOTIFY] Failed to create reservation_${event} notification for booking ${bookingId}:`, err);
   }

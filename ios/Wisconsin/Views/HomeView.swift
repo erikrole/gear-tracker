@@ -142,6 +142,18 @@ struct HomeView: View {
             }
             .refreshable { await vm.load(appState: appState, forceRefresh: true) }
             .task { await vm.load(appState: appState) }
+            .onChange(of: appState.pendingPushBookingId) { _, id in
+                if let id {
+                    navigationPath.append(id)
+                    appState.pendingPushBookingId = nil
+                }
+            }
+            .onAppear {
+                if let id = appState.pendingPushBookingId {
+                    navigationPath.append(id)
+                    appState.pendingPushBookingId = nil
+                }
+            }
             .navigationDestination(for: BookingSummary.self) { summary in
                 BookingDetailView(bookingId: summary.id)
             }
