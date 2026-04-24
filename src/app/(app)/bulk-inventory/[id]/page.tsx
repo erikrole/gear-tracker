@@ -103,7 +103,16 @@ export default function BulkSkuDetailPage() {
       )}
 
       {activeTab === "units" && sku.trackByNumber && (
-        <BulkSkuUnitsTab sku={sku} canEdit={canEdit} onRefresh={loadSku} />
+        <BulkSkuUnitsTab
+          sku={sku}
+          canEdit={canEdit}
+          onRefresh={loadSku}
+          onUnitsAdded={(count) =>
+            setSku((prev) =>
+              prev ? { ...prev, onHand: prev.onHand + count, availableQuantity: prev.availableQuantity + count } : prev
+            )
+          }
+        />
       )}
 
       {activeTab === "qr" && (

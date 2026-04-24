@@ -122,6 +122,16 @@ export default function EquipmentPicker({
     selectedAssetIds,
   });
 
+  // Delay showing the "Checking availability…" indicator to avoid flicker on fast checks
+  const [deferredConflictsLoading, setDeferredConflictsLoading] = useState(false);
+  useEffect(() => {
+    if (conflictsLoading) {
+      const t = setTimeout(() => setDeferredConflictsLoading(true), 200);
+      return () => clearTimeout(t);
+    }
+    setDeferredConflictsLoading(false);
+  }, [conflictsLoading]);
+
   // ── Indexed lookups ──
   const assetById = useMemo(() => {
     const m = new Map<string, PickerAsset>();
@@ -402,7 +412,7 @@ export default function EquipmentPicker({
             <span className="inline-flex items-center justify-center min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
               {totalSelected}
             </span>
-            {conflictsLoading && (
+            {deferredConflictsLoading && (
               <span className="ml-auto text-[10px] text-muted-foreground">
                 Checking availability\u2026
               </span>

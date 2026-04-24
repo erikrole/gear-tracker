@@ -14,10 +14,12 @@ export default function BulkSkuUnitsTab({
   sku,
   canEdit,
   onRefresh,
+  onUnitsAdded,
 }: {
   sku: BulkSkuDetail;
   canEdit: boolean;
   onRefresh: () => void;
+  onUnitsAdded?: (count: number) => void;
 }) {
   const [addingUnits, setAddingUnits] = useState(false);
   const [addCount, setAddCount] = useState(10);
@@ -57,6 +59,7 @@ export default function BulkSkuUnitsTab({
       if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to add units")); return; }
       toast.success(`Added ${addCount} units`);
       setAddingUnits(false);
+      onUnitsAdded?.(addCount);
       onRefresh();
     } catch {
       toast.error("Network error — try again");

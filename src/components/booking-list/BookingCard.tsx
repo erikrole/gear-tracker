@@ -88,7 +88,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
 
         <div className="p-4 pl-5">
           {/* Top row: status indicator + duration */}
-          <div className="flex items-center justify-between mb-2.5 pr-8">
+          <div className="flex items-center justify-between mb-2.5 pr-10">
             <div className="flex items-center gap-1.5">
               <span
                 className="size-1.5 rounded-full shrink-0"

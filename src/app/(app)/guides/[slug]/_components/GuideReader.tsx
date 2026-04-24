@@ -99,7 +99,9 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       : undefined,
   });
 
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() =>
+    typeof window !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
+  );
   const [activeHeading, setActiveHeading] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 

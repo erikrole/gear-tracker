@@ -35,7 +35,7 @@ export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 
 /* ───── Component ───── */
 
-export default function BookingListPage({ config, viewMode = "table", hideHeader = false, hideNewButton = false }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean; hideNewButton?: boolean }) {
+export default function BookingListPage({ config, viewMode = "table", hideHeader = false, hideNewButton = false, initialHighlight }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean; hideNewButton?: boolean; initialHighlight?: string | null }) {
   const urlParams = useSearchParams();
   const router = useRouter();
 
@@ -160,14 +160,15 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sheet + menu ──
+  // initialHighlight prop takes precedence over URL param (avoids multi-tab race when all tabs mount simultaneously)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
-    urlParams.get("highlight") || null
+    initialHighlight !== undefined ? (initialHighlight || null) : (urlParams.get("highlight") || null)
   );
   const [initialSheetTab, setInitialSheetTab] = useState<string | null>(urlParams.get("sheetTab") || null);
 
-  // Clear highlight/sheetTab from URL after consuming them so re-mounting tabs don't re-open the sheet
+  // Clear highlight/sheetTab from URL after consuming them (only when using URL-based highlight for deep links)
   useEffect(() => {
-    if (urlParams.get("highlight") || urlParams.get("sheetTab")) {
+    if (initialHighlight === undefined && (urlParams.get("highlight") || urlParams.get("sheetTab"))) {
       const next = new URLSearchParams(urlParams.toString());
       next.delete("highlight");
       next.delete("sheetTab");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { PartialBlock } from "@blocknote/core";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -24,6 +24,17 @@ export default function NewGuidePage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isDark, setIsDark] = useState(() =>
+    typeof window !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
+  );
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
 
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
@@ -145,7 +156,7 @@ export default function NewGuidePage() {
       </div>
 
       <div className="rounded-lg border min-h-[600px]">
-        <BlockNoteView editor={editor} editable={!submitting} />
+        <BlockNoteView editor={editor} editable={!submitting} theme={isDark ? "dark" : "light"} />
       </div>
 
       <div className="flex items-center gap-3">

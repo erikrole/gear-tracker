@@ -29,6 +29,19 @@ export default function BookingsPage() {
   const [activeTab, setActiveTab] = useState<"all" | "checkouts" | "reservations">(initialTab);
   const [viewMode, setViewModeRaw] = useState<"cards" | "table">("cards");
 
+  // Consume highlight once from URL so only the correct tab receives it (avoids all-tabs-mount race)
+  const [highlight] = useState<string | null>(() => searchParams.get("highlight") || null);
+
+  useEffect(() => {
+    if (highlight) {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("highlight");
+      const qs = next.toString();
+      router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("bookings-view-mode");
@@ -283,15 +296,15 @@ export default function BookingsPage() {
         </div>
 
         <TabsContent value="all">
-          <BookingListPage config={allConfig} viewMode={viewMode} hideHeader hideNewButton />
+          <BookingListPage config={allConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={initialTab === "all" ? highlight : null} />
         </TabsContent>
 
         <TabsContent value="checkouts">
-          <BookingListPage config={checkoutConfig} viewMode={viewMode} hideHeader />
+          <BookingListPage config={checkoutConfig} viewMode={viewMode} hideHeader initialHighlight={initialTab === "checkouts" ? highlight : null} />
         </TabsContent>
 
         <TabsContent value="reservations">
-          <BookingListPage config={reservationConfig} viewMode={viewMode} hideHeader />
+          <BookingListPage config={reservationConfig} viewMode={viewMode} hideHeader initialHighlight={initialTab === "reservations" ? highlight : null} />
         </TabsContent>
       </Tabs>
     </FadeUp>

@@ -54,6 +54,9 @@ export default function EditGuidePage({ params }: Props) {
   const [guideId, setGuideId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [isDark, setIsDark] = useState(() =>
+    typeof window !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
+  );
 
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
@@ -94,6 +97,14 @@ export default function EditGuidePage({ params }: Props) {
   useEffect(() => {
     if (guide && !ready) populate(guide);
   }, [guide, ready, populate]);
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
 
   // Warn on navigation away with unsaved changes
   useEffect(() => {
@@ -226,6 +237,7 @@ export default function EditGuidePage({ params }: Props) {
         <BlockNoteView
           editor={editor}
           editable={!submitting}
+          theme={isDark ? "dark" : "light"}
           onChange={() => setDirty(true)}
         />
       </div>
