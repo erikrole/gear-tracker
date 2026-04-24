@@ -273,10 +273,20 @@ final class APIClient {
         return resp.data
     }
 
-    func assetsLookup(rawScan: String) async throws -> Asset? {
-        let stripped = rawScan
-            .replacingOccurrences(of: "bg://item/", with: "")
-            .replacingOccurrences(of: "bg://case/", with: "")
+    func assetsLookup(rawScan: String) async throws -> String? {
+        // Legacy bg://item/{assetId} QR codes embed the asset's primary key directly
+        if rawScan.hasPrefix("bg://item/") {
+            let assetId = String(rawScan.dropFirst("bg://item/".count))
+            guard !assetId.isEmpty else { return nil }
+            do {
+                let detail = try await asset(id: assetId)
+                return detail.id
+            } catch APIError.notFound {
+                return nil
+            }
+        }
+
+        let stripped = rawScan.replacingOccurrences(of: "bg://case/", with: "")
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/assets"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             .init(name: "q", value: stripped),
@@ -287,7 +297,7 @@ final class APIClient {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
         let resp: AssetsResponse = try await perform(req)
-        return resp.data.first
+        return resp.data.first?.id
     }
 
     func assetByQR(qrValue: String) async throws -> Asset? {

@@ -183,9 +183,9 @@ struct QRScannerSheet: View {
         isLookingUp = true
         defer { isLookingUp = false }
         do {
-            if let asset = try await APIClient.shared.assetsLookup(rawScan: rawScan) {
+            if let assetId = try await APIClient.shared.assetsLookup(rawScan: rawScan) {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                onMatch(asset.id)
+                onMatch(assetId)
             } else {
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
                 scanError = "No item matches this code."
