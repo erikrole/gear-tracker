@@ -106,6 +106,56 @@ final class CachedScheduleEvent {
     }
 }
 
+// MARK: - Conversion helpers
+
+extension CachedAsset {
+    var asAsset: Asset {
+        Asset(
+            id: id, assetTag: assetTag, name: name, brand: brand, model: model,
+            serialNumber: serialNumber, imageUrl: imageUrl,
+            computedStatus: AssetComputedStatus(rawValue: computedStatus) ?? .unknown,
+            location: AssetLocation(id: locationId, name: locationName),
+            category: categoryId.map { AssetCategory(id: $0, name: categoryName ?? "") },
+            department: nil,
+            activeBooking: nil,
+            purchaseDate: nil, purchasePrice: nil, residualValue: nil,
+            isFavorited: isFavorited
+        )
+    }
+}
+
+extension CachedBooking {
+    var asBooking: Booking {
+        Booking(
+            id: id,
+            kind: BookingKind(rawValue: kind) ?? .unknown,
+            title: title,
+            status: BookingStatus(rawValue: status) ?? .unknown,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            notes: nil,
+            refNumber: nil,
+            requester: BookingUser(id: "", name: requesterName, email: "", avatarUrl: nil),
+            location: BookingLocation(id: "", name: locationName),
+            serializedItems: [],
+            bulkItems: [],
+            event: nil
+        )
+    }
+}
+
+extension CachedScheduleEvent {
+    var asScheduleEvent: ScheduleEvent {
+        ScheduleEvent(
+            id: id, summary: summary,
+            startsAt: startsAt, endsAt: endsAt,
+            allDay: allDay, status: "confirmed",
+            sportCode: sportCode, opponent: opponent, isHome: isHome,
+            location: locationName.map { EventLocation(id: "", name: $0) }
+        )
+    }
+}
+
 // MARK: - GearStore
 
 @MainActor

@@ -45,6 +45,11 @@ final class ScheduleViewModel {
     func load(forceRefresh: Bool = false) async {
         guard !isLoading else { return }
         guard !hasLoaded || forceRefresh else { return }
+        // Seed from cache for instant display before the network response arrives
+        if !hasLoaded {
+            let cached = GearStore.shared.cachedScheduleEvents()
+            if !cached.isEmpty { events = cached.map(\.asScheduleEvent) }
+        }
         isLoading = true
         error = nil
         do {
@@ -55,6 +60,7 @@ final class ScheduleViewModel {
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
             hasLoaded = true
+            GearStore.shared.seedScheduleEvents(fetchedEvents)
         } catch APIError.unauthorized {
             error = "Session expired — please sign in again."
         } catch {

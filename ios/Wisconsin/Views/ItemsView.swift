@@ -20,7 +20,11 @@ final class ItemsViewModel {
         if reset {
             offset = 0
             hasMore = true
-            // Don't clear assets — swap in place after fetch to avoid skeleton flash on tab return
+            // Seed from cache immediately on unfiltered first-page load
+            if searchText.isEmpty && selectedStatus == nil && !favoritesOnly {
+                let cached = GearStore.shared.cachedAssets()
+                if !cached.isEmpty { assets = cached.map(\.asAsset) }
+            }
         }
         isLoading = true
         error = nil
@@ -35,6 +39,9 @@ final class ItemsViewModel {
             if reset { assets = result.data } else { assets += result.data }
             offset += result.data.count
             hasMore = offset < result.total
+            if reset && offset == result.data.count && searchText.isEmpty && selectedStatus == nil && !favoritesOnly {
+                GearStore.shared.seedAssets(result.data)
+            }
         } catch {
             self.error = error.localizedDescription
         }

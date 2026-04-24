@@ -24,6 +24,12 @@ final class BookingsViewModel {
         if reset {
             offset = 0
             hasMore = true
+            // Seed from cache immediately on unfiltered first-page load
+            if searchText.isEmpty {
+                let kindKey = tab == .reservations ? "RESERVATION" : "CHECKOUT"
+                let cached = GearStore.shared.cachedBookings(kind: kindKey)
+                if !cached.isEmpty { bookings = cached.map(\.asBooking) }
+            }
         }
         isLoading = true
         error = nil
@@ -38,6 +44,9 @@ final class BookingsViewModel {
             if reset { bookings = result.data } else { bookings += result.data }
             offset += result.data.count
             hasMore = offset < result.total
+            if reset && offset == result.data.count && searchText.isEmpty {
+                GearStore.shared.seedBookings(result.data)
+            }
         } catch {
             self.error = error.localizedDescription
         }
