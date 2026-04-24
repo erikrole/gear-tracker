@@ -55,10 +55,12 @@
 		A62C42786242468294D3923D /* KioskSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3535152D23274FA79C554E78 /* KioskSuccessView.swift */; };
 		91221C3E236448EF99D964B3 /* KioskPickupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FF06F605474B088699A8A9 /* KioskPickupView.swift */; };
 		4090F4E904C74052B4F86FE9 /* KioskReturnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9509929DE794A0E83E829DE /* KioskReturnView.swift */; };
+		AA11BB22CC33DD44EE55FF66 /* GearStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22CC33DD44EE55FF6600AA /* GearStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0189482D68508F45B086F46F /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		BB22CC33DD44EE55FF6600AA /* GearStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GearStore.swift; sourceTree = "<group>"; };
 		2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingsView.swift; sourceTree = "<group>"; };
 		229CAC26AA9E3BB5EEC36678 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
 		2536547429CB16E12CB069C0 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
@@ -199,6 +201,7 @@
 			children = (
 				6ED3D57FAA3E94281C3FF27C /* APIClient.swift */,
 				38065600FA5A1C1AC4C8CC2F /* AppState.swift */,
+				BB22CC33DD44EE55FF6600AA /* GearStore.swift */,
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
 				74EFD042F26EA7BE52FA67E3 /* SearchService.swift */,
 				0189482D68508F45B086F46F /* SessionStore.swift */,
@@ -370,6 +373,7 @@
 				A62C42786242468294D3923D /* KioskSuccessView.swift in Sources */,
 				91221C3E236448EF99D964B3 /* KioskPickupView.swift in Sources */,
 				4090F4E904C74052B4F86FE9 /* KioskReturnView.swift in Sources */,
+				AA11BB22CC33DD44EE55FF66 /* GearStore.swift in Sources */,
 
 			);
 			runOnlyForDeploymentPostprocessing = 0;
