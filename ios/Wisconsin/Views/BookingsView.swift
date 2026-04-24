@@ -114,9 +114,11 @@ struct BookingsView: View {
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showCreate = true } label: {
-                        Image(systemName: "plus")
+                if vm.tab == .reservations {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { showCreate = true } label: {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
                 ToolbarItem(placement: .principal) {
@@ -130,7 +132,7 @@ struct BookingsView: View {
                 }
             }
             .sheet(isPresented: $showCreate) {
-                CreateBookingSheet(kind: vm.tab == .checkouts ? .checkout : .reservation) { newId in
+                CreateBookingSheet { newId in
                     Task {
                         await vm.load(reset: true)
                         navigationPath.append(newId)

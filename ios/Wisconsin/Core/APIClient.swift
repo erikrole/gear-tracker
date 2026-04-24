@@ -174,8 +174,7 @@ final class APIClient {
         }
     }
 
-    func createBooking(
-        kind: BookingKind,
+    func createReservation(
         title: String,
         requesterUserId: String,
         locationId: String,
@@ -198,8 +197,7 @@ final class APIClient {
             let eventId: String?
             let shiftAssignmentId: String?
         }
-        let path = kind == .checkout ? "/api/checkouts" : "/api/reservations"
-        var req = request(path: path, method: "POST")
+        var req = request(path: "/api/reservations", method: "POST")
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         req.httpBody = try JSONEncoder().encode(Body(
