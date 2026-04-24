@@ -268,6 +268,7 @@ model Booking {
   event               CalendarEvent?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
   shiftAssignment     ShiftAssignment?        @relation(fields: [shiftAssignmentId], references: [id], onDelete: SetNull)
   kit                 Kit?                    @relation(fields: [kitId], references: [id], onDelete: SetNull)
+  events              BookingEvent[]
   serializedItems     BookingSerializedItem[]
   bulkItems           BookingBulkItem[]
   allocations         AssetAllocation[]
@@ -606,6 +607,7 @@ model CalendarEvent {
   source            CalendarSource?     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   location          Location?           @relation(fields: [locationId], references: [id], onDelete: SetNull)
   bookings          Booking[]
+  bookingLinks      BookingEvent[]
   shiftGroup        ShiftGroup?
   travelMembers     EventTravelMember[]
 
@@ -614,6 +616,21 @@ model CalendarEvent {
   @@index([locationId])
   @@index([sportCode])
   @@map("calendar_events")
+}
+
+model BookingEvent {
+  id        String        @id @default(cuid())
+  bookingId String        @map("booking_id")
+  eventId   String        @map("event_id")
+  ordinal   Int
+  createdAt DateTime      @default(now()) @map("created_at")
+  booking   Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, eventId])
+  @@index([eventId])
+  @@index([bookingId, ordinal])
+  @@map("booking_events")
 }
 
 model LocationMapping {

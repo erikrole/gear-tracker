@@ -42,7 +42,7 @@ Wizard Step 1 replaces single-event selection with multi-select. All current sin
 - All existing transactional guarantees (SERIALIZABLE, overlap prevention) preserved — junction inserts piggyback on the booking insert transaction
 
 ### 3. API (Critical)
-- `POST /api/checkouts` — schema (`createCheckoutSchema` in `src/lib/validation.ts`) accepts optional `eventIds: string[]` (1–10 ids) alongside existing `eventId`. Validation: must reference existing events; 400 on duplicate ids; 400 on mixing `eventId` + `eventIds`
+- `POST /api/checkouts` — schema (`createCheckoutSchema` in `src/lib/validation.ts`) accepts optional `eventIds: string[]` (1–3 ids) alongside existing `eventId`. Validation: must reference existing events; 400 on duplicate ids; 400 on mixing `eventId` + `eventIds`
 - `POST /api/reservations` — same treatment
 - `GET /api/bookings/[id]` — response includes `events: [{ id, summary, sportCode, opponent, isHome, startsAt, endsAt }]` sorted by ordinal, in addition to the existing `event` (primary) shape
 - `event-defaults.ts` unchanged (still resolves single event for `sportCode`-only requests)
@@ -76,7 +76,7 @@ Wizard Step 1 replaces single-event selection with multi-select. All current sin
 - **Same-sport / same-location validation** — caller responsibility; no hard constraint in V1.
 - **Multi-event conflict checks** — conflict check continues to use `booking.startsAt`/`endsAt` window; no per-event checks.
 - **Multi-event report grouping** — dashboard `gearByEvent` + `my-shifts` `bookingsByEvent` still group by `booking.eventId` (primary only). V2: extend group-by using the junction.
-- **UI for >10 events** — V1 caps at 10 selected events.
+- **UI for >10 events** — V1 caps at 3 selected events.
 - **Gap detection** — if events have non-contiguous gaps (Fri evening + Sunday morning), we keep gear for the whole span — a feature, not a bug.
 - **Cross-day timezone display** — use existing `formatDateRange` helper.
 
@@ -126,7 +126,7 @@ Wizard Step 1 replaces single-event selection with multi-select. All current sin
 - **Caller supplies both `eventId` and `eventIds`**: reject with 400 — pick one.
 - **Caller supplies `eventIds` AND explicit `startsAt`/`endsAt`**: explicit dates win; derivation skipped.
 - **Event from a different location than booking's `locationId`**: allowed (operator discretion). Auto-fill picks first event's location on initial selection; user can override.
-- **>10 events selected**: schema-level validation rejects.
+- **>3 events selected**: schema-level validation rejects.
 - **All events cancelled**: junction rows persist; booking stays unless explicitly cancelled. Dashboard queries already filter on `CalendarEventStatus.CONFIRMED`, so cancelled events just drop from views.
 
 ---

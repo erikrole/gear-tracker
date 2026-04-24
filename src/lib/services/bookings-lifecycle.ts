@@ -30,6 +30,10 @@ type CreateBookingInput = {
   createdBy: string;
   sourceReservationId?: string;
   eventId?: string;
+  /** Optional multi-event linking. If provided, events are sorted chronologically
+   * and the first one becomes the primary (`Booking.eventId`). Mutually exclusive
+   * with `eventId` — callers pick one. Cap 3 events. */
+  eventIds?: string[];
   sportCode?: string;
   shiftAssignmentId?: string;
   kitId?: string;
@@ -99,6 +103,32 @@ export async function createBooking(input: CreateBookingInput) {
 
       const status = input.kind === BookingKind.RESERVATION ? BookingStatus.BOOKED : BookingStatus.PENDING_PICKUP;
 
+      // Resolve event linking: multi-event (eventIds) or legacy single (eventId).
+      // Reject if both are provided. Sort chronologically so primary = first.
+      if (input.eventId && input.eventIds && input.eventIds.length > 0) {
+        throw new HttpError(400, "Provide either eventId or eventIds, not both");
+      }
+      const requestedEventIds = input.eventIds && input.eventIds.length > 0
+        ? dedupeIds(input.eventIds)
+        : input.eventId ? [input.eventId] : [];
+      if (requestedEventIds.length > 3) {
+        throw new HttpError(400, "A booking may link at most 3 events");
+      }
+      let sortedEventIds: string[] = [];
+      if (requestedEventIds.length > 0) {
+        const events = await tx.calendarEvent.findMany({
+          where: { id: { in: requestedEventIds } },
+          select: { id: true, startsAt: true },
+        });
+        if (events.length !== requestedEventIds.length) {
+          throw new HttpError(400, "One or more eventIds do not exist");
+        }
+        sortedEventIds = [...events]
+          .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+          .map((e) => e.id);
+      }
+      const primaryEventId = sortedEventIds[0] ?? null;
+
       const seqResult = await tx.$queryRaw<[{ nextval: bigint }]>`SELECT nextval('booking_ref_seq')`;
       const seq = Number(seqResult[0].nextval);
       const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
@@ -117,12 +147,22 @@ export async function createBooking(input: CreateBookingInput) {
           createdBy: input.createdBy,
           notes: input.notes,
           sourceReservationId: input.sourceReservationId ?? null,
-          eventId: input.eventId ?? null,
+          eventId: primaryEventId,
           sportCode: input.sportCode ?? null,
           shiftAssignmentId: input.shiftAssignmentId ?? null,
           kitId: input.kitId ?? null
         }
       });
+
+      if (sortedEventIds.length > 0) {
+        await tx.bookingEvent.createMany({
+          data: sortedEventIds.map((eventId, ordinal) => ({
+            bookingId: booking.id,
+            eventId,
+            ordinal,
+          })),
+        });
+      }
 
       if (resolvedSerializedAssetIds.length > 0) {
         await tx.bookingSerializedItem.createMany({
@@ -178,7 +218,8 @@ export async function createBooking(input: CreateBookingInput) {
             endsAt: input.endsAt,
             serializedAssetIds: resolvedSerializedAssetIds,
             bulkItems: resolvedBulkItems,
-            sourceReservationId: input.sourceReservationId
+            sourceReservationId: input.sourceReservationId,
+            eventIds: sortedEventIds,
           }
         }
       });
