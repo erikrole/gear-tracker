@@ -1,7 +1,7 @@
 # Sprint Plan — April 2026
 
 **Created:** 2026-04-17  
-**Status:** Tiers 1–3 Complete · Tier 4: Features 1–3 Complete · Features 4–5 In Queue
+**Status:** Tiers 1–3 Complete · Tier 4: Features 1–3 Complete · Features 4–5 Deferred to iOS
 
 ---
 
@@ -60,15 +60,19 @@
 - [x] **Kiosk pending pickups screen** — `GET /api/kiosk/student/[userId]` returns pending pickups; `PickupFlow` component handles selection.
 - [x] **Transition guard** — `POST /api/kiosk/pickup/[id]/confirm` is the only path to `PENDING_PICKUP → OPEN` (asserts `status === "PENDING_PICKUP"` and uses `withKiosk`).
 
-### Slack — 24h Shift Reminder
-- [ ] **New Slack event: `shift_reminder`** — Add to existing Slack service (research already complete in `slack-integration-research.md`). Fires 24h before shift start time.
-- [ ] **Cron job: hourly shift scan** — Vercel cron (or existing notification cron) checks for shifts starting in ~24h and fires reminders if not already sent. Use dedupeKey to prevent double-send.
-- [ ] **Settings: add shift_reminder toggle** — Add the new event type to `/settings/slack` UI.
+### Slack — 24h Shift Reminder ⏭ Deferred to iOS (2026-04-24)
+> Native iOS local notifications (`UserNotifications` + `BackgroundTasks`) will fire shift reminders directly on-device — no Slack roundtrip, no cron ceremony, no per-user configuration. Web-side feature withdrawn.
+> See: memory `project_ios_framework_plan.md` (BackgroundTasks + Haptics).
+- [~] ~~Slack `shift_reminder` event~~ — withdrawn; iOS `UNNotificationRequest` handles it natively.
+- [~] ~~Hourly cron scan~~ — withdrawn; `BGAppRefreshTask` runs per-device.
+- [~] ~~Settings: shift_reminder toggle~~ — withdrawn; iOS uses Settings.app notification permissions.
 
-### iCal Shift Subscription
-- [ ] **Per-user iCal feed** — `GET /api/calendar/shifts/[token].ics` — returns ICS with all shifts for the user associated with the token. Token stored on `User` model (new field, migration needed).
-- [ ] **Token generation** — Button in user profile / settings to generate a subscription URL. Clicking copies the URL.
-- [ ] **ICS content** — Each shift becomes a VEVENT: summary = area + sport, dtstart/dtend = shift times, description = call time + location.
+### iCal Shift Subscription ⏭ Deferred to iOS (2026-04-24)
+> Native iOS `EventKit` will write shifts directly into the user's native Calendar app — no subscription URL, no token management, no ICS feed to maintain. Web-side feature withdrawn.
+> See: memory `project_ios_framework_plan.md` (EventKit).
+- [~] ~~Per-user iCal feed~~ — withdrawn; `EKEventStore.save()` writes events directly.
+- [~] ~~Token generation~~ — withdrawn; no URL subscription needed.
+- [~] ~~ICS content generation~~ — withdrawn; `EKEvent` populated in Swift from shift data.
 
 ---
 
@@ -76,5 +80,5 @@
 
 - Tier 4 features each need a BRIEF_ doc before implementation (per Rule 7)
 - Gate scanning and Pending Pickup are architecturally linked — implement together
-- Slack 24h reminder builds on `slack-integration-research.md` — no new research needed
+- ~~Slack 24h reminder builds on `slack-integration-research.md` — no new research needed~~ Deferred to iOS (EventKit + UserNotifications) — see memory `project_ios_framework_plan.md`
 - Run `npm run build` before each commit
