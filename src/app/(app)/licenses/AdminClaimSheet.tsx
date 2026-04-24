@@ -200,9 +200,9 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-5">
+        <div className="mt-8 space-y-8 px-1">
           {/* Active slots */}
-          <section className="space-y-2">
+          <section className="space-y-3">
             <h3 className="text-sm font-medium">Active slots ({activeClaims.length}/2)</h3>
             {activeClaims.length === 0 ? (
               <p className="text-xs text-muted-foreground">Both slots are open.</p>
@@ -261,11 +261,8 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {canAddOccupant && (
             <>
               <Separator />
-              <section className="space-y-2">
-                <h3 className="text-sm font-medium">Mark slot occupied (unknown user)</h3>
-                <p className="text-xs text-muted-foreground">
-                  Use this when someone is using the license but has no account here.
-                </p>
+              <section className="space-y-3">
+                <h3 className="text-sm font-medium">Mark slot occupied</h3>
                 <form onSubmit={handleAddOccupant} className="flex gap-2">
                   <Input
                     value={occupantLabel}
@@ -285,7 +282,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {isAdmin && (
             <>
               <Separator />
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-sm font-medium">Details</h3>
                 <div className="space-y-1.5">
                   <Label htmlFor="account" className="text-xs">Account email</Label>
@@ -322,7 +319,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {isAdmin && (
             <>
               <Separator />
-              <section className="space-y-2">
+              <section className="space-y-3">
                 <h3 className="text-sm font-medium text-muted-foreground">Danger zone</h3>
                 <div className="flex gap-2 flex-wrap">
                   {license?.status === "AVAILABLE" && (
@@ -396,7 +393,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           <Separator />
 
           {/* History */}
-          <section className="space-y-2">
+          <section className="space-y-3 pb-8">
             <h3 className="text-sm font-medium">Claim history</h3>
             {loadingHistory ? (
               <p className="text-xs text-muted-foreground">Loading…</p>
