@@ -29,6 +29,7 @@ final class HomeViewModel {
 
 struct HomeView: View {
     @State private var vm = HomeViewModel()
+    @State private var showSearch = false
     @Environment(AppState.self) private var appState
 
     var body: some View {
@@ -127,6 +128,14 @@ struct HomeView: View {
             .task { await vm.load(appState: appState) }
             .navigationDestination(for: BookingSummary.self) { summary in
                 BookingDetailView(bookingId: summary.id)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                FloatingSearchButton(isPresented: $showSearch)
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 20)
+            }
+            .sheet(isPresented: $showSearch) {
+                GlobalSearchSheet()
             }
         }
     }

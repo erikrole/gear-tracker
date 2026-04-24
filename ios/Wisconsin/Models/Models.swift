@@ -133,6 +133,31 @@ struct Booking: Codable, Identifiable, Hashable {
 
 struct BookingStub: Codable { let id: String }
 
+// MARK: - Users
+
+struct AppUser: Codable, Identifiable {
+    let id: String
+    let name: String
+    let email: String
+    let role: String
+    let location: String?
+    let avatarUrl: String?
+}
+
+struct AppUserDetail: Codable, Identifiable {
+    let id: String
+    let name: String
+    let email: String
+    let role: String
+    let locationId: String?
+    let location: String?
+    let phone: String?
+    let primaryArea: String?
+    let avatarUrl: String?
+    let active: Bool
+    let createdAt: String?
+}
+
 // MARK: - API Responses
 
 struct PaginatedResponse<T: Codable>: Codable {

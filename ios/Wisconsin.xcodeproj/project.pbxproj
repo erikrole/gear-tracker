@@ -8,6 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		0FC9DC340824D39EB558E913 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B540C9027D1885BCBEA2E4D /* Models.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* SearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A2 /* SearchService.swift */; };
+		C1D2E3F4A5B6C7D8E9F0A1B2 /* FloatingSearchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9A0B1C2 /* FloatingSearchButton.swift */; };
+		E1F2A3B4C5D6E7F8A9B0C1D2 /* GlobalSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E2 /* GlobalSearchSheet.swift */; };
+		A2B3C4D5E6F7A8B9C0D1E2F3 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9D0E1F2A3 /* SearchResultRow.swift */; };
+		C2D3E4F5A6B7C8D9E0F1A2B3 /* QRScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E3F4A5B6C7D8E9F0A1B2C3 /* QRScannerSheet.swift */; };
+		E2F3A4B5C6D7E8F9A0B1C2D3 /* UserDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A3B4C5D6E7F8A9B0C1D2E3 /* UserDetailView.swift */; };
 		1AC641AD94A229A52FE17AE0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED3D57FAA3E94281C3FF27C /* APIClient.swift */; };
 		237DD2AF7BCC2631721C737C /* CreateBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */; };
 		23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37FF31264347D4D6932C4DBB /* ScanView.swift */; };
@@ -34,6 +40,12 @@
 
 /* Begin PBXFileReference section */
 		0189482D68508F45B086F46F /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5A6B7C8D9E0F1A2 /* SearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchService.swift; sourceTree = "<group>"; };
+		D1E2F3A4B5C6D7E8F9A0B1C2 /* FloatingSearchButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingSearchButton.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F7A8B9C0D1E2 /* GlobalSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSearchSheet.swift; sourceTree = "<group>"; };
+		B2C3D4E5F6A7B8C9D0E1F2A3 /* SearchResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRow.swift; sourceTree = "<group>"; };
+		D2E3F4A5B6C7D8E9F0A1B2C3 /* QRScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerSheet.swift; sourceTree = "<group>"; };
+		F2A3B4C5D6E7F8A9B0C1D2E3 /* UserDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDetailView.swift; sourceTree = "<group>"; };
 		2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingsView.swift; sourceTree = "<group>"; };
 		2536547429CB16E12CB069C0 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		294553EF02A8AC64D71ED849 /* Wisconsin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wisconsin.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -123,9 +135,21 @@
 				6ED3D57FAA3E94281C3FF27C /* APIClient.swift */,
 				38065600FA5A1C1AC4C8CC2F /* AppState.swift */,
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
+				B1C2D3E4F5A6B7C8D9E0F1A2 /* SearchService.swift */,
 				0189482D68508F45B086F46F /* SessionStore.swift */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		A3B4C5D6E7F8A9B0C1D2E3F4 /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				D1E2F3A4B5C6D7E8F9A0B1C2 /* FloatingSearchButton.swift */,
+				F1A2B3C4D5E6F7A8B9C0D1E2 /* GlobalSearchSheet.swift */,
+				D2E3F4A5B6C7D8E9F0A1B2C3 /* QRScannerSheet.swift */,
+				B2C3D4E5F6A7B8C9D0E1F2A3 /* SearchResultRow.swift */,
+			);
+			path = Search;
 			sourceTree = "<group>";
 		};
 		E5EFEF895EF2453C237A9A5C /* Views */ = {
@@ -143,7 +167,9 @@
 				6D6258D04F2CBF34C14EBB69 /* LoginView.swift */,
 				37FF31264347D4D6932C4DBB /* ScanView.swift */,
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
+				F2A3B4C5D6E7F8A9B0C1D2E3 /* UserDetailView.swift */,
 				4E310D05AC0591B9C424B405 /* Components */,
+				A3B4C5D6E7F8A9B0C1D2E3F4 /* Search */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -232,6 +258,12 @@
 				81413B070B47866D2C7DB337 /* SessionStore.swift in Sources */,
 				5BFCE075814954BB59669481 /* Skeleton.swift in Sources */,
 				390F43409B451AAB78D2D0C9 /* WisconsinApp.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* SearchService.swift in Sources */,
+				C1D2E3F4A5B6C7D8E9F0A1B2 /* FloatingSearchButton.swift in Sources */,
+				E1F2A3B4C5D6E7F8A9B0C1D2 /* GlobalSearchSheet.swift in Sources */,
+				A2B3C4D5E6F7A8B9C0D1E2F3 /* SearchResultRow.swift in Sources */,
+				C2D3E4F5A6B7C8D9E0F1A2B3 /* QRScannerSheet.swift in Sources */,
+				E2F3A4B5C6D7E8F9A0B1C2D3 /* UserDetailView.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
