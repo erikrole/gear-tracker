@@ -71,6 +71,7 @@ export const POST = withAuth(async (req, { user }) => {
     createdBy: user.id,
     sourceReservationId: body.sourceReservationId,
     eventId,
+    eventIds: body.eventIds,
     sportCode,
     shiftAssignmentId: body.shiftAssignmentId,
     kitId: body.kitId

@@ -24,7 +24,7 @@ export const availabilitySchema = z.object({
   excludeBookingId: z.string().cuid().optional()
 });
 
-export const createReservationSchema = z.object({
+const bookingBaseShape = {
   title: z.string().trim().min(1).max(500),
   requesterUserId: z.string().cuid(),
   locationId: z.string().cuid(),
@@ -33,15 +33,27 @@ export const createReservationSchema = z.object({
   serializedAssetIds: z.array(z.string().cuid()).default([]),
   bulkItems: z.array(bulkItemSchema).default([]),
   eventId: z.string().cuid().optional(),
+  eventIds: z.array(z.string().cuid()).max(3).optional(),
   sportCode: z.string().max(10).optional(),
   notes: z.string().max(10000).optional(),
   shiftAssignmentId: z.string().cuid().optional(),
-  kitId: z.string().cuid().optional()
-});
+  kitId: z.string().cuid().optional(),
+} as const;
 
-export const createCheckoutSchema = createReservationSchema.extend({
+function eventIdsExclusive(v: { eventId?: string; eventIds?: string[] }): boolean {
+  return !(v.eventId && v.eventIds && v.eventIds.length > 0);
+}
+const eventIdsExclusiveMsg = {
+  message: "Provide either eventId or eventIds, not both",
+  path: ["eventIds"] as (string | number)[],
+};
+
+export const createReservationSchema = z.object(bookingBaseShape).refine(eventIdsExclusive, eventIdsExclusiveMsg);
+
+export const createCheckoutSchema = z.object({
+  ...bookingBaseShape,
   sourceReservationId: z.string().cuid().optional(),
-});
+}).refine(eventIdsExclusive, eventIdsExclusiveMsg);
 
 export const startScanSessionSchema = z.object({
   phase: z.enum(["CHECKOUT", "CHECKIN"]),

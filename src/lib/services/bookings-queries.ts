@@ -116,6 +116,12 @@ export async function getBookingDetail(bookingId: string) {
       creator: { select: { id: true, name: true, email: true, avatarUrl: true } },
       serializedItems: { include: { asset: { include: { location: { select: { id: true, name: true } } } } } },
       event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
+      events: {
+        orderBy: { ordinal: "asc" },
+        include: {
+          event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true, startsAt: true, endsAt: true } },
+        },
+      },
       sourceReservation: { select: { id: true, refNumber: true, title: true } },
       shiftAssignment: { select: { id: true, shift: { select: { area: true } } } },
       kit: { select: { id: true, name: true } },
@@ -151,8 +157,13 @@ export async function getBookingDetail(bookingId: string) {
   const itemLocations = Array.from(locationMap, ([id, name]) => ({ id, name }));
   const locationMode: "SINGLE" | "MIXED" = itemLocations.length > 1 ? "MIXED" : "SINGLE";
 
+  // Flatten BookingEvent junction rows to a plain sorted event array for consumers.
+  const { events: eventLinks, ...rest } = booking;
+  const linkedEvents = eventLinks.map((link) => link.event);
+
   return {
-    ...booking,
+    ...rest,
+    events: linkedEvents,
     isOverdue,
     isActive,
     bookingType: booking.kind === BookingKind.RESERVATION ? "Reservation" : "Checkout",

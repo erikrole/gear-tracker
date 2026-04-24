@@ -32,6 +32,7 @@ export const POST = withAuth(async (req, { user }) => {
     notes: body.notes,
     createdBy: user.id,
     eventId: body.eventId,
+    eventIds: body.eventIds,
     sportCode: body.sportCode,
     shiftAssignmentId: body.shiftAssignmentId,
     kitId: body.kitId,
