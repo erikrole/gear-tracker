@@ -214,6 +214,10 @@ struct EditBookingSheet: View {
 private struct HeaderSection: View {
     let booking: Booking
 
+    private var isOverdue: Bool {
+        booking.status == .open && booking.endsAt < .now
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -224,6 +228,15 @@ private struct HeaderSection: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+            if isOverdue {
+                Label("Overdue — return gear at a kiosk", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red, in: RoundedRectangle(cornerRadius: 8))
             }
             if let event = booking.event, let summary = event.summary {
                 Text(summary)
@@ -237,7 +250,7 @@ private struct HeaderSection: View {
                 VStack(alignment: .leading) {
                     Text(booking.startsAt.formatted(date: .complete, time: .shortened))
                     Text("to \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isOverdue ? .red : .secondary)
                 }
             } icon: {
                 Image(systemName: "calendar")
@@ -265,6 +278,15 @@ private struct RequesterSection: View {
     }
 }
 
+private func allocationLabel(_ status: String) -> (String, Color) {
+    switch status.lowercased() {
+    case "active": return ("Out", .green)
+    case "returned": return ("Returned", .blue)
+    case "draft": return ("Pending", .orange)
+    default: return (status.capitalized, .secondary)
+    }
+}
+
 private struct ItemsSection: View {
     let items: [BookingSerializedItem]
 
@@ -285,11 +307,13 @@ private struct ItemsSection: View {
                     }
                     Spacer()
                     if let status = item.allocationStatus {
-                        Text(status)
-                            .font(.caption2)
+                        let (label, color) = allocationLabel(status)
+                        Text(label)
+                            .font(.caption2.weight(.medium))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(.quaternary, in: Capsule())
+                            .background(color.opacity(0.12), in: Capsule())
+                            .foregroundStyle(color)
                     }
                 }
             }
