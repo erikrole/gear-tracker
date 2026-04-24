@@ -9,6 +9,7 @@ private func nextCleanHour(offset: Int) -> Date {
 @MainActor
 @Observable
 final class CreateBookingViewModel {
+    var kind: BookingKind = .reservation
     var title = ""
     var selectedUserId: String = ""
     var selectedLocationId: String = ""
@@ -103,7 +104,8 @@ final class CreateBookingViewModel {
         }
         isSubmitting = true
         defer { isSubmitting = false }
-        return try await APIClient.shared.createReservation(
+        return try await APIClient.shared.createBooking(
+            kind: kind,
             title: title.trimmingCharacters(in: .whitespaces),
             requesterUserId: selectedUserId,
             locationId: selectedLocationId,
@@ -126,8 +128,10 @@ struct CreateBookingSheet: View {
     @State private var submitError: String?
     @Environment(SessionStore.self) private var session
 
-    init(onCreated: @escaping (String) -> Void) {
-        _vm = State(wrappedValue: CreateBookingViewModel())
+    init(kind: BookingKind = .reservation, onCreated: @escaping (String) -> Void) {
+        let m = CreateBookingViewModel()
+        m.kind = kind
+        _vm = State(wrappedValue: m)
         self.onCreated = onCreated
     }
 
@@ -145,7 +149,7 @@ struct CreateBookingSheet: View {
                     equipmentPicker
                 }
             }
-            .navigationTitle(step == 1 ? "New Reservation" : "Add Equipment")
+            .navigationTitle(step == 1 ? (vm.kind == .checkout ? "New Checkout" : "New Reservation") : "Add Equipment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .alert("Couldn't Create Booking", isPresented: Binding(

@@ -9,6 +9,7 @@ struct BookingDetailView: View {
     @State private var showCancelConfirm = false
     @State private var showExtend = false
     @State private var showEdit = false
+    @State private var showReturn = false
     @State private var isActioning = false
 
     var body: some View {
@@ -40,9 +41,10 @@ struct BookingDetailView: View {
                         }
                         if booking.status == .booked || booking.status == .pendingPickup || booking.status == .open {
                             ActionsSection(
-                                status: booking.status,
+                                booking: booking,
                                 isActioning: isActioning,
                                 onExtend: { showExtend = true },
+                                onReturn: { showReturn = true },
                                 onCancel: { showCancelConfirm = true }
                             )
                         }
@@ -81,6 +83,13 @@ struct BookingDetailView: View {
         .sheet(isPresented: $showEdit) {
             if let booking {
                 EditBookingSheet(booking: booking) {
+                    Task { await loadBooking() }
+                }
+            }
+        }
+        .sheet(isPresented: $showReturn) {
+            if let booking {
+                ReturnItemsSheet(booking: booking) {
                     Task { await loadBooking() }
                 }
             }
@@ -333,10 +342,15 @@ private struct NotesSection: View {
 }
 
 private struct ActionsSection: View {
-    let status: BookingStatus
+    let booking: Booking
     let isActioning: Bool
     let onExtend: () -> Void
+    let onReturn: () -> Void
     let onCancel: () -> Void
+
+    private var unreturned: [BookingSerializedItem] {
+        booking.serializedItems.filter { $0.allocationStatus == "active" }
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -353,14 +367,28 @@ private struct ActionsSection: View {
             .buttonStyle(ScalePressStyle())
             .disabled(isActioning)
 
-            if status == .pendingPickup {
+            if booking.status == .pendingPickup {
                 Label("Pick up gear at a kiosk", systemImage: "barcode.viewfinder")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 2)
-            } else if status == .open {
-                Label("Return gear at a kiosk", systemImage: "barcode.viewfinder")
+            } else if booking.status == .open {
+                if !unreturned.isEmpty {
+                    Button {
+                        onReturn()
+                    } label: {
+                        Label("Return Items (\(unreturned.count))", systemImage: "arrow.uturn.left.circle")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                            .foregroundStyle(.green)
+                    }
+                    .buttonStyle(ScalePressStyle())
+                    .disabled(isActioning)
+                }
+                Label("Or return at a kiosk", systemImage: "barcode.viewfinder")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
@@ -404,6 +432,105 @@ private struct SectionHeader: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
+    }
+}
+
+// MARK: - Return Items Sheet
+
+struct ReturnItemsSheet: View {
+    let booking: Booking
+    let onReturned: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedIds: Set<String> = []
+    @State private var isReturning = false
+    @State private var error: String?
+
+    private var activeItems: [BookingSerializedItem] {
+        booking.serializedItems.filter { $0.allocationStatus == "active" }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(activeItems) { item in
+                Button {
+                    if selectedIds.contains(item.assetId) {
+                        selectedIds.remove(item.assetId)
+                    } else {
+                        selectedIds.insert(item.assetId)
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        AssetThumbnail(imageUrl: item.asset.imageUrl, size: 40)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text([item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " "))
+                                .font(.subheadline)
+                                .foregroundStyle(.primary)
+                            if let tag = item.asset.assetTag {
+                                Text(tag)
+                                    .font(.caption)
+                                    .fontDesign(.monospaced)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Image(systemName: selectedIds.contains(item.assetId) ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(selectedIds.contains(item.assetId) ? .green : Color(.systemGray4))
+                            .animation(.easeInOut(duration: 0.15), value: selectedIds.contains(item.assetId))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .overlay {
+                if activeItems.isEmpty {
+                    ContentUnavailableView("All Items Returned", systemImage: "checkmark.seal")
+                }
+            }
+            .navigationTitle("Return Items")
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom) {
+                if let error {
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .font(.footnote)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task { await returnSelected() }
+                    } label: {
+                        if isReturning {
+                            ProgressView().scaleEffect(0.8)
+                        } else {
+                            Text("Return").fontWeight(.semibold)
+                        }
+                    }
+                    .disabled(selectedIds.isEmpty || isReturning)
+                }
+            }
+        }
+    }
+
+    private func returnSelected() async {
+        isReturning = true
+        error = nil
+        do {
+            try await APIClient.shared.checkinItems(bookingId: booking.id, assetIds: Array(selectedIds))
+            onReturned()
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isReturning = false
     }
 }
 

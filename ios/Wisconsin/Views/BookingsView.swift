@@ -130,7 +130,7 @@ struct BookingsView: View {
                 }
             }
             .sheet(isPresented: $showCreate) {
-                CreateBookingSheet { newId in
+                CreateBookingSheet(kind: vm.tab == .checkouts ? .checkout : .reservation) { newId in
                     Task {
                         await vm.load(reset: true)
                         navigationPath.append(newId)
