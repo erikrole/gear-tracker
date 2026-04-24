@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UserNotifications
 
 @main
@@ -21,8 +22,12 @@ struct WisconsinApp: App {
                     sharedAppState = appState
                     sharedKioskStore = kioskStore
                 }
-                .onChange(of: session.currentUser) { _, user in
-                    if user != nil { requestPushPermissions() }
+                .onChange(of: session.currentUser) { old, user in
+                    if user != nil {
+                        requestPushPermissions()
+                    } else if old != nil {
+                        GearStore.shared.clearAll()
+                    }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && session.currentUser != nil {
@@ -42,6 +47,7 @@ struct WisconsinApp: App {
                         : UIColor(red: 0.627, green: 0, blue: 0, alpha: 1)
                 })))
         }
+        .modelContainer(GearStore.shared.container)
     }
 
     private func requestPushPermissions() {
