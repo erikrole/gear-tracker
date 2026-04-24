@@ -180,7 +180,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
 
   return (
     <Sheet open={!!license} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-md">
+      <SheetContent className="overflow-y-auto sm:max-w-md p-8">
         <SheetHeader>
           <div className="flex items-center gap-2 flex-wrap">
             <SheetTitle className="font-mono text-sm break-all">{license?.code}</SheetTitle>
@@ -200,9 +200,9 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-8 space-y-8 px-1">
+        <div className="mt-10 space-y-10">
           {/* Active slots */}
-          <section className="space-y-3">
+          <section className="space-y-4">
             <h3 className="text-sm font-medium">Active slots ({activeClaims.length}/2)</h3>
             {activeClaims.length === 0 ? (
               <p className="text-xs text-muted-foreground">Both slots are open.</p>
@@ -261,13 +261,12 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {canAddOccupant && (
             <>
               <Separator />
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-sm font-medium">Mark slot occupied</h3>
                 <form onSubmit={handleAddOccupant} className="flex gap-2">
                   <Input
                     value={occupantLabel}
                     onChange={(e) => setOccupantLabel(e.target.value)}
-                    placeholder="e.g. Hallie Utter"
                     className="flex-1"
                   />
                   <Button type="submit" size="sm" disabled={addingOccupant || !occupantLabel.trim()}>
@@ -282,7 +281,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {isAdmin && (
             <>
               <Separator />
-              <section className="space-y-4">
+              <section className="space-y-5">
                 <h3 className="text-sm font-medium">Details</h3>
                 <div className="space-y-1.5">
                   <Label htmlFor="account" className="text-xs">Account email</Label>
@@ -291,7 +290,6 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                     type="email"
                     value={editAccount}
                     onChange={(e) => setEditAccount(e.target.value)}
-                    placeholder="kms@athletics.wisc.edu"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -319,7 +317,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {isAdmin && (
             <>
               <Separator />
-              <section className="space-y-3">
+              <section className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground">Danger zone</h3>
                 <div className="flex gap-2 flex-wrap">
                   {license?.status === "AVAILABLE" && (
