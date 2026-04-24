@@ -14,10 +14,14 @@ struct AssetResultRow: View {
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                 HStack(spacing: 4) {
-                    Text(asset.displayName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("·").font(.caption).foregroundStyle(.tertiary)
+                    if let cat = asset.category {
+                        Text(cat.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if asset.category != nil {
+                        Text("·").font(.caption).foregroundStyle(.tertiary)
+                    }
                     Text(asset.location.name)
                         .font(.caption)
                         .foregroundStyle(.secondary)
