@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/format";
 import { getInitials } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
@@ -24,22 +25,43 @@ function maskCode(code: string): string {
   return [parts[0], ...parts.slice(1, -1).map(() => "••••"), parts[parts.length - 1]].join("-");
 }
 
-function ExpiryBadge({ expiresAt }: { expiresAt: string }) {
-  const diff = new Date(expiresAt).getTime() - Date.now();
+function ExpiryDisplay({ expiresAt }: { expiresAt: string }) {
+  const expiry = new Date(expiresAt);
+  const diff = expiry.getTime() - Date.now();
   const days = Math.ceil(diff / 86_400_000);
-  if (days < 0) return <Badge variant="destructive" className="text-xs">Expired</Badge>;
-  if (days <= 30) return <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-700 dark:text-yellow-400">{days}d left</Badge>;
-  return null;
+  const dateStr = expiry.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
+  if (days < 0) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="destructive" className="text-xs cursor-help">Expired</Badge>
+        </TooltipTrigger>
+        <TooltipContent>Expired {dateStr}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  if (days <= 30) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-700 dark:text-yellow-400 cursor-help">
+            {days}d left
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>Expires {dateStr}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{dateStr}</span>;
 }
 
 function HolderCell({
   claims,
-  currentUserId,
   isAdmin,
   myClaimId,
 }: {
   claims: ActiveClaim[];
-  currentUserId: string | null;
   isAdmin: boolean;
   myClaimId: string | null;
 }) {
@@ -64,7 +86,7 @@ function HolderCell({
             </span>
             {isOwn && <span className="text-xs text-muted-foreground">(you)</span>}
             {claim.userId === null && isAdmin && (
-              <span className="text-xs text-muted-foreground italic">unknown</span>
+              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">unknown</Badge>
             )}
           </div>
         );
@@ -78,6 +100,7 @@ type Props = {
   loading: boolean;
   currentUserId: string | null;
   isAdmin: boolean;
+  hasMyLicense: boolean;
   myClaimId: string | null;
   onClickAvailable: (code: LicenseCode) => void;
   onClickClaimed: (code: LicenseCode) => void;
@@ -89,6 +112,7 @@ export function LicenseTable({
   loading,
   currentUserId,
   isAdmin,
+  hasMyLicense,
   myClaimId,
   onClickAvailable,
   onClickClaimed,
@@ -127,56 +151,57 @@ export function LicenseTable({
         <TableHeader>
           <TableRow>
             <TableHead>Code</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Holders ({MAX_SLOTS} max)</TableHead>
-            {showExpiry && <TableHead>Expires</TableHead>}
+            <TableHead className="w-24">Status</TableHead>
+            <TableHead>Holders</TableHead>
+            {showExpiry && <TableHead className="w-32">Expires</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {codes.map((code) => {
-            const myActiveClaim = code.claims.find(
-              (c) => c.userId === currentUserId
-            );
+            const myActiveClaim = code.claims.find((c) => c.userId === currentUserId);
             const isOwn = !!myActiveClaim;
-            const canClick =
-              code.status !== "RETIRED" &&
-              (code.status === "AVAILABLE" ||
-                code.status === "PARTIAL" ||
-                isOwn ||
-                isAdmin);
+
+            // Determine clickability
+            const claimable = code.status === "AVAILABLE" || code.status === "PARTIAL";
+            const studentCanClaim = claimable && !hasMyLicense;
+            const adminCanInspect = isAdmin && code.status !== "RETIRED";
+            const studentCanRelease = isOwn;
+            const isClickable = studentCanClaim || studentCanRelease || adminCanInspect;
 
             const rowClass = cn(
               "transition-colors",
-              code.status === "AVAILABLE" && "bg-green-50 hover:bg-green-100 dark:bg-green-950/20 dark:hover:bg-green-950/30 cursor-pointer",
-              code.status === "PARTIAL" && "bg-amber-50 dark:bg-amber-950/20",
-              code.status === "PARTIAL" && (isAdmin || isOwn) && "hover:bg-amber-100 dark:hover:bg-amber-950/30 cursor-pointer",
-              code.status === "PARTIAL" && !isOwn && !isAdmin && "cursor-pointer hover:bg-green-50 dark:hover:bg-green-950/20",
-              code.status === "CLAIMED" && "bg-red-50 dark:bg-red-950/20",
-              code.status === "CLAIMED" && (isOwn || isAdmin) && "hover:bg-red-100 dark:hover:bg-red-950/30 cursor-pointer",
+              code.status === "AVAILABLE" && "bg-green-50/50 dark:bg-green-950/10",
+              code.status === "PARTIAL" && "bg-amber-50/50 dark:bg-amber-950/10",
+              code.status === "CLAIMED" && "bg-red-50/30 dark:bg-red-950/10",
+              code.status === "RETIRED" && "opacity-50",
               isOwn && "ring-1 ring-inset ring-green-300 dark:ring-green-700",
-              code.status === "RETIRED" && "opacity-50"
+              isClickable && "cursor-pointer hover:bg-muted/60",
+              !isClickable && "cursor-default"
             );
 
             function handleClick() {
-              if (!canClick) return;
-              if (code.status === "AVAILABLE") return onClickAvailable(code);
-              if (code.status === "PARTIAL" && !isOwn && !isAdmin) return onClickAvailable(code);
-              onClickClaimed(code);
+              if (!isClickable) return;
+              if (isOwn) return onClickClaimed(code);
+              if (claimable && studentCanClaim) return onClickAvailable(code);
+              if (adminCanInspect) return onClickClaimed(code);
             }
 
-            const displayCode =
-              isAdmin || isOwn ? code.code : maskCode(code.code);
+            const displayCode = isAdmin || isOwn ? code.code : maskCode(code.code);
 
             return (
               <TableRow key={code.id} className={rowClass} onClick={handleClick}>
                 <TableCell>
-                  <code className="font-mono text-sm">{displayCode}</code>
-                  {code.label && (
-                    <span className="ml-2 text-xs text-muted-foreground">{code.label}</span>
-                  )}
-                  {code.accountEmail && isAdmin && (
-                    <span className="ml-2 text-xs text-muted-foreground">· {code.accountEmail}</span>
-                  )}
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <code className="font-mono text-sm">{displayCode}</code>
+                      {code.label && (
+                        <span className="text-xs text-muted-foreground">{code.label}</span>
+                      )}
+                    </div>
+                    {code.accountEmail && isAdmin && (
+                      <span className="text-xs text-muted-foreground truncate">{code.accountEmail}</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {code.status === "AVAILABLE" && (
@@ -201,7 +226,6 @@ export function LicenseTable({
                 <TableCell>
                   <HolderCell
                     claims={code.claims}
-                    currentUserId={currentUserId}
                     isAdmin={isAdmin}
                     myClaimId={myActiveClaim?.id ?? null}
                   />
@@ -209,12 +233,7 @@ export function LicenseTable({
                 {showExpiry && (
                   <TableCell>
                     {code.expiresAt ? (
-                      <div className="flex flex-col gap-0.5">
-                        <ExpiryBadge expiresAt={code.expiresAt} />
-                        <span className="text-xs text-muted-foreground">
-                          {formatRelativeTime(code.expiresAt, new Date())}
-                        </span>
-                      </div>
+                      <ExpiryDisplay expiresAt={code.expiresAt} />
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>
                     )}

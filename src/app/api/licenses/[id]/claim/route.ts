@@ -14,9 +14,8 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     entityType: "license_code",
     entityId: params.id,
     action: "claim",
-    after: { claimedById: user.id, claimedAt: code.claimedAt },
+    after: { userId: user.id, status: code.status, at: new Date().toISOString() },
   });
 
-  // Return full code string only on claim — used for clipboard copy
-  return ok({ data: { id: code.id, code: code.code, claimedAt: code.claimedAt } });
+  return ok({ data: { id: code.id, code: code.code } });
 });

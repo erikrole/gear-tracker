@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, Plus, RefreshCw, List } from "lucide-react";
+import { KeyRound, Plus, RefreshCw, List, Download } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
@@ -72,7 +72,13 @@ export default function LicensesPage() {
   }
 
   function handleClickClaimed(code: LicenseCode) {
+    // Students without admin rights get their own view via MyLicensePanel — skip the sheet.
+    if (!isAdmin) return;
     setAdminTarget(code);
+  }
+
+  function handleExport() {
+    window.location.href = "/api/licenses/export";
   }
 
   return (
@@ -115,6 +121,20 @@ export default function LicensesPage() {
                 <TooltipContent>{showRetired ? "Hide retired" : "Show retired"}</TooltipContent>
               </Tooltip>
             )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  onClick={handleExport}
+                  aria-label="Export CSV"
+                >
+                  <Download className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export CSV</TooltipContent>
+            </Tooltip>
             <Button variant="outline" size="sm" onClick={() => setShowBulk(true)}>
               Bulk add
             </Button>
@@ -154,6 +174,7 @@ export default function LicensesPage() {
           loading={codesLoading}
           currentUserId={currentUserId}
           isAdmin={isAdmin}
+          hasMyLicense={!!myLicense}
           myClaimId={myLicense?.claimId ?? null}
           onClickAvailable={handleClickAvailable}
           onClickClaimed={handleClickClaimed}

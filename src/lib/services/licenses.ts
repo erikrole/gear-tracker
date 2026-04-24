@@ -278,6 +278,72 @@ async function sendPushToUser(
   }
 }
 
+export async function processExpiryWarnings() {
+  const now = new Date();
+  const horizon = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+  const expiring = await db.licenseCode.findMany({
+    where: {
+      status: { not: LicenseCodeStatus.RETIRED },
+      expiresAt: { not: null, lte: horizon },
+    },
+    select: { id: true, code: true, label: true, expiresAt: true },
+  });
+
+  if (expiring.length === 0) return { warned: 0 };
+
+  const admins = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "STAFF"] } },
+    select: { id: true },
+  });
+  if (admins.length === 0) return { warned: 0 };
+
+  let warned = 0;
+
+  for (const code of expiring) {
+    if (!code.expiresAt) continue;
+    const yearMonth = `${code.expiresAt.getUTCFullYear()}-${String(code.expiresAt.getUTCMonth() + 1).padStart(2, "0")}`;
+    const isExpired = code.expiresAt < now;
+    const daysLeft = Math.ceil((code.expiresAt.getTime() - now.getTime()) / 86_400_000);
+
+    const title = isExpired
+      ? "Photo Mechanic license expired"
+      : `Photo Mechanic license expiring in ${daysLeft}d`;
+    const body = `${code.label ?? code.code}${code.label ? ` (${code.code})` : ""} · Renew soon to avoid disruption.`;
+
+    for (const admin of admins) {
+      const dedupeKey = `license-expiry-${code.id}-${yearMonth}-${admin.id}`;
+      try {
+        const existing = await db.notification.findUnique({ where: { dedupeKey } });
+        if (existing) continue;
+
+        await db.notification.create({
+          data: {
+            userId: admin.id,
+            type: isExpired ? "license_expired" : "license_expiring_soon",
+            title,
+            body,
+            channel: "IN_APP",
+            dedupeKey,
+          },
+        });
+
+        await sendPushToUser(admin.id, {
+          title,
+          body,
+          payload: { type: "license_expiry", licenseCodeId: code.id },
+        });
+
+        warned++;
+      } catch (err) {
+        console.error(`[LICENSE_EXPIRY] Failed for code ${code.id} admin ${admin.id}:`, err);
+      }
+    }
+  }
+
+  return { warned };
+}
+
 export async function processLicenseNags() {
   const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 

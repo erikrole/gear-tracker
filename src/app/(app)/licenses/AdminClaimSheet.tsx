@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Trash2, Archive, AlertCircle } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -9,6 +10,17 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,11 +54,16 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
   const [occupantLabel, setOccupantLabel] = useState("");
   const [addingOccupant, setAddingOccupant] = useState(false);
   const [editExpiry, setEditExpiry] = useState("");
-  const [savingExpiry, setSavingExpiry] = useState(false);
+  const [editAccount, setEditAccount] = useState("");
+  const [savingDetails, setSavingDetails] = useState(false);
 
   useEffect(() => {
-    if (!license) return;
+    if (!license) {
+      setHistory([]);
+      return;
+    }
     setEditExpiry(license.expiresAt ? license.expiresAt.slice(0, 10) : "");
+    setEditAccount(license.accountEmail ?? "");
     setLoadingHistory(true);
     fetch(`/api/licenses/${license.id}/history`)
       .then((r) => r.json())
@@ -67,7 +84,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to release");
-      toast.success("Slot released");
+      toast.success(claimId ? "Slot released" : "All slots released");
       onAction();
       onOpenChange(false);
     } catch (err) {
@@ -100,24 +117,26 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
     }
   }
 
-  async function handleSaveExpiry() {
+  async function handleSaveDetails() {
     if (!license) return;
-    setSavingExpiry(true);
+    setSavingDetails(true);
     try {
-      const expiresAt = editExpiry ? new Date(editExpiry).toISOString() : null;
       const res = await fetch(`/api/licenses/${license.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expiresAt }),
+        body: JSON.stringify({
+          accountEmail: editAccount.trim() || null,
+          expiresAt: editExpiry ? new Date(editExpiry).toISOString() : null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to save");
-      toast.success("Expiry updated");
+      toast.success("License details updated");
       onAction();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setSavingExpiry(false);
+      setSavingDetails(false);
     }
   }
 
@@ -155,61 +174,75 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
 
   const activeClaims = license?.claims ?? [];
   const canAddOccupant = isAdmin && activeClaims.length < 2;
-  const isExpiringSoon =
-    license?.expiresAt && new Date(license.expiresAt).getTime() - Date.now() < 30 * 86_400_000;
-  const isExpired = license?.expiresAt && new Date(license.expiresAt) < new Date();
+  const expiryMs = license?.expiresAt ? new Date(license.expiresAt).getTime() : null;
+  const isExpired = expiryMs != null && expiryMs < Date.now();
+  const isExpiringSoon = expiryMs != null && !isExpired && expiryMs - Date.now() < 30 * 86_400_000;
 
   return (
     <Sheet open={!!license} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
+      <SheetContent className="overflow-y-auto sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="font-mono text-sm">{license?.code}</SheetTitle>
-          <SheetDescription>
-            {license?.label ?? "No label"}
-            {license?.accountEmail && (
-              <span className="block text-xs mt-0.5 text-muted-foreground">{license.accountEmail}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <SheetTitle className="font-mono text-sm break-all">{license?.code}</SheetTitle>
+            {isExpired && <Badge variant="destructive" className="text-xs">Expired</Badge>}
+            {isExpiringSoon && (
+              <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-700 dark:text-yellow-400">
+                Expiring soon
+              </Badge>
             )}
+          </div>
+          <SheetDescription className="space-y-0.5">
+            {license?.label && <span className="block">{license.label}</span>}
+            {license?.accountEmail && (
+              <span className="block text-xs text-muted-foreground">{license.accountEmail}</span>
+            )}
+            {!license?.label && !license?.accountEmail && <span>License details</span>}
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-5">
           {/* Active slots */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Active slots</p>
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium">Active slots ({activeClaims.length}/2)</h3>
             {activeClaims.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No one is using this license.</p>
+              <p className="text-xs text-muted-foreground">Both slots are open.</p>
             ) : (
-              activeClaims.map((claim) => {
-                const name = claim.user?.name ?? claim.occupantLabel ?? "Unknown";
-                return (
-                  <div key={claim.id} className="flex items-center gap-2">
-                    <Avatar className="size-7">
-                      {claim.user?.avatarUrl && (
-                        <AvatarImage src={claim.user.avatarUrl} alt={name} />
+              <div className="space-y-1.5">
+                {activeClaims.map((claim) => {
+                  const name = claim.user?.name ?? claim.occupantLabel ?? "Unknown";
+                  return (
+                    <div
+                      key={claim.id}
+                      className="flex items-center gap-2 rounded-md border bg-card p-2"
+                    >
+                      <Avatar className="size-7">
+                        {claim.user?.avatarUrl && (
+                          <AvatarImage src={claim.user.avatarUrl} alt={name} />
+                        )}
+                        <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatRelativeTime(claim.claimedAt, new Date())}
+                          {claim.userId === null && " · unknown user"}
+                        </p>
+                      </div>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                          onClick={() => handleReleaseClaim(claim.id)}
+                          disabled={!!releasing}
+                        >
+                          {releasing === claim.id ? "…" : "Release"}
+                        </Button>
                       )}
-                      <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatRelativeTime(claim.claimedAt, new Date())}
-                        {claim.userId === null && " · unknown user"}
-                      </p>
                     </div>
-                    {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive shrink-0"
-                        onClick={() => handleReleaseClaim(claim.id)}
-                        disabled={!!releasing}
-                      >
-                        {releasing === claim.id ? "…" : "Release"}
-                      </Button>
-                    )}
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
             {isAdmin && activeClaims.length > 1 && (
               <Button
@@ -219,22 +252,22 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                 onClick={() => handleReleaseClaim()}
                 disabled={!!releasing}
               >
-                {releasing === "all" ? "Releasing…" : "Release all"}
+                {releasing === "all" ? "Releasing all…" : "Release all slots"}
               </Button>
             )}
-          </div>
+          </section>
 
           {/* Add unknown occupant */}
           {canAddOccupant && (
             <>
               <Separator />
-              <form onSubmit={handleAddOccupant} className="space-y-2">
-                <Label htmlFor="occupant" className="text-sm font-medium">
-                  Mark slot as occupied (unknown user)
-                </Label>
-                <div className="flex gap-2">
+              <section className="space-y-2">
+                <h3 className="text-sm font-medium">Mark slot occupied (unknown user)</h3>
+                <p className="text-xs text-muted-foreground">
+                  Use this when someone is using the license but has no account here.
+                </p>
+                <form onSubmit={handleAddOccupant} className="flex gap-2">
                   <Input
-                    id="occupant"
                     value={occupantLabel}
                     onChange={(e) => setOccupantLabel(e.target.value)}
                     placeholder="e.g. Hallie Utter"
@@ -243,68 +276,128 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                   <Button type="submit" size="sm" disabled={addingOccupant || !occupantLabel.trim()}>
                     {addingOccupant ? "…" : "Add"}
                   </Button>
-                </div>
-              </form>
+                </form>
+              </section>
             </>
           )}
 
-          {/* Expiry */}
+          {/* Details (admin) */}
           {isAdmin && (
             <>
               <Separator />
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">Annual expiry</p>
-                  {isExpired && <Badge variant="destructive" className="text-xs">Expired</Badge>}
-                  {!isExpired && isExpiringSoon && (
-                    <Badge variant="outline" className="text-xs border-yellow-400 text-yellow-700">
-                      Expiring soon
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex gap-2">
+              <section className="space-y-3">
+                <h3 className="text-sm font-medium">Details</h3>
+                <div className="space-y-1.5">
+                  <Label htmlFor="account" className="text-xs">Account email</Label>
                   <Input
+                    id="account"
+                    type="email"
+                    value={editAccount}
+                    onChange={(e) => setEditAccount(e.target.value)}
+                    placeholder="kms@athletics.wisc.edu"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="expiry" className="text-xs">Annual expiry</Label>
+                  <Input
+                    id="expiry"
                     type="date"
                     value={editExpiry}
                     onChange={(e) => setEditExpiry(e.target.value)}
-                    className="flex-1"
                   />
-                  <Button size="sm" variant="outline" onClick={handleSaveExpiry} disabled={savingExpiry}>
-                    {savingExpiry ? "…" : "Save"}
-                  </Button>
                 </div>
-              </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSaveDetails}
+                  disabled={savingDetails}
+                >
+                  {savingDetails ? "Saving…" : "Save details"}
+                </Button>
+              </section>
             </>
           )}
 
-          <Separator />
-
-          {/* Admin actions */}
+          {/* Danger zone */}
           {isAdmin && (
-            <div className="flex gap-2">
-              {license?.status !== "CLAIMED" && license?.status !== "PARTIAL" && (
-                <Button variant="outline" size="sm" onClick={handleRetire}>
-                  Retire
-                </Button>
-              )}
-              {activeClaims.length === 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={handleDelete}
-                >
-                  Delete
-                </Button>
-              )}
-            </div>
+            <>
+              <Separator />
+              <section className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Danger zone</h3>
+                <div className="flex gap-2 flex-wrap">
+                  {license?.status === "AVAILABLE" && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Archive className="size-3.5 mr-1.5" />
+                          Retire
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Retire this license?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Retired licenses are hidden from students but kept for the audit log.
+                            You can show them again from the page header.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleRetire}>Retire</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  {activeClaims.length === 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="size-3.5 mr-1.5" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertCircle className="size-4 text-destructive" />
+                            Delete this license?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This permanently deletes the license code and all of its claim history.
+                            This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+                {activeClaims.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Release all slots before retiring or deleting.
+                  </p>
+                )}
+              </section>
+            </>
           )}
 
           <Separator />
 
           {/* History */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Claim history</p>
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium">Claim history</h3>
             {loadingHistory ? (
               <p className="text-xs text-muted-foreground">Loading…</p>
             ) : history.length === 0 ? (
@@ -333,7 +426,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                 })}
               </div>
             )}
-          </div>
+          </section>
         </div>
       </SheetContent>
     </Sheet>
