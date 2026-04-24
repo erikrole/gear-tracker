@@ -347,12 +347,14 @@ export async function processExpiryWarnings() {
 export async function processLicenseNags() {
   const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 
+  // Staff and admins hold licenses with indefinite custody — only students get nagged to rotate.
   const overdueClaims = await db.licenseCodeClaim.findMany({
     where: {
       releasedAt: null,
       userId: { not: null },
       claimedAt: { lt: twoDaysAgo },
       licenseCode: { nagSentAt: null },
+      user: { role: "STUDENT" },
     },
     select: { id: true, userId: true, claimedAt: true, licenseCodeId: true },
   });

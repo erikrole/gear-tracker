@@ -22,6 +22,7 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 5. **Expiry is informational.** Warnings appear in the UI and via push notification 14 days before expiry; active claims are NOT auto-released.
 6. **License codes only revealed to admins or the holder.** Other students see masked codes (`XXXX-••••-••••-XXXX`).
 7. **Audit log** captures every claim, release, occupy, retire, delete, update.
+8. **Staff and admins hold licenses with indefinite custody.** Only students are subject to the 2-day rotation nag. The "one active claim per user" rule still applies to everyone.
 
 ## Data Model
 - Migration: SQL run manually 2026-04-24 (no Prisma migration file).
@@ -78,7 +79,7 @@ Cron route: `GET /api/cron/notifications` (daily, see `vercel.json`).
 
 | Trigger | Recipients | Dedupe | Channel |
 |---|---|---|---|
-| User has held a slot for >2 days | The holder | `license-nag-{codeId}-{claimedAtIso}` | in-app + push |
+| Student has held a slot for >2 days | The holder (STUDENT only — staff/admins exempt) | `license-nag-{codeId}-{claimedAtIso}` | in-app + push |
 | License expires within 14 days OR is past expiry | All ADMIN/STAFF users | `license-expiry-{codeId}-{YYYY-MM}-{adminId}` | in-app + push |
 
 Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/services/licenses.ts`.
