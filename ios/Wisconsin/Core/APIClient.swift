@@ -274,23 +274,30 @@ final class APIClient {
     }
 
     func assetsLookup(rawScan: String) async throws -> String? {
-        // Legacy bg://item/{assetId} QR codes embed the asset's primary key directly
+        // Old kiosk QR codes encoded the asset's CUID as bg://item/{id}.
+        // Try direct ID lookup first; if 404, fall through to the qrCodeValue
+        // search below (which handles bg://item/{assetTag} stored verbatim).
         if rawScan.hasPrefix("bg://item/") {
-            let assetId = String(rawScan.dropFirst("bg://item/".count))
-            guard !assetId.isEmpty else { return nil }
-            do {
-                let detail = try await asset(id: assetId)
-                return detail.id
-            } catch APIError.notFound {
-                return nil
+            let embedded = String(rawScan.dropFirst("bg://item/".count))
+            if !embedded.isEmpty {
+                do {
+                    return try await asset(id: embedded).id
+                } catch APIError.notFound {
+                    // Not a raw CUID — fall through to qrCodeValue search
+                }
             }
         }
 
-        let stripped = rawScan.replacingOccurrences(of: "bg://case/", with: "")
+        // Pass the full raw scan as ?qr= so the server can do exact qrCodeValue
+        // matches (e.g. bg://item/FB FX3 2, QR-CA083A13, ca083a13).
+        // Strip URL-scheme prefixes only for the ?q= general-text search.
+        let stripped = rawScan
+            .replacingOccurrences(of: "bg://item/", with: "")
+            .replacingOccurrences(of: "bg://case/", with: "")
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/assets"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             .init(name: "q", value: stripped),
-            .init(name: "qr", value: stripped),
+            .init(name: "qr", value: rawScan),
             .init(name: "limit", value: "5"),
         ]
         var req = URLRequest(url: components.url!)
