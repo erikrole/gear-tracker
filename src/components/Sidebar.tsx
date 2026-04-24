@@ -22,6 +22,7 @@ import {
   BellIcon,
   PlusIcon,
   CameraIcon,
+  KeyIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -70,6 +71,7 @@ const navGroups: NavGroup[] = [
       { label: "Kits", href: "/kits", icon: BoxIcon },
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
+      { label: "Licenses", href: "/licenses", icon: KeyIcon },
       { label: "Settings", href: "/settings", icon: SettingsIcon },
     ],
   },

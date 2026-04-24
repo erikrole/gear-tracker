@@ -678,21 +678,13 @@ function EventRows({
           </div>
         </td>
         <td className="px-4 py-3 border-b border-border/20 whitespace-nowrap">
-          {callTime ? (
-            <div className="flex flex-col gap-0.5">
-              <span
-                className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground/50"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                Call
-              </span>
-              <span className="text-sm text-muted-foreground tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
-                {callTime}
-              </span>
-            </div>
-          ) : (
-            <span className="text-sm text-muted-foreground">{timeStr}</span>
-          )}
+          <span className="text-sm text-muted-foreground tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
+            {callTime
+              ? `Call ${callTime}–${formatTime(entry.endsAt)}`
+              : entry.allDay
+                ? "All day"
+                : formatTime(entry.endsAt)}
+          </span>
         </td>
       </tr>
 

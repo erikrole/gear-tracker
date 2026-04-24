@@ -223,7 +223,7 @@ export default function DashboardPage() {
 
       {/* ══════ Stat Strip ══════ */}
       {refreshing && <Progress className="h-0.5 mb-1" />}
-      {!isStudent && stats && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
+      {stats && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
         <StaggerItem><StatCard href="/checkouts?filter=overdue" value={stats.overdue} label="Overdue" accent={stats.overdue > 0 ? "red" : undefined} /></StaggerItem>
         <StaggerItem><StatCard href="/bookings?tab=checkouts&filter=due-today" value={stats.dueToday} label="Due today" accent={stats.dueToday > 0 ? "amber" : undefined} /></StaggerItem>
         <StaggerItem><StatCard href="/bookings?tab=checkouts" value={stats.checkedOut} label="Active checkouts" /></StaggerItem>
