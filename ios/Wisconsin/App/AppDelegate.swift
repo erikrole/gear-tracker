@@ -10,6 +10,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
 
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        if sharedKioskStore?.isKioskMode == true {
+            return [.landscapeLeft, .landscapeRight]
+        }
+        return .all
+    }
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
         Task { try? await APIClient.shared.registerDeviceToken(hex) }

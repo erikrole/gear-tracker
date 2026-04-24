@@ -7,6 +7,7 @@ struct WisconsinApp: App {
     @State private var session = SessionStore()
     @State private var appState = AppState()
     @State private var network = NetworkMonitor()
+    @State private var kioskStore = KioskStore()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -15,13 +16,22 @@ struct WisconsinApp: App {
                 .environment(session)
                 .environment(appState)
                 .environment(network)
-                .onAppear { sharedAppState = appState }
+                .environment(kioskStore)
+                .onAppear {
+                    sharedAppState = appState
+                    sharedKioskStore = kioskStore
+                }
                 .onChange(of: session.currentUser) { _, user in
                     if user != nil { requestPushPermissions() }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && session.currentUser != nil {
                         Task { await appState.refreshUnread() }
+                    }
+                }
+                .onOpenURL { url in
+                    if url.scheme == "wisconsin", url.host == "kiosk" {
+                        kioskStore.enterKiosk()
                     }
                 }
                 .tint(Color(UIColor(dynamicProvider: { trait in
@@ -55,9 +65,12 @@ struct WisconsinApp: App {
 
 struct RootView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(KioskStore.self) private var kiosk
 
     var body: some View {
-        if session.currentUser != nil {
+        if kiosk.isKioskMode {
+            KioskShellView()
+        } else if session.currentUser != nil {
             AppTabView()
         } else {
             LoginView()
