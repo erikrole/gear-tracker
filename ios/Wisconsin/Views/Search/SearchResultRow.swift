@@ -7,33 +7,26 @@ struct AssetResultRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.accentColor.opacity(0.1))
-                    .frame(width: 40, height: 40)
-                Image(systemName: "camera.aperture")
-                    .font(.system(size: 16))
-                    .foregroundStyle(Color.accentColor)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(asset.displayName)
+            AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(asset.assetTag ?? asset.displayName)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                 HStack(spacing: 4) {
-                    if let tag = asset.assetTag {
-                        Text(tag)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if asset.assetTag != nil {
-                        Text("·").font(.caption).foregroundStyle(.tertiary)
-                    }
+                    Text(asset.displayName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("·").font(.caption).foregroundStyle(.tertiary)
                     Text(asset.location.name)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .lineLimit(1)
             }
+
             Spacer()
+
             AssetStatusBadge(status: asset.computedStatus)
         }
         .padding(.vertical, 4)

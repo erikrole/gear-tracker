@@ -121,31 +121,56 @@ struct AssetRow: View {
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(asset.displayName)
-                    .font(.headline)
+                Text(asset.assetTag ?? asset.displayName)
+                    .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                 HStack(spacing: 4) {
-                    if let tag = asset.assetTag {
-                        Text(tag)
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
                     if let cat = asset.category {
-                        Text("·")
-                            .foregroundStyle(.tertiary)
                         Text(cat.name)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if asset.category != nil {
+                        Text("·").font(.caption).foregroundStyle(.tertiary)
+                    }
+                    Text(asset.location.name)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 .lineLimit(1)
             }
 
             Spacer()
 
-            AssetStatusBadge(status: asset.computedStatus)
+            AssetListBadge(asset: asset)
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct AssetListBadge: View {
+    let asset: Asset
+
+    var body: some View {
+        if asset.computedStatus == .available {
+            Text("Available")
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.green.opacity(0.15), in: Capsule())
+                .foregroundStyle(.green)
+        } else if let name = asset.activeBooking?.requesterName {
+            Text(name)
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.red.opacity(0.15), in: Capsule())
+                .foregroundStyle(.red)
+                .lineLimit(1)
+                .frame(maxWidth: 110, alignment: .trailing)
+        } else {
+            AssetStatusBadge(status: asset.computedStatus)
+        }
     }
 }
 
