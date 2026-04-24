@@ -6,6 +6,7 @@ import { createBooking, listBookings } from "@/lib/services/bookings";
 import { parseDateRange } from "@/lib/time";
 import { createAuditEntry } from "@/lib/audit";
 import { createReservationSchema, sanitizeBookingFields } from "@/lib/validation";
+import { createReservationLifecycleNotification } from "@/lib/services/notifications";
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "view");
@@ -43,6 +44,14 @@ export const POST = withAuth(async (req, { user }) => {
     entityId: reservation.id,
     action: "create",
     after: { title: reservation.title ?? body.title, kind: "RESERVATION" },
+  });
+
+  void createReservationLifecycleNotification({
+    bookingId: reservation.id,
+    bookingTitle: reservation.title ?? body.title,
+    requesterUserId: body.requesterUserId,
+    actorUserId: user.id,
+    event: "booked",
   });
 
   return ok({ data: reservation }, 201);

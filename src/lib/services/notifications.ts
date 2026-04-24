@@ -296,6 +296,67 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
   }
 }
 
+type ReservationLifecycleEvent = "booked" | "pickup_ready" | "cancelled";
+
+/**
+ * Sends an in-app notification to the requester for reservation lifecycle events.
+ * For "cancelled", skips the notification if the actor is the requester (self-cancel).
+ */
+export async function createReservationLifecycleNotification(args: {
+  bookingId: string;
+  bookingTitle: string;
+  requesterUserId: string;
+  actorUserId: string;
+  event: ReservationLifecycleEvent;
+}): Promise<void> {
+  const { bookingId, bookingTitle, requesterUserId, actorUserId, event } = args;
+
+  // Don't notify users when they cancel their own reservation
+  if (event === "cancelled" && requesterUserId === actorUserId) return;
+
+  const dedupeKey = `${bookingId}:reservation_${event}`;
+
+  const existing = await db.notification.findUnique({ where: { dedupeKey } });
+  if (existing) return;
+
+  const configs: Record<ReservationLifecycleEvent, { type: string; title: string; body: string }> = {
+    booked: {
+      type: "reservation_booked",
+      title: "Reservation confirmed",
+      body: `Your reservation "${bookingTitle}" has been created.`,
+    },
+    pickup_ready: {
+      type: "reservation_pickup_ready",
+      title: "Gear ready for pickup",
+      body: `Your reservation "${bookingTitle}" is ready. Pick up your gear at the kiosk.`,
+    },
+    cancelled: {
+      type: "reservation_cancelled",
+      title: "Reservation cancelled",
+      body: `Your reservation "${bookingTitle}" was cancelled.`,
+    },
+  };
+
+  const { type, title, body } = configs[event];
+
+  try {
+    await db.notification.create({
+      data: {
+        userId: requesterUserId,
+        type,
+        title,
+        body,
+        payload: { bookingId },
+        channel: "IN_APP",
+        sentAt: new Date(),
+        dedupeKey,
+      },
+    });
+  } catch (err) {
+    console.error(`[NOTIFY] Failed to create reservation_${event} notification for booking ${bookingId}:`, err);
+  }
+}
+
 /**
  * Notifies all ADMIN and STAFF users when a student reports an item as damaged or lost
  * during check-in scanning.

@@ -30,6 +30,19 @@ All triggers are relative to `booking.endsAt`:
 
 Implementation: `src/lib/services/notifications.ts`
 
+## Reservation Lifecycle Triggers (Implemented 2026-04-23)
+
+| Event | Type | Recipient | Trigger point |
+|---|---|---|---|
+| Reservation created | `reservation_booked` | Requester | `POST /api/reservations` |
+| Gear ready for pickup | `reservation_pickup_ready` | Requester | `POST /api/reservations/[id]/convert` |
+| Reservation cancelled | `reservation_cancelled` | Requester | `POST /api/reservations/[id]/cancel` (skipped if self-cancel) |
+
+- Deduplication: `${bookingId}:reservation_${event}` — idempotent on retry
+- Channel: IN_APP only (email deferred)
+- Self-cancel: requester is not notified when they cancel their own reservation
+- Implementation: `createReservationLifecycleNotification` in `src/lib/services/notifications.ts`
+
 ## Deduplication (Implemented)
 - Key format: `"{bookingId}:{type}"`
 - Stored in `Notification.dedupeKey` (unique index)

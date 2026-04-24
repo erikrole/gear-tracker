@@ -5,6 +5,7 @@ import { createBooking } from "@/lib/services/bookings";
 import { createAuditEntry } from "@/lib/audit";
 import { BookingKind } from "@prisma/client";
 import { requireBookingAction } from "@/lib/services/booking-rules";
+import { createReservationLifecycleNotification } from "@/lib/services/notifications";
 
 /**
  * POST /api/reservations/[id]/convert
@@ -57,6 +58,14 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     entityId: id,
     action: "convert",
     after: { checkoutId: checkout.id, sourceReservationId: id },
+  });
+
+  void createReservationLifecycleNotification({
+    bookingId: checkout.id,
+    bookingTitle: full.title ?? id,
+    requesterUserId: full.requesterUserId,
+    actorUserId: user.id,
+    event: "pickup_ready",
   });
 
   return ok({ data: checkout });
