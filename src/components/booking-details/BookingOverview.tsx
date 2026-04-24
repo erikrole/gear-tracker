@@ -158,9 +158,28 @@ export default function BookingOverview({
           <InfoRow icon={MapPinIcon} label="Location">
             {booking.location?.name ?? "\u2014"}
           </InfoRow>
-          {booking.event && (
+          {booking.events && booking.events.length > 1 ? (
+            <InfoRow icon={CalendarCheckIcon} label="Events">
+              <div className="flex flex-col gap-1.5">
+                {booking.events.map((ev) => (
+                  <Link
+                    key={ev.id}
+                    href={`/events/${ev.id}`}
+                    className="group flex items-center gap-1.5 hover:underline"
+                  >
+                    <span>{ev.summary}</span>
+                    {ev.sportCode && (
+                      <Badge variant="outline" className="text-[10px] align-middle">{ev.sportCode}</Badge>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </InfoRow>
+          ) : booking.event && (
             <InfoRow icon={CalendarCheckIcon} label="Event">
-              {booking.event.summary}
+              <Link href={`/events/${booking.event.id}`} className="hover:underline">
+                {booking.event.summary}
+              </Link>
               {booking.event.sportCode && (
                 <Badge variant="outline" className="ml-1.5 text-[10px] align-middle">{booking.event.sportCode}</Badge>
               )}

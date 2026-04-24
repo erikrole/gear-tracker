@@ -62,6 +62,17 @@ export type BookingDetail = {
   allowedActions?: string[];
   sourceReservation?: { id: string; refNumber: string | null; title: string } | null;
   event?: { id: string; summary: string; sportCode: string | null; opponent: string | null; isHome: boolean | null } | null;
+  /** All events linked to this booking (1..3), sorted chronologically by ordinal.
+   *  When only one event is linked it will match `event` above. */
+  events?: Array<{
+    id: string;
+    summary: string;
+    sportCode: string | null;
+    opponent: string | null;
+    isHome: boolean | null;
+    startsAt: string;
+    endsAt: string;
+  }>;
   sportCode?: string | null;
   shiftAssignment?: { id: string; shift: { area: string } } | null;
   kit?: { id: string; name: string } | null;

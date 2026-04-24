@@ -32,8 +32,13 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
     }),
     db.booking.findMany({
       where: {
-        eventId,
         status: { not: "CANCELLED" },
+        // Match bookings where this event is primary (FK) OR linked via the
+        // BookingEvent junction (secondary/additional events).
+        OR: [
+          { eventId },
+          { events: { some: { eventId } } },
+        ],
       },
       select: {
         id: true,
