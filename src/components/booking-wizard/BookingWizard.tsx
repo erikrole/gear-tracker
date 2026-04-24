@@ -77,16 +77,16 @@ const RESERVATION_CONFIG: WizardConfig = {
 function formReducer(state: FormState, action: FormAction): FormState {
   switch (action.type) {
     case "SET_TIE_TO_EVENT":
-      return { ...state, tieToEvent: action.value, selectedEvent: null };
+      return { ...state, tieToEvent: action.value, selectedEvents: [] };
     case "SET_SPORT":
-      return { ...state, sport: action.value, selectedEvent: null };
-    case "SELECT_EVENT":
+      return { ...state, sport: action.value, selectedEvents: [] };
+    case "SET_SELECTED_EVENTS":
       return {
         ...state,
-        selectedEvent: action.event,
-        title: action.title,
-        startsAt: action.startsAt,
-        endsAt: action.endsAt,
+        selectedEvents: action.events,
+        title: action.title ?? state.title,
+        startsAt: action.startsAt ?? state.startsAt,
+        endsAt: action.endsAt ?? state.endsAt,
         locationId: action.locationId ?? state.locationId,
       };
     case "SET_TITLE":
@@ -103,7 +103,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return {
         tieToEvent: action.defaults.tieToEvent ?? true,
         sport: "",
-        selectedEvent: null,
+        selectedEvents: [],
         title: "",
         requester: action.defaults.requester ?? "",
         locationId: action.defaults.locationId ?? "",
@@ -190,7 +190,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const [form, dispatch] = useReducer(formReducer, {
     tieToEvent: config.defaultTieToEvent || !!initialSportCode,
     sport: initialSportCode || "",
-    selectedEvent: null,
+    selectedEvents: [],
     title: initialTitle,
     requester: initialRequester || "",
     locationId: initialLocationId || locations[0]?.id || "",
@@ -221,11 +221,11 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const { kits } = useKitFetching({ locationId: form.locationId, open: true });
 
   // ── Events + shift ──
-  const { events, eventsLoading, myShiftForEvent, selectEvent } = useEventContext({
+  const { events, eventsLoading, myShiftForEvent, toggleEvent } = useEventContext({
     sport: form.sport,
     tieToEvent: form.tieToEvent,
     open: true,
-    selectedEvent: form.selectedEvent,
+    selectedEvents: form.selectedEvents,
     initialEventId,
     dispatch,
   });
@@ -338,9 +338,10 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     };
 
     if (kitId) payload.kitId = kitId;
-    if (form.selectedEvent) {
-      payload.eventId = form.selectedEvent.id;
-      payload.sportCode = form.selectedEvent.sportCode || form.sport || undefined;
+    if (form.selectedEvents.length > 0) {
+      // Send multi-event list; API derives primary + junction rows.
+      payload.eventIds = form.selectedEvents.map((e) => e.id);
+      payload.sportCode = form.selectedEvents[0].sportCode || form.sport || undefined;
     } else if (form.sport) {
       payload.sportCode = form.sport;
     }
@@ -602,7 +603,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           events={events}
           eventsLoading={eventsLoading}
           myShiftForEvent={myShiftForEvent}
-          selectEvent={selectEvent}
+          toggleEvent={toggleEvent}
         />
       )}
 

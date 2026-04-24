@@ -103,22 +103,26 @@ export function WizardStep3({
           <span className="font-semibold">{form.title}</span>
         </SummaryRow>
 
-        {/* Event */}
-        {form.selectedEvent && (
-          <SummaryRow label="Event">
-            <span>
-              {form.selectedEvent.sportCode && (
-                <span className="font-normal text-muted-foreground">
-                  {sportLabel(form.selectedEvent.sportCode)}
-                  {form.selectedEvent.opponent ? " \u00b7 " : ""}
+        {/* Events (one row per linked event) */}
+        {form.selectedEvents.length > 0 && (
+          <SummaryRow label={form.selectedEvents.length > 1 ? "Events" : "Event"}>
+            <div className="flex flex-col items-end gap-0.5">
+              {form.selectedEvents.map((ev) => (
+                <span key={ev.id}>
+                  {ev.sportCode && (
+                    <span className="font-normal text-muted-foreground">
+                      {sportLabel(ev.sportCode)}
+                      {ev.opponent ? " \u00b7 " : ""}
+                    </span>
+                  )}
+                  {ev.opponent
+                    ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}`
+                    : !ev.sportCode
+                      ? ev.summary
+                      : ""}
                 </span>
-              )}
-              {form.selectedEvent.opponent
-                ? `${form.selectedEvent.isHome === false ? "at" : "vs"} ${form.selectedEvent.opponent}`
-                : !form.selectedEvent.sportCode
-                  ? form.selectedEvent.summary
-                  : ""}
-            </span>
+              ))}
+            </div>
           </SummaryRow>
         )}
 

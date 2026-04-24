@@ -84,9 +84,9 @@ export function useDraftManagement({
       if (draftId) payload.id = draftId;
       if (form.requester) payload.requesterUserId = form.requester;
       if (form.locationId) payload.locationId = form.locationId;
-      if (form.selectedEvent) {
-        payload.eventId = form.selectedEvent.id;
-        payload.sportCode = form.selectedEvent.sportCode || form.sport || undefined;
+      if (form.selectedEvents.length > 0) {
+        payload.eventIds = form.selectedEvents.map((e) => e.id);
+        payload.sportCode = form.selectedEvents[0].sportCode || form.sport || undefined;
       } else if (form.sport) {
         payload.sportCode = form.sport;
       }

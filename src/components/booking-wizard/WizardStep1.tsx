@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ClockIcon, BoxesIcon, CheckIcon } from "lucide-react";
+import { ClockIcon, BoxesIcon, CheckIcon, XIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import {
   toLocalDateTimeValue,
@@ -20,6 +20,13 @@ import {
   type Location,
   type CalendarEvent,
 } from "@/components/booking-list/types";
+
+function formatChipTime(iso: string) {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-US", { weekday: "short" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase();
+  return `${day} ${time}`;
+}
 import type { FormState, FormAction, ShiftInfo } from "@/components/create-booking/types";
 
 type WizardConfig = {
@@ -41,7 +48,7 @@ type Props = {
   events: CalendarEvent[];
   eventsLoading: boolean;
   myShiftForEvent: ShiftInfo | null;
-  selectEvent: (ev: CalendarEvent) => void;
+  toggleEvent: (ev: CalendarEvent) => { ok: boolean; reason?: string };
 };
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
@@ -87,8 +94,10 @@ export function WizardStep1({
   events,
   eventsLoading,
   myShiftForEvent,
-  selectEvent,
+  toggleEvent,
 }: Props) {
+  const selectedEventIds = new Set(form.selectedEvents.map((e) => e.id));
+  const atCap = form.selectedEvents.length >= 3;
   return (
     <div className="space-y-10">
 
@@ -142,6 +151,28 @@ export function WizardStep1({
               </Select>
             </div>
 
+            {/* Selected-event chips */}
+            {form.selectedEvents.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {form.selectedEvents.map((ev) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => toggleEvent(ev)}
+                    className="group inline-flex items-center gap-1 rounded-full bg-muted hover:bg-destructive/10 text-foreground px-2.5 py-1 text-xs transition-colors"
+                    aria-label={`Remove ${ev.opponent ?? ev.summary}`}
+                  >
+                    <span className="font-medium">
+                      {formatChipTime(ev.startsAt)}
+                      {" · "}
+                      {ev.opponent ?? ev.summary}
+                    </span>
+                    <XIcon className="size-3 text-muted-foreground group-hover:text-destructive" />
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Events list */}
             <div>
               <FieldLabel>
@@ -160,15 +191,22 @@ export function WizardStep1({
               ) : (
                 <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto border border-border rounded-sm p-1">
                   {events.map((ev) => {
-                    const selected = form.selectedEvent?.id === ev.id;
+                    const selected = selectedEventIds.has(ev.id);
+                    const disabled = !selected && atCap;
                     return (
                       <button
                         key={ev.id}
                         type="button"
-                        onClick={() => selectEvent(ev)}
+                        onClick={() => toggleEvent(ev)}
+                        disabled={disabled}
+                        aria-pressed={selected}
                         className={[
                           "group flex w-full items-center gap-3 rounded-[3px] px-3 py-2.5 text-left transition-all max-md:min-h-[44px]",
-                          selected ? "text-white" : "hover:bg-muted/60",
+                          selected
+                            ? "text-white"
+                            : disabled
+                              ? "opacity-40 cursor-not-allowed"
+                              : "hover:bg-muted/60",
                         ].join(" ")}
                         style={selected ? { backgroundColor: "var(--wi-red)" } : undefined}
                       >
@@ -235,8 +273,8 @@ export function WizardStep1({
           </div>
         )}
 
-        {/* Shift context banner */}
-        {myShiftForEvent && form.selectedEvent && (
+        {/* Shift context banner (primary event) */}
+        {myShiftForEvent && form.selectedEvents.length > 0 && (
           <div
             className="flex items-center gap-3 mt-4 px-3 py-2.5 rounded-r-sm bg-muted/40 border-l-[3px]"
             style={{ borderLeftColor: "var(--wi-red)" }}
@@ -285,7 +323,7 @@ export function WizardStep1({
           {/* Title */}
           <div>
             <FieldLabel>
-              Booking name{form.tieToEvent && form.selectedEvent ? " \u2014 auto-filled from event" : ""}
+              Booking name{form.tieToEvent && form.selectedEvents.length > 0 ? " \u2014 auto-filled from event" : ""}
             </FieldLabel>
             <Input
               value={form.title}

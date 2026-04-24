@@ -75,7 +75,7 @@ export function DetailsSection({
           {/* Title */}
           <div className="flex flex-col gap-1">
             <Label>
-              Booking name{form.tieToEvent && form.selectedEvent ? " (auto-filled from event)" : ""}
+              Booking name{form.tieToEvent && form.selectedEvents.length > 0 ? " (auto-filled from event)" : ""}
             </Label>
             <Input
               value={form.title}
