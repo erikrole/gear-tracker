@@ -28,31 +28,48 @@ const activeClaimsInclude = {
   orderBy: { claimedAt: "asc" as const },
 };
 
-export async function listCodes() {
-  return db.licenseCode.findMany({
-    where: { status: { not: LicenseCodeStatus.RETIRED } },
-    include: { claims: activeClaimsInclude },
-    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+// Display priority: most-claimable first, retired last.
+const STATUS_PRIORITY: Record<LicenseCodeStatus, number> = {
+  AVAILABLE: 0,
+  PARTIAL: 1,
+  CLAIMED: 2,
+  RETIRED: 3,
+};
+
+function sortByStatusPriority<T extends { status: LicenseCodeStatus; createdAt: Date }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const sa = STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status];
+    if (sa !== 0) return sa;
+    return a.createdAt.getTime() - b.createdAt.getTime();
   });
 }
 
-export async function listAllCodes() {
-  return db.licenseCode.findMany({
+export async function listCodes() {
+  const rows = await db.licenseCode.findMany({
+    where: { status: { not: LicenseCodeStatus.RETIRED } },
     include: { claims: activeClaimsInclude },
-    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
   });
+  return sortByStatusPriority(rows);
+}
+
+export async function listAllCodes() {
+  const rows = await db.licenseCode.findMany({
+    include: { claims: activeClaimsInclude },
+  });
+  return sortByStatusPriority(rows);
 }
 
 export async function getActiveClaimForUser(userId: string) {
   const claim = await db.licenseCodeClaim.findFirst({
     where: { userId, releasedAt: null },
-    include: { licenseCode: { select: { id: true, code: true, label: true } } },
+    include: { licenseCode: { select: { id: true, code: true, label: true, expiresAt: true } } },
   });
   if (!claim) return null;
   return {
     id: claim.licenseCode.id,
     code: claim.licenseCode.code,
     label: claim.licenseCode.label,
+    expiresAt: claim.licenseCode.expiresAt,
     claimedAt: claim.claimedAt,
     claimId: claim.id,
   };

@@ -147,9 +147,9 @@ export default function LicensesPage() {
         )}
       </PageHeader>
 
-      {/* Student: my active license banner */}
+      {/* My active license banner (students + staff) */}
       {myLicense && (
-        <MyLicensePanel license={myLicense} onReleased={reloadAll} />
+        <MyLicensePanel license={myLicense} isStaff={isAdmin} onReleased={reloadAll} />
       )}
 
       {/* Slot utilization summary */}

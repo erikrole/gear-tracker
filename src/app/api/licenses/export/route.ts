@@ -26,8 +26,8 @@ export const GET = withAuth(async (_req, { user }) => {
     "label",
     "account_email",
     "status",
-    "slot_1_holder",
-    "slot_2_holder",
+    "holder_1",
+    "holder_2",
     "expires_at",
     "created_at",
   ].join(",");

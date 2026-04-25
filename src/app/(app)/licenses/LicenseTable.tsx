@@ -171,7 +171,7 @@ export function LicenseTable({
             const rowClass = cn(
               "transition-colors",
               code.status === "AVAILABLE" && "bg-green-50/50 dark:bg-green-950/10",
-              code.status === "PARTIAL" && "bg-amber-50/50 dark:bg-amber-950/10",
+              code.status === "PARTIAL" && "bg-blue-50/50 dark:bg-blue-950/10",
               code.status === "CLAIMED" && "bg-red-50/30 dark:bg-red-950/10",
               code.status === "RETIRED" && "opacity-50",
               isOwn && "ring-1 ring-inset ring-green-300 dark:ring-green-700",
@@ -210,7 +210,7 @@ export function LicenseTable({
                     </Badge>
                   )}
                   {code.status === "PARTIAL" && (
-                    <Badge variant="outline" className="border-amber-400 text-amber-700 dark:text-amber-400">
+                    <Badge variant="outline" className="border-blue-400 text-blue-700 dark:text-blue-400">
                       1/{MAX_SLOTS}
                     </Badge>
                   )}

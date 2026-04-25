@@ -29,6 +29,7 @@ export type MyLicense = {
   id: string;
   code: string;
   label: string | null;
+  expiresAt: string | null;
   claimedAt: string;
   claimId: string;
 };
