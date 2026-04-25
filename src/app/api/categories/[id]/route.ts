@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -12,6 +13,7 @@ const updateSchema = z.object({
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "category", "edit");
+  await enforceRateLimit(`categories:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const { id } = params;
   const [existing, body] = await Promise.all([
@@ -46,6 +48,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "category", "delete");
+  await enforceRateLimit(`categories:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const { id } = params;
   const existing = await db.category.findUnique({ where: { id } });

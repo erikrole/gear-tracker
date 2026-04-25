@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { tokenHash } from "@/lib/auth";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 function generateActivationCode(): string {
   const buf = new Uint32Array(1);
@@ -19,6 +20,7 @@ function generateActivationCode(): string {
  */
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "kiosk_device", "edit");
+  await enforceRateLimit(`kiosk-devices:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const device = await db.kioskDevice.findUnique({ where: { id: params.id } });
   if (!device) throw new HttpError(404, "Kiosk device not found");

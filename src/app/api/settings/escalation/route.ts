@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { HttpError, ok } from "@/lib/http";
 import { db } from "@/lib/db";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const patchEscalationSchema = z.union([
   z.object({
@@ -45,6 +46,7 @@ export const GET = withAuth(async (_req, { user }) => {
  */
 export const PATCH = withAuth(async (req, { user }) => {
   if (user.role !== "ADMIN") throw new HttpError(403, "Admin only");
+  await enforceRateLimit(`escalation:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const body = patchEscalationSchema.parse(await req.json());
 

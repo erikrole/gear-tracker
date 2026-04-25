@@ -3,9 +3,12 @@ import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "calendar_source", "sync");
+  // Sync hits an external ICS URL — tighter limit than other settings writes.
+  await enforceRateLimit(`calendar-sources:sync:${user.id}`, { max: 10, windowMs: 60_000 });
   const { id } = params;
   const result = await syncCalendarSource(id);
 

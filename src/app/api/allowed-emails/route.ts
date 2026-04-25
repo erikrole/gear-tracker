@@ -5,6 +5,7 @@ import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAllowedEmailSchema, createAllowedEmailBulkSchema } from "@/lib/validation";
 import { createAuditEntry, createAuditEntries } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 /** List allowed emails (paginated, filterable) */
 export const GET = withAuth(async (req, { user }) => {
@@ -45,6 +46,7 @@ export const GET = withAuth(async (req, { user }) => {
 /** Add a single allowed email or bulk add */
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "allowed_email", "create");
+  await enforceRateLimit(`allowed-emails:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const body = await req.json();
 

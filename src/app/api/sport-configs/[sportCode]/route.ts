@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/rbac";
 import { updateSportConfigSchema } from "@/lib/validation";
 import { getSportConfig, upsertSportConfig, toggleSportConfig } from "@/lib/services/sport-configs";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export const GET = withAuth<{ sportCode: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "sport_config", "view");
@@ -15,6 +16,7 @@ export const GET = withAuth<{ sportCode: string }>(async (_req, { user, params }
 
 export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "sport_config", "manage");
+  await enforceRateLimit(`sport-configs:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
   const { sportCode } = params;
 
   const body = updateSportConfigSchema.parse(await req.json());

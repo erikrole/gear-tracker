@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { HttpError, ok } from "@/lib/http";
 import { db } from "@/lib/db";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const CONFIG_KEY = "extend_presets";
 
@@ -43,6 +44,7 @@ export const GET = withAuth(async () => {
  */
 export const PUT = withAuth(async (req, { user }) => {
   if (user.role !== "ADMIN") throw new HttpError(403, "Admin only");
+  await enforceRateLimit(`extend-presets:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const body = putSchema.parse(await req.json());
 

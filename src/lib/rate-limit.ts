@@ -68,3 +68,29 @@ export function getClientIp(req: Request): string {
     || req.headers.get("x-real-ip")
     || "unknown";
 }
+
+/**
+ * Enforce a rate limit on a route handler. Throws HttpError(429) if exceeded.
+ *
+ * Caller decides the bucket key — usually `${scope}:${user.id}` for user-scoped
+ * limits or `${scope}:${ip}` for unauthenticated routes.
+ *
+ * Lazy import of HttpError to avoid an import cycle.
+ */
+export async function enforceRateLimit(
+  key: string,
+  config: RateLimitConfig
+): Promise<void> {
+  const result = checkRateLimit(key, config);
+  if (!result.allowed) {
+    const { HttpError } = await import("./http");
+    const retryAfterSec = Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000));
+    throw new HttpError(429, `Too many requests — try again in ${retryAfterSec}s.`);
+  }
+}
+
+/** Common preset for admin-surface mutation endpoints (settings, etc.). */
+export const SETTINGS_MUTATION_LIMIT: RateLimitConfig = {
+  max: 60,
+  windowMs: 60_000,
+};

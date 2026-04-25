@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const patchSourceSchema = z.object({
   name: z.string().min(1).optional(),
@@ -14,6 +15,7 @@ const patchSourceSchema = z.object({
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "calendar_source", "edit");
+  await enforceRateLimit(`calendar-sources:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
   const { id } = params;
 
   const source = await db.calendarSource.findUnique({ where: { id } });
@@ -41,6 +43,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "calendar_source", "delete");
+  await enforceRateLimit(`calendar-sources:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
   const { id } = params;
 
   const source = await db.calendarSource.findUnique({ where: { id } });

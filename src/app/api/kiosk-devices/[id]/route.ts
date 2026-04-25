@@ -3,10 +3,12 @@ import { withAuth } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 /** Toggle active status or update a kiosk device (ADMIN only) */
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "kiosk_device", "edit");
+  await enforceRateLimit(`kiosk-devices:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const device = await db.kioskDevice.findUnique({
     where: { id: params.id },
@@ -68,6 +70,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 /** Delete a kiosk device (ADMIN only) */
 export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "kiosk_device", "delete");
+  await enforceRateLimit(`kiosk-devices:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const device = await db.kioskDevice.findUnique({
     where: { id: params.id },

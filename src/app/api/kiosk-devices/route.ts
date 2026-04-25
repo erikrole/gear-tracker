@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { tokenHash, randomHex } from "@/lib/auth";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 /** Generate a random 6-digit numeric code */
 function generateActivationCode(): string {
@@ -43,6 +44,7 @@ export const GET = withAuth(async (req, { user }) => {
 /** Create a new kiosk device (ADMIN only) */
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "kiosk_device", "create");
+  await enforceRateLimit(`kiosk-devices:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const body = await req.json();
   const name = (body.name as string)?.trim();

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const updateLocationSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
@@ -14,6 +15,7 @@ const updateLocationSchema = z.object({
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "location", "manage");
+  await enforceRateLimit(`locations:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
   const { id } = params;
 
   const body = updateLocationSchema.parse(await req.json());

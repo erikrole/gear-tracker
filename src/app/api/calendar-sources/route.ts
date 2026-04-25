@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const createSourceSchema = z.object({
   name: z.string().min(1),
@@ -20,6 +21,7 @@ export const GET = withAuth(async () => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "calendar_source", "create");
+  await enforceRateLimit(`calendar-sources:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
   const body = createSourceSchema.parse(await req.json());
 
   // Prevent duplicate sources with the same URL

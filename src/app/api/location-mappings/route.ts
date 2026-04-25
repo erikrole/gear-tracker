@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const createMappingSchema = z.object({
   pattern: z.string().min(1),
@@ -21,6 +22,7 @@ export const GET = withAuth(async () => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "location_mapping", "create");
+  await enforceRateLimit(`location-mappings:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
   const body = createMappingSchema.parse(await req.json());
 
   const mapping = await db.locationMapping.create({

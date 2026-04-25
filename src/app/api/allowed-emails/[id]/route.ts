@@ -3,10 +3,12 @@ import { withAuth } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 /** Delete an allowed email entry (only if unclaimed) */
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "allowed_email", "delete");
+  await enforceRateLimit(`allowed-emails:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const entry = await db.allowedEmail.findUnique({
     where: { id: params.id },
