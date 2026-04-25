@@ -53,6 +53,48 @@ export default function CalendarSourcesPage() {
   const [newUrl, setNewUrl] = useState("");
   const [addBusy, setAddBusy] = useState(false);
 
+  // Test URL probe
+  type TestResult = {
+    ok: boolean;
+    status: number;
+    contentType: string | null;
+    byteSize: number;
+    eventCount: number;
+    sampleSummaries: string[];
+    error?: string;
+  };
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+
+  async function handleTest() {
+    if (!newUrl.trim()) {
+      toast.error("Paste an ICS URL first");
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/calendar-sources/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: newUrl.trim() }),
+      });
+      if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
+      if (res.ok) {
+        const json = await res.json();
+        setTestResult(json.data as TestResult);
+      } else {
+        const msg = await parseErrorMessage(res, "Test failed");
+        toast.error(msg);
+      }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Test failed");
+    }
+    setTesting(false);
+  }
+
   async function handleToggle(source: CalendarSource) {
     setToggling(source.id);
     try {
@@ -203,19 +245,49 @@ export default function CalendarSourcesPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label>ICS URL</Label>
-                  <Input
-                    type="url"
-                    value={newUrl}
-                    onChange={(e) => setNewUrl(e.target.value)}
-                    placeholder="https://example.com/calendar.ics"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="url"
+                      value={newUrl}
+                      onChange={(e) => { setNewUrl(e.target.value); setTestResult(null); }}
+                      placeholder="https://example.com/calendar.ics"
+                      required
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={handleTest} disabled={testing || !newUrl.trim()}>
+                      {testing ? "Testing…" : "Test"}
+                    </Button>
+                  </div>
+                  {testResult && (
+                    <div
+                      className={`mt-1 rounded-md border p-2.5 text-xs ${testResult.ok ? "border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-900" : "border-destructive/40 bg-destructive/5"}`}
+                    >
+                      {testResult.ok ? (
+                        <>
+                          <div className="font-medium text-foreground">
+                            ✓ Reachable — {testResult.eventCount} event{testResult.eventCount === 1 ? "" : "s"} in feed ({Math.round(testResult.byteSize / 1024)} KB)
+                          </div>
+                          {testResult.sampleSummaries.length > 0 && (
+                            <ul className="mt-1.5 list-disc pl-4 space-y-0.5 text-muted-foreground">
+                              {testResult.sampleSummaries.slice(0, 3).map((s, i) => (
+                                <li key={i} className="truncate">{s}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </>
+                      ) : (
+                        <div className="font-medium text-destructive">
+                          ✗ {testResult.error ?? "Probe failed"}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" size="sm" disabled={addBusy}>
                     {addBusy ? "Adding..." : "Add"}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowAdd(false); setNewName(""); setNewUrl(""); }}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowAdd(false); setNewName(""); setNewUrl(""); setTestResult(null); }}>
                     Cancel
                   </Button>
                 </div>

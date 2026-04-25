@@ -49,6 +49,30 @@ export default function VenueMappingsPage() {
   const [addingMapping, setAddingMapping] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Live regex tester — pure client-side (the regex is the user's input).
+  const [testPattern, setTestPattern] = useState("");
+  const [testSample, setTestSample] = useState("");
+  type RegexTest =
+    | { kind: "empty" }
+    | { kind: "invalid"; reason: string }
+    | { kind: "match"; matchText: string }
+    | { kind: "no-match" };
+
+  function evalRegex(pattern: string, sample: string): RegexTest {
+    if (!pattern.trim()) return { kind: "empty" };
+    let re: RegExp;
+    try {
+      re = new RegExp(pattern, "i");
+    } catch (err) {
+      return { kind: "invalid", reason: err instanceof Error ? err.message : "Invalid regex" };
+    }
+    if (!sample) return { kind: "empty" };
+    const match = sample.match(re);
+    if (match) return { kind: "match", matchText: match[0] };
+    return { kind: "no-match" };
+  }
+  const testResult = evalRegex(testPattern, testSample);
+
   async function handleAddMapping(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setAddingMapping(true);
@@ -143,6 +167,7 @@ export default function VenueMappingsPage() {
                     placeholder="Venue pattern (e.g. Camp Randall)"
                     required
                     className="flex-[2] min-w-[150px]"
+                    onChange={(e) => setTestPattern(e.target.value)}
                   />
                   <Select name="locationId" required defaultValue="">
                     <SelectTrigger className="flex-1 min-w-[120px]">
@@ -177,6 +202,37 @@ export default function VenueMappingsPage() {
                       Cancel
                     </Button>
                   </div>
+                </div>
+
+                {/* Inline regex tester — appears alongside the Add form */}
+                <div className="mt-3 rounded-md border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor="vm-test-sample" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Test pattern
+                    </label>
+                    <span
+                      className={`text-xs font-medium ${
+                        testResult.kind === "match"
+                          ? "text-[var(--green)]"
+                          : testResult.kind === "invalid"
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {testResult.kind === "empty" && "Type a pattern + sample text below"}
+                      {testResult.kind === "invalid" && `✗ Invalid regex: ${testResult.reason}`}
+                      {testResult.kind === "match" && `✓ Matches "${testResult.matchText}"`}
+                      {testResult.kind === "no-match" && "✗ Does not match"}
+                    </span>
+                  </div>
+                  <Input
+                    id="vm-test-sample"
+                    type="text"
+                    value={testSample}
+                    onChange={(e) => setTestSample(e.target.value)}
+                    placeholder='Sample venue text — e.g. "Camp Randall Stadium · Madison, WI"'
+                    className="h-8 text-sm"
+                  />
                 </div>
               </form>
             </CardContent>

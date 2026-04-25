@@ -1,6 +1,6 @@
 # Audit: /settings (web) — 2026-04-25
 
-**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 17/19 P2 also addressed
+**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 18/19 P2 also addressed
 **Last fix pass:** 2026-04-25 — P1 slices 1–7 + P2 polish slices A–D + landing-tab memory + Locations tab shipped on `main`
 **Ship bar:** all staff + students, zero hiccups
 
@@ -80,7 +80,7 @@ _None._
       `src/app/(app)/settings/allowed-emails/page.tsx:219` — the "All (N)" label always shows total from the *current* filtered fetch, not the unfiltered total. When user is on "Pending" filter, the All option in the dropdown shows the wrong number.
       Suggested fix: fetch unfiltered count separately, or fetch all and filter client-side (small dataset).
 
-- [ ] **[UI polish] Calendar Sources & Venue Mappings — no test-URL / regex-test affordance before saving.**
+- [x] **[UI polish] Calendar Sources & Venue Mappings — no test-URL / regex-test affordance before saving.**
       Adding an invalid ICS URL or regex only fails on first sync / first event match.
       Suggested fix: "Test pattern" / "Test fetch" button next to the input.
 
