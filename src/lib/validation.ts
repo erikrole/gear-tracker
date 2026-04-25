@@ -196,6 +196,24 @@ export const updateSportConfigSchema = z.object({
   shiftEndOffset: z.number().int().min(0).max(480).optional(),
 });
 
+/** Group update — apply the same patch atomically to N sport codes. */
+export const updateSportConfigGroupSchema = z
+  .object({
+    codes: z.array(z.string().min(1).max(10)).min(1).max(10),
+    active: z.boolean().optional(),
+    shiftConfigs: z.array(sportShiftConfigSchema).optional(),
+    shiftStartOffset: z.number().int().min(0).max(480).optional(),
+    shiftEndOffset: z.number().int().min(0).max(480).optional(),
+  })
+  .refine(
+    (d) =>
+      d.active !== undefined ||
+      d.shiftConfigs !== undefined ||
+      d.shiftStartOffset !== undefined ||
+      d.shiftEndOffset !== undefined,
+    { message: "Provide at least one field to update" }
+  );
+
 export const sportRosterSchema = z.object({
   userId: z.string().cuid(),
   sportCode: z.string().min(1).max(10),

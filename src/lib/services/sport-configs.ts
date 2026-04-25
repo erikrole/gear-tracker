@@ -68,6 +68,74 @@ export async function upsertSportConfig(
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 
+/**
+ * Apply the same patch atomically to many sport codes in a single transaction.
+ * Either all codes update or none do — replaces the previous client-side loop
+ * of N sequential PATCHes (which could half-apply on partial failure).
+ *
+ * For each code, missing rows are created on-demand (mirrors upsertSportConfig).
+ * `shiftConfigs` / call-time fields fall back to the existing row's values when
+ * not provided in the patch.
+ */
+export async function upsertSportConfigsForGroup(
+  codes: string[],
+  patch: {
+    active?: boolean;
+    shiftConfigs?: SportShiftConfigInput[];
+    shiftStartOffset?: number;
+    shiftEndOffset?: number;
+  },
+) {
+  return db.$transaction(async (tx) => {
+    const results = [];
+    for (const sportCode of codes) {
+      const existing = await tx.sportConfig.findUnique({
+        where: { sportCode },
+        include: { shiftConfigs: true },
+      });
+      const nextActive = patch.active ?? existing?.active ?? true;
+      const nextShifts = patch.shiftConfigs
+        ?? existing?.shiftConfigs.map((sc) => ({ area: sc.area, homeCount: sc.homeCount, awayCount: sc.awayCount }))
+        ?? [];
+
+      const config = await tx.sportConfig.upsert({
+        where: { sportCode },
+        create: {
+          sportCode,
+          active: nextActive,
+          ...(patch.shiftStartOffset !== undefined && { shiftStartOffset: patch.shiftStartOffset }),
+          ...(patch.shiftEndOffset !== undefined && { shiftEndOffset: patch.shiftEndOffset }),
+        },
+        update: {
+          active: nextActive,
+          ...(patch.shiftStartOffset !== undefined && { shiftStartOffset: patch.shiftStartOffset }),
+          ...(patch.shiftEndOffset !== undefined && { shiftEndOffset: patch.shiftEndOffset }),
+        },
+      });
+
+      for (const sc of nextShifts) {
+        await tx.sportShiftConfig.upsert({
+          where: { sportConfigId_area: { sportConfigId: config.id, area: sc.area } },
+          create: {
+            sportConfigId: config.id,
+            area: sc.area,
+            homeCount: sc.homeCount,
+            awayCount: sc.awayCount,
+          },
+          update: { homeCount: sc.homeCount, awayCount: sc.awayCount },
+        });
+      }
+
+      const fresh = await tx.sportConfig.findUnique({
+        where: { id: config.id },
+        include: { shiftConfigs: true },
+      });
+      if (fresh) results.push(fresh);
+    }
+    return results;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
 /** Toggle a sport config active/inactive */
 export async function toggleSportConfig(sportCode: string, active: boolean) {
   return db.sportConfig.update({

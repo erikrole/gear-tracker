@@ -1,7 +1,7 @@
 # Audit: /settings (web) — 2026-04-25
 
-**MVP verdict:** READY (pending one P1 deferred — Sports atomic transaction) — 0 P0, 1 P1 open / 10 P1 fixed
-**Last fix pass:** 2026-04-25 — slices 1–6 shipped on `main`
+**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed
+**Last fix pass:** 2026-04-25 — slices 1–7 shipped on `main`
 **Ship bar:** all staff + students, zero hiccups
 
 > Settings is admin/staff-only — students never see it. Ship-bar still applies for staff/admins (zero hiccups).
@@ -26,7 +26,7 @@ _None._
       Why it blocks ship: silent duplicate creation on the golden path.
       Suggested fix: guard with a ref/`creatingRoot` check at the start of `createRoot`, or remove `onBlur` and require explicit Enter/Escape.
 
-- [ ] **[Flows] Sports: `updateShiftCount` loops sequential PATCHes for each sport in a group with no atomic rollback.** _(deferred — needs server-side group-update endpoint; tracked for next pass)_
+- [x] **[Flows] Sports: `updateShiftCount` loops sequential PATCHes for each sport in a group with no atomic rollback.** _(slice 7: new POST /api/sport-configs/group runs all upserts in a single Prisma transaction; client routes shift counts, call times, and active toggle through it)_
       `src/app/(app)/settings/sports/page.tsx:92-120` — for grouped sports (e.g. men's + women's basketball share settings) it issues N sequential PATCHes. If the 2nd fails (network, 500), the 1st has already committed and local state diverges from server with no error toast (failures are silent unless thrown).
       Why it blocks ship: half-applied configuration is a "hiccup" admins won't notice until shifts are wrong.
       Suggested fix: server-side group endpoint that updates all codes in one transaction, OR surface a partial-failure toast and reload from server.

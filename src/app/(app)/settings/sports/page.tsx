@@ -43,37 +43,54 @@ export default function SportsSettingsPage() {
   }
 
   async function toggleActive(sportCode: string) {
-    const config = getConfig(sportCode);
-    const newActive = !config?.active;
-    setSaving(sportCode + "-toggle");
+    const group = findGroup(sportCode);
+    const codes = group ? group.codes : [sportCode];
+    const groupActive = codes.some((code) => getConfig(code)?.active);
+    const nextActive = !groupActive;
+
+    // For groups whose configs don't exist yet, the group endpoint will create
+    // them on demand with default shift counts (matches single-code POST).
+    const needsCreate = codes.some((code) => !getConfig(code));
+    const patch: Parameters<typeof applyGroupPatch>[2] = { active: nextActive };
+    if (needsCreate && nextActive) {
+      patch.shiftConfigs = defaultShiftConfigs();
+    }
+    await applyGroupPatch(sportCode, sportCode + "-toggle", patch);
+  }
+
+  async function applyGroupPatch(
+    sportCode: string,
+    savingKey: string,
+    patch: {
+      active?: boolean;
+      shiftConfigs?: SportConfig["shiftConfigs"];
+      shiftStartOffset?: number;
+      shiftEndOffset?: number;
+    },
+  ) {
+    const group = findGroup(sportCode);
+    const codes = group ? group.codes : [sportCode];
+
+    setSaving(savingKey);
     try {
-      if (!config) {
-        const res = await fetch("/api/sport-configs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sportCode,
-            active: true,
-            shiftConfigs: defaultShiftConfigs(),
-          }),
-        });
-        if (handleAuthRedirect(res, "/settings/sports")) return;
-        if (res.ok) {
-          const json = await res.json();
-          setConfigs((prev) => [...prev, json.data]);
-        }
+      const res = await fetch("/api/sport-configs/group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codes, ...patch }),
+      });
+      if (handleAuthRedirect(res, "/settings/sports")) return;
+      if (res.ok) {
+        const json = await res.json();
+        const updated = json.data as SportConfig[];
+        const byCode = new Map(updated.map((c) => [c.sportCode, c]));
+        setConfigs((prev) =>
+          prev.map((c) => byCode.get(c.sportCode) ?? c)
+            .concat(updated.filter((c) => !prev.some((p) => p.sportCode === c.sportCode)))
+        );
+      } else if (res.status === 429) {
+        toast.error("Too many changes \u2014 please slow down.");
       } else {
-        const res = await fetch(`/api/sport-configs/${sportCode}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ active: newActive }),
-        });
-        if (handleAuthRedirect(res, "/settings/sports")) return;
-        if (res.ok) {
-          setConfigs((prev) =>
-            prev.map((c) => (c.sportCode === sportCode ? { ...c, active: newActive } : c))
-          );
-        }
+        toast.error("Save failed \u2014 your changes were not applied.");
       }
     } catch (err) {
       if (isAbortError(err)) return;
@@ -84,77 +101,26 @@ export default function SportsSettingsPage() {
   }
 
   async function updateShiftCount(sportCode: string, area: string, field: "homeCount" | "awayCount", value: number) {
-    const group = findGroup(sportCode);
-    const codesToUpdate = group ? group.codes : [sportCode];
+    const config = getConfig(sportCode);
+    if (!config) return;
 
-    setSaving(`${sportCode}-${area}`);
-    try {
-      for (const code of codesToUpdate) {
-        const config = getConfig(code);
-        if (!config) continue;
-
-        const updatedConfigs = AREAS.map((a) => {
-          const existing = config.shiftConfigs.find((sc) => sc.area === a);
-          if (a === area) {
-            return {
-              area: a,
-              homeCount: field === "homeCount" ? value : (existing?.homeCount ?? 0),
-              awayCount: field === "awayCount" ? value : (existing?.awayCount ?? 0),
-            };
-          }
-          return { area: a, homeCount: existing?.homeCount ?? 0, awayCount: existing?.awayCount ?? 0 };
-        });
-
-        const res = await fetch(`/api/sport-configs/${code}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ shiftConfigs: updatedConfigs }),
-        });
-        if (handleAuthRedirect(res, "/settings/sports")) return;
-        if (res.ok) {
-          const json = await res.json();
-          setConfigs((prev) =>
-            prev.map((c) => (c.sportCode === code ? json.data : c))
-          );
-        }
+    const updatedConfigs = AREAS.map((a) => {
+      const existing = config.shiftConfigs.find((sc) => sc.area === a);
+      if (a === area) {
+        return {
+          area: a,
+          homeCount: field === "homeCount" ? value : (existing?.homeCount ?? 0),
+          awayCount: field === "awayCount" ? value : (existing?.awayCount ?? 0),
+        };
       }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      const kind = classifyError(err);
-      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong");
-    }
-    setSaving(null);
+      return { area: a, homeCount: existing?.homeCount ?? 0, awayCount: existing?.awayCount ?? 0 };
+    });
+
+    await applyGroupPatch(sportCode, `${sportCode}-${area}`, { shiftConfigs: updatedConfigs });
   }
 
   async function updateOffset(sportCode: string, field: "shiftStartOffset" | "shiftEndOffset", value: number) {
-    const group = findGroup(sportCode);
-    const codesToUpdate = group ? group.codes : [sportCode];
-
-    setSaving(`${sportCode}-calltime`);
-    try {
-      for (const code of codesToUpdate) {
-        const config = getConfig(code);
-        if (!config) continue;
-
-        const res = await fetch(`/api/sport-configs/${code}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [field]: value }),
-        });
-        if (handleAuthRedirect(res, "/settings/sports")) return;
-        if (res.ok) {
-          const json = await res.json();
-          setConfigs((prev) =>
-            prev.map((c) => (c.sportCode === code ? json.data : c))
-          );
-        }
-      }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      const kind = classifyError(err);
-      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong");
-    }
-    setSaving(null);
+    await applyGroupPatch(sportCode, `${sportCode}-calltime`, { [field]: value });
   }
 
   /* ---------- Loading skeleton ---------- */

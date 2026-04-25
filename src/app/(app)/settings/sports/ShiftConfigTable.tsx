@@ -84,11 +84,7 @@ export default function ShiftConfigTable({
                 </div>
                 <button
                   className={`toggle${active ? " on" : ""}`}
-                  onClick={() => {
-                    for (const code of group.codes) {
-                      onToggleActive(code);
-                    }
-                  }}
+                  onClick={() => onToggleActive(primaryCode)}
                   disabled={saving?.endsWith("-toggle") ?? false}
                 />
               </div>
