@@ -10,6 +10,20 @@ final class SessionStore {
 
     init() {
         Task { await restoreSession() }
+        // Listen for global 401s posted from APIClient and route the user back to login.
+        NotificationCenter.default.addObserver(
+            forName: .sessionDidExpire,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.currentUser != nil {
+                    self.currentUser = nil
+                    self.error = "Your session expired — please sign in again."
+                }
+            }
+        }
     }
 
     func login(email: String, password: String) async {

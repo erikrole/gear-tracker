@@ -23,15 +23,20 @@ struct WisconsinApp: App {
                     sharedKioskStore = kioskStore
                 }
                 .onChange(of: session.currentUser) { old, user in
-                    if user != nil {
-                        requestPushPermissions()
-                    } else if old != nil {
+                    if user == nil, old != nil {
                         GearStore.shared.clearAll()
+                    }
+                    // Push permission is now requested via PushPrePromptView,
+                    // not as a cold OS alert on login.
+                    if user != nil {
+                        // If the user previously granted permission, keep the token fresh.
+                        Task { await registerForPushIfAuthorized() }
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && session.currentUser != nil {
-                        Task { await appState.refreshUnread() }
+                        // Refresh tab badge state regardless of which tab the user is on.
+                        Task { await appState.refresh() }
                     }
                 }
                 .onOpenURL { url in
@@ -50,21 +55,12 @@ struct WisconsinApp: App {
         .modelContainer(GearStore.shared.container)
     }
 
-    private func requestPushPermissions() {
-        Task {
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
-            guard settings.authorizationStatus == .notDetermined else {
-                // Already decided — still register so token stays fresh
-                if settings.authorizationStatus == .authorized {
-                    await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
-                }
-                return
-            }
-            let granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
-            if granted {
-                await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
-            }
+    /// Registers for remote notifications if the user has already authorized.
+    /// New authorization is collected by `PushPrePromptView` after login.
+    private func registerForPushIfAuthorized() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        if settings.authorizationStatus == .authorized {
+            await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
         }
     }
 }
@@ -72,27 +68,54 @@ struct WisconsinApp: App {
 struct RootView: View {
     @Environment(SessionStore.self) private var session
     @Environment(KioskStore.self) private var kiosk
+    @State private var showPushPrePrompt = false
 
     var body: some View {
-        if kiosk.isKioskMode {
-            KioskShellView()
-        } else if session.currentUser != nil {
-            AppTabView()
-        } else {
-            LoginView()
-                .overlay(alignment: .top) {
-                    if session.isOffline {
-                        Label("No connection — check your network", systemImage: "wifi.slash")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(.orange, in: Capsule())
+        Group {
+            if kiosk.isActive {
+                KioskShellView()
+            } else if session.currentUser != nil {
+                AppTabView()
+            } else {
+                LoginView()
+                    .overlay(alignment: .top) {
+                        if session.isOffline {
+                            BannerView(
+                                severity: .warning,
+                                message: "No connection — check your network",
+                                systemImage: "wifi.slash"
+                            )
                             .padding(.top, 12)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
                     }
-                }
-                .animation(.easeInOut, value: session.isOffline)
+                    .animation(.easeInOut, value: session.isOffline)
+            }
         }
+        .onChange(of: session.currentUser) { old, user in
+            // Show the soft push prompt the first time a user lands logged-in,
+            // before the OS alert ever fires.
+            if user != nil && old == nil {
+                Task { await maybeShowPushPrompt() }
+            }
+        }
+        .sheet(isPresented: $showPushPrePrompt) {
+            PushPrePromptView()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    @MainActor
+    private func maybeShowPushPrompt() async {
+        // Only ever ask once — if the user dismissed the soft prompt without
+        // tapping Enable, respect that decision until they toggle from settings.
+        let key = "WisconsinPushSoftPromptShown"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        // Small delay so it doesn't crash into the LoginView → AppTabView swap.
+        try? await Task.sleep(for: .milliseconds(600))
+        showPushPrePrompt = true
     }
 }

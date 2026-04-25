@@ -24,7 +24,9 @@ final class EventDetailViewModel {
         do {
             shiftGroup = try await APIClient.shared.shiftGroup(eventId: event.id)
         } catch APIError.unauthorized {
-            error = "Session expired"
+            // SessionStore handles the global routing on 401.
+            isLoading = false
+            return
         } catch {
             self.error = error.localizedDescription
         }

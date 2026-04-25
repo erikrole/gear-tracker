@@ -95,11 +95,10 @@ final class ScheduleViewModel {
             error = nil
             GearStore.shared.seedScheduleEvents(fetchedEvents)
         } catch APIError.unauthorized {
-            if events.isEmpty {
-                error = "Session expired — please sign in again."
-            } else {
-                refreshError = "Session expired — please sign in again."
-            }
+            // SessionStore listens for the global notification and routes the
+            // user to login; nothing to do here besides cleaning up loading state.
+            isLoading = false
+            return
         } catch {
             // Refresh failure must not blank an already-populated screen.
             if events.isEmpty {
@@ -349,14 +348,7 @@ struct ScheduleView: View {
     }
 
     private var freshnessLabel: String? {
-        guard let lastLoadedAt = vm.lastLoadedAt else { return nil }
-        let interval = Date().timeIntervalSince(lastLoadedAt)
-        if interval < 30 { return "Updated just now" }
-        let minutes = Int(interval / 60)
-        if minutes < 1 { return "Updated \(Int(interval))s ago" }
-        if minutes < 60 { return "Updated \(minutes)m ago" }
-        let hours = minutes / 60
-        return "Updated \(hours)h ago"
+        vm.lastLoadedAt?.freshnessLabel
     }
 }
 

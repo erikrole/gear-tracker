@@ -13,6 +13,7 @@ final class ItemsViewModel {
     var isLoading = false
     var error: String?
     var pageError: String?
+    var lastLoadedAt: Date?
     var searchText = ""
     var selectedStatus: AssetComputedStatus?
     var favoritesOnly = false
@@ -61,6 +62,7 @@ final class ItemsViewModel {
             offset += result.data.count
             hasMore = offset < result.total
             pageError = nil
+            lastLoadedAt = Date()
             if reset && offset == result.data.count && searchText.isEmpty && selectedStatus == nil && !favoritesOnly {
                 GearStore.shared.seedAssets(result.data)
             }
@@ -175,6 +177,15 @@ struct ItemsView: View {
                     )
                 } else {
                     List {
+                        if let stamp = vm.lastLoadedAt?.freshnessLabel {
+                            Text(stamp)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .padding(.top, 2)
+                        }
                         ForEach(vm.assets) { asset in
                             NavigationLink(value: asset) {
                                 AssetRow(asset: asset)

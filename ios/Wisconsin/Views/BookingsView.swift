@@ -12,6 +12,7 @@ final class BookingsViewModel {
     var isLoading = false
     var error: String?
     var pageError: String?
+    var lastLoadedAt: Date?
     var searchText = ""
     var tab: BookingTab = .reservations
     var hasMore = true
@@ -61,6 +62,7 @@ final class BookingsViewModel {
             offset += result.data.count
             hasMore = offset < result.total
             pageError = nil
+            lastLoadedAt = Date()
             if reset && offset == result.data.count && searchText.isEmpty {
                 GearStore.shared.seedBookings(result.data)
             }
@@ -142,6 +144,15 @@ struct BookingsView: View {
                     )
                 } else {
                     List {
+                        if let stamp = vm.lastLoadedAt?.freshnessLabel {
+                            Text(stamp)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .padding(.top, 2)
+                        }
                         ForEach(vm.bookings) { booking in
                             NavigationLink(value: booking) {
                                 BookingRow(booking: booking)

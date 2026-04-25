@@ -49,13 +49,13 @@ struct LoginView: View {
 
     private var brandHeader: some View {
         ZStack {
-            Color(red: 0.11, green: 0.11, blue: 0.11)
+            Color.brandSurface
                 .ignoresSafeArea(edges: .top)
 
             VStack(spacing: 10) {
                 Text("W")
                     .font(.system(size: 56, weight: .heavy))
-                    .foregroundStyle(Color(red: 0.627, green: 0, blue: 0))
+                    .foregroundStyle(Color.brandPrimary)
                 VStack(spacing: 2) {
                     Text("Gear Tracker")
                         .font(.title2.weight(.bold))
@@ -123,8 +123,8 @@ struct LoginView: View {
                 .frame(height: 50)
                 .background(
                     canSubmit
-                        ? Color(red: 0.11, green: 0.11, blue: 0.11)
-                        : Color(red: 0.18, green: 0.18, blue: 0.18),
+                        ? Color.brandSurface
+                        : Color.brandSurfaceDim,
                     in: RoundedRectangle(cornerRadius: 12)
                 )
                 .foregroundStyle(.white.opacity(canSubmit ? 1 : 0.35))

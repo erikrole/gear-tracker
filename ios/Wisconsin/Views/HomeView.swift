@@ -38,6 +38,7 @@ struct HomeView: View {
     @State private var showSearch = false
     @State private var showNotifications = false
     @State private var showTrades = false
+    @State private var showProfile = false
     @State private var navigationPath = NavigationPath()
     @State private var pendingBookingId: String?
     @State private var pendingShowTrades = false
@@ -142,11 +143,22 @@ struct HomeView: View {
             mainContent
                 .navigationTitle("Dashboard")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showProfile = true
+                    } label: {
+                        AccountAvatar(size: 32)
+                            .overlay(
+                                Circle().strokeBorder(Color(.separator), lineWidth: 0.5)
+                            )
+                    }
+                    .accessibilityLabel("Profile")
+                }
                 #if DEBUG
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Kiosk") { kiosk.enterKiosk() }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
                 #endif
                 ToolbarItem(placement: .topBarTrailing) {
@@ -205,6 +217,10 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showTrades) {
                 TradeBoardSheet(myShifts: [], currentUserId: session.currentUser?.id ?? "")
+            }
+            .sheet(isPresented: $showProfile) {
+                ProfileView()
+                    .presentationDetents([.large])
             }
         }
     }

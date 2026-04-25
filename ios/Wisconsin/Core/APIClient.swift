@@ -18,6 +18,13 @@ enum APIError: LocalizedError {
     }
 }
 
+extension Notification.Name {
+    /// Fired when any API call returns 401. SessionStore listens and clears
+    /// `currentUser`, which lets RootView swap to LoginView automatically —
+    /// no per-VM "Session expired" string needed.
+    static let sessionDidExpire = Notification.Name("WisconsinSessionDidExpire")
+}
+
 @MainActor
 final class APIClient {
     static let shared = APIClient()
@@ -115,7 +122,7 @@ final class APIClient {
         let req = request(path: "/api/bookings/\(id)/cancel", method: "POST")
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Cancel failed"
             throw APIError.serverError(msg)
         }
@@ -131,7 +138,7 @@ final class APIClient {
         req.httpBody = try JSONEncoder().encode(Body(name: name, serialNumber: serialNumber, notes: notes))
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
             throw APIError.serverError(msg)
         }
@@ -155,7 +162,7 @@ final class APIClient {
         ))
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
             throw APIError.serverError(msg)
         }
@@ -167,7 +174,7 @@ final class APIClient {
         req.httpBody = try JSONEncoder().encode(Body(assetIds: assetIds))
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Check-in failed"
             throw APIError.serverError(msg)
         }
@@ -181,7 +188,7 @@ final class APIClient {
         req.httpBody = try JSONEncoder().encode(Body(endsAt: iso.string(from: endsAt)))
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
             let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Extend failed"
             throw APIError.serverError(msg)
         }
@@ -531,6 +538,9 @@ final class APIClient {
                 throw APIError.decodingError(error)
             }
         case 401:
+            // Single point where 401 broadcasts globally; SessionStore listens
+            // and routes the user back to login.
+            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
             throw APIError.unauthorized
         case 404:
             throw APIError.notFound
