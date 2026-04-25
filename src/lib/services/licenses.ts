@@ -2,6 +2,7 @@ import { LicenseCodeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sendPush } from "@/lib/push/apns";
+import { loadUserPrefs, shouldDeliverPush } from "@/lib/services/notification-prefs";
 
 const MAX_SLOTS = 2;
 
@@ -309,6 +310,9 @@ async function sendPushToUser(
   userId: string,
   opts: { title: string; body: string; payload?: Record<string, unknown> }
 ) {
+  const prefs = await loadUserPrefs(userId);
+  if (!shouldDeliverPush(prefs)) return;
+
   const tokens = await db.deviceToken.findMany({
     where: { userId, revokedAt: null },
     select: { token: true },

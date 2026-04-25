@@ -35,12 +35,20 @@ export const SETTINGS_GROUP_ORDER: SettingsGroup[] = [
 export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   // Personal — visible to every authenticated user
   {
+    href: "/settings/notifications",
+    label: "Notifications",
+    requiredRole: "STUDENT",
+    group: "Personal",
+    description: "Pause everything or pick which channels can reach you.",
+    keywords: ["email", "push", "alerts", "do not disturb", "quiet", "mute"],
+  },
+  {
     href: "/settings/appearance",
     label: "Appearance",
     requiredRole: "STUDENT",
     group: "Personal",
-    description: "Light, dark, or system theme.",
-    keywords: ["theme", "dark mode", "light mode", "color"],
+    description: "Theme and text size.",
+    keywords: ["theme", "dark mode", "light mode", "color", "font size", "text size", "accessibility"],
   },
   // People
   {

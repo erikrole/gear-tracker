@@ -167,17 +167,20 @@
   --space-8: 48px;
 
   /* Typography scale */
-  --text-2xs: 10px;
-  --text-3xs: 11px;
-  --text-xs: 12px;
-  --text-sm: 13px;
-  --text-base: 14px;
-  --text-md: 15px;
-  --text-lg: 16px;
-  --text-xl: 18px;
-  --text-2xl: 24px;
-  --text-3xl: 30px;
-  --text-4xl: 32px;
+  /* User-controlled font scale (1 = default). Set on <html> by the inline
+     script in src/app/layout.tsx and the Appearance settings page. */
+  --text-scale: 1;
+  --text-2xs: calc(10px * var(--text-scale));
+  --text-3xs: calc(11px * var(--text-scale));
+  --text-xs:  calc(12px * var(--text-scale));
+  --text-sm:  calc(13px * var(--text-scale));
+  --text-base: calc(14px * var(--text-scale));
+  --text-md:  calc(15px * var(--text-scale));
+  --text-lg:  calc(16px * var(--text-scale));
+  --text-xl:  calc(18px * var(--text-scale));
+  --text-2xl: calc(24px * var(--text-scale));
+  --text-3xl: calc(30px * var(--text-scale));
+  --text-4xl: calc(32px * var(--text-scale));
 
   /* Font weights */
   --weight-normal: 400;

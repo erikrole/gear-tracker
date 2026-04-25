@@ -115,6 +115,7 @@ model User {
   guides               Guide[]
   availabilityBlocks   StudentAvailabilityBlock[]
   travelMemberships    EventTravelMember[]        @relation("TravelMembers")
+  notificationPrefs    Json?                      @map("notification_prefs")
 
   @@map("users")
 }

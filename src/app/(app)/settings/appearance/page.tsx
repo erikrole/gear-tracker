@@ -1,18 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun, Type } from "lucide-react";
 import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-const STORAGE_KEY = "theme";
+const THEME_KEY = "theme";
+const SCALE_KEY = "text-scale";
+
 type ThemeChoice = "system" | "light" | "dark";
 
-/**
- * Apply a theme choice to the document. Mirrors the inline script in
- * src/app/layout.tsx so the choice survives a page reload.
- */
+type ScaleChoice = {
+  id: "small" | "default" | "large" | "xlarge";
+  label: string;
+  value: number;
+};
+
+const SCALE_CHOICES: ScaleChoice[] = [
+  { id: "small",   label: "Small",       value: 0.9 },
+  { id: "default", label: "Default",     value: 1.0 },
+  { id: "large",   label: "Large",       value: 1.15 },
+  { id: "xlarge",  label: "Extra large", value: 1.3 },
+];
+
 function applyTheme(choice: ThemeChoice) {
   const root = document.documentElement;
   if (choice === "light") {
@@ -20,33 +32,44 @@ function applyTheme(choice: ThemeChoice) {
   } else if (choice === "dark") {
     root.setAttribute("data-theme", "dark");
   } else {
-    // system — follow OS preference
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-    if (prefersDark) root.setAttribute("data-theme", "dark");
-    else root.setAttribute("data-theme", "light");
+    root.setAttribute("data-theme", prefersDark ? "dark" : "light");
   }
 }
 
 function readStoredTheme(): ThemeChoice {
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
+    const v = localStorage.getItem(THEME_KEY);
     if (v === "light" || v === "dark") return v;
-  } catch {
-    /* ignore */
-  }
+  } catch { /* ignore */ }
   return "system";
+}
+
+function applyScale(value: number) {
+  document.documentElement.style.setProperty("--text-scale", String(value));
+}
+
+function readStoredScale(): number {
+  try {
+    const v = localStorage.getItem(SCALE_KEY);
+    const n = v ? parseFloat(v) : NaN;
+    if (Number.isFinite(n) && n >= 0.85 && n <= 1.4) return n;
+  } catch { /* ignore */ }
+  return 1;
 }
 
 export default function AppearancePage() {
   const [theme, setTheme] = useState<ThemeChoice>("system");
+  const [scale, setScale] = useState<number>(1);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setTheme(readStoredTheme());
+    setScale(readStoredScale());
     setMounted(true);
   }, []);
 
-  // Re-apply if the OS preference changes while in "system" mode.
+  // Re-apply theme when OS preference changes while in "system" mode.
   useEffect(() => {
     if (theme !== "system") return;
     const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
@@ -56,21 +79,31 @@ export default function AppearancePage() {
     return () => mq.removeEventListener?.("change", handler);
   }, [theme]);
 
-  function pick(choice: ThemeChoice) {
+  function pickTheme(choice: ThemeChoice) {
     setTheme(choice);
     applyTheme(choice);
     try {
-      if (choice === "system") localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, choice);
-    } catch {
-      /* ignore */
-    }
+      if (choice === "system") localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, choice);
+    } catch { /* ignore */ }
     toast.success(
-      choice === "system"
-        ? "Following your system theme"
-        : `Switched to ${choice} mode`,
+      choice === "system" ? "Following your system theme" : `Switched to ${choice} mode`,
       { duration: 1500 }
     );
+  }
+
+  function pickScale(value: number) {
+    setScale(value);
+    applyScale(value);
+    try {
+      if (value === 1) localStorage.removeItem(SCALE_KEY);
+      else localStorage.setItem(SCALE_KEY, String(value));
+    } catch { /* ignore */ }
+  }
+
+  function resetAll() {
+    pickTheme("system");
+    pickScale(1);
   }
 
   return (
@@ -79,45 +112,106 @@ export default function AppearancePage() {
       <div className="sticky top-20 max-lg:static">
         <h2 className="text-2xl font-bold mb-2">Appearance</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Choose how the app looks. Saved on this device only.
+          Choose how the app looks. Saved on this device only — set it again on
+          your phone or other browsers.
         </p>
       </div>
 
-      <div className="min-w-0">
+      <div className="min-w-0 space-y-4">
         <Card>
-          <CardContent className="py-6">
+          <CardHeader>
+            <CardTitle className="text-base">Theme</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-              <ThemeOption
+              <ChoiceCard
                 icon={<Sun className="size-5" />}
                 label="Light"
                 description="Always light, regardless of system."
                 active={mounted && theme === "light"}
-                onClick={() => pick("light")}
+                onClick={() => pickTheme("light")}
               />
-              <ThemeOption
+              <ChoiceCard
                 icon={<Moon className="size-5" />}
                 label="Dark"
                 description="Always dark, regardless of system."
                 active={mounted && theme === "dark"}
-                onClick={() => pick("dark")}
+                onClick={() => pickTheme("dark")}
               />
-              <ThemeOption
+              <ChoiceCard
                 icon={<Monitor className="size-5" />}
                 label="System"
                 description="Match your OS preference."
                 active={mounted && theme === "system"}
-                onClick={() => pick("system")}
+                onClick={() => pickTheme("system")}
               />
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Type className="size-4" />
+              Text size
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-4 gap-2 max-sm:grid-cols-2">
+              {SCALE_CHOICES.map((c) => {
+                const isActive = mounted && Math.abs(scale - c.value) < 0.001;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => pickScale(c.value)}
+                    aria-pressed={isActive}
+                    className={`flex flex-col items-center gap-1 rounded-lg border px-3 py-3 transition-colors hover:bg-muted/50 ${
+                      isActive ? "border-[var(--wi-red)] bg-muted/40" : "border-border"
+                    }`}
+                  >
+                    <span style={{ fontSize: `${14 * c.value}px` }} className="font-semibold">
+                      Aa
+                    </span>
+                    <span className="text-xs text-muted-foreground">{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Live preview */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                Preview
+              </div>
+              <p className="text-base m-0">
+                A preview line at the body size, so you can feel the difference
+                before committing.
+              </p>
+              <p className="text-sm text-muted-foreground m-0">
+                Smaller secondary text, like the help copy under form fields.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resetAll}
+            disabled={!mounted || (theme === "system" && Math.abs(scale - 1) < 0.001)}
+          >
+            Reset to defaults
+          </Button>
+        </div>
       </div>
     </div>
     </FadeUp>
   );
 }
 
-function ThemeOption({
+function ChoiceCard({
   icon,
   label,
   description,
@@ -136,12 +230,10 @@ function ThemeOption({
       onClick={onClick}
       aria-pressed={active}
       className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 ${
-        active
-          ? "border-[var(--wi-red)] bg-muted/40"
-          : "border-border"
+        active ? "border-[var(--wi-red)] bg-muted/40" : "border-border"
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 w-full">
         <span className="text-foreground">{icon}</span>
         <span className="font-semibold">{label}</span>
         {active && (

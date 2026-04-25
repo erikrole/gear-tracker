@@ -1,11 +1,15 @@
 import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
+import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush } from "@/lib/services/notification-prefs";
 
 async function sendPushToUser(
   userId: string,
   opts: { title: string; body?: string | null; payload?: Record<string, unknown> }
 ): Promise<void> {
+  const prefs = await loadUserPrefs(userId);
+  if (!shouldDeliverPush(prefs)) return;
+
   const tokens = await db.deviceToken.findMany({
     where: { userId, revokedAt: null },
     select: { token: true },
@@ -23,6 +27,21 @@ async function sendPushToUser(
       data: { revokedAt: new Date() },
     });
   }
+}
+
+/**
+ * Email wrapper that consults the user's notification prefs.
+ * Pass null `userId` for system emails that should always send (e.g. password reset).
+ */
+async function sendEmailToUser(
+  userId: string | null,
+  args: Parameters<typeof sendEmail>[0]
+): Promise<boolean> {
+  if (userId) {
+    const prefs = await loadUserPrefs(userId);
+    if (!shouldDeliverEmail(prefs)) return false;
+  }
+  return sendEmail(args);
 }
 
 /**
@@ -160,7 +179,7 @@ export async function processOverdueNotifications(): Promise<{
             });
 
             if (checkout.requester.email) {
-              await sendEmail({
+              await sendEmailToUser(checkout.requesterUserId, {
                 to: checkout.requester.email,
                 subject: rule.title,
                 html: buildNotificationEmail({
@@ -214,7 +233,7 @@ export async function processOverdueNotifications(): Promise<{
             });
 
             if (admin.email) {
-              await sendEmail({
+              await sendEmailToUser(admin.id, {
                 to: admin.email,
                 subject: `Overdue: ${checkout.title}`,
                 html: buildNotificationEmail({
@@ -321,7 +340,7 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
 
     // Also send email notification
     if (assignment.user.email) {
-      await sendEmail({
+      await sendEmailToUser(assignment.userId, {
         to: assignment.user.email,
         subject: title,
         html: buildNotificationEmail({
@@ -456,7 +475,7 @@ export async function notifyItemReport(args: {
   const emailPromises = supervisors
     .filter((s) => s.email)
     .map((s) =>
-      sendEmail({
+      sendEmailToUser(s.id, {
         to: s.email!,
         subject: title,
         html: buildNotificationEmail({
