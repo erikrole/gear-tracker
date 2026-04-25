@@ -20,10 +20,9 @@ In-app replacement for Google Docs as the home for Wisconsin Athletics Creative 
 - `id`, `title`, `slug` (unique, auto-generated from title), `category` (freeform)
 - `content` (Json — BlockNote `Block[]` array)
 - `published` (boolean, default false)
-- `order` (int, for manual sort)
 - `authorId` → `User` (Restrict on delete)
 
-Migration: `prisma/migrations/0032_add_guides/migration.sql`
+Migrations: `prisma/migrations/0032_add_guides/migration.sql`, `prisma/migrations/0045_drop_guide_order/migration.sql` (drops unused `order` column)
 
 ## Auth Rules
 | Action | Roles |
@@ -72,3 +71,4 @@ All mutations use `createAuditEntry` per D-007.
 | 2026-04-14 | Feature shipped: schema (Guide model + migration 0032), service, API routes, list page, reader, create/edit pages, sidebar nav entry. All ACs met. |
 | 2026-04-15 | Image upload to Vercel Blob: added `/api/guides/upload-image` route; wired BlockNote `uploadFile` on create/edit pages. Prevents 413 errors from base64-inlined images. Editor canvas widened to `max-w-5xl` / `min-h-600px`; reader matched. |
 | 2026-04-25 | MVP audit follow-up (`tasks/audit-guides-web.md`): (1) edit page Cancel + Back link now confirm before discarding unsaved changes; (2) reader's Edit button respects STAFF authorship — only ADMIN or the guide's own author sees it (server PATCH enforcement was already correct); (3) ToC keyed by BlockNote block id instead of heading text — duplicate heading labels no longer break scroll/active state; (4) `/api/guides/upload-image` now rate-limited to 30 uploads / 5 min per user. |
+| 2026-04-25 | P2 audit cleanup: (1) dropped unused `order` column via migration 0045; list now sorts by `updatedAt` desc only. (2) PATCH `/api/guides/[id]` now supports optimistic concurrency via `expectedUpdatedAt`; returns 409 if guide changed since load. (3) Filtered empty state on `/guides` offers a Clear-filters action. (4) `/guides/new` and `/guides/[slug]/edit` are now server components that gate via `requireAuth` + role check, eliminating the editor-flash-then-redirect for STUDENT. (5) GET `/api/guides/[id]` detects cuid format and routes directly — single DB read for slug lookups. |

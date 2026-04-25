@@ -1,6 +1,6 @@
 # Audit: /guides (web) — 2026-04-25
 
-**MVP verdict:** READY (after follow-up commit) — 0 P0, 0 P1 outstanding
+**MVP verdict:** READY — all P0/P1/P2 closed (parity informational)
 **Ship bar:** all staff + students, zero hiccups
 
 ## P0 — blocks MVP
@@ -24,13 +24,13 @@
       Suggested fix: Add per-user rate limit (e.g. 30 uploads / 5 min) using the existing rate-limit util; consider a tighter byte cap per minute.
 
 ## P2 — post-MVP
-- [ ] [Gaps] Schema has `order: int` for manual sort but no UI to reorder; AC-3 covers categories only, so this is dead schema. Decide: add reorder UI or drop the field. — `prisma/schema.prisma` (Guide), `src/lib/guides.ts:67`
-- [ ] [Breaking] Concurrent edits on the same guide: last-write-wins silently. No `updatedAt` precondition or version check on PATCH. — `src/lib/guides.ts:141-152`
-- [ ] [UI polish] Empty-state when filters return no results offers no "Clear filters" action — student dead-ends if they typo a search. — `src/app/(app)/guides/page.tsx:107-118`
-- [ ] [UI polish] Brief flash of editor UI on `/guides/new` and `/guides/[slug]/edit` for STUDENT before the `useFetch('/api/me')` resolves and redirects. — `src/app/(app)/guides/new/page.tsx:107-110`, `src/app/(app)/guides/[slug]/edit/page.tsx:171-174`
+- [x] [Gaps] Schema has `order: int` for manual sort but no UI to reorder; AC-3 covers categories only, so this is dead schema. Decide: add reorder UI or drop the field. — `prisma/schema.prisma` (Guide), `src/lib/guides.ts:67`
+- [x] [Breaking] Concurrent edits on the same guide: last-write-wins silently. No `updatedAt` precondition or version check on PATCH. — `src/lib/guides.ts:141-152`
+- [x] [UI polish] Empty-state when filters return no results offers no "Clear filters" action — student dead-ends if they typo a search. — `src/app/(app)/guides/page.tsx:107-118`
+- [x] [UI polish] Brief flash of editor UI on `/guides/new` and `/guides/[slug]/edit` for STUDENT before the `useFetch('/api/me')` resolves and redirects. — `src/app/(app)/guides/new/page.tsx:107-110`, `src/app/(app)/guides/[slug]/edit/page.tsx:171-174`
       Suggestion: gate the page server-side via `requireAuth` + role check (already used on the reader) and have the client component render only authorized state.
-- [ ] [Hardening] `/api/guides/[id]` GET hits `getGuide()` first (which throws on a slug) then falls back to `getGuideBySlug()` — two DB reads on every slug lookup. Detect cuid format and route directly. — `src/app/api/guides/[id]/route.ts:13-18`
-- [ ] [Parity] iOS app has no Guides surface at all; deferred per project plan. Not blocking student golden path on web.
+- [x] [Hardening] `/api/guides/[id]` GET hits `getGuide()` first (which throws on a slug) then falls back to `getGuideBySlug()` — two DB reads on every slug lookup. Detect cuid format and route directly. — `src/app/api/guides/[id]/route.ts:13-18`
+- [x] [Parity] iOS app has no Guides surface at all; deferred per project plan. Not blocking student golden path on web.
 
 ## Acceptance criteria status (from AREA_GUIDES.md)
 - [x] AC-1 Staff can create/edit/publish/delete in-app — `src/app/(app)/guides/new/page.tsx`, `…/[slug]/edit/page.tsx`

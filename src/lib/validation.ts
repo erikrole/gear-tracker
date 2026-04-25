@@ -281,5 +281,6 @@ export const updateGuideSchema = z.object({
   category: z.string().min(1).max(100).optional(),
   content: z.unknown().optional(),
   published: z.boolean().optional(),
-  order: z.number().int().min(0).optional(),
+  // Optimistic concurrency: client sends the updatedAt of the guide it loaded.
+  expectedUpdatedAt: z.string().datetime().optional(),
 });

@@ -34,7 +34,6 @@ export type GuideListItem = {
   slug: string;
   category: string;
   published: boolean;
-  order: number;
   createdAt: Date;
   updatedAt: Date;
   author: { id: string; name: string };
@@ -59,12 +58,11 @@ export async function listGuides(opts: {
       slug: true,
       category: true,
       published: true,
-      order: true,
       createdAt: true,
       updatedAt: true,
       author: { select: { id: true, name: true } },
     },
-    orderBy: [{ order: "asc" }, { updatedAt: "desc" }],
+    orderBy: { updatedAt: "desc" },
   });
 }
 
@@ -116,20 +114,31 @@ export async function updateGuide(
     category?: string;
     content?: unknown;
     published?: boolean;
-    order?: number;
+    expectedUpdatedAt?: string;
   },
   editorRole: Role,
   editorId: string,
 ) {
   const guide = await db.guide.findUnique({
     where: { id },
-    select: { id: true, authorId: true, slug: true, title: true },
+    select: { id: true, authorId: true, slug: true, title: true, updatedAt: true },
   });
   if (!guide) throw new HttpError(404, "Guide not found");
 
   // STAFF can only edit their own guides
   if (editorRole === Role.STAFF && guide.authorId !== editorId) {
     throw new HttpError(403, "You can only edit your own guides");
+  }
+
+  // Optimistic concurrency check
+  if (
+    patch.expectedUpdatedAt &&
+    guide.updatedAt.toISOString() !== patch.expectedUpdatedAt
+  ) {
+    throw new HttpError(
+      409,
+      "This guide was edited by someone else since you opened it. Reload to see their changes.",
+    );
   }
 
   let slug: string | undefined;
@@ -146,7 +155,6 @@ export async function updateGuide(
       ...(patch.category !== undefined && { category: patch.category }),
       ...(patch.content !== undefined && { content: patch.content as never }),
       ...(patch.published !== undefined && { published: patch.published }),
-      ...(patch.order !== undefined && { order: patch.order }),
     },
     include: { author: { select: { id: true, name: true } } },
   });

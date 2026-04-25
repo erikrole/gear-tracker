@@ -105,17 +105,30 @@ export default function GuidesPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon="folder"
-          title={search || activeCategory !== "All" ? "No guides match your filters" : "No guides yet"}
-          description={
-            isStaffOrAdmin
-              ? "Create the first guide to get started."
-              : "Check back later for guides."
-          }
-          actionLabel={isStaffOrAdmin ? "New Guide" : undefined}
-          actionHref={isStaffOrAdmin ? "/guides/new" : undefined}
-        />
+        search || activeCategory !== "All" ? (
+          <EmptyState
+            icon="search"
+            title="No guides match your filters"
+            description="Try a different search or clear the filters."
+            actionLabel="Clear filters"
+            onAction={() => {
+              setSearch("");
+              setActiveCategory("All");
+            }}
+          />
+        ) : (
+          <EmptyState
+            icon="folder"
+            title="No guides yet"
+            description={
+              isStaffOrAdmin
+                ? "Create the first guide to get started."
+                : "Check back later for guides."
+            }
+            actionLabel={isStaffOrAdmin ? "New Guide" : undefined}
+            actionHref={isStaffOrAdmin ? "/guides/new" : undefined}
+          />
+        )
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((guide) => (

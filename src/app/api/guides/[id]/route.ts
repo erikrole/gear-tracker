@@ -6,16 +6,15 @@ import { updateGuideSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 import { Role } from "@prisma/client";
 
+// cuid v1 starts with "c" followed by 24 lowercase alphanumerics; slugs use hyphens.
+const CUID_RE = /^c[a-z0-9]{24}$/;
+
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "guide", "view");
 
-  // Accept both IDs (cuid) and slugs — try ID first, fall back to slug
-  let guide;
-  try {
-    guide = await getGuide(params.id);
-  } catch {
-    guide = await getGuideBySlug(params.id);
-  }
+  const guide = CUID_RE.test(params.id)
+    ? await getGuide(params.id)
+    : await getGuideBySlug(params.id);
 
   // Students cannot access unpublished guides
   if (user.role === Role.STUDENT && !guide.published) {
