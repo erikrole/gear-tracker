@@ -33,6 +33,7 @@ import {
   Plus,
   Power,
   PowerOff,
+  RefreshCw,
   Trash2,
   WifiOff,
 } from "lucide-react";
@@ -60,6 +61,7 @@ export default function KioskDevicesPage() {
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   // Add form
   const [showAdd, setShowAdd] = useState(false);
@@ -151,6 +153,32 @@ export default function KioskDevicesPage() {
       toast.error("Could not connect to server");
     } finally {
       setTogglingId(null);
+    }
+  }
+
+  async function handleRegenerate(device: KioskDevice) {
+    if (device.activated) {
+      toast.error("Deactivate the kiosk before regenerating its code.");
+      return;
+    }
+    setRegeneratingId(device.id);
+    try {
+      const res = await fetch(`/api/kiosk-devices/${device.id}/regenerate-code`, {
+        method: "POST",
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        const json = await res.json();
+        setCodeDialog({ name: device.name, code: json.activationCode });
+        toast.success("New activation code generated");
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to regenerate code");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Could not connect to server");
+    } finally {
+      setRegeneratingId(null);
     }
   }
 
@@ -350,6 +378,17 @@ export default function KioskDevicesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {!device.activated && device.active && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRegenerate(device)}
+                      disabled={regeneratingId === device.id}
+                      title="Regenerate activation code"
+                    >
+                      {regeneratingId === device.id ? <Spinner /> : <RefreshCw className="size-4" />}
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"

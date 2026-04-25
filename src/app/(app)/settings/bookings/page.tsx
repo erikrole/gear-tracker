@@ -54,6 +54,17 @@ export default function BookingSettingsPage() {
     }
   }, [settingsData, dirty]);
 
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
   function addPreset() {
     if (presets.length >= 10) return;
     setPresets((prev) => [...prev, { label: "+1 day", minutes: 1440 }]);
@@ -115,11 +126,9 @@ export default function BookingSettingsPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Extend due date presets</CardTitle>
-            {dirty && (
-              <Button size="sm" onClick={save} disabled={saving}>
-                {saving ? "Saving..." : "Save changes"}
-              </Button>
-            )}
+            <Button size="sm" onClick={save} disabled={!dirty || saving}>
+              {saving ? "Saving..." : dirty ? "Save changes" : "Saved"}
+            </Button>
           </CardHeader>
           <CardContent>
             {loading ? (

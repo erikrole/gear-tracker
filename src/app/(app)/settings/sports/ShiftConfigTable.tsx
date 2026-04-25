@@ -77,7 +77,9 @@ export default function ShiftConfigTable({
                 <div className="flex items-center gap-3">
                   <CardTitle className="text-base">{group.label}</CardTitle>
                   <span className="text-xs text-muted-foreground">
-                    {group.codes.join(", ")}
+                    {group.codes.length > 1
+                      ? `applies to ${group.codes.join(" + ")}`
+                      : group.codes[0]}
                   </span>
                 </div>
                 <button
