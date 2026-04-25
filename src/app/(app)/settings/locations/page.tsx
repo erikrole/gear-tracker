@@ -22,6 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useFetch } from "@/hooks/use-fetch";
+import { useLastAudit } from "@/hooks/use-last-audit";
+import { LastEditedHint } from "@/components/LastEditedHint";
 import {
   classifyError,
   handleAuthRedirect,
@@ -72,6 +74,7 @@ export default function LocationsSettingsPage() {
     setLocalItems(null);
   }
   const items = localItems ?? fetched ?? [];
+  const lastEdited = useLastAudit("location", items.map((l) => l.id));
 
   const [busy, setBusy] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -360,14 +363,17 @@ export default function LocationsSettingsPage() {
                           className="h-8 max-w-[260px]"
                         />
                       ) : (
-                        <button
-                          type="button"
-                          className="text-left font-medium hover:text-[var(--wi-red)] transition-colors"
-                          onClick={() => startRename(loc)}
-                          title="Click to rename"
-                        >
-                          {loc.name}
-                        </button>
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            type="button"
+                            className="text-left font-medium hover:text-[var(--wi-red)] transition-colors"
+                            onClick={() => startRename(loc)}
+                            title="Click to rename"
+                          >
+                            {loc.name}
+                          </button>
+                          <LastEditedHint info={lastEdited[loc.id]} />
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground align-top">

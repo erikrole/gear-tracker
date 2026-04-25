@@ -29,6 +29,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
+import { useLastAudit } from "@/hooks/use-last-audit";
+import { LastEditedHint } from "@/components/LastEditedHint";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 
 type AllowedEmail = {
@@ -63,6 +65,8 @@ export default function AllowedEmailsPage() {
     setPrevData(emailsData);
     setLocalItems(null);
   }
+
+  const lastEdited = useLastAudit("allowed_email", allItems.map((i) => i.id));
 
   const totalAll = allItems.length;
   const totalPending = allItems.filter((i) => !i.claimedAt).length;
@@ -448,7 +452,12 @@ export default function AllowedEmailsPage() {
               <TableBody>
                 {items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.email}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col gap-0.5">
+                        <span>{item.email}</span>
+                        <LastEditedHint info={lastEdited[item.id]} />
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={item.role === "STAFF" ? "blue" : "gray"} size="sm">
                         {item.role}

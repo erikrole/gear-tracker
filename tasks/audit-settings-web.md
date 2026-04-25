@@ -1,6 +1,6 @@
 # Audit: /settings (web) — 2026-04-25
 
-**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 12/19 P2 also addressed
+**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 13/19 P2 also addressed
 **Last fix pass:** 2026-04-25 — P1 slices 1–7 + P2 polish slices A–D + landing-tab memory + Locations tab shipped on `main`
 **Ship bar:** all staff + students, zero hiccups
 
@@ -103,7 +103,7 @@ _None._
 
 - [x] **Allowed Emails: no bulk add.** Onboarding 30 students = 30 forms. Textarea + parse-and-validate paste-list would save hours per season.
 - [x] **Kiosk Devices: no "stale" warning.** A device offline 1 week looks identical to one online 5 minutes ago. Add a red dot + "Offline since X" when `lastSeenAt` > 24h.
-- [ ] **No "last edited by / when" anywhere.** Admin surface should expose inline audit context (audit log already exists; surface the last entry per setting).
+- [x] **No "last edited by / when" anywhere.** Admin surface should expose inline audit context (audit log already exists; surface the last entry per setting).
 
 ### Quiet feedback (post-MVP)
 
