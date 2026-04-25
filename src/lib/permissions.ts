@@ -63,13 +63,17 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     sync: ["ADMIN", "STAFF"],
   },
   location: {
+    // ADMIN-only per D-027 — locations are an admin-managed catalog driving
+    // venue mappings, kiosk binding, and shift scheduling. STAFF cannot edit.
     view: ["ADMIN", "STAFF", "STUDENT"],
-    manage: ["ADMIN", "STAFF"],
+    manage: ["ADMIN"],
   },
   location_mapping: {
+    // ADMIN-only per D-027 (Venue Mappings is admin configuration of how
+    // calendar event venues map to locations — STAFF cannot mutate it).
     view: ["ADMIN", "STAFF", "STUDENT"],
-    create: ["ADMIN", "STAFF"],
-    delete: ["ADMIN", "STAFF"],
+    create: ["ADMIN"],
+    delete: ["ADMIN"],
   },
   report: {
     view: ["ADMIN", "STAFF"],

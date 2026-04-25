@@ -37,7 +37,7 @@ import {
   Trash2,
   WifiOff,
 } from "lucide-react";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, classifyError, isAbortError } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 
@@ -80,10 +80,14 @@ export default function KioskDevicesPage() {
     loading,
     error: fetchError,
     reload: load,
-  } = useFetch<KioskDevice[]>({ url: "/api/kiosk-devices" });
+  } = useFetch<KioskDevice[]>({
+    url: "/api/kiosk-devices",
+    returnTo: "/settings/kiosk-devices",
+  });
 
   const { data: formOptions } = useFetch<{ locations: LocationOption[] }>({
     url: "/api/form-options",
+    returnTo: "/settings/kiosk-devices",
     transform: (json) => (json as Record<string, unknown>).data as { locations: LocationOption[] },
     refetchOnFocus: false,
   });
@@ -105,7 +109,7 @@ export default function KioskDevicesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedName, locationId: addLocationId }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
         const json = await res.json();
         setCodeDialog({ name: trimmedName, code: json.activationCode });
@@ -117,8 +121,10 @@ export default function KioskDevicesPage() {
         const msg = await parseErrorMessage(res, "Failed to create kiosk device");
         toast.error(msg);
       }
-    } catch {
-      toast.error("Could not connect to server");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to create kiosk device");
     } finally {
       setAdding(false);
     }
@@ -143,14 +149,17 @@ export default function KioskDevicesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ active: !device.active }),
       });
+      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
         toast.success(`Kiosk ${action}d`);
         load();
       } else {
         toast.error(`Failed to ${action} kiosk`);
       }
-    } catch {
-      toast.error("Could not connect to server");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast.error(kind === "network" ? "You’re offline. Check your connection." : `Failed to ${action} kiosk`);
     } finally {
       setTogglingId(null);
     }
@@ -166,7 +175,7 @@ export default function KioskDevicesPage() {
       const res = await fetch(`/api/kiosk-devices/${device.id}/regenerate-code`, {
         method: "POST",
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
         const json = await res.json();
         setCodeDialog({ name: device.name, code: json.activationCode });
@@ -175,8 +184,10 @@ export default function KioskDevicesPage() {
         const msg = await parseErrorMessage(res, "Failed to regenerate code");
         toast.error(msg);
       }
-    } catch {
-      toast.error("Could not connect to server");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to regenerate code");
     } finally {
       setRegeneratingId(null);
     }
@@ -196,14 +207,17 @@ export default function KioskDevicesPage() {
       const res = await fetch(`/api/kiosk-devices/${device.id}`, {
         method: "DELETE",
       });
+      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
         toast.success("Kiosk device deleted");
         load();
       } else {
         toast.error("Failed to delete kiosk device");
       }
-    } catch {
-      toast.error("Could not connect to server");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to delete kiosk device");
     } finally {
       setDeletingId(null);
     }

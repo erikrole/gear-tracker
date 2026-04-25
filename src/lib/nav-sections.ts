@@ -15,7 +15,7 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   { href: "/settings/bookings", label: "Bookings", requiredRole: "ADMIN" },
   { href: "/settings/escalation", label: "Escalation", requiredRole: "ADMIN" },
   { href: "/settings/calendar-sources", label: "Calendar", requiredRole: "STAFF" },
-  { href: "/settings/venue-mappings", label: "Venue Mappings", requiredRole: "STAFF" },
+  { href: "/settings/venue-mappings", label: "Venue Mappings", requiredRole: "ADMIN" },
   { href: "/settings/allowed-emails", label: "Allowed Emails", requiredRole: "STAFF" },
   { href: "/settings/kiosk-devices", label: "Kiosk", requiredRole: "ADMIN" },
   { href: "/settings/database", label: "Database", requiredRole: "ADMIN" },
