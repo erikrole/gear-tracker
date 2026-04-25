@@ -124,6 +124,7 @@ struct CreateBookingSheet: View {
     @State private var vm: CreateBookingViewModel
     @State private var step = 1
     @State private var submitError: String?
+    @State private var showDiscardConfirm = false
     @Environment(SessionStore.self) private var session
 
     init(onCreated: @escaping (String) -> Void) {
@@ -134,6 +135,26 @@ struct CreateBookingSheet: View {
     init(vm: CreateBookingViewModel, onCreated: @escaping (String) -> Void) {
         _vm = State(wrappedValue: vm)
         self.onCreated = onCreated
+    }
+
+    private var canPickRequester: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "STAFF" || role == "ADMIN"
+    }
+
+    private var hasUnsavedInput: Bool {
+        !vm.title.trimmingCharacters(in: .whitespaces).isEmpty
+            || !vm.notes.isEmpty
+            || !vm.selectedAssetIds.isEmpty
+    }
+
+    private func attemptCancel() {
+        if vm.isSubmitting { return }
+        if hasUnsavedInput {
+            showDiscardConfirm = true
+        } else {
+            dismiss()
+        }
     }
 
     var body: some View {
@@ -156,6 +177,17 @@ struct CreateBookingSheet: View {
             } message: {
                 Text(submitError ?? "")
             }
+            .confirmationDialog(
+                "Discard reservation?",
+                isPresented: $showDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your changes will be lost.")
+            }
+            .interactiveDismissDisabled(hasUnsavedInput || vm.isSubmitting)
             .task { await vm.loadOptions() }
             .onChange(of: vm.options) {
                 if vm.selectedUserId.isEmpty, let current = session.currentUser {
@@ -171,9 +203,11 @@ struct CreateBookingSheet: View {
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
             if step == 1 {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { attemptCancel() }
+                    .disabled(vm.isSubmitting)
             } else {
                 Button("Back") { step = 1 }
+                    .disabled(vm.isSubmitting)
             }
         }
         ToolbarItem(placement: .confirmationAction) {
@@ -217,19 +251,28 @@ struct CreateBookingSheet: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 4)
                     } else {
-                        NavigationLink {
-                            OptionPickerView(
-                                title: "Requester",
-                                options: vm.options?.users.map { ($0.id, $0.name) } ?? [],
-                                selection: $vm.selectedUserId
-                            )
-                        } label: {
+                        if canPickRequester {
+                            NavigationLink {
+                                OptionPickerView(
+                                    title: "Requester",
+                                    options: vm.options?.users.map { ($0.id, $0.name) } ?? [],
+                                    selection: $vm.selectedUserId
+                                )
+                            } label: {
+                                FormPickerRow(
+                                    label: "For",
+                                    value: vm.selectedUser?.name ?? "Select person"
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            // Student: locked to self.
                             FormPickerRow(
                                 label: "For",
-                                value: vm.selectedUser?.name ?? "Select person"
+                                value: session.currentUser?.name ?? "You"
                             )
+                            .opacity(0.85)
                         }
-                        .buttonStyle(.plain)
 
                         Divider().padding(.leading, 4)
 
@@ -358,7 +401,7 @@ struct AssetPickerRow: View {
                         }
                         .frame(width: 44, height: 44)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.black.opacity(0.08), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(.separator), lineWidth: 1))
                     } else {
                         assetPlaceholder
                             .frame(width: 44, height: 44)
@@ -417,8 +460,11 @@ struct FormCard<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
-        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
+        )
+        .shadow(color: Color.primary.opacity(0.05), radius: 4, x: 0, y: 2)
     }
 }
 

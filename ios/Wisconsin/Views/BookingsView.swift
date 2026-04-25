@@ -11,6 +11,7 @@ final class BookingsViewModel {
     var bookings: [Booking] = []
     var isLoading = false
     var error: String?
+    var pageError: String?
     var searchText = ""
     var tab: BookingTab = .reservations
     var hasMore = true
@@ -18,12 +19,26 @@ final class BookingsViewModel {
     private var offset = 0
     private let limit = 30
     private var searchTask: Task<Void, Never>?
+    private var loadTask: Task<Void, Never>?
 
     func load(reset: Bool = false) async {
-        guard !isLoading else { return }
+        if reset {
+            // Cancel any in-flight load so a tab switch / refresh wins.
+            loadTask?.cancel()
+        } else if isLoading {
+            // Pagination: ignore if a load is already running.
+            return
+        }
+        let task = Task { await performLoad(reset: reset) }
+        loadTask = task
+        await task.value
+    }
+
+    private func performLoad(reset: Bool) async {
         if reset {
             offset = 0
             hasMore = true
+            pageError = nil
             // Seed from cache immediately on unfiltered first-page load
             if searchText.isEmpty {
                 let kindKey = tab == .reservations ? "RESERVATION" : "CHECKOUT"
@@ -32,7 +47,7 @@ final class BookingsViewModel {
             }
         }
         isLoading = true
-        error = nil
+        if reset { error = nil }
         do {
             let search = searchText.isEmpty ? nil : searchText
             let result: PaginatedResponse<Booking> = switch tab {
@@ -41,16 +56,31 @@ final class BookingsViewModel {
             case .checkouts:
                 try await APIClient.shared.checkouts(activeOnly: true, search: search, limit: limit, offset: offset)
             }
+            if Task.isCancelled { isLoading = false; return }
             if reset { bookings = result.data } else { bookings += result.data }
             offset += result.data.count
             hasMore = offset < result.total
+            pageError = nil
             if reset && offset == result.data.count && searchText.isEmpty {
                 GearStore.shared.seedBookings(result.data)
             }
+        } catch is CancellationError {
+            // Superseded by a newer load; leave state alone.
         } catch {
-            self.error = error.localizedDescription
+            if reset {
+                self.error = error.localizedDescription
+            } else {
+                self.pageError = error.localizedDescription
+                hasMore = false
+            }
         }
         isLoading = false
+    }
+
+    func retryPage() async {
+        pageError = nil
+        hasMore = true
+        await load()
     }
 
     func onSearchChange() {
@@ -67,6 +97,17 @@ struct BookingsView: View {
     @State private var vm = BookingsViewModel()
     @State private var showCreate = false
     @State private var navigationPath = NavigationPath()
+    @Environment(SessionStore.self) private var session
+
+    private var canCreateForOthers: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "STAFF" || role == "ADMIN"
+    }
+
+    private var canCreate: Bool {
+        // Students can create their own reservations; gate the picker, not the entry point.
+        session.currentUser != nil
+    }
 
     private var emptyTitle: String {
         guard vm.searchText.isEmpty else { return "No Results" }
@@ -106,11 +147,22 @@ struct BookingsView: View {
                                 BookingRow(booking: booking)
                             }
                         }
-                        if vm.hasMore {
+                        if let pageError = vm.pageError {
+                            VStack(spacing: 8) {
+                                Text(pageError)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button("Retry") { Task { await vm.retryPage() } }
+                                    .buttonStyle(.bordered)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        } else if vm.hasMore {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
-                                .onAppear {
-                                    Task { await vm.load() }
+                                .task(id: vm.bookings.count) {
+                                    await vm.load()
                                 }
                         }
                     }
@@ -123,11 +175,12 @@ struct BookingsView: View {
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
             .toolbar {
-                if vm.tab == .reservations {
+                if vm.tab == .reservations && canCreate {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { showCreate = true } label: {
                             Image(systemName: "plus")
                         }
+                        .accessibilityLabel("New Reservation")
                     }
                 }
                 ToolbarItem(placement: .principal) {

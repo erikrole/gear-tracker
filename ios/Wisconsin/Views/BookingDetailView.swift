@@ -10,6 +10,16 @@ struct BookingDetailView: View {
     @State private var showExtend = false
     @State private var showEdit = false
     @State private var isActioning = false
+    @Environment(SessionStore.self) private var session
+
+    private var canEditBooking: Bool {
+        guard let booking, let user = session.currentUser else { return false }
+        let role = user.role
+        if role == "STAFF" || role == "ADMIN" { return true }
+        // Students can edit their own bookings while still mutable.
+        return booking.requester.id == user.id
+            && (booking.status == .draft || booking.status == .booked)
+    }
 
     var body: some View {
         Group {
@@ -61,11 +71,12 @@ struct BookingDetailView: View {
         .navigationTitle(booking?.title ?? "Booking")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if booking != nil {
+            if canEditBooking {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showEdit = true } label: {
                         Image(systemName: "pencil")
                     }
+                    .accessibilityLabel("Edit Booking")
                 }
             }
         }
@@ -132,6 +143,7 @@ struct EditBookingSheet: View {
     @State private var endsAt: Date
     @State private var isSaving = false
     @State private var error: String?
+    @State private var showDiscardConfirm = false
 
     init(booking: Booking, onSaved: @escaping () -> Void) {
         self.booking = booking
@@ -179,13 +191,32 @@ struct EditBookingSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if isSaving { return }
+                        if hasChanges {
+                            showDiscardConfirm = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await save() } }
                         .disabled(!hasChanges || title.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
                         .fontWeight(.semibold)
                 }
+            }
+            .interactiveDismissDisabled(hasChanges || isSaving)
+            .confirmationDialog(
+                "Discard changes?",
+                isPresented: $showDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your changes will be lost.")
             }
         }
     }
