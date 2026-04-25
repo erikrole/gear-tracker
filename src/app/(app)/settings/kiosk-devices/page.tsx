@@ -242,8 +242,8 @@ export default function KioskDevicesPage() {
 
   return (
     <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-      <div className="sticky top-20 max-md:static">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+      <div className="sticky top-20 max-lg:static">
         <h2 className="text-2xl font-bold mb-2">Kiosk Devices</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Manage iPad kiosk stations for self-serve gear checkout.

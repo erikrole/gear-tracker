@@ -114,11 +114,11 @@ export default function BookingSettingsPage() {
 
   return (
     <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-      <div className="sticky top-20 max-md:static">
-        <h2 className="text-2xl font-bold mb-2">Bookings</h2>
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+      <div className="sticky top-20 max-lg:static">
+        <h2 className="text-2xl font-bold mb-2">Extend Presets</h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Configure default extend presets shown when extending a booking&apos;s due date.
+          Configure the preset buttons shown when extending a booking&apos;s due date.
         </p>
       </div>
 

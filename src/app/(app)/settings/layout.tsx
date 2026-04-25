@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SETTINGS_SECTIONS, isSectionVisible } from "@/lib/nav-sections";
+import { SettingsCommand } from "./SettingsCommand";
 
 const LAST_TAB_STORAGE_KEY = "settings:last-tab";
 
@@ -61,23 +62,35 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   // Render shell immediately to avoid blank flicker on every settings nav.
   return (
     <>
-      <PageHeader title="Settings" className="mb-0" />
+      <div className="flex items-end justify-between gap-4 mb-0">
+        <PageHeader title="Settings" className="mb-0" />
+        <div className="pb-2">
+          <SettingsCommand visibleSections={visibleSections} />
+        </div>
+      </div>
 
       <nav className="flex gap-0 border-b mb-6 overflow-x-auto" aria-label="Settings sections">
-        {visibleSections.map((s) => (
-          <Link
-            key={s.href}
-            href={s.href}
-            className={`px-4 py-2.5 text-sm font-medium no-underline transition-colors border-b-2 -mb-px whitespace-nowrap ${pathname.startsWith(s.href) ? "text-foreground border-[var(--wi-red)] font-semibold" : "text-muted-foreground border-transparent hover:text-foreground"}`}
-          >
-            {s.label}
-          </Link>
-        ))}
+        {visibleSections.map((s, i) => {
+          const prev = i > 0 ? visibleSections[i - 1] : null;
+          const newGroup = prev && prev.group !== s.group;
+          return (
+            <div key={s.href} className="flex items-stretch">
+              {newGroup && <span className="self-center mx-1.5 h-4 w-px bg-border" aria-hidden />}
+              <Link
+                href={s.href}
+                title={s.description}
+                className={`px-4 py-2.5 text-sm font-medium no-underline transition-colors border-b-2 -mb-px whitespace-nowrap ${pathname.startsWith(s.href) ? "text-foreground border-[var(--wi-red)] font-semibold" : "text-muted-foreground border-transparent hover:text-foreground"}`}
+              >
+                {s.label}
+              </Link>
+            </div>
+          );
+        })}
       </nav>
 
       {authState === "loading" ? (
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-          <div className="sticky top-20 max-md:static space-y-2">
+        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+          <div className="sticky top-20 max-lg:static space-y-2">
             <Skeleton className="h-7 w-32" />
             <Skeleton className="h-4 w-56" />
           </div>

@@ -1,6 +1,6 @@
 # Audit: /settings (web) — 2026-04-25
 
-**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 13/19 P2 also addressed
+**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 17/19 P2 also addressed
 **Last fix pass:** 2026-04-25 — P1 slices 1–7 + P2 polish slices A–D + landing-tab memory + Locations tab shipped on `main`
 **Ship bar:** all staff + students, zero hiccups
 
@@ -93,10 +93,10 @@ _None._
 ### IA / structure (post-MVP)
 
 - [x] **No `/settings/locations` tab.** Locations are referenced by Venue Mappings, Kiosk Devices, calendar events but have no admin surface. Home Venues toggle is grafted onto Venue Mappings (`venue-mappings/page.tsx:167-194`). Add a Locations tab that owns name + isHomeVenue.
-- [ ] **`/settings/bookings` is misnamed.** Page is just "Extend presets" with one card. Either rename the tab to "Extend presets" or fill the page with default checkout duration / blackouts / max-extends.
-- [ ] **Tab order is arbitrary.** Mixing inventory + scheduling + integrations + system. Suggested: People (Allowed Emails, Sports), Inventory (Categories), Scheduling (Calendar, Venue Mappings, Bookings, Escalation), Devices (Kiosk), System (Database).
+- [x] **`/settings/bookings` is misnamed.** Page is just "Extend presets" with one card. Either rename the tab to "Extend presets" or fill the page with default checkout duration / blackouts / max-extends.
+- [x] **Tab order is arbitrary.** Mixing inventory + scheduling + integrations + system. Suggested: People (Allowed Emails, Sports), Inventory (Categories), Scheduling (Calendar, Venue Mappings, Bookings, Escalation), Devices (Kiosk), System (Database).
 - [x] **`/settings` lands on Categories arbitrarily.** Last-visited or a real overview would be friendlier.
-- [ ] **No search across settings.** Admin guessing the right tab to find "where do I allowlist an email."
+- [x] **No search across settings.** Admin guessing the right tab to find "where do I allowlist an email."
 - [x] **D-027 conflict.** AREA_SETTINGS.md says venue mappings are ADMIN-only; `permissions.ts:69-73` allows STAFF. Reconcile (likely tighten the permission to ADMIN to match the doc).
 
 ### Bulk + admin productivity (post-MVP)
@@ -113,7 +113,7 @@ _None._
 
 ### Density / layout (post-MVP)
 
-- [ ] **260px decorative sidebar on every sub-page** eats horizontal room on 13" laptops without aiding navigation. Consider collapsing to a one-line subhead on narrow desktops.
+- [x] **260px decorative sidebar on every sub-page** eats horizontal room on 13" laptops without aiding navigation. Consider collapsing to a one-line subhead on narrow desktops.
 
 ## Acceptance criteria status (from AREA_SETTINGS.md)
 

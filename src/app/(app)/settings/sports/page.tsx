@@ -132,8 +132,8 @@ export default function SportsSettingsPage() {
   /* ---------- Loading skeleton ---------- */
   if (loading) {
     return (
-      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-        <div className="sticky top-20 max-md:static">
+      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+        <div className="sticky top-20 max-lg:static">
           <h2 className="text-2xl font-bold mb-2">Sports</h2>
         </div>
         <div className="min-w-0 space-y-4">
@@ -155,8 +155,8 @@ export default function SportsSettingsPage() {
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-        <div className="sticky top-20 max-md:static">
+      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+        <div className="sticky top-20 max-lg:static">
           <h2 className="text-2xl font-bold mb-2">Sports</h2>
         </div>
         <div className="min-w-0">
@@ -187,8 +187,8 @@ export default function SportsSettingsPage() {
   /* ---------- Normal render ---------- */
   return (
     <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-      <div className="sticky top-20 max-md:static">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+      <div className="sticky top-20 max-lg:static">
         <h2 className="text-2xl font-bold mb-2">Sports</h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Configure shift coverage and call times for each sport.

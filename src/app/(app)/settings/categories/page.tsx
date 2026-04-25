@@ -86,8 +86,8 @@ export default function CategoriesPage() {
 
   return (
     <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
-      <div className="sticky top-20 max-md:static">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
+      <div className="sticky top-20 max-lg:static">
         <h2 className="text-2xl font-bold mb-2">Categories</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Organize your inventory under categories and subcategories to make equipment easier to find and manage.

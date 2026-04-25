@@ -213,7 +213,7 @@ export default function AllowedEmailsPage() {
   }
 
   const sidebar = (
-    <div className="sticky top-20 max-md:static">
+    <div className="sticky top-20 max-lg:static">
       <h2 className="text-2xl font-bold mb-2">Allowed Emails</h2>
       <p className="text-sm text-muted-foreground leading-relaxed">
         Manage which email addresses can register for an account.
@@ -225,7 +225,7 @@ export default function AllowedEmailsPage() {
   if (loading) {
     return (
       <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
           {sidebar}
           <div className="min-w-0 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -244,7 +244,7 @@ export default function AllowedEmailsPage() {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
       <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
           {sidebar}
           <div className="min-w-0">
             <Card>
@@ -274,7 +274,7 @@ export default function AllowedEmailsPage() {
 
   return (
     <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
+    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
       {sidebar}
 
       <div className="min-w-0 space-y-4">
