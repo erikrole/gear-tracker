@@ -85,6 +85,17 @@ struct DashboardUpcomingEvent: Codable, Identifiable {
     var coveragePct: Int { totalShiftSlots > 0 ? (filledShiftSlots * 100 / totalShiftSlots) : 0 }
 }
 
+struct DashboardOverdueItem: Codable, Identifiable, Hashable {
+    let bookingId: String
+    let bookingTitle: String
+    let requesterName: String
+    let requesterInitials: String
+    let requesterAvatarUrl: String?
+    let endsAt: Date
+
+    var id: String { bookingId }
+}
+
 struct DashboardData: Codable {
     let role: String
     let stats: DashboardStats
@@ -92,6 +103,16 @@ struct DashboardData: Codable {
     let teamCheckouts: CheckoutGroup
     let teamReservations: ReservationGroup
     let overdueCount: Int
+    let overdueItems: [DashboardOverdueItem]
     let myShifts: [DashboardShift]
     let upcomingEvents: [DashboardUpcomingEvent]
+}
+
+/// Lightweight payload from `/api/dashboard/stats`. Used by AppState to refresh
+/// badges without re-running the heavy `/api/dashboard` query.
+struct DashboardStatsPayload: Codable {
+    let role: String
+    let stats: DashboardStats
+    let overdueCount: Int
+    let myShiftsCount: Int
 }

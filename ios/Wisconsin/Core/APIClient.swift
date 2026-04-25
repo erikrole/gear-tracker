@@ -243,6 +243,14 @@ final class APIClient {
         return resp.data
     }
 
+    /// Lightweight stats-only fetch for badge refresh. Avoids the heavy
+    /// `/api/dashboard` payload when only counters and role are needed.
+    func dashboardStats() async throws -> DashboardStatsPayload {
+        let req = request(path: "/api/dashboard/stats")
+        let resp: DataWrapper<DashboardStatsPayload> = try await perform(req)
+        return resp.data
+    }
+
     // MARK: - Assets
 
     func assets(

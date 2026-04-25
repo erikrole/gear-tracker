@@ -33,37 +33,48 @@ export const GET = withAuth(async (_req, { user }) => {
     due_today: bigint;
   };
 
-  const [counts] = await db.$queryRaw<CountRow[]>(Prisma.sql`
-    SELECT
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN') AS total_checked_out,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at < ${now}) AS total_overdue,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at >= ${startOfToday} AND ends_at < ${startOfTomorrow}) AS due_today,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id}) AS team_checkouts,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id} AND ends_at < ${now}) AS team_checkouts_overdue,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id}) AS my_checkouts,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id} AND ends_at < ${now}) AS my_overdue,
-      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
-      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${user.id} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations
-    FROM bookings
-    WHERE (kind = 'CHECKOUT' AND status = 'OPEN')
-       OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow})
-  `);
+  const [counts, myShiftsCount] = await Promise.all([
+    db.$queryRaw<CountRow[]>(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN') AS total_checked_out,
+        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at < ${now}) AS total_overdue,
+        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at >= ${startOfToday} AND ends_at < ${startOfTomorrow}) AS due_today,
+        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id}) AS team_checkouts,
+        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id} AND ends_at < ${now}) AS team_checkouts_overdue,
+        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id}) AS my_checkouts,
+        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id} AND ends_at < ${now}) AS my_overdue,
+        COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
+        COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${user.id} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations
+      FROM bookings
+      WHERE (kind = 'CHECKOUT' AND status = 'OPEN')
+         OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow})
+    `),
+    db.shiftAssignment.count({
+      where: {
+        userId: user.id,
+        status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
+        shift: { shiftGroup: { event: { startsAt: { gte: now }, status: "CONFIRMED" } } },
+      },
+    }),
+  ]);
+  const c = counts[0];
 
   return ok({
     data: {
       role: user.role,
       stats: {
-        checkedOut: Number(counts.total_checked_out),
-        overdue: Number(counts.total_overdue),
-        reserved: Number(counts.total_reserved),
-        dueToday: Number(counts.due_today),
+        checkedOut: Number(c.total_checked_out),
+        overdue: Number(c.total_overdue),
+        reserved: Number(c.total_reserved),
+        dueToday: Number(c.due_today),
       },
-      overdueCount: Number(counts.total_overdue),
-      myCheckoutsTotal: Number(counts.my_checkouts),
-      myOverdueCount: Number(counts.my_overdue),
-      teamCheckoutsTotal: Number(counts.team_checkouts),
-      teamCheckoutsOverdue: Number(counts.team_checkouts_overdue),
-      teamReservationsTotal: Number(counts.team_reservations),
+      overdueCount: Number(c.total_overdue),
+      myCheckoutsTotal: Number(c.my_checkouts),
+      myOverdueCount: Number(c.my_overdue),
+      teamCheckoutsTotal: Number(c.team_checkouts),
+      teamCheckoutsOverdue: Number(c.team_checkouts_overdue),
+      teamReservationsTotal: Number(c.team_reservations),
+      myShiftsCount,
     },
   });
 });

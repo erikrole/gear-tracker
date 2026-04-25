@@ -18,12 +18,14 @@ final class AppState {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            async let dashTask = APIClient.shared.dashboard()
+            // Use the lightweight stats endpoint instead of the full dashboard payload —
+            // we only need overdueCount and myShiftsCount here.
+            async let statsTask = APIClient.shared.dashboardStats()
             async let countTask = APIClient.shared.notificationUnreadCount()
             async let tradesTask = APIClient.shared.shiftTrades(status: "OPEN", limit: 1)
-            let (dash, count, trades) = try await (dashTask, countTask, tradesTask)
-            overdueCount = dash.overdueCount
-            myShiftCount = dash.myShifts.count
+            let (stats, count, trades) = try await (statsTask, countTask, tradesTask)
+            overdueCount = stats.overdueCount
+            myShiftCount = stats.myShiftsCount
             unreadNotifCount = count
             openTradeCount = min(trades.total, 9)
         } catch {

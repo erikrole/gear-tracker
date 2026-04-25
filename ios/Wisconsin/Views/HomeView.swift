@@ -6,20 +6,26 @@ final class HomeViewModel {
     var dashboard: DashboardData?
     var isLoading = false
     var error: String?
-    private var hasLoaded = false
+    private var lastLoadedAt: Date?
+
+    /// Refresh if data is older than this. `.task` fires on every appearance,
+    /// so without a freshness check we'd hammer the endpoint on every tab switch.
+    private static let freshnessWindow: TimeInterval = 60
 
     func load(appState: AppState? = nil, forceRefresh: Bool = false) async {
         guard !isLoading else { return }
-        guard !hasLoaded || forceRefresh else { return }
+        if !forceRefresh, let last = lastLoadedAt, Date().timeIntervalSince(last) < Self.freshnessWindow {
+            return
+        }
         isLoading = true
-        error = nil
         do {
             dashboard = try await APIClient.shared.dashboard()
             if let appState {
                 appState.overdueCount = dashboard?.overdueCount ?? 0
                 appState.myShiftCount = dashboard?.myShifts.count ?? 0
             }
-            hasLoaded = true
+            error = nil
+            lastLoadedAt = Date()
         } catch {
             self.error = error.localizedDescription
         }
@@ -37,6 +43,7 @@ struct HomeView: View {
     @State private var pendingShowTrades = false
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
+    @Environment(KioskStore.self) private var kiosk
 
     @ViewBuilder private var mainContent: some View {
         if vm.dashboard == nil && vm.error == nil {
@@ -69,13 +76,27 @@ struct HomeView: View {
         }
     }
 
+    private func isAllEmpty(_ dash: DashboardData) -> Bool {
+        dash.myCheckouts.items.isEmpty
+            && dash.teamCheckouts.items.isEmpty
+            && dash.teamReservations.items.isEmpty
+            && dash.myShifts.isEmpty
+            && dash.upcomingEvents.isEmpty
+            && dash.overdueItems.isEmpty
+    }
+
     @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
-        let overdue = (dash.myCheckouts.items + dash.teamCheckouts.items).filter(\.isOverdue)
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                if vm.error != nil {
+                    RefreshFailurePill(message: vm.error ?? "")
+                }
                 StatStrip(stats: dash.stats)
-                if !overdue.isEmpty {
-                    OverdueBanner(items: overdue)
+                if !dash.overdueItems.isEmpty {
+                    OverdueBanner(totalCount: dash.overdueCount, items: dash.overdueItems)
+                }
+                if isAllEmpty(dash) {
+                    AllClearEmptyState()
                 }
                 if !dash.myShifts.isEmpty {
                     DashboardCard(title: "My Upcoming Shifts") {
@@ -121,6 +142,13 @@ struct HomeView: View {
             mainContent
                 .navigationTitle("Dashboard")
             .toolbar {
+                #if DEBUG
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Kiosk") { kiosk.enterKiosk() }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                #endif
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showNotifications = true
@@ -241,38 +269,45 @@ private struct StatStripSkeleton: View {
 // MARK: - Overdue Banner
 
 private struct OverdueBanner: View {
-    let items: [BookingSummary]
+    let totalCount: Int
+    let items: [DashboardOverdueItem]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("\(items.count) Overdue Checkout\(items.count == 1 ? "" : "s")",
+            Label("\(totalCount) Overdue Checkout\(totalCount == 1 ? "" : "s")",
                   systemImage: "exclamationmark.triangle.fill")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.red)
 
-            ForEach(items) { summary in
-                NavigationLink(value: summary) {
+            ForEach(items) { item in
+                NavigationLink(value: item.bookingId) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(summary.title)
+                            Text(item.bookingTitle)
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
-                            Text(summary.requesterName)
+                            Text(item.requesterName)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Text(summary.endsAt.overdueLabel)
+                        Text(item.endsAt.overdueLabel)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.red)
                     }
                 }
                 .buttonStyle(.plain)
 
-                if summary.id != items.last?.id {
+                if item.id != items.last?.id {
                     Divider()
                 }
+            }
+
+            if totalCount > items.count {
+                Text("+ \(totalCount - items.count) more")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(14)
@@ -281,6 +316,51 @@ private struct OverdueBanner: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.red.opacity(0.18), lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Refresh Failure Pill
+
+private struct RefreshFailurePill: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Couldn't refresh")
+                    .font(.caption.weight(.semibold))
+                Text(message.isEmpty ? "Pull to try again." : message)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - All Clear Empty State
+
+private struct AllClearEmptyState: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(.green)
+            Text("You're all set")
+                .font(.headline)
+            Text("Open the Scan tab to check out gear.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(28)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
