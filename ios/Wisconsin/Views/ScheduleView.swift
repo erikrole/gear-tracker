@@ -220,28 +220,27 @@ struct ScheduleView: View {
             .animation(.spring(duration: 0.3), value: toast)
             .animation(.easeInOut(duration: 0.2), value: vm.refreshError)
             .navigationTitle("Schedule")
-            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Picker("View", selection: $viewMode) {
-                        ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
+                        Image(systemName: "list.bullet").tag(ScheduleViewMode.list)
+                        Image(systemName: "calendar").tag(ScheduleViewMode.calendar)
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 160)
+                    .frame(width: 96)
+                    .accessibilityLabel("Schedule view")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Toggle(isOn: $myShiftsOnly) {
-                        Label("My Shifts", systemImage: "person.fill")
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        myShiftsOnly.toggle()
+                    } label: {
+                        Image(systemName: myShiftsOnly ? "person.fill" : "person")
+                            .foregroundStyle(myShiftsOnly ? Color.accentColor : .primary)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
-                    .toggleStyle(.button)
-                    .tint(.accentColor)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.small)
+                    .accessibilityLabel(myShiftsOnly ? "Showing my shifts only" : "Show my shifts only")
                     .sensoryFeedback(.selection, trigger: myShiftsOnly)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
+
                     Button {
                         showTradeBoard = true
                     } label: {
@@ -249,13 +248,14 @@ struct ScheduleView: View {
                             Image(systemName: "arrow.triangle.2.circlepath")
                             if appState.openTradeCount > 0 {
                                 Text("\(appState.openTradeCount)")
-                                    .font(.caption.weight(.semibold).monospacedDigit())
-                                    .padding(.horizontal, 6)
+                                    .font(.caption2.weight(.semibold).monospacedDigit())
+                                    .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
                                     .background(Color.accentColor, in: Capsule())
                                     .foregroundStyle(.white)
                             }
                         }
+                        .frame(minHeight: 44)
                     }
                     .accessibilityLabel(appState.openTradeCount > 0
                         ? "Trade Board, \(appState.openTradeCount) open"
