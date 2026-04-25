@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SETTINGS_SECTIONS, isSectionVisible } from "@/lib/nav-sections";
 
+const LAST_TAB_STORAGE_KEY = "settings:last-tab";
+
 type AuthState = "loading" | "authorized" | "denied";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +45,18 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const visibleSections = role
     ? SETTINGS_SECTIONS.filter((s) => isSectionVisible(s, role))
     : SETTINGS_SECTIONS;
+
+  // Remember which sub-tab the user is on, so /settings can resume it next visit.
+  useEffect(() => {
+    if (pathname === "/settings") return;
+    const match = SETTINGS_SECTIONS.find((s) => pathname.startsWith(s.href));
+    if (!match) return;
+    try {
+      localStorage.setItem(LAST_TAB_STORAGE_KEY, match.href);
+    } catch {
+      // ignore quota / privacy-mode failures
+    }
+  }, [pathname]);
 
   // Render shell immediately to avoid blank flicker on every settings nav.
   return (

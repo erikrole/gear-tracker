@@ -1,7 +1,7 @@
 # Audit: /settings (web) — 2026-04-25
 
-**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed
-**Last fix pass:** 2026-04-25 — slices 1–7 shipped on `main`
+**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 11/19 P2 also addressed
+**Last fix pass:** 2026-04-25 — P1 slices 1–7 + P2 polish slices A–D + landing-tab memory shipped on `main`
 **Ship bar:** all staff + students, zero hiccups
 
 > Settings is admin/staff-only — students never see it. Ship-bar still applies for staff/admins (zero hiccups).
@@ -68,15 +68,15 @@ _None._
 
 ## P2 — post-MVP
 
-- [ ] **[Hardening] Kiosk-devices page is the only sub-page that didn't get the 2026-04-07 hardening pass.**
+- [x] **[Hardening] Kiosk-devices page is the only sub-page that didn't get the 2026-04-07 hardening pass.**
       `src/app/(app)/settings/kiosk-devices/page.tsx:118-122,150-152,176-178` — `catch {}` blocks all collapse to "Could not connect to server", missing `classifyError` / `isAbortError` / `handleAuthRedirect(returnTo)` that every other settings page uses. Also `useFetch({ url: "/api/kiosk-devices" })` has no `returnTo` so 401 redirect loses context.
       Suggested fix: align with the `useFetch` + `classifyError` pattern from allowed-emails/escalation.
 
-- [ ] **[Flows] Categories search drops grandparents.**
+- [x] **[Flows] Categories search drops grandparents.**
       `src/app/(app)/settings/categories/page.tsx:60-67` — only re-adds the immediate `parentId` of a match. A 3-level-deep match shows orphaned in the tree (grandparent missing → tree builder may drop it).
       Suggested fix: walk the full ancestor chain.
 
-- [ ] **[Flows] Allowed Emails filter total is misleading.**
+- [x] **[Flows] Allowed Emails filter total is misleading.**
       `src/app/(app)/settings/allowed-emails/page.tsx:219` — the "All (N)" label always shows total from the *current* filtered fetch, not the unfiltered total. When user is on "Pending" filter, the All option in the dropdown shows the wrong number.
       Suggested fix: fetch unfiltered count separately, or fetch all and filter client-side (small dataset).
 
@@ -87,7 +87,7 @@ _None._
 - [ ] **[Parity] iOS app has no Settings surface at all (informational).**
       Not a blocker — admin tasks are web-first per project conventions.
 
-- [ ] **[UI polish] `Categories` sort toggle uses arrows ↑↓ / ↓↑ that don't visually distinguish well.**
+- [x] **[UI polish] `Categories` sort toggle uses arrows ↑↓ / ↓↑ that don't visually distinguish well.**
       `src/app/(app)/settings/categories/page.tsx:121` — replace with a single chevron that flips, or use Lucide `ArrowUpAZ` / `ArrowDownZA`.
 
 ### IA / structure (post-MVP)
@@ -95,21 +95,21 @@ _None._
 - [ ] **No `/settings/locations` tab.** Locations are referenced by Venue Mappings, Kiosk Devices, calendar events but have no admin surface. Home Venues toggle is grafted onto Venue Mappings (`venue-mappings/page.tsx:167-194`). Add a Locations tab that owns name + isHomeVenue.
 - [ ] **`/settings/bookings` is misnamed.** Page is just "Extend presets" with one card. Either rename the tab to "Extend presets" or fill the page with default checkout duration / blackouts / max-extends.
 - [ ] **Tab order is arbitrary.** Mixing inventory + scheduling + integrations + system. Suggested: People (Allowed Emails, Sports), Inventory (Categories), Scheduling (Calendar, Venue Mappings, Bookings, Escalation), Devices (Kiosk), System (Database).
-- [ ] **`/settings` lands on Categories arbitrarily.** Last-visited or a real overview would be friendlier.
+- [x] **`/settings` lands on Categories arbitrarily.** Last-visited or a real overview would be friendlier.
 - [ ] **No search across settings.** Admin guessing the right tab to find "where do I allowlist an email."
-- [ ] **D-027 conflict.** AREA_SETTINGS.md says venue mappings are ADMIN-only; `permissions.ts:69-73` allows STAFF. Reconcile (likely tighten the permission to ADMIN to match the doc).
+- [x] **D-027 conflict.** AREA_SETTINGS.md says venue mappings are ADMIN-only; `permissions.ts:69-73` allows STAFF. Reconcile (likely tighten the permission to ADMIN to match the doc).
 
 ### Bulk + admin productivity (post-MVP)
 
-- [ ] **Allowed Emails: no bulk add.** Onboarding 30 students = 30 forms. Textarea + parse-and-validate paste-list would save hours per season.
-- [ ] **Kiosk Devices: no "stale" warning.** A device offline 1 week looks identical to one online 5 minutes ago. Add a red dot + "Offline since X" when `lastSeenAt` > 24h.
+- [x] **Allowed Emails: no bulk add.** Onboarding 30 students = 30 forms. Textarea + parse-and-validate paste-list would save hours per season.
+- [x] **Kiosk Devices: no "stale" warning.** A device offline 1 week looks identical to one online 5 minutes ago. Add a red dot + "Offline since X" when `lastSeenAt` > 24h.
 - [ ] **No "last edited by / when" anywhere.** Admin surface should expose inline audit context (audit log already exists; surface the last entry per setting).
 
 ### Quiet feedback (post-MVP)
 
-- [ ] **Categories rename has no toast.** Only delete/create do.
-- [ ] **Sports/Escalation toggles save silently** — only disabled state confirms; add toast or inline checkmark.
-- [ ] **Calendar Sources "Stale" threshold is hardcoded 24h** (`calendar-sources/page.tsx:166`) but cron runs daily at 6 AM UTC. Bump to ~30h for grace, or compute relative to expected next-run.
+- [x] **Categories rename has no toast.** Only delete/create do.
+- [x] **Sports/Escalation toggles save silently** — only disabled state confirms; add toast or inline checkmark.
+- [x] **Calendar Sources "Stale" threshold is hardcoded 24h** (`calendar-sources/page.tsx:166`) but cron runs daily at 6 AM UTC. Bump to ~30h for grace, or compute relative to expected next-run.
 
 ### Density / layout (post-MVP)
 
