@@ -1,9 +1,15 @@
 import SwiftUI
 
-private func nextCleanHour(offset: Int) -> Date {
+/// Returns the next clean hour boundary after `now`, plus `addingHours`.
+/// `addingHours: 0` → the upcoming `:00`; `addingHours: 1` → one hour after that.
+private func nextCleanHour(addingHours: Int = 0) -> Date {
     let cal = Calendar.current
-    let next = cal.nextDate(after: .now, matching: DateComponents(minute: 0, second: 0), matchingPolicy: .nextTime) ?? .now
-    return cal.date(byAdding: .hour, value: offset - 1, to: next) ?? .now
+    let nextHour = cal.nextDate(
+        after: .now,
+        matching: DateComponents(minute: 0, second: 0),
+        matchingPolicy: .nextTime
+    ) ?? .now
+    return cal.date(byAdding: .hour, value: addingHours, to: nextHour) ?? nextHour
 }
 
 @MainActor
@@ -12,8 +18,8 @@ final class CreateBookingViewModel {
     var title = ""
     var selectedUserId: String = ""
     var selectedLocationId: String = ""
-    var startsAt = nextCleanHour(offset: 1)
-    var endsAt = nextCleanHour(offset: 2)
+    var startsAt = nextCleanHour(addingHours: 0)
+    var endsAt = nextCleanHour(addingHours: 1)
     var notes = ""
 
     var prefillEventId: String?

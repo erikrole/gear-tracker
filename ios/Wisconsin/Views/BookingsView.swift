@@ -190,7 +190,8 @@ struct BookingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 220)
+                    .frame(maxWidth: 260)
+                    .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .sheet(isPresented: $showCreate) {

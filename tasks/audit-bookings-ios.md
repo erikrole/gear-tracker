@@ -52,20 +52,15 @@ Scope: `BookingsView` list (Reservations / Checkouts tabs) + `BookingDetailView`
 
 ## P2 — post-MVP
 
-- [ ] [UI polish] `nextCleanHour(offset:)` uses `offset - 1` semantics — works but fragile to read; consider explicit "next hour boundary" + relative `addingTimeInterval`.
-      `ios/Wisconsin/Views/CreateBookingSheet.swift:3-7`.
+- [x] [UI polish] `nextCleanHour` rewritten to take `addingHours:` with explicit semantics (0 = next `:00`).
 
-- [ ] [Parity] Web Bookings list supports status scope filters (DRAFT / BOOKED / OPEN / OVERDUE / CANCELLED / COMPLETED) and column sorting; iOS list is `activeOnly: true` only.
-      `ios/Wisconsin/Views/BookingsView.swift:40-43` vs AREA_RESERVATIONS.md AC-10. Acceptable for V1 student bar; flag for power-user parity.
+- [ ] [Parity] **Deferred to follow-up slice.** Web Bookings list supports status scope filters (DRAFT / BOOKED / OPEN / OVERDUE / CANCELLED / COMPLETED) and column sorting; iOS list is `activeOnly: true` only. Needs new API params on `reservations`/`checkouts` clients + filter UI. Tracked.
 
-- [ ] [Parity] Web detail surfaces an Equipment conflict badge per AREA_RESERVATIONS AC-8; iOS `ItemsSection` shows allocation status only.
-      `ios/Wisconsin/Views/BookingDetailView.swift:290-322`.
+- [ ] [Parity] **Deferred to follow-up slice.** Web detail surfaces an Equipment conflict badge per AREA_RESERVATIONS AC-8; iOS `ItemsSection` shows allocation status only. Needs `/api/availability/check` API client + per-row badge wiring. Tracked.
 
-- [ ] [UI polish] Picker `.frame(width: 220)` may clip on iPhone SE-class widths in landscape orientation.
-      `ios/Wisconsin/Views/BookingsView.swift:140`.
+- [x] [UI polish] Toolbar Picker now uses `maxWidth: 260` + `fixedSize(horizontal: false)` so it shrinks on narrower devices instead of clipping.
 
-- [ ] [Flows] Trailing pagination ProgressView fires `Task { await vm.load() }` from `.onAppear`, which can re-trigger when SwiftUI re-renders the row.
-      `ios/Wisconsin/Views/BookingsView.swift:109-115`. The `guard !isLoading` blocks duplicates today; consider `.task(id:)` for clarity.
+- [x] [Flows] Trailing pagination switched to `.task(id: vm.bookings.count)` (addressed in P0 fix).
 
 ## Acceptance criteria status
 
