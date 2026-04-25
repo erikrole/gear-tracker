@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -45,41 +46,106 @@ type AllowedEmailsResponse = { data: AllowedEmail[]; total: number };
 export default function AllowedEmailsPage() {
   const confirm = useConfirm();
 
-  // Filter
+  // Filter (client-side so the count badges always reflect the unfiltered totals)
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Build fetch URL from filter state
-  const fetchUrl = (() => {
-    const params = new URLSearchParams({ limit: "100" });
-    if (statusFilter !== "all") params.set("status", statusFilter);
-    return `/api/allowed-emails?${params}`;
-  })();
-
   const { data: emailsData, loading, error, reload } = useFetch<AllowedEmailsResponse>({
-    url: fetchUrl,
+    url: "/api/allowed-emails?limit=500",
     returnTo: "/settings/allowed-emails",
     transform: (json) => ({ data: (json.data as AllowedEmail[]) ?? [], total: (json.total as number) ?? 0 }),
   });
 
   // Local state for optimistic mutation updates
   const [localItems, setLocalItems] = useState<AllowedEmail[] | null>(null);
-  const [localTotal, setLocalTotal] = useState<number | null>(null);
-  const items = localItems ?? emailsData?.data ?? [];
-  const total = localTotal ?? emailsData?.total ?? 0;
+  const allItems = localItems ?? emailsData?.data ?? [];
   const [prevData, setPrevData] = useState(emailsData);
   if (emailsData !== prevData) {
     setPrevData(emailsData);
     setLocalItems(null);
-    setLocalTotal(null);
   }
+
+  const totalAll = allItems.length;
+  const totalPending = allItems.filter((i) => !i.claimedAt).length;
+  const totalClaimed = totalAll - totalPending;
+  const items = statusFilter === "unclaimed"
+    ? allItems.filter((i) => !i.claimedAt)
+    : statusFilter === "claimed"
+      ? allItems.filter((i) => i.claimedAt)
+      : allItems;
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Add form
   const [showAdd, setShowAdd] = useState(false);
+  const [addMode, setAddMode] = useState<"single" | "bulk">("single");
   const [addEmail, setAddEmail] = useState("");
+  const [addBulk, setAddBulk] = useState("");
   const [addRole, setAddRole] = useState<"STUDENT" | "STAFF">("STUDENT");
   const [adding, setAdding] = useState(false);
+
+  function parseBulkEmails(raw: string): string[] {
+    return Array.from(
+      new Set(
+        raw
+          .split(/[\s,;\n]+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  async function handleBulkAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const emails = parseBulkEmails(addBulk);
+    if (emails.length === 0) {
+      toast.error("Paste at least one email");
+      return;
+    }
+    if (emails.length > 50) {
+      toast.error(`Too many — max 50 per batch (got ${emails.length}).`);
+      return;
+    }
+    // Basic shape filter to bail before the round-trip
+    const malformed = emails.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (malformed.length > 0) {
+      toast.error(`Looks invalid: ${malformed.slice(0, 3).join(", ")}${malformed.length > 3 ? "…" : ""}`);
+      return;
+    }
+
+    setAdding(true);
+    try {
+      const res = await fetch("/api/allowed-emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: emails.map((email) => ({ email, role: addRole })) }),
+      });
+      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
+      if (res.ok) {
+        const json = await res.json();
+        const created = (json.created as number) ?? 0;
+        const skipped = (json.skipped as string[]) ?? [];
+        if (created > 0 && skipped.length === 0) {
+          toast.success(`Added ${created} email${created === 1 ? "" : "s"} to allowlist`);
+        } else if (created > 0) {
+          toast.success(`Added ${created}; skipped ${skipped.length} already on allowlist or registered`);
+        } else {
+          toast.message("All emails were already on the allowlist or registered.");
+        }
+        setAddBulk("");
+        setShowAdd(false);
+        setAddMode("single");
+        reload();
+      } else {
+        const msg = await parseErrorMessage(res, "Bulk add failed");
+        toast.error(msg);
+      }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Bulk add failed");
+    }
+    setAdding(false);
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -128,8 +194,7 @@ export default function AllowedEmailsPage() {
       });
       if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
       if (res.ok) {
-        setLocalItems((prev) => (prev ?? items).filter((i) => i.id !== item.id));
-        setLocalTotal((prev) => (prev ?? total) - 1);
+        setLocalItems((prev) => (prev ?? allItems).filter((i) => i.id !== item.id));
         toast.success("Email removed from allowlist");
       } else {
         const msg = await parseErrorMessage(res, "Failed to remove email");
@@ -217,9 +282,9 @@ export default function AllowedEmailsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All ({total})</SelectItem>
-                <SelectItem value="unclaimed">Pending</SelectItem>
-                <SelectItem value="claimed">Claimed</SelectItem>
+                <SelectItem value="all">All ({totalAll})</SelectItem>
+                <SelectItem value="unclaimed">Pending ({totalPending})</SelectItem>
+                <SelectItem value="claimed">Claimed ({totalClaimed})</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -236,64 +301,116 @@ export default function AllowedEmailsPage() {
         {showAdd && (
           <Card>
             <CardContent className="pt-6">
-              <form onSubmit={handleAdd} className="space-y-4">
-                <div className="grid grid-cols-[1fr_140px] gap-3 max-sm:grid-cols-1">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="add-email">Email address</Label>
-                    <Input
-                      id="add-email"
-                      type="email"
-                      value={addEmail}
-                      onChange={(e) => setAddEmail(e.target.value)}
-                      placeholder="user@example.com"
-                      required
-                      autoFocus
-                      disabled={adding}
-                    />
+              <div className="mb-3 flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  className={`px-2 py-1 rounded-md font-medium ${addMode === "single" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setAddMode("single")}
+                  disabled={adding}
+                >
+                  One email
+                </button>
+                <button
+                  type="button"
+                  className={`px-2 py-1 rounded-md font-medium ${addMode === "bulk" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setAddMode("bulk")}
+                  disabled={adding}
+                >
+                  Bulk paste (up to 50)
+                </button>
+              </div>
+
+              {addMode === "single" ? (
+                <form onSubmit={handleAdd} className="space-y-4">
+                  <div className="grid grid-cols-[1fr_140px] gap-3 max-sm:grid-cols-1">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="add-email">Email address</Label>
+                      <Input
+                        id="add-email"
+                        type="email"
+                        value={addEmail}
+                        onChange={(e) => setAddEmail(e.target.value)}
+                        placeholder="user@example.com"
+                        required
+                        autoFocus
+                        disabled={adding}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="add-role">Role</Label>
+                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")}>
+                        <SelectTrigger id="add-role" className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="STUDENT">Student</SelectItem>
+                          <SelectItem value="STAFF">Staff</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="add-role">Role</Label>
-                    <Select
-                      value={addRole}
-                      onValueChange={(v) =>
-                        setAddRole(v as "STUDENT" | "STAFF")
-                      }
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={adding}>
+                      {adding ? (<><Spinner data-icon="inline-start" />Adding...</>) : "Add to allowlist"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setShowAdd(false); setAddEmail(""); setAddRole("STUDENT"); }}
                     >
-                      <SelectTrigger id="add-role" className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="STUDENT">Student</SelectItem>
-                        <SelectItem value="STAFF">Staff</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      Cancel
+                    </Button>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" size="sm" disabled={adding}>
-                    {adding ? (
-                      <>
-                        <Spinner data-icon="inline-start" />
-                        Adding...
-                      </>
-                    ) : (
-                      "Add to allowlist"
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowAdd(false);
-                      setAddEmail("");
-                      setAddRole("STUDENT");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
+                </form>
+              ) : (
+                <form onSubmit={handleBulkAdd} className="space-y-4">
+                  <div className="grid grid-cols-[1fr_140px] gap-3 max-sm:grid-cols-1">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="add-bulk">Paste emails — separated by spaces, commas, or new lines</Label>
+                      <Textarea
+                        id="add-bulk"
+                        value={addBulk}
+                        onChange={(e) => setAddBulk(e.target.value)}
+                        placeholder={"alice@school.edu\nbob@school.edu\ncharlie@school.edu"}
+                        rows={6}
+                        autoFocus
+                        disabled={adding}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground m-0">
+                        {parseBulkEmails(addBulk).length} unique address{parseBulkEmails(addBulk).length === 1 ? "" : "es"} detected.
+                        Already-allowlisted or registered emails are skipped automatically.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="add-bulk-role">Role for all</Label>
+                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")}>
+                        <SelectTrigger id="add-bulk-role" className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="STUDENT">Student</SelectItem>
+                          <SelectItem value="STAFF">Staff</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={adding || addBulk.trim().length === 0}>
+                      {adding ? (<><Spinner data-icon="inline-start" />Adding...</>) : "Add all to allowlist"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setShowAdd(false); setAddBulk(""); setAddMode("single"); }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              )}
             </CardContent>
           </Card>
         )}
