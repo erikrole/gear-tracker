@@ -1,23 +1,30 @@
 /** Shared navigation section configs — used by layouts and breadcrumbs */
 
-export type SettingsRole = "STAFF" | "ADMIN";
+export type SettingsRole = "STUDENT" | "STAFF" | "ADMIN";
 
-export type SettingsGroup = "People" | "Inventory" | "Scheduling" | "Devices" | "System";
+export type SettingsGroup =
+  | "Personal"
+  | "People"
+  | "Inventory"
+  | "Scheduling"
+  | "Devices"
+  | "System";
 
 export type SettingsSection = {
   href: string;
   label: string;
-  /** Minimum role required to use this tab — must match the API gating for the page. */
+  /** Minimum role required to see this tab — STUDENT means everyone. */
   requiredRole: SettingsRole;
   /** Logical grouping; drives tab dividers + headers in the search palette. */
   group: SettingsGroup;
   /** Short one-liner shown in the search palette + tooltip. */
   description: string;
-  /** Extra search keywords for the palette so admins find pages by intent, not memorised name. */
+  /** Extra search keywords for the palette so users find pages by intent, not memorised name. */
   keywords?: string[];
 };
 
 export const SETTINGS_GROUP_ORDER: SettingsGroup[] = [
+  "Personal",
   "People",
   "Inventory",
   "Scheduling",
@@ -26,6 +33,15 @@ export const SETTINGS_GROUP_ORDER: SettingsGroup[] = [
 ];
 
 export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
+  // Personal — visible to every authenticated user
+  {
+    href: "/settings/appearance",
+    label: "Appearance",
+    requiredRole: "STUDENT",
+    group: "Personal",
+    description: "Light, dark, or system theme.",
+    keywords: ["theme", "dark mode", "light mode", "color"],
+  },
   // People
   {
     href: "/settings/allowed-emails",
@@ -113,9 +129,13 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   },
 ] as const;
 
+const ROLE_RANK: Record<string, number> = { STUDENT: 0, STAFF: 1, ADMIN: 2 };
+
 export function isSectionVisible(section: SettingsSection, role: string): boolean {
-  if (section.requiredRole === "ADMIN") return role === "ADMIN";
-  return role === "ADMIN" || role === "STAFF";
+  const userRank = ROLE_RANK[role];
+  const requiredRank = ROLE_RANK[section.requiredRole];
+  if (userRank === undefined || requiredRank === undefined) return false;
+  return userRank >= requiredRank;
 }
 
 export const REPORT_SECTIONS = [

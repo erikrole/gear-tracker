@@ -25,18 +25,19 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       .then((json) => {
         if (cancelled) return;
         const r = json?.user?.role;
-        if (r === "ADMIN" || r === "STAFF") {
+        if (r === "ADMIN" || r === "STAFF" || r === "STUDENT") {
           setRole(r);
           setAuthState("authorized");
         } else {
+          // Not signed in — bounce to login.
           setAuthState("denied");
-          router.replace("/");
+          router.replace("/login");
         }
       })
       .catch(() => {
         if (cancelled) return;
         setAuthState("denied");
-        router.replace("/");
+        router.replace("/login");
       });
     return () => {
       cancelled = true;

@@ -8,15 +8,21 @@
 - Version: V1
 
 ## Direction
-Admin-only configuration hub for system-wide settings. Each sub-page is a focused domain. Keep pages self-contained with clear feedback loops (toasts, inline saves).
+Single Settings surface for both **personal preferences** (visible to every authenticated user) and **system configuration** (admin/staff only, hidden by role-aware nav). Each sub-page is a focused domain. Keep pages self-contained with clear feedback loops (toasts, inline saves).
 
 ## Core Rules
-1. All settings pages require ADMIN or STAFF role (enforced at API layer and client-side layout guard).
+1. The Settings surface is open to any authenticated user (STUDENT / STAFF / ADMIN). Each sub-page declares its own `requiredRole`; the layout filters tabs accordingly. STUDENTs only see the Personal group.
 2. Settings layout provides unified tab navigation — sub-pages should not render their own page-level `<h1>`.
 3. Each sub-page uses the `settings-split` layout: sidebar (title + description) and main (forms/tables).
 4. Mutations should provide immediate feedback via toast notifications.
+5. Personal-group preferences belong in **Personal** (top group). System configuration belongs in **People · Inventory · Scheduling · Devices · System**.
 
 ## Sub-Pages
+
+### Appearance (`/settings/appearance`) — Personal
+- Theme picker: Light / Dark / System (follows OS preference).
+- Saved per-device in `localStorage` under `theme`; the same script that applies it on cold-load lives in `src/app/layout.tsx`.
+- Available to every authenticated user (STUDENT included). First Personal-group tab so it's the default landing for students.
 
 ### Categories (`/settings/categories`)
 - Hierarchical tree of equipment categories with inline rename, subcategory creation, and delete.
@@ -116,5 +122,6 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 - 2026-04-25: P2 — `/settings` index now resumes the user's last-visited tab from localStorage (`settings:last-tab`), validated against `SETTINGS_SECTIONS`. Layout writes the key on every navigation. Falls back to Categories on first visit or when storage is unavailable.
 - 2026-04-25: P2 — new `/settings/locations` tab (ADMIN-only). Full CRUD for the locations catalog: add with optional address, inline rename, inline isHomeVenue toggle, soft-delete (deactivate) that preserves FK references and surfaces a deactivated section with reference counts. New endpoints: `GET /api/locations?includeInactive=1` (admin gets inactive too, plus `_count` of users/assets/bookings/kiosks/mappings) and `POST /api/locations` (rate-limited; rejects duplicate names with 409). Home Venue toggling removed from `/settings/venue-mappings` and folded into Locations; that page is now venue-pattern-only.
 - 2026-04-25: P2 — inline "last edited by/when" context. New `POST /api/audit/last` accepts `{ entityType, entityIds[] }` and returns the most-recent audit entry per id (action, createdAt, actor) in one round trip — backed by the existing `(entityType, entityId, createdAt)` index on AuditLog. Wired via `useLastAudit` hook + tiny `LastEditedHint` component into the Locations and Allowed Emails surfaces (highest-leverage admin tables). Renders nothing when no audit entry exists, so untouched rows aren't visually disrupted.
+- 2026-04-25: IA — Settings is no longer admin-only. New top-of-nav **Personal** group hosts user-preference tabs that every authenticated user sees, including STUDENTs. First entry is **Appearance** (Light / Dark / System theme picker, saved to `localStorage:theme`, mirrors the cold-load script in `src/app/layout.tsx`). Layout auth gate relaxed from "ADMIN | STAFF" to "any authenticated role"; non-auth users still bounce to `/login`. The `/settings` index now picks the user's last-visited tab if their role still has access, otherwise falls back to the first section their role can see (so a STUDENT lands on Appearance, not Categories). `SettingsRole` is now a tri-state with rank ordering (STUDENT < STAFF < ADMIN); `isSectionVisible` uses the rank instead of two ad-hoc cases. Notifications preferences are the next planned Personal tab — needs schema work and is tracked separately.
 - 2026-04-25: P2 — Test-before-save affordances. Calendar Sources Add form has a "Test" button next to the URL input that probes the feed via new `POST /api/calendar-sources/test` (8s timeout, 5 MB cap, 10 probes/min/user). Result panel reports reachability, content type, byte size, parsed event count, and the first three event summaries — admins see whether they pasted a valid feed before committing. Venue Mappings Add form pairs the pattern input with a live regex tester: a sample-text box + immediate "✓ Matches X" / "✗ Does not match" / "✗ Invalid regex: Y" feedback, all client-side.
 - 2026-04-25: P2 — settings IA + density pass. `SETTINGS_SECTIONS` now carries `group` (People · Inventory · Scheduling · Devices · System) and `description` + `keywords` for each section. The tab nav is reordered into those groups with thin dividers between them. The `/settings/bookings` tab is relabeled to **Extend Presets** (route unchanged for compatibility). New ⌘K / `/` search palette (`SettingsCommand`) opens a CommandDialog over the visible-to-this-role sections; matches by label, description, and keyword aliases (so admins can find pages by intent — e.g. "allowlist", "cron", "home venue"). Sidebar density: every settings sub-page bumped from `max-md:` to `max-lg:` — the 260px decorative sidebar collapses to a one-line subhead at <1024px, giving 13" laptops more horizontal room for the actual table without rewriting any layout.
