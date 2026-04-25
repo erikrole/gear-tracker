@@ -52,6 +52,20 @@ Admin-only configuration hub for system-wide settings. Each sub-page is a focuse
 - Priority + longest-match tie-breaking.
 - Per D-027: ADMIN-only, STAFF cannot access.
 
+### Bookings (`/settings/bookings`)
+- Configure the extend-due-date presets shown when extending a booking.
+- Up to 10 presets, each with a free-text label and a duration picked from a fixed list (15m → 1 month).
+- Save button is always rendered (disabled when clean → "Saved", enabled when dirty → "Save changes").
+- Browser `beforeunload` guard warns before navigating away with unsaved presets.
+- Persisted to `system_config.extend_presets` (ADMIN-only PUT).
+
+### Kiosk Devices (`/settings/kiosk-devices`)
+- Manage iPad kiosk stations for self-serve checkout (admin-only).
+- Create device → server returns a one-shot 6-digit activation code; admin enters it on the iPad at `/kiosk` to bind the device.
+- Pending-activation devices have a "Regenerate code" affordance — invalidates the prior hash and surfaces a fresh code in the same dialog.
+- Activated kiosks can't regenerate (must deactivate first; server returns 409).
+- Toggle active/inactive (deactivating clears the session token), delete, and inspect last-seen timestamp.
+
 ### Allowed Emails (`/settings/allowed-emails`)
 - Admin-managed email allowlist for registration gating (D-029).
 - Add email with pre-assigned role (STAFF can add STUDENT only, ADMIN can add both).
@@ -88,3 +102,4 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 - 2026-04-25: MVP audit (slice 2) — UI hardening pack. Categories Add input now guards against the onBlur+Enter double-submit race (no more duplicate categories on slow networks). Database page no longer surfaces raw server error strings (replaced with intent-based messages). Escalation timing column rendered as muted read-only text with a header hint that timings are fixed (D-009). Allowed Emails claimed-row trash icon is now a disabled icon with a tooltip explaining the user must be deactivated instead of removed.
 - 2026-04-25: MVP audit (slice 3+4) — Bookings save button is now always rendered (disabled when clean → "Saved", enabled when dirty → "Save changes"), and a beforeunload guard warns before navigating away with unsaved presets. Sports group cards now show "applies to MXC + WXC" when a group writes to multiple sport codes, replacing the bare code-list that masked the silent cross-write. Kiosk Devices: pending-activation devices now have a "Regenerate code" button (POST /api/kiosk-devices/[id]/regenerate-code) so an accidentally-closed activation dialog no longer forces a delete-and-recreate. Activated kiosks reject regenerate with 409 (must deactivate first).
 - 2026-04-25: MVP audit (slice 5) — per-user rate limits applied to every settings mutation endpoint (categories, calendar-sources, location-mappings, sport-configs, allowed-emails, kiosk-devices, locations, escalation, extend-presets, kiosk regenerate). Default budget is 60 writes/min/user via the new `SETTINGS_MUTATION_LIMIT` preset; calendar sync is tighter at 10/min/user since it hits an external ICS URL. Adds `enforceRateLimit` helper that throws HttpError(429) with a Retry-After hint.
+- 2026-04-25: MVP audit (slice 6) — doc backfill. Sub-page sections added for Bookings (extend presets) and Kiosk Devices, both shipped previously without an AREA narrative entry.

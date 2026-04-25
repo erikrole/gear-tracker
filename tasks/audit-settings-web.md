@@ -1,6 +1,7 @@
 # Audit: /settings (web) — 2026-04-25
 
-**MVP verdict:** NOT READY — 0 P0, 11 P1
+**MVP verdict:** READY (pending one P1 deferred — Sports atomic transaction) — 0 P0, 1 P1 open / 10 P1 fixed
+**Last fix pass:** 2026-04-25 — slices 1–6 shipped on `main`
 **Ship bar:** all staff + students, zero hiccups
 
 > Settings is admin/staff-only — students never see it. Ship-bar still applies for staff/admins (zero hiccups).
@@ -10,57 +11,57 @@ _None._
 
 ## P1 — polish before ship
 
-- [ ] **[Hardening] Layout admits STAFF; several sub-pages are ADMIN-only at the API.**
+- [x] **[Hardening] Layout admits STAFF; several sub-pages are ADMIN-only at the API.**
       `src/app/(app)/settings/layout.tsx:19` admits both ADMIN and STAFF, but escalation, extend-presets, and venue-mappings are guarded with `user.role !== "ADMIN"` at the API layer (`src/app/api/settings/escalation/route.ts:27,47`, `src/app/api/settings/extend-presets/route.ts:45`, plus `requirePermission` rules for `location_mapping`). A STAFF user can click the Escalation / Bookings / Venue Mappings / Database tabs and get 403s with no UI explanation.
       Why it blocks ship: visible 403/error on a primary nav tab for a real role = "hiccup."
       Suggested fix: filter `SETTINGS_SECTIONS` by role in the layout (drive from a `requiredRole` field on each section), or render a clean "Admin only" empty state on the page when API returns 403.
 
-- [ ] **[Hardening] No rate limiting on any settings mutation endpoint.**
+- [x] **[Hardening] No rate limiting on any settings mutation endpoint.**
       `src/app/api/categories/route.ts`, `…/calendar-sources/route.ts`, `…/location-mappings/route.ts`, `…/allowed-emails/route.ts`, `…/kiosk-devices/route.ts`, `…/sport-configs/route.ts`, `…/settings/escalation/route.ts`, `…/settings/extend-presets/route.ts` — none have rate limiters.
       Why it blocks ship: a compromised STAFF session can spam allowed-email entries / categories / kiosk activations. Rate limiting is the MVP safety net (per audit-page-web rubric §4).
       Suggested fix: add `rateLimit({ key: user.id, limit: N/min })` to all POST/PATCH/PUT/DELETE handlers, esp. `allowed-emails` and `kiosk-devices`.
 
-- [ ] **[Flows] Categories: `onBlur` + `Enter` keydown both call `createRoot`.**
+- [x] **[Flows] Categories: `onBlur` + `Enter` keydown both call `createRoot`.**
       `src/app/(app)/settings/categories/page.tsx:168-172` — pressing Enter triggers the handler, then the input loses focus and triggers it again. With slow network this double-fires the POST and creates two categories.
       Why it blocks ship: silent duplicate creation on the golden path.
       Suggested fix: guard with a ref/`creatingRoot` check at the start of `createRoot`, or remove `onBlur` and require explicit Enter/Escape.
 
-- [ ] **[Flows] Sports: `updateShiftCount` loops sequential PATCHes for each sport in a group with no atomic rollback.**
+- [ ] **[Flows] Sports: `updateShiftCount` loops sequential PATCHes for each sport in a group with no atomic rollback.** _(deferred — needs server-side group-update endpoint; tracked for next pass)_
       `src/app/(app)/settings/sports/page.tsx:92-120` — for grouped sports (e.g. men's + women's basketball share settings) it issues N sequential PATCHes. If the 2nd fails (network, 500), the 1st has already committed and local state diverges from server with no error toast (failures are silent unless thrown).
       Why it blocks ship: half-applied configuration is a "hiccup" admins won't notice until shifts are wrong.
       Suggested fix: server-side group endpoint that updates all codes in one transaction, OR surface a partial-failure toast and reload from server.
 
-- [ ] **[Hardening] Database page surfaces raw server error string into UI.**
+- [x] **[Hardening] Database page surfaces raw server error string into UI.**
       `src/app/(app)/settings/database/page.tsx:38-41` — sets `error` directly to `json.error` from server response. Diagnostics endpoint can return Postgres error strings (table names, missing extensions) that may leak schema internals.
       Why it blocks ship: minor info-leak; admin-only page so low blast radius, but still violates the "no internals in errors" rubric (§4).
       Suggested fix: pass through a curated message; log the raw error server-side only.
 
-- [ ] **[UI polish] Settings layout flickers blank on load while `/api/me` resolves.**
+- [x] **[UI polish] Settings layout flickers blank on load while `/api/me` resolves.**
       `src/app/(app)/settings/layout.tsx:14-28` — returns `null` until the auth check completes, so the entire settings shell pops in (no skeleton, no header). Noticeable on every settings tab navigation.
       Why it blocks ship: jarring on every page enter; user has corrected for breathing room and polish before.
       Suggested fix: render the `PageHeader` + tab nav immediately (they don't depend on role for staff/admin who get this far), and only gate the `{children}` slot. Or use a Suspense skeleton.
 
-- [ ] **[Flows] Escalation timing column looks editable but is hardcoded.**
+- [x] **[Flows] Escalation timing column looks editable but is hardcoded.**
       `src/app/(app)/settings/escalation/page.tsx:228` — table cell renders `formatHours(rule.hoursFromDue)` with no visual cue that it's read-only (per D-009). Admins try to click it.
       Why it blocks ship: confusing affordance on a primary admin surface.
       Suggested fix: render timing as muted text or wrap in a Badge so it visually reads as a label, not a value.
 
-- [ ] **[Flows] Sports group rule is invisible — editing one sport silently writes to all in its group.**
+- [x] **[Flows] Sports group rule is invisible — editing one sport silently writes to all in its group.**
       `src/app/(app)/settings/sports/page.tsx:87-89` — `findGroup` resolves all codes in the group and writes them, but the UI shows only the row the user clicked. Admin edits MBB → WBB silently changes too.
       Why it blocks ship: silent cross-write is a "hiccup" admins don't notice.
       Suggested fix: surface a "(also affects Women's Basketball)" hint near the input, or show a small toast on save: "Updated MBB and WBB."
 
-- [ ] **[Flows] Kiosk activation code is one-shot with no regenerate.**
+- [x] **[Flows] Kiosk activation code is one-shot with no regenerate.**
       `src/app/(app)/settings/kiosk-devices/page.tsx:393-415` — code shown only at create time. Close the dialog by accident or fail to enter it before iPad activation → must delete and recreate the device, losing audit trail.
       Why it blocks ship: easy lockout on a real workflow.
       Suggested fix: add "Regenerate code" button on inactive/pending devices (server invalidates old, returns new in dialog).
 
-- [ ] **[UI polish] Bookings save button only appears when dirty, top-right of card.**
+- [x] **[UI polish] Bookings save button only appears when dirty, top-right of card.**
       `src/app/(app)/settings/bookings/page.tsx:117-122` — easy to scroll past with edits in flight; refresh loses changes.
       Why it blocks ship: silent data loss on accidental nav.
       Suggested fix: sticky bottom bar OR always-render the button (disabled when clean) AND add unsaved-changes guard on route change (pattern exists in `useUnsavedGuard` per Guides feature).
 
-- [ ] **[Flows] Removing a claimed allowed-email silently disappears (no affordance).**
+- [x] **[Flows] Removing a claimed allowed-email silently disappears (no affordance).**
       `src/app/(app)/settings/allowed-emails/page.tsx:350` — Trash icon is hidden for claimed entries with no explanation. Admin wonders if the row is broken.
       Why it blocks ship: hidden affordance = "doesn't make sense" hiccup.
       Suggested fix: render a disabled icon with tooltip "Already claimed — deactivate the user instead."
