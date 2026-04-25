@@ -163,7 +163,8 @@ export default function CalendarSourcesPage() {
     if (!source.lastFetchedAt) return <StatusIndicator state="idle" label="Never synced" size="sm" />;
     const lastSync = new Date(source.lastFetchedAt);
     const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
-    if (hoursSince > 24) return <StatusIndicator state="fixing" label="Stale" size="sm" />;
+    // Cron runs daily at 6 AM UTC (D-026); allow ~6h grace before marking stale.
+    if (hoursSince > 30) return <StatusIndicator state="fixing" label="Stale" size="sm" />;
     return <StatusIndicator state="active" label="Healthy" size="sm" />;
   }
 

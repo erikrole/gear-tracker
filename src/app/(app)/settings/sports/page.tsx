@@ -87,6 +87,12 @@ export default function SportsSettingsPage() {
           prev.map((c) => byCode.get(c.sportCode) ?? c)
             .concat(updated.filter((c) => !prev.some((p) => p.sportCode === c.sportCode)))
         );
+        const group = findGroup(sportCode);
+        if (group && group.codes.length > 1) {
+          toast.success(`Saved — applies to ${group.codes.join(" + ")}`);
+        } else {
+          toast.success("Saved");
+        }
       } else if (res.status === 429) {
         toast.error("Too many changes \u2014 please slow down.");
       } else {

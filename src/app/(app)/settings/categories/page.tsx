@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, SearchIcon, WifiOff } from "lucide-react";
+import { AlertTriangle, ArrowDownAZ, ArrowUpAZ, SearchIcon, WifiOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -54,17 +54,23 @@ export default function CategoriesPage() {
 
   let tree = buildTree(categories ?? []);
 
-  // Filter by search
+  // Filter by search — keep the full ancestor chain visible so deeply-nested
+  // matches don't render as orphans in the tree.
   if (search) {
     const q = search.toLowerCase();
+    const all = categories ?? [];
+    const byId = new Map(all.map((c) => [c.id, c]));
     const matchIds = new Set<string>();
-    for (const c of (categories ?? [])) {
-      if (c.name.toLowerCase().includes(q)) {
-        matchIds.add(c.id);
-        if (c.parentId) matchIds.add(c.parentId);
+    for (const c of all) {
+      if (!c.name.toLowerCase().includes(q)) continue;
+      let cursor: typeof c | undefined = c;
+      while (cursor) {
+        if (matchIds.has(cursor.id)) break;
+        matchIds.add(cursor.id);
+        cursor = cursor.parentId ? byId.get(cursor.parentId) : undefined;
       }
     }
-    const filtered = (categories ?? []).filter((c) => matchIds.has(c.id));
+    const filtered = all.filter((c) => matchIds.has(c.id));
     tree = buildTree(filtered);
   }
 
@@ -117,9 +123,10 @@ export default function CategoriesPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setSortAsc((v) => !v)}
-                  className="text-xs font-semibold text-muted-foreground uppercase tracking-wider h-auto px-0 hover:bg-transparent hover:text-foreground"
+                  className="text-xs font-semibold text-muted-foreground uppercase tracking-wider h-auto px-0 gap-1.5 hover:bg-transparent hover:text-foreground"
                 >
-                  Name {sortAsc ? "↑↓" : "↓↑"}
+                  Name
+                  {sortAsc ? <ArrowDownAZ className="size-3.5" /> : <ArrowUpAZ className="size-3.5" />}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{sortAsc ? "Sort Z\u2013A" : "Sort A\u2013Z"}</TooltipContent>

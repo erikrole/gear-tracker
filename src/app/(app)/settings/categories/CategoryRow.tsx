@@ -48,8 +48,13 @@ export default function CategoryRow({
         body: JSON.stringify({ name: newName.trim() }),
       });
       if (handleAuthRedirect(res, "/settings/categories")) return;
-      setRenaming(false);
-      onRefresh();
+      if (res.ok) {
+        setRenaming(false);
+        toast.success(`Renamed to "${newName.trim()}"`);
+        onRefresh();
+      } else {
+        toast.error("Failed to rename");
+      }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
@@ -68,9 +73,14 @@ export default function CategoryRow({
         body: JSON.stringify({ name: subName.trim(), parentId: node.id }),
       });
       if (handleAuthRedirect(res, "/settings/categories")) return;
-      setSubName("");
-      setAddingSub(false);
-      onRefresh();
+      if (res.ok) {
+        toast.success(`Added "${subName.trim()}"`);
+        setSubName("");
+        setAddingSub(false);
+        onRefresh();
+      } else {
+        toast.error("Failed to create subcategory");
+      }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);

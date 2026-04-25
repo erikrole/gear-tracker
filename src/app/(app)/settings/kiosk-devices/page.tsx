@@ -219,6 +219,13 @@ export default function KioskDevicesPage() {
     return formatRelativeTime(dateStr, new Date());
   }
 
+  /** Activated kiosks that haven't checked in for >24h are likely offline. */
+  function isStale(device: KioskDevice): boolean {
+    if (!device.activated || !device.lastSeenAt) return false;
+    const hoursSince = (Date.now() - new Date(device.lastSeenAt).getTime()) / (1000 * 60 * 60);
+    return hoursSince > 24;
+  }
+
   return (
     <FadeUp>
     <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-md:grid-cols-1 max-md:gap-4">
@@ -364,6 +371,11 @@ export default function KioskDevicesPage() {
                     ) : (
                       <Badge variant="secondary" className="text-xs">
                         Deactivated
+                      </Badge>
+                    )}
+                    {isStale(device) && (
+                      <Badge variant="orange" size="sm" title="No check-in in over 24 hours — kiosk may be offline.">
+                        Offline
                       </Badge>
                     )}
                   </div>

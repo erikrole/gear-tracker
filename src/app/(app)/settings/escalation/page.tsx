@@ -77,6 +77,7 @@ export default function EscalationSettingsPage() {
       if (handleAuthRedirect(res, "/settings/escalation")) return;
       if (res.ok) {
         setLocalRules((prev) => (prev ?? rules).map((r) => r.id === ruleId ? { ...r, [field]: !current } : r));
+        toast.success("Saved");
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
         toast.error(msg);
