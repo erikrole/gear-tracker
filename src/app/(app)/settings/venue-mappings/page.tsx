@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
@@ -28,11 +27,7 @@ type LocationMapping = {
   location: { id: string; name: string };
 };
 
-type Location = {
-  id: string;
-  name: string;
-  isHomeVenue: boolean;
-};
+type Location = { id: string; name: string };
 
 export default function VenueMappingsPage() {
   const confirm = useConfirm();
@@ -47,51 +42,12 @@ export default function VenueMappingsPage() {
     transform: (json) => (json.data as Location[]) ?? [],
   });
 
-  // Local state for optimistic mutation updates
-  const [localMappings, setLocalMappings] = useState<LocationMapping[] | null>(null);
-  const mappings = localMappings ?? fetchedMappings ?? [];
-  const [prevFetchedMappings, setPrevFetchedMappings] = useState(fetchedMappings);
-  if (fetchedMappings !== prevFetchedMappings) {
-    setPrevFetchedMappings(fetchedMappings);
-    setLocalMappings(null);
-  }
-
-  const [localLocations, setLocalLocations] = useState<Location[] | null>(null);
-  const locations = localLocations ?? fetchedLocations ?? [];
-  const [prevFetchedLocations, setPrevFetchedLocations] = useState(fetchedLocations);
-  if (fetchedLocations !== prevFetchedLocations) {
-    setPrevFetchedLocations(fetchedLocations);
-    setLocalLocations(null);
-  }
+  const mappings = fetchedMappings ?? [];
+  const locations = fetchedLocations ?? [];
 
   const [showAdd, setShowAdd] = useState(false);
   const [addingMapping, setAddingMapping] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [togglingHome, setTogglingHome] = useState<string | null>(null);
-
-  async function toggleHomeVenue(locationId: string, current: boolean) {
-    setTogglingHome(locationId);
-    // Optimistic
-    setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: !current } : l));
-    try {
-      const res = await fetch(`/api/locations/${locationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isHomeVenue: !current }),
-      });
-      if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
-      if (!res.ok) {
-        setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
-        toast.error("Failed to update");
-      }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      setLocalLocations((prev) => (prev ?? locations).map((l) => l.id === locationId ? { ...l, isHomeVenue: current } : l));
-      const kind = classifyError(err);
-      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to update");
-    }
-    setTogglingHome(null);
-  }
 
   async function handleAddMapping(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -159,40 +115,14 @@ export default function VenueMappingsPage() {
       <div className="sticky top-20 max-md:static">
         <h2 className="text-2xl font-bold mb-2">Venue Mappings</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Configure home venues and map calendar venue text to locations. Events at home venues are automatically marked as home games.
+          Map raw venue text from calendar feeds (e.g. &ldquo;Camp Randall&rdquo;) to one of your
+          locations. Events whose venue matches one of your home locations are automatically
+          flagged as home games for shift coverage. Manage the locations themselves on the
+          Locations tab.
         </p>
       </div>
 
       <div className="min-w-0">
-        {/* ── Home Venues ── */}
-        <Card className="mb-4">
-          <CardHeader><CardTitle>Home Venues</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              Toggle which locations are home venues. Events mapped to a home venue are marked as home games for shift coverage.
-            </p>
-            {locations.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No locations configured.</p>
-            ) : (
-              <div className="space-y-2">
-                {locations.map((loc) => (
-                  <div key={loc.id} className="flex items-center justify-between py-1.5">
-                    <span className="text-sm font-medium">{loc.name}</span>
-                    <div className="flex items-center gap-2">
-                      {loc.isHomeVenue && <Badge variant="green" size="sm">Home</Badge>}
-                      <Switch
-                        checked={loc.isHomeVenue}
-                        onCheckedChange={() => toggleHomeVenue(loc.id, loc.isHomeVenue)}
-                        disabled={togglingHome === loc.id}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* ── Venue Pattern Mappings ── */}
         <Card>
           <CardHeader>

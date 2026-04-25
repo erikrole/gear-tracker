@@ -1,7 +1,7 @@
 # Audit: /settings (web) — 2026-04-25
 
-**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 11/19 P2 also addressed
-**Last fix pass:** 2026-04-25 — P1 slices 1–7 + P2 polish slices A–D + landing-tab memory shipped on `main`
+**MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 12/19 P2 also addressed
+**Last fix pass:** 2026-04-25 — P1 slices 1–7 + P2 polish slices A–D + landing-tab memory + Locations tab shipped on `main`
 **Ship bar:** all staff + students, zero hiccups
 
 > Settings is admin/staff-only — students never see it. Ship-bar still applies for staff/admins (zero hiccups).
@@ -92,7 +92,7 @@ _None._
 
 ### IA / structure (post-MVP)
 
-- [ ] **No `/settings/locations` tab.** Locations are referenced by Venue Mappings, Kiosk Devices, calendar events but have no admin surface. Home Venues toggle is grafted onto Venue Mappings (`venue-mappings/page.tsx:167-194`). Add a Locations tab that owns name + isHomeVenue.
+- [x] **No `/settings/locations` tab.** Locations are referenced by Venue Mappings, Kiosk Devices, calendar events but have no admin surface. Home Venues toggle is grafted onto Venue Mappings (`venue-mappings/page.tsx:167-194`). Add a Locations tab that owns name + isHomeVenue.
 - [ ] **`/settings/bookings` is misnamed.** Page is just "Extend presets" with one card. Either rename the tab to "Extend presets" or fill the page with default checkout duration / blackouts / max-extends.
 - [ ] **Tab order is arbitrary.** Mixing inventory + scheduling + integrations + system. Suggested: People (Allowed Emails, Sports), Inventory (Categories), Scheduling (Calendar, Venue Mappings, Bookings, Escalation), Devices (Kiosk), System (Database).
 - [x] **`/settings` lands on Categories arbitrarily.** Last-visited or a real overview would be friendlier.

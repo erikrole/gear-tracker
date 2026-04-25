@@ -40,6 +40,13 @@ Admin-only configuration hub for system-wide settings. Each sub-page is a focuse
 - Checks: migration table, tables, enums, extensions, column drift.
 - Shows remediation steps when issues detected.
 
+### Locations (`/settings/locations`)
+- Admin-only catalog of physical locations referenced by items, kiosks, calendar events, and venue mappings.
+- Add a location with optional address; toggle isHomeVenue inline; rename inline by clicking the name.
+- Deactivate (soft-delete) hides a location from new pickers but keeps existing references intact. Deactivated locations show in their own card with the count of references that still point at them, and can be reactivated.
+- Hard delete is intentionally not exposed — locations are referenced by many models (FK constraints would block it anyway).
+- This tab also owns Home Venue toggling, which previously lived under Venue Mappings.
+
 ### Calendar Sources (`/settings/calendar-sources`)
 - Enable/disable ICS calendar sources for event sync.
 - Sync status badges (green/yellow/red based on `lastFetchedAt` staleness).
@@ -51,6 +58,7 @@ Admin-only configuration hub for system-wide settings. Each sub-page is a focuse
 - Pattern validation on create/update (rejects invalid regex).
 - Priority + longest-match tie-breaking.
 - Per D-027: ADMIN-only, STAFF cannot access.
+- Home venue toggling moved to the Locations tab as of 2026-04-25.
 
 ### Bookings (`/settings/bookings`)
 - Configure the extend-due-date presets shown when extending a booking.
@@ -106,3 +114,4 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 - 2026-04-25: MVP audit (slice 7, final P1) — Sports group updates are now atomic. New `POST /api/sport-configs/group` accepts a list of codes and a single patch, applying all upserts inside one Prisma transaction (Serializable isolation) — replaces the prior client-side loop of N sequential PATCHes that could half-apply on partial failure. Shift-count edits, call-time edits, and the active toggle on grouped sports (Cross Country, Golf, Rowing, Soccer, Swimming, Tennis, Track) all flow through it. Settings audit P1 list now fully closed.
 - 2026-04-25: P2 polish pack — feedback toasts on Categories rename / add / Sports group save / Escalation toggles; Categories search keeps the full ancestor chain visible; Categories sort indicator switched to Lucide ArrowDownAZ/ArrowUpAZ; Calendar Sources stale threshold bumped 24h → 30h; Kiosk Devices show an "Offline" badge after 24h without a check-in; Allowed Emails gains a bulk-paste mode (up to 50 per batch) and live counts on the All / Pending / Claimed filter; Kiosk Devices page brought up to par with the 2026-04-07 hardening pattern (returnTo on useFetch, classifyError + isAbortError on every catch). D-027 reconciliation: location and location_mapping permissions tightened to ADMIN-only to match the spec (was STAFF+ in code), and the Venue Mappings settings tab now requires ADMIN.
 - 2026-04-25: P2 — `/settings` index now resumes the user's last-visited tab from localStorage (`settings:last-tab`), validated against `SETTINGS_SECTIONS`. Layout writes the key on every navigation. Falls back to Categories on first visit or when storage is unavailable.
+- 2026-04-25: P2 — new `/settings/locations` tab (ADMIN-only). Full CRUD for the locations catalog: add with optional address, inline rename, inline isHomeVenue toggle, soft-delete (deactivate) that preserves FK references and surfaces a deactivated section with reference counts. New endpoints: `GET /api/locations?includeInactive=1` (admin gets inactive too, plus `_count` of users/assets/bookings/kiosks/mappings) and `POST /api/locations` (rate-limited; rejects duplicate names with 409). Home Venue toggling removed from `/settings/venue-mappings` and folded into Locations; that page is now venue-pattern-only.
