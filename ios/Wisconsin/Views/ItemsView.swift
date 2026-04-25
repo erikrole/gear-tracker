@@ -144,12 +144,6 @@ struct ItemsView: View {
     @State private var vm = ItemsViewModel()
     @State private var reserveAsset: Asset?
     @State private var navigationPath = NavigationPath()
-    @Environment(SessionStore.self) private var session
-
-    private var hideRequesterName: Bool {
-        let role = session.currentUser?.role ?? ""
-        return role != "STAFF" && role != "ADMIN"
-    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -183,7 +177,7 @@ struct ItemsView: View {
                     List {
                         ForEach(vm.assets) { asset in
                             NavigationLink(value: asset) {
-                                AssetRow(asset: asset, hideRequesterName: hideRequesterName)
+                                AssetRow(asset: asset)
                             }
                             .contextMenu {
                                 Button {
@@ -278,7 +272,6 @@ struct ItemsView: View {
 
 struct AssetRow: View {
     let asset: Asset
-    var hideRequesterName: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -306,7 +299,7 @@ struct AssetRow: View {
 
             Spacer()
 
-            AssetListBadge(asset: asset, hideRequesterName: hideRequesterName)
+            AssetListBadge(asset: asset)
         }
         .padding(.vertical, 4)
     }
@@ -314,7 +307,6 @@ struct AssetRow: View {
 
 private struct AssetListBadge: View {
     let asset: Asset
-    let hideRequesterName: Bool
 
     var body: some View {
         if asset.computedStatus == .available {
@@ -324,7 +316,7 @@ private struct AssetListBadge: View {
                 .padding(.vertical, 2)
                 .background(Color.green.opacity(0.15), in: Capsule())
                 .foregroundStyle(.green)
-        } else if !hideRequesterName, let name = asset.activeBooking?.requesterName {
+        } else if let name = asset.activeBooking?.requesterName {
             Text(name)
                 .font(.caption2.weight(.semibold))
                 .padding(.horizontal, 6)

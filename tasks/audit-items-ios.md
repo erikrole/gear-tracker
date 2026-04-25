@@ -54,7 +54,7 @@ Scope: `ItemsView` list (search + status filter + favorites toggle + context men
 
 - [x] [Flows] Reserve completion now navigates to the new booking via `BookingRouteId` push on `navigationPath`.
 
-- [x] [Hardening] `AssetListBadge` hides the requester name from STUDENTs (falls back to the generic status badge); STAFF/ADMIN still see the requester for at-a-glance ownership.
+- [x] [Hardening] Decision: requester name stays visible to all roles. Small team, ownership visibility is the desired UX. No privacy gating applied.
 
 ## Acceptance criteria status
 
