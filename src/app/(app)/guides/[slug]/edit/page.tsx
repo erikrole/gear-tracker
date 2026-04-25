@@ -188,13 +188,41 @@ export default function EditGuidePage({ params }: Props) {
   return (
     <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
       <div>
-        <Link
-          href={`/guides/${slug}`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeftIcon className="size-3.5" />
-          Back to guide
-        </Link>
+        {dirty ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeftIcon className="size-3.5" />
+                Back to guide
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You have unsaved edits. Leaving now will lose them.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                <AlertDialogAction onClick={() => router.push(`/guides/${slug}`)}>
+                  Discard
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Link
+            href={`/guides/${slug}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeftIcon className="size-3.5" />
+            Back to guide
+          </Link>
+        )}
       </div>
 
       <h1 className="text-2xl font-bold">Edit Guide</h1>
@@ -247,13 +275,33 @@ export default function EditGuidePage({ params }: Props) {
           <Button onClick={submit} disabled={submitting}>
             Save
           </Button>
-          <Button
-            variant="outline"
-            asChild
-            disabled={submitting}
-          >
-            <Link href={`/guides/${slug}`}>Cancel</Link>
-          </Button>
+          {dirty ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" disabled={submitting}>
+                  Cancel
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You have unsaved edits. Leaving now will lose them.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => router.push(`/guides/${slug}`)}>
+                    Discard
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : (
+            <Button variant="outline" asChild disabled={submitting}>
+              <Link href={`/guides/${slug}`}>Cancel</Link>
+            </Button>
+          )}
         </div>
 
         {canDelete && (

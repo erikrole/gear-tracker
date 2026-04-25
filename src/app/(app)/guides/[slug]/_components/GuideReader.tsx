@@ -28,35 +28,29 @@ type Props = {
   slug: string;
 };
 
-type TocItem = { level: number; text: string };
+type TocItem = { id: string; level: number; text: string };
 
 function extractHeadings(content: unknown): TocItem[] {
   if (!Array.isArray(content)) return [];
   const items: TocItem[] = [];
   for (const block of content) {
-    if (block?.type === "heading" && Array.isArray(block.content)) {
+    if (block?.type === "heading" && Array.isArray(block.content) && block.id) {
       const level = block.props?.level ?? 1;
       const text = block.content
         .filter((c: { type: string }) => c.type === "text")
         .map((c: { text: string }) => c.text)
         .join("")
         .trim();
-      if (text) items.push({ level, text });
+      if (text) items.push({ id: block.id, level, text });
     }
   }
   return items;
 }
 
-function TableOfContents({ items, activeText }: { items: TocItem[]; activeText: string | null }) {
-  const scrollToHeading = useCallback((text: string) => {
-    // Find heading element in BlockNote's rendered output by text match
-    const allNodes = document.querySelectorAll<HTMLElement>(".bn-block-content");
-    for (const node of allNodes) {
-      if (node.textContent?.trim() === text) {
-        node.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-    }
+function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: string | null }) {
+  const scrollToHeading = useCallback((id: string) => {
+    const node = document.querySelector<HTMLElement>(`[data-id="${id}"]`);
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   if (items.length === 0) return null;
@@ -70,16 +64,16 @@ function TableOfContents({ items, activeText }: { items: TocItem[]; activeText: 
         >
           On this page
         </p>
-        {items.map((item, i) => (
+        {items.map((item) => (
           <button
-            key={i}
-            onClick={() => scrollToHeading(item.text)}
+            key={item.id}
+            onClick={() => scrollToHeading(item.id)}
             className={cn(
               "block w-full text-left text-xs leading-relaxed transition-colors py-0.5 hover:text-foreground",
               item.level === 1 && "font-medium",
               item.level === 2 && "pl-3",
               item.level === 3 && "pl-6",
-              activeText === item.text
+              activeId === item.id
                 ? "text-foreground font-medium"
                 : "text-muted-foreground/70",
             )}
@@ -102,7 +96,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   const [isDark, setIsDark] = useState(() =>
     typeof window !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
   );
-  const [activeHeading, setActiveHeading] = useState<string | null>(null);
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -122,7 +116,8 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            setActiveHeading(entry.target.textContent?.trim() ?? null);
+            const id = (entry.target as HTMLElement).dataset.id;
+            if (id) setActiveHeadingId(id);
             break;
           }
         }
@@ -132,12 +127,9 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
 
     // Observe after a short delay to let BlockNote render
     const timer = setTimeout(() => {
-      const nodes = document.querySelectorAll<HTMLElement>(".bn-block-content");
-      for (const node of nodes) {
-        const text = node.textContent?.trim();
-        if (text && headings.some((h) => h.text === text)) {
-          observer.observe(node);
-        }
+      for (const h of headings) {
+        const node = document.querySelector<HTMLElement>(`[data-id="${h.id}"]`);
+        if (node) observer.observe(node);
       }
     }, 300);
 
@@ -200,7 +192,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
         </div>
 
         {hasToC && (
-          <TableOfContents items={headings} activeText={activeHeading} />
+          <TableOfContents items={headings} activeId={activeHeadingId} />
         )}
       </div>
     </div>

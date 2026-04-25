@@ -25,7 +25,9 @@ export default async function GuideReaderPage({ params }: Props) {
     notFound();
   }
 
-  const canEdit = user.role === Role.ADMIN || user.role === Role.STAFF;
+  const canEdit =
+    user.role === Role.ADMIN ||
+    (user.role === Role.STAFF && guide.authorId === user.id);
 
   return (
     <GuideReader
