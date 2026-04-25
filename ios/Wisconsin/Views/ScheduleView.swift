@@ -7,7 +7,29 @@ enum ScheduleViewMode: String, CaseIterable {
     case calendar = "Calendar"
 }
 
+/// Lightweight transient banner state. Auto-clears after 2.5s.
+struct ScheduleToast: Equatable {
+    let message: String
+    let icon: String
+}
+
 // MARK: - View Model
+
+enum MyShiftStatus: String {
+    case active = "ACTIVE"
+    case cancelled = "CANCELLED"
+    case completed = "COMPLETED"
+    case unknown
+}
+
+extension MyShift {
+    var statusValue: MyShiftStatus {
+        MyShiftStatus(rawValue: status) ?? .unknown
+    }
+}
+
+/// Considered fresh while younger than this; older triggers a background refresh.
+private let scheduleStaleAfter: TimeInterval = 5 * 60 // 5 minutes
 
 @MainActor
 @Observable
@@ -16,9 +38,16 @@ final class ScheduleViewModel {
     var myShifts: [MyShift] = []
     var isLoading = false
     var error: String?
+    var refreshError: String?
+    var lastLoadedAt: Date?
     private var hasLoaded = false
 
     var shiftsByEventId: [String: MyShift] = [:]
+
+    var isStale: Bool {
+        guard let lastLoadedAt else { return true }
+        return Date().timeIntervalSince(lastLoadedAt) > scheduleStaleAfter
+    }
 
     var groupedEvents: [(date: Date, events: [ScheduleEvent])] {
         let calendar = Calendar.current
@@ -44,14 +73,16 @@ final class ScheduleViewModel {
 
     func load(forceRefresh: Bool = false) async {
         guard !isLoading else { return }
-        guard !hasLoaded || forceRefresh else { return }
+        // Allow first load, explicit refresh, or staleness-driven refresh.
+        guard !hasLoaded || forceRefresh || isStale else { return }
         // Seed from cache for instant display before the network response arrives
         if !hasLoaded {
             let cached = GearStore.shared.cachedScheduleEvents()
             if !cached.isEmpty { events = cached.map(\.asScheduleEvent) }
         }
         isLoading = true
-        error = nil
+        if events.isEmpty { error = nil }
+        refreshError = nil
         do {
             async let eventsTask = APIClient.shared.calendarEvents()
             async let shiftsTask = APIClient.shared.myShifts()
@@ -60,11 +91,22 @@ final class ScheduleViewModel {
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
             hasLoaded = true
+            lastLoadedAt = Date()
+            error = nil
             GearStore.shared.seedScheduleEvents(fetchedEvents)
         } catch APIError.unauthorized {
-            error = "Session expired — please sign in again."
+            if events.isEmpty {
+                error = "Session expired — please sign in again."
+            } else {
+                refreshError = "Session expired — please sign in again."
+            }
         } catch {
-            self.error = error.localizedDescription
+            // Refresh failure must not blank an already-populated screen.
+            if events.isEmpty {
+                self.error = error.localizedDescription
+            } else {
+                self.refreshError = error.localizedDescription
+            }
         }
         isLoading = false
     }
@@ -79,8 +121,10 @@ struct ScheduleView: View {
     @State private var viewMode: ScheduleViewMode = .list
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
+    @State private var toast: ScheduleToast?
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
+    @Environment(\.scenePhase) private var scenePhase
 
     private var displayedGroups: [(date: Date, events: [ScheduleEvent])] {
         guard myShiftsOnly else { return vm.groupedEvents }
@@ -105,13 +149,15 @@ struct ScheduleView: View {
                     .scrollContentBackground(.hidden)
                     .background(Color(.systemGroupedBackground))
                     .allowsHitTesting(false)
-                } else if let err = vm.error {
+                } else if vm.events.isEmpty, let err = vm.error {
+                    // Only blank the screen when we have nothing to show.
                     ContentUnavailableView {
                         Label("Couldn't load schedule", systemImage: "exclamationmark.triangle")
                     } description: {
                         Text(err)
                     } actions: {
-                        Button("Retry") { Task { await vm.load() } }
+                        Button("Retry") { Task { await vm.load(forceRefresh: true) } }
+                            .buttonStyle(.borderedProminent)
                     }
                 } else if vm.events.isEmpty {
                     ContentUnavailableView(
@@ -134,7 +180,47 @@ struct ScheduleView: View {
                     }
                 }
             }
+            .overlay(alignment: .top) {
+                // Non-blocking refresh-failed banner — lets the user keep using stale data.
+                if !vm.events.isEmpty, let refreshError = vm.refreshError {
+                    HStack(spacing: 8) {
+                        Image(systemName: "wifi.exclamationmark")
+                        Text(refreshError)
+                            .font(.footnote)
+                            .lineLimit(2)
+                        Spacer(minLength: 8)
+                        Button("Retry") { Task { await vm.load(forceRefresh: true) } }
+                            .font(.footnote.weight(.semibold))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
+                    .shadow(color: Color.primary.opacity(0.08), radius: 8, y: 2)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if let toast {
+                    HStack(spacing: 10) {
+                        Image(systemName: toast.icon)
+                            .foregroundStyle(Color.accentColor)
+                        Text(toast.message)
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.regularMaterial, in: Capsule())
+                    .shadow(color: Color.primary.opacity(0.12), radius: 10, y: 4)
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(duration: 0.3), value: toast)
+            .animation(.easeInOut(duration: 0.2), value: vm.refreshError)
             .navigationTitle("Schedule")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Picker("View", selection: $viewMode) {
@@ -143,7 +229,7 @@ struct ScheduleView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 150)
+                    .frame(maxWidth: 160)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Toggle(isOn: $myShiftsOnly) {
@@ -159,29 +245,43 @@ struct ScheduleView: View {
                     Button {
                         showTradeBoard = true
                     } label: {
-                        ZStack(alignment: .topTrailing) {
+                        HStack(spacing: 4) {
                             Image(systemName: "arrow.triangle.2.circlepath")
                             if appState.openTradeCount > 0 {
-                                Text("\(min(appState.openTradeCount, 9))")
-                                    .font(.system(size: 9, weight: .bold))
+                                Text("\(appState.openTradeCount)")
+                                    .font(.caption.weight(.semibold).monospacedDigit())
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 1)
+                                    .background(Color.accentColor, in: Capsule())
                                     .foregroundStyle(.white)
-                                    .frame(width: 14, height: 14)
-                                    .background(Color.accentColor, in: Circle())
-                                    .offset(x: 8, y: -8)
                             }
                         }
                     }
-                    .accessibilityLabel("Trade Board")
+                    .accessibilityLabel(appState.openTradeCount > 0
+                        ? "Trade Board, \(appState.openTradeCount) open"
+                        : "Trade Board")
                 }
             }
             .task { await vm.load() }
             .refreshable { await vm.load(forceRefresh: true) }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    Task { await vm.load() }
+                }
+            }
+            .onChange(of: toast) { _, newToast in
+                guard newToast != nil else { return }
+                Task {
+                    try? await Task.sleep(for: .seconds(2.5))
+                    if toast == newToast { toast = nil }
+                }
+            }
             .sheet(item: $selectedEvent) { event in
                 EventDetailSheet(
                     event: event,
                     myShift: vm.shiftsByEventId[event.id]
                 )
-                .presentationDetents([.large])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showTradeBoard, onDismiss: {
@@ -189,39 +289,74 @@ struct ScheduleView: View {
             }) {
                 TradeBoardSheet(
                     myShifts: vm.myShifts,
-                    currentUserId: session.currentUser?.id ?? ""
+                    currentUserId: session.currentUser?.id ?? "",
+                    onTradePosted: { area in
+                        toast = ScheduleToast(message: "Posted \(area) shift to the trade board", icon: "checkmark.circle.fill")
+                    },
+                    onTradeClaimed: { area, when in
+                        toast = ScheduleToast(message: "You picked up \(area) on \(when)", icon: "hand.thumbsup.fill")
+                    }
                 )
             }
         }
     }
 
+    @ViewBuilder
     private var eventList: some View {
-        List {
-            ForEach(displayedGroups, id: \.date) { group in
-                Section {
-                    ForEach(group.events) { event in
-                        Button {
-                            selectedEvent = event
-                        } label: {
-                            EventRow(
-                                event: event,
-                                myShift: vm.shiftsByEventId[event.id]
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+        if displayedGroups.isEmpty && myShiftsOnly {
+            ContentUnavailableView(
+                "No shifts assigned to you",
+                systemImage: "person",
+                description: Text("Your schedule will show up here when staff confirm.")
+            )
+        } else {
+            List {
+                if let stamp = freshnessLabel {
+                    Text(stamp)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
-                    }
-                } header: {
-                    ScheduleDateHeader(date: group.date)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .padding(.top, 2)
                 }
-                .listSectionSeparator(.hidden)
+                ForEach(displayedGroups, id: \.date) { group in
+                    Section {
+                        ForEach(group.events) { event in
+                            Button {
+                                selectedEvent = event
+                            } label: {
+                                EventRow(
+                                    event: event,
+                                    myShift: vm.shiftsByEventId[event.id]
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                            .listRowSeparator(.hidden)
+                        }
+                    } header: {
+                        ScheduleDateHeader(date: group.date)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    }
+                    .listSectionSeparator(.hidden)
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color(.systemGroupedBackground))
+    }
+
+    private var freshnessLabel: String? {
+        guard let lastLoadedAt = vm.lastLoadedAt else { return nil }
+        let interval = Date().timeIntervalSince(lastLoadedAt)
+        if interval < 30 { return "Updated just now" }
+        let minutes = Int(interval / 60)
+        if minutes < 1 { return "Updated \(Int(interval))s ago" }
+        if minutes < 60 { return "Updated \(minutes)m ago" }
+        let hours = minutes / 60
+        return "Updated \(hours)h ago"
     }
 }
 
@@ -257,11 +392,13 @@ struct ScheduleCalendarView: View {
                 .padding(.vertical, 10)
 
             HStack(spacing: 0) {
-                ForEach(weekdayLabels, id: \.self) { label in
+                // Use a single weekday letter but disambiguated by position via accessibility.
+                ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { idx, label in
                     Text(label)
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
+                        .accessibilityLabel(weekdayFullNames[idx])
                 }
             }
             .padding(.horizontal, 4)
@@ -280,6 +417,8 @@ struct ScheduleCalendarView: View {
                         .onTapGesture {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedDate = day
+                                // Also follow selection across months.
+                                displayedMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: day)) ?? displayedMonth
                             }
                         }
                     } else {
@@ -289,6 +428,18 @@ struct ScheduleCalendarView: View {
             }
             .padding(.horizontal, 4)
             .padding(.bottom, 8)
+            .gesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { value in
+                        let dx = value.translation.width
+                        guard abs(dx) > 50 else { return }
+                        changeMonth(by: dx > 0 ? -1 : 1)
+                    }
+            )
+
+            dotLegend
+                .padding(.horizontal, 16)
+                .padding(.bottom, 6)
 
             Divider()
 
@@ -296,15 +447,50 @@ struct ScheduleCalendarView: View {
         }
     }
 
+    private var weekdayFullNames: [String] {
+        ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    }
+
+    private var dotLegend: some View {
+        HStack(spacing: 12) {
+            LegendDot(color: .accentColor, label: "My Shift")
+            LegendDot(color: .green, label: "Home")
+            LegendDot(color: .orange, label: "Away")
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func changeMonth(by delta: Int) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            let next = calendar.date(byAdding: .month, value: delta, to: displayedMonth) ?? displayedMonth
+            displayedMonth = next
+            // Move selection along — keep the same day-of-month if valid, else clamp to first.
+            let dayComponent = calendar.component(.day, from: selectedDate)
+            let yearMonth = calendar.dateComponents([.year, .month], from: next)
+            var components = yearMonth
+            components.day = dayComponent
+            if let candidate = calendar.date(from: components),
+               calendar.component(.month, from: candidate) == yearMonth.month {
+                selectedDate = candidate
+            } else if let firstOfMonth = calendar.date(from: yearMonth) {
+                selectedDate = firstOfMonth
+            }
+        }
+    }
+
+    private func goToToday() {
+        let today = Date()
+        withAnimation(.easeInOut(duration: 0.25)) {
+            selectedDate = today
+            displayedMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: today)) ?? today
+        }
+    }
+
     // MARK: Month header
 
     private var monthHeader: some View {
         HStack {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth
-                }
-            } label: {
+            Button { changeMonth(by: -1) } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
                     .frame(width: 44, height: 44)
@@ -312,19 +498,24 @@ struct ScheduleCalendarView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(ScalePressStyle())
+            .accessibilityLabel("Previous month")
 
             Spacer()
 
-            Text(displayedMonth.formatted(.dateTime.month(.wide).year()))
-                .font(.headline)
-
-            Spacer()
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
+            VStack(spacing: 2) {
+                Text(displayedMonth.formatted(.dateTime.month(.wide).year()))
+                    .font(.headline)
+                if !calendar.isDate(displayedMonth, equalTo: Date(), toGranularity: .month) {
+                    Button("Today") { goToToday() }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
+                        .buttonStyle(.plain)
                 }
-            } label: {
+            }
+
+            Spacer()
+
+            Button { changeMonth(by: 1) } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
                     .frame(width: 44, height: 44)
@@ -332,6 +523,7 @@ struct ScheduleCalendarView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(ScalePressStyle())
+            .accessibilityLabel("Next month")
         }
     }
 
@@ -403,6 +595,22 @@ struct ScheduleCalendarView: View {
 struct DotInfo {
     let color: Color
     let isShift: Bool
+}
+
+private struct LegendDot: View {
+    let color: Color
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
 }
 
 // MARK: - Day Cell
@@ -532,7 +740,10 @@ struct EventRow: View {
 
                     if let shift = myShift {
                         HStack(spacing: 10) {
-                            TimeBlock(label: "CALL", time: shift.startsAt)
+                            // Hide redundant CALL when call time == event start.
+                            if !calendarSame(shift.startsAt, event.startsAt) {
+                                TimeBlock(label: "CALL", time: shift.startsAt)
+                            }
                             TimeBlock(label: "EVENT", time: event.startsAt)
                             TimeBlock(label: "END", time: shift.endsAt)
                         }
@@ -561,8 +772,11 @@ struct EventRow: View {
         }
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .shadow(color: .black.opacity(0.04), radius: 1, y: 1)
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 3)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
+        .shadow(color: Color.primary.opacity(0.05), radius: 4, y: 2)
     }
 
     private var barColor: Color {
@@ -599,6 +813,10 @@ private struct TimeBlock: View {
     }
 }
 
+
+private func calendarSame(_ a: Date, _ b: Date) -> Bool {
+    abs(a.timeIntervalSince(b)) < 60
+}
 
 #Preview {
     ScheduleView()

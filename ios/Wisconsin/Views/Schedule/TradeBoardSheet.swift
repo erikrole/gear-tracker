@@ -43,10 +43,13 @@ final class TradeBoardViewModel {
 struct TradeBoardSheet: View {
     let myShifts: [MyShift]
     let currentUserId: String
+    var onTradePosted: ((String) -> Void)? = nil
+    var onTradeClaimed: ((String, String) -> Void)? = nil
 
     @State private var vm = TradeBoardViewModel()
     @State private var showPostSheet = false
     @State private var tradeToConfirm: ShiftTrade?
+    @State private var tradeToCancel: ShiftTrade?
     @State private var actionError: String?
     @Environment(\.dismiss) private var dismiss
 
@@ -87,7 +90,8 @@ struct TradeBoardSheet: View {
         }
             .refreshable { await vm.load() }
             .sheet(isPresented: $showPostSheet) {
-                PostTradeSheet(myShifts: myShifts) {
+                PostTradeSheet(myShifts: myShifts) { posted in
+                    onTradePosted?(posted.area)
                     Task { await vm.load() }
                 }
             }
@@ -105,6 +109,9 @@ struct TradeBoardSheet: View {
                         do {
                             try await vm.claim(id: trade.id)
                             UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            let when = trade.shiftAssignment.shift.startsAt
+                                .formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                            onTradeClaimed?(trade.shiftAssignment.shift.area, when)
                         } catch {
                             actionError = error.localizedDescription
                         }
@@ -113,12 +120,37 @@ struct TradeBoardSheet: View {
                 }
                 Button("Cancel", role: .cancel) { tradeToConfirm = nil }
             }
+            .confirmationDialog(
+                cancelDialogTitle,
+                isPresented: Binding(
+                    get: { tradeToCancel != nil },
+                    set: { if !$0 { tradeToCancel = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Cancel Trade", role: .destructive) {
+                    guard let trade = tradeToCancel else { return }
+                    Task {
+                        do { try await vm.cancel(id: trade.id) }
+                        catch { actionError = error.localizedDescription }
+                        tradeToCancel = nil
+                    }
+                }
+                Button("Keep Posted", role: .cancel) { tradeToCancel = nil }
+            } message: {
+                Text("Your shift will be removed from the trade board.")
+            }
             .alert("Error", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(actionError ?? "")
             }
         }
+    }
+
+    private var cancelDialogTitle: String {
+        guard let trade = tradeToCancel else { return "Cancel trade?" }
+        return "Cancel \(trade.shiftAssignment.shift.area) trade?"
     }
 
     private var claimDialogTitle: String {
@@ -155,10 +187,7 @@ struct TradeBoardSheet: View {
                         TradeRow(trade: trade, claimAction: nil)
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
-                                    Task {
-                                        do { try await vm.cancel(id: trade.id) }
-                                        catch { actionError = error.localizedDescription }
-                                    }
+                                    tradeToCancel = trade
                                 } label: {
                                     Label("Cancel Trade", systemImage: "xmark")
                                 }

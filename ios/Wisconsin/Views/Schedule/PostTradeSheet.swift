@@ -2,17 +2,31 @@ import SwiftUI
 
 struct PostTradeSheet: View {
     let myShifts: [MyShift]
-    let onPosted: () -> Void
+    let onPosted: (MyShift) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var selectedShift: MyShift?
     @State private var notes = ""
     @State private var isPosting = false
     @State private var error: String?
+    @State private var showDiscardConfirm = false
 
     private var eligibleShifts: [MyShift] {
         let now = Date()
-        return myShifts.filter { $0.startsAt > now && $0.status == "ACTIVE" }
+        return myShifts.filter { $0.startsAt > now && $0.statusValue == .active }
+    }
+
+    private var hasUnsavedInput: Bool {
+        selectedShift != nil || !notes.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func attemptCancel() {
+        if isPosting { return }
+        if hasUnsavedInput {
+            showDiscardConfirm = true
+        } else {
+            dismiss()
+        }
     }
 
     var body: some View {
@@ -51,14 +65,27 @@ struct PostTradeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { attemptCancel() }
+                        .disabled(isPosting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Post") {
                         Task { await post() }
                     }
                     .disabled(selectedShift == nil || isPosting)
+                    .fontWeight(.semibold)
                 }
+            }
+            .interactiveDismissDisabled(hasUnsavedInput || isPosting)
+            .confirmationDialog(
+                "Discard post?",
+                isPresented: $showDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your selection will be lost.")
             }
         }
     }
@@ -104,7 +131,7 @@ extension PostTradeSheet {
                 notes: notes.isEmpty ? nil : notes
             )
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            onPosted()
+            onPosted(shift)
             dismiss()
         } catch {
             self.error = error.localizedDescription
