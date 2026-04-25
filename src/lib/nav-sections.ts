@@ -1,16 +1,30 @@
 /** Shared navigation section configs — used by layouts and breadcrumbs */
 
-export const SETTINGS_SECTIONS = [
-  { href: "/settings/categories", label: "Categories" },
-  { href: "/settings/sports", label: "Sports" },
-  { href: "/settings/bookings", label: "Bookings" },
-  { href: "/settings/escalation", label: "Escalation" },
-  { href: "/settings/calendar-sources", label: "Calendar" },
-  { href: "/settings/venue-mappings", label: "Venue Mappings" },
-  { href: "/settings/allowed-emails", label: "Allowed Emails" },
-  { href: "/settings/kiosk-devices", label: "Kiosk" },
-  { href: "/settings/database", label: "Database" },
+export type SettingsRole = "STAFF" | "ADMIN";
+
+export type SettingsSection = {
+  href: string;
+  label: string;
+  /** Minimum role required to use this tab — must match the API gating for the page. */
+  requiredRole: SettingsRole;
+};
+
+export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
+  { href: "/settings/categories", label: "Categories", requiredRole: "STAFF" },
+  { href: "/settings/sports", label: "Sports", requiredRole: "STAFF" },
+  { href: "/settings/bookings", label: "Bookings", requiredRole: "ADMIN" },
+  { href: "/settings/escalation", label: "Escalation", requiredRole: "ADMIN" },
+  { href: "/settings/calendar-sources", label: "Calendar", requiredRole: "STAFF" },
+  { href: "/settings/venue-mappings", label: "Venue Mappings", requiredRole: "STAFF" },
+  { href: "/settings/allowed-emails", label: "Allowed Emails", requiredRole: "STAFF" },
+  { href: "/settings/kiosk-devices", label: "Kiosk", requiredRole: "ADMIN" },
+  { href: "/settings/database", label: "Database", requiredRole: "ADMIN" },
 ] as const;
+
+export function isSectionVisible(section: SettingsSection, role: string): boolean {
+  if (section.requiredRole === "ADMIN") return role === "ADMIN";
+  return role === "ADMIN" || role === "STAFF";
+}
 
 export const REPORT_SECTIONS = [
   { href: "/reports/utilization", label: "Utilization" },
