@@ -1,7 +1,5 @@
 import SwiftUI
 
-private let kioskRed = Color(red: 197/255, green: 5/255, blue: 12/255)
-
 struct KioskIdleView: View {
     @Environment(KioskStore.self) private var store
     @State private var dashboard: KioskDashboard?
@@ -59,7 +57,7 @@ struct KioskIdleView: View {
                 HStack(spacing: 16) {
                     StatTile(value: stats.itemsOut, label: "Items Out", accent: .white)
                     StatTile(value: stats.checkouts, label: "Checkouts", accent: .white)
-                    StatTile(value: stats.overdue, label: "Overdue", accent: stats.overdue > 0 ? kioskRed : .white)
+                    StatTile(value: stats.overdue, label: "Overdue", accent: stats.overdue > 0 ? Color.kioskRed : .white)
                 }
             } else {
                 HStack(spacing: 16) {
@@ -111,10 +109,11 @@ struct KioskIdleView: View {
             if users.isEmpty && isLoading {
                 ProgressView().tint(.white).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                let labels = disambiguatedLabels(for: users)
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         ForEach(users) { user in
-                            UserTile(user: user) {
+                            UserTile(user: user, displayName: labels[user.id] ?? user.name) {
                                 store.screen = .studentHub(user)
                             }
                         }
@@ -128,8 +127,16 @@ struct KioskIdleView: View {
         isLoading = true
         async let dashboardResult = KioskAPI.shared.kioskDashboard()
         async let usersResult = KioskAPI.shared.kioskUsers()
-        dashboard = try? await dashboardResult
-        users = (try? await usersResult) ?? users
+        do {
+            dashboard = try await dashboardResult
+            users = try await usersResult
+        } catch APIError.unauthorized {
+            // Cookie expired or device deactivated remotely — drop back to
+            // activation rather than sit forever on a stale idle screen.
+            store.deactivate()
+        } catch {
+            // Transient network — keep last good values.
+        }
         isLoading = false
     }
 }
@@ -188,7 +195,7 @@ private struct CheckoutRow: View {
     var body: some View {
         HStack {
             Circle()
-                .fill(checkout.isOverdue ? Color(red: 197/255, green: 5/255, blue: 12/255).opacity(0.3) : Color.white.opacity(0.1))
+                .fill(checkout.isOverdue ? Color.kioskRed.opacity(0.3) : Color.white.opacity(0.1))
                 .frame(width: 36, height: 36)
                 .overlay {
                     Text(checkout.requesterInitials)
@@ -217,8 +224,31 @@ private struct CheckoutRow: View {
     }
 }
 
+/// First name when unique in the visible roster, "First L." when another
+/// user shares the same first name. Prevents misclick attribution.
+private func disambiguatedLabels(for users: [KioskUser]) -> [String: String] {
+    var firstNameCounts: [String: Int] = [:]
+    for user in users {
+        let first = user.name.components(separatedBy: " ").first ?? user.name
+        firstNameCounts[first.lowercased(), default: 0] += 1
+    }
+    var result: [String: String] = [:]
+    for user in users {
+        let parts = user.name.components(separatedBy: " ").filter { !$0.isEmpty }
+        let first = parts.first ?? user.name
+        if firstNameCounts[first.lowercased(), default: 0] > 1, let last = parts.dropFirst().last,
+           let lastInitial = last.first {
+            result[user.id] = "\(first) \(lastInitial)."
+        } else {
+            result[user.id] = first
+        }
+    }
+    return result
+}
+
 private struct UserTile: View {
     let user: KioskUser
+    let displayName: String
     let onTap: () -> Void
 
     var body: some View {
@@ -232,7 +262,7 @@ private struct UserTile: View {
                             .font(.headline.bold())
                             .foregroundStyle(.white)
                     }
-                Text(user.name.components(separatedBy: " ").first ?? user.name)
+                Text(displayName)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)

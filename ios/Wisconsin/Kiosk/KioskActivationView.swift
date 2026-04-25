@@ -1,7 +1,5 @@
 import SwiftUI
 
-private let kioskRed = Color(red: 197/255, green: 5/255, blue: 12/255)
-
 struct KioskActivationView: View {
     @Environment(KioskStore.self) private var store
     @State private var code = ""
@@ -15,20 +13,27 @@ struct KioskActivationView: View {
             VStack(spacing: 12) {
                 Image(systemName: "barcode.viewfinder")
                     .font(.system(size: 64))
-                    .foregroundStyle(kioskRed)
+                    .foregroundStyle(Color.kioskRed)
                 Text("Gear Room Kiosk")
                     .font(.system(size: 36, weight: .bold))
                     .foregroundStyle(.white)
-                Text("Enter your 6-digit activation code")
+                Text("This iPad isn't activated yet")
+                    .font(.title3)
+                    .foregroundStyle(.white.opacity(0.85))
+                Text("Ask gear room staff to set up this device.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                Text("Staff: enter the 6-digit code from Settings → Kiosk Devices")
+                    .font(.caption)
+                    .foregroundStyle(.secondary.opacity(0.6))
+                    .padding(.top, 4)
             }
 
             // Code display
             HStack(spacing: 12) {
                 ForEach(0..<6, id: \.self) { i in
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(i < code.count ? kioskRed : Color.white.opacity(0.2), lineWidth: 2)
+                        .stroke(i < code.count ? Color.kioskRed : Color.white.opacity(0.2), lineWidth: 2)
                         .frame(width: 52, height: 68)
                         .overlay {
                             if i < code.count {
@@ -134,7 +139,7 @@ private struct KioskNumPad: View {
 
     private func keyBackground(_ key: String) -> Color {
         switch key {
-        case "✓": return kioskRed
+        case "✓": return Color.kioskRed
         case "⌫": return Color.white.opacity(0.1)
         default: return Color.white.opacity(0.08)
         }

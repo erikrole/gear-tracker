@@ -1,7 +1,5 @@
 import SwiftUI
 
-private let kioskRed = Color(red: 197/255, green: 5/255, blue: 12/255)
-
 struct KioskPickupView: View {
     @Environment(KioskStore.self) private var store
     let bookingId: String
@@ -13,6 +11,7 @@ struct KioskPickupView: View {
     @State private var isLoading = true
     @State private var isConfirming = false
     @State private var error: String?
+    @State private var showCamera = false
 
     enum ScanFeedback {
         case success(String)
@@ -37,6 +36,12 @@ struct KioskPickupView: View {
                 .opacity(0)
         }
         .task { await loadDetail() }
+        .sheet(isPresented: $showCamera) {
+            KioskBarcodeCameraView(
+                onScan: { value in handleScan(value) },
+                onCancel: { showCamera = false }
+            )
+        }
     }
 
     // MARK: - Scan Zone
@@ -56,7 +61,13 @@ struct KioskPickupView: View {
                     .font(.title3.bold())
                     .foregroundStyle(.white)
                 Spacer()
-                Spacer().frame(width: 60)
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("Camera", systemImage: "camera.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
@@ -71,7 +82,7 @@ struct KioskPickupView: View {
                             .stroke(Color.white.opacity(0.1), lineWidth: 8)
                         Circle()
                             .trim(from: 0, to: totalItems > 0 ? CGFloat(confirmedCount) / CGFloat(totalItems) : 0)
-                            .stroke(allConfirmed ? Color.green : kioskRed, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                            .stroke(allConfirmed ? Color.green : Color.kioskRed, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                             .rotationEffect(.degrees(-90))
                             .animation(.spring(response: 0.4), value: confirmedCount)
                         VStack(spacing: 2) {

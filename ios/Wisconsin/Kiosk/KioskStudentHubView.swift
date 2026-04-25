@@ -1,7 +1,5 @@
 import SwiftUI
 
-private let kioskRed = Color(red: 197/255, green: 5/255, blue: 12/255)
-
 struct KioskStudentHubView: View {
     @Environment(KioskStore.self) private var store
     let user: KioskUser
@@ -85,7 +83,7 @@ struct KioskStudentHubView: View {
                 title: "Checkout Gear",
                 subtitle: "Scan items to check out",
                 icon: "arrow.up.circle.fill",
-                color: kioskRed
+                color: Color.kioskRed
             ) {
                 store.screen = .checkout(userId: user.id)
             }

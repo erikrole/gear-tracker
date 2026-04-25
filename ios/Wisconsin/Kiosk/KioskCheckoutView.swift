@@ -1,39 +1,29 @@
 import SwiftUI
 
-private let kioskRed = Color(red: 197/255, green: 5/255, blue: 12/255)
-
 struct KioskCheckoutView: View {
     @Environment(KioskStore.self) private var store
     let userId: String
 
-    @State private var scannedItems: [ScannedEntry] = []
     @State private var scanInput = ""
     @State private var lastResult: ScanFeedback?
     @State private var isCompleting = false
+    @State private var showBackConfirm = false
+    @State private var showCamera = false
 
-    struct ScannedEntry: Identifiable {
-        let id: String
-        let name: String
-        let tagName: String
-        let type: String?
-    }
-
-    enum ScanFeedback {
+    enum ScanFeedback: Equatable {
         case success(String)
         case error(String)
         case duplicate(String)
     }
 
+    /// Cart lives in KioskStore so a brief inactivity reset doesn't discard it.
+    private var scannedItems: [KioskCartItem] { store.cart(for: userId) }
+
     var body: some View {
         HStack(spacing: 0) {
-            // Left: scan zone
             scanZone
-
             Divider().background(Color.white.opacity(0.1))
-
-            // Right: scanned items list
-            itemsList
-                .frame(width: 380)
+            itemsList.frame(width: 380)
         }
         .overlay(alignment: .bottom) {
             // Hidden HID scanner field — always first responder
@@ -43,6 +33,24 @@ struct KioskCheckoutView: View {
             .frame(width: 1, height: 1)
             .opacity(0)
         }
+        .alert("Discard \(scannedItems.count) scanned item\(scannedItems.count == 1 ? "" : "s")?",
+               isPresented: $showBackConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Discard", role: .destructive) {
+                store.clearCart(for: userId)
+                store.screen = .idle
+            }
+        } message: {
+            Text("Going back will clear your scans.")
+        }
+        .sheet(isPresented: $showCamera) {
+            KioskBarcodeCameraView(
+                onScan: { value in
+                    handleScan(value)
+                },
+                onCancel: { showCamera = false }
+            )
+        }
     }
 
     // MARK: - Scan Zone
@@ -51,7 +59,11 @@ struct KioskCheckoutView: View {
         VStack(spacing: 24) {
             HStack {
                 Button {
-                    store.screen = .idle
+                    if scannedItems.isEmpty {
+                        store.screen = .idle
+                    } else {
+                        showBackConfirm = true
+                    }
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                         .font(.subheadline.weight(.medium))
@@ -62,7 +74,13 @@ struct KioskCheckoutView: View {
                     .font(.title3.bold())
                     .foregroundStyle(.white)
                 Spacer()
-                Spacer().frame(width: 60)
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("Camera", systemImage: "camera.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
@@ -82,6 +100,9 @@ struct KioskCheckoutView: View {
                 Text("Scan items to add")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                Text("Or tap Camera if no scanner is connected")
+                    .font(.caption)
+                    .foregroundStyle(.secondary.opacity(0.6))
             }
 
             // Feedback banner
@@ -106,7 +127,7 @@ struct KioskCheckoutView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(scannedItems.isEmpty ? Color.white.opacity(0.1) : kioskRed,
+                .background(scannedItems.isEmpty ? Color.white.opacity(0.1) : Color.kioskRed,
                             in: RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
@@ -130,7 +151,7 @@ struct KioskCheckoutView: View {
                 Spacer()
                 Text("\(scannedItems.count)")
                     .font(.title3.bold())
-                    .foregroundStyle(scannedItems.isEmpty ? .secondary : kioskRed)
+                    .foregroundStyle(scannedItems.isEmpty ? .secondary : Color.kioskRed)
             }
             .padding(20)
 
@@ -171,8 +192,10 @@ struct KioskCheckoutView: View {
     private func handleScan(_ value: String) {
         store.resetInactivity()
 
-        // Deduplicate
-        if scannedItems.contains(where: { $0.tagName.lowercased() == value.lowercased() }) {
+        var cart = store.cart(for: userId)
+
+        // Deduplicate by tag string
+        if cart.contains(where: { $0.tagName.lowercased() == value.lowercased() }) {
             showFeedback(.duplicate("Already scanned"))
             return
         }
@@ -181,9 +204,11 @@ struct KioskCheckoutView: View {
             do {
                 let result = try await KioskAPI.shared.kioskCheckoutScan(scanValue: value)
                 if result.success, let item = result.item {
-                    let entry = ScannedEntry(id: item.id, name: item.name, tagName: item.tagName, type: item.type)
-                    if !scannedItems.contains(where: { $0.id == item.id }) {
-                        scannedItems.append(entry)
+                    var updated = cart
+                    if !updated.contains(where: { $0.id == item.id }) {
+                        updated.append(KioskCartItem(id: item.id, name: item.name, tagName: item.tagName, type: item.type))
+                        store.setCart(updated, for: userId)
+                        cart = updated
                         showFeedback(.success(item.name))
                     } else {
                         showFeedback(.duplicate("Already scanned"))
@@ -206,16 +231,18 @@ struct KioskCheckoutView: View {
     }
 
     private func completeCheckout() {
-        guard !scannedItems.isEmpty, let locationId = store.info?.locationId else { return }
+        let cart = store.cart(for: userId)
+        guard !cart.isEmpty, let locationId = store.info?.locationId else { return }
         isCompleting = true
         Task {
             do {
                 try await KioskAPI.shared.kioskCheckoutComplete(
                     actorId: userId,
                     locationId: locationId,
-                    assetIds: scannedItems.map(\.id)
+                    assetIds: cart.map(\.id)
                 )
-                store.screen = .success("Checkout complete! \(scannedItems.count) items checked out.")
+                store.clearCart(for: userId)
+                store.screen = .success("Checkout complete! \(cart.count) items checked out.")
             } catch {
                 showFeedback(.error("Checkout failed. Please try again."))
             }
@@ -227,7 +254,7 @@ struct KioskCheckoutView: View {
 // MARK: - Sub-views
 
 private struct ItemRow: View {
-    let item: KioskCheckoutView.ScannedEntry
+    let item: KioskCartItem
 
     var body: some View {
         HStack(spacing: 12) {

@@ -1,7 +1,5 @@
 import SwiftUI
 
-private let kioskRed = Color(red: 197/255, green: 5/255, blue: 12/255)
-
 struct KioskReturnView: View {
     @Environment(KioskStore.self) private var store
     let bookingId: String
@@ -13,6 +11,7 @@ struct KioskReturnView: View {
     @State private var isLoading = true
     @State private var isCompleting = false
     @State private var error: String?
+    @State private var showCamera = false
 
     enum ScanFeedback {
         case success(String)
@@ -37,6 +36,12 @@ struct KioskReturnView: View {
                 .opacity(0)
         }
         .task { await loadDetail() }
+        .sheet(isPresented: $showCamera) {
+            KioskBarcodeCameraView(
+                onScan: { value in handleScan(value) },
+                onCancel: { showCamera = false }
+            )
+        }
     }
 
     // MARK: - Scan Zone
@@ -56,7 +61,13 @@ struct KioskReturnView: View {
                     .font(.title3.bold())
                     .foregroundStyle(.white)
                 Spacer()
-                Spacer().frame(width: 60)
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("Camera", systemImage: "camera.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
@@ -117,7 +128,7 @@ struct KioskReturnView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
-                    (!hasReturned || isCompleting) ? Color.white.opacity(0.1) : kioskRed,
+                    (!hasReturned || isCompleting) ? Color.white.opacity(0.1) : Color.kioskRed,
                     in: RoundedRectangle(cornerRadius: 14)
                 )
             }
