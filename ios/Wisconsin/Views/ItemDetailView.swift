@@ -296,7 +296,8 @@ private struct ItemMetaSection: View {
                 }
             }
             if let price = asset.purchasePrice.flatMap(Double.init) {
-                LabeledContent("Purchase Price", value: price, format: .currency(code: "USD"))
+                let currency = Locale.current.currency?.identifier ?? "USD"
+                LabeledContent("Purchase Price", value: price, format: .currency(code: currency))
             }
         }
     }

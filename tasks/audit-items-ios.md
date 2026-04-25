@@ -48,17 +48,13 @@ Scope: `ItemsView` list (search + status filter + favorites toggle + context men
 
 ## P2 — post-MVP
 
-- [ ] [Parity] AREA_ITEMS AC-8 lists primary detail actions {Reserve, Duplicate, Retire, Delete, Needs Maintenance} — iOS detail exposes none of them. Acceptable for V1 student ship bar (these are admin actions); flag for staff-mobile parity.
-      `ios/Wisconsin/Views/ItemDetailView.swift` — toolbar has only favorite + edit.
+- [ ] [Parity] **Deferred → GAP-36.** AREA_ITEMS AC-8 lists primary detail actions {Reserve, Duplicate, Retire, Delete, Needs Maintenance} — iOS detail exposes none of them. Feature add (needs API client methods + policy gating). Tracked.
 
-- [ ] [UI polish] Purchase price hardcodes USD currency code.
-      `ios/Wisconsin/Views/ItemDetailView.swift:247-249`.
+- [x] [UI polish] Purchase price uses `Locale.current.currency?.identifier` with USD fallback instead of a hardcoded code.
 
-- [ ] [Flows] Reserve sheet completion `onCreated` does not navigate to the new booking — user gets no confirmation beyond the sheet dismiss.
-      `ios/Wisconsin/Views/ItemsView.swift:206-208` (`{ _ in reserveAsset = nil }` ignores the returned booking id).
+- [x] [Flows] Reserve completion now navigates to the new booking via `BookingRouteId` push on `navigationPath`.
 
-- [ ] [Hardening] `AssetListBadge` shows the requester's first name as the badge content for checked-out items — fine for staff, but a STUDENT viewing the items list sees who has every item across the org. Worth a privacy review against AREA_USERS access policy.
-      `ios/Wisconsin/Views/ItemsView.swift:260-268`.
+- [x] [Hardening] `AssetListBadge` hides the requester name from STUDENTs (falls back to the generic status badge); STAFF/ADMIN still see the requester for at-a-glance ownership.
 
 ## Acceptance criteria status
 

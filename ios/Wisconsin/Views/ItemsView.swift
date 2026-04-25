@@ -1,5 +1,11 @@
 import SwiftUI
 
+/// Hashable wrapper so navigation can distinguish a "go to booking detail"
+/// route from arbitrary String values pushed onto the path.
+struct BookingRouteId: Hashable {
+    let id: String
+}
+
 @MainActor
 @Observable
 final class ItemsViewModel {
@@ -137,9 +143,16 @@ final class ItemsViewModel {
 struct ItemsView: View {
     @State private var vm = ItemsViewModel()
     @State private var reserveAsset: Asset?
+    @State private var navigationPath = NavigationPath()
+    @Environment(SessionStore.self) private var session
+
+    private var hideRequesterName: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role != "STAFF" && role != "ADMIN"
+    }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if let error = vm.error, vm.assets.isEmpty {
                     ContentUnavailableView {
@@ -170,7 +183,7 @@ struct ItemsView: View {
                     List {
                         ForEach(vm.assets) { asset in
                             NavigationLink(value: asset) {
-                                AssetRow(asset: asset)
+                                AssetRow(asset: asset, hideRequesterName: hideRequesterName)
                             }
                             .contextMenu {
                                 Button {
@@ -245,12 +258,18 @@ struct ItemsView: View {
             .navigationDestination(for: Asset.self) { asset in
                 ItemDetailView(assetId: asset.id)
             }
+            .navigationDestination(for: BookingRouteId.self) { route in
+                BookingDetailView(bookingId: route.id)
+            }
             .sheet(item: $reserveAsset) { asset in
                 CreateBookingSheet(vm: {
                     let vm = CreateBookingViewModel()
                     vm.prefillReservation(for: asset)
                     return vm
-                }()) { _ in reserveAsset = nil }
+                }()) { newId in
+                    reserveAsset = nil
+                    navigationPath.append(BookingRouteId(id: newId))
+                }
             }
         }
     }
@@ -259,6 +278,7 @@ struct ItemsView: View {
 
 struct AssetRow: View {
     let asset: Asset
+    var hideRequesterName: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -286,7 +306,7 @@ struct AssetRow: View {
 
             Spacer()
 
-            AssetListBadge(asset: asset)
+            AssetListBadge(asset: asset, hideRequesterName: hideRequesterName)
         }
         .padding(.vertical, 4)
     }
@@ -294,6 +314,7 @@ struct AssetRow: View {
 
 private struct AssetListBadge: View {
     let asset: Asset
+    let hideRequesterName: Bool
 
     var body: some View {
         if asset.computedStatus == .available {
@@ -303,7 +324,7 @@ private struct AssetListBadge: View {
                 .padding(.vertical, 2)
                 .background(Color.green.opacity(0.15), in: Capsule())
                 .foregroundStyle(.green)
-        } else if let name = asset.activeBooking?.requesterName {
+        } else if !hideRequesterName, let name = asset.activeBooking?.requesterName {
             Text(name)
                 .font(.caption2.weight(.semibold))
                 .padding(.horizontal, 6)
