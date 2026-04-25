@@ -19,11 +19,7 @@ import type { LicenseCode, ActiveClaim } from "./types";
 
 const MAX_SLOTS = 2;
 
-function maskCode(code: string): string {
-  const parts = code.split("-");
-  if (parts.length < 2) return code;
-  return [parts[0], ...parts.slice(1, -1).map(() => "••••"), parts[parts.length - 1]].join("-");
-}
+const MASKED_CODE = "••••-••••-••••-••••";
 
 function ExpiryDisplay({ expiresAt }: { expiresAt: string }) {
   const expiry = new Date(expiresAt);
@@ -186,7 +182,7 @@ export function LicenseTable({
               if (adminCanInspect) return onClickClaimed(code);
             }
 
-            const displayCode = isAdmin || isOwn ? code.code : maskCode(code.code);
+            const displayCode = isAdmin || isOwn ? code.code : MASKED_CODE;
 
             return (
               <TableRow key={code.id} className={rowClass} onClick={handleClick}>

@@ -16,6 +16,18 @@ export const GET = withAuth(async (_req, { user }) => {
   requirePermission(user.role, "license", "view");
   const isAdmin = user.role === "ADMIN" || user.role === "STAFF";
   const codes = isAdmin ? await listAllCodes() : await listCodes();
+
+  // Strip the code string from rows the requester does not hold.
+  // Admins/staff see everything; students only see their own held code.
+  // Defense in depth — client also masks visually.
+  if (!isAdmin) {
+    const sanitized = codes.map((c) => {
+      const isHolder = c.claims.some((claim) => claim.userId === user.id);
+      return isHolder ? c : { ...c, code: "" };
+    });
+    return ok({ data: sanitized });
+  }
+
   return ok({ data: codes });
 });
 
