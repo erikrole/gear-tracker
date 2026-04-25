@@ -59,6 +59,24 @@ final class CreateBookingViewModel {
         self.prefillShiftAssignmentId = shiftAssignmentId
     }
 
+    /// Prefills a reservation context started from an item row.
+    /// Sets a sensible title, preselects the asset, and seeds the equipment list
+    /// so the asset is visible at the top of step 2.
+    func prefillReservation(for asset: Asset) {
+        if title.isEmpty {
+            title = "Reservation: \(asset.displayName)"
+        }
+        selectedAssetIds.insert(asset.id)
+        if !availableAssets.contains(where: { $0.id == asset.id }) {
+            availableAssets.insert(asset, at: 0)
+            if assetTotal == 0 { assetTotal = 1 }
+        }
+        // Pre-seed the location to the asset's home location if nothing is set yet.
+        if selectedLocationId.isEmpty {
+            selectedLocationId = asset.location.id
+        }
+    }
+
     func loadOptions() async {
         guard options == nil else { return }
         isLoadingOptions = true

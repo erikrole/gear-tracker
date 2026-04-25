@@ -6,6 +6,7 @@ final class ItemsViewModel {
     var assets: [Asset] = []
     var isLoading = false
     var error: String?
+    var pageError: String?
     var searchText = ""
     var selectedStatus: AssetComputedStatus?
     var favoritesOnly = false
@@ -14,12 +15,25 @@ final class ItemsViewModel {
     private var offset = 0
     private let limit = 30
     private var searchTask: Task<Void, Never>?
+    private var loadTask: Task<Void, Never>?
 
     func load(reset: Bool = false) async {
-        guard !isLoading else { return }
+        if reset {
+            // Filter / search change: cancel in-flight load so the new query wins.
+            loadTask?.cancel()
+        } else if isLoading {
+            return
+        }
+        let task = Task { await performLoad(reset: reset) }
+        loadTask = task
+        await task.value
+    }
+
+    private func performLoad(reset: Bool) async {
         if reset {
             offset = 0
             hasMore = true
+            pageError = nil
             // Seed from cache immediately on unfiltered first-page load
             if searchText.isEmpty && selectedStatus == nil && !favoritesOnly {
                 let cached = GearStore.shared.cachedAssets()
@@ -27,7 +41,7 @@ final class ItemsViewModel {
             }
         }
         isLoading = true
-        error = nil
+        if reset { error = nil }
         do {
             let result = try await APIClient.shared.assets(
                 search: searchText.isEmpty ? nil : searchText,
@@ -36,16 +50,31 @@ final class ItemsViewModel {
                 limit: limit,
                 offset: offset
             )
+            if Task.isCancelled { isLoading = false; return }
             if reset { assets = result.data } else { assets += result.data }
             offset += result.data.count
             hasMore = offset < result.total
+            pageError = nil
             if reset && offset == result.data.count && searchText.isEmpty && selectedStatus == nil && !favoritesOnly {
                 GearStore.shared.seedAssets(result.data)
             }
+        } catch is CancellationError {
+            // Superseded by a newer load.
         } catch {
-            self.error = error.localizedDescription
+            if reset {
+                self.error = error.localizedDescription
+            } else {
+                self.pageError = error.localizedDescription
+                hasMore = false
+            }
         }
         isLoading = false
+    }
+
+    func retryPage() async {
+        pageError = nil
+        hasMore = true
+        await load()
     }
 
     func onSearchChange() {
@@ -168,10 +197,21 @@ struct ItemsView: View {
                                 }
                             }
                         }
-                        if vm.hasMore {
+                        if let pageError = vm.pageError {
+                            VStack(spacing: 8) {
+                                Text(pageError)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button("Retry") { Task { await vm.retryPage() } }
+                                    .buttonStyle(.bordered)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        } else if vm.hasMore {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
-                                .onAppear { Task { await vm.load() } }
+                                .task(id: vm.assets.count) { await vm.load() }
                         }
                     }
                     .listStyle(.plain)
@@ -182,14 +222,16 @@ struct ItemsView: View {
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 12) {
                         Button {
                             vm.favoritesOnly.toggle()
                             Task { await vm.load(reset: true) }
                         } label: {
                             Image(systemName: vm.favoritesOnly ? "star.fill" : "star")
                                 .foregroundStyle(vm.favoritesOnly ? .yellow : .primary)
+                                .frame(minWidth: 44, minHeight: 44)
                         }
+                        .accessibilityLabel(vm.favoritesOnly ? "Showing favorites" : "Show favorites")
                         .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
 
                         AssetStatusFilterMenu(selected: $vm.selectedStatus) {
@@ -203,8 +245,12 @@ struct ItemsView: View {
             .navigationDestination(for: Asset.self) { asset in
                 ItemDetailView(assetId: asset.id)
             }
-            .sheet(item: $reserveAsset) { _ in
-                CreateBookingSheet { _ in reserveAsset = nil }
+            .sheet(item: $reserveAsset) { asset in
+                CreateBookingSheet(vm: {
+                    let vm = CreateBookingViewModel()
+                    vm.prefillReservation(for: asset)
+                    return vm
+                }()) { _ in reserveAsset = nil }
             }
         }
     }
@@ -296,7 +342,7 @@ struct AssetThumbnail: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+                .strokeBorder(Color(.separator), lineWidth: 1)
         )
     }
 
@@ -354,6 +400,8 @@ struct AssetStatusFilterMenu: View {
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease.circle\(selected != nil ? ".fill" : "")")
+                .frame(minWidth: 44, minHeight: 44)
         }
+        .accessibilityLabel("Filter by status")
     }
 }

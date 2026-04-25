@@ -8,6 +8,24 @@ struct ItemDetailView: View {
     @State private var error: String?
     @State private var showEdit = false
     @State private var isFavorited = false
+    @State private var favoriteError: String?
+    @Environment(SessionStore.self) private var session
+
+    private var canEditAsset: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "STAFF" || role == "ADMIN"
+    }
+
+    private func toggleFavorite() async {
+        let previous = isFavorited
+        isFavorited.toggle()
+        do {
+            isFavorited = try await APIClient.shared.toggleFavorite(assetId: assetId)
+        } catch {
+            isFavorited = previous
+            favoriteError = error.localizedDescription
+        }
+    }
 
     var body: some View {
         Group {
@@ -48,20 +66,33 @@ struct ItemDetailView: View {
             if asset != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        isFavorited.toggle()
-                        Task { isFavorited = (try? await APIClient.shared.toggleFavorite(assetId: assetId)) ?? isFavorited }
+                        Task { await toggleFavorite() }
                     } label: {
                         Image(systemName: isFavorited ? "star.fill" : "star")
                             .foregroundStyle(isFavorited ? .yellow : .primary)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
+                    .accessibilityLabel(isFavorited ? "Unfavorite" : "Favorite")
                     .sensoryFeedback(.selection, trigger: isFavorited)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showEdit = true } label: {
-                        Image(systemName: "pencil")
+                if canEditAsset {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showEdit = true } label: {
+                            Image(systemName: "pencil")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityLabel("Edit Item")
                     }
                 }
             }
+        }
+        .alert("Couldn't update favorite", isPresented: Binding(
+            get: { favoriteError != nil },
+            set: { if !$0 { favoriteError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(favoriteError ?? "")
         }
         .task { await loadAsset() }
         .refreshable { await loadAsset() }
@@ -99,6 +130,7 @@ struct EditAssetSheet: View {
     @State private var notes: String
     @State private var isSaving = false
     @State private var error: String?
+    @State private var showDiscardConfirm = false
 
     init(asset: AssetDetail, onSaved: @escaping () -> Void) {
         self.asset = asset
@@ -168,13 +200,32 @@ struct EditAssetSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if isSaving { return }
+                        if hasChanges {
+                            showDiscardConfirm = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await save() } }
                         .disabled(!hasChanges || isSaving)
                         .fontWeight(.semibold)
                 }
+            }
+            .interactiveDismissDisabled(hasChanges || isSaving)
+            .confirmationDialog(
+                "Discard changes?",
+                isPresented: $showDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your changes will be lost.")
             }
         }
     }

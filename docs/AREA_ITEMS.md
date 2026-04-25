@@ -344,6 +344,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-04-24: **iOS items audit fixes** — see `tasks/audit-items-ios.md`. Closes AC-5/AC-7 role gating gaps on iOS detail; the AC-8 admin actions menu (Duplicate/Retire/Delete/Needs Maintenance) remains web-only by design (V1 mobile is student/operational-first). iOS list now matches web's filter race-safety, pagination error handling, dark-mode parity, and 44pt tap targets. Reserve from item context menu now prefills the booking with the asset.
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-01: Rewritten into hardened V1 list/create/detail spec based on Cheqroom references and Gear Tracker rules.
 - 2026-03-01: Added explicit B&H auto-import and editable-prefill behavior.
