@@ -56,11 +56,25 @@ struct EventDetailSheet: View {
 
     @State private var vm: EventDetailViewModel
     @State private var prepGearOpen = false
+    @State private var assignTarget: EventShift?
+    @State private var requestTarget: EventShift?
+    @State private var unassignTarget: ShiftAssignmentRecord?
+    @State private var showAddShift = false
+    @State private var actionError: String?
 
     init(event: ScheduleEvent, myShift: MyShift?) {
         self.event = event
         self.myShift = myShift
         _vm = State(initialValue: EventDetailViewModel(event: event, myShift: myShift))
+    }
+
+    private var canManageShifts: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "STAFF" || role == "ADMIN"
+    }
+
+    private var isStudent: Bool {
+        (session.currentUser?.role ?? "") == "STUDENT"
     }
 
     var body: some View {
@@ -82,6 +96,14 @@ struct EventDetailSheet: View {
                         .font(.headline)
                         .lineLimit(1)
                 }
+                if canManageShifts && vm.shiftGroup != nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { showAddShift = true } label: {
+                            Image(systemName: "plus.circle")
+                        }
+                        .accessibilityLabel("Add shift")
+                    }
+                }
                 if myShift != nil {
                     ToolbarItem(placement: .bottomBar) {
                         Button {
@@ -102,6 +124,105 @@ struct EventDetailSheet: View {
             .sheet(isPresented: $prepGearOpen) {
                 CreateBookingSheet(vm: makePrepGearVM()) { _ in }
             }
+            .sheet(item: $assignTarget) { shift in
+                AssignStudentSheet(
+                    shiftId: shift.id,
+                    shiftArea: shift.area,
+                    sportCode: event.sportCode,
+                    onAssigned: { Task { await vm.load() } }
+                )
+            }
+            .sheet(isPresented: $showAddShift) {
+                if let group = vm.shiftGroup {
+                    AddShiftSheet(
+                        shiftGroupId: group.id,
+                        defaultStart: event.startsAt,
+                        defaultEnd: event.endsAt,
+                        onAdded: { Task { await vm.load() } }
+                    )
+                }
+            }
+            .confirmationDialog(
+                requestDialogTitle,
+                isPresented: Binding(
+                    get: { requestTarget != nil },
+                    set: { if !$0 { requestTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Request shift") {
+                    guard let shift = requestTarget else { return }
+                    Task { await requestShift(shift) }
+                    requestTarget = nil
+                }
+                Button("Cancel", role: .cancel) { requestTarget = nil }
+            } message: {
+                if vm.shiftGroup?.isPremier == true {
+                    Text("Staff will review your request before it's confirmed.")
+                } else {
+                    Text("Submit a request for this shift.")
+                }
+            }
+            .confirmationDialog(
+                unassignDialogTitle,
+                isPresented: Binding(
+                    get: { unassignTarget != nil },
+                    set: { if !$0 { unassignTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Remove assignment", role: .destructive) {
+                    guard let assignment = unassignTarget else { return }
+                    Task { await unassign(assignment) }
+                    unassignTarget = nil
+                }
+                Button("Keep", role: .cancel) { unassignTarget = nil }
+            }
+            .alert(
+                "Couldn't update shift",
+                isPresented: Binding(
+                    get: { actionError != nil },
+                    set: { if !$0 { actionError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(actionError ?? "")
+            }
+        }
+    }
+
+    // MARK: - Action handlers
+
+    private var requestDialogTitle: String {
+        guard let shift = requestTarget else { return "Request shift?" }
+        return "Request \(shift.area) shift?"
+    }
+
+    private var unassignDialogTitle: String {
+        guard let assignment = unassignTarget else { return "Remove assignment?" }
+        return "Remove \(assignment.user.name)?"
+    }
+
+    private func requestShift(_ shift: EventShift) async {
+        do {
+            try await APIClient.shared.requestShift(shiftId: shift.id)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
+    private func unassign(_ assignment: ShiftAssignmentRecord) async {
+        do {
+            try await APIClient.shared.unassignShift(assignmentId: assignment.id)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
         }
     }
 
@@ -233,7 +354,12 @@ struct EventDetailSheet: View {
                     area: group.area,
                     shifts: group.shifts,
                     myShiftId: myShift?.id,
-                    currentUserId: session.currentUser?.id
+                    currentUserId: session.currentUser?.id,
+                    canManageShifts: canManageShifts,
+                    isStudent: isStudent,
+                    onAssign: { shift in assignTarget = shift },
+                    onRequest: { shift in requestTarget = shift },
+                    onUnassign: { assignment in unassignTarget = assignment }
                 )
             }
         }
@@ -269,6 +395,11 @@ struct AreaBlock: View {
     let shifts: [EventShift]
     let myShiftId: String?
     let currentUserId: String?
+    var canManageShifts: Bool = false
+    var isStudent: Bool = false
+    var onAssign: ((EventShift) -> Void)? = nil
+    var onRequest: ((EventShift) -> Void)? = nil
+    var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -285,7 +416,12 @@ struct AreaBlock: View {
                     ShiftRow(
                         shift: shift,
                         isHighlighted: isMyShift(shift),
-                        currentUserId: currentUserId
+                        currentUserId: currentUserId,
+                        canManageShifts: canManageShifts,
+                        isStudent: isStudent,
+                        onAssign: onAssign,
+                        onRequest: onRequest,
+                        onUnassign: onUnassign
                     )
                     if idx < shifts.count - 1 {
                         Divider().padding(.leading, 44)
@@ -309,6 +445,13 @@ struct ShiftRow: View {
     let shift: EventShift
     let isHighlighted: Bool
     let currentUserId: String?
+    var canManageShifts: Bool = false
+    var isStudent: Bool = false
+    var onAssign: ((EventShift) -> Void)? = nil
+    var onRequest: ((EventShift) -> Void)? = nil
+    var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
+
+    private var isStudentSlot: Bool { shift.workerType == "ST" }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -354,10 +497,7 @@ struct ShiftRow: View {
     @ViewBuilder
     private var assignedPersonView: some View {
         if shift.isOpen {
-            Text("Open")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .italic()
+            openSlotView
         } else {
             VStack(alignment: .leading, spacing: 1) {
                 ForEach(shift.assignments, id: \.id) { assignment in
@@ -371,9 +511,61 @@ struct ShiftRow: View {
                                 .font(.caption2)
                                 .foregroundStyle(Color.accentColor)
                         }
+                        // STAFF/ADMIN: pending-approval state should be visible.
+                        if assignment.status == "REQUESTED" {
+                            Text("Pending")
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(Color.orange.opacity(0.15), in: Capsule())
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    .contextMenu {
+                        if canManageShifts, let onUnassign {
+                            Button(role: .destructive) {
+                                onUnassign(assignment)
+                            } label: {
+                                Label("Remove from this shift", systemImage: "person.fill.xmark")
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var openSlotView: some View {
+        if canManageShifts, let onAssign {
+            Button {
+                onAssign(shift)
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Assign")
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+        } else if isStudent && isStudentSlot, let onRequest {
+            Button {
+                onRequest(shift)
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "hand.raised.fill")
+                    Text("Request")
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Text("Open")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .italic()
         }
     }
 

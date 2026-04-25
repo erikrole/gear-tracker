@@ -114,6 +114,23 @@ struct ShiftWorker: Codable, Identifiable {
     let avatarUrl: String?
 }
 
+// MARK: - Sport Roster
+
+struct RosterEntry: Codable, Identifiable {
+    let id: String
+    let userId: String
+    let sportCode: String
+    let user: RosterUser
+}
+
+struct RosterUser: Codable, Identifiable {
+    let id: String
+    let name: String
+    let email: String
+    let role: String
+    let primaryArea: String?
+}
+
 struct ShiftCoverage: Codable {
     let total: Int
     let filled: Int

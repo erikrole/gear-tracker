@@ -506,6 +506,86 @@ final class APIClient {
         let (_, _) = try await session.data(for: req)
     }
 
+    // MARK: - Shift assignment / authoring
+
+    /// Roster of users assigned to a sport (used as the eligibility list for
+    /// assigning students to ST shifts on iOS).
+    func sportRoster(sportCode: String) async throws -> [RosterEntry] {
+        let req = request(path: "/api/sport-configs/\(sportCode)/roster")
+        let resp: DataWrapper<[RosterEntry]> = try await perform(req)
+        return resp.data
+    }
+
+    /// Direct-assign a user to a shift (STAFF/ADMIN).
+    func assignShift(shiftId: String, userId: String) async throws {
+        struct Body: Encodable { let shiftId: String; let userId: String }
+        var req = request(path: "/api/shift-assignments", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(shiftId: shiftId, userId: userId))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't assign shift"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    /// Remove an assignment (STAFF/ADMIN).
+    func unassignShift(assignmentId: String) async throws {
+        let req = request(path: "/api/shift-assignments/\(assignmentId)", method: "DELETE")
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't remove assignment"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    /// STUDENT requests an open shift on a premier event (or any event the
+    /// permission system allows). Server creates a REQUESTED-state assignment
+    /// awaiting staff approval.
+    func requestShift(shiftId: String) async throws {
+        struct Body: Encodable { let shiftId: String }
+        var req = request(path: "/api/shift-assignments/request", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(shiftId: shiftId))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't request shift"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    /// Add a new shift to a shift group (STAFF/ADMIN).
+    func addShift(
+        shiftGroupId: String,
+        area: String,
+        workerType: String,
+        startsAt: Date? = nil,
+        endsAt: Date? = nil
+    ) async throws {
+        struct Body: Encodable {
+            let area: String
+            let workerType: String
+            let startsAt: String?
+            let endsAt: String?
+        }
+        let isoFormatter = ISO8601DateFormatter()
+        let body = Body(
+            area: area,
+            workerType: workerType,
+            startsAt: startsAt.map { isoFormatter.string(from: $0) },
+            endsAt: endsAt.map { isoFormatter.string(from: $0) }
+        )
+        var req = request(path: "/api/shift-groups/\(shiftGroupId)/shifts", method: "POST")
+        req.httpBody = try JSONEncoder().encode(body)
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't add shift"
+            throw APIError.serverError(msg)
+        }
+    }
+
     // MARK: - Internals
 
     private func request(path: String, method: String = "GET") -> URLRequest {
