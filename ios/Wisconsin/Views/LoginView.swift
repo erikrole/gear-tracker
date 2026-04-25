@@ -23,6 +23,7 @@ struct LoginView: View {
     }
 
     private static let forgotPasswordURL = URL(string: "https://gear.erikrole.com/forgot-password")!
+    private static let registerURL = URL(string: "https://gear.erikrole.com/register")!
 
     var body: some View {
         GeometryReader { geo in
@@ -78,6 +79,7 @@ struct LoginView: View {
                     .focused($focused, equals: .email)
                     .submitLabel(.next)
                     .onSubmit { focused = .password }
+                    .onChange(of: email) { session.clearError() }
                     .padding()
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
                     .overlay(
@@ -90,6 +92,7 @@ struct LoginView: View {
                     .focused($focused, equals: .password)
                     .submitLabel(.go)
                     .onSubmit { submit() }
+                    .onChange(of: password) { session.clearError() }
                     .padding()
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
                     .overlay(
@@ -129,11 +132,14 @@ struct LoginView: View {
             .buttonStyle(ScalePressStyle())
             .disabled(!canSubmit)
 
-            Link("Forgot password?", destination: Self.forgotPasswordURL)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 4)
+            HStack(spacing: 18) {
+                Link("Forgot password?", destination: Self.forgotPasswordURL)
+                Link("Need an account?", destination: Self.registerURL)
+            }
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 4)
         }
     }
 }

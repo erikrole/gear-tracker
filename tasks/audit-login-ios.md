@@ -33,17 +33,15 @@ _None._ Auth uses HTTPS, cookies persist via `HTTPCookieStorage.shared`, errors 
 
 ## P2 — post-MVP
 
-- [ ] [Hardening] No biometric (Face ID / Touch ID) re-auth or "remember me" UI. Cookie persists across launches via `HTTPCookieStorage`, so daily flow is fine — Face ID would just shave seconds off post-logout.
+- [ ] [Hardening] **Deferred.** No biometric (Face ID / Touch ID) re-auth. Cookie persists across launches; Face ID would only shave seconds off post-logout. Needs LocalAuthentication framework + Keychain-backed session marker. Logged for later.
 
-- [ ] [Parity] Web has `/register` (gated by `AllowedEmail` allowlist per D-2026-04-03). iOS has no register flow — new users must register on the web first. Acceptable for V1 (registration is rare and the allowlist gate keeps it safe), but worth flagging.
+- [x] [Parity] iOS now exposes "Need an account?" Link to web `/register`; register itself stays web-only behind the AllowedEmail allowlist (D-2026-04-03).
 
-- [ ] [Flows] Login error message persists until the next submit — clearing on input change would feel snappier. Minor.
-      `ios/Wisconsin/Core/SessionStore.swift:15-23`.
+- [x] [Flows] `SessionStore.clearError()` added; LoginView calls it from `.onChange(of:)` on both fields so a stale 401 disappears the moment the user starts typing.
 
-- [ ] [Hardening] Logout in `SessionStore.logout()` swallows both API errors with `try?`. Acceptable (we want logout to always succeed locally even if the server can't be reached), but worth a comment so a future reader doesn't "fix" it.
-      `ios/Wisconsin/Core/SessionStore.swift:26-30`.
+- [x] [Hardening] Logout body now carries an explanatory comment for the `try?` swallow ("a stuck server must not strand the user signed in").
 
-- [ ] [Hardening] iPad: `frame(maxWidth: 440)` centers the form on wider devices — good. But the brand header `Color(red: 0.11, ...)` extends only to the top safe area; on iPad with a status bar the dark band may look cramped against the navigation chrome. Cosmetic.
+- [ ] [Hardening] **Deferred.** iPad cosmetic: brand header dark band can look cramped at the top safe area. Wait until iPad becomes a launch target.
 
 ## Acceptance criteria status
 

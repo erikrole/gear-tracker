@@ -24,9 +24,16 @@ final class SessionStore {
     }
 
     func logout() async {
+        // Best-effort: a stuck server must not strand the user signed in.
+        // Local sign-out (clear `currentUser` + cookies) always wins.
         try? await APIClient.shared.revokeAllDeviceTokens()
         try? await APIClient.shared.logout()
         currentUser = nil
+    }
+
+    /// Clear a stale auth error — call from views when the user starts typing again.
+    func clearError() {
+        if error != nil { error = nil }
     }
 
     private func restoreSession() async {
