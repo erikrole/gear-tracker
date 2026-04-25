@@ -8,6 +8,22 @@ struct LoginView: View {
 
     enum Field { case email, password }
 
+    private var trimmedEmail: String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var canSubmit: Bool {
+        !trimmedEmail.isEmpty && !password.isEmpty && !session.isLoading
+    }
+
+    private func submit() {
+        guard canSubmit else { return }
+        focused = nil
+        Task { await session.login(email: trimmedEmail, password: password) }
+    }
+
+    private static let forgotPasswordURL = URL(string: "https://gear.erikrole.com/forgot-password")!
+
     var body: some View {
         GeometryReader { geo in
             ScrollView {
@@ -57,24 +73,29 @@ struct LoginView: View {
                 TextField("Email", text: $email)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.emailAddress)
+                    .textContentType(.username)
                     .autocorrectionDisabled()
                     .focused($focused, equals: .email)
                     .submitLabel(.next)
                     .onSubmit { focused = .password }
                     .padding()
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
+                    )
 
                 SecureField("Password", text: $password)
+                    .textContentType(.password)
                     .focused($focused, equals: .password)
                     .submitLabel(.go)
-                    .onSubmit {
-                        guard !email.isEmpty && !password.isEmpty else { return }
-                        Task { await session.login(email: email, password: password) }
-                    }
+                    .onSubmit { submit() }
                     .padding()
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
+                    )
             }
 
             if let error = session.error {
@@ -86,8 +107,7 @@ struct LoginView: View {
             }
 
             Button {
-                focused = nil
-                Task { await session.login(email: email, password: password) }
+                submit()
             } label: {
                 ZStack {
                     if session.isLoading {
@@ -99,15 +119,21 @@ struct LoginView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
                 .background(
-                    (email.isEmpty || password.isEmpty)
-                        ? Color(red: 0.18, green: 0.18, blue: 0.18)
-                        : Color(red: 0.11, green: 0.11, blue: 0.11),
+                    canSubmit
+                        ? Color(red: 0.11, green: 0.11, blue: 0.11)
+                        : Color(red: 0.18, green: 0.18, blue: 0.18),
                     in: RoundedRectangle(cornerRadius: 12)
                 )
-                .foregroundStyle(.white.opacity(email.isEmpty || password.isEmpty ? 0.35 : 1))
+                .foregroundStyle(.white.opacity(canSubmit ? 1 : 0.35))
             }
             .buttonStyle(ScalePressStyle())
-            .disabled(email.isEmpty || password.isEmpty || session.isLoading)
+            .disabled(!canSubmit)
+
+            Link("Forgot password?", destination: Self.forgotPasswordURL)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 4)
         }
     }
 }
