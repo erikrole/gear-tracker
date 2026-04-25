@@ -35,8 +35,13 @@ export default function DatabasePage() {
       const res = await fetch("/api/db-diagnostics");
       if (handleAuthRedirect(res, "/settings/database")) return;
       if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        setError(json?.error ?? `HTTP ${res.status}`);
+        // Don't surface raw server error text — could leak schema internals.
+        await res.json().catch(() => null);
+        setError(
+          res.status === 403
+            ? "Admin access required to run diagnostics."
+            : "Could not run diagnostics. Please try again."
+        );
         setResult(null);
         return;
       }

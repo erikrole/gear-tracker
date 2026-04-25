@@ -210,7 +210,12 @@ export default function EscalationSettingsPage() {
       <div className="min-w-0">
         {/* Rules table */}
         <Card className="mb-1">
-          <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Notification Triggers</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1 m-0">
+              Toggle who is notified at each timing. Timings are fixed to the schedule defined in product spec D-009.
+            </p>
+          </CardHeader>
           <Table>
             <TableHeader>
               <TableRow>
@@ -225,7 +230,11 @@ export default function EscalationSettingsPage() {
               {rules.map((rule) => (
                 <TableRow key={rule.id}>
                   <TableCell>{rule.title}</TableCell>
-                  <TableCell>{formatHours(rule.hoursFromDue)}</TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground text-xs font-medium">
+                      {formatHours(rule.hoursFromDue)}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <Switch
                       checked={rule.notifyRequester}

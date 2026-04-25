@@ -26,6 +26,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 
@@ -347,7 +348,26 @@ export default function AllowedEmailsPage() {
                       {item.createdBy.name}
                     </TableCell>
                     <TableCell className="text-right">
-                      {!item.claimedAt && (
+                      {item.claimedAt ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled
+                                aria-label="Cannot remove a claimed allowlist entry"
+                                className="text-muted-foreground/50 cursor-not-allowed"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Already claimed — deactivate the user instead.
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
                         <Button
                           variant="ghost"
                           size="sm"

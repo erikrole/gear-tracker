@@ -31,6 +31,7 @@ export default function CategoriesPage() {
   useEffect(() => { if (adding) addRef.current?.focus(); }, [adding]);
 
   async function createRoot() {
+    if (creatingRoot) return;
     if (!newName.trim()) { setAdding(false); return; }
     setCreatingRoot(true);
     try {
