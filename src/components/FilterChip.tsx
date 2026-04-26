@@ -52,7 +52,7 @@ export function FilterChip({
             <button
               type="button"
               aria-label={`Clear ${label} filter`}
-              className="ml-0.5 hover:text-foreground transition-colors"
+              className="ml-0.5 -mr-0.5 p-1 hover:text-foreground transition-colors rounded-full"
               onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
             >
               <X className="size-3" />

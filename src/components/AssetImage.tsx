@@ -50,7 +50,7 @@ export function AssetImage({
       alt={alt}
       width={size * 2}
       height={size * 2}
-      className={cn("rounded-md object-cover shrink-0", className)}
+      className={cn("rounded-md object-cover shrink-0 outline outline-1 outline-black/10 dark:outline-white/10", className)}
       style={{ width: size, height: size }}
       unoptimized={!src.includes(".public.blob.vercel-storage.com")}
       onError={() => setFailed(true)}

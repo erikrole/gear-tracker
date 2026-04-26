@@ -405,7 +405,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <Link href="/notifications" aria-label={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : "Notifications"}>
                     <BellIcon className="size-5" />
                     {unreadNotifications > 0 && (
-                      <span className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+                      <span className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center tabular-nums" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
                     )}
                   </Link>
                 </Button>

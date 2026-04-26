@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, EyeIcon, EyeOffIcon, WifiOff } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -146,7 +147,18 @@ export default function LoginForm() {
                   tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={showPassword ? "hide" : "show"}
+                      initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                      exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                      className="flex items-center justify-center"
+                    >
+                      {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                    </motion.span>
+                  </AnimatePresence>
                 </Button>
               </div>
               <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
