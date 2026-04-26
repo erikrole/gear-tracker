@@ -1,7 +1,8 @@
 {
   "enabledPlugins": {
     "frontend-design@claude-code-plugins": true,
-    "code-review@claude-code-plugins": true
+    "code-review@claude-code-plugins": true,
+    "vercel-plugin@claude-code-plugins": true
   },
   "permissions": {
     "deny": [
@@ -18,7 +19,10 @@
       "Bash(ssh *)",
       "Bash(dd * of=/dev/*)",
       "Bash(* > /dev/*)",
-      "Bash(tee /dev/*)"
+      "Bash(tee /dev/*)",
+      "Edit(prisma/migrations/**/migration.sql)",
+      "Write(prisma/migrations/**/migration.sql)",
+      "MultiEdit(prisma/migrations/**/migration.sql)"
     ]
   },
   "hooks": {
@@ -29,6 +33,19 @@
           {
             "type": "command",
             "command": "mkdir -p ~/.claude/logs && jq -r '\"[PreToolUse] \" + .tool_name + \": \" + (.tool_input.command // \"\")[:120]' >> ~/.claude/logs/bash-audit.log; exit 0"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // empty'); case \"$FILE\" in *.ts|*.tsx) ;; *) exit 0;; esac; cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null || exit 0; OUT=$(npx --no-install tsc --noEmit -p tsconfig.json 2>&1 | tail -20); if echo \"$OUT\" | grep -q 'error TS'; then echo '[tsc advisory] type errors after edit (non-blocking, run npm run build before commit):'; echo \"$OUT\"; fi; exit 0",
+            "async": true,
+            "timeout": 60
           }
         ]
       }
