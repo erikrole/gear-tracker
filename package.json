@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "postinstall": "prisma generate",
-    "build": "next build",
+    "build": "prisma migrate deploy && next build",
     "migrate": "prisma migrate deploy",
     "analyze": "ANALYZE=true next build",
     "start": "next start",
