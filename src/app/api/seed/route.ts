@@ -2,11 +2,11 @@ import bcrypt from "bcryptjs";
 import { withAuth, withHandler } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
-import { DEFAULT_LOCATIONS } from "@/lib/default-locations";
 
 /**
  * POST /api/seed
- * Bootstraps default locations and admin account.
+ * Bootstraps an admin account against the first available home venue.
+ * Canonical location seeding lives in prisma/seed.mjs — run that first.
  * In production, requires ADMIN auth. In development, allows unauthenticated access
  * for initial setup (before any users exist).
  */
@@ -20,17 +20,16 @@ export const POST = process.env.NODE_ENV === "production"
     });
 
 async function runSeed() {
-  for (const locationName of DEFAULT_LOCATIONS) {
-    await db.location.upsert({
-      where: { name: locationName },
-      create: { name: locationName },
-      update: {},
-    });
-  }
-
-  const location = await db.location.findUniqueOrThrow({
-    where: { name: "Camp Randall" },
+  const location = await db.location.findFirst({
+    where: { isHomeVenue: true, active: true },
+    orderBy: { name: "asc" },
   });
+  if (!location) {
+    throw new HttpError(
+      500,
+      "No home venue locations found. Run `npm run db:seed` first to populate canonical locations.",
+    );
+  }
 
   const seedPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMeNow123!";
   const passwordHash = await bcrypt.hash(seedPassword, 10);

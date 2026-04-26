@@ -1,15 +1,8 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
-import { DEFAULT_LOCATIONS } from "@/lib/default-locations";
 
 export const GET = withAuth(async () => {
-  await Promise.all(
-    DEFAULT_LOCATIONS.map((name) =>
-      db.location.upsert({ where: { name }, create: { name }, update: {} })
-    )
-  );
-
   const [locations, departments, users, bulkSkus] = await Promise.all([
     db.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.department.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
