@@ -329,7 +329,7 @@ export default function BookingDetailPage({
 
       {/* ── Status strip ── */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant={statusBadgeVariant[booking.status] || "gray"}>
+        <Badge variant={statusBadgeVariant(booking.status, kind)}>
           {statusLabel(booking.status, kind)}
         </Badge>
         {booking.refNumber && (

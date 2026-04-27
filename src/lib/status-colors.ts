@@ -21,26 +21,17 @@ export function statusBadgeVariantEquipment(status: string): "green" | "blue" | 
   }
 }
 
-/** Unified status → badge variant mapping for all pages */
+/** Equipment+booking status → badge variant for search/scan contexts (no kind context available) */
 export function statusBadgeVariant(status: string): string {
   switch (status) {
-    case "AVAILABLE":
-      return "green";
+    case "AVAILABLE": return "green";
     case "OPEN":
     case "BOOKED":
-    case "CHECKED_OUT":
-      return "blue";
-    case "RESERVED":
-      return "purple";
-    case "MAINTENANCE":
-      return "orange";
-    case "OVERDUE":
-      return "red";
-    case "COMPLETED":
-    case "CANCELLED":
-    case "RETIRED":
-    default:
-      return "gray";
+    case "CHECKED_OUT": return "blue";
+    case "RESERVED": return "purple";
+    case "MAINTENANCE": return "orange";
+    case "OVERDUE": return "red";
+    default: return "gray";
   }
 }
 

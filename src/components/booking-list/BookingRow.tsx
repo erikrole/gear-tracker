@@ -24,7 +24,7 @@ export function BookingTableRow({
   menuProps,
 }: BookingTableRowProps) {
   const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < new Date();
-  const sv = getStatusVisual(item.status, isOverdue);
+  const sv = getStatusVisual(item.status, isOverdue, item.kind);
   const from = formatDateCol(item.startsAt);
   const to = formatDateCol(item.endsAt);
 
@@ -151,7 +151,7 @@ export function BookingMobileCard({
   menuProps,
 }: BookingMobileCardProps) {
   const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < new Date();
-  const sv = getStatusVisual(item.status, isOverdue);
+  const sv = getStatusVisual(item.status, isOverdue, item.kind);
 
   return (
     <div

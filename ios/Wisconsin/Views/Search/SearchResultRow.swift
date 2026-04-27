@@ -46,11 +46,11 @@ struct BookingResultRow: View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(booking.kind == .checkout ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
+                    .fill(booking.kind == .checkout ? Color.blue.opacity(0.1) : Color.purple.opacity(0.1))
                     .frame(width: 40, height: 40)
                 Image(systemName: booking.kind == .checkout ? "arrow.up.circle" : "calendar")
                     .font(.system(size: 16))
-                    .foregroundStyle(booking.kind == .checkout ? Color.green : Color.blue)
+                    .foregroundStyle(booking.kind == .checkout ? Color.blue : Color.purple)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(booking.title)
@@ -62,7 +62,7 @@ struct BookingResultRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            StatusBadge(status: booking.status)
+            StatusBadge(status: booking.status, kind: booking.kind)
         }
         .padding(.vertical, 4)
     }

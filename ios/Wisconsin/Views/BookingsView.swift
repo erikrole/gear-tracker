@@ -239,7 +239,7 @@ struct BookingRow: View {
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                 Spacer()
-                StatusBadge(status: booking.status)
+                StatusBadge(status: booking.status, kind: booking.kind)
             }
             HStack(spacing: 4) {
                 Text(booking.requester.name)
@@ -271,9 +271,10 @@ struct BookingRow: View {
 
 struct StatusBadge: View {
     let status: BookingStatus
+    var kind: BookingKind = .unknown
 
     var body: some View {
-        Text(status.label)
+        Text(labelText)
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -281,13 +282,18 @@ struct StatusBadge: View {
             .foregroundStyle(badgeColor)
     }
 
+    private var labelText: String {
+        if status == .booked { return kind == .reservation ? "Confirmed" : "Booked" }
+        return status.label
+    }
+
     private var badgeColor: Color {
         switch status {
         case .draft: .gray
-        case .booked: .blue
+        case .booked: kind == .reservation ? .purple : .blue
         case .pendingPickup: .orange
-        case .open: .green
-        case .completed: .secondary
+        case .open: .blue
+        case .completed: .gray
         case .cancelled: .red
         case .unknown: .gray
         }

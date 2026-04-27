@@ -385,7 +385,7 @@ private struct UpcomingReservationsSection: View {
                             .foregroundStyle(.tertiary)
                     }
                     Spacer()
-                    StatusBadge(status: res.status)
+                    StatusBadge(status: res.status, kind: .reservation)
                 }
                 .padding(10)
                 .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))

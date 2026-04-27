@@ -252,7 +252,7 @@ private struct HeaderSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                StatusBadge(status: booking.status)
+                StatusBadge(status: booking.status, kind: booking.kind)
                 Spacer()
                 if let ref = booking.refNumber {
                     Text(ref)

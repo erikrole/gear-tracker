@@ -31,24 +31,13 @@ enum BookingStatus: String, Codable {
         case .draft: "Draft"
         case .booked: "Booked"
         case .pendingPickup: "Pending Pickup"
-        case .open: "Open"
+        case .open: "Checked Out"
         case .completed: "Completed"
         case .cancelled: "Cancelled"
         case .unknown: "Unknown"
         }
     }
 
-    var color: String {
-        switch self {
-        case .draft: "gray"
-        case .booked: "blue"
-        case .pendingPickup: "orange"
-        case .open: "green"
-        case .completed: "secondary"
-        case .cancelled: "red"
-        case .unknown: "gray"
-        }
-    }
 }
 
 enum BookingKind: String, Codable {

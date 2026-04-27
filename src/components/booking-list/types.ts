@@ -12,6 +12,7 @@ export type BookingItem = {
   startsAt: string;
   endsAt: string;
   status: string;
+  kind: "CHECKOUT" | "RESERVATION";
   sportCode: string | null;
   createdBy?: string;
   requester: { id: string; name: string; avatarUrl?: string | null };
@@ -117,7 +118,7 @@ export function parseSortParam(s: string): { key: SortKey; dir: SortDir } | null
   return null;
 }
 
-export function getStatusVisual(status: string, isOverdue: boolean): {
+export function getStatusVisual(status: string, isOverdue: boolean, kind?: "CHECKOUT" | "RESERVATION"): {
   dot: string;
   label: string;
   /** Tailwind classes to apply to the row wrapper */
@@ -132,15 +133,17 @@ export function getStatusVisual(status: string, isOverdue: boolean): {
     titleClass: "text-destructive",
   };
   switch (status) {
-    case "OPEN":
     case "DRAFT":
+      return { dot: "var(--text-muted)", label: "Draft", rowClass: "", titleClass: "text-muted-foreground" };
     case "BOOKED":
       return {
-        dot: "var(--green)",
-        label: status === "BOOKED" ? "Booked" : status === "DRAFT" ? "Draft" : "Open",
+        dot: kind === "RESERVATION" ? "var(--purple)" : "var(--blue)",
+        label: kind === "RESERVATION" ? "Confirmed" : "Booked",
         rowClass: "",
         titleClass: "",
       };
+    case "OPEN":
+      return { dot: "var(--blue)", label: "Checked Out", rowClass: "", titleClass: "" };
     case "CANCELLED":
       return {
         dot: "var(--text-muted)",

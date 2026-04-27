@@ -63,7 +63,7 @@ export type BookingCardProps = {
 
 export function BookingCard({ item, overdueStatus, onClick, menuProps }: BookingCardProps) {
   const isOverdue = item.status === overdueStatus && new Date(item.endsAt) < new Date();
-  const sv = getStatusVisual(item.status, isOverdue);
+  const sv = getStatusVisual(item.status, isOverdue, item.kind);
   const duration = formatDuration(item.startsAt, item.endsAt);
 
   return (

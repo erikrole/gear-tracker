@@ -315,7 +315,7 @@ function bookingStatusLabel(status: string): { label: string; variant: "blue" | 
   switch (status) {
     case "BOOKED": return { label: "Booked", variant: "blue" };
     case "CHECKED_OUT": return { label: "Checked out", variant: "blue" };
-    case "COMPLETED": return { label: "Completed", variant: "green" };
+    case "COMPLETED": return { label: "Completed", variant: "gray" };
     case "RETURNED": return { label: "Returned", variant: "green" };
     case "CANCELLED": return { label: "Cancelled", variant: "gray" };
     case "DRAFT": return { label: "Draft", variant: "gray" };

@@ -10,14 +10,17 @@ export function toLocalDateTimeValue(date: Date) {
   return `${y}-${mo}-${d}T${h}:${mi}`;
 }
 
-/** Status → shadcn Badge variant mapping (typed for BadgeProps) */
-export const statusBadgeVariant: Record<string, "gray" | "blue" | "green" | "purple" | "red"> = {
-  DRAFT: "gray",
-  BOOKED: "blue",
-  OPEN: "green",
-  COMPLETED: "purple",
-  CANCELLED: "red",
-};
+/** Status → shadcn Badge variant, kind-aware for BOOKED */
+export function statusBadgeVariant(status: string, kind?: "CHECKOUT" | "RESERVATION"): "gray" | "blue" | "green" | "purple" | "red" {
+  switch (status) {
+    case "BOOKED": return kind === "RESERVATION" ? "purple" : "blue";
+    case "OPEN": return "blue";
+    case "CANCELLED": return "red";
+    case "DRAFT":
+    case "COMPLETED":
+    default: return "gray";
+  }
+}
 
 /** Universal user-facing status labels — DB enum stays unchanged */
 export function statusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): string {

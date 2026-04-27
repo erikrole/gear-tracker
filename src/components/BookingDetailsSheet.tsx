@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
-import { statusBadgeVariant } from "./booking-details/helpers";
+import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
   BookingOverview,
@@ -574,10 +574,10 @@ export default function BookingDetailsSheet({
             </div>
             {booking && (
               <Badge
-                variant={(booking.isOverdue ? "red" : (statusBadgeVariant[booking.status] || "gray")) as BadgeProps["variant"]}
+                variant={(booking.isOverdue ? "red" : statusBadgeVariant(booking.status, booking.kind)) as BadgeProps["variant"]}
                 className="shrink-0 mt-0.5"
               >
-                {booking.isOverdue ? "overdue" : booking.status.toLowerCase()}
+                {booking.isOverdue ? "Overdue" : statusLabel(booking.status, booking.kind)}
               </Badge>
             )}
           </div>
