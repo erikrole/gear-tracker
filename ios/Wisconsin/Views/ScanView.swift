@@ -112,6 +112,10 @@ private struct ScanResultCard: View {
     @Binding var navigationPath: NavigationPath
     let onScanAgain: () -> Void
 
+    private var totalCount: Int {
+        results.items.count + results.reservations.count + results.checkouts.count + results.users.count
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Capsule()
@@ -121,84 +125,90 @@ private struct ScanResultCard: View {
                 .padding(.bottom, 4)
 
             if results.isEmpty {
-                Text("No results found")
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 24)
-            } else {
+                emptyState
+            } else if totalCount > 3 {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(results.items) { asset in
-                            Button {
-                                navigationPath.append(asset)
-                            } label: {
-                                HStack {
-                                    AssetResultRow(asset: asset)
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                        .padding(.trailing, 4)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 4)
-                            }
-                            .buttonStyle(.plain)
-                            Divider().padding(.leading, 72)
-                        }
-                        ForEach(results.reservations + results.checkouts) { booking in
-                            Button {
-                                navigationPath.append(booking)
-                            } label: {
-                                ResultRow(icon: "calendar", title: booking.title,
-                                          subtitle: booking.status.label, showChevron: true)
-                            }
-                            .buttonStyle(.plain)
-                            Divider().padding(.leading, 52)
-                        }
-                        ForEach(results.users) { user in
-                            ResultRow(icon: "person.circle", title: user.name,
-                                      subtitle: user.email, showChevron: false)
-                            Divider().padding(.leading, 52)
-                        }
-                    }
+                    resultRows
                 }
-                .frame(maxHeight: 320)
+                .frame(maxHeight: 300)
+            } else {
+                resultRows
             }
+
+            Divider()
 
             Button("Scan Again", action: onScanAgain)
                 .buttonStyle(.borderedProminent)
-                .padding(.horizontal)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 12)
         }
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
     }
-}
 
-private struct ResultRow: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let showChevron: Bool
+    private var emptyState: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "qrcode.viewfinder")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+            Text("Nothing found")
+                .font(.subheadline.weight(.medium))
+            Text("This code isn't linked to any item yet")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 20)
+        .padding(.horizontal)
+        .frame(maxWidth: .infinity)
+    }
 
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .frame(width: 28)
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.medium))
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+    private var resultRows: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(results.items.enumerated()), id: \.element.id) { index, asset in
+                Button {
+                    navigationPath.append(asset)
+                } label: {
+                    HStack {
+                        AssetResultRow(asset: asset)
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .padding(.trailing, 4)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                if index < results.items.count - 1 || !results.reservations.isEmpty || !results.checkouts.isEmpty || !results.users.isEmpty {
+                    Divider().padding(.leading, 72)
+                }
             }
-            Spacer()
-            if showChevron {
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+
+            let bookings = results.reservations + results.checkouts
+            ForEach(Array(bookings.enumerated()), id: \.element.id) { index, booking in
+                Button {
+                    navigationPath.append(booking)
+                } label: {
+                    BookingResultRow(booking: booking)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                if index < bookings.count - 1 || !results.users.isEmpty {
+                    Divider().padding(.leading, 68)
+                }
+            }
+
+            ForEach(Array(results.users.enumerated()), id: \.element.id) { index, user in
+                UserResultRow(user: user)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                if index < results.users.count - 1 {
+                    Divider().padding(.leading, 68)
+                }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
     }
 }
