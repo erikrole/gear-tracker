@@ -321,9 +321,13 @@ private struct NotesSection: View {
 private struct ActiveBookingSection: View {
     let booking: AssetActiveBooking
 
+    private var sectionTitle: String {
+        booking.kind == "RESERVATION" ? "Active Reservation" : "Currently Checked Out"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Currently Checked Out")
+            Text(sectionTitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)

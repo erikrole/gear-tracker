@@ -148,12 +148,17 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   // Check if item has any booking history (for delete gating)
   const hasBookingHistory = bookingHistory.length > 0;
 
+  const parsedMeta = parseNotes(asset.notes);
+
   return ok({
     data: {
       ...asset,
+      // If notes is JSON metadata (from imports), suppress it as user-visible text.
+      // The structured metadata is exposed via the `metadata` field instead.
+      notes: parsedMeta ? null : asset.notes,
       computedStatus,
       isFavorited: !!favoriteRow,
-      metadata: parseNotes(asset.notes),
+      metadata: parsedMeta,
       activeBooking,
       hasBookingHistory,
       parentAsset: asset.parent ?? null,

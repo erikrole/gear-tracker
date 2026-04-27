@@ -114,13 +114,13 @@ export async function deriveAssetStatuses(
       continue;
     }
 
-    // Check for reservation that overlaps now
+    // Reservation has started and allocation still active — treat as RESERVED
+    // even past endsAt (overdue but not yet closed by staff).
     const hasActiveReservation = allocations.some(
       (a) =>
         a.booking.kind === BookingKind.RESERVATION &&
         a.booking.status === BookingStatus.BOOKED &&
-        a.startsAt <= now &&
-        a.endsAt > now
+        a.startsAt <= now
     );
 
     if (hasActiveReservation) {
@@ -192,7 +192,6 @@ export function buildDerivedStatusWhere(
                 none: {
                   active: true,
                   startsAt: { lte: now },
-                  endsAt: { gt: now },
                   booking: {
                     kind: BookingKind.RESERVATION,
                     status: BookingStatus.BOOKED,
@@ -219,14 +218,14 @@ export function buildDerivedStatusWhere(
         });
         break;
       case "RESERVED":
-        // Stored AVAILABLE with an active allocation on a BOOKED reservation overlapping now
+        // Stored AVAILABLE with an active allocation on a BOOKED reservation that has started
+        // (includes overdue reservations not yet closed by staff).
         clauses.push({
           status: AssetStatus.AVAILABLE,
           allocations: {
             some: {
               active: true,
               startsAt: { lte: now },
-              endsAt: { gt: now },
               booking: {
                 kind: BookingKind.RESERVATION,
                 status: BookingStatus.BOOKED,
@@ -316,8 +315,7 @@ export async function deriveAssetStatusesFromLoaded(
       (a) =>
         a.booking.kind === BookingKind.RESERVATION &&
         a.booking.status === BookingStatus.BOOKED &&
-        a.startsAt <= now &&
-        a.endsAt > now
+        a.startsAt <= now
     );
     if (hasActiveReservation) {
       result.set(assetId, "RESERVED");
