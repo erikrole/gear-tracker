@@ -200,24 +200,10 @@ export function LicenseTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {code.status === "AVAILABLE" && (
-                    <Badge variant="outline" className="border-green-400 text-green-700 dark:text-green-400">
-                      Open
-                    </Badge>
-                  )}
-                  {code.status === "PARTIAL" && (
-                    <Badge variant="outline" className="border-blue-400 text-blue-700 dark:text-blue-400">
-                      1/{MAX_SLOTS}
-                    </Badge>
-                  )}
-                  {code.status === "CLAIMED" && (
-                    <Badge variant="outline" className="border-red-400 text-red-700 dark:text-red-400">
-                      {isOwn ? "Yours" : "Full"}
-                    </Badge>
-                  )}
-                  {code.status === "RETIRED" && (
-                    <Badge variant="secondary">Retired</Badge>
-                  )}
+                  {code.status === "AVAILABLE" && <Badge variant="green">Open</Badge>}
+                  {code.status === "PARTIAL" && <Badge variant="blue">1/{MAX_SLOTS}</Badge>}
+                  {code.status === "CLAIMED" && <Badge variant="red">{isOwn ? "Yours" : "Full"}</Badge>}
+                  {code.status === "RETIRED" && <Badge variant="gray">Retired</Badge>}
                 </TableCell>
                 <TableCell>
                   <HolderCell
