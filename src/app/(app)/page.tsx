@@ -252,7 +252,7 @@ export default function DashboardPage() {
               className="text-[20px] font-black leading-tight mb-4"
               style={{ fontFamily: "var(--font-heading)" }}
             >
-              Welcome to Gear Tracker
+              Welcome to Wisconsin Creative
             </h2>
             <div className="flex gap-3 max-md:flex-col">
               {[

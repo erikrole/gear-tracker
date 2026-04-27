@@ -8,12 +8,12 @@ import "@fontsource/barlow/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Gear Tracker",
+  title: "Wisconsin Creative",
   description: "Equipment checkout, reservation, and scan tracking for university athletics",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Gear Tracker",
+    title: "Wisconsin Creative",
   },
   icons: {
     icon: "/Badgers.png",

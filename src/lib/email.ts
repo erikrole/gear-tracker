@@ -76,7 +76,7 @@ export function buildNotificationEmail({
   ${bookingTitle ? `<p style="font-size: 13px; color: #6b7280;">Booking: <strong>${escapeHtml(bookingTitle)}</strong></p>` : ""}
   ${dueStr ? `<p style="font-size: 13px; color: #6b7280;">Due: ${escapeHtml(dueStr)}</p>` : ""}
   <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
-  <p style="font-size: 11px; color: #9ca3af;">Gear Tracker — Wisconsin Athletics</p>
+  <p style="font-size: 11px; color: #9ca3af;">Wisconsin Creative — University of Wisconsin–Madison</p>
 </body>
 </html>`.trim();
 }

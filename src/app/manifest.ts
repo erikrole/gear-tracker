@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Gear Tracker",
-    short_name: "Gear",
+    name: "Wisconsin Creative",
+    short_name: "Creative",
     description: "Equipment checkout, reservation, and scan tracking for university athletics",
     start_url: "/",
     display: "standalone",

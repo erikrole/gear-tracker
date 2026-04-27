@@ -4,6 +4,7 @@ struct LoginView: View {
     @Environment(SessionStore.self) private var session
     @State private var email = ""
     @State private var password = ""
+    @State private var showPassword = false
     @FocusState private var focused: Field?
 
     enum Field { case email, password }
@@ -23,123 +24,171 @@ struct LoginView: View {
     }
 
     private static let forgotPasswordURL = URL(string: "https://gear.erikrole.com/forgot-password")!
-    private static let registerURL = URL(string: "https://gear.erikrole.com/register")!
 
     var body: some View {
-        GeometryReader { geo in
-            ScrollView {
-                VStack(spacing: 0) {
-                    brandHeader
-                        .frame(height: max(200, geo.size.height * 0.36))
+        ZStack {
+            LinearGradient(
+                stops: [
+                    .init(color: Color(red: 0.102, green: 0.063, blue: 0.090), location: 0),
+                    .init(color: Color(red: 0.176, green: 0.039, blue: 0.055), location: 0.4),
+                    .init(color: Color.brandPrimary, location: 1),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                    formSection
-                        .padding(.horizontal, 28)
-                        .padding(.top, 32)
-                        .padding(.bottom, 40)
+            GeometryReader { geo in
+                ScrollView {
+                    VStack {
+                        Spacer(minLength: 0)
+
+                        card
+                            .padding(.horizontal, 24)
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(minHeight: geo.size.height)
                 }
-                .frame(minHeight: geo.size.height)
-                .frame(maxWidth: 440)
-                .frame(maxWidth: .infinity)
+                .scrollDismissesKeyboard(.interactively)
             }
-            .scrollDismissesKeyboard(.interactively)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 
-    private var brandHeader: some View {
-        ZStack {
-            Color.brandSurface
-                .ignoresSafeArea(edges: .top)
+    private var card: some View {
+        VStack(spacing: 0) {
+            // Brand header
+            VStack(spacing: 8) {
+                Image("Badgers")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 52, height: 52)
 
-            VStack(spacing: 10) {
-                Text("W")
-                    .font(.system(size: 56, weight: .heavy))
-                    .foregroundStyle(Color.brandPrimary)
-                VStack(spacing: 2) {
-                    Text("Gear Tracker")
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(.white)
-                    Text("University of Wisconsin–Madison")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.45))
+                Text("Wisconsin Creative")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.primary)
+
+                Text("Sign in to your account")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 32)
+            .padding(.bottom, 28)
+
+            // Form
+            VStack(spacing: 16) {
+                // Email
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Email")
+                        .font(.subheadline.weight(.medium))
+                    TextField("you@example.com", text: $email)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .textContentType(.username)
+                        .autocorrectionDisabled()
+                        .focused($focused, equals: .email)
+                        .submitLabel(.next)
+                        .onSubmit { focused = .password }
+                        .onChange(of: email) { session.clearError() }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                        )
                 }
-            }
-        }
-    }
 
-    private var formSection: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 10) {
-                TextField("Email", text: $email)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                    .textContentType(.username)
-                    .autocorrectionDisabled()
-                    .focused($focused, equals: .email)
-                    .submitLabel(.next)
-                    .onSubmit { focused = .password }
-                    .onChange(of: email) { session.clearError() }
-                    .padding()
-                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
-                    )
+                // Password
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Password")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Link("Forgot password?", destination: Self.forgotPasswordURL)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    ZStack(alignment: .trailing) {
+                        Group {
+                            if showPassword {
+                                TextField("Enter your password", text: $password)
+                            } else {
+                                SecureField("Enter your password", text: $password)
+                            }
+                        }
+                        .textContentType(.password)
+                        .focused($focused, equals: .password)
+                        .submitLabel(.go)
+                        .onSubmit { submit() }
+                        .onChange(of: password) { session.clearError() }
+                        .padding(.horizontal, 14)
+                        .padding(.trailing, 42)
+                        .padding(.vertical, 12)
+                        .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                        )
 
-                SecureField("Password", text: $password)
-                    .textContentType(.password)
-                    .focused($focused, equals: .password)
-                    .submitLabel(.go)
-                    .onSubmit { submit() }
-                    .onChange(of: password) { session.clearError() }
-                    .padding()
-                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
-                    )
-            }
-
-            if let error = session.error {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-            }
-
-            Button {
-                submit()
-            } label: {
-                ZStack {
-                    if session.isLoading {
-                        ProgressView().tint(.white)
-                    } else {
-                        Text("Sign In").fontWeight(.semibold)
+                        Button {
+                            showPassword.toggle()
+                        } label: {
+                            Image(systemName: showPassword ? "eye.slash" : "eye")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(
-                    canSubmit
-                        ? Color.brandSurface
-                        : Color.brandSurfaceDim,
-                    in: RoundedRectangle(cornerRadius: 12)
-                )
-                .foregroundStyle(.white.opacity(canSubmit ? 1 : 0.35))
-            }
-            .buttonStyle(ScalePressStyle())
-            .disabled(!canSubmit)
 
-            HStack(spacing: 18) {
-                Link("Forgot password?", destination: Self.forgotPasswordURL)
-                Link("Need an account?", destination: Self.registerURL)
+                // Error
+                if let error = session.error {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                }
+
+                // Sign In
+                Button {
+                    submit()
+                } label: {
+                    ZStack {
+                        if session.isLoading {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("Sign in").fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        canSubmit ? Color(.label) : Color(.label).opacity(0.35),
+                        in: RoundedRectangle(cornerRadius: 10)
+                    )
+                    .foregroundStyle(Color(.systemBackground).opacity(canSubmit ? 1 : 0.5))
+                }
+                .buttonStyle(ScalePressStyle())
+                .disabled(!canSubmit)
             }
-            .font(.footnote.weight(.medium))
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 4)
+            .padding(.horizontal, 24)
+
+            Divider()
+                .padding(.vertical, 20)
+                .padding(.horizontal, 24)
+
+            Text("Access is by invitation only.\nContact an administrator to request access.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 28)
         }
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 12)
     }
 }

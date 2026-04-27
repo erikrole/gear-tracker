@@ -164,7 +164,7 @@ export default function AppSidebar({
                 className="text-[13.5px] text-white leading-none"
                 style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}
               >
-                Gear Tracker
+                Wisconsin Creative
               </p>
             </div>
           </div>

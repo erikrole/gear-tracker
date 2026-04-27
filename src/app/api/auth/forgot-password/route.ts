@@ -38,7 +38,7 @@ export const POST = withHandler(async (req) => {
 
     await sendEmail({
       to: user.email,
-      subject: "Reset your password — Gear Tracker",
+      subject: "Reset your password — Wisconsin Creative",
       html: buildResetEmail(user.name, resetUrl),
     });
   }
@@ -60,7 +60,7 @@ function buildResetEmail(name: string, resetUrl: string): string {
   <p><a href="${escapeHtml(resetUrl)}" style="display: inline-block; padding: 10px 24px; background: #A00000; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">Reset Password</a></p>
   <p style="font-size: 13px; color: #6b7280;">If you didn&rsquo;t request this, you can safely ignore this email.</p>
   <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
-  <p style="font-size: 11px; color: #9ca3af;">Gear Tracker &mdash; Wisconsin Athletics</p>
+  <p style="font-size: 11px; color: #9ca3af;">Wisconsin Creative &mdash; University of Wisconsin–Madison</p>
 </body>
 </html>`.trim();
 }

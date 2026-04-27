@@ -30,10 +30,14 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-black p-4">
-      <Card className="w-full max-w-[400px] shadow-lg animate-in fade-in-0 zoom-in-95 duration-300">
-        <CardHeader className="text-center pb-2">
-          <CardTitle className="text-2xl font-bold tracking-tight">Creative</CardTitle>
+    <div className="login-bg min-h-screen flex items-center justify-center p-4">
+      <div className="fixed inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundRepeat: "repeat", backgroundSize: "256px" }} />
+      <Card className="relative w-full max-w-[420px] shadow-2xl border-0 animate-in fade-in-0 zoom-in-95 duration-500">
+        <CardHeader className="text-center pb-2 pt-8">
+          <div className="flex items-center justify-center mb-3">
+            <img src="/Badgers.png" alt="Wisconsin" className="size-12 object-contain" />
+          </div>
+          <CardTitle className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>Wisconsin Creative</CardTitle>
           <CardDescription className="text-base">Reset your password</CardDescription>
         </CardHeader>
         <CardContent>
@@ -49,9 +53,7 @@ export default function ForgotPasswordPage() {
                 </p>
               </div>
               <Link href="/login">
-                <Button type="button" variant="outline" className="w-full h-11 text-base font-semibold">
-                  Back to sign in
-                </Button>
+                <Button type="button" variant="outline" className="w-full h-11 text-base font-semibold">Back to sign in</Button>
               </Link>
             </div>
           ) : (

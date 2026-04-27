@@ -5,6 +5,7 @@ import SwiftUI
 final class SessionStore {
     var currentUser: CurrentUser?
     var isLoading = false
+    var isRestoring = true
     var error: String?
     var isOffline = false
 
@@ -51,11 +52,11 @@ final class SessionStore {
     }
 
     private func restoreSession() async {
+        defer { isRestoring = false }
         do {
             currentUser = try await APIClient.shared.me()
             isOffline = false
         } catch APIError.unauthorized {
-            // No active session — show login
             currentUser = nil
         } catch {
             // Network failure — don't clear session state; let user retry

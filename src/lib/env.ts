@@ -33,7 +33,7 @@ export const env = {
   },
   /** From address for transactional email */
   get emailFrom() {
-    return process.env.EMAIL_FROM || "Gear Tracker <noreply@gear-tracker.app>";
+    return process.env.EMAIL_FROM || "Wisconsin Creative <noreply@gear-tracker.app>";
   },
   /** Base URL for the app (used in emails). Falls back to VERCEL_URL or localhost. */
   get appUrl() {

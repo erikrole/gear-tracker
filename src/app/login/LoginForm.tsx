@@ -86,7 +86,7 @@ export default function LoginForm() {
           <div className="flex items-center justify-center mb-3">
             <img src="/Badgers.png" alt="Wisconsin" className="size-12 object-contain" />
           </div>
-          <CardTitle className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>Gear Tracker</CardTitle>
+          <CardTitle className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>Wisconsin Creative</CardTitle>
           <CardDescription className="text-base">Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>
@@ -201,8 +201,7 @@ export default function LoginForm() {
             <Separator />
 
             <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="font-medium text-foreground hover:underline transition-colors">Create one</Link>
+              Access is by invitation only. Contact an administrator to request access.
             </p>
           </form>
         </CardContent>

@@ -72,7 +72,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if kiosk.isActive {
+            if session.isRestoring {
+                Color(.systemBackground).ignoresSafeArea()
+            } else if kiosk.isActive {
                 KioskShellView()
             } else if session.currentUser != nil {
                 AppTabView()
