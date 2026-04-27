@@ -319,26 +319,35 @@ struct AssetRow: View {
 private struct AssetListBadge: View {
     let asset: Asset
 
-    var body: some View {
-        if asset.computedStatus == .available {
-            Text("Available")
-                .font(.caption2.weight(.semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.green.opacity(0.15), in: Capsule())
-                .foregroundStyle(.green)
-        } else if let name = asset.activeBooking?.requesterName {
-            Text(name)
-                .font(.caption2.weight(.semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.red.opacity(0.15), in: Capsule())
-                .foregroundStyle(.red)
-                .lineLimit(1)
-                .frame(maxWidth: 110, alignment: .trailing)
-        } else {
-            AssetStatusBadge(status: asset.computedStatus)
+    private var badgeColor: Color {
+        switch asset.computedStatus {
+        case .available: .green
+        case .checkedOut: .blue
+        case .reserved: .purple
+        case .maintenance: .orange
+        case .retired: .secondary
+        case .unknown: .gray
         }
+    }
+
+    private var badgeText: String {
+        if let name = asset.activeBooking?.requesterName,
+           asset.computedStatus == .checkedOut || asset.computedStatus == .reserved {
+            return name
+        }
+        return asset.computedStatus.label
+    }
+
+    var body: some View {
+        Text(badgeText)
+            .font(.caption2.weight(.semibold))
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(badgeColor.opacity(0.15), in: Capsule())
+            .foregroundStyle(badgeColor)
+            .frame(maxWidth: 120, alignment: .trailing)
     }
 }
 
