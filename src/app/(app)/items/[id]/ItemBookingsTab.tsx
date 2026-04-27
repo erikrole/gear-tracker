@@ -311,15 +311,17 @@ export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRe
 
 /* ── Booking Status Label ──────────────────────────────── */
 
-function bookingStatusLabel(status: string): { label: string; variant: "blue" | "green" | "gray" | "red" | "orange" } {
+function bookingStatusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): { label: string; variant: "blue" | "purple" | "green" | "gray" | "red" | "orange" } {
   switch (status) {
-    case "BOOKED": return { label: "Booked", variant: "blue" };
+    case "BOOKED": return kind === "RESERVATION"
+      ? { label: "Confirmed", variant: "purple" }
+      : { label: "Booked", variant: "blue" };
     case "CHECKED_OUT": return { label: "Checked out", variant: "blue" };
     case "COMPLETED": return { label: "Completed", variant: "gray" };
-    case "RETURNED": return { label: "Returned", variant: "green" };
+    case "RETURNED": return { label: "Returned", variant: "gray" };
     case "CANCELLED": return { label: "Cancelled", variant: "gray" };
     case "DRAFT": return { label: "Draft", variant: "gray" };
-    case "CONVERTED": return { label: "Converted", variant: "green" };
+    case "CONVERTED": return { label: "Converted", variant: "gray" };
     case "CLOSED": return { label: "Closed", variant: "gray" };
     default: return { label: status, variant: "gray" };
   }
@@ -406,13 +408,13 @@ export function BookingKindTab({
                 const from = formatDateWithDayTime(b.startsAt);
                 const to = formatDateWithDayTime(b.endsAt);
                 const dur = formatDuration(b.startsAt, b.endsAt);
-                const st = bookingStatusLabel(b.status);
+                const st = bookingStatusLabel(b.status, b.kind);
                 return (
                   <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(b.id)}>
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-purple-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>
@@ -669,13 +671,13 @@ export function BookingsTab({
                 const from = formatDateWithDayTime(b.startsAt);
                 const to = formatDateWithDayTime(b.endsAt);
                 const dur = formatDuration(b.startsAt, b.endsAt);
-                const st = bookingStatusLabel(b.status);
+                const st = bookingStatusLabel(b.status, b.kind);
                 return (
                   <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(b.id)}>
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "green" ? "bg-green-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-purple-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>

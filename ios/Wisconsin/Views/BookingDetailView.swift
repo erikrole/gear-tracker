@@ -311,8 +311,8 @@ private struct RequesterSection: View {
 
 private func allocationLabel(_ status: String) -> (String, Color) {
     switch status.lowercased() {
-    case "active": return ("Out", .green)
-    case "returned": return ("Returned", .blue)
+    case "active": return ("Out", .blue)
+    case "returned": return ("Returned", .gray)
     case "draft": return ("Pending", .orange)
     default: return (status.capitalized, .secondary)
     }
