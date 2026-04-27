@@ -42,20 +42,20 @@ struct ItemDetailView: View {
                 }
             } else if let asset {
                 ScrollView {
-                    VStack(spacing: 16) {
-                        FormCard { ItemHeroSection(asset: asset) }
-                        FormCard { ItemMetaSection(asset: asset) }
+                    VStack(spacing: 12) {
+                        ItemHeroCard(asset: asset)
                         if let booking = asset.activeBooking {
-                            FormCard { ActiveBookingSection(booking: booking) }
+                            ActiveBookingCard(booking: booking)
                         }
                         if !asset.upcomingReservations.isEmpty {
-                            FormCard { UpcomingReservationsSection(reservations: asset.upcomingReservations) }
+                            UpcomingReservationsCard(reservations: asset.upcomingReservations)
                         }
                         if let notes = asset.notes, !notes.isEmpty {
-                            FormCard { NotesSection(notes: notes) }
+                            NotesCard(notes: notes)
                         }
                     }
-                    .padding()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
                 .background(Color(.systemGroupedBackground))
             }
@@ -248,148 +248,251 @@ struct EditAssetSheet: View {
     }
 }
 
-// MARK: - Sub-sections
+// MARK: - Brand color
 
-private struct ItemHeroSection: View {
+private let wiRed = Color(red: 0.773, green: 0.020, blue: 0.047)
+
+// MARK: - Hero card
+
+private struct ItemHeroCard: View {
     let asset: AssetDetail
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                AssetThumbnail(imageUrl: asset.imageUrl, size: 72)
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 0) {
+            // Top accent stripe
+            LinearGradient(
+                stops: [
+                    .init(color: wiRed, location: 0),
+                    .init(color: wiRed.opacity(0.2), location: 0.4),
+                    .init(color: .clear, location: 0.75),
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 2)
+
+            HStack(alignment: .top, spacing: 14) {
+                AssetThumbnail(imageUrl: asset.imageUrl, size: 80)
+                    .padding(.top, 2)
+
+                VStack(alignment: .leading, spacing: 5) {
                     Text(asset.displayName)
-                        .font(.title3.bold())
+                        .font(.system(size: 22, weight: .black))
+                        .tracking(-0.3)
+                        .lineLimit(2)
+
                     if let tag = asset.assetTag {
                         Text(tag)
-                            .font(.caption.monospacedDigit())
+                            .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
-                    AssetStatusBadge(status: asset.computedStatus)
+
+                    FlowRow(spacing: 6) {
+                        AssetStatusBadge(status: asset.computedStatus)
+                        MetaChip(asset.location.name)
+                        if let cat = asset.category?.name {
+                            MetaChip(cat)
+                        }
+                        if let dept = asset.department?.name {
+                            MetaChip(dept)
+                        }
+                    }
+                    .padding(.top, 2)
+
+                    if let serial = asset.serialNumber {
+                        Text(serial)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 1)
+                    }
                 }
-                Spacer()
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+        }
+        .background {
+            ZStack(alignment: .topLeading) {
+                Color(.secondarySystemGroupedBackground)
+                RadialGradient(
+                    colors: [wiRed.opacity(0.06), .clear],
+                    center: .topLeading,
+                    startRadius: 0,
+                    endRadius: 220
+                )
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
     }
 }
 
-private struct ItemMetaSection: View {
-    let asset: AssetDetail
+// Wraps children into rows (no layout DSL required — simple HStack with wrapping fallback)
+private struct FlowRow<Content: View>: View {
+    let spacing: CGFloat
+    @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Details")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            LabeledContent("Location", value: asset.location.name)
-            if let cat = asset.category {
-                LabeledContent("Category", value: cat.name)
-            }
-            if let dept = asset.department {
-                LabeledContent("Department", value: dept.name)
-            }
-            if let serial = asset.serialNumber {
-                LabeledContent("Serial") {
-                    Text(serial).fontDesign(.monospaced).font(.subheadline)
-                }
-            }
-            if let price = asset.purchasePrice.flatMap(Double.init) {
-                let currency = Locale.current.currency?.identifier ?? "USD"
-                LabeledContent("Purchase Price", value: price, format: .currency(code: currency))
-            }
+        HStack(alignment: .center, spacing: spacing) {
+            content
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
-private struct NotesSection: View {
-    let notes: String
+private struct MetaChip: View {
+    let text: String
+    init(_ text: String) { self.text = text }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Notes")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            Text(notes)
-                .font(.subheadline)
-        }
+        Text(text)
+            .font(.system(.caption2, design: .monospaced))
+            .foregroundStyle(.secondary)
     }
 }
 
-private struct ActiveBookingSection: View {
+// MARK: - Active booking card
+
+private struct ActiveBookingCard: View {
     let booking: AssetActiveBooking
 
-    private var sectionTitle: String {
-        booking.kind == "RESERVATION" ? "Active Reservation" : "Currently Checked Out"
-    }
+    private var isReservation: Bool { booking.kind == "RESERVATION" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(sectionTitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: isReservation ? "calendar.badge.clock" : "arrow.right.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(isReservation ? .purple : .blue)
+                Text(isReservation ? "Active Reservation" : "Checked Out")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.04)
+            }
 
             NavigationLink(destination: BookingDetailView(bookingId: booking.id)) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(booking.title)
-                            .font(.subheadline.weight(.medium))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
                         Text(booking.requesterName)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.caption2)
-                            .foregroundStyle(booking.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+                        Label(
+                            "Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))",
+                            systemImage: booking.isOverdue ? "exclamationmark.triangle.fill" : "clock"
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(booking.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+                        .labelStyle(.titleAndIcon)
                     }
                     Spacer()
-                    if booking.isOverdue {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundStyle(.red)
-                    }
                     Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(.tertiary)
-                        .font(.caption)
                 }
                 .padding(12)
-                .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
         }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
     }
 }
 
-private struct UpcomingReservationsSection: View {
+// MARK: - Upcoming reservations card
+
+private struct UpcomingReservationsCard: View {
     let reservations: [UpcomingReservation]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Upcoming Reservations")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.purple)
+                Text("Upcoming")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.04)
+            }
 
-            ForEach(reservations) { res in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(res.title)
-                            .font(.subheadline)
-                            .lineLimit(1)
-                        Text(res.requesterName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(res.startsAt.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+            VStack(spacing: 6) {
+                ForEach(reservations) { res in
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(res.title)
+                                .font(.subheadline.weight(.medium))
+                                .lineLimit(1)
+                            HStack(spacing: 4) {
+                                Text(res.requesterName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("·")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                Text(res.startsAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        Spacer()
+                        StatusBadge(status: res.status, kind: .reservation)
                     }
-                    Spacer()
-                    StatusBadge(status: res.status, kind: .reservation)
+                    .padding(10)
+                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
                 }
-                .padding(10)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
             }
         }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Notes card
+
+private struct NotesCard: View {
+    let notes: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "note.text")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text("Notes")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.04)
+            }
+            Text(notes)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
     }
 }
