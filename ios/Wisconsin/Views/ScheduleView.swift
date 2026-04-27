@@ -736,6 +736,9 @@ struct EventRow: View {
     private var eventDisplayTitle: String {
         guard let opponent = event.opponent, !opponent.isEmpty else { return event.summary }
         let prefix = event.isHome == false ? "at" : "vs"
+        if let code = event.sportCode {
+            return "\(scheduleSportLabel(code)) \(prefix) \(opponent)"
+        }
         return "\(prefix) \(opponent)"
     }
 
@@ -850,6 +853,25 @@ private struct TimeBlock: View {
 
 private func calendarSame(_ a: Date, _ b: Date) -> Bool {
     abs(a.timeIntervalSince(b)) < 60
+}
+
+// MARK: - Sport labels (mirrors src/lib/sports.ts)
+
+private func scheduleSportLabel(_ code: String) -> String {
+    let labels: [String: String] = [
+        "MBB": "Men's Basketball", "MXC": "Men's Cross Country", "FB": "Football",
+        "MGOLF": "Men's Golf", "MHKY": "Men's Hockey", "MROW": "Men's Rowing",
+        "MSOC": "Men's Soccer", "MSWIM": "Men's Swimming & Diving", "MTEN": "Men's Tennis",
+        "MTRACK": "Men's Track & Field", "WRES": "Wrestling",
+        "WBB": "Women's Basketball", "WXC": "Women's Cross Country", "WGOLF": "Women's Golf",
+        "WHKY": "Women's Hockey", "LROW": "Lightweight Rowing", "WROW": "Women's Rowing",
+        "WSOC": "Women's Soccer", "SB": "Softball", "WSWIM": "Women's Swimming & Diving",
+        "WTEN": "Women's Tennis", "WTRACK": "Women's Track & Field", "VB": "Volleyball",
+        // Legacy codes
+        "SWIM": "Swimming & Diving", "TF": "Track & Field", "XC": "Cross Country",
+        "GOLF": "Golf", "ROW": "Rowing", "TEN": "Tennis", "GYM": "Gymnastics", "BASE": "Baseball",
+    ]
+    return labels[code] ?? code
 }
 
 #Preview {
