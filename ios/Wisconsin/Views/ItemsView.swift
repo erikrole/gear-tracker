@@ -378,6 +378,8 @@ struct AssetStatusBadge: View {
     var body: some View {
         Text(status.label)
             .font(.caption2.weight(.semibold))
+            .lineLimit(1)
+            .fixedSize()
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(color.opacity(0.15), in: Capsule())

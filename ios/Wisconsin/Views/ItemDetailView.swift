@@ -44,12 +44,11 @@ struct ItemDetailView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         ItemHeroCard(asset: asset)
+                        ItemDetailsCard(asset: asset)
                         if let booking = asset.activeBooking {
                             ActiveBookingCard(booking: booking)
                         }
-                        if !asset.upcomingReservations.isEmpty {
-                            UpcomingReservationsCard(reservations: asset.upcomingReservations)
-                        }
+                        UpcomingReservationsCard(reservations: asset.upcomingReservations)
                         if let notes = asset.notes, !notes.isEmpty {
                             NotesCard(notes: notes)
                         }
@@ -60,7 +59,7 @@ struct ItemDetailView: View {
                 .background(Color(.systemGroupedBackground))
             }
         }
-        .navigationTitle(asset?.displayName ?? "Item")
+        .navigationTitle(asset?.assetTag ?? asset?.displayName ?? "Item")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if asset != nil {
@@ -257,9 +256,20 @@ private let wiRed = Color(red: 0.773, green: 0.020, blue: 0.047)
 private struct ItemHeroCard: View {
     let asset: AssetDetail
 
+    // Primary identifier: assetTag if set, else brand+model
+    private var heroTitle: String {
+        asset.assetTag ?? asset.displayName
+    }
+    // Secondary: custom name, or brand+model if assetTag is the hero
+    private var subtitle: String? {
+        if asset.assetTag != nil {
+            return asset.name ?? asset.displayName
+        }
+        return asset.name
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Top accent stripe
             LinearGradient(
                 stops: [
                     .init(color: wiRed, location: 0),
@@ -276,35 +286,20 @@ private struct ItemHeroCard: View {
                     .padding(.top, 2)
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(asset.displayName)
-                        .font(.system(size: 22, weight: .black))
-                        .tracking(-0.3)
+                    Text(heroTitle)
+                        .font(.system(size: 24, weight: .black))
+                        .tracking(-0.4)
                         .lineLimit(2)
 
-                    if let tag = asset.assetTag {
-                        Text(tag)
-                            .font(.system(.caption, design: .monospaced))
+                    if let sub = subtitle {
+                        Text(sub)
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
 
-                    FlowRow(spacing: 6) {
-                        AssetStatusBadge(status: asset.computedStatus)
-                        MetaChip(asset.location.name)
-                        if let cat = asset.category?.name {
-                            MetaChip(cat)
-                        }
-                        if let dept = asset.department?.name {
-                            MetaChip(dept)
-                        }
-                    }
-                    .padding(.top, 2)
-
-                    if let serial = asset.serialNumber {
-                        Text(serial)
-                            .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 1)
-                    }
+                    AssetStatusBadge(status: asset.computedStatus)
+                        .padding(.top, 3)
                 }
                 Spacer(minLength: 0)
             }
@@ -329,27 +324,60 @@ private struct ItemHeroCard: View {
     }
 }
 
-// Wraps children into rows (no layout DSL required — simple HStack with wrapping fallback)
-private struct FlowRow<Content: View>: View {
-    let spacing: CGFloat
-    @ViewBuilder let content: Content
+// MARK: - Details card
+
+private struct ItemDetailsCard: View {
+    let asset: AssetDetail
 
     var body: some View {
-        HStack(alignment: .center, spacing: spacing) {
-            content
+        VStack(spacing: 0) {
+            DetailRow(label: "Location", value: asset.location.name)
+            if let cat = asset.category {
+                DetailRow(label: "Category", value: cat.name)
+            }
+            if let dept = asset.department {
+                DetailRow(label: "Department", value: dept.name)
+            }
+            if let serial = asset.serialNumber {
+                DetailRow(label: "Serial", value: serial, mono: true)
+            }
+            if let price = asset.purchasePrice.flatMap(Double.init) {
+                let formatted = price.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
+                DetailRow(label: "Value", value: formatted)
+            }
         }
-        .fixedSize(horizontal: false, vertical: true)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
     }
 }
 
-private struct MetaChip: View {
-    let text: String
-    init(_ text: String) { self.text = text }
+private struct DetailRow: View {
+    let label: String
+    let value: String
+    var mono: Bool = false
 
     var body: some View {
-        Text(text)
-            .font(.system(.caption2, design: .monospaced))
-            .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            HStack {
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(value)
+                    .font(mono ? .system(.subheadline, design: .monospaced) : .subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+
+            Divider()
+                .padding(.leading, 14)
+        }
     }
 }
 
@@ -421,37 +449,45 @@ private struct UpcomingReservationsCard: View {
                 Image(systemName: "calendar")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.purple)
-                Text("Upcoming")
+                Text("Upcoming Reservations")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.04)
             }
 
-            VStack(spacing: 6) {
-                ForEach(reservations) { res in
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(res.title)
-                                .font(.subheadline.weight(.medium))
-                                .lineLimit(1)
-                            HStack(spacing: 4) {
-                                Text(res.requesterName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("·")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                                Text(res.startsAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.system(.caption2, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
+            if reservations.isEmpty {
+                Text("No upcoming reservations")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(reservations) { res in
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(res.title)
+                                    .font(.subheadline.weight(.medium))
+                                    .lineLimit(1)
+                                HStack(spacing: 4) {
+                                    Text(res.requesterName)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text("·")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                    Text(res.startsAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
+                            Spacer()
+                            StatusBadge(status: res.status, kind: .reservation)
                         }
-                        Spacer()
-                        StatusBadge(status: res.status, kind: .reservation)
+                        .padding(10)
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
                     }
-                    .padding(10)
-                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
                 }
             }
         }
