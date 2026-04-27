@@ -740,9 +740,9 @@ struct EventRow: View {
         }
         if let opponent = event.opponent, !opponent.isEmpty {
             switch event.isHome {
-            case true:  parts.append("vs"); parts.append(opponent)
-            case false: parts.append("at"); parts.append(opponent)
-            case nil:   parts.append(opponent)
+            case true:  parts.append("vs \(opponent)")
+            case false: parts.append("at \(opponent)")
+            case nil:   parts.append("- \(opponent)")
             }
         }
         let title = parts.isEmpty ? event.summary : parts.joined(separator: " ")
