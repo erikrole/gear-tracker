@@ -128,6 +128,18 @@ final class APIClient {
         }
     }
 
+    func updateAssetQR(id: String, qrCodeValue: String) async throws {
+        struct Body: Encodable { let qrCodeValue: String }
+        var req = request(path: "/api/assets/\(id)", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(Body(qrCodeValue: qrCodeValue))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Update failed"
+            throw APIError.serverError(msg)
+        }
+    }
+
     func updateAsset(id: String, name: String? = nil, serialNumber: String? = nil, notes: String? = nil) async throws {
         struct Body: Encodable {
             let name: String?
@@ -288,6 +300,7 @@ final class APIClient {
 
     func assets(
         search: String? = nil,
+        qr: String? = nil,
         status: AssetComputedStatus? = nil,
         categoryId: String? = nil,
         favoritesOnly: Bool = false,
@@ -300,6 +313,7 @@ final class APIClient {
             .init(name: "offset", value: "\(offset)"),
         ]
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
+        if let qr, !qr.isEmpty { items.append(.init(name: "qr", value: qr)) }
         if let status { items.append(.init(name: "status", value: status.rawValue)) }
         if let categoryId { items.append(.init(name: "category_id", value: categoryId)) }
         if favoritesOnly { items.append(.init(name: "favorites_only", value: "true")) }

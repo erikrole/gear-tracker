@@ -54,7 +54,7 @@ struct ScanView: View {
         isSearching = true
         Task {
             defer { isSearching = false }
-            results = (try? await SearchService.shared.search(query: value)) ?? SearchResults()
+            results = (try? await SearchService.shared.search(query: value, rawScan: value)) ?? SearchResults()
         }
     }
 }

@@ -47,8 +47,14 @@ struct ProfileView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @State private var showSignOutConfirm = false
+    @State private var showLinkStickerWizard = false
 
     private static let manageAccountURL = URL(string: "https://gear.erikrole.com")!
+
+    private var isDevRole: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "ADMIN" || role == "STAFF"
+    }
 
     var body: some View {
         NavigationStack {
@@ -95,6 +101,16 @@ struct ProfileView: View {
                     }
                 }
 
+                if isDevRole {
+                    Section("Dev Tools") {
+                        Button {
+                            showLinkStickerWizard = true
+                        } label: {
+                            Label("Link Sticker Codes", systemImage: "qrcode.viewfinder")
+                        }
+                    }
+                }
+
                 Section("App") {
                     LabeledContent("Version", value: appVersion)
                 }
@@ -107,6 +123,9 @@ struct ProfileView: View {
             }
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showLinkStickerWizard) {
+                LinkStickerWizard()
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

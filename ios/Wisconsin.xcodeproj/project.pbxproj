@@ -18,6 +18,7 @@
 		24A80894586E46E13F2E4E41 /* KioskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA38BB094C95612DBF9F1C24 /* KioskStore.swift */; };
 		2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */; };
 		2CED1D2B5A4282EB13E29796 /* ScheduleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50B2D1EA31765C957FED322 /* ScheduleModels.swift */; };
+		2DF5EDC0EA7BAAF2547F1035 /* LinkStickerWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41D51AC00210AD1B6DE0E466 /* LinkStickerWizard.swift */; };
 		30894C3102D964CC218C62C5 /* KioskModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B29E7150D396D5C8236398 /* KioskModels.swift */; };
 		33F2166407B607A0DADC78B2 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E180A2286F2673D3B7E2179 /* AppDelegate.swift */; };
 		37D62305D3F8AD03285EBFCE /* KioskStudentHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13D2A559654212BD133FB74F /* KioskStudentHubView.swift */; };
@@ -85,6 +86,7 @@
 		38065600FA5A1C1AC4C8CC2F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		39565FFA7236A61DAD12D9BB /* DateFormats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormats.swift; sourceTree = "<group>"; };
 		3967BD5EC55792F3B9E94724 /* AssetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetModels.swift; sourceTree = "<group>"; };
+		41D51AC00210AD1B6DE0E466 /* LinkStickerWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkStickerWizard.swift; sourceTree = "<group>"; };
 		44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerSheet.swift; sourceTree = "<group>"; };
 		468E248680EC5A61BEC1EE38 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
 		4A9DAB950F60885A23620BEC /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
@@ -183,6 +185,14 @@
 			);
 			sourceTree = "<group>";
 		};
+		7F8F46234DBAD63AE7CDEB70 /* DevTools */ = {
+			isa = PBXGroup;
+			children = (
+				41D51AC00210AD1B6DE0E466 /* LinkStickerWizard.swift */,
+			);
+			path = DevTools;
+			sourceTree = "<group>";
+		};
 		81829E068FCED51275ACCDFB /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -276,6 +286,7 @@
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
 				6B64F325136AF7626ECECE8C /* UserDetailView.swift */,
 				4E310D05AC0591B9C424B405 /* Components */,
+				7F8F46234DBAD63AE7CDEB70 /* DevTools */,
 				CD10799A1237302B1D05E01C /* Schedule */,
 				8FCC7C40A7D74BEFD82F01B5 /* Search */,
 			);
@@ -398,6 +409,7 @@
 				24A80894586E46E13F2E4E41 /* KioskStore.swift in Sources */,
 				37D62305D3F8AD03285EBFCE /* KioskStudentHubView.swift in Sources */,
 				C0CE6BBE698F81A5E6397D98 /* KioskSuccessView.swift in Sources */,
+				2DF5EDC0EA7BAAF2547F1035 /* LinkStickerWizard.swift in Sources */,
 				DACC18C0E1181FD912992FEE /* LoginView.swift in Sources */,
 				0FC9DC340824D39EB558E913 /* Models.swift in Sources */,
 				4F0A1067946B104FF1220865 /* NetworkMonitor.swift in Sources */,

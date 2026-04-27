@@ -16,12 +16,12 @@ final class SearchService {
     static let shared = SearchService()
     private init() {}
 
-    func search(query: String) async throws -> SearchResults {
+    func search(query: String, rawScan: String? = nil) async throws -> SearchResults {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return SearchResults() }
 
         let api = APIClient.shared
-        async let itemsTask = api.assets(search: q, limit: 10)
+        async let itemsTask = api.assets(search: q, qr: rawScan ?? q, limit: 10)
         async let reservationsTask = api.reservations(activeOnly: false, search: q, limit: 10)
         async let checkoutsTask = api.checkouts(activeOnly: false, search: q, limit: 10)
         async let usersTask = api.users(search: q, limit: 10)
