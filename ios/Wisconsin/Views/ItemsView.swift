@@ -349,14 +349,7 @@ struct AssetThumbnail: View {
     var body: some View {
         Group {
             if let urlString = imageUrl, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        placeholder
-                    }
-                }
+                CachedThumbnail(url: url, size: size)
             } else {
                 placeholder
             }
