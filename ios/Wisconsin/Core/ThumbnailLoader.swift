@@ -3,7 +3,7 @@ import UIKit
 import ImageIO
 
 // Downsamples image data to a target pixel size using ImageIO (no full-res decode).
-private func downsample(data: Data, maxPixels: CGFloat) -> UIImage? {
+private func downsample(data: Data, maxPixels: CGFloat, scale: CGFloat) -> UIImage? {
     let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
     guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else { return nil }
     let thumbOptions: [CFString: Any] = [
@@ -13,7 +13,7 @@ private func downsample(data: Data, maxPixels: CGFloat) -> UIImage? {
         kCGImageSourceThumbnailMaxPixelSize: maxPixels
     ]
     guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions as CFDictionary) else { return nil }
-    return UIImage(cgImage: cgImage, scale: UIScreen.main.scale, orientation: .up)
+    return UIImage(cgImage: cgImage, scale: scale, orientation: .up)
 }
 
 // NSCache-backed thumbnail store. Limited to 20 MB of decoded pixel data.
@@ -42,6 +42,7 @@ struct CachedThumbnail: View {
     let url: URL
     let size: CGFloat
 
+    @Environment(\.displayScale) private var displayScale
     @State private var uiImage: UIImage?
     @State private var loadTask: Task<Void, Never>?
 
@@ -59,7 +60,7 @@ struct CachedThumbnail: View {
         }
         .task(id: url) {
             loadTask?.cancel()
-            loadTask = Task { await load() }
+            loadTask = Task { await load(scale: displayScale) }
             await loadTask?.value
         }
         .onDisappear {
@@ -68,15 +69,16 @@ struct CachedThumbnail: View {
         }
     }
 
-    private func load() async {
+    private func load(scale: CGFloat) async {
         if let cached = ThumbnailCache.shared.image(for: cacheKey) {
             uiImage = cached
             return
         }
         guard let (data, _) = try? await URLSession.shared.data(from: url),
               !Task.isCancelled else { return }
-        let pixels = size * UIScreen.main.scale
-        guard let image = downsample(data: data, maxPixels: pixels),
+        let pixels = size * scale
+        guard pixels > 0,
+              let image = downsample(data: data, maxPixels: pixels, scale: scale),
               !Task.isCancelled else { return }
         ThumbnailCache.shared.store(image, for: cacheKey)
         uiImage = image
