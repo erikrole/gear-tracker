@@ -131,32 +131,29 @@ private struct ScanResultCard: View {
                             Button {
                                 navigationPath.append(asset)
                             } label: {
-                                ResultRow(icon: "archivebox", title: asset.displayName,
-                                          subtitle: asset.assetTag ?? asset.serialNumber ?? "—",
-                                          badge: asset.computedStatus.rawValue, showChevron: true)
+                                AssetResultRow(asset: asset)
                             }
                             .buttonStyle(.plain)
-                            Divider().padding(.leading, 52)
+                            Divider().padding(.leading, 76)
                         }
                         ForEach(results.reservations + results.checkouts) { booking in
                             Button {
                                 navigationPath.append(booking)
                             } label: {
                                 ResultRow(icon: "calendar", title: booking.title,
-                                          subtitle: booking.status.rawValue,
-                                          badge: nil, showChevron: true)
+                                          subtitle: booking.status.label, showChevron: true)
                             }
                             .buttonStyle(.plain)
                             Divider().padding(.leading, 52)
                         }
                         ForEach(results.users) { user in
                             ResultRow(icon: "person.circle", title: user.name,
-                                      subtitle: user.email, badge: user.role, showChevron: false)
+                                      subtitle: user.email, showChevron: false)
                             Divider().padding(.leading, 52)
                         }
                     }
                 }
-                .frame(maxHeight: 280)
+                .frame(maxHeight: 320)
             }
 
             Button("Scan Again", action: onScanAgain)
@@ -170,11 +167,68 @@ private struct ScanResultCard: View {
     }
 }
 
+private struct AssetResultRow: View {
+    let asset: Asset
+
+    var body: some View {
+        HStack(spacing: 12) {
+            thumbnail
+                .frame(width: 52, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(asset.name ?? asset.assetTag ?? asset.displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(asset.location.name)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            AssetStatusBadge(status: asset.computedStatus)
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder private var thumbnail: some View {
+        if let urlStr = asset.imageUrl, let url = URL(string: urlStr) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let img):
+                    img.resizable().scaledToFill()
+                default:
+                    assetPlaceholder
+                }
+            }
+        } else {
+            assetPlaceholder
+        }
+    }
+
+    private var assetPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(Color(.systemFill))
+            .overlay {
+                Image(systemName: "archivebox")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
+            }
+    }
+}
+
 private struct ResultRow: View {
     let icon: String
     let title: String
     let subtitle: String
-    let badge: String?
     let showChevron: Bool
 
     var body: some View {
@@ -187,14 +241,6 @@ private struct ResultRow: View {
                 Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            if let badge {
-                Text(badge)
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(.tint.opacity(0.12), in: Capsule())
-                    .foregroundStyle(.tint)
-            }
             if showChevron {
                 Image(systemName: "chevron.right")
                     .font(.caption)
