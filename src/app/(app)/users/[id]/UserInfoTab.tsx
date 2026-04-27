@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, ChevronsUpDown, ClockIcon, X } from "lucide-react";
+import { Check, ChevronsUpDown, ClockIcon, Copy, RefreshCw, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
@@ -411,6 +411,14 @@ export default function UserInfoTab({
 
       {/* My Hours Card — only shown for own profile */}
       {isSelf && <MyHoursCard />}
+
+      {/* Calendar Subscription — only shown for own profile */}
+      {isSelf && (
+        <CalendarSubscriptionCard
+          initialToken={user.icsToken ?? null}
+          onTokenChange={onUpdated}
+        />
+      )}
       </div>
 
       {/* Assignments Card */}
@@ -667,6 +675,104 @@ function MyHoursCard() {
             </div>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ── Calendar Subscription Card ─────────────────────────── */
+
+function CalendarSubscriptionCard({
+  initialToken,
+  onTokenChange,
+}: {
+  initialToken: string | null;
+  onTokenChange: () => void;
+}) {
+  const [token, setToken] = useState(initialToken);
+  const [generating, setGenerating] = useState(false);
+
+  const feedUrl = token
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/api/shifts/ics/${token}`
+    : null;
+  const webcalUrl = feedUrl ? feedUrl.replace(/^https?/, "webcal") : null;
+
+  async function generateToken() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/shifts/ics-token", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "Failed to generate token");
+      } else {
+        setToken(json.token);
+        onTokenChange();
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setGenerating(false);
+  }
+
+  function copyUrl() {
+    if (!feedUrl) return;
+    navigator.clipboard.writeText(feedUrl).then(() => toast.success("Feed URL copied"));
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Calendar subscription</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {token ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Subscribe to your shifts in Apple Calendar, Google Calendar, or any app that supports ICS feeds.
+              The URL stays in sync — no re-subscribing needed.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={feedUrl ?? ""}
+                className="h-8 text-xs font-mono"
+                onFocus={(e) => e.target.select()}
+              />
+              <Button variant="outline" size="sm" onClick={copyUrl} title="Copy URL">
+                <Copy className="size-4" />
+              </Button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button asChild size="sm">
+                <a href={webcalUrl ?? "#"}>Subscribe in Calendar</a>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateToken}
+                disabled={generating}
+                title="Rotate token — invalidates the old URL"
+              >
+                {generating ? (
+                  <RefreshCw className="size-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-4" />
+                )}
+                Rotate URL
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Generate a private URL to subscribe to your shifts in any calendar app.
+            </p>
+            <Button size="sm" onClick={generateToken} disabled={generating}>
+              {generating && <RefreshCw className="size-4 animate-spin mr-2" />}
+              Generate feed URL
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );

@@ -116,6 +116,7 @@ model User {
   availabilityBlocks   StudentAvailabilityBlock[]
   travelMemberships    EventTravelMember[]        @relation("TravelMembers")
   notificationPrefs    Json?                      @map("notification_prefs")
+  icsToken             String?                    @unique @map("ics_token")
 
   @@map("users")
 }

@@ -30,6 +30,7 @@ export type UserDetail = UserRow & {
   createdAt: string | null;
   sportAssignments: SportAssignment[];
   areaAssignments: AreaAssignment[];
+  icsToken?: string | null;
 };
 
 export type { Location } from "@/types/common";

@@ -34,6 +34,8 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   });
   if (!target) throw new HttpError(404, "User not found");
 
+  const isSelfOrAdmin = user.id === id || user.role === "ADMIN";
+
   return ok({
     data: {
       id: target.id,
@@ -49,6 +51,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       createdAt: target.createdAt?.toISOString() ?? null,
       sportAssignments: target.sportAssignments,
       areaAssignments: target.areaAssignments,
+      icsToken: isSelfOrAdmin ? (target.icsToken ?? null) : undefined,
     },
   });
 });
