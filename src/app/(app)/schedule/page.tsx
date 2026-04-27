@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -69,9 +70,14 @@ export default function SchedulePage() {
     <FadeUp>
       <PageHeader title="Schedule">
         {isStaff && (
-          <Button variant="outline" size="sm" onClick={() => setNewEventOpen(true)}>
-            New event
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={() => setNewEventOpen(true)}>
+              New event
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/schedule/assign">Assign shifts</Link>
+            </Button>
+          </>
         )}
         <Button
           variant="outline"
