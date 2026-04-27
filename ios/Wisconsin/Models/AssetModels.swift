@@ -43,10 +43,13 @@ struct AssetDepartment: Codable, Identifiable {
 struct AssetActiveBooking: Codable {
     let id: String
     let kind: String
+    let status: String?
     let title: String
     let requesterName: String
-    let isOverdue: Bool
+    let startsAt: Date?
     let endsAt: Date
+
+    var isOverdue: Bool { endsAt < Date.now }
 }
 
 struct Asset: Codable, Identifiable, Hashable {
