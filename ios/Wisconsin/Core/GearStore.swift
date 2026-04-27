@@ -178,10 +178,14 @@ final class GearStore {
     // MARK: Assets
 
     func seedAssets(_ assets: [Asset]) {
+        guard !assets.isEmpty else { return }
+        let ids = assets.map(\.id)
+        let existingList = (try? context.fetch(
+            FetchDescriptor<CachedAsset>(predicate: #Predicate { ids.contains($0.id) })
+        )) ?? []
+        var existingById = Dictionary(uniqueKeysWithValues: existingList.map { ($0.id, $0) })
         for asset in assets {
-            if let existing = try? context.fetch(
-                FetchDescriptor<CachedAsset>(predicate: #Predicate { $0.id == asset.id })
-            ).first {
+            if let existing = existingById[asset.id] {
                 existing.assetTag = asset.assetTag
                 existing.name = asset.name
                 existing.brand = asset.brand

@@ -39,6 +39,12 @@ struct WisconsinApp: App {
                         Task { await appState.refresh() }
                     }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                    Task { @MainActor in
+                        ThumbnailCache.shared.evictAll()
+                        URLCache.shared.removeAllCachedResponses()
+                    }
+                }
                 .onOpenURL { url in
                     if url.scheme == "wisconsin", url.host == "kiosk" {
                         kioskStore.enterKiosk()

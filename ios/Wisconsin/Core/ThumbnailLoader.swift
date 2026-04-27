@@ -35,7 +35,19 @@ final class ThumbnailCache {
         let cost = Int(image.size.width * image.size.height * image.scale * image.scale * 4)
         cache.setObject(image, forKey: key as NSString, cost: cost)
     }
+
+    func evictAll() {
+        cache.removeAllObjects()
+    }
 }
+
+// Dedicated session that skips URLCache so raw image Data isn't double-stored
+// alongside the decoded UIImage already held in ThumbnailCache.
+private let thumbnailSession: URLSession = {
+    let config = URLSessionConfiguration.default
+    config.urlCache = nil
+    return URLSession(configuration: config)
+}()
 
 // Drop-in replacement for AsyncImage that downsamples to the actual display size.
 struct CachedThumbnail: View {
@@ -74,7 +86,7 @@ struct CachedThumbnail: View {
             uiImage = cached
             return
         }
-        guard let (data, _) = try? await URLSession.shared.data(from: url),
+        guard let (data, _) = try? await thumbnailSession.data(from: url),
               !Task.isCancelled else { return }
         let pixels = size * scale
         guard pixels > 0,
