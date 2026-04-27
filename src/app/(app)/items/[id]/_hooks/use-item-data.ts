@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { toast } from "sonner";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   classifyError,
   isAbortError,
@@ -34,7 +35,8 @@ export type UseItemDataReturn = {
 export default function useItemData(id: string): UseItemDataReturn {
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [asset, setAsset] = useState<AssetDetail | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string>("");
+  const { data: currentUser } = useCurrentUser();
+  const currentUserRole = currentUser?.role ?? "";
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
@@ -124,10 +126,6 @@ export default function useItemData(id: string): UseItemDataReturn {
 
   useEffect(() => {
     loadAsset();
-    fetch("/api/me")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); })
-      .catch(() => {});
     loadCategories();
     loadDepartments();
     loadLocations();

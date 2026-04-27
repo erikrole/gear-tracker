@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { handleAuthRedirect, isAbortError, classifyError, type FetchErrorKind } from "@/lib/errors";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type { BulkSkuDetail } from "../types";
 
 export type UseBulkSkuDataReturn = {
@@ -20,7 +21,8 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
   const [sku, setSku] = useState<BulkSkuDetail | null>(null);
   const [fetchError, setFetchError] = useState<FetchErrorKind | "not-found" | false>(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [currentUserRole, setCurrentUserRole] = useState("");
+  const { data: currentUser } = useCurrentUser();
+  const currentUserRole = currentUser?.role ?? "";
   const abortRef = useRef<AbortController | null>(null);
   const hasLoadedOnce = useRef(false);
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
@@ -68,10 +70,6 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
 
   useEffect(() => {
     loadSku();
-    fetch("/api/me")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json?.user?.role) setCurrentUserRole(json.user.role); })
-      .catch(() => {});
     return () => { abortRef.current?.abort(); };
   }, [loadSku]);
 

@@ -42,14 +42,14 @@ export const POST = withAuth(async (req, { user }) => {
     body.expiresAt ? new Date(body.expiresAt) : undefined
   );
 
-  await createAuditEntry({
+  createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
     entityType: "license_code",
     entityId: code.id,
     action: "create",
     after: { code: code.code, label: code.label },
-  });
+  }).catch(console.error);
 
   return ok({ data: code }, 201);
 });
