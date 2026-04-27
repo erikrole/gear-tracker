@@ -77,7 +77,7 @@ export function UpcomingReservationsList({
                 )}
               </span>
             </div>
-            <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "green"} size="sm">
+            <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "blue"} size="sm">
               {r.status === "BOOKED" ? "Booked" : r.status === "DRAFT" ? "Draft" : "Open"}
             </Badge>
           </button>
@@ -414,7 +414,7 @@ export function BookingKindTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-purple-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>
@@ -541,8 +541,8 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
                         className={cn(
                           "block w-full px-1 py-px text-[10px] font-medium rounded truncate cursor-pointer mb-px leading-[1.4]",
                           b.kind === "CHECKOUT"
-                            ? "bg-blue-500/10 text-blue-600 hover:bg-blue-500/20"
-                            : "bg-purple-500/10 text-purple-600 hover:bg-purple-500/20",
+                            ? "bg-[var(--blue)]/10 text-[var(--blue-text)] hover:bg-[var(--blue)]/20"
+                            : "bg-[var(--purple)]/10 text-[var(--purple-text)] hover:bg-[var(--purple)]/20",
                         )}
                         onClick={() => onSelectBooking(b.id)}
                         title={`${b.kind === "CHECKOUT" ? "CO" : "RES"}: ${b.title} (${b.requester.name})`}
@@ -677,7 +677,7 @@ export function BookingsTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-purple-500" : st.variant === "blue" ? "bg-blue-500" : st.variant === "red" ? "bg-red-500" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>

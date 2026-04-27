@@ -12,7 +12,7 @@ type Props = {
 const TYPE_CONFIG = {
   DAMAGED: { label: "Damaged", variant: "orange" as const },
   LOST: { label: "Lost", variant: "red" as const },
-  MAINTENANCE: { label: "Maintenance", variant: "gray" as const },
+  MAINTENANCE: { label: "Maintenance", variant: "orange" as const },
 };
 
 export function FlaggedItemsBanner({ items }: Props) {
@@ -28,16 +28,16 @@ export function FlaggedItemsBanner({ items }: Props) {
   if (maintenance > 0) parts.push(`${maintenance} maintenance`);
 
   return (
-    <div className="relative border border-amber-500/20 bg-amber-500/[0.04] dark:bg-amber-500/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="relative border border-var(--orange)/20 bg-var(--orange)/[0.04] dark:bg-var(--orange)/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       {/* Left accent bar */}
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500" aria-hidden="true" />
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-var(--orange)" aria-hidden="true" />
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-amber-500/15">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-var(--orange)/15">
         <div className="flex items-center gap-2">
-          <AlertTriangleIcon className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <AlertTriangleIcon className="size-3.5 text-[var(--orange-text)] shrink-0" />
           <span
-            className="text-[11px] uppercase tracking-[0.14em] text-amber-700 dark:text-amber-400/80 font-semibold"
+            className="text-[11px] uppercase tracking-[0.14em] text-[var(--orange-text)] font-semibold"
             style={{ fontFamily: "var(--font-mono)" }}
           >
             {parts.join(" · ")}
@@ -60,12 +60,12 @@ export function FlaggedItemsBanner({ items }: Props) {
             <Link
               key={item.id}
               href={`/items/${item.assetId}`}
-              className="flex items-center gap-2.5 px-4 py-2.5 no-underline text-inherit transition-colors hover:bg-amber-500/[0.07] border-b border-amber-500/10 last:border-b-0"
+              className="flex items-center gap-2.5 px-4 py-2.5 no-underline text-inherit transition-colors hover:bg-var(--orange)/[0.07] border-b border-var(--orange)/10 last:border-b-0"
             >
               {item.type === "MAINTENANCE" ? (
                 <WrenchIcon className="size-3.5 text-muted-foreground/50 shrink-0" />
               ) : (
-                <AlertTriangleIcon className="size-3.5 text-amber-600/70 dark:text-amber-400/70 shrink-0" />
+                <AlertTriangleIcon className="size-3.5 text-[var(--orange-text)]/70 shrink-0" />
               )}
               <span
                 className="text-[13px] font-semibold truncate min-w-0"

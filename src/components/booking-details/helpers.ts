@@ -11,11 +11,12 @@ export function toLocalDateTimeValue(date: Date) {
 }
 
 /** Status → shadcn Badge variant, kind-aware for BOOKED */
-export function statusBadgeVariant(status: string, kind?: "CHECKOUT" | "RESERVATION"): "gray" | "blue" | "green" | "purple" | "red" {
+export function statusBadgeVariant(status: string, kind?: "CHECKOUT" | "RESERVATION"): "gray" | "blue" | "green" | "purple" | "red" | "orange" {
   switch (status) {
     case "BOOKED": return kind === "RESERVATION" ? "purple" : "blue";
     case "OPEN": return "blue";
-    case "CANCELLED": return "red";
+    case "PENDING_PICKUP": return "orange";
+    case "CANCELLED": return "gray";
     case "DRAFT":
     case "COMPLETED":
     default: return "gray";
@@ -76,11 +77,10 @@ export const actionLabels: Record<string, string> = {
 export function urgencyBadgeClassName(urgency: string): string {
   switch (urgency) {
     case "overdue":
-      return "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400";
+      return "border-[var(--red-text)]/30 bg-[var(--red-bg)] text-[var(--red-text)]";
     case "critical":
-      return "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-400";
     case "warning":
-      return "border-yellow-300 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-500";
+      return "border-[var(--orange-text)]/30 bg-[var(--orange-bg)] text-[var(--orange-text)]";
     default:
       return "";
   }

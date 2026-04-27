@@ -54,6 +54,18 @@ Used in lists and search results where kind is visible but status may not be the
 | CHECKOUT | `arrow.up.circle` | `ArrowUpCircle` | blue | `blue/10` |
 | RESERVATION | `calendar` | `Calendar` | purple | `purple/10` |
 
+### Event location badges (scheduling domain)
+
+These badges appear on event rows in the schedule and dashboard. They are **not** booking/gear status — they indicate game location type. This is a separate semantic domain from the booking status rules above.
+
+| Location | Color | Web variant | Rationale |
+|----------|-------|-------------|-----------|
+| Home | green | `green` | Familiar/default, no travel burden |
+| Away | orange | `orange` | Elevated logistics/travel effort required |
+| Neutral | gray | `gray` | Informational only, no directional meaning |
+
+> **Note:** Green here does not mean "available" — it means "home game." The separation is clear because these badges only appear on event rows, never on gear or booking rows. Do not use red for Away — red is reserved for overdue/error states.
+
 ---
 
 ## Web tokens
@@ -113,12 +125,12 @@ SwiftUI system colors adapt automatically to light/dark mode.
 
 | Color name | Light approx | Dark approx | Used for |
 |-----------|-------------|-------------|---------|
-| `.green` | `#34C759` | `#30D158` | Available, OPEN booking |
+| `.green` | `#34C759` | `#30D158` | Available |
 | `.blue` | `#007AFF` | `#0A84FF` | BOOKED checkout, OPEN |
 | `.purple` | `#AF52DE` | `#BF5AF2` | BOOKED reservation, Reserved |
 | `.orange` | `#FF9500` | `#FF9F0A` | PENDING_PICKUP, Maintenance |
-| `.red` | `#FF3B30` | `#FF453A` | Overdue, Cancelled |
-| `.gray` | `#8E8E93` | `#8E8E93` | Draft, Completed |
+| `.red` | `#FF3B30` | `#FF453A` | Overdue |
+| `.gray` | `#8E8E93` | `#8E8E93` | Draft, Completed, Cancelled (terminal states) |
 
 Badge style: `text.background(color.opacity(0.15), in: Capsule()).foregroundStyle(color)`
 

@@ -578,7 +578,7 @@ struct ShiftRow: View {
     }
 
     private var workerTypeColor: Color {
-        shift.workerType == "STAFF" ? .orange : .blue
+        shift.workerType == "STAFF" ? .secondary : .blue
     }
 }
 

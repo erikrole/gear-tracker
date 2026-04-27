@@ -78,16 +78,16 @@ function EventChip({
 
   const barColor =
     entry.isHome === true
-      ? "bg-emerald-500"
+      ? "bg-[var(--green)]"
       : entry.isHome === false
-        ? "bg-amber-500"
+        ? "bg-[var(--orange)]"
         : "bg-muted-foreground/30";
 
   const chipBg =
     entry.isHome === true
-      ? "bg-emerald-500/10 hover:bg-emerald-500/18"
+      ? "bg-[var(--green)]/10 hover:bg-[var(--green)]/18"
       : entry.isHome === false
-        ? "bg-amber-500/10 hover:bg-amber-500/18"
+        ? "bg-[var(--orange)]/10 hover:bg-[var(--orange)]/18"
         : "bg-muted/50 hover:bg-muted";
 
   const chipClass = cn(

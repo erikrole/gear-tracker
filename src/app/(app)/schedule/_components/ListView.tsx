@@ -55,9 +55,9 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
 /* Left-bar color per home/away */
 const rowBarClass = (entry: CalendarEntry) =>
   entry.isHome === true
-    ? "border-l-emerald-500"
+    ? "border-l-[var(--green)]"
     : entry.isHome === false
-      ? "border-l-amber-500"
+      ? "border-l-[var(--orange)]"
       : "border-l-transparent";
 
 function shiftAssignee(shift: Shift) {
@@ -73,7 +73,7 @@ function CoveragePill({ percentage, filled, total }: { percentage: number; fille
       <span
         className={cn(
           "inline-flex size-[7px] rounded-full flex-shrink-0",
-          variant === "green" ? "bg-emerald-500" : variant === "orange" ? "bg-amber-500" : "bg-red-500",
+          variant === "green" ? "bg-[var(--green)]" : variant === "orange" ? "bg-[var(--orange)]" : "bg-[var(--red)]",
         )}
       />
       <Badge variant={variant} size="sm">
@@ -429,7 +429,7 @@ export function ListView({
                         })()}
                         {shiftStatus && (
                           <Badge
-                            variant={shiftStatus === "Confirmed" ? "green" : "orange"}
+                            variant={shiftStatus === "Confirmed" ? "blue" : "orange"}
                             size="sm"
                           >
                             {shiftStatus}
@@ -645,7 +645,7 @@ function EventRows({
             )}
             {shiftStatus && (
               <Badge
-                variant={shiftStatus === "Confirmed" ? "green" : "orange"}
+                variant={shiftStatus === "Confirmed" ? "blue" : "orange"}
                 size="sm"
               >
                 {shiftStatus}

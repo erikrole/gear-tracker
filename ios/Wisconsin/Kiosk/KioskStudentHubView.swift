@@ -94,7 +94,7 @@ struct KioskStudentHubView: View {
                         title: "Pickup: \(pickup.title)",
                         subtitle: "\(pickup.serializedItems.count) items",
                         icon: "tray.and.arrow.down.fill",
-                        color: Color(red: 0.2, green: 0.6, blue: 0.3)
+                        color: Color.green
                     ) {
                         store.screen = .pickup(bookingId: pickup.id, userId: user.id)
                     }

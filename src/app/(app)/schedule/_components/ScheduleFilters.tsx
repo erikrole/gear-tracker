@@ -84,9 +84,9 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           const isActive = filters.homeAwayFilter === opt.value;
           const activeColor =
             opt.value === "home"
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+              ? "bg-[var(--green)]/15 text-[var(--green-text)]"
               : opt.value === "away"
-                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                ? "bg-[var(--orange)]/15 text-[var(--orange-text)]"
                 : "bg-background text-foreground";
           return (
             <button

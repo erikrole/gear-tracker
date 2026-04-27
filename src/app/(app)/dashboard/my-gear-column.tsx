@@ -66,10 +66,10 @@ export function MyGearColumn({
                     c.isOverdue
                       ? "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.18] hover:bg-[var(--wi-red)]/10 dark:hover:bg-[var(--wi-red)]/25"
                       : isDueToday(c.endsAt, now)
-                      ? "border-l-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.12] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.18]"
+                      ? "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]"
                       : ownedAccent
                       ? "border-l-primary hover:bg-muted/50"
-                      : "border-l-blue-500 hover:bg-muted/50"
+                      : "border-l-[var(--blue)] hover:bg-muted/50"
                   )}
                   onClick={() => onSelectBooking(c.id)}
                 >
@@ -135,7 +135,7 @@ export function MyGearColumn({
                 key={r.id}
                 className={cn(
                   "group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
-                  ownedAccent ? "border-l-primary hover:bg-muted/50" : "border-l-purple-600 hover:bg-muted/50"
+                  ownedAccent ? "border-l-primary hover:bg-muted/50" : "border-l-[var(--purple)] hover:bg-muted/50"
                 )}
                 onClick={() => onSelectBooking(r.id)}
               >
@@ -206,7 +206,7 @@ export function MyGearColumn({
                     {gearLabel ? (
                       <>
                         <GearAvatarStack items={s.gearItems} totalCount={s.gearItemCount} />
-                        <Badge variant={s.gearStatus === "checked_out" ? "green" : s.gearStatus === "reserved" ? "orange" : "gray"}>
+                        <Badge variant={s.gearStatus === "checked_out" ? "blue" : s.gearStatus === "reserved" ? "purple" : "gray"}>
                           {gearLabel}
                         </Badge>
                       </>

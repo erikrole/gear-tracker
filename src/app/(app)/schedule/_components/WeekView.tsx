@@ -103,10 +103,10 @@ function CoverageBar({
   const variant = coverageVariant(percentage);
   const barColor =
     variant === "green"
-      ? "bg-emerald-500"
+      ? "bg-[var(--green)]"
       : variant === "orange"
-        ? "bg-amber-500"
-        : "bg-red-500";
+        ? "bg-[var(--orange)]"
+        : "bg-[var(--red)]";
   return (
     <div className="mt-1.5 flex items-center gap-1.5">
       <div className="flex-1 h-[2px] rounded-full overflow-hidden bg-muted/70">
@@ -184,7 +184,7 @@ function EventCard({
           />
         )}
         {hasShift && (
-          <span className="mt-0.5 block text-[9px] font-semibold text-blue-600 dark:text-blue-400">
+          <span className="mt-0.5 block text-[9px] font-semibold text-[var(--blue-text)]">
             You
           </span>
         )}

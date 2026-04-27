@@ -14,9 +14,9 @@ const accentStyles = {
     num: "text-[var(--wi-red)]",
   },
   amber: {
-    bar: "bg-amber-500",
-    card: "border-amber-500/20 bg-amber-500/[0.035]",
-    num: "text-amber-600 dark:text-amber-400",
+    bar: "bg-[var(--orange)]",
+    card: "border-[var(--orange)]/20 bg-[var(--orange)]/[0.035]",
+    num: "text-[var(--orange-text)]",
   },
 } as const;
 

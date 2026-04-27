@@ -76,8 +76,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                     c.isOverdue
                       ? "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.18] hover:bg-[var(--wi-red)]/10 dark:hover:bg-[var(--wi-red)]/25"
                       : isDueToday(c.endsAt, now)
-                      ? "border-l-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.12] hover:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.18]"
-                      : "border-l-blue-500 hover:bg-muted/50"
+                      ? "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]"
+                      : "border-l-[var(--blue)] hover:bg-muted/50"
                   )}
                   onClick={() => onSelectBooking(c.id)}
                 >
@@ -141,7 +141,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
             {(filtered?.teamReservations ?? data.teamReservations.items).map((r) => (
               <button
                 key={r.id}
-                className="group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px] border-l-purple-600"
+                className="group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px] border-l-[var(--purple)]"
                 onClick={() => onSelectBooking(r.id)}
               >
                 <div className="flex flex-col gap-0.5 min-w-0">
@@ -206,8 +206,8 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 <div className="flex items-center gap-2 shrink-0">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} filledSlots={e.filledShiftSlots} />
                   {e.isHome === true && <Badge variant="green">Home</Badge>}
-                  {e.isHome === false && <Badge variant="red">Away</Badge>}
-                  {e.isHome === null && e.opponent && <Badge variant="blue">Neutral</Badge>}
+                  {e.isHome === false && <Badge variant="orange">Away</Badge>}
+                  {e.isHome === null && e.opponent && <Badge variant="gray">Neutral</Badge>}
                   <DropdownMenu>
                     <Tooltip>
                       <TooltipTrigger asChild>

@@ -294,7 +294,7 @@ struct StatusBadge: View {
         case .pendingPickup: .orange
         case .open: .blue
         case .completed: .gray
-        case .cancelled: .red
+        case .cancelled: .gray
         case .unknown: .gray
         }
     }

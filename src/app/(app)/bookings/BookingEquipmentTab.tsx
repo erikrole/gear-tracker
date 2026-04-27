@@ -148,7 +148,7 @@ export default function BookingEquipmentTab({
               <div className="flex items-center gap-2 mt-1">
                 <Progress
                   value={Math.round((totalReturned / totalOut) * 100)}
-                  className="h-1.5 bg-muted [&>[data-slot=progress-indicator]]:bg-green-500"
+                  className="h-1.5 bg-muted [&>[data-slot=progress-indicator]]:bg-[var(--green)]"
                 />
                 <span className="text-xs text-muted-foreground shrink-0">
                   {totalReturned}/{totalOut} returned
@@ -233,7 +233,7 @@ function SerializedRow({
       {/* Returned indicator */}
       {isCheckout && returned && (
         <div className="shrink-0">
-          <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
+          <div className="size-5 rounded-full bg-[var(--green-text)] text-white flex items-center justify-center">
             <Check className="size-3" />
           </div>
         </div>
@@ -317,7 +317,7 @@ function BulkRow({
       {/* Returned indicator */}
       {isCheckout && allReturned && (
         <div className="shrink-0">
-          <div className="size-5 rounded-full bg-green-600 text-white flex items-center justify-center">
+          <div className="size-5 rounded-full bg-[var(--green-text)] text-white flex items-center justify-center">
             <Check className="size-3" />
           </div>
         </div>

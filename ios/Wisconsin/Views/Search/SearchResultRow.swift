@@ -77,11 +77,11 @@ struct UserResultRow: View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(Color.purple.opacity(0.1))
+                    .fill(Color.secondary.opacity(0.15))
                     .frame(width: 40, height: 40)
                 Text(user.name.searchInitials)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.purple)
+                    .foregroundStyle(Color.secondary)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.name)
