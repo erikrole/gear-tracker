@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0139CC54E3F0164FA19EA25C /* EventWeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */; };
 		01C0E89D9110CBB8DA80D650 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7494E64F4395E73A7AA6C1 /* SearchResultRow.swift */; };
 		085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */; };
 		0FC9DC340824D39EB558E913 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B540C9027D1885BCBEA2E4D /* Models.swift */; };
@@ -50,6 +51,7 @@
 		A9264F994D67157C3DD7FCD3 /* TradeBoardSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52833BE41AB34A8FFA43FE2 /* TradeBoardSheet.swift */; };
 		AF66ADDE1D3CF5B16155A3BA /* GlobalSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5EC344925B5666C2CA8F773 /* GlobalSearchSheet.swift */; };
 		B1DDE3C06BD40F1F8615A227 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F14676788E6FA7CDD08D48 /* HomeView.swift */; };
+		B276BCB07DEE006B7B4BA266 /* WeatherKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 87AF393E027CAF24A08F414E /* WeatherKit.framework */; };
 		B2FEB545EEB4F42FE18F292F /* BookingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2228A84C3CCBC90ABF9103F1 /* BookingsView.swift */; };
 		BA09B1B0BD9687C63E73E59D /* ThumbnailLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D1B302F1FC5245180A17CD /* ThumbnailLoader.swift */; };
 		BAE863712FA11717C1C77B29 /* NotificationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */; };
@@ -90,6 +92,7 @@
 		44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerSheet.swift; sourceTree = "<group>"; };
 		468E248680EC5A61BEC1EE38 /* Skeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skeleton.swift; sourceTree = "<group>"; };
 		4A9DAB950F60885A23620BEC /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
+		51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventWeatherService.swift; sourceTree = "<group>"; };
 		592769886AB12F6A842CC8CF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5B540C9027D1885BCBEA2E4D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		5E180A2286F2673D3B7E2179 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -107,6 +110,7 @@
 		783E3F89AF08A64D8BE2685D /* KioskActivationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskActivationView.swift; sourceTree = "<group>"; };
 		80CA4880F08046F8E23F079B /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		843772771897AABEF8DD1F93 /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
+		87AF393E027CAF24A08F414E /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
 		96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShiftSheet.swift; sourceTree = "<group>"; };
 		9CDE77AE37C01B8DA663C7CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsSheet.swift; sourceTree = "<group>"; };
@@ -134,6 +138,17 @@
 		FA38BB094C95612DBF9F1C24 /* KioskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskStore.swift; sourceTree = "<group>"; };
 		FAD4EC3F211EACBB157F7DDE /* GearStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GearStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4131A75354D9B9C47C13175A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B276BCB07DEE006B7B4BA266 /* WeatherKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1414D7CCBD97C717AE465FD0 /* Wisconsin */ = {
@@ -168,6 +183,14 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		56BA9B99E8BB9A2E7D01253E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				87AF393E027CAF24A08F414E /* WeatherKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		597D878F5B57CA4F5E2F5F05 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -181,6 +204,7 @@
 			isa = PBXGroup;
 			children = (
 				1414D7CCBD97C717AE465FD0 /* Wisconsin */,
+				56BA9B99E8BB9A2E7D01253E /* Frameworks */,
 				FAC33595C52A409299C15513 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -257,6 +281,7 @@
 				38065600FA5A1C1AC4C8CC2F /* AppState.swift */,
 				4A9DAB950F60885A23620BEC /* Brand.swift */,
 				39565FFA7236A61DAD12D9BB /* DateFormats.swift */,
+				51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */,
 				FAD4EC3F211EACBB157F7DDE /* GearStore.swift */,
 				2A73B2A1C9B274552CBA7C8B /* Haptics.swift */,
 				2536547429CB16E12CB069C0 /* NetworkMonitor.swift */,
@@ -310,6 +335,7 @@
 			buildPhases = (
 				ABB8BC4733CB796A48A557D1 /* Sources */,
 				028CA1F838882E12487697F8 /* Resources */,
+				4131A75354D9B9C47C13175A /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -386,6 +412,7 @@
 				CE860A32B56D88E0802D8EFE /* DashboardModels.swift in Sources */,
 				7507BE07B0E40EAA31B9DBE9 /* DateFormats.swift in Sources */,
 				713FB9080DFAA1073EE5FA8C /* EventDetailSheet.swift in Sources */,
+				0139CC54E3F0164FA19EA25C /* EventWeatherService.swift in Sources */,
 				904A4A8C645FFEB4CD2AA971 /* ExtendBookingSheet.swift in Sources */,
 				F8198BB80C4CB84C0C12ED6A /* FloatingSearchButton.swift in Sources */,
 				470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */,

@@ -55,6 +55,7 @@ struct EventDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var vm: EventDetailViewModel
+    @State private var weatherData: EventWeatherData?
     @State private var prepGearOpen = false
     @State private var assignTarget: EventShift?
     @State private var requestTarget: EventShift?
@@ -121,6 +122,7 @@ struct EventDetailSheet: View {
                 }
             }
             .task { await vm.load() }
+            .task { weatherData = await EventWeatherService.shared.weather(for: event) }
             .sheet(isPresented: $prepGearOpen) {
                 CreateBookingSheet(vm: makePrepGearVM()) { _ in }
             }
@@ -294,6 +296,20 @@ struct EventDetailSheet: View {
                     Label(location.name, systemImage: "mappin.and.ellipse")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                }
+
+                if let weather = weatherData {
+                    HStack(spacing: 6) {
+                        Image(systemName: weather.symbolName)
+                            .symbolRenderingMode(.multicolor)
+                            .font(.subheadline)
+                        Text(weather.temperature)
+                            .font(.subheadline)
+                        Spacer()
+                        Link("Apple Weather", destination: URL(string: "https://weatherkit.apple.com/legal-attribution.html")!)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }

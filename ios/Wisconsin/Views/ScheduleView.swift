@@ -732,6 +732,7 @@ private struct ScheduleDateHeader: View {
 struct EventRow: View {
     let event: ScheduleEvent
     let myShift: MyShift?
+    @State private var weatherData: EventWeatherData?
 
     private var eventDisplayTitle: String {
         var parts: [String] = []
@@ -783,6 +784,9 @@ struct EventRow: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(isHome ? Color.green : Color.orange)
                     }
+                    if let weather = weatherData {
+                        WeatherBadge(data: weather)
+                    }
 
                     if let shift = myShift {
                         HStack(spacing: 10) {
@@ -823,6 +827,7 @@ struct EventRow: View {
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
         )
         .shadow(color: Color.primary.opacity(0.05), radius: 4, y: 2)
+        .task { weatherData = await EventWeatherService.shared.weather(for: event) }
     }
 
     private var barColor: Color {
@@ -859,6 +864,23 @@ private struct TimeBlock: View {
     }
 }
 
+
+// MARK: - Weather Badge
+
+private struct WeatherBadge: View {
+    let data: EventWeatherData
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: data.symbolName)
+                .symbolRenderingMode(.multicolor)
+                .font(.system(size: 11))
+            Text(data.temperature)
+                .font(.system(size: 10, weight: .medium).monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+    }
+}
 
 private func calendarSame(_ a: Date, _ b: Date) -> Bool {
     abs(a.timeIntervalSince(b)) < 60

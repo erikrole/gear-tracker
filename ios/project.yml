@@ -37,6 +37,8 @@ targets:
         NSLocationWhenInUseUsageDescription: "Show nearby gear locations"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
+    dependencies:
+      - sdk: WeatherKit.framework
     settings:
       base:
         PRODUCT_NAME: Wisconsin
