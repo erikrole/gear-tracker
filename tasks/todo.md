@@ -1,77 +1,139 @@
 # Task Queue
 
-Last updated: 2026-04-14
+Last updated: 2026-04-27
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
 
 ---
 
+## Current State
+
+Main branch is at `6d08c56` (polish: tighten UI micro-details across the app).
+Badge system PR (#123) was merged then reverted — all badge-related code removed from main.
+Cron jobs on main are Vercel Hobby-compatible (daily schedules only).
+
+### What's Live
+- Full checkout/reservation workflow with photo accountability
+- Equipment scanning with numbered bulk unit tracking and loss detection
+- Schedule & shift management with trade board and auto-generation
+- Event sync (ICS ingest, venue mapping, shift auto-generation)
+- Kiosk mode for self-serve scan stations (device-level auth)
+- 6 report types with drill-down (checkout, overdue, utilization, scans, audit, bulk losses)
+- Admin allowlist for registration access control
+- Guides with BlockNote editor (CRUD, categories, publish/draft)
+- Notifications (in-app center, email via Resend, escalation schedule)
+- Settings IA (search palette, tab grouping, appearance, personal preferences)
+- Mobile iOS student-first operations app
+
+---
+
 ## Recently Shipped
 
-### Design System Cleanup (2026-04-14)
-- [x] **Badge variants** — Removed 4 unused variants (ghost, link, mixed, yellow); consolidated from 13 → 9
-- [x] **Typography** — 15 settings page headings migrated from hardcoded `text-[22px]` → `text-2xl` token
-- [x] **Legacy CSS** — ~240 lines removed: `ops-row*` (dashboard columns), `possession-card*` (no consumers), `data-table*` (TradeBoard + ShiftConfigTable) all migrated to Tailwind
-- [x] **Accent naming** — 3 direct `var(--accent)` usages replaced with `var(--primary)` / `hover:border-primary`
-- [x] **Theme toggle** — `.theme-toggle-row` CSS block migrated to inline Tailwind (`data-[state=on]:`, `hover:`) in Sidebar.tsx
+### UI Polish Pass (2026-04-26)
+- [x] Transition timing, button press scale, text wrapping fixes
+- [x] Image outlines, tabular-nums on badges
+- [x] Auto-apply Prisma migrations on Vercel build
+- [x] Vercel plugin + Postgres/Vercel MCP + migration guards
+
+### Settings IA (2026-04-24)
+- [x] Search palette, tab grouping, density improvements, last-tab resume
+- [x] Notifications preferences UI, text size controls, personal settings group
+- [x] Inline "last edited by/when" on Locations + Allowed Emails
 
 ### Guides Feature (2026-04-14)
-- [x] **Slice 1** — Guide model + migration (0032), service layer (`src/lib/guides.ts`), 5 API routes with auth + audit logging
-- [x] **Slice 2** — `/guides` list page (category chips, search, card grid), `/guides/[slug]` BlockNote reader, sidebar nav entry
-- [x] **Slice 3** — `/guides/new` create page, `/guides/[slug]/edit` edit page (publish toggle, admin delete with AlertDialog)
-- [x] **Doc sync** — `AREA_GUIDES.md` created, `guides-plan.md` archived
+- [x] Guide model + migration, service layer, 5 API routes
+- [x] List page, BlockNote reader, create/edit pages, publish toggle
+- [x] `AREA_GUIDES.md` created, plan archived
 
-### Kiosk Mode — Full Flow (2026-04-14)
-- [x] **Verified all 12 kiosk API routes** — all use `withKiosk`, correct auth on all mutations
-- [x] **Confirmed `source: "KIOSK"`** on checkout/complete and checkin/complete audit entries
-- [x] **Confirmed 5-min inactivity timer** in KioskShell
-- [x] **Updated AREA_KIOSK.md** — all 11 ACs marked complete, full implementation documented
-- [x] **Archived `tasks/kiosk-plan.md`** → `tasks/archive/`
+### Kiosk Mode Verification (2026-04-14)
+- [x] All 12 kiosk API routes verified with `withKiosk`
+- [x] 5-min inactivity timer confirmed
+- [x] `AREA_KIOSK.md` all ACs complete
 
 ### Scan Flow Hardening (2026-04-09)
-- [x] **Stress test** — 4 issues found, 4 fixed: scanValue normalization, bulk bin case-insensitive match, cross-booking numbered bulk unit integrity, completeCheckinScan status guard
-- [x] **Harden pass** — 6 fixes across 4 files: Badge components, dark-mode color consistency, finally blocks on both hooks, Page Visibility refresh, camera error UX
+- [x] 4 bugs found and fixed in stress test
+- [x] Badge components, dark-mode, finally blocks, Page Visibility refresh, camera error UX
 
 ### Booking Flow Overhaul (2026-04-09)
-- [x] **Multi-step wizard** — `/checkouts/new` and `/reservations/new` replace `CreateBookingSheet`. 3 steps: Context & Details → Equipment → Confirmation.
-- [x] **BookingDetailsSheet Equipment tab** — 3rd tab with unreturned badge count, scan-to-return (inline camera, local QR lookup, audio/haptic), full EquipmentPicker in edit mode.
-- [x] **Thumbnails everywhere** — `<AssetImage size={36}>` on all equipment rows. Bulk qty stepper capped at max, 44px touch targets.
-- [x] **Stress test** — 12 issues found, 8 fixed (broken redirect URL, stale scan state, date validation, audit log deps, draft save await, form-options error state).
-- [x] **Cleanup** — `CreateBookingSheet` and `BookingEquipmentEditor` deleted. Dashboard wired to wizard navigation.
+- [x] Multi-step wizard replaces `CreateBookingSheet`
+- [x] Equipment tab with unreturned badges, scan-to-return, thumbnails
+- [x] Old components deleted, dashboard wired to wizard
+
+---
+
+## Rolled Back: Badge System (2026-04-27)
+
+PR #123 was merged then reverted. The badge system (42 badges, evaluation engine,
+streak tracking, staff dashboard, profile integration) caused merge conflicts and
+deployment issues. Will be re-attempted later with a cleaner approach.
+
+**What was built (for reference when revisiting):**
+- Schema: BadgeDefinition, StudentBadge, BadgeStreak models
+- Evaluation engine: 40 rules across 10 trigger types
+- Trigger hooks: evaluateBadges, handleOnTimeReturn, handleOverdueReturn, handleShiftCompleted, handleSuccessfulScan, handleFailedScan
+- UI: Badge grid on profile, staff dashboard with leaderboard + accountability feed
+- Reports: /reports/badges tab
+- Notifications: In-app alerts when badges earned
+
+**Lessons for next attempt:**
+- Badge hooks were injected into 6+ route handlers — too many touchpoints for a first slice
+- Rebase across main's `withAuth` refactor caused extensive conflicts
+- Start with schema + evaluation engine only, wire hooks in a separate slice
+- Consider event-driven architecture (emit events, badge service subscribes) instead of direct hook injection
 
 ---
 
 ## Open Items
 
-### Reservations (P2)
-- [x] ~~**Resolve equipment conflict badges**~~ (AC-8) — Already implemented in `BookingEquipmentTab.tsx:53-106`. Fetches conflicts for BOOKED/DRAFT bookings. Verified 2026-04-06.
-
-### Users (P2)
-- [x] ~~**Add sport/area assignment CRUD**~~ — Shipped 2026-03-28 (GAP-23). Popover multi-select in UserInfoTab.
-- [x] ~~**Session-level active enforcement**~~ — Shipped 2026-04-06. `requireAuth()` checks `user.active` + deactivation deletes sessions.
-
-### Known Bugs (documented with proof tests)
-- [x] ~~**Fix `claimTrade()` missing isolation**~~ — Fixed 2026-03-30: SERIALIZABLE added to all shift-trades.ts + shift-assignments.ts transactions.
-- [x] ~~**Fix bulk scan TOCTOU**~~ — Fixed 2026-03-30: Quantity guard moved inside SERIALIZABLE transaction.
-- [x] ~~**Fix `markCheckoutCompleted` double-return**~~ — Fixed 2026-03-30: Now subtracts `checkedInQuantity` from return amount.
-- [x] ~~**Fix CSRF bypass with missing Origin**~~ — Fixed 2026-03-30: Origin header required on all mutating requests (cron exempted via Bearer auth).
-
----
-
-## Scan Flow — Low Priority (from 2026-04-09 stress test)
-- [x] ~~**Admin override detail logging**~~ — Shipped 2026-04-14: `createAdminOverride` now queries the active scan session, calls `buildScanCompletionState`, and stores `bypassed.missingSerialized`, `bypassed.missingBulk`, `bypassed.missingUnits`, and `bypassed.phase` in the `details` field of both the `OverrideEvent` and the audit entry.
-- [ ] **Server-side rate limiting on scan endpoints** — `/api/checkouts/[id]/scan` and `/checkin-scan` have no per-session rate limit. Client-side 1s debounce is the only guard. Migrate to Upstash KV rate limiter when user base grows (tracked in GAP-32).
-- [x] ~~**Device context never sent from client**~~ — Shipped 2026-04-14: `use-scan-submission.ts` now sends `deviceContext: navigator.userAgent` on all scan POST requests (both `submitScan` and the numbered-bulk inline fetch).
+### Low Priority (from scan stress test)
+- [ ] **Server-side rate limiting on scan endpoints** — Client-side 1s debounce is the only guard. Migrate to Upstash KV when user base grows (GAP-32).
 
 ---
 
 ## Phase B Backlog (needs briefs before implementation)
 
-- [ ] **Shift email notifications** — V1 = in-app only
-- [ ] **Student availability tracking** — Declare unavailable dates
-- [ ] **Date range grouping** — Connected From/To on booking detail (deferred from Round 3)
-- [ ] **Game-Day Readiness Score** — Aggregate metric per event (deferred from scheduling Slice 5)
+| Priority | Feature | Status | Notes |
+|----------|---------|--------|-------|
+| P1 | **Shift email notifications** | Needs brief | V1 = in-app only; email would reduce missed shifts |
+| P1 | **Student availability tracking** | Needs brief | Declare unavailable dates for scheduling |
+| P2 | **Date range grouping** | Needs brief | Connected From/To on booking detail (deferred Round 3) |
+| P2 | **Game-Day Readiness Score** | Needs brief | Aggregate metric per event |
+| P2 | **Scan telemetry / KPI tracking** | Brief exists (`BRIEF_SCAN_TELEMETRY_V1.md`) | Vercel Analytics recommended |
+| P3 | **Enhanced escalation (SMS, sub-hourly)** | Brief exists (`BRIEF_ESCALATION_PHASE_B.md`) | Blocked: sub-hourly needs Vercel Pro |
+| P3 | **Student badge system** | Plan ready (`tasks/badge-achievements-plan.md`) | Previous attempt rolled back — redesigned with event-driven architecture, 6 thin slices |
+
+---
+
+## Phase C Backlog (deferred)
+
+- [ ] Database-configurable equipment guidance rules UI (D-016)
+- [ ] Advanced analytics — charts, trends, forecasting
+- [ ] Multi-source event ingestion (beyond UW Badgers ICS)
+- [ ] Reservation/checkout templates
+- [ ] Board/ops view for game-day coordinators
+
+---
+
+## Known Gaps (acceptable for current scale)
+
+| ID | Gap | Mitigation |
+|----|-----|------------|
+| GAP-11 | No cross-page data cache — full re-fetch on navigation | V3 candidate: React Query |
+| GAP-21 | SystemConfig model has zero UI | Low priority; internal key-value store |
+| GAP-32 | Rate limiting is in-memory per serverless instance | Adequate for 4-user team; Upstash KV when needed |
+| GAP-33 | PENDING_PICKUP bookings have no auto-expiry | Staff can cancel manually; 48h auto-expiry deferred |
+| GAP-34 | iOS Bookings list lacks status filters and sorting | iOS uses `activeOnly: true`; power-user parity deferred |
+| GAP-35 | iOS Booking detail missing per-item conflict badges | Server-side enforcement is authoritative |
+| GAP-36 | iOS Item detail missing admin actions | By design for V1 (student-first) |
+
+---
+
+## Planned Upgrades (documented, not started)
+
+- **Next 16 migration** — Plan in `tasks/next16-migration-plan.md`
+- **iOS SwiftData** — Plan in `tasks/ios-swiftdata-plan.md`
+- **iOS Swift 6.2 / Liquid Glass** — Plan in `tasks/ios-swift62-liquidglass-plan.md`
 
 ---
 
@@ -82,3 +144,4 @@ Last updated: 2026-04-14
 - Every mutation endpoint needs audit logging (D-007)
 - Read `NORTH_STAR.md` first in any new Claude session
 - When shipping, update the relevant `AREA_*.md` and `GAPS_AND_RISKS.md` (CLAUDE.md rule 12)
+- Vercel Hobby plan: cron jobs must be daily only (no sub-daily schedules)
