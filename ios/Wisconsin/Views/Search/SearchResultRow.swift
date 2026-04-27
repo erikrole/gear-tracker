@@ -10,7 +10,7 @@ struct AssetResultRow: View {
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(asset.assetTag ?? asset.displayName)
+                Text(asset.name ?? asset.assetTag ?? asset.displayName)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
                 HStack(spacing: 4) {

@@ -131,10 +131,18 @@ private struct ScanResultCard: View {
                             Button {
                                 navigationPath.append(asset)
                             } label: {
-                                AssetResultRow(asset: asset)
+                                HStack {
+                                    AssetResultRow(asset: asset)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                        .padding(.trailing, 4)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 4)
                             }
                             .buttonStyle(.plain)
-                            Divider().padding(.leading, 76)
+                            Divider().padding(.leading, 72)
                         }
                         ForEach(results.reservations + results.checkouts) { booking in
                             Button {
@@ -164,64 +172,6 @@ private struct ScanResultCard: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
-    }
-}
-
-private struct AssetResultRow: View {
-    let asset: Asset
-
-    var body: some View {
-        HStack(spacing: 12) {
-            thumbnail
-                .frame(width: 52, height: 52)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(asset.name ?? asset.assetTag ?? asset.displayName)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                Text(asset.location.name)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            AssetStatusBadge(status: asset.computedStatus)
-
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
-    }
-
-    @ViewBuilder private var thumbnail: some View {
-        if let urlStr = asset.imageUrl, let url = URL(string: urlStr) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().scaledToFill()
-                default:
-                    assetPlaceholder
-                }
-            }
-        } else {
-            assetPlaceholder
-        }
-    }
-
-    private var assetPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 10)
-            .fill(Color(.systemFill))
-            .overlay {
-                Image(systemName: "archivebox")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.secondary)
-            }
     }
 }
 
