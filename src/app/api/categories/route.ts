@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok, HttpError } from "@/lib/http";
+import { ok, cachedOk, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
@@ -46,7 +46,7 @@ export const GET = withAuth(async () => {
     itemCount: countMap.get(c.id) ?? 0,
   }));
 
-  return ok({ data });
+  return cachedOk({ data });
 });
 
 export const POST = withAuth(async (req, { user }) => {

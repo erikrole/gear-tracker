@@ -26,7 +26,9 @@ import {
   BookingEditForm,
   BookingItems,
 } from "./booking-details";
-import EquipmentPicker, { type PickerBulkSku } from "@/components/EquipmentPicker";
+import dynamic from "next/dynamic";
+import type { PickerBulkSku } from "@/components/EquipmentPicker";
+const EquipmentPicker = dynamic(() => import("@/components/EquipmentPicker"), { ssr: false });
 import ActivityTimeline from "@/components/ActivityTimeline";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";

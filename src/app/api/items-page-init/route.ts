@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { cachedOk } from "@/lib/http";
 
 /**
  * Consolidated endpoint for the items list page.
@@ -30,7 +30,7 @@ export const GET = withAuth(async (_req, { user }) => {
     }),
   ]);
 
-  return ok({
+  return cachedOk({
     data: {
       user: { role: user.role },
       locations,

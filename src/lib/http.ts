@@ -18,6 +18,13 @@ export function ok<T>(data: T, status = 200) {
   return NextResponse.json(data, { status });
 }
 
+/** Like ok(), but adds a private 60s browser cache with 5-min stale-while-revalidate. */
+export function cachedOk<T>(data: T) {
+  return NextResponse.json(data, {
+    headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" },
+  });
+}
+
 export function fail(error: unknown) {
   if (error instanceof HttpError) {
     return NextResponse.json(
