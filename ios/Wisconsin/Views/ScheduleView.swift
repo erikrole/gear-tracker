@@ -734,12 +734,21 @@ struct EventRow: View {
     let myShift: MyShift?
 
     private var eventDisplayTitle: String {
-        guard let opponent = event.opponent, !opponent.isEmpty else { return event.summary }
-        let prefix = event.isHome == false ? "at" : "vs"
+        var parts: [String] = []
         if let code = event.sportCode {
-            return "\(scheduleSportLabel(code)) \(prefix) \(opponent)"
+            parts.append(scheduleSportLabel(code))
         }
-        return "\(prefix) \(opponent)"
+        if let opponent = event.opponent, !opponent.isEmpty {
+            switch event.isHome {
+            case true:  parts.append("vs"); parts.append(opponent)
+            case false: parts.append("at"); parts.append(opponent)
+            case nil:   parts.append(opponent)
+            }
+        }
+        let title = parts.isEmpty ? event.summary : parts.joined(separator: " ")
+        return title.components(separatedBy: .whitespaces)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 
     var body: some View {
