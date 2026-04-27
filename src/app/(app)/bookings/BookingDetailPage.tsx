@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,19 @@ export default function BookingDetailPage({
     setExtendDate(toLocalDateTimeValue(base));
     setShowExtend(true);
   }
+
+  // Admin role — gates scan/checkin actions (kiosk-only for all other roles)
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/me", { signal });
+      if (!res.ok) return null;
+      const json = await res.json() as { user?: { role?: string } };
+      return json?.user ?? null;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const isAdmin = meData?.role === "ADMIN";
 
   // Derived
   const allowedActions = booking?.allowedActions ?? [];
@@ -229,12 +243,12 @@ export default function BookingDetailPage({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {kind === "CHECKOUT" && isOpen && (
+                {isAdmin && kind === "CHECKOUT" && isOpen && (
                   <DropdownMenuItem asChild>
                     <Link href={`/scan?checkout=${id}&phase=CHECKOUT`}>Scan items out</Link>
                   </DropdownMenuItem>
                 )}
-                {kind === "CHECKOUT" && canCheckin && (
+                {isAdmin && kind === "CHECKOUT" && canCheckin && (
                   <DropdownMenuItem asChild>
                     <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan items in</Link>
                   </DropdownMenuItem>
@@ -305,7 +319,7 @@ export default function BookingDetailPage({
               {actions.actionLoading === "convert" ? "Converting..." : "Start checkout"}
             </Button>
           )}
-          {kind === "CHECKOUT" && canCheckin && (
+          {isAdmin && kind === "CHECKOUT" && canCheckin && (
             <Button onClick={() => router.push(`/scan?checkout=${id}&phase=CHECKIN`)}>
               Check in
             </Button>

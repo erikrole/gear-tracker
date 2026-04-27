@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -24,9 +25,7 @@ import {
   BookingOverview,
   BookingEditForm,
   BookingItems,
-  ScanToReturnView,
 } from "./booking-details";
-import { useCheckinScan } from "./booking-details/useCheckinScan";
 import EquipmentPicker, { type PickerBulkSku } from "@/components/EquipmentPicker";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import Link from "next/link";
@@ -76,10 +75,21 @@ export default function BookingDetailsSheet({
   bookingId,
   onClose,
   onUpdated,
-  currentUserRole: _currentUserRole,
-  initialTab: _initialTab,
 }: Props) {
   const confirm = useConfirm();
+
+  // Admin role — used to gate the manual override return buttons (kiosk handles all check-in/out for other roles)
+  const { data: meData } = useQuery({
+    queryKey: ["me"],
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/me", { signal });
+      if (!res.ok) return null;
+      const json = await res.json() as { user?: { role?: string } };
+      return json?.user ?? null;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const isAdmin = meData?.role === "ADMIN";
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -242,10 +252,6 @@ export default function BookingDetailsSheet({
     (i) => i.allocationStatus !== "returned"
   ).length;
 
-  const checkinScan = useCheckinScan({
-    booking: booking ?? { id: "", kind: "CHECKOUT", serializedItems: [] } as unknown as BookingDetail,
-    onItemCheckedIn: () => fetchBooking({ silent: true }),
-  });
 
   /* ───── Filtered equipment ───── */
 
@@ -706,20 +712,6 @@ export default function BookingDetailsSheet({
                   }
                 />
 
-                {/* Scan to return */}
-                {canCheckin && (
-                  <div className="px-6 pt-3 pb-0">
-                    <ScanToReturnView
-                      scanning={checkinScan.scanning}
-                      setScanning={checkinScan.setScanning}
-                      cameraError={checkinScan.cameraError}
-                      setCameraError={checkinScan.setCameraError}
-                      feedback={checkinScan.feedback}
-                      setFeedback={checkinScan.setFeedback}
-                      onScan={checkinScan.handleScan}
-                    />
-                  </div>
-                )}
 
                 <div className="px-6 py-4">
                   <BookingItems
@@ -729,7 +721,7 @@ export default function BookingDetailsSheet({
                     filteredSerializedItems={filteredSerializedItems}
                     filteredBulkItems={filteredBulkItems}
                     canEditEquipment={false}
-                    canCheckin={!!canCheckin}
+                    canCheckin={isAdmin && !!canCheckin}
                     checkinLoading={checkinLoading}
                     onEnterEquipEditMode={enterEquipEditMode}
                     onCheckinItem={handleCheckinItem}
@@ -752,8 +744,8 @@ export default function BookingDetailsSheet({
                 </div>
               </div>
 
-              {/* ─ Sticky check-in bar ─ */}
-              {canCheckin && unreturnedCount > 0 && (
+              {/* ─ Sticky check-in bar — admin override only; kiosk handles all standard returns ─ */}
+              {isAdmin && canCheckin && unreturnedCount > 0 && (
                 <div
                   className="sticky bottom-0 left-0 right-0 z-10 flex items-center gap-4 px-6 py-4 border-t border-white/10"
                   style={{ backgroundColor: "var(--sidebar-bg)" }}

@@ -100,7 +100,7 @@ export default function BookingItems({
                             disabled={checkinLoading}
                             onClick={(e) => { e.stopPropagation(); onCheckinItem(item.asset.id); }}
                           >
-                            Return
+                            Mark returned
                           </Button>
                         )}
                       </div>
