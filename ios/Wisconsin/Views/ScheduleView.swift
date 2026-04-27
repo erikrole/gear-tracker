@@ -39,14 +39,12 @@ final class ScheduleViewModel {
     var isLoading = false
     var error: String?
     var refreshError: String?
-    var lastLoadedAt: Date?
     private var hasLoaded = false
 
     var shiftsByEventId: [String: MyShift] = [:]
 
     var isStale: Bool {
-        guard let lastLoadedAt else { return true }
-        return Date().timeIntervalSince(lastLoadedAt) > scheduleStaleAfter
+        return true
     }
 
     var groupedEvents: [(date: Date, events: [ScheduleEvent])] {
@@ -75,11 +73,6 @@ final class ScheduleViewModel {
         guard !isLoading else { return }
         // Allow first load, explicit refresh, or staleness-driven refresh.
         guard !hasLoaded || forceRefresh || isStale else { return }
-        // Seed from cache for instant display before the network response arrives
-        if !hasLoaded {
-            let cached = GearStore.shared.cachedScheduleEvents()
-            if !cached.isEmpty { events = cached.map(\.asScheduleEvent) }
-        }
         isLoading = true
         if events.isEmpty { error = nil }
         refreshError = nil
@@ -91,7 +84,6 @@ final class ScheduleViewModel {
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
             hasLoaded = true
-            lastLoadedAt = Date()
             error = nil
             GearStore.shared.seedScheduleEvents(fetchedEvents)
         } catch APIError.unauthorized {
@@ -111,12 +103,21 @@ final class ScheduleViewModel {
     }
 }
 
+// MARK: - HomeAwayFilter
+
+enum HomeAwayFilter: String, CaseIterable {
+    case all = "All"
+    case home = "Home"
+    case away = "Away"
+}
+
 // MARK: - Main View
 
 struct ScheduleView: View {
     @State private var vm = ScheduleViewModel()
     @State private var selectedEvent: ScheduleEvent?
     @State private var myShiftsOnly = false
+    @State private var homeAwayFilter: HomeAwayFilter = .all
     @State private var viewMode: ScheduleViewMode = .list
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
@@ -126,9 +127,14 @@ struct ScheduleView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     private var displayedGroups: [(date: Date, events: [ScheduleEvent])] {
-        guard myShiftsOnly else { return vm.groupedEvents }
-        return vm.groupedEvents.compactMap { group in
-            let filtered = group.events.filter { vm.shiftsByEventId[$0.id] != nil }
+        vm.groupedEvents.compactMap { group in
+            var filtered = group.events
+            if myShiftsOnly { filtered = filtered.filter { vm.shiftsByEventId[$0.id] != nil } }
+            switch homeAwayFilter {
+            case .home: filtered = filtered.filter { $0.isHome == true }
+            case .away: filtered = filtered.filter { $0.isHome == false }
+            case .all: break
+            }
             return filtered.isEmpty ? nil : (date: group.date, events: filtered)
         }
     }
@@ -310,15 +316,38 @@ struct ScheduleView: View {
             )
         } else {
             List {
-                if let stamp = freshnessLabel {
-                    Text(stamp)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .padding(.top, 2)
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
+                                Button {
+                                    homeAwayFilter = filter
+                                } label: {
+                                    Text(filter.rawValue)
+                                        .font(.caption.weight(.semibold))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(
+                                            homeAwayFilter == filter
+                                                ? Color.accentColor
+                                                : Color(.tertiarySystemFill),
+                                            in: Capsule()
+                                        )
+                                        .foregroundStyle(
+                                            homeAwayFilter == filter ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .sensoryFeedback(.selection, trigger: homeAwayFilter)
+                            }
+                        }
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 2)
+                    }
                 }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 4, leading: 14, bottom: 0, trailing: 14))
                 ForEach(displayedGroups, id: \.date) { group in
                     Section {
                         ForEach(group.events) { event in
@@ -335,7 +364,7 @@ struct ScheduleView: View {
                             .listRowSeparator(.hidden)
                         }
                     } header: {
-                        ScheduleDateHeader(date: group.date)
+                        ScheduleDateHeader(date: group.date, eventCount: group.events.count)
                             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     }
                     .listSectionSeparator(.hidden)
@@ -345,10 +374,6 @@ struct ScheduleView: View {
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
         }
-    }
-
-    private var freshnessLabel: String? {
-        vm.lastLoadedAt?.freshnessLabel
     }
 }
 
@@ -655,6 +680,7 @@ private struct DayCell: View {
 
 private struct ScheduleDateHeader: View {
     let date: Date
+    let eventCount: Int
 
     private var cal: Calendar { .current }
     private var isToday: Bool { cal.isDateInToday(date) }
@@ -685,6 +711,13 @@ private struct ScheduleDateHeader: View {
                 .foregroundStyle(isToday ? Color.accentColor.opacity(0.8) : .secondary)
             }
 
+            if eventCount > 1 {
+                Text("\(eventCount) events")
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .padding(.trailing, 16)
+            }
+
             Spacer()
         }
         .padding(.horizontal, 16)
@@ -700,6 +733,12 @@ struct EventRow: View {
     let event: ScheduleEvent
     let myShift: MyShift?
 
+    private var eventDisplayTitle: String {
+        guard let opponent = event.opponent, !opponent.isEmpty else { return event.summary }
+        let prefix = event.isHome == false ? "at" : "vs"
+        return "\(prefix) \(opponent)"
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Rectangle()
@@ -709,16 +748,19 @@ struct EventRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 // Title row
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(event.summary)
+                    Text(eventDisplayTitle)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     if myShift != nil {
                         Text("My Shift")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(0.4)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.12), in: Capsule())
                             .foregroundStyle(Color.accentColor)
-                            .kerning(0.3)
                     }
                 }
 
