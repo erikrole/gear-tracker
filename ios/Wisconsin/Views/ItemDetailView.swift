@@ -260,12 +260,13 @@ private struct ItemHeroCard: View {
     private var heroTitle: String {
         asset.assetTag ?? asset.displayName
     }
-    // Secondary: custom name, or brand+model if assetTag is the hero
+    // Secondary: custom name, or brand+model when assetTag is the hero
     private var subtitle: String? {
-        if asset.assetTag != nil {
-            return asset.name ?? asset.displayName
-        }
-        return asset.name
+        let candidate = asset.assetTag != nil
+            ? (asset.name ?? asset.displayName)
+            : asset.name
+        guard let s = candidate, !s.isEmpty else { return nil }
+        return s
     }
 
     var body: some View {
@@ -329,21 +330,49 @@ private struct ItemHeroCard: View {
 private struct ItemDetailsCard: View {
     let asset: AssetDetail
 
+    private struct Row {
+        let label: String
+        let value: String
+        var mono: Bool = false
+    }
+
+    private var rows: [Row] {
+        var result: [Row] = []
+        result.append(Row(label: "Location", value: asset.location.name))
+        if let cat = asset.category { result.append(Row(label: "Category", value: cat.name)) }
+        if let dept = asset.department { result.append(Row(label: "Department", value: dept.name)) }
+        if let serial = asset.serialNumber { result.append(Row(label: "Serial", value: serial, mono: true)) }
+        if let raw = asset.purchaseDate,
+           let date = ISO8601DateFormatter().date(from: raw) {
+            result.append(Row(label: "Purchased", value: date.formatted(date: .abbreviated, time: .omitted)))
+        }
+        if let price = asset.purchasePrice.flatMap(Double.init) {
+            let formatted = price.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
+            result.append(Row(label: "Purchase Price", value: formatted))
+        }
+        return result
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            DetailRow(label: "Location", value: asset.location.name)
-            if let cat = asset.category {
-                DetailRow(label: "Category", value: cat.name)
-            }
-            if let dept = asset.department {
-                DetailRow(label: "Department", value: dept.name)
-            }
-            if let serial = asset.serialNumber {
-                DetailRow(label: "Serial", value: serial, mono: true)
-            }
-            if let price = asset.purchasePrice.flatMap(Double.init) {
-                let formatted = price.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
-                DetailRow(label: "Value", value: formatted)
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                VStack(spacing: 0) {
+                    if index > 0 {
+                        Divider().padding(.leading, 14)
+                    }
+                    HStack {
+                        Text(row.label)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(row.value)
+                            .font(row.mono ? .system(.subheadline, design: .monospaced) : .subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                }
             }
         }
         .background(Color(.secondarySystemGroupedBackground))
@@ -352,32 +381,6 @@ private struct ItemDetailsCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
         )
-    }
-}
-
-private struct DetailRow: View {
-    let label: String
-    let value: String
-    var mono: Bool = false
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(label)
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-                Spacer()
-                Text(value)
-                    .font(mono ? .system(.subheadline, design: .monospaced) : .subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-
-            Divider()
-                .padding(.leading, 14)
-        }
     }
 }
 
@@ -416,7 +419,6 @@ private struct ActiveBookingCard: View {
                         )
                         .font(.caption2)
                         .foregroundStyle(booking.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
-                        .labelStyle(.titleAndIcon)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -477,7 +479,7 @@ private struct UpcomingReservationsCard: View {
                                     Text("·")
                                         .font(.caption)
                                         .foregroundStyle(.tertiary)
-                                    Text(res.startsAt.formatted(date: .abbreviated, time: .shortened))
+                                    Text(res.startsAt.relativeLabel)
                                         .font(.system(.caption2, design: .monospaced))
                                         .foregroundStyle(.tertiary)
                                 }
@@ -530,5 +532,20 @@ private struct NotesCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
         )
+    }
+}
+
+// MARK: - Date helpers
+
+private extension Date {
+    /// "Today", "Tomorrow", "in N days" for near dates; abbreviated date beyond 7 days.
+    var relativeLabel: String {
+        let days = Calendar.current.dateComponents([.day], from: .now, to: self).day ?? 0
+        switch days {
+        case 0: return "Today"
+        case 1: return "Tomorrow"
+        case 2...7: return "in \(days) days"
+        default: return formatted(date: .abbreviated, time: .omitted)
+        }
     }
 }
