@@ -145,6 +145,31 @@ export function ListView({
     return users;
   }, [allUsers, userSearch]);
 
+  const [postingTradeId, setPostingTradeId] = useState<string | null>(null);
+
+  const handlePostTrade = useCallback(async (assignmentId: string) => {
+    setPostingTradeId(assignmentId);
+    try {
+      const res = await fetch("/api/shift-trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftAssignmentId: assignmentId }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Shift posted to trade board");
+        loadData();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to post trade");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error — could not post trade");
+    } finally {
+      setPostingTradeId(null);
+    }
+  }, [loadData]);
+
   const handleInlineAssign = useCallback(async (shiftId: string, userId: string) => {
     setAssigning(true);
     try {
@@ -351,6 +376,9 @@ export function ListView({
                             }}
                             onPickerSearchChange={setUserSearch}
                             onInlineAssign={handleInlineAssign}
+                            currentUserId={currentUserId}
+                            postingTradeId={postingTradeId}
+                            onPostTrade={isStaff ? undefined : handlePostTrade}
                           />
                         );
                       })}
@@ -544,6 +572,9 @@ function EventRows({
   onClosePicker,
   onPickerSearchChange,
   onInlineAssign,
+  currentUserId,
+  postingTradeId,
+  onPostTrade,
 }: {
   entry: CalendarEntry;
   isExpanded: boolean;
@@ -562,6 +593,9 @@ function EventRows({
   onClosePicker: () => void;
   onPickerSearchChange: (value: string) => void;
   onInlineAssign: (shiftId: string, userId: string) => void;
+  currentUserId: string;
+  postingTradeId: string | null;
+  onPostTrade?: (assignmentId: string) => void;
 }) {
   const eventTitle = entry.opponent
     ? `${entry.sportCode ? sportLabel(entry.sportCode) + " " : ""}${entry.isHome === true ? "vs " : "at "}${entry.opponent}`
@@ -692,6 +726,9 @@ function EventRows({
       {isExpanded &&
         entry.shifts.map((shift) => {
           const user = shiftAssignee(shift);
+          const myAssignment = shift.assignments.find(
+            (a) => a.user.id === currentUserId && ACTIVE_STATUSES.includes(a.status),
+          );
           const isAway = entry.isHome !== true;
           const shiftTime = isAway
             ? "—"
@@ -779,8 +816,24 @@ function EventRows({
                   </Badge>
                 </div>
               </td>
-              <td className="px-4 py-2.5 border-b border-border/15 text-sm text-muted-foreground whitespace-nowrap">
-                {shiftTime}
+              <td className="px-4 py-2.5 border-b border-border/15 whitespace-nowrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{shiftTime}</span>
+                  {onPostTrade && myAssignment && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      disabled={postingTradeId === myAssignment.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPostTrade(myAssignment.id);
+                      }}
+                    >
+                      {postingTradeId === myAssignment.id ? "Posting…" : "Post for trade"}
+                    </Button>
+                  )}
+                </div>
               </td>
             </tr>
           );

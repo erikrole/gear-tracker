@@ -23,6 +23,8 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState(false);
+  const [conflictMap, setConflictMap] = useState<Record<string, string>>({});
+  const [conflictsLoading, setConflictsLoading] = useState(false);
 
   // All active assignments across all matching shifts
   const assignments: (GridAssignment & { shiftId: string })[] = shifts.flatMap((s) =>
@@ -36,6 +38,34 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
     const q = search.toLowerCase();
     return u.name.toLowerCase().includes(q) || (u.primaryArea ?? "").toLowerCase().includes(q);
   });
+
+  const fetchConflicts = useCallback(async (shiftId: string) => {
+    setConflictsLoading(true);
+    try {
+      const res = await fetch(`/api/shifts/${shiftId}/conflicts`);
+      if (res.ok) {
+        const j = await res.json();
+        setConflictMap(j.data ?? {});
+      }
+    } catch {
+      // non-critical — picker still works without conflict data
+    } finally {
+      setConflictsLoading(false);
+    }
+  }, []);
+
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      setOpen(isOpen);
+      if (isOpen && openShift) {
+        fetchConflicts(openShift.id);
+      } else if (!isOpen) {
+        setSearch("");
+        setConflictMap({});
+      }
+    },
+    [openShift, fetchConflicts],
+  );
 
   const handleAssign = useCallback(
     async (userId: string) => {
@@ -54,7 +84,6 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
           return;
         }
         setOpen(false);
-        setSearch("");
         onRefetch();
       } catch {
         toast.error("Network error — could not assign");
@@ -92,12 +121,12 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
   }
 
   return (
-    <td className="px-2 py-1.5 align-middle">
+    <td className="px-2 py-1.5 align-middle border-l">
       <div className="flex flex-wrap items-center gap-1">
         {assignments.map((a) => (
           <button
             key={a.id}
-            title={`${a.user.name} — click to remove`}
+            title={a.hasConflict ? `${a.user.name} — ${a.conflictNote ?? "schedule conflict"} — click to remove` : `${a.user.name} — click to remove`}
             disabled={!isStaff || acting}
             onClick={() => handleRemove(a.id)}
             className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
@@ -113,14 +142,14 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
               </AvatarFallback>
             </Avatar>
             {a.hasConflict && (
-              <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-yellow-400 border border-background" title={a.conflictNote ?? "Schedule conflict"} />
+              <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-yellow-400 border border-background" />
             )}
           </button>
         ))}
 
-        {/* "+" button only when staff and there's an open slot */}
+        {/* "+" button: staff only, when there's an open slot */}
         {isStaff && openShift && (
-          <Popover open={open} onOpenChange={setOpen}>
+          <Popover open={open} onOpenChange={handleOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -140,6 +169,8 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
                 onSearchChange={setSearch}
                 onSelect={handleAssign}
                 disabled={acting}
+                conflictMap={conflictMap}
+                conflictsLoading={conflictsLoading}
               />
             </PopoverContent>
           </Popover>

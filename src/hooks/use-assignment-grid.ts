@@ -20,6 +20,8 @@ export type GridShift = {
   id: string;
   area: string;
   workerType: string;
+  startsAt: string;
+  endsAt: string;
   assignments: GridAssignment[];
 };
 
@@ -90,6 +92,8 @@ async function fetchGridData(
       id: s.id,
       area: s.area,
       workerType: s.workerType,
+      startsAt: s.startsAt,
+      endsAt: s.endsAt,
       assignments: s.assignments.map((a) => ({
         id: a.id,
         status: a.status,

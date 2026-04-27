@@ -25,9 +25,21 @@ type Props = {
   onSearchChange: (value: string) => void;
   onSelect: (userId: string) => void;
   disabled: boolean;
+  /** Map of userId → conflict note for users with scheduling conflicts */
+  conflictMap?: Record<string, string>;
+  conflictsLoading?: boolean;
 };
 
-export function UserAvatarPicker({ users, loading, search, onSearchChange, onSelect, disabled }: Props) {
+export function UserAvatarPicker({
+  users,
+  loading,
+  search,
+  onSearchChange,
+  onSelect,
+  disabled,
+  conflictMap,
+  conflictsLoading,
+}: Props) {
   return (
     <>
       <Input
@@ -46,29 +58,44 @@ export function UserAvatarPicker({ users, loading, search, onSearchChange, onSel
         </p>
       ) : (
         <ScrollArea className="max-h-52 space-y-0.5">
-          {users.map((u) => (
-            <button
-              key={u.id}
-              className="w-full flex items-center gap-2 p-1.5 rounded-md text-left text-sm hover:bg-accent transition-colors disabled:opacity-50"
-              onClick={() => onSelect(u.id)}
-              disabled={disabled}
-            >
-              <Avatar className="size-7 shrink-0">
-                {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.name} />}
-                <AvatarFallback className="text-xs font-medium">
-                  {getInitials(u.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="truncate font-medium text-xs">{u.name}</div>
-                <div className="text-[10px] text-muted-foreground">
-                  {u.role === "STUDENT" ? "Student" : "Staff"}
-                  {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
+          {users.map((u) => {
+            const conflict = conflictMap?.[u.id];
+            return (
+              <button
+                key={u.id}
+                className="w-full flex items-center gap-2 p-1.5 rounded-md text-left text-sm hover:bg-accent transition-colors disabled:opacity-50"
+                onClick={() => onSelect(u.id)}
+                disabled={disabled}
+                title={conflict ?? undefined}
+              >
+                <div className="relative shrink-0">
+                  <Avatar className="size-7">
+                    {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.name} />}
+                    <AvatarFallback className="text-xs font-medium">
+                      {getInitials(u.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {conflict && (
+                    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-yellow-400 border border-background" />
+                  )}
                 </div>
-              </div>
-            </button>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium text-xs">{u.name}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {u.role === "STUDENT" ? "Student" : "Staff"}
+                    {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
+                    {conflict && (
+                      <span className="ml-1 text-yellow-600 font-medium">⚠ conflict</span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </ScrollArea>
+      )}
+      {conflictsLoading && (
+        <p className="text-[10px] text-muted-foreground px-1.5 mt-1">Checking availability…</p>
       )}
     </>
   );

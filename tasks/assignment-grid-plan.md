@@ -47,14 +47,15 @@ Columns derived from shifts that exist in the loaded month. Typically: VIDEO-FT,
 - [x] Reuse `UserAvatarPicker` from `@/components/shift-detail/UserAvatarPicker`
 
 ### Slice 3 — Conflict indicators ✅
-- [ ] Enrich `UserAvatarPicker` with `hasConflict` field on `PickerUser`
-- [ ] Show warning icon on conflicted users in picker and in assigned cells
-- [ ] Source: call availability-check API or derive from existing `hasConflict` on assignment
+- [x] `GET /api/shifts/[id]/conflicts` — returns `{ userId: conflictNote }` map via StudentAvailabilityBlock check
+- [x] `UserAvatarPicker` — `conflictMap` prop shows yellow dot + "⚠ conflict" label on conflicted users
+- [x] `AssignmentCell` — fetches conflicts on popover open; passes map to picker
+- [x] `GridShift` type — added `startsAt`/`endsAt` fields
 
-### Slice 4 — Trade board enhancements (separate PR)
-- [ ] "Post trade" directly from List view (without opening ShiftDetailPanel)
-- [ ] "My Trades" filter chip in TradeBoard
-- [ ] Email notification on trade claim/approve
+### Slice 4 — Trade board enhancements ✅
+- [x] "Post for trade" button in ListView expanded shift rows (students only, on their assigned shift)
+- [x] "My Trades" FilterChip in TradeBoard (shows trades posted/claimed by current user)
+- [ ] Email notification on trade claim/approve (deferred — Phase B)
 
 ## API Reuse
 

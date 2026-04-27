@@ -78,6 +78,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   // Filters
   const [areaFilter, setAreaFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [myTradesOnly, setMyTradesOnly] = useState(false);
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
@@ -105,12 +106,17 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   useEffect(() => { loadTrades(); }, [loadTrades]);
 
   const filteredTrades = useMemo(() => {
-    // Default to showing OPEN trades for students, all for staff
-    if (!statusFilter && !isStaff) {
-      return trades.filter((t) => t.status === "OPEN" || t.postedBy.id === currentUserId);
+    let result = trades;
+    if (myTradesOnly) {
+      result = result.filter(
+        (t) => t.postedBy.id === currentUserId || t.claimedBy?.id === currentUserId,
+      );
+    } else if (!statusFilter && !isStaff) {
+      // Default for students: OPEN trades + their own
+      result = result.filter((t) => t.status === "OPEN" || t.postedBy.id === currentUserId);
     }
-    return trades;
-  }, [trades, statusFilter, isStaff, currentUserId]);
+    return result;
+  }, [trades, statusFilter, isStaff, currentUserId, myTradesOnly]);
 
   async function handleClaim(tradeId: string) {
     setActing(tradeId);
@@ -183,7 +189,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     setActing(null);
   }
 
-  const hasFilters = !!(areaFilter || statusFilter);
+  const hasFilters = !!(areaFilter || statusFilter || myTradesOnly);
 
   return (
     <>
@@ -222,11 +228,19 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
             onSelect={(v) => setStatusFilter(v)}
             onClear={() => setStatusFilter("")}
           />
+          <FilterChip
+            label="My trades"
+            value={myTradesOnly ? "mine" : ""}
+            displayValue={myTradesOnly ? "My trades" : ""}
+            options={[{ value: "mine", label: "My trades" }]}
+            onSelect={() => setMyTradesOnly(true)}
+            onClear={() => setMyTradesOnly(false)}
+          />
           {hasFilters && (
             <button
               type="button"
               className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none font-medium whitespace-nowrap"
-              onClick={() => { setAreaFilter(""); setStatusFilter(""); }}
+              onClick={() => { setAreaFilter(""); setStatusFilter(""); setMyTradesOnly(false); }}
             >
               Clear all
             </button>
