@@ -11,7 +11,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
-        if sharedKioskStore?.isKioskMode == true {
+        if sharedKioskStore?.isActive == true {
             return [.landscapeLeft, .landscapeRight]
         }
         return .all

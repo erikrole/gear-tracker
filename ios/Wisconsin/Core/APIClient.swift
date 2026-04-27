@@ -236,6 +236,32 @@ final class APIClient {
         return resp.data.id
     }
 
+    /// Returns the set of asset IDs that have scheduling conflicts in the given window.
+    /// Silently returns an empty set on network or decode failure — callers treat this as a non-blocking hint.
+    func checkAvailability(assetIds: [String], startsAt: Date, endsAt: Date) async -> Set<String> {
+        guard !assetIds.isEmpty else { return [] }
+        struct Body: Encodable {
+            let assetIds: [String]; let startsAt: String; let endsAt: String
+        }
+        struct ConflictItem: Decodable { let assetId: String }
+        struct CheckData: Decodable { let conflicts: [ConflictItem]? }
+        struct CheckResponse: Decodable { let data: CheckData }
+
+        var req = request(path: "/api/availability/check", method: "POST")
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let body = try? JSONEncoder().encode(Body(
+            assetIds: assetIds,
+            startsAt: iso.string(from: startsAt),
+            endsAt: iso.string(from: endsAt)
+        )) else { return [] }
+        req.httpBody = body
+        guard let (data, response) = try? await session.data(for: req),
+              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
+              let resp = try? decoder.decode(CheckResponse.self, from: data) else { return [] }
+        return Set((resp.data.conflicts ?? []).map(\.assetId))
+    }
+
     func formOptions() async throws -> FormOptions {
         let req = request(path: "/api/form-options")
         let resp: DataWrapper<FormOptions> = try await perform(req)

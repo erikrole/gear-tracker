@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -252,6 +253,12 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
 
+  // Clears the error banner whenever the user edits any step-1 field.
+  const step1Dispatch = useCallback((action: FormAction) => {
+    setCreateError("");
+    dispatch(action);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Equipment requirement check ──
   const unsatisfiedRequirements = useMemo(() => {
     if (selectedAssetDetails.length === 0) return [];
@@ -353,6 +360,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
         body: JSON.stringify(payload),
       });
 
+      if (res.status === 401) await saveDraft();
       if (handleAuthRedirect(res)) return;
 
       let json: Record<string, unknown>;
@@ -593,7 +601,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       {step === 1 && (
         <WizardStep1
           form={form}
-          dispatch={dispatch}
+          dispatch={step1Dispatch}
           config={config}
           users={users}
           locations={locations}
@@ -667,7 +675,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
               {step === 2 && (() => {
                 const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
                 if (idx < EQUIPMENT_SECTIONS.length - 1) {
-                  return `Next: ${EQUIPMENT_SECTIONS[idx + 1].label}`;
+                  return `Browse ${EQUIPMENT_SECTIONS[idx + 1].label} →`;
                 }
                 return `Review${itemCount > 0 ? ` (${itemCount} item${itemCount !== 1 ? "s" : ""})` : ""}`;
               })()}

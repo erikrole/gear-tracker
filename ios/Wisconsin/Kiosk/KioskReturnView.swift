@@ -181,7 +181,23 @@ struct KioskReturnView: View {
             }
 
             if let error {
-                Text(error).foregroundStyle(.red).font(.caption).padding()
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                    Spacer()
+                    Button("Try again") {
+                        self.error = nil
+                        completeReturn()
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .buttonStyle(.plain)
+                }
+                .padding()
             }
         }
         .background(Color.white.opacity(0.02))

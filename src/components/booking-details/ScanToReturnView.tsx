@@ -97,7 +97,15 @@ export function ScanToReturnView({
             ) : (
               <AlertCircleIcon className="size-4 shrink-0" />
             )}
-            {feedback.message}
+            <span className="flex-1">{feedback.message}</span>
+            {feedback.type === "error" && (
+              <button
+                onClick={() => setFeedback(null)}
+                className="ml-1 text-xs font-bold underline text-red-300 hover:text-red-100 [-webkit-tap-highlight-color:transparent]"
+              >
+                Scan again
+              </button>
+            )}
           </div>
         )}
       </div>

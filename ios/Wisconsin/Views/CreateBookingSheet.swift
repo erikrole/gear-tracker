@@ -40,6 +40,27 @@ final class CreateBookingViewModel {
     var hasMoreAssets: Bool { availableAssets.count < assetTotal }
     private var searchTask: Task<Void, Never>?
 
+    // Conflict checking — non-blocking pre-flight hint against the date window.
+    var conflictedAssetIds: Set<String> = []
+    private var conflictCheckTask: Task<Void, Never>?
+
+    func scheduleConflictCheck() {
+        conflictCheckTask?.cancel()
+        guard !selectedAssetIds.isEmpty, endsAt > startsAt else {
+            conflictedAssetIds = []
+            return
+        }
+        let ids = Array(selectedAssetIds)
+        let start = startsAt, end = endsAt
+        conflictCheckTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            conflictedAssetIds = await APIClient.shared.checkAvailability(
+                assetIds: ids, startsAt: start, endsAt: end
+            )
+        }
+    }
+
     var selectedUser: FormUser? { options?.users.first(where: { $0.id == selectedUserId }) }
     var selectedLocation: FormOption? { options?.locations.first(where: { $0.id == selectedLocationId }) }
 
@@ -239,6 +260,7 @@ struct CreateBookingSheet: View {
                 Button("Next") {
                     step = 2
                     Task { await vm.loadAvailableAssets(reset: true) }
+                    vm.scheduleConflictCheck()
                 }
                 .disabled(!vm.isValid || vm.isSubmitting)
                 .fontWeight(.semibold)
@@ -369,12 +391,17 @@ struct CreateBookingSheet: View {
                         .font(.subheadline)
                 } else {
                     ForEach(vm.availableAssets) { asset in
-                        AssetPickerRow(asset: asset, isSelected: vm.selectedAssetIds.contains(asset.id)) {
+                        AssetPickerRow(
+                            asset: asset,
+                            isSelected: vm.selectedAssetIds.contains(asset.id),
+                            isConflicted: vm.conflictedAssetIds.contains(asset.id)
+                        ) {
                             if vm.selectedAssetIds.contains(asset.id) {
                                 vm.selectedAssetIds.remove(asset.id)
                             } else {
                                 vm.selectedAssetIds.insert(asset.id)
                             }
+                            vm.scheduleConflictCheck()
                         }
                         .onAppear {
                             if asset.id == vm.availableAssets.last?.id && vm.hasMoreAssets {
@@ -411,6 +438,7 @@ struct CreateBookingSheet: View {
 struct AssetPickerRow: View {
     let asset: Asset
     let isSelected: Bool
+    var isConflicted: Bool = false
     let onTap: () -> Void
 
     var body: some View {
@@ -448,13 +476,18 @@ struct AssetPickerRow: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if isConflicted {
+                        Label("Scheduling conflict", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
                 }
 
                 Spacer()
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isSelected ? .blue : Color(.systemGray4))
+                    .foregroundStyle(isConflicted ? .orange : (isSelected ? .blue : Color(.systemGray4)))
                     .animation(.easeInOut(duration: 0.15), value: isSelected)
             }
             .contentShape(Rectangle())
