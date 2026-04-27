@@ -23,24 +23,10 @@ export const GET = withAuth(async (req) => {
         location: true,
         balances: true,
         units: {
-          include: {
-            allocations: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              include: {
-                bookingBulkItem: {
-                  include: {
-                    booking: {
-                      select: {
-                        refNumber: true,
-                        title: true,
-                        requester: { select: { name: true } },
-                      },
-                    },
-                  },
-                },
-              },
-            },
+          select: {
+            id: true,
+            unitNumber: true,
+            status: true,
           },
         },
         categoryRel: { select: { id: true, name: true } },

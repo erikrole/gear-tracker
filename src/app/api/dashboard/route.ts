@@ -303,15 +303,41 @@ export const GET = withAuth(async (_req, { user }) => {
       : Promise.resolve([]),
   ]);
 
+  const shiftEventIds = [...new Set(myShiftsRaw.map((a) => a.shift.shiftGroup.event.id))];
+  const lostSkuIds = lostBulkUnitsRaw.map((r) => r.bulkSkuId);
+
+  // Run the two post-parallel dependent queries concurrently
+  const [shiftGearBookings, lostBulkSkuNames] = await Promise.all([
+    shiftEventIds.length > 0
+      ? db.booking.findMany({
+          where: {
+            requesterUserId: user.id,
+            eventId: { in: shiftEventIds },
+            status: { in: ["DRAFT", "BOOKED", "OPEN"] },
+          },
+          select: {
+            eventId: true,
+            status: true,
+            serializedItems: {
+              take: 3,
+              include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
+            },
+            _count: { select: { serializedItems: true, bulkItems: true } },
+          },
+        })
+      : Promise.resolve([]),
+    lostSkuIds.length > 0
+      ? db.bulkSku.findMany({
+          where: { id: { in: lostSkuIds } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
   // Resolve lost bulk unit SKU names
   let lostBulkUnits: Array<{ skuName: string; count: number }> = [];
   if (lostBulkUnitsRaw.length > 0) {
-    const skuIds = lostBulkUnitsRaw.map((r) => r.bulkSkuId);
-    const skus = await db.bulkSku.findMany({
-      where: { id: { in: skuIds } },
-      select: { id: true, name: true },
-    });
-    const nameMap = new Map(skus.map((s) => [s.id, s.name]));
+    const nameMap = new Map(lostBulkSkuNames.map((s) => [s.id, s.name]));
     lostBulkUnits = lostBulkUnitsRaw.map((r) => ({
       skuName: nameMap.get(r.bulkSkuId) ?? "Unknown",
       count: r._count.id,
@@ -391,25 +417,6 @@ export const GET = withAuth(async (_req, { user }) => {
   }));
 
   // Build my shifts with gear status
-  const shiftEventIds = [...new Set(myShiftsRaw.map((a) => a.shift.shiftGroup.event.id))];
-  const shiftGearBookings = shiftEventIds.length > 0
-    ? await db.booking.findMany({
-        where: {
-          requesterUserId: user.id,
-          eventId: { in: shiftEventIds },
-          status: { in: ["DRAFT", "BOOKED", "OPEN"] },
-        },
-        select: {
-          eventId: true,
-          status: true,
-          serializedItems: {
-            take: 3,
-            include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
-          },
-          _count: { select: { serializedItems: true, bulkItems: true } },
-        },
-      })
-    : [];
   const gearByEvent = new Map<string, { status: string; items: Array<{ asset: { id: string; name: string | null; imageUrl: string | null } }>; itemCount: number }>();
   for (const b of shiftGearBookings) {
     if (!b.eventId) continue;

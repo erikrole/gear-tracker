@@ -72,11 +72,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const controller = new AbortController();
     Promise.all([
       fetch("/api/notifications?limit=0&unread=true", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
-      fetch("/api/dashboard", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
+      fetch("/api/dashboard/stats", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
     ]).then(([notifJson, dashJson]) => {
       if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
       // User-scoped overdue count so STUDENT sees only their own overdue
-      if (dashJson?.data?.myCheckouts?.overdue != null) setOverdueBadgeCount(dashJson.data.myCheckouts.overdue);
+      if (dashJson?.data?.myOverdueCount != null) setOverdueBadgeCount(dashJson.data.myOverdueCount);
     }).catch(() => {});
 
     return () => { controller.abort(); };

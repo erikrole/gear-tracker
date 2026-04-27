@@ -84,8 +84,6 @@ export function useDashboardData(): UseDashboardDataResult {
     queryFn: ({ signal }) => fetchDashboardStats(signal),
     staleTime: 60_000,
     refetchOnWindowFocus: true,
-    // Only run once we have the full data — no need to race on first load
-    enabled: fullData !== undefined,
   });
 
   // Toast on background refresh failure (full payload only)

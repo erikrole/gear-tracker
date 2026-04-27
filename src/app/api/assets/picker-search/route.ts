@@ -103,29 +103,44 @@ export const GET = withAuth(async (req, { user }) => {
 
   const where: Prisma.AssetWhereInput = { AND: conditions };
 
-  // Get user's favorite asset IDs for priority sorting
-  const favoriteAssetIds = new Set(
-    (await db.favoriteItem.findMany({
+  const baseCountConditions: Prisma.AssetWhereInput[] = [
+    { parentAssetId: null },
+    { status: { not: "RETIRED" } },
+    ...(onlyAvailable ? [{ status: "AVAILABLE" as const }] : []),
+  ];
+
+  // Run favorites, assets+count, and section counts all in parallel
+  const [favRows, [rawAssets, total], sectionCountResults] = await Promise.all([
+    db.favoriteItem.findMany({
       where: { userId: user.id },
       select: { assetId: true },
-    })).map((f) => f.assetId)
-  );
-
-  // Fetch assets + count in parallel
-  const [rawAssets, total] = await Promise.all([
-    db.asset.findMany({
-      where,
-      select: {
-        ...pickerSelect,
-        _count: { select: { bookingItems: true } },
-      },
-      // Base ordering — we'll re-sort in memory for favorites + popularity
-      orderBy: { assetTag: "asc" },
-      take: limit,
-      skip: offset,
     }),
-    db.asset.count({ where }),
+    Promise.all([
+      db.asset.findMany({
+        where,
+        select: {
+          ...pickerSelect,
+          _count: { select: { bookingItems: true } },
+        },
+        // Base ordering — we'll re-sort in memory for favorites + popularity
+        orderBy: { assetTag: "asc" },
+        take: limit,
+        skip: offset,
+      }),
+      db.asset.count({ where }),
+    ]),
+    !ids && !qr
+      ? Promise.all(
+          ALL_SECTION_KEYS.map((key) =>
+            db.asset.count({
+              where: { AND: [...baseCountConditions, sectionWhere(key)] },
+            })
+          )
+        )
+      : Promise.resolve(null),
   ]);
+
+  const favoriteAssetIds = new Set(favRows.map((f) => f.assetId));
 
   // Sort: favorites first, then by checkout frequency (popularity), then alphabetical
   const sorted = [...rawAssets].sort((a, b) => {
@@ -192,30 +207,10 @@ export const GET = withAuth(async (req, { user }) => {
     };
   });
 
-  // Section counts: how many non-retired assets per section (for tab badges)
-  // Only compute when not doing a specific ID or QR lookup
-  let sectionCounts: Record<string, number> | undefined;
-  if (!ids && !qr) {
-    const baseConditions: Prisma.AssetWhereInput[] = [
-      { parentAssetId: null },
-      { status: { not: "RETIRED" } },
-    ];
-    if (onlyAvailable) {
-      baseConditions.push({ status: "AVAILABLE" });
-    }
-
-    const countResults = await Promise.all(
-      ALL_SECTION_KEYS.map((key) =>
-        db.asset.count({
-          where: { AND: [...baseConditions, sectionWhere(key)] },
-        })
-      )
-    );
-
-    sectionCounts = Object.fromEntries(
-      ALL_SECTION_KEYS.map((key, i) => [key, countResults[i]])
-    );
-  }
+  // Section counts were fetched in the initial parallel stage
+  const sectionCounts: Record<string, number> | undefined = sectionCountResults
+    ? Object.fromEntries(ALL_SECTION_KEYS.map((key, i) => [key, sectionCountResults[i]]))
+    : undefined;
 
   return ok({
     data: {
