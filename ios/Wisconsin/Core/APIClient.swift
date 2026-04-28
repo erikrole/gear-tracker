@@ -590,9 +590,26 @@ final class APIClient {
         }
     }
 
-    /// STUDENT requests an open shift on a premier event (or any event the
-    /// permission system allows). Server creates a REQUESTED-state assignment
-    /// awaiting staff approval.
+    func approveShift(assignmentId: String) async throws {
+        let req = request(path: "/api/shift-assignments/\(assignmentId)/approve", method: "PATCH")
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't approve request"
+            throw APIError.serverError(msg)
+        }
+    }
+
+    func declineShift(assignmentId: String) async throws {
+        let req = request(path: "/api/shift-assignments/\(assignmentId)/decline", method: "PATCH")
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't decline request"
+            throw APIError.serverError(msg)
+        }
+    }
+
     func requestShift(shiftId: String) async throws {
         struct Body: Encodable { let shiftId: String }
         var req = request(path: "/api/shift-assignments/request", method: "POST")

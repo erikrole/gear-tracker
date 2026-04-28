@@ -33,7 +33,8 @@ final class EventDetailViewModel {
         isLoading = false
     }
 
-    // Shifts grouped by area, sorted area name → workerType → call time
+    private static let areaOrder = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"]
+
     var shiftsByArea: [(area: String, shifts: [EventShift])] {
         guard let group = shiftGroup else { return [] }
         var byArea: [String: [EventShift]] = [:]
@@ -41,7 +42,11 @@ final class EventDetailViewModel {
             byArea[shift.area, default: []].append(shift)
         }
         return byArea
-            .sorted { $0.key < $1.key }
+            .sorted {
+                let ai = Self.areaOrder.firstIndex(of: $0.key) ?? Int.max
+                let bi = Self.areaOrder.firstIndex(of: $1.key) ?? Int.max
+                return ai < bi
+            }
             .map { (area: $0.key, shifts: $0.value.sorted { $0.startsAt < $1.startsAt }) }
     }
 }
@@ -160,11 +165,7 @@ struct EventDetailSheet: View {
                 }
                 Button("Cancel", role: .cancel) { requestTarget = nil }
             } message: {
-                if vm.shiftGroup?.isPremier == true {
-                    Text("Staff will review your request before it's confirmed.")
-                } else {
-                    Text("Submit a request for this shift.")
-                }
+                Text("Staff will review your request before it's confirmed.")
             }
             .confirmationDialog(
                 unassignDialogTitle,
@@ -229,6 +230,28 @@ struct EventDetailSheet: View {
         }
     }
 
+    private func approveRequest(_ assignment: ShiftAssignmentRecord) async {
+        do {
+            try await APIClient.shared.approveShift(assignmentId: assignment.id)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
+    private func declineRequest(_ assignment: ShiftAssignmentRecord) async {
+        do {
+            try await APIClient.shared.declineShift(assignmentId: assignment.id)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
     private func makePrepGearVM() -> CreateBookingViewModel {
         let bookingVM = CreateBookingViewModel()
         if let shift = myShift, let userId = session.currentUser?.id {
@@ -263,11 +286,6 @@ struct EventDetailSheet: View {
                     Label(isHome ? "Home" : "Away", systemImage: isHome ? "house" : "airplane.departure")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                if vm.shiftGroup?.isPremier == true {
-                    Label("Premier", systemImage: "star.fill")
-                        .font(.caption)
-                        .foregroundStyle(.yellow)
                 }
             }
 
@@ -398,7 +416,9 @@ struct EventDetailSheet: View {
                     isStudent: isStudent,
                     onAssign: { shift in assignTarget = shift },
                     onRequest: { shift in requestTarget = shift },
-                    onUnassign: { assignment in unassignTarget = assignment }
+                    onUnassign: { assignment in unassignTarget = assignment },
+                    onApprove: { assignment in Task { await approveRequest(assignment) } },
+                    onDecline: { assignment in Task { await declineRequest(assignment) } }
                 )
             }
         }
@@ -439,6 +459,8 @@ struct AreaBlock: View {
     var onAssign: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -460,7 +482,9 @@ struct AreaBlock: View {
                         isStudent: isStudent,
                         onAssign: onAssign,
                         onRequest: onRequest,
-                        onUnassign: onUnassign
+                        onUnassign: onUnassign,
+                        onApprove: onApprove,
+                        onDecline: onDecline
                     )
                     if idx < shifts.count - 1 {
                         Divider().padding(.leading, 44)
@@ -489,6 +513,8 @@ struct ShiftRow: View {
     var onAssign: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
 
     private var isStudentSlot: Bool { shift.workerType == "ST" }
 
@@ -541,23 +567,40 @@ struct ShiftRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 ForEach(shift.assignments, id: \.id) { assignment in
                     let isMe = currentUserId.map { $0 == assignment.user.id } ?? false
-                    HStack(spacing: 4) {
-                        Text(assignment.user.name)
-                            .font(.subheadline)
-                            .foregroundStyle(isMe ? Color.primary : Color.secondary)
-                        if isMe {
-                            Image(systemName: "person.fill")
-                                .font(.caption2)
-                                .foregroundStyle(Color.accentColor)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text(assignment.user.name)
+                                .font(.subheadline)
+                                .foregroundStyle(isMe ? Color.primary : Color.secondary)
+                            if isMe {
+                                Image(systemName: "person.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                            if assignment.status == "REQUESTED" {
+                                Text("Pending")
+                                    .font(.caption2.weight(.semibold))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(Color.orange.opacity(0.15), in: Capsule())
+                                    .foregroundStyle(.orange)
+                            }
                         }
-                        // STAFF/ADMIN: pending-approval state should be visible.
-                        if assignment.status == "REQUESTED" {
-                            Text("Pending")
-                                .font(.caption2.weight(.semibold))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
-                                .background(Color.orange.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.orange)
+                        if canManageShifts && assignment.status == "REQUESTED" {
+                            HStack(spacing: 6) {
+                                if let onApprove {
+                                    Button("Approve") { onApprove(assignment) }
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.mini)
+                                        .tint(.green)
+                                }
+                                if let onDecline {
+                                    Button("Decline") { onDecline(assignment) }
+                                        .buttonStyle(.borderless)
+                                        .controlSize(.mini)
+                                        .foregroundStyle(.red)
+                                }
+                            }
                         }
                     }
                     .contextMenu {
