@@ -478,7 +478,13 @@ struct EventDetailSheet: View {
                     onApprove: { assignment in Task { await approveRequest(assignment) } },
                     onDecline: { assignment in Task { await declineRequest(assignment) } },
                     onDuplicate: { shift in Task { await duplicateShift(shift) } },
-                    onDelete: { shift in deleteTarget = shift }
+                    onDelete: { shift in
+                        if shift.assignments.isEmpty {
+                            Task { await deleteShift(shift) }
+                        } else {
+                            deleteTarget = shift
+                        }
+                    }
                 )
             }
         }
