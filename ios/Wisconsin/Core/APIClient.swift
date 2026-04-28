@@ -622,6 +622,17 @@ final class APIClient {
         }
     }
 
+    /// Delete a shift from a shift group (STAFF/ADMIN). Pass force=true to remove even if assigned.
+    func deleteShift(shiftGroupId: String, shiftId: String) async throws {
+        let req = request(path: "/api/shift-groups/\(shiftGroupId)/shifts/\(shiftId)?force=true", method: "DELETE")
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't delete shift"
+            throw APIError.serverError(msg)
+        }
+    }
+
     /// Add a new shift to a shift group (STAFF/ADMIN).
     func addShift(
         shiftGroupId: String,

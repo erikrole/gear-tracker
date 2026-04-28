@@ -65,6 +65,7 @@ struct EventDetailSheet: View {
     @State private var assignTarget: EventShift?
     @State private var requestTarget: EventShift?
     @State private var unassignTarget: ShiftAssignmentRecord?
+    @State private var deleteTarget: EventShift?
     @State private var showAddShift = false
     @State private var isCreatingGroup = false
     @State private var actionError: String?
@@ -182,6 +183,27 @@ struct EventDetailSheet: View {
                 }
                 Button("Keep", role: .cancel) { unassignTarget = nil }
             }
+            .confirmationDialog(
+                deleteDialogTitle,
+                isPresented: Binding(
+                    get: { deleteTarget != nil },
+                    set: { if !$0 { deleteTarget = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete shift", role: .destructive) {
+                    guard let shift = deleteTarget else { return }
+                    Task { await deleteShift(shift) }
+                    deleteTarget = nil
+                }
+                Button("Cancel", role: .cancel) { deleteTarget = nil }
+            } message: {
+                if let shift = deleteTarget, !shift.assignments.isEmpty {
+                    Text("This shift has someone assigned. They'll be removed too.")
+                } else {
+                    Text("This cannot be undone.")
+                }
+            }
             .alert(
                 "Couldn't update shift",
                 isPresented: Binding(
@@ -206,6 +228,11 @@ struct EventDetailSheet: View {
     private var unassignDialogTitle: String {
         guard let assignment = unassignTarget else { return "Remove assignment?" }
         return "Remove \(assignment.user.name)?"
+    }
+
+    private var deleteDialogTitle: String {
+        guard let shift = deleteTarget else { return "Delete shift?" }
+        return "Delete \(shift.area) shift?"
     }
 
     private func requestShift(_ shift: EventShift) async {
@@ -244,6 +271,18 @@ struct EventDetailSheet: View {
     private func declineRequest(_ assignment: ShiftAssignmentRecord) async {
         do {
             try await APIClient.shared.declineShift(assignmentId: assignment.id)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
+    private func deleteShift(_ shift: EventShift) async {
+        guard let groupId = vm.shiftGroup?.id else { return }
+        do {
+            try await APIClient.shared.deleteShift(shiftGroupId: groupId, shiftId: shift.id)
             Haptics.success()
             await vm.load()
         } catch {
@@ -438,7 +477,8 @@ struct EventDetailSheet: View {
                     onUnassign: { assignment in unassignTarget = assignment },
                     onApprove: { assignment in Task { await approveRequest(assignment) } },
                     onDecline: { assignment in Task { await declineRequest(assignment) } },
-                    onDuplicate: { shift in Task { await duplicateShift(shift) } }
+                    onDuplicate: { shift in Task { await duplicateShift(shift) } },
+                    onDelete: { shift in deleteTarget = shift }
                 )
             }
         }
@@ -482,6 +522,7 @@ struct AreaBlock: View {
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDuplicate: ((EventShift) -> Void)? = nil
+    var onDelete: ((EventShift) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -506,7 +547,8 @@ struct AreaBlock: View {
                         onUnassign: onUnassign,
                         onApprove: onApprove,
                         onDecline: onDecline,
-                        onDuplicate: onDuplicate
+                        onDuplicate: onDuplicate,
+                        onDelete: onDelete
                     )
                     if idx < shifts.count - 1 {
                         Divider().padding(.leading, 44)
@@ -538,6 +580,7 @@ struct ShiftRow: View {
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDuplicate: ((EventShift) -> Void)? = nil
+    var onDelete: ((EventShift) -> Void)? = nil
 
     private var isStudentSlot: Bool { shift.workerType == "ST" }
 
@@ -629,10 +672,17 @@ struct ShiftRow: View {
                 }
             }
         }
-        // Duplicate is always available to staff (open or filled)
-        if canManageShifts, let onDuplicate {
-            Button { onDuplicate(shift) } label: {
-                Label("Duplicate shift", systemImage: "plus.square.on.square")
+        // Duplicate / Delete always available to staff
+        if canManageShifts {
+            if let onDuplicate {
+                Button { onDuplicate(shift) } label: {
+                    Label("Duplicate shift", systemImage: "plus.square.on.square")
+                }
+            }
+            if let onDelete {
+                Button(role: .destructive) { onDelete(shift) } label: {
+                    Label("Delete shift", systemImage: "trash")
+                }
             }
         }
     }
