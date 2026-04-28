@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { Calendar, Clock, MapPin, RefreshCw, WifiOff, AlertTriangle } from "lucide-react";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
-const ShiftDetailPanel = dynamic(() => import("@/components/ShiftDetailPanel"), { ssr: false });
 import { sportLabel } from "@/lib/sports";
 import { formatTimeShort } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -28,11 +26,9 @@ import { EventTravelCard } from "./_components/EventTravelCard";
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
 
-  // ── Data fetching ──
   const {
     data: event,
     loading: eventLoading,
@@ -61,7 +57,6 @@ export default function EventDetailPage() {
     transform: (json) => (json as Record<string, unknown>).user as { id: string; role: string },
     refetchOnFocus: false,
   });
-  const currentUserId = meData?.id ?? "";
   const currentUserRole = meData?.role ?? "STUDENT";
   const isStaffOrAdmin = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
 
@@ -83,8 +78,6 @@ export default function EventDetailPage() {
     reloadShiftGroup();
     if (isStaffOrAdmin) reloadCommandCenter();
   }, [reloadEvent, reloadShiftGroup, reloadCommandCenter, isStaffOrAdmin]);
-
-  const refreshing = eventRefreshing;
 
   async function handleCreateShiftGroup() {
     if (!event) return;
@@ -110,13 +103,12 @@ export default function EventDetailPage() {
     setCreatingGroup(false);
   }
 
-  // Error state
   if (fetchError && !event) {
     return (
       <div className="py-10 px-5 max-w-md mx-auto">
         <Alert variant="destructive">
           {fetchError === "network" ? <WifiOff className="size-4" /> : <AlertTriangle className="size-4" />}
-          <AlertTitle>{fetchError === "network" ? "You’re offline" : "Failed to load event"}</AlertTitle>
+          <AlertTitle>{fetchError === "network" ? "You're offline" : "Failed to load event"}</AlertTitle>
           <AlertDescription>
             {fetchError === "network"
               ? "Check your connection and try again."
@@ -141,7 +133,6 @@ export default function EventDetailPage() {
   const locationParam = event.location?.id ? `&locationId=${event.location.id}` : "";
   const eventParam = `&eventId=${id}`;
 
-  // Earliest shift call time across all areas
   const callTime = shiftGroup?.shifts.length
     ? shiftGroup.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, shiftGroup.shifts[0].startsAt)
     : null;
@@ -157,8 +148,8 @@ export default function EventDetailPage() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing}>
-                <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={eventRefreshing}>
+                <RefreshCw className={`size-4 ${eventRefreshing ? "animate-spin" : ""}`} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -168,20 +159,16 @@ export default function EventDetailPage() {
         </TooltipProvider>
       </PageHeader>
 
-      {/* Status/sport/home-away chips */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Badge variant={event.status === "CANCELLED" ? "red" : "green"}>
           {event.status.toLowerCase()}
         </Badge>
-        {event.sportCode && (
-          <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>
-        )}
+        {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
         {event.isHome === true && <Badge variant="green">Home</Badge>}
         {event.isHome === false && <Badge variant="orange">Away</Badge>}
         {event.isHome === null && event.opponent && <Badge variant="blue">Neutral</Badge>}
       </div>
 
-      {/* Key facts strip */}
       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6 flex-wrap">
         <span className="flex items-center gap-1.5">
           <Calendar className="size-3.5 shrink-0" />
@@ -198,9 +185,7 @@ export default function EventDetailPage() {
             Call {formatTimeShort(callTime!)}
           </span>
         )}
-        {event.opponent && (
-          <span>vs {event.opponent}</span>
-        )}
+        {event.opponent && <span>vs {event.opponent}</span>}
         {(event.rawLocationText || event.location) && (
           <span className="flex items-center gap-1.5">
             <MapPin className="size-3.5 shrink-0" />
@@ -209,7 +194,6 @@ export default function EventDetailPage() {
         )}
       </div>
 
-      {/* Crew section */}
       {shiftGroup ? (
         <ShiftCoverageCard
           shiftGroup={shiftGroup}
@@ -217,7 +201,6 @@ export default function EventDetailPage() {
           currentUserRole={currentUserRole}
           acting={acting}
           linkParams={{ titleParam, dateParam, endParam, locationParam, eventParam }}
-          onManageShifts={() => setSelectedGroupId(shiftGroup.id)}
           onUpdated={() => {
             reloadShiftGroup();
             if (isStaffOrAdmin) reloadCommandCenter();
@@ -241,11 +224,7 @@ export default function EventDetailPage() {
             } catch (err) {
               if (isAbortError(err)) return;
               const kind = classifyError(err);
-              toast.error(
-                kind === "network"
-                  ? "You’re offline — nudge not sent"
-                  : "Something went wrong — nudge not sent",
-              );
+              toast.error(kind === "network" ? "You're offline — nudge not sent" : "Something went wrong — nudge not sent");
             } finally {
               setActing(null);
             }
@@ -262,16 +241,10 @@ export default function EventDetailPage() {
         </Card>
       ) : null}
 
-      {/* Away travel roster */}
       {event.isHome === false && event.sportCode && (
-        <EventTravelCard
-          eventId={id}
-          sportCode={event.sportCode}
-          isStaff={isStaffOrAdmin}
-        />
+        <EventTravelCard eventId={id} sportCode={event.sportCode} isStaff={isStaffOrAdmin} />
       )}
 
-      {/* Gear actions — secondary, below crew context */}
       <div className="flex gap-2 mt-6 max-sm:flex-col sm:flex-row flex-wrap">
         <Button asChild className="min-h-11 px-5">
           <Link href={`/checkouts?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
@@ -285,21 +258,6 @@ export default function EventDetailPage() {
         </Button>
       </div>
 
-      {/* Shift detail panel */}
-      {selectedGroupId && (
-        <ShiftDetailPanel
-          groupId={selectedGroupId}
-          onClose={() => setSelectedGroupId(null)}
-          onUpdated={() => {
-            reloadShiftGroup();
-            if (isStaffOrAdmin) reloadCommandCenter();
-          }}
-          currentUserId={currentUserId}
-          currentUserRole={currentUserRole}
-        />
-      )}
-
-      {/* Debug info for admins */}
       {currentUserRole === "ADMIN" && (
         <details className="mt-4 text-xs text-muted-foreground">
           <summary className="cursor-pointer">Raw ICS data</summary>
