@@ -66,6 +66,7 @@ struct EventDetailSheet: View {
     @State private var requestTarget: EventShift?
     @State private var unassignTarget: ShiftAssignmentRecord?
     @State private var deleteTarget: EventShift?
+    @State private var editTimesTarget: EventShift?
     @State private var showAddShift = false
     @State private var isCreatingGroup = false
     @State private var actionError: String?
@@ -149,6 +150,11 @@ struct EventDetailSheet: View {
                         defaultEnd: event.endsAt,
                         onAdded: { Task { await vm.load() } }
                     )
+                }
+            }
+            .sheet(item: $editTimesTarget) { shift in
+                EditShiftTimesSheet(shift: shift) { newStart, newEnd in
+                    Task { await updateShiftTimes(shift, startsAt: newStart, endsAt: newEnd) }
                 }
             }
             .confirmationDialog(
@@ -283,6 +289,17 @@ struct EventDetailSheet: View {
         guard let groupId = vm.shiftGroup?.id else { return }
         do {
             try await APIClient.shared.deleteShift(shiftGroupId: groupId, shiftId: shift.id)
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
+    private func updateShiftTimes(_ shift: EventShift, startsAt: Date, endsAt: Date) async {
+        do {
+            try await APIClient.shared.updateShiftTimes(shiftId: shift.id, startsAt: startsAt, endsAt: endsAt)
             Haptics.success()
             await vm.load()
         } catch {
@@ -478,6 +495,7 @@ struct EventDetailSheet: View {
                     onApprove: { assignment in Task { await approveRequest(assignment) } },
                     onDecline: { assignment in Task { await declineRequest(assignment) } },
                     onDuplicate: { shift in Task { await duplicateShift(shift) } },
+                    onEditTimes: { shift in editTimesTarget = shift },
                     onDelete: { shift in
                         if shift.assignments.isEmpty {
                             Task { await deleteShift(shift) }
@@ -528,6 +546,7 @@ struct AreaBlock: View {
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDuplicate: ((EventShift) -> Void)? = nil
+    var onEditTimes: ((EventShift) -> Void)? = nil
     var onDelete: ((EventShift) -> Void)? = nil
 
     var body: some View {
@@ -554,6 +573,7 @@ struct AreaBlock: View {
                         onApprove: onApprove,
                         onDecline: onDecline,
                         onDuplicate: onDuplicate,
+                        onEditTimes: onEditTimes,
                         onDelete: onDelete
                     )
                     if idx < shifts.count - 1 {
@@ -586,6 +606,7 @@ struct ShiftRow: View {
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDuplicate: ((EventShift) -> Void)? = nil
+    var onEditTimes: ((EventShift) -> Void)? = nil
     var onDelete: ((EventShift) -> Void)? = nil
 
     private var isStudentSlot: Bool { shift.workerType == "ST" }
@@ -678,11 +699,16 @@ struct ShiftRow: View {
                 }
             }
         }
-        // Duplicate / Delete always available to staff
+        // Duplicate / Edit times / Delete always available to staff
         if canManageShifts {
             if let onDuplicate {
                 Button { onDuplicate(shift) } label: {
                     Label("Duplicate shift", systemImage: "plus.square.on.square")
+                }
+            }
+            if let onEditTimes {
+                Button { onEditTimes(shift) } label: {
+                    Label("Change call time", systemImage: "clock.badge.checkmark")
                 }
             }
             if let onDelete {
@@ -786,6 +812,58 @@ struct ShiftRow: View {
 
     private var workerTypeColor: Color {
         shift.workerType == "FT" ? .secondary : .blue
+    }
+}
+
+// MARK: - Edit Shift Times Sheet
+
+struct EditShiftTimesSheet: View {
+    let shift: EventShift
+    let onSave: (Date, Date) -> Void
+
+    @State private var startsAt: Date
+    @State private var endsAt: Date
+    @State private var isSaving = false
+    @Environment(\.dismiss) private var dismiss
+
+    init(shift: EventShift, onSave: @escaping (Date, Date) -> Void) {
+        self.shift = shift
+        self.onSave = onSave
+        _startsAt = State(initialValue: shift.startsAt)
+        _endsAt = State(initialValue: shift.endsAt)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker("Call time", selection: $startsAt, displayedComponents: [.hourAndMinute])
+                    DatePicker("End time", selection: $endsAt, in: startsAt..., displayedComponents: [.hourAndMinute])
+                } header: {
+                    Text(shift.area + " shift")
+                } footer: {
+                    Text("Times apply to this shift only.")
+                        .font(.caption)
+                }
+            }
+            .navigationTitle("Change call time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        isSaving = true
+                        onSave(startsAt, endsAt)
+                        dismiss()
+                    }
+                    .disabled(isSaving)
+                }
+            }
+        }
+        .presentationDetents([.height(280)])
+        .presentationDragIndicator(.visible)
     }
 }
 

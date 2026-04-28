@@ -590,6 +590,19 @@ final class APIClient {
         }
     }
 
+    func updateShiftTimes(shiftId: String, startsAt: Date, endsAt: Date) async throws {
+        struct Body: Encodable { let startsAt: String; let endsAt: String }
+        let iso = ISO8601DateFormatter()
+        var req = request(path: "/api/shifts/\(shiftId)", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(Body(startsAt: iso.string(from: startsAt), endsAt: iso.string(from: endsAt)))
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't update shift times"
+            throw APIError.serverError(msg)
+        }
+    }
+
     func approveShift(assignmentId: String) async throws {
         let req = request(path: "/api/shift-assignments/\(assignmentId)/approve", method: "PATCH")
         let (data, response) = try await session.data(for: req)
