@@ -269,17 +269,11 @@ private struct StatCell: View {
                     .font(.title.weight(.bold))
                     .foregroundStyle(isAlert ? Color.red : Color.primary)
                     .contentTransition(.numericText())
-                HStack(spacing: 2) {
-                    Text(label)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                }
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
