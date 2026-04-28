@@ -9,7 +9,7 @@ export const GET = withAuth(async (_req, { user }) => {
     where: { id: user.id },
     select: { icsToken: true },
   });
-  return ok({ token: row?.icsToken ?? null });
+  return ok({ data: { token: row?.icsToken ?? null } });
 });
 
 // Generate or rotate the current user's ICS subscription token.
@@ -19,5 +19,5 @@ export const POST = withAuth(async (_req, { user }) => {
     where: { id: user.id },
     data: { icsToken: token },
   });
-  return ok({ token });
+  return ok({ data: { token } });
 });

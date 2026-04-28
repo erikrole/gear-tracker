@@ -705,7 +705,7 @@ function CalendarSubscriptionCard({
       if (!res.ok) {
         toast.error(json.error || "Failed to generate token");
       } else {
-        setToken(json.token);
+        setToken(json.data?.token);
         onTokenChange();
       }
     } catch {
