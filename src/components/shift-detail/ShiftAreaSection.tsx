@@ -45,7 +45,6 @@ type Props = {
   area: string;
   shifts: Shift[];
   isStaff: boolean;
-  isPremier: boolean;
   currentUserId?: string;
   acting: string | null;
   pickerShiftId: string | null;
@@ -71,7 +70,6 @@ export function ShiftAreaSection({
   area,
   shifts,
   isStaff,
-  isPremier,
   currentUserId,
   acting,
   pickerShiftId,
@@ -145,7 +143,6 @@ export function ShiftAreaSection({
               activeAssignment={activeAssignment ?? null}
               pendingRequests={pendingRequests}
               isStaff={isStaff}
-              isPremier={isPremier}
               currentUserId={currentUserId}
               acting={acting}
               pickerOpen={pickerShiftId === shift.id}

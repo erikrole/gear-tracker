@@ -19,10 +19,13 @@ export type CalendarEvent = {
 export type ShiftGroupSummary = {
   id: string;
   isPremier: boolean;
+  coverage?: { total: number; filled: number; percentage: number };
   shifts: Array<{
     id: string;
     area: string;
     workerType: string;
+    startsAt: string;
+    endsAt: string;
     assignments: Array<{
       id: string;
       status: string;

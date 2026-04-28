@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { formatTimeShort } from "@/lib/format";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 
@@ -14,9 +15,7 @@ type ShiftCoverageCardProps = {
   shiftGroup: ShiftGroupSummary;
   commandCenter: CommandCenterData | null;
   currentUserRole: string;
-  /** ID of the action currently in flight (global spam-click guard) */
   acting: string | null;
-  /** URL search params for linking to checkout/reservation pages */
   linkParams: {
     titleParam: string;
     dateParam: string;
@@ -40,22 +39,31 @@ export function ShiftCoverageCard({
   const { titleParam, dateParam, endParam, locationParam, eventParam } = linkParams;
   const isStaffOrAdmin = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
 
+  const coverage = shiftGroup.coverage;
+  const coverageVariant = !coverage
+    ? "gray"
+    : coverage.percentage >= 100
+    ? "green"
+    : coverage.percentage > 0
+    ? "orange"
+    : "red";
+
   return (
     <Card className="mt-4">
       <CardHeader className="flex-row items-center justify-between">
-        <CardTitle>Shift Coverage</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle>Crew</CardTitle>
+          {coverage && (
+            <Badge variant={coverageVariant} size="sm">
+              {coverage.filled}/{coverage.total} filled
+            </Badge>
+          )}
+        </div>
         <Button variant="outline" size="sm" onClick={onManageShifts}>
           Manage shifts
         </Button>
       </CardHeader>
       <CardContent>
-        {shiftGroup.isPremier && (
-          <div className="mb-3">
-            <Badge variant="blue">Premier Event</Badge>
-            <span className="text-xs text-muted-foreground ml-1.5">Students can request shifts</span>
-          </div>
-        )}
-
         {/* Staff/admin: enhanced view with gear status */}
         {commandCenter && commandCenter.shifts.length > 0 && isStaffOrAdmin ? (
           <>
@@ -72,8 +80,9 @@ export function ShiftCoverageCard({
               <TableHeader>
                 <TableRow>
                   <TableHead>Area</TableHead>
+                  <TableHead>Time</TableHead>
                   <TableHead>Assigned</TableHead>
-                  <TableHead>Shift</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Gear</TableHead>
                 </TableRow>
               </TableHeader>
@@ -88,6 +97,11 @@ export function ShiftCoverageCard({
                         <span className="flex items-center gap-1.5">
                           {AREA_LABELS[shift.area] ?? shift.area}
                           {shift.workerType === "FT" && <Badge variant="gray" size="sm">FT</Badge>}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="tabular-nums text-muted-foreground text-sm">
+                          {formatTimeShort(shift.startsAt)}
                         </span>
                       </TableCell>
                       <TableCell>{shift.assignment ? shift.assignment.userName : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
@@ -163,6 +177,7 @@ export function ShiftCoverageCard({
             <TableHeader>
               <TableRow>
                 <TableHead>Area</TableHead>
+                <TableHead>Time</TableHead>
                 <TableHead>Assigned</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -179,6 +194,11 @@ export function ShiftCoverageCard({
                       <span className="flex items-center gap-1.5">
                         {AREA_LABELS[shift.area] ?? shift.area}
                         {shift.workerType === "FT" && <Badge variant="gray" size="sm">FT</Badge>}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="tabular-nums text-muted-foreground text-sm">
+                        {formatTimeShort(shift.startsAt)}
                       </span>
                     </TableCell>
                     <TableCell>

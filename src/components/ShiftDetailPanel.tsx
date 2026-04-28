@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
-import DataList from "@/components/DataList";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -379,15 +377,6 @@ export default function ShiftDetailPanel({
     setPosting(false);
   }
 
-  async function handleTogglePremier() {
-    if (!group) return;
-    mutate("premier", `/api/shift-groups/${group.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isPremier: !group.isPremier }),
-    }, group.isPremier ? "Removed premier status" : "Marked as premier");
-  }
-
   function handleAddShift(area: string, workerType: string) {
     if (!group) return;
     const label = workerType === "FT" ? "Full-time" : "Student";
@@ -447,31 +436,16 @@ export default function ShiftDetailPanel({
           <div className="p-4 text-muted-foreground">Shift group not found.</div>
         ) : (
           <SheetBody className="px-6 py-4">
-            <DataList
-              columns={2}
-              items={[
-                { label: "Date", value: formatDateShort(group.event.startsAt) },
-                { label: "Time", value: `${formatTimeShort(group.event.startsAt)} – ${formatTimeShort(group.event.endsAt)}` },
-                { label: "Sport", value: group.event.sportCode ? sportLabel(group.event.sportCode) : "—" },
-                ...(isStaff ? [{
-                  label: "Premier",
-                  value: (
-                    <Switch
-                      checked={group.isPremier}
-                      onCheckedChange={handleTogglePremier}
-                      disabled={acting !== null}
-                      aria-label="Toggle premier status"
-                    />
-                  ),
-                }] : group.isPremier ? [{
-                  label: "Premier",
-                  value: <Badge variant="blue">Yes</Badge>,
-                }] : []),
-              ]}
-            />
-
-            {isStaff && (
-              <div className="flex justify-end mb-3">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                {group.event.sportCode && (
+                  <Badge variant="purple">{sportLabel(group.event.sportCode)}</Badge>
+                )}
+                <span className="text-sm text-muted-foreground">
+                  {formatDateShort(group.event.startsAt)} · {formatTimeShort(group.event.startsAt)}–{formatTimeShort(group.event.endsAt)}
+                </span>
+              </div>
+              {isStaff && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -480,8 +454,8 @@ export default function ShiftDetailPanel({
                 >
                   {autoFilling ? "Filling…" : "Auto-fill"}
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
 
             {(AREAS as readonly string[]).map((area) => {
               const shifts = shiftsByArea[area] ?? [];
@@ -492,7 +466,6 @@ export default function ShiftDetailPanel({
                   area={area}
                   shifts={shifts}
                   isStaff={isStaff}
-                  isPremier={group.isPremier}
                   currentUserId={currentUserId}
                   acting={acting}
                   pickerShiftId={pickerShiftId}
