@@ -514,8 +514,9 @@ private struct DashboardShiftRow: View {
                 Text(shift.startsAt.formatted(.dateTime.hour().minute()))
                     .font(.caption.monospacedDigit().weight(.medium))
             }
-            .frame(width: 46)
+            .fixedSize()
             .padding(.vertical, 6)
+            .padding(.horizontal, 10)
             .background(.quaternary.opacity(0.5))
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
