@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - View Mode
 
@@ -125,6 +126,8 @@ struct ScheduleView: View {
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
     @State private var toast: ScheduleToast?
+    @State private var showCalendarSubscribe = false
+    @State private var isSubscribing = false
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
     @Environment(\.scenePhase) private var scenePhase
@@ -268,6 +271,14 @@ struct ScheduleView: View {
                     .accessibilityLabel(appState.openTradeCount > 0
                         ? "Trade Board, \(appState.openTradeCount) open"
                         : "Trade Board")
+
+                    Button {
+                        showCalendarSubscribe = true
+                    } label: {
+                        Image(systemName: "calendar.badge.plus")
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel("Subscribe to shifts in Calendar")
                 }
             }
             .task { await vm.load() }
@@ -307,6 +318,19 @@ struct ScheduleView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
+            .confirmationDialog(
+                "Subscribe to Shifts",
+                isPresented: $showCalendarSubscribe,
+                titleVisibility: .visible
+            ) {
+                Button(isSubscribing ? "Opening…" : "Open in Apple Calendar") {
+                    Task { await subscribeToCalendar() }
+                }
+                .disabled(isSubscribing)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Your shifts will stay in sync automatically.")
+            }
             .sheet(isPresented: $showTradeBoard, onDismiss: {
                 Task { await appState.refresh() }
             }) {
@@ -321,6 +345,26 @@ struct ScheduleView: View {
                     }
                 )
             }
+        }
+    }
+
+    private func subscribeToCalendar() async {
+        isSubscribing = true
+        defer { isSubscribing = false }
+        do {
+            // Fetch existing token; generate one if the user doesn't have one yet.
+            let existing = try await APIClient.shared.icsToken()
+            let token: String
+            if let t = existing {
+                token = t
+            } else {
+                token = try await APIClient.shared.generateICSToken()
+            }
+            let urlString = "webcal://gear.erikrole.com/api/shifts/ics/\(token)"
+            guard let url = URL(string: urlString) else { return }
+            await UIApplication.shared.open(url)
+        } catch {
+            toast = ScheduleToast(message: "Couldn't generate calendar link", icon: "exclamationmark.triangle")
         }
     }
 

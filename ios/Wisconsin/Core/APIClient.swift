@@ -733,6 +733,27 @@ final class APIClient {
             throw APIError.serverError(msg)
         }
     }
+
+    // MARK: - ICS Calendar Feed
+
+    /// Returns the user's existing ICS token, or nil if one hasn't been generated yet.
+    func icsToken() async throws -> String? {
+        struct Response: Decodable { let data: TokenData }
+        struct TokenData: Decodable { let token: String? }
+        let req = request(path: "/api/shifts/ics-token")
+        let resp: Response = try await perform(req)
+        return resp.data.token
+    }
+
+    /// Generates (or rotates) the user's ICS token. Returns the new token.
+    func generateICSToken() async throws -> String {
+        struct Response: Decodable { let data: TokenData }
+        struct TokenData: Decodable { let token: String }
+        var req = request(path: "/api/shifts/ics-token", method: "POST")
+        req.httpBody = Data()
+        let resp: Response = try await perform(req)
+        return resp.data.token
+    }
 }
 
 // MARK: - Private response shapes
