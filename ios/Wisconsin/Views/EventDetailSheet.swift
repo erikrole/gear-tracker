@@ -252,6 +252,24 @@ struct EventDetailSheet: View {
         }
     }
 
+    private func duplicateShift(_ shift: EventShift) async {
+        guard let groupId = vm.shiftGroup?.id else { return }
+        do {
+            try await APIClient.shared.addShift(
+                shiftGroupId: groupId,
+                area: shift.area,
+                workerType: shift.workerType,
+                startsAt: shift.startsAt,
+                endsAt: shift.endsAt
+            )
+            Haptics.success()
+            await vm.load()
+        } catch {
+            actionError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
     private func makePrepGearVM() -> CreateBookingViewModel {
         let bookingVM = CreateBookingViewModel()
         if let shift = myShift, let userId = session.currentUser?.id {
@@ -419,7 +437,8 @@ struct EventDetailSheet: View {
                     onRequest: { shift in requestTarget = shift },
                     onUnassign: { assignment in unassignTarget = assignment },
                     onApprove: { assignment in Task { await approveRequest(assignment) } },
-                    onDecline: { assignment in Task { await declineRequest(assignment) } }
+                    onDecline: { assignment in Task { await declineRequest(assignment) } },
+                    onDuplicate: { shift in Task { await duplicateShift(shift) } }
                 )
             }
         }
@@ -462,6 +481,7 @@ struct AreaBlock: View {
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onDuplicate: ((EventShift) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -485,7 +505,8 @@ struct AreaBlock: View {
                         onRequest: onRequest,
                         onUnassign: onUnassign,
                         onApprove: onApprove,
-                        onDecline: onDecline
+                        onDecline: onDecline,
+                        onDuplicate: onDuplicate
                     )
                     if idx < shifts.count - 1 {
                         Divider().padding(.leading, 44)
@@ -516,6 +537,7 @@ struct ShiftRow: View {
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
     var onApprove: ((ShiftAssignmentRecord) -> Void)? = nil
     var onDecline: ((ShiftAssignmentRecord) -> Void)? = nil
+    var onDuplicate: ((EventShift) -> Void)? = nil
 
     private var isStudentSlot: Bool { shift.workerType == "ST" }
 
@@ -605,6 +627,12 @@ struct ShiftRow: View {
                         }
                     }
                 }
+            }
+        }
+        // Duplicate is always available to staff (open or filled)
+        if canManageShifts, let onDuplicate {
+            Button { onDuplicate(shift) } label: {
+                Label("Duplicate shift", systemImage: "plus.square.on.square")
             }
         }
     }
