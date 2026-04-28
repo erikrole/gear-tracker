@@ -558,6 +558,55 @@ struct ShiftRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(isHighlighted ? Color.accentColor.opacity(0.06) : Color.clear)
+        .contentShape(.contextMenuPreview, Rectangle())
+        .contextMenu { rowContextMenu }
+    }
+
+    @ViewBuilder
+    private var rowContextMenu: some View {
+        if shift.isOpen {
+            if canManageShifts, let onAssign {
+                Button { onAssign(shift) } label: {
+                    Label("Assign someone", systemImage: "person.badge.plus")
+                }
+            }
+            if isStudent && isStudentSlot, let onRequest {
+                Button { onRequest(shift) } label: {
+                    Label("Request this shift", systemImage: "hand.raised")
+                }
+            }
+        } else {
+            // Pending request actions come first
+            ForEach(shift.assignments.filter { $0.status == "REQUESTED" }, id: \.id) { assignment in
+                if canManageShifts {
+                    if let onApprove {
+                        Button { onApprove(assignment) } label: {
+                            Label("Approve \(assignment.user.name)", systemImage: "checkmark.circle")
+                        }
+                    }
+                    if let onDecline {
+                        Button(role: .destructive) { onDecline(assignment) } label: {
+                            Label("Decline \(assignment.user.name)", systemImage: "xmark.circle")
+                        }
+                    }
+                }
+            }
+            // Replace / Remove for assigned slots
+            if canManageShifts {
+                if let onAssign {
+                    Button { onAssign(shift) } label: {
+                        Label("Replace…", systemImage: "person.2.badge.gearshape.fill")
+                    }
+                }
+                ForEach(shift.assignments, id: \.id) { assignment in
+                    if let onUnassign {
+                        Button(role: .destructive) { onUnassign(assignment) } label: {
+                            Label("Remove \(assignment.user.name)", systemImage: "person.fill.xmark")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -601,15 +650,6 @@ struct ShiftRow: View {
                                         .controlSize(.mini)
                                         .foregroundStyle(.red)
                                 }
-                            }
-                        }
-                    }
-                    .contextMenu {
-                        if canManageShifts, let onUnassign {
-                            Button(role: .destructive) {
-                                onUnassign(assignment)
-                            } label: {
-                                Label("Remove from this shift", systemImage: "person.fill.xmark")
                             }
                         }
                     }
