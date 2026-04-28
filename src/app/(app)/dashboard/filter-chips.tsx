@@ -94,7 +94,7 @@ export function FilterChips({
     (p) => p.sport === activeSport && p.location === activeLocation
   );
 
-  if (availableSports.length <= 1 && availableLocations.length <= 1 && presets.length === 0) return null;
+  if (availableSports.length <= 1 && availableLocations.length <= 1 && presets.length === 0 && !hasActiveFilter) return null;
 
   // Build trigger label
   const triggerLabel = hasActiveFilter

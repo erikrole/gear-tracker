@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
+const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"));
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
@@ -191,14 +190,18 @@ export default function DashboardPage() {
   // Use early-resolved role: prefer full payload, fall back to cached stats.
   // While role is still null we do not render role-gated buttons (avoids flicker).
   const isStudent = role === "STUDENT";
+  const isStaff = role === "STAFF" || role === "ADMIN";
+  const isAdmin = role === "ADMIN";
   const roleKnown = role !== null;
-  const isFirstRun = stats
-    ? stats.checkedOut === 0 && stats.overdue === 0 &&
-      stats.reserved === 0 && stats.dueToday === 0 &&
-      (data ? data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 &&
-        data.upcomingEvents.length === 0 && data.myReservations.length === 0 &&
-        data.drafts.length === 0 && data.myShifts.length === 0 : true)
+  const statsEmpty = stats
+    ? stats.checkedOut === 0 && stats.overdue === 0 && stats.reserved === 0 && stats.dueToday === 0
     : false;
+  const dataEmpty = data
+    ? data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 &&
+      data.upcomingEvents.length === 0 && data.myReservations.length === 0 &&
+      data.drafts.length === 0 && data.myShifts.length === 0
+    : false;
+  const isFirstRun = statsEmpty && (data ? dataEmpty : true);
 
   return (
     <PageTransition>
@@ -296,12 +299,12 @@ export default function DashboardPage() {
       )}
 
       {/* ══════ Flagged Items Banner (staff/admin only) ══════ */}
-      {!isStudent && data && data.flaggedItems.length > 0 && (
+      {isStaff && data && data.flaggedItems.length > 0 && (
         <FlaggedItemsBanner items={data.flaggedItems} />
       )}
 
       {/* ══════ Lost Bulk Units (admin only) ══════ */}
-      {data?.role === "ADMIN" && data.lostBulkUnits.length > 0 && (
+      {isAdmin && data && data.lostBulkUnits.length > 0 && (
         <LostBulkUnitsCard items={data.lostBulkUnits} />
       )}
 
@@ -327,7 +330,7 @@ export default function DashboardPage() {
               filtered={filters.filtered}
               activeSport={filters.activeSport}
               now={now}
-              isStaff={data.role === "STAFF" || data.role === "ADMIN"}
+              isStaff={isStaff}
               acting={inlineActionId !== null || deletingDraftId !== null}
               onSelectBooking={setSelectedBookingId}
               onExtend={handleExtend}
@@ -342,11 +345,15 @@ export default function DashboardPage() {
       )}
 
       {/* ══════ Booking Detail Sheet ══════ */}
-      <BookingDetailsSheet
-        bookingId={selectedBookingId}
-        onClose={() => setSelectedBookingId(null)}
-        onUpdated={() => loadData()}
-      />
+      {selectedBookingId && (
+        <Suspense>
+          <BookingDetailsSheet
+            bookingId={selectedBookingId}
+            onClose={() => setSelectedBookingId(null)}
+            onUpdated={() => loadData()}
+          />
+        </Suspense>
+      )}
 
       {/* Create flow is now at /checkouts/new and /reservations/new */}
     </PageTransition>
