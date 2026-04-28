@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -127,6 +128,14 @@ struct HomeView: View {
                                 DashboardShiftRow(shift: shift)
                             }
                             .buttonStyle(.plain)
+                            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
+                            .contextMenu {
+                                Button {
+                                    appState.selectedTab = 4
+                                } label: {
+                                    Label("Open in Schedule", systemImage: "calendar")
+                                }
+                            }
                         }
                     }
                 }
@@ -135,6 +144,21 @@ struct HomeView: View {
                         ForEach(dash.myCheckouts.items) { summary in
                             NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
                                 .buttonStyle(.plain)
+                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
+                                .contextMenu {
+                                    if let ref = summary.refNumber {
+                                        Button {
+                                            UIPasteboard.general.string = ref
+                                        } label: {
+                                            Label("Copy Ref #", systemImage: "doc.on.doc")
+                                        }
+                                    }
+                                    Button {
+                                        UIPasteboard.general.string = summary.title
+                                    } label: {
+                                        Label("Copy Title", systemImage: "doc.on.doc")
+                                    }
+                                }
                         }
                     }
                 }
@@ -143,6 +167,21 @@ struct HomeView: View {
                         ForEach(dash.teamCheckouts.items) { summary in
                             NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
                                 .buttonStyle(.plain)
+                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
+                                .contextMenu {
+                                    if let ref = summary.refNumber {
+                                        Button {
+                                            UIPasteboard.general.string = ref
+                                        } label: {
+                                            Label("Copy Ref #", systemImage: "doc.on.doc")
+                                        }
+                                    }
+                                    Button {
+                                        UIPasteboard.general.string = summary.title
+                                    } label: {
+                                        Label("Copy Title", systemImage: "doc.on.doc")
+                                    }
+                                }
                         }
                     }
                 }
@@ -151,6 +190,21 @@ struct HomeView: View {
                         ForEach(dash.teamReservations.items) { summary in
                             NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
                                 .buttonStyle(.plain)
+                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
+                                .contextMenu {
+                                    if let ref = summary.refNumber {
+                                        Button {
+                                            UIPasteboard.general.string = ref
+                                        } label: {
+                                            Label("Copy Ref #", systemImage: "doc.on.doc")
+                                        }
+                                    }
+                                    Button {
+                                        UIPasteboard.general.string = summary.title
+                                    } label: {
+                                        Label("Copy Title", systemImage: "doc.on.doc")
+                                    }
+                                }
                         }
                     }
                 }
@@ -161,6 +215,14 @@ struct HomeView: View {
                                 EventSummaryRow(event: event)
                             }
                             .buttonStyle(.plain)
+                            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
+                            .contextMenu {
+                                Button {
+                                    appState.selectedTab = 4
+                                } label: {
+                                    Label("Open in Schedule", systemImage: "calendar")
+                                }
+                            }
                         }
                     }
                 }
@@ -281,9 +343,13 @@ private struct StatCell: View {
     let label: String
     let isAlert: Bool
     let onTap: () -> Void
+    @State private var hapticTrigger = false
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            hapticTrigger.toggle()
+            onTap()
+        }) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(value)")
                     .font(.title.weight(.bold))
@@ -302,6 +368,7 @@ private struct StatCell: View {
             .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
         }
         .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: hapticTrigger)
     }
 }
 
@@ -465,47 +532,63 @@ private struct DashboardCard<Content: View>: View {
 struct BookingSummaryRow: View {
     let summary: BookingSummary
 
-    var body: some View {
-        HStack(spacing: 12) {
-            initialsCircle
+    private var barColor: Color {
+        if summary.isOverdue { return .red }
+        switch summary.status {
+        case .open: return .accentColor
+        case .booked, .pendingPickup: return .green
+        default: return Color(.systemGray4)
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary.title)
-                    .font(.subheadline.weight(.medium))
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(barColor)
+                .frame(width: 3)
+            HStack(spacing: 12) {
+                initialsCircle
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(summary.title)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(summary.requesterName)
+                        if let loc = summary.locationName {
+                            Text("·")
+                            Text(loc)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
-                HStack(spacing: 4) {
-                    Text(summary.requesterName)
-                    if let loc = summary.locationName {
-                        Text("·")
-                        Text(loc)
+                    if summary.isOverdue {
+                        Text(summary.endsAt.overdueLabel)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.red)
+                    } else {
+                        Text("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                     }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                if summary.isOverdue {
-                    Text(summary.endsAt.overdueLabel)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.red)
-                } else {
-                    Text("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                if summary.itemCount > 0 {
+                    Text("\(summary.itemCount)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.quaternary, in: Capsule())
                 }
             }
-
-            Spacer()
-
-            if summary.itemCount > 0 {
-                Text("\(summary.itemCount)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.quaternary, in: Capsule())
-            }
+            .padding(.vertical, 4)
+            .padding(.leading, 12)
         }
-        .padding(.vertical, 4)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     private var initialsCircle: some View {
@@ -526,43 +609,52 @@ private struct DashboardShiftRow: View {
     let shift: DashboardShift
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .center, spacing: 1) {
-                Text(shift.startsAt.formatted(.dateTime.month(.abbreviated).day()))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(shift.startsAt.formatted(.dateTime.hour().minute()))
-                    .font(.caption.monospacedDigit().weight(.medium))
-            }
-            .fixedSize()
-            .padding(.vertical, 6)
-            .padding(.horizontal, 10)
-            .background(.quaternary.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(width: 3)
+            HStack(spacing: 12) {
+                VStack(alignment: .center, spacing: 1) {
+                    Text(shift.startsAt.formatted(.dateTime.month(.abbreviated).day()))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(shift.startsAt.formatted(.dateTime.hour().minute()))
+                        .font(.caption.monospacedDigit().weight(.medium))
+                }
+                .fixedSize()
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(.quaternary.opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(shift.event.summary)
-                    .font(.subheadline.weight(.medium))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(shift.event.summary)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(shift.area)
+                        if let loc = shift.event.locationName {
+                            Text("·")
+                            Text(loc)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
-                HStack(spacing: 4) {
-                    Text(shift.area)
-                    if let loc = shift.event.locationName {
-                        Text("·")
-                        Text(loc)
+                    if shift.hasGear {
+                        Label(shift.gearLabel, systemImage: "checkmark.circle.fill")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.green)
                     }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                if shift.hasGear {
-                    Label(shift.gearLabel, systemImage: "checkmark.circle.fill")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.green)
-                }
+                Spacer()
             }
-            Spacer()
+            .padding(.vertical, 2)
+            .padding(.leading, 10)
+            .frame(maxWidth: .infinity)
+            .background(Color.accentColor.opacity(0.04))
         }
-        .padding(.vertical, 2)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -571,50 +663,65 @@ private struct DashboardShiftRow: View {
 private struct EventSummaryRow: View {
     let event: DashboardUpcomingEvent
 
-    var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .center, spacing: 0) {
-                Text(event.startsAt.formatted(.dateTime.month(.abbreviated)))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(event.startsAt.formatted(.dateTime.day()))
-                    .font(.title3.weight(.bold))
-            }
-            .frame(width: 34)
+    private var barColor: Color {
+        switch event.isHome {
+        case true: return .green
+        case false: return .orange
+        case nil: return Color(.systemGray4)
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-                HStack(spacing: 6) {
-                    if let sport = sportLabel(event.sportCode) {
-                        Text(sport)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if event.totalShiftSlots > 0 {
-                        Text("·")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        Text("\(event.filledShiftSlots)/\(event.totalShiftSlots) crew")
-                            .font(.caption)
-                            .foregroundStyle(
-                                event.coveragePct >= 100 ? .green :
-                                event.coveragePct > 0 ? .orange : .red
-                            )
+    var body: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(barColor)
+                .frame(width: 3)
+            HStack(spacing: 12) {
+                VStack(alignment: .center, spacing: 0) {
+                    Text(event.startsAt.formatted(.dateTime.month(.abbreviated)))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(event.startsAt.formatted(.dateTime.day()))
+                        .font(.title3.weight(.bold))
+                }
+                .frame(width: 34)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(event.title)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        if let sport = sportLabel(event.sportCode) {
+                            Text(sport)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if event.totalShiftSlots > 0 {
+                            Text("·")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                            Text("\(event.filledShiftSlots)/\(event.totalShiftSlots) crew")
+                                .font(.caption)
+                                .foregroundStyle(
+                                    event.coveragePct >= 100 ? .green :
+                                    event.coveragePct > 0 ? .orange : .red
+                                )
+                        }
                     }
                 }
-            }
 
-            Spacer()
+                Spacer()
 
-            if let isHome = event.isHome {
-                Text(isHome ? "Home" : "Away")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(isHome ? .green : .orange)
+                if let isHome = event.isHome {
+                    Text(isHome ? "Home" : "Away")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(isHome ? .green : .orange)
+                }
             }
+            .padding(.vertical, 3)
+            .padding(.leading, 12)
         }
-        .padding(.vertical, 3)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 
