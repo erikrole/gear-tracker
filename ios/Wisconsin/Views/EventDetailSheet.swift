@@ -283,7 +283,8 @@ struct EventDetailSheet: View {
                         .clipShape(Capsule())
                 }
                 if let isHome = event.isHome {
-                    Label(isHome ? "Home" : "Away", systemImage: isHome ? "house" : "airplane.departure")
+                    let locationText = event.location?.name ?? (isHome ? "Home" : "Away")
+                    Label(locationText, systemImage: isHome ? "house" : "airplane.departure")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -540,7 +541,7 @@ struct ShiftRow: View {
                 .background(workerTypeColor.opacity(0.12))
                 .foregroundStyle(workerTypeColor)
                 .clipShape(Capsule())
-                .frame(width: 50)
+                .fixedSize()
 
             // Assigned person (or open slot)
             assignedPersonView

@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Lets STAFF/ADMIN pick a student from the event's sport roster (or any user
-/// if the event has no sportCode) and direct-assign them to an open shift.
+/// Lets STAFF/ADMIN pick any user and direct-assign them to an open shift.
 struct AssignStudentSheet: View {
     let shiftId: String
     let shiftArea: String
@@ -9,25 +8,17 @@ struct AssignStudentSheet: View {
     let onAssigned: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var roster: [RosterEntry] = []
-    @State private var fallbackUsers: [AppUser] = []
+    @State private var users: [AppUser] = []
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var search = ""
     @State private var assigningUserId: String?
     @State private var assignError: String?
 
-    private var filteredRoster: [RosterEntry] {
-        guard !search.isEmpty else { return roster }
-        return roster.filter { $0.user.name.localizedCaseInsensitiveContains(search) }
+    private var filteredUsers: [AppUser] {
+        guard !search.isEmpty else { return users }
+        return users.filter { $0.name.localizedCaseInsensitiveContains(search) }
     }
-
-    private var filteredFallback: [AppUser] {
-        guard !search.isEmpty else { return fallbackUsers }
-        return fallbackUsers.filter { $0.name.localizedCaseInsensitiveContains(search) }
-    }
-
-    private var usingFallback: Bool { sportCode == nil }
 
     var body: some View {
         NavigationStack {
@@ -36,17 +27,33 @@ struct AssignStudentSheet: View {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let loadError {
                     ContentUnavailableView {
-                        Label("Couldn't load roster", systemImage: "exclamationmark.triangle")
+                        Label("Couldn't load users", systemImage: "exclamationmark.triangle")
                     } description: {
                         Text(loadError)
                     } actions: {
                         Button("Retry") { Task { await load() } }
                             .buttonStyle(.borderedProminent)
                     }
-                } else if usingFallback {
-                    fallbackList
+                } else if filteredUsers.isEmpty {
+                    ContentUnavailableView(
+                        search.isEmpty ? "No users found" : "No matches",
+                        systemImage: "person.3",
+                        description: Text(search.isEmpty ? "No users available to assign." : "Try a different name.")
+                    )
                 } else {
-                    rosterList
+                    List(filteredUsers) { user in
+                        Button { Task { await assign(userId: user.id) } } label: {
+                            AssignRow(
+                                name: user.name,
+                                email: user.email,
+                                primaryArea: nil,
+                                isAssigning: assigningUserId == user.id,
+                                highlightArea: shiftArea
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(assigningUserId != nil)
+                    }
                 }
             }
             .navigationTitle("Assign \(shiftArea)")
@@ -69,73 +76,12 @@ struct AssignStudentSheet: View {
         }
     }
 
-    private var rosterList: some View {
-        Group {
-            if filteredRoster.isEmpty {
-                ContentUnavailableView(
-                    search.isEmpty ? "No one on the roster yet" : "No matches",
-                    systemImage: "person.3",
-                    description: Text(search.isEmpty
-                        ? "Add students to the \(sportCode ?? "") roster from the web admin."
-                        : "Try a different name.")
-                )
-            } else {
-                List(filteredRoster) { entry in
-                    Button { Task { await assign(userId: entry.user.id) } } label: {
-                        AssignRow(
-                            name: entry.user.name,
-                            email: entry.user.email,
-                            primaryArea: entry.user.primaryArea,
-                            isAssigning: assigningUserId == entry.user.id,
-                            highlightArea: shiftArea
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(assigningUserId != nil)
-                }
-            }
-        }
-    }
-
-    private var fallbackList: some View {
-        // Used when the event has no sportCode — search the global user list.
-        Group {
-            if filteredFallback.isEmpty && search.isEmpty {
-                ContentUnavailableView(
-                    "Search to find someone",
-                    systemImage: "magnifyingglass",
-                    description: Text("Type a name to look up users to assign.")
-                )
-            } else if filteredFallback.isEmpty {
-                ContentUnavailableView("No matches", systemImage: "person.crop.circle.badge.questionmark")
-            } else {
-                List(filteredFallback) { user in
-                    Button { Task { await assign(userId: user.id) } } label: {
-                        AssignRow(
-                            name: user.name,
-                            email: user.email,
-                            primaryArea: nil,
-                            isAssigning: assigningUserId == user.id,
-                            highlightArea: shiftArea
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(assigningUserId != nil)
-                }
-            }
-        }
-    }
-
     private func load() async {
         isLoading = true
         loadError = nil
         do {
-            if let sportCode {
-                roster = try await APIClient.shared.sportRoster(sportCode: sportCode)
-            } else {
-                let resp = try await APIClient.shared.users(search: nil, limit: 50)
-                fallbackUsers = resp.data
-            }
+            let resp = try await APIClient.shared.users(search: nil, limit: 200)
+            users = resp.data
         } catch {
             loadError = error.localizedDescription
         }
