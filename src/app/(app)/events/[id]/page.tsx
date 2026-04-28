@@ -218,6 +218,10 @@ export default function EventDetailPage() {
           acting={acting}
           linkParams={{ titleParam, dateParam, endParam, locationParam, eventParam }}
           onManageShifts={() => setSelectedGroupId(shiftGroup.id)}
+          onUpdated={() => {
+            reloadShiftGroup();
+            if (isStaffOrAdmin) reloadCommandCenter();
+          }}
           onNudge={async (assignmentId, userName) => {
             if (acting) return;
             setActing(assignmentId);

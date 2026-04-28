@@ -1,13 +1,20 @@
 "use client";
 
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { PlusIcon, XIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 import { formatTimeShort } from "@/lib/format";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 
@@ -15,6 +22,7 @@ type ShiftCoverageCardProps = {
   shiftGroup: ShiftGroupSummary;
   commandCenter: CommandCenterData | null;
   currentUserRole: string;
+  /** ID of the action currently in flight (nudge guard from parent) */
   acting: string | null;
   linkParams: {
     titleParam: string;
@@ -25,6 +33,8 @@ type ShiftCoverageCardProps = {
   };
   onManageShifts: () => void;
   onNudge: (assignmentId: string, userName: string) => void;
+  /** Called after any inline assignment or removal so parent can reload */
+  onUpdated?: () => void;
 };
 
 export function ShiftCoverageCard({
@@ -35,9 +45,90 @@ export function ShiftCoverageCard({
   linkParams,
   onManageShifts,
   onNudge,
+  onUpdated,
 }: ShiftCoverageCardProps) {
   const { titleParam, dateParam, endParam, locationParam, eventParam } = linkParams;
   const isStaffOrAdmin = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
+
+  // ── User picker state ──
+  const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<PickerUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [inlineActing, setInlineActing] = useState<string | null>(null);
+  const usersAbortRef = useRef<AbortController | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    if (usersLoaded) return;
+    usersAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    usersAbortRef.current = ctrl;
+    setUsersLoading(true);
+    try {
+      const res = await fetch("/api/users?limit=200&active=true", { signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        const json = await res.json();
+        setAllUsers((json.data ?? json.users ?? []).map((u: Record<string, unknown>) => ({
+          id: u.id, name: u.name, role: u.role,
+          primaryArea: u.primaryArea ?? null, avatarUrl: u.avatarUrl ?? null,
+        })));
+        setUsersLoaded(true);
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    }
+    setUsersLoading(false);
+  }, [usersLoaded]);
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearch) return allUsers;
+    const q = userSearch.toLowerCase();
+    return allUsers.filter((u) => u.name.toLowerCase().includes(q));
+  }, [allUsers, userSearch]);
+
+  async function handleAssign(shiftId: string, userId: string) {
+    setPickerShiftId(null);
+    setInlineActing(shiftId);
+    try {
+      const res = await fetch("/api/shift-assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftId, userId }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Shift assigned");
+        onUpdated?.();
+      } else {
+        const msg = await parseErrorMessage(res, "Assignment failed");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setInlineActing(null);
+  }
+
+  async function handleRemove(assignmentId: string) {
+    setInlineActing(assignmentId);
+    try {
+      const res = await fetch(`/api/shift-assignments/${assignmentId}`, { method: "DELETE" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Assignment removed");
+        onUpdated?.();
+      } else {
+        const msg = await parseErrorMessage(res, "Remove failed");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error");
+    }
+    setInlineActing(null);
+  }
 
   const coverage = shiftGroup.coverage;
   const coverageVariant = !coverage
@@ -47,6 +138,79 @@ export function ShiftCoverageCard({
     : coverage.percentage > 0
     ? "orange"
     : "red";
+
+  // ── Inline assign cell (staff only) ──
+  function AssignCell({ shiftId, assignedName, assignmentId }: {
+    shiftId: string;
+    assignedName: string | null;
+    assignmentId: string | null;
+  }) {
+    const isActing = inlineActing === shiftId || inlineActing === (assignmentId ?? "");
+
+    if (assignedName && assignmentId) {
+      return (
+        <span className="flex items-center gap-2 group">
+          <Avatar className="size-6">
+            <AvatarFallback className="text-[10px] font-medium">
+              {getInitials(assignedName)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-sm">{assignedName}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => handleRemove(assignmentId)}
+                disabled={isActing || acting !== null}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive ml-0.5"
+                aria-label="Remove assignment"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Remove assignment</TooltipContent>
+          </Tooltip>
+        </span>
+      );
+    }
+
+    return (
+      <Popover
+        open={pickerShiftId === shiftId}
+        onOpenChange={(open) => {
+          if (open) { setPickerShiftId(shiftId); setUserSearch(""); loadUsers(); }
+          else setPickerShiftId(null);
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            className="group flex items-center gap-1.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors text-sm disabled:pointer-events-none"
+            disabled={isActing || acting !== null}
+          >
+            {isActing ? (
+              <span className="text-xs">Assigning…</span>
+            ) : (
+              <>
+                <div className="size-6 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/40 flex items-center justify-center transition-colors">
+                  <PlusIcon className="size-3 text-muted-foreground/30 group-hover:text-primary/60 transition-colors" />
+                </div>
+                <span className="group-hover:text-muted-foreground/80">Assign</span>
+              </>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" align="start">
+          <UserAvatarPicker
+            users={filteredUsers}
+            loading={usersLoading}
+            search={userSearch}
+            onSearchChange={setUserSearch}
+            onSelect={(userId) => handleAssign(shiftId, userId)}
+            disabled={inlineActing !== null}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   return (
     <Card className="mt-4">
@@ -64,7 +228,7 @@ export function ShiftCoverageCard({
         </Button>
       </CardHeader>
       <CardContent>
-        {/* Staff/admin: enhanced view with gear status */}
+        {/* Staff/admin: enhanced view with inline assignment + gear status */}
         {commandCenter && commandCenter.shifts.length > 0 && isStaffOrAdmin ? (
           <>
             {(commandCenter.gearSummary.byStatus.draft > 0 || commandCenter.gearSummary.byStatus.reserved > 0 || commandCenter.gearSummary.byStatus.checkedOut > 0 || commandCenter.gearSummary.byStatus.completed > 0) && (
@@ -104,7 +268,13 @@ export function ShiftCoverageCard({
                           {formatTimeShort(shift.startsAt)}
                         </span>
                       </TableCell>
-                      <TableCell>{shift.assignment ? shift.assignment.userName : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
+                      <TableCell>
+                        <AssignCell
+                          shiftId={shift.id}
+                          assignedName={shift.assignment?.userName ?? null}
+                          assignmentId={shift.assignment?.id ?? null}
+                        />
+                      </TableCell>
                       <TableCell>
                         {shift.assignment ? (
                           <Badge variant="green">Filled</Badge>
@@ -172,7 +342,7 @@ export function ShiftCoverageCard({
             )}
           </>
         ) : (
-          /* Non-staff: basic shift table */
+          /* Non-staff or no command center: basic shift table */
           <Table>
             <TableHeader>
               <TableRow>
@@ -202,7 +372,13 @@ export function ShiftCoverageCard({
                       </span>
                     </TableCell>
                     <TableCell>
-                      {activeAssignment ? (
+                      {isStaffOrAdmin ? (
+                        <AssignCell
+                          shiftId={shift.id}
+                          assignedName={activeAssignment?.user.name ?? null}
+                          assignmentId={activeAssignment?.id ?? null}
+                        />
+                      ) : activeAssignment ? (
                         <span className="flex items-center gap-2">
                           <Avatar className="size-6">
                             <AvatarFallback className="text-[10px] font-medium">
