@@ -108,6 +108,45 @@ struct DashboardData: Codable {
     let upcomingEvents: [DashboardUpcomingEvent]
 }
 
+// MARK: - Schedule bridges
+
+extension DashboardUpcomingEvent {
+    /// Convert to ScheduleEvent so EventDetailSheet can be presented from the dashboard.
+    var asScheduleEvent: ScheduleEvent {
+        ScheduleEvent(
+            id: id,
+            summary: title,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            allDay: allDay,
+            status: "CONFIRMED",
+            sportCode: sportCode,
+            opponent: opponent,
+            isHome: isHome,
+            location: locationId.map { EventLocation(id: $0, name: location ?? "") }
+        )
+    }
+}
+
+extension DashboardShift {
+    /// Convert the shift's event to ScheduleEvent so EventDetailSheet can be presented.
+    /// Uses shift.endsAt as a proxy for event end time (close enough for the detail view to load).
+    var asScheduleEvent: ScheduleEvent {
+        ScheduleEvent(
+            id: event.id,
+            summary: event.summary,
+            startsAt: event.startsAt,
+            endsAt: endsAt,
+            allDay: false,
+            status: "CONFIRMED",
+            sportCode: event.sportCode,
+            opponent: nil,
+            isHome: nil,
+            location: nil
+        )
+    }
+}
+
 /// Lightweight payload from `/api/dashboard/stats`. Used by AppState to refresh
 /// badges without re-running the heavy `/api/dashboard` query.
 struct DashboardStatsPayload: Codable {

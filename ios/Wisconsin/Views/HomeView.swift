@@ -42,6 +42,7 @@ struct HomeView: View {
     @State private var navigationPath = NavigationPath()
     @State private var pendingBookingId: String?
     @State private var pendingShowTrades = false
+    @State private var selectedScheduleEvent: ScheduleEvent?
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
     @Environment(KioskStore.self) private var kiosk
@@ -92,7 +93,7 @@ struct HomeView: View {
                 if vm.error != nil {
                     RefreshFailurePill(message: vm.error ?? "")
                 }
-                StatStrip(stats: dash.stats)
+                StatStrip(stats: dash.stats, onTap: { appState.selectedTab = 1 })
                 if !dash.overdueItems.isEmpty {
                     OverdueBanner(totalCount: dash.overdueCount, items: dash.overdueItems)
                 }
@@ -100,12 +101,17 @@ struct HomeView: View {
                     AllClearEmptyState()
                 }
                 if !dash.myShifts.isEmpty {
-                    DashboardCard(title: "My Upcoming Shifts") {
-                        ForEach(dash.myShifts) { shift in DashboardShiftRow(shift: shift) }
+                    DashboardCard(title: "My Upcoming Shifts", seeAllTab: 4, appState: appState) {
+                        ForEach(dash.myShifts) { shift in
+                            Button { selectedScheduleEvent = shift.asScheduleEvent } label: {
+                                DashboardShiftRow(shift: shift)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
                 if !dash.myCheckouts.items.isEmpty {
-                    DashboardCard(title: "My Checkouts") {
+                    DashboardCard(title: "My Checkouts", seeAllTab: 1, appState: appState) {
                         ForEach(dash.myCheckouts.items) { summary in
                             NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
                                 .buttonStyle(.plain)
@@ -113,7 +119,7 @@ struct HomeView: View {
                     }
                 }
                 if !dash.teamCheckouts.items.isEmpty {
-                    DashboardCard(title: "Team Checkouts") {
+                    DashboardCard(title: "Team Checkouts", seeAllTab: 1, appState: appState) {
                         ForEach(dash.teamCheckouts.items) { summary in
                             NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
                                 .buttonStyle(.plain)
@@ -121,7 +127,7 @@ struct HomeView: View {
                     }
                 }
                 if !dash.teamReservations.items.isEmpty {
-                    DashboardCard(title: "Upcoming Reservations") {
+                    DashboardCard(title: "Upcoming Reservations", seeAllTab: 1, appState: appState) {
                         ForEach(dash.teamReservations.items) { summary in
                             NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
                                 .buttonStyle(.plain)
@@ -129,12 +135,20 @@ struct HomeView: View {
                     }
                 }
                 if !dash.upcomingEvents.isEmpty {
-                    DashboardCard(title: "Upcoming Events") {
-                        ForEach(dash.upcomingEvents.prefix(6)) { event in EventSummaryRow(event: event) }
+                    DashboardCard(title: "Upcoming Events", seeAllTab: 4, appState: appState) {
+                        ForEach(dash.upcomingEvents.prefix(6)) { event in
+                            Button { selectedScheduleEvent = event.asScheduleEvent } label: {
+                                EventSummaryRow(event: event)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
             }
             .padding()
+        }
+        .sheet(item: $selectedScheduleEvent) { event in
+            EventDetailSheet(event: event, myShift: nil)
         }
     }
 
@@ -230,13 +244,14 @@ struct HomeView: View {
 
 private struct StatStrip: View {
     let stats: DashboardStats
+    let onTap: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
-            StatCell(value: stats.overdue, label: "Overdue", isAlert: stats.overdue > 0)
-            StatCell(value: stats.dueToday, label: "Due Today", isAlert: stats.dueToday > 0)
-            StatCell(value: stats.checkedOut, label: "Checked Out", isAlert: false)
-            StatCell(value: stats.reserved, label: "Reserved", isAlert: false)
+            StatCell(value: stats.overdue, label: "Overdue", isAlert: stats.overdue > 0, onTap: onTap)
+            StatCell(value: stats.dueToday, label: "Due Today", isAlert: stats.dueToday > 0, onTap: onTap)
+            StatCell(value: stats.checkedOut, label: "Checked Out", isAlert: false, onTap: onTap)
+            StatCell(value: stats.reserved, label: "Reserved", isAlert: false, onTap: onTap)
         }
     }
 }
@@ -245,24 +260,34 @@ private struct StatCell: View {
     let value: Int
     let label: String
     let isAlert: Bool
+    let onTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("\(value)")
-                .font(.title.weight(.bold))
-                .foregroundStyle(isAlert ? Color.red : Color.primary)
-                .contentTransition(.numericText())
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(value)")
+                    .font(.title.weight(.bold))
+                    .foregroundStyle(isAlert ? Color.red : Color.primary)
+                    .contentTransition(.numericText())
+                HStack(spacing: 2) {
+                    Text(label)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
-        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+        .buttonStyle(.plain)
     }
 }
 
@@ -384,15 +409,33 @@ private struct AllClearEmptyState: View {
 
 private struct DashboardCard<Content: View>: View {
     let title: String
+    var seeAllTab: Int? = nil
+    var appState: AppState? = nil
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.3)
+            HStack {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.3)
+                Spacer()
+                if let tab = seeAllTab, let appState {
+                    Button {
+                        appState.selectedTab = tab
+                    } label: {
+                        HStack(spacing: 2) {
+                            Text("See all")
+                                .font(.caption2)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .semibold))
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
             content()
         }
         .padding(16)

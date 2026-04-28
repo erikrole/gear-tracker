@@ -7,23 +7,28 @@ struct AppTabView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            TabView {
+            TabView(selection: Bindable(appState).selectedTab) {
                 HomeView()
                     .tabItem { Label("Home", systemImage: "house") }
+                    .tag(0)
 
                 BookingsView()
                     .tabItem { Label("Bookings", systemImage: "calendar.badge.checkmark") }
                     .badge(appState.overdueCount)
+                    .tag(1)
 
                 ItemsView()
                     .tabItem { Label("Items", systemImage: "archivebox") }
+                    .tag(2)
 
                 ScanView()
                     .tabItem { Label("Scan", systemImage: "barcode.viewfinder") }
+                    .tag(3)
 
                 ScheduleView()
                     .tabItem { Label("Schedule", systemImage: "calendar") }
                     .badge(appState.myShiftCount)
+                    .tag(4)
             }
 
             if !network.isConnected {

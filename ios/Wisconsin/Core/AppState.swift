@@ -12,6 +12,7 @@ final class AppState {
     var openTradeCount = 0
     var pendingPushBookingId: String?
     var pendingPushEventId: String?
+    var selectedTab: Int = 0
     private var isRefreshing = false
 
     func refresh() async {
