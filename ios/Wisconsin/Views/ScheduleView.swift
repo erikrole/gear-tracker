@@ -126,7 +126,6 @@ struct ScheduleView: View {
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
     @State private var toast: ScheduleToast?
-    @State private var showCalendarSubscribe = false
     @State private var isSubscribing = false
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
@@ -273,11 +272,12 @@ struct ScheduleView: View {
                         : "Trade Board")
 
                     Button {
-                        showCalendarSubscribe = true
+                        Task { await subscribeToCalendar() }
                     } label: {
-                        Image(systemName: "calendar.badge.plus")
+                        Image(systemName: isSubscribing ? "calendar" : "calendar.badge.plus")
                             .frame(minWidth: 44, minHeight: 44)
                     }
+                    .disabled(isSubscribing)
                     .accessibilityLabel("Subscribe to shifts in Calendar")
                 }
             }
@@ -318,19 +318,6 @@ struct ScheduleView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
-            .confirmationDialog(
-                "Subscribe to Shifts",
-                isPresented: $showCalendarSubscribe,
-                titleVisibility: .visible
-            ) {
-                Button(isSubscribing ? "Opening…" : "Open in Apple Calendar") {
-                    Task { await subscribeToCalendar() }
-                }
-                .disabled(isSubscribing)
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Your shifts will stay in sync automatically.")
-            }
             .sheet(isPresented: $showTradeBoard, onDismiss: {
                 Task { await appState.refresh() }
             }) {
@@ -362,9 +349,12 @@ struct ScheduleView: View {
             }
             let urlString = "webcal://gear.erikrole.com/api/shifts/ics/\(token)"
             guard let url = URL(string: urlString) else { return }
-            await UIApplication.shared.open(url)
+            let opened = await UIApplication.shared.open(url)
+            if opened {
+                toast = ScheduleToast(message: "Opening Apple Calendar…", icon: "calendar.badge.checkmark")
+            }
         } catch {
-            toast = ScheduleToast(message: "Couldn't generate calendar link", icon: "exclamationmark.triangle")
+            toast = ScheduleToast(message: error.localizedDescription, icon: "exclamationmark.triangle")
         }
     }
 
@@ -808,10 +798,23 @@ struct EventRow: View {
             case nil:   parts.append("- \(opponent)")
             }
         }
-        let title = parts.isEmpty ? event.summary : parts.joined(separator: " ")
-        return title.components(separatedBy: .whitespaces)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        if !parts.isEmpty {
+            return parts.joined(separator: " ")
+        }
+        return Self.cleanSummary(event.summary ?? "")
+    }
+
+    private static func cleanSummary(_ raw: String) -> String {
+        var s = raw
+        // Strip leading home/away bracket: [W], [L], [H], [A], [N], etc.
+        s = s.replacingOccurrences(of: #"^\[[A-Za-z]\]\s*"#, with: "", options: .regularExpression)
+        // Strip "Wisconsin Badgers " or "Wisconsin " team prefix
+        s = s.replacingOccurrences(of: #"^Wisconsin Badgers\s+"#, with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"^Wisconsin\s+"#, with: "", options: .regularExpression)
+        // Strip trailing annotation like " (VIDEO)"
+        s = s.replacingOccurrences(of: #"\s+\([A-Z]+\)$"#, with: "", options: .regularExpression)
+        // Collapse extra whitespace
+        return s.components(separatedBy: .whitespaces).filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     var body: some View {
